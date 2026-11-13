@@ -230,8 +230,8 @@ async function boot() {
   const hooksFor = (speaker: string): TaskHooks => ({
     prompt: (key) => { void line(key, 0, speaker); },
     number: (n) => { void say(`tap_${n}`, String(n)); },
-    wrong: () => { sfx('soft'); void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз'); },
-    hint: (key) => { bubble(key, 0, '🐱'); },
+    wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз'); },
+    hint: (key) => line(key, 0, '🐱'),
     good: () => sfx('pop'),
   });
 
@@ -257,8 +257,9 @@ async function boot() {
             bf.done({ solved: true, wrong: bf.wrong });
           }, 700);
         } else {
-          btn.classList.add('no'); bf.wrong++; sfx('soft');
-          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз').then(() => { if (bf.active) void demoCount(); });
+          btn.classList.add('no'); sfx('soft');
+          const round = ++bf.wrong;            // a newer mistake cuts "try again" off and starts its own round
+          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
         }
       });
     });
@@ -275,9 +276,16 @@ async function boot() {
     sfx('pop');
     void say(`tap_${bf.counted}`, String(bf.counted));
   }
-  /** Hint after a miss: the cat counts every butterfly aloud, one by one. */
+  /**
+   * Hint after a miss: the cat says "let's count together" to the end, then counts every butterfly aloud, one by one.
+   * Answers are open while the hint is spoken; a line that was cut off settles at once too, so the count starts
+   * only if the task is still open, the mistake is still the latest one and no count is running.
+   */
   async function demoCount() {
-    bf.demo = true; bubble('h_count');
+    const round = bf.wrong;
+    await line('h_count');
+    if (!bf.active || bf.demo || bf.wrong !== round) return;
+    bf.demo = true;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
     for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await new Promise((r) => setTimeout(r, 850)); }

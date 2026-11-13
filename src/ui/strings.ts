@@ -106,6 +106,7 @@ const SPOKEN = {
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   t_stars: 'warm', t_stars_back: 'joy',
+  h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
   all_shards: 'joy', final_text: 'joy',
 } as const satisfies Partial<Record<Key, VoiceStyle>>;
 export type SpokenKey = keyof typeof SPOKEN;
