@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#cfe8ff"><canvas id="c" width="1500" height="700"></canvas>
+<script type="module">
+// Dev-only character combination preview: http://localhost:5173/tools/preview.html
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search);
+const L = new GLTFLoader(), load = (n) => L.loadAsync('/models/hero/' + n);
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#cfe8ff');
+scene.add(new THREE.HemisphereLight('#d6ecff', '#d2dcae', 1.3));
+const sun = new THREE.DirectionalLight('#fff1d6', 2.4); sun.position.set(2, 4, 5); scene.add(sun);
+const cam = new THREE.PerspectiveCamera(30, 1500 / 700, 0.1, 100); cam.position.set(0, +(q.get('y') || 1.0), +(q.get('d') || 9.5)); cam.lookAt(0, +(q.get('y') || 0.9), 0);
+const anims = (await load('UAL1.glb')).animations;
+const clip = q.get('clip') || 'Idle_Loop', yaw = +(q.get('yaw') || 0);
+const combos = [
+  { hair: 'Hair_Long', head: 1.0, hue: null, hc: '#ffffff' },
+  { hair: 'Hair_Long', head: 1.2, hue: 0.92, hc: '#8a5a3a' },
+  { hair: 'Hair_Buns', head: 1.2, hue: 0.75, hc: '#f5d16b' },
+  { hair: 'Hair_SimpleParted', head: 1.2, hue: 0.55, hc: '#ff8a5c' },
+  { hair: 'Hair_Buns', head: 1.3, hue: 0.92, hc: '#3b2a3a' },
+  { hair: 'Hair_Long', head: 1.3, hue: 0.12, hc: '#ff9ed2' },
+];
+function recolor(tex, hue) {
+  const img = tex.image, c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, col = new THREE.Color(), hsl = {};
+  for (let i = 0; i < p.length; i += 4) {
+    col.setRGB(p[i] / 255, p[i + 1] / 255, p[i + 2] / 255).getHSL(hsl);
+    if (hsl.h > 0.19 && hsl.h < 0.48 && hsl.s > 0.18) {
+      col.setHSL(hue, Math.min(1, hsl.s * 1.05), Math.min(0.85, hsl.l * 1.9 + 0.12));
+      p[i] = col.r * 255; p[i + 1] = col.g * 255; p[i + 2] = col.b * 255;
+    }
+  }
+  g.putImageData(d, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.flipY = false; t.colorSpace = tex.colorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT;
+  return t;
+}
+/** Keeps only the triangles driven mostly by the given bones (used to cut the head off the full base body). */
+function keepBones(mesh, names) {
+  const ids = new Set(mesh.skeleton.bones.map((b, i) => names.includes(b.name) ? i : -1).filter((i) => i >= 0));
+  const g = mesh.geometry, si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight'), idx = g.index.array, out = [];
+  const w = (v) => { let s = 0; for (let k = 0; k < 4; k++) if (ids.has(si.getComponent(v, k))) s += sw.getComponent(v, k); return s; };
+  for (let i = 0; i < idx.length; i += 3) if (w(idx[i]) + w(idx[i + 1]) + w(idx[i + 2]) > 1.2) out.push(idx[i], idx[i + 1], idx[i + 2]);
+  g.setIndex(out);
+}
+const mixers = [];
+for (const [i, c] of combos.entries()) {
+  const base = (await load('Superhero_Female_FullBody.gltf')).scene;
+  const bones = {}; base.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  const arm = base.getObjectByName('Armature');
+  base.traverse((o) => { if (o.isSkinnedMesh && o.name.startsWith('Superhero')) keepBones(o, ['Head', 'neck_01']); if (o.isSkinnedMesh && o.name === 'Eyebrows') o.visible = false; });
+  for (const p of ['Female_Ranger', c.hair, 'Eyebrows_Female']) {
+    const g = (await load(p + '.gltf')).scene;
+    const meshes = []; g.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
+    for (const m of meshes) {
+      if (/Hood|Pauldron/.test(m.name) || /Hood|Pauldron/.test(m.parent.name)) continue;
+      m.bind(new THREE.Skeleton(m.skeleton.bones.map((b) => bones[b.name]), m.skeleton.boneInverses), m.bindMatrix); arm.add(m);
+      if (m.material.name === 'MI_Ranger' && c.hue !== null) { m.material = m.material.clone(); m.material.map = recolor(m.material.map, c.hue); }
+      if (m.material.name.startsWith('MI_Hair')) { m.material = m.material.clone(); m.material.color.set(c.hc); }
+    }
+  }
+  base.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  base.position.x = (i - (combos.length - 1) / 2) * 1.55; base.rotation.y = yaw;
+  scene.add(base);
+  const mx = new THREE.AnimationMixer(base); mx.clipAction(anims.find((a) => a.name === clip)).play(); mx.update(+(q.get('t') || 0.5));
+  bones.Head.scale.setScalar(c.head);
+}
+r.render(scene, cam); window.done = true;
+</script>

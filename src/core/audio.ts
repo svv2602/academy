@@ -1,0 +1,119 @@
+/** Voice clips (pre-recorded Ukrainian), synthesized SFX and a soft generative music bed. */
+let ctx: AudioContext | null = null;
+let musicGain: GainNode, sfxGain: GainNode;
+let current: HTMLAudioElement | null = null;
+const base = import.meta.env.BASE_URL;
+
+export const volume = { music: 0.5, sfx: 0.8, voice: 1 };
+
+export function unlockAudio() {
+  if (ctx) { void ctx.resume(); return; }
+  const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AC) return;
+  ctx = new AC();
+  musicGain = ctx.createGain(); musicGain.gain.value = volume.music * 0.22; musicGain.connect(ctx.destination);
+  sfxGain = ctx.createGain(); sfxGain.gain.value = volume.sfx * 0.5; sfxGain.connect(ctx.destination);
+  startMusic();
+}
+
+/** Plays `voice/<id>.mp3`; if the clip is missing, falls back to the device's Ukrainian speech synthesis. */
+export function say(id: string, text: string): Promise<void> {
+  stopVoice();
+  return new Promise((resolve) => {
+    const a = new Audio(`${base}voice/${id}.mp3`);
+    a.volume = volume.voice;
+    current = a;
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    a.onended = finish;
+    a.onerror = () => { speak(text).then(finish); };
+    a.play().catch(() => { if (!done && a.error) return; finish(); });
+    setTimeout(finish, 15000);
+  });
+}
+
+function speak(text: string): Promise<void> {
+  return new Promise((resolve) => {
+    const readTime = 900 + text.length * 55;
+    const voice = 'speechSynthesis' in window ? speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith('uk')) : undefined;
+    if (!voice) { setTimeout(resolve, readTime); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = voice; u.lang = 'uk-UA'; u.rate = 0.9; u.pitch = 1.3; u.volume = volume.voice;
+    u.onend = () => resolve(); u.onerror = () => resolve();
+    speechSynthesis.speak(u);
+    setTimeout(resolve, 12000);
+  });
+}
+
+export function stopVoice() {
+  if (current) { current.onended = null; current.onerror = null; current.pause(); current = null; }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+function tone(freq: number, t0: number, dur: number, type: OscillatorType, peak: number, out: AudioNode) {
+  if (!ctx) return;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(peak, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0005, t0 + dur);
+  o.connect(g); g.connect(out);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+
+export function sfx(kind: 'pop' | 'chime' | 'good' | 'soft' | 'fanfare' | 'jump') {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const seq: Record<string, [number, number, number][]> = {
+    pop: [[660, 0, 0.12]],
+    jump: [[392, 0, 0.1], [523, 0.05, 0.14]],
+    chime: [[1047, 0, 0.5], [1319, 0.08, 0.5], [1568, 0.16, 0.7]],
+    good: [[784, 0, 0.25], [988, 0.1, 0.25], [1175, 0.2, 0.5]],
+    soft: [[440, 0, 0.3], [392, 0.14, 0.4]],
+    fanfare: [[523, 0, 0.4], [659, 0.15, 0.4], [784, 0.3, 0.4], [1047, 0.45, 0.9], [1319, 0.75, 1.2], [1568, 0.9, 1.6]],
+  };
+  for (const [f, at, dur] of seq[kind]) {
+    tone(f, t + at, dur, 'sine', 0.5, sfxGain);
+    tone(f * 2, t + at, dur * 0.6, 'triangle', 0.12, sfxGain);
+  }
+}
+
+/** Slow pentatonic bells over a quiet pad: endless, never repeats exactly, costs nothing to ship. */
+function startMusic() {
+  if (!ctx) return;
+  const c = ctx;
+  const delay = c.createDelay(1); delay.delayTime.value = 0.42;
+  const fb = c.createGain(); fb.gain.value = 0.35;
+  delay.connect(fb); fb.connect(delay); delay.connect(musicGain);
+  const scale = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3, 784];
+  const chords = [[130.8, 196, 329.6], [110, 164.8, 261.6], [87.3, 174.6, 261.6], [98, 196, 293.7]];
+  let next = c.currentTime + 0.3, bar = 0, idx = 4;
+  const schedule = () => {
+    while (next < c.currentTime + 1.5) {
+      if (bar % 8 === 0) {
+        for (const f of chords[(bar / 8) % chords.length]) {
+          const o = c.createOscillator(), g = c.createGain();
+          o.type = 'sine'; o.frequency.value = f;
+          g.gain.setValueAtTime(0, next);
+          g.gain.linearRampToValueAtTime(0.16, next + 1.5);
+          g.gain.linearRampToValueAtTime(0, next + 4.6);
+          o.connect(g); g.connect(musicGain); o.start(next); o.stop(next + 4.7);
+        }
+      }
+      if (Math.random() < 0.62) {
+        idx = Math.max(0, Math.min(scale.length - 1, idx + Math.floor(Math.random() * 5) - 2));
+        tone(scale[idx], next, 1.4, 'sine', 0.3, musicGain);
+        tone(scale[idx], next, 1.4, 'sine', 0.18, delay);
+      }
+      next += 0.55; bar++;
+    }
+  };
+  schedule();
+  setInterval(schedule, 400);
+}
+
+export function setVolumes() {
+  if (!ctx) return;
+  musicGain.gain.value = volume.music * 0.22;
+  sfxGain.gain.value = volume.sfx * 0.5;
+}

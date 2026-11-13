@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#8fd0ff">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>Академія чарівних світів</title>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="pill"><span>⭐</span><b id="stars">0</b></div>
+    <div class="pill"><span>💎</span><b id="crystals">0/1</b></div>
+  </div>
+  <div id="fps"></div>
+
+  <div id="bubble" class="hidden"><div class="cat">🐱</div><p id="bubbleText"></p></div>
+  <div id="answers" class="hidden"></div>
+
+  <div id="joy"><div id="knob"></div></div>
+  <button id="btnJump" class="round hidden" aria-label="jump">⬆</button>
+  <button id="btnAct" class="round hidden"></button>
+
+  <div id="fanfare" class="hidden">
+    <div class="card">
+      <div class="rays"></div>
+      <div class="gem">💎</div>
+      <h2 id="fanfareTitle"></h2>
+      <p id="fanfareText"></p>
+      <button id="fanfareOk" class="big"></button>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="panel">
+      <h1 id="title"></h1>
+      <h3 id="subtitle"></h3>
+      <div id="loading"><div id="bar"></div><span id="loadingText"></span></div>
+      <div id="setup" class="hidden">
+        <div class="row"><span id="lblName"></span><input id="name" maxlength="20" autocomplete="off" autocapitalize="words"></div>
+        <div class="row"><span id="lblDress"></span><div id="dress" class="swatches"></div></div>
+        <div class="row"><span id="lblHair"></span><div id="hair" class="swatches"></div></div>
+        <div class="row"><span id="lblStyle"></span><div id="style" class="styles"></div></div>
+        <button id="play" class="big"></button>
+        <button id="restart" class="link hidden"></button>
+      </div>
+      <div id="langs"><button data-lang="uk">UA</button><button data-lang="ru">RU</button></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
