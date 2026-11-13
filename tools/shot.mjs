@@ -357,6 +357,11 @@ try {
     if (unchecked.length) errors.push(`no deliberate mistake was made in: ${unchecked.join(', ')}`);
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
+    // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
+    const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)] }));
+    console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
+    if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
+    if (!voice.clips) errors.push('not a single voice clip sounded during the walkthrough');
     console.log('fps:', await page.textContent('#fps'));
     // the start screen of a returning player: the saved game adds the "start again" button
     await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); await wait(1500); await shot('40-start-again');

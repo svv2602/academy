@@ -16,6 +16,7 @@ const EN: FakeVoice = { name: 'English', lang: 'en-US' };
 class FakeAudio {
   static made: FakeAudio[] = [];
   static blocked = false;                     // play() rejects, like a browser refusing autoplay
+  onplaying: (() => void) | null = null;
   onended: (() => void) | null = null;
   onerror: (() => void) | null = null;
   volume = 1;
@@ -24,6 +25,7 @@ class FakeAudio {
   constructor(public src: string) { FakeAudio.made.push(this); }
   play(): Promise<void> { return FakeAudio.blocked ? Promise.reject(new Error('NotAllowedError')) : Promise.resolve(); }
   pause() { this.paused = true; }
+  start() { this.onplaying?.(); }
   end() { this.onended?.(); }
   fail() { this.error = { code: 4 }; this.onerror?.(); }
 }
@@ -426,6 +428,23 @@ describe('say: recorded clips', () => {
     synth.spoken[0].onend?.();
     await tick(0);
     expect(a.done).toBe(true);
+  });
+
+  it('the voice log counts the clips that sounded and names the lines left to the synthesizer', async () => {
+    const { say, stopVoice, voiceLog } = await load(fakeSynth([UK]));
+    void say(CLIP_A, 'один');
+    expect(voiceLog).toEqual({ clips: 0, synth: [] });   // asked for, not sounding yet
+    FakeAudio.made[0].start();
+    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    void say('no_clip_a', TEXT);                         // no recording at all
+    void say(CLIP_B, 'два');
+    FakeAudio.made[1].fail();                            // the recording did not load
+    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
+    void say(CLIP_A, 'один');
+    stopVoice();
+    FakeAudio.made[2].start();                           // a stray event of an interrupted clip
+    FakeAudio.made[2].fail();
+    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
   });
 
   it('settles at once when the browser refuses to play', async () => {

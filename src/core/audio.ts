@@ -14,6 +14,8 @@ let listWaited = false;
 const base = import.meta.env.BASE_URL;
 
 export const volume = { music: 0.5, sfx: 0.8, voice: 1 };
+/** What the voice did in this session, for the walkthrough: clips that started to sound, and the ids of the lines left to the synthesizer. */
+export const voiceLog = { clips: 0, synth: [] as string[] };
 
 export function unlockAudio() {
   if (ctx) { void ctx.resume(); return; }
@@ -41,12 +43,13 @@ export function say(id: string, text: string): Spoken {
     const finish = () => { done = true; resolve(); };
     const live = () => !done;
     endLine = finish;
-    if (!recorded.has(id)) { speak(text, finish, live); return; }
+    if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
     const a = new Audio(`${base}voice/${id}.mp3`);
     a.volume = volume.voice;
     current = a;
+    a.onplaying = () => { voiceLog.clips++; };
     a.onended = finish;
-    a.onerror = () => { speak(text, finish, live); };
+    a.onerror = () => { voiceLog.synth.push(id); speak(text, finish, live); };
     a.play().catch(() => { if (!done && a.error) return; finish(); });
     setTimeout(finish, 15000);
   }) as Spoken;
@@ -95,7 +98,7 @@ function withVoice(use: (voice: SpeechSynthesisVoice | null) => void) {
 
 export function stopVoice() {
   const end = endLine; endLine = null;
-  if (current) { current.onended = null; current.onerror = null; current.pause(); current = null; }
+  if (current) { current.onplaying = null; current.onended = null; current.onerror = null; current.pause(); current = null; }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   end?.();
 }

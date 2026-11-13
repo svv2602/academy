@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
-import { say, setVolumes, sfx, stopVoice, unlockAudio, volume } from './core/audio';
+import { say, setVolumes, sfx, stopVoice, unlockAudio, voiceLog, volume } from './core/audio';
 import { initInput, input, pollInput } from './core/input';
 import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
 import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
@@ -674,7 +674,7 @@ async function boot() {
 
   // Test/debug hook.
   (window as unknown as Record<string, unknown>).__game = {
-    hero, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf,
+    hero, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog,
     get busy() { return busy; },
     teleport(x: number, z: number) { hero.root.position.set(x, groundY(x, z), z); },
     closeup(d: number | null) { camOverride = d; },
