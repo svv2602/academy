@@ -2,7 +2,7 @@
 export const input = {
   moveX: 0, moveY: 0,          // camera-relative, -1..1 (Y forward)
   jump: false, act: false,     // edge-triggered, consumed by the game loop
-  lookDX: 0,                   // camera yaw drag accumulated this frame (px)
+  lookDX: 0, lookDY: 0,        // camera drag accumulated this frame (px): yaw and pitch
   tap: null as { x: number; y: number } | null,
   touch: false,
 };
@@ -23,14 +23,14 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   addEventListener('blur', () => keys.clear());
 
   // One pointer may steer (left half on touch), another may look around; a short press is a tap.
-  let stick: { id: number; x: number; y: number } | null = null;
+  let stick: { id: number; x: number; y: number; t: number; moved: boolean } | null = null;
   let look: { id: number; x: number; y: number; sx: number; sy: number; t: number; moved: boolean } | null = null;
   const R = 56;
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
     if (input.touch && e.clientX < innerWidth * 0.4 && !stick) {
-      stick = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
       joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; joy.classList.add('on');
       knob.style.transform = 'translate(-50%,-50%)';
     } else if (!look) {
@@ -41,17 +41,22 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
     if (stick && e.pointerId === stick.id) {
       let dx = e.clientX - stick.x, dy = e.clientY - stick.y;
       const d = Math.hypot(dx, dy);
+      if (d > 12) stick.moved = true;
       if (d > R) { dx *= R / d; dy *= R / d; }
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       stickX = dx / R; stickY = -dy / R;
     } else if (look && e.pointerId === look.id) {
       if (Math.hypot(e.clientX - look.sx, e.clientY - look.sy) > 10) look.moved = true;
-      if (look.moved) input.lookDX += e.clientX - look.x;
+      if (look.moved) { input.lookDX += e.clientX - look.x; input.lookDY += e.clientY - look.y; }
       look.x = e.clientX; look.y = e.clientY;
     }
   });
   const end = (e: PointerEvent) => {
-    if (stick && e.pointerId === stick.id) { stick = null; stickX = stickY = 0; joy.classList.remove('on'); }
+    if (stick && e.pointerId === stick.id) {
+      // A short press on the joystick side that never became a drag is a tap-to-walk, same as anywhere else.
+      if (!stick.moved && performance.now() - stick.t < 450 && e.type === 'pointerup') input.tap = { x: e.clientX, y: e.clientY };
+      stick = null; stickX = stickY = 0; joy.classList.remove('on');
+    }
     else if (look && e.pointerId === look.id) {
       if (!look.moved && performance.now() - look.t < 450 && e.type === 'pointerup') input.tap = { x: e.clientX, y: e.clientY };
       look = null;

@@ -208,6 +208,7 @@ async function boot() {
   const cam = { yaw: 0, pitch: 0.36, dist: 6.2, target: new THREE.Vector3(), focus: null as THREE.Vector3 | null };
   cam.target.copy(hero.root.position);
   let camOverride: number | null = null;
+  let userPitch = 0.36;             // set by dragging up/down
   let glow = save.final ? 1 : 0;
   let finale = 0;                   // >0 while the shards merge into the crystal
   const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
@@ -445,6 +446,7 @@ async function boot() {
     const canMove = started() && !busy && !paused;
 
     cam.yaw -= input.lookDX * 0.006; input.lookDX = 0;
+    userPitch = clamp(userPitch + input.lookDY * 0.004, 0.06, 1.15); input.lookDY = 0;
 
     // taps: count a butterfly, or walk to a spot / point on the ground
     if (input.tap && started() && !paused) {
@@ -630,7 +632,7 @@ async function boot() {
       else v.set(hp.x, hp.y + 1.5, hp.z);
       cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
       cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camera.aspect < 1 ? 8 : 6.2), damp(3, dt));
-      cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : 0.36, damp(3, dt));
+      cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : userPitch, damp(cam.focus ? 3 : 10, dt));
     }
     camera.position.set(
       cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,
