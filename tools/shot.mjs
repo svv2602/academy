@@ -12,8 +12,12 @@
 //   E2E_GL=gl|swiftshader   gl (default): real GPU; swiftshader: software rendering, for machines without a GPU
 //   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
 //   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
+//   E2E_OFFLINE=1           play without network: after the first load wait until the service worker is active and
+//                           its whole precache list is in the cache, switch the network off, reload and play as
+//                           usual. Needs the built game (the development server has no service worker)
+//   E2E_MODELS_OUT=<file>   write the sorted JSON list of model files the page requested (see tools/models-used.json)
 import { chromium } from 'playwright-core';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 
 const [url = 'http://localhost:5173/', out = 'shots', mode = 'desktop'] = process.argv.slice(2);
 const GL_ARGS = {
@@ -27,8 +31,11 @@ const usage = (msg) => { console.error(msg); process.exit(2); };
 if (!GL_ARGS[gl]) usage(`unknown E2E_GL="${gl}": use "gl" (real GPU, default) or "swiftshader" (software rendering)`);
 if (!(slow > 0)) usage(`bad E2E_SLOW="${process.env.E2E_SLOW}": expected a positive number`);
 if (!(stuckMs > 0)) usage(`bad E2E_STUCK_MS="${process.env.E2E_STUCK_MS}": expected a positive number of milliseconds`);
-let origin, host;
-try { ({ origin, hostname: host } = new URL(url)); } catch { usage(`bad url "${url}"`); }
+if (!['', '0', '1'].includes(process.env.E2E_OFFLINE ?? '')) usage(`bad E2E_OFFLINE="${process.env.E2E_OFFLINE}": expected 1 (play without network) or 0`);
+const offline = process.env.E2E_OFFLINE === '1';
+const modelsOut = process.env.E2E_MODELS_OUT || '';
+let origin, host, basePath;
+try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
 
 mkdirSync(out, { recursive: true });
@@ -45,6 +52,8 @@ const errors = [];
 let nRequests = 0;
 const cancelled = [];
 const origins = new Set();
+const models = new Set();   // model files requested by the page, as paths under the site root: models/…
+let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
 try {
   const ctx = await browser.newContext(mode === 'mobile'
     ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }
@@ -59,6 +68,9 @@ try {
     const u = r.url();
     if (!/^(data|blob):/.test(u)) { try { origins.add(new URL(u).origin); } catch { origins.add(u); } }
     if (!own(u)) errors.push(`external request: ${r.method()} ${u} (${r.resourceType()})`);
+    // Model files the PAGE asked for. The service worker downloads its whole precache list when it installs, needed
+    // or not, so its own requests say nothing about what the game uses and are left out.
+    if (!r.serviceWorker() && u.startsWith(origin + basePath + 'models/')) models.add(decodeURIComponent(new URL(u).pathname.slice(basePath.length)));
   });
   ctx.on('requestfailed', (r) => {
     if (!own(r.url())) return;                       // already reported as an external request
@@ -95,10 +107,47 @@ try {
     });
     for (const f of found) errors.push(`external link ${f} (${where})`);
   };
+  // ---- offline: the network may be switched off only when the service worker can serve the whole game ----
+  // Ready means: the worker is activated and controls this page, nothing newer is installing or waiting, and every
+  // address of its precache list (read from the worker script itself) is in the cache. Returns the number of files.
+  const waitForOfflineCache = async () => {
+    const probe = () => g(async () => {
+      if (!('serviceWorker' in navigator)) return { why: 'this page has no service worker support (not a secure context?)' };
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) return { none: true, why: 'no service worker is registered on this address' };
+      const settled = reg.active?.state === 'activated' && !reg.installing && !reg.waiting && !!navigator.serviceWorker.controller;
+      if (!settled) return { why: `worker state: active=${reg.active?.state ?? 'none'}, installing=${!!reg.installing}, waiting=${!!reg.waiting}, controls the page=${!!navigator.serviceWorker.controller}` };
+      const src = await (await fetch(reg.active.scriptURL, { cache: 'no-store' })).text();
+      const list = [...new Set([...src.matchAll(/\{url:"([^"]+)",revision:/g)].map((m) => new URL(m[1], reg.scope).href))];
+      if (!list.length) return { fatal: true, why: `cannot read the precache list from ${reg.active.scriptURL}` };
+      const missing = [];
+      for (const u of list) if (!(await caches.match(u, { ignoreSearch: true }))) missing.push(u);
+      return missing.length ? { why: `${missing.length} of ${list.length} files are not in the cache yet, e.g. ${missing[0]}` } : { files: list.length };
+    });
+    const t0 = Date.now();
+    for (;;) {
+      const st = await probe();
+      if (st.files) return st.files;
+      // The registration is made on the window "load" event, long before the start button shows up: no registration
+      // a few seconds later means there will be none (the development server), so do not wait the whole limit.
+      const limit = st.none ? T(5000) : T(120000);
+      if (st.fatal || Date.now() - t0 > limit) {
+        throw new Error(`service worker did not become ready: ${st.why}`
+          + (st.none ? ' — E2E_OFFLINE=1 needs the built game (npm run e2e); the development server has no service worker' : ''));
+      }
+      await page.waitForTimeout(250);
+    }
+  };
 
   try {
     await page.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
     await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+    if (offline) {
+      cachedFiles = await waitForOfflineCache();
+      await ctx.setOffline(true);
+      await page.reload();
+      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+    }
     await wait(1500); await shot('00-start'); await checkLinks('start screen');
     await page.click('#play');
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
@@ -164,6 +213,9 @@ try {
 } finally {
   await browser.close().catch(() => {});
 }
+if (modelsOut) writeFileSync(modelsOut, JSON.stringify([...models].sort(), null, 2) + '\n');
+console.log(`offline: ${offline ? `yes, files in the cache: ${cachedFiles ?? 'unknown (the network was never switched off)'}` : 'no'}`);
+console.log(`model files requested by the page: ${models.size}`);
 console.log(`requests: ${nRequests}, origins: ${origins.size}` + (cancelled.length ? `, cancelled by the browser: ${cancelled.length}` : ''));
 // the tolerated cancellations stay visible: which requests they were
 for (const u of cancelled.slice(0, 5)) console.log(`  cancelled (not an error): ${u}`);

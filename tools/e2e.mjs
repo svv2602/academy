@@ -1,23 +1,31 @@
-// The pre-publish gate: npm run e2e [-- --skip-build] [--mode mobile|desktop] [--bail]
+// The pre-publish gate: npm run e2e [-- --skip-build] [--mode mobile|desktop] [--bail] [--update-models]
 // Builds the game, serves the build on localhost, plays the whole world in phone and desktop sizes
 // (tools/shot.mjs, one process per size), checks that no .html in dist/ links to another site, stops the server
-// and prints a summary table. Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
+// and prints a summary table. The desktop walkthrough is played WITHOUT NETWORK after the first load (the installed
+// game must work offline); the phone one is played online. The model files the page requested in both walkthroughs
+// must be exactly tools/models-used.json.
+// Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
 // 130 / 143 — interrupted (the server is stopped in that case too).
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
-Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop -> dist links -> stop server.
-The exit code is non-zero if any step fails.
+Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> models used -> dist links
+-> stop server. The exit code is non-zero if any step fails.
+The desktop walkthrough goes without network: after the first load it waits for the service worker and its cache,
+switches the network off, reloads and plays the whole world; any request that fails then is an error.
+"models used" compares the model files the page requested in both walkthroughs with tools/models-used.json.
 
 Flags:
   --skip-build            reuse the existing dist/ (fails if dist/index.html is missing)
-  --mode mobile|desktop   play one size only (default: both, one after the other)
+  --mode mobile|desktop   play one size only (default: both, one after the other); "models used" is skipped then
   --bail                  stop at the first failed step (default: run every step to show everything broken)
+  --update-models         rewrite tools/models-used.json from this run instead of comparing (needs both sizes);
+                          use it after adding or removing a model, then commit the file
   --help                  this text
 
 Environment (passed on to tools/shot.mjs unchanged):
@@ -30,7 +38,10 @@ Environment (this script):
   E2E_RUN_TIMEOUT_MS=<ms> hard limit for one walkthrough process (default 1200000)`;
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const opts = { skipBuild: false, bail: false, modes: ['mobile', 'desktop'] };
+const opts = { skipBuild: false, bail: false, updateModels: false, modes: ['mobile', 'desktop'] };
+// Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
+const OFFLINE_MODES = ['desktop'];
+const MODELS_FILE = 'tools/models-used.json';
 const argv = process.argv.slice(2);
 const usage = (msg) => { console.error(`[e2e] ${msg}\n\n${HELP}`); process.exit(2); };
 
@@ -48,12 +59,14 @@ for (let i = 0; i < argv.length; i++) {
   if (a === '--help' || a === '-h') { console.log(HELP); process.exit(0); }
   else if (a === '--skip-build') opts.skipBuild = true;
   else if (a === '--bail') opts.bail = true;
+  else if (a === '--update-models') opts.updateModels = true;
   else if (a === '--mode' || a.startsWith('--mode=')) {
     const m = a === '--mode' ? argv[++i] : a.slice('--mode='.length);
     if (m !== 'mobile' && m !== 'desktop') usage(`bad --mode "${m}": expected mobile or desktop`);
     opts.modes = [m];
   } else usage(`unknown argument "${a}"`);
 }
+if (opts.updateModels && opts.modes.length < 2) usage('--update-models needs both sizes: do not combine it with --mode');
 const firstPort = Number(process.env.E2E_PORT || 4183);
 const runTimeoutMs = Number(process.env.E2E_RUN_TIMEOUT_MS || 1200000);
 if (!Number.isInteger(firstPort) || firstPort < 1 || firstPort > 65000) usage(`bad E2E_PORT "${process.env.E2E_PORT}"`);
@@ -67,8 +80,8 @@ const killTree = (cp, sig) => {
   if (!alive(cp)) return;
   try { process.kill(-cp.pid, sig); } catch { try { cp.kill(sig); } catch { /* already gone */ } }
 };
-const run = (cmd, args, timeoutMs = 0) => new Promise((res, rej) => {
-  const cp = job = spawn(cmd, args, { cwd: root, stdio: 'inherit', env: process.env, detached: true });
+const run = (cmd, args, timeoutMs = 0, env = process.env) => new Promise((res, rej) => {
+  const cp = job = spawn(cmd, args, { cwd: root, stdio: 'inherit', env, detached: true });
   let timedOut = false;
   const timer = timeoutMs ? setTimeout(() => { timedOut = true; killTree(cp, 'SIGKILL'); }, timeoutMs) : null;
   cp.on('error', (e) => { clearTimeout(timer); job = null; rej(e); });
@@ -143,10 +156,43 @@ async function stopServer() {
   return `pid ${pid} stopped`;
 }
 
+const walkthroughName = (mode) => `walkthrough ${mode}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}`;
+const modelsOut = (mode) => join(root, 'shots-e2e', `models-requested-${mode}.json`);
 async function walkthrough(url, mode) {
-  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs);
+  rmSync(modelsOut(mode), { force: true });   // never compare against the list of an earlier run
+  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode) };
+  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);
   if (timedOut) throw new Error(`killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
   if (code !== 0) throw new Error(`tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
+}
+
+// The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
+// compared with public/models by a unit test (tools/models-used.test.mjs), so a model nobody loads cannot be shipped.
+function checkModels() {
+  const requested = new Set();
+  for (const mode of opts.modes) {
+    let list;
+    try { list = JSON.parse(readFileSync(modelsOut(mode), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${mode} walkthrough (${e.message})`); }
+    for (const p of list) requested.add(p);
+  }
+  const actual = [...requested].sort();
+  if (!actual.length) throw new Error('the walkthroughs requested no model files at all');
+  if (opts.updateModels) {
+    writeFileSync(join(root, MODELS_FILE), JSON.stringify(actual, null, 2) + '\n');
+    return `${MODELS_FILE} rewritten: ${actual.length} file(s)`;
+  }
+  let listed;
+  try { listed = JSON.parse(readFileSync(join(root, MODELS_FILE), 'utf8')); } catch (e) { throw new Error(`cannot read ${MODELS_FILE} (${e.message}); to create it: npm run e2e -- --update-models`); }
+  const known = new Set(listed);
+  const notListed = actual.filter((p) => !known.has(p));
+  const notRequested = listed.filter((p) => !requested.has(p));
+  if (notListed.length || notRequested.length) {
+    throw new Error(`${notListed.length} requested but not in ${MODELS_FILE}, ${notRequested.length} in the list but not requested`
+      + (notListed.length ? `\n  requested by the game, but not in the list:\n    ${notListed.join('\n    ')}` : '')
+      + (notRequested.length ? `\n  in the list, but not requested in any walkthrough:\n    ${notRequested.join('\n    ')}` : '')
+      + '\n  if the change is intended: npm run e2e -- --update-models; a file nobody requests belongs in models-unused/');
+  }
+  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}`;
 }
 
 // No element in any built .html may point to another site. Elements and their attributes are checked, not every
@@ -187,11 +233,15 @@ if (ready) {
   try {
     await step('preview server', async () => { url = await startServer(); return url; });
     for (const mode of opts.modes) {
-      const name = `walkthrough ${mode}`;
+      const name = walkthroughName(mode);
       if (!url) skip(name, 'no server');
       else if (opts.bail && failed()) skip(name, '--bail');
       else await step(name, () => walkthrough(url, mode));
     }
+    const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
+    if (opts.modes.length < 2) skip('models used', '--mode: one size does not request every model');
+    else if (!played.every((r) => r === 'ok')) skip('models used', 'a walkthrough did not pass: its list of requests is incomplete');
+    else await step('models used', checkModels);
     if (opts.bail && failed()) skip('dist links', '--bail');
     else await step('dist links', checkDist);
   } finally {

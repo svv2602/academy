@@ -8,7 +8,12 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
-      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png}'], maximumFileSizeToCacheInBytes: 4_000_000 },
+      // Every file type the game page requests must be listed here, or the installed game breaks without network.
+      // The set is measured, not guessed: it is the types requested during the walkthroughs of `npm run e2e`
+      // (js, css, html, glb, mp3, svg, png, jpg — the nature models reference external jpg/png textures), and the
+      // desktop walkthrough of that command is played offline, so a missing type fails it. The largest file is
+      // 2.7 MB; a file above the limit would be left out of the cache with only a build warning.
+      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,jpg}'], maximumFileSizeToCacheInBytes: 4_000_000 },
       manifest: {
         name: 'Академія чарівних світів',
         short_name: 'Академія',
