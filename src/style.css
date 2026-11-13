@@ -12,12 +12,16 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 @keyframes bump { 40% { transform: scale(1.3); } }
 #fps { position: fixed; right: 8px; top: 6px; font: 11px monospace; color: #fff; text-shadow: 0 1px 2px #0008; pointer-events: none; opacity: .8; }
 
-#bubble { position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top)); transform: translateX(-50%); max-width: min(620px, 72vw);
+/* The bubble is centred in the window while there is room for it; in a narrower window it moves to the right, so that
+   it never covers the counters and the book button (--hud: the right edge of #hud at its widest, a 3-digit star count). */
+#bubble { position: fixed; --hud: calc(268px + max(12px, env(safe-area-inset-left))); --w: min(620px, 50vw); left: var(--hud);
+  right: clamp(max(12px, env(safe-area-inset-right)), calc(100vw - var(--hud) - var(--w)), var(--hud)); top: max(14px, env(safe-area-inset-top));
+  margin: 0 auto; width: fit-content; max-width: var(--w);
   background: #fff; border-radius: 26px; padding: 10px 20px 10px 12px; display: flex; gap: 12px; align-items: center;
   box-shadow: 0 6px 0 rgba(120,80,160,.2), 0 10px 30px rgba(90,60,130,.2); animation: pop .3s; pointer-events: none; }
 #bubble .cat { font-size: clamp(28px, 8vh, 40px); line-height: 1; flex: none; }
 #bubble p { margin: 0; font-size: clamp(16px, min(2.6vw, 5.2vh), 24px); font-weight: 600; line-height: 1.25; }
-@keyframes pop { from { transform: translateX(-50%) scale(.7); opacity: 0; } }
+@keyframes pop { from { transform: scale(.7); opacity: 0; } }
 
 #answers { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: clamp(6px, 1.2vw, 12px);
   flex-wrap: wrap; justify-content: center; width: min(98vw, 940px); }
@@ -60,18 +64,20 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 .swatches button { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 2px #e6d5f2; }
 .swatches button.sel { box-shadow: 0 0 0 4px #a56bff; transform: scale(1.12); }
 .styles { display: flex; gap: 8px; }
-.styles button { padding: 6px 14px; border-radius: 999px; background: #f1e6fa; font-size: 17px; font-weight: 700; color: #a07ac0; }
+.styles button { min-height: 44px; padding: 6px 14px; border-radius: 999px; background: #f1e6fa; font-size: 17px; font-weight: 700; color: #a07ac0; }
 .styles button.sel { background: #a56bff; color: #fff; }
 .big { margin-top: 14px; padding: 12px 54px; font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #fff; border-radius: 999px;
   background: linear-gradient(#ff9bd0, #ff5fa8); box-shadow: 0 7px 0 #d43f86; }
 .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #d43f86; }
-.link { display: block; margin: 12px auto 0; background: none; font-size: 15px; color: #a58bb8; text-decoration: underline; }
+.link { display: block; min-height: 44px; margin: 12px auto 0; background: none; font-size: 15px; color: #a58bb8; text-decoration: underline; }
 #loading { width: min(360px, 70vw); margin: 18px auto 6px; }
 #loading #bar { height: 14px; border-radius: 7px; background: linear-gradient(90deg, #ff9bd0, #a56bff); width: 0; transition: width .2s; }
 #loading span { font-size: 16px; color: #b07ad6; }
 #langs { position: absolute; top: 12px; right: 16px; display: flex; gap: 6px; }
-#langs button { background: #f1e6fa; border-radius: 10px; padding: 3px 9px; font-size: 13px; font-weight: 700; color: #a07ac0; }
+#langs button { min-width: 44px; min-height: 44px; background: #f1e6fa; border-radius: 10px; padding: 3px 9px; font-size: 13px; font-weight: 700; color: #a07ac0; }
 #langs button.sel { background: #a56bff; color: #fff; }
+/* Room for the language buttons above the title (the phone-in-landscape block below puts them beside it instead). */
+#start .panel { padding-top: 60px; }
 
 #fanfare { background: radial-gradient(rgba(255,255,255,.55), rgba(180,140,255,.55)); animation: fade .4s; }
 @keyframes fade { from { opacity: 0; } }
@@ -88,16 +94,21 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 
 /* Phones in landscape: the dressing-room panel must fit without scrolling. */
 @media (max-height: 480px) {
-  #start .panel { padding: 8px 16px 10px; border-radius: 24px; max-width: 50vw; }
-  #start h1 { font-size: 19px; text-align: left; padding-right: 66px; } #start h3 { display: none; }
-  #start .row { margin: 4px 0; gap: 8px; font-size: 14px; flex-wrap: nowrap; }
+  #start .panel { padding: 6px 16px 8px; border-radius: 24px; max-width: 50vw; }
+  #start h1 { font-size: 19px; line-height: 44px; text-align: left; padding-right: 100px; } #start h3 { display: none; }
+  #start .row { margin: 5px 0; gap: 8px; font-size: 14px; flex-wrap: nowrap; }
   #start .row > span { min-width: 62px; }
   #name { padding: 4px 10px; width: 150px; border-width: 2px; }
-  .swatches { gap: 6px; } .swatches button { width: 30px; height: 30px; border-width: 3px; }
-  .styles { gap: 4px; } .styles button { padding: 4px 9px; font-size: 13px; }
-  #start .big { margin-top: 6px; padding: 6px 36px; font-size: 22px; }
+  .swatches { gap: 6px; } .swatches button { width: 44px; height: 44px; border-width: 3px; }
+  .styles { gap: 4px; } .styles button { padding: 4px 12px; font-size: 14px; }
+  #start .big { margin-top: 6px; min-height: 44px; padding: 6px 36px; font-size: 22px; }
   .link { margin-top: 5px; font-size: 12px; }
-  #langs { top: 6px; right: 10px; } #langs button { font-size: 11px; padding: 2px 6px; }
+  #langs { top: 6px; right: 10px; } #langs button { font-size: 12px; padding: 2px 6px; }
+}
+/* Narrow and tall windows (a phone held upright): a label goes above its buttons, so that five colours fit in a row. */
+@media (max-aspect-ratio: 5/4) {
+  #start .row { flex-wrap: wrap; gap: 4px 14px; } #start .row > span { min-width: 0; }
+  #bubble { left: 12px; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 56px); max-width: min(620px, 92vw); }
 }
 
 /* ---------- task panel ---------- */
@@ -111,6 +122,7 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
   box-shadow: 0 4px 0 rgba(160,110,200,.25); }
 .t-stage { min-height: min(34vh, 250px); display: flex; flex-wrap: wrap; gap: clamp(4px, 1.2vw, 14px); align-items: center; justify-content: center; padding: 6px 4px 12px; }
 .t-opts { display: flex; flex-wrap: wrap; gap: clamp(6px, 1.2vw, 12px); justify-content: center; }
+button.it { min-width: 44px; min-height: 44px; }
 .it { position: relative; background: none; padding: 0; font-size: clamp(30px, min(7vw, 11vh), 60px); line-height: 1.15; transform: rotate(var(--r, 0deg)); transition: transform .12s, filter .2s; }
 .it.big { font-size: clamp(44px, min(11vw, 16vh), 88px); padding: 6px 10px; border-radius: 22px; background: #f6eefc; box-shadow: 0 5px 0 #e2d2f1; }
 .it.hit { transform: scale(1.12); filter: drop-shadow(0 0 8px #ffc94d); }
@@ -151,7 +163,7 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 .pad.flash { transform: scale(1.22); background: #fff3b0; box-shadow: 0 0 0 5px #ffd95e, 0 5px 0 #e2d2f1; }
 
 /* ---------- collection & parents ---------- */
-#btnBook { pointer-events: auto; padding: 6px 12px; cursor: pointer; }
+#btnBook { pointer-events: auto; min-width: 44px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
 #book, #parents { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(120, 90, 180, .4); z-index: 5; }
 .sheet { width: min(94vw, 640px); max-height: 94vh; overflow: auto; animation: pop2 .35s; background: #fff; }
 .sheet h2 { margin-bottom: 10px; }
@@ -167,12 +179,21 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 #pBody table { width: 100%; border-collapse: collapse; font-size: 15px; margin-bottom: 12px; } #pBody th, #pBody td { padding: 5px 6px; border-bottom: 1px solid #eadff3; text-align: center; }
 #pBody td:first-child, #pBody th:first-child { text-align: left; }
 .prow { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 8px 0; font-weight: 600; flex-wrap: wrap; }
-.prow button { background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .prow button.sel { background: #a56bff; color: #fff; }
+.prow button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .prow button.sel { background: #a56bff; color: #fff; }
 .prow input[type=range] { width: 150px; accent-color: #a56bff; }
 #pReset { background: #ffe3ea; color: #d0496f; }
 @media (max-height: 480px) {
   .t-card { padding: 8px 12px 10px; border-radius: 22px; } .t-stage { min-height: 30vh; padding: 2px 4px 6px; }
-  #taskClose { top: -8px; width: 36px; height: 36px; }
+  #taskClose { top: -8px; }
   .group.pickable { min-height: 80px; } .gem.current { margin: 14px; }
   .sheet { padding: 10px 18px; } .sheet h2 { font-size: 22px; margin-bottom: 4px; } .stats { font-size: 16px; } #pBody table { font-size: 13px; }
+  /* The parents section does not fit a phone in landscape as one column: the table and "reset" go left, the settings right. */
+  #parents .sheet { width: min(96vw, 820px); }
+  #pBody { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 16px; align-items: center; }
+  #pBody table { grid-column: 1; grid-row: 1 / span 3; margin: 0; } #pBody .prow { grid-column: 2; margin: 2px 0; gap: 6px 8px; font-size: 15px; }
+  #pBody .prow:last-child { grid-column: 1; grid-row: 4; }
+  #parents .big.small { margin-top: 6px; }
+}
+@media (max-aspect-ratio: 5/4) {
+  .sheet { padding-left: 12px; padding-right: 12px; } #pBody table { font-size: 13px; } #pBody th, #pBody td { padding: 5px 3px; }
 }

@@ -1,9 +1,11 @@
-// The pre-publish gate: npm run e2e [-- --skip-build] [--mode mobile|desktop] [--bail] [--update-models]
+// The pre-publish gate: npm run e2e [-- --skip-build] [--all-sizes] [--mode <size>] [--bail] [--update-models]
 // Builds the game, serves the build on localhost, plays the whole world in phone and desktop sizes
 // (tools/shot.mjs, one process per size), checks that no .html in dist/ links to another site, stops the server
-// and prints a summary table. The desktop walkthrough is played WITHOUT NETWORK after the first load (the installed
-// game must work offline); the phone one is played online. The model files the page requested in both walkthroughs
-// must be exactly tools/models-used.json.
+// and prints a summary table. With --all-sizes two more sizes are played after the two main ones: desktop-tall
+// (1280x800) and mobile-portrait (390x844). Every walkthrough also checks the layout of every screen it shows.
+// The desktop walkthrough is played WITHOUT NETWORK after the first load (the installed game must work offline);
+// the other ones are played online. The model files the page requested in the walkthroughs must be exactly
+// tools/models-used.json.
 // Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
 // 130 / 143 — interrupted (the server is stopped in that case too).
 import { spawn } from 'node:child_process';
@@ -14,17 +16,24 @@ import { fileURLToPath } from 'node:url';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
-Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> models used -> dist links
--> stop server. The exit code is non-zero if any step fails.
+Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
+desktop-tall -> walkthrough mobile-portrait] -> models used -> dist links -> stop server.
+The exit code is non-zero if any step fails.
+Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
+mobile-portrait 390x844 (touch).
+Every walkthrough checks the layout of each screen it takes a picture of: nothing scrolls, every panel, button and
+input is inside the window, buttons do not overlap and are at least 44x44 px ("layout: <size> <screen>: …").
 The desktop walkthrough goes without network: after the first load it waits for the service worker and its cache,
 switches the network off, reloads and plays the whole world; any request that fails then is an error.
-"models used" compares the model files the page requested in both walkthroughs with tools/models-used.json.
+"models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
 
 Flags:
   --skip-build            reuse the existing dist/ (fails if dist/index.html is missing)
-  --mode mobile|desktop   play one size only (default: both, one after the other); "models used" is skipped then
+  --all-sizes             play all four sizes (default: the two main ones, mobile and desktop)
+  --mode <size>           play one size only: mobile, desktop, desktop-tall or mobile-portrait;
+                          "models used" is skipped then
   --bail                  stop at the first failed step (default: run every step to show everything broken)
-  --update-models         rewrite tools/models-used.json from this run instead of comparing (needs both sizes);
+  --update-models         rewrite tools/models-used.json from this run instead of comparing (needs both main sizes);
                           use it after adding or removing a model, then commit the file
   --help                  this text
 
@@ -38,7 +47,10 @@ Environment (this script):
   E2E_RUN_TIMEOUT_MS=<ms> hard limit for one walkthrough process (default 1200000)`;
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const opts = { skipBuild: false, bail: false, updateModels: false, modes: ['mobile', 'desktop'] };
+// The sizes themselves (pixels, touch or mouse) are defined in tools/shot.mjs; here only their names and order.
+const MAIN_MODES = ['mobile', 'desktop'];
+const EXTRA_MODES = ['desktop-tall', 'mobile-portrait'];   // added by --all-sizes, played after the main ones
+const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, modes: [...MAIN_MODES] };
 // Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
 const OFFLINE_MODES = ['desktop'];
 const MODELS_FILE = 'tools/models-used.json';
@@ -60,13 +72,18 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--skip-build') opts.skipBuild = true;
   else if (a === '--bail') opts.bail = true;
   else if (a === '--update-models') opts.updateModels = true;
+  else if (a === '--all-sizes') opts.allSizes = true;
   else if (a === '--mode' || a.startsWith('--mode=')) {
     const m = a === '--mode' ? argv[++i] : a.slice('--mode='.length);
-    if (m !== 'mobile' && m !== 'desktop') usage(`bad --mode "${m}": expected mobile or desktop`);
-    opts.modes = [m];
+    if (![...MAIN_MODES, ...EXTRA_MODES].includes(m)) usage(`bad --mode "${m}": expected ${[...MAIN_MODES, ...EXTRA_MODES].join(', ')}`);
+    opts.modes = [m]; opts.oneMode = true;
   } else usage(`unknown argument "${a}"`);
 }
-if (opts.updateModels && opts.modes.length < 2) usage('--update-models needs both sizes: do not combine it with --mode');
+if (opts.allSizes && opts.oneMode) usage('--all-sizes and --mode exclude each other');
+if (opts.allSizes) opts.modes = [...MAIN_MODES, ...EXTRA_MODES];
+// "models used" needs both main sizes: one size alone does not request every model.
+const bothMain = MAIN_MODES.every((m) => opts.modes.includes(m));
+if (opts.updateModels && !bothMain) usage('--update-models needs both sizes: do not combine it with --mode');
 const firstPort = Number(process.env.E2E_PORT || 4183);
 const runTimeoutMs = Number(process.env.E2E_RUN_TIMEOUT_MS || 1200000);
 if (!Number.isInteger(firstPort) || firstPort < 1 || firstPort > 65000) usage(`bad E2E_PORT "${process.env.E2E_PORT}"`);
@@ -239,7 +256,7 @@ if (ready) {
       else await step(name, () => walkthrough(url, mode));
     }
     const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
-    if (opts.modes.length < 2) skip('models used', '--mode: one size does not request every model');
+    if (!bothMain) skip('models used', '--mode: one size does not request every model');
     else if (!played.every((r) => r === 'ok')) skip('models used', 'a walkthrough did not pass: its list of requests is incomplete');
     else await step('models used', checkModels);
     if (opts.bail && failed()) skip('dist links', '--bail');

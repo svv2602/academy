@@ -13,7 +13,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,16 +29,16 @@ jobs:
       - name: Check Chrome
         run: /usr/bin/google-chrome --version
       # The runner has no GPU: software rendering and the lowest fixed graphics tier.
-      # Measured locally on 4 cores: both sizes take about 10 minutes.
-      - name: Walkthrough (mobile and desktop)
-        timeout-minutes: 30
+      # Measured locally on 4 cores: the two main sizes take about 10 minutes, all four about twice as long.
+      - name: Walkthrough (four screen sizes)
+        timeout-minutes: 45
         shell: bash
         env:
           E2E_GL: swiftshader
           Q: '0'
         run: |
           set -o pipefail
-          npm run e2e -- --skip-build 2>&1 | tee e2e.log
+          npm run e2e -- --skip-build --all-sizes 2>&1 | tee e2e.log
       - name: Upload screenshots and log
         if: failure()
         uses: actions/upload-artifact@v4

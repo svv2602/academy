@@ -1,11 +1,18 @@
-// Full play-through smoke test: node tools/shot.mjs <url> <outDir> [desktop|mobile]
+// Full play-through smoke test: node tools/shot.mjs <url> <outDir> [desktop|mobile|desktop-tall|mobile-portrait]
 // Plays the whole first world through the real UI handlers (talk to every character, solve all 15 tasks,
 // make one deliberate mistake per task type to exercise the hints, restore the crystal), saves screenshots
-// and fails on anything suspicious.
+// and fails on anything suspicious. Every screenshot is also a layout check of the screen it shows.
+//
+// Screen sizes (the size is one thing, the way of control another — see SIZES below):
+//   mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
+//   mobile-portrait 390x844 (touch). Screenshots are named <outDir>/<size>-<screen>.png.
 //
 // Exit code: 0 — the world was completed and nothing was reported;
 //            1 — console error or warning, page exception, stuck quest or timed-out wait, failed request
-//                (network error or HTTP >= 400), request to another origin, element linking to another origin;
+//                (network error or HTTP >= 400), request to another origin, element linking to another origin,
+//                layout problem on a screen ("layout: <size> <screen>: …"): the document or a panel scrolls,
+//                a panel, button or input is outside the window or cut off by its panel, two buttons or inputs
+//                overlap, the speech bubble covers a button, a button is smaller than 44x44 px;
 //            2 — bad arguments or environment.
 // Environment:
 //   Q=<0|1|2>               fixed graphics tier (?q=…); default: the game picks and lowers it itself
@@ -28,6 +35,17 @@ const gl = process.env.E2E_GL || 'gl';
 const slow = Number(process.env.E2E_SLOW || 1);
 const stuckMs = Number(process.env.E2E_STUCK_MS || 240000);
 const usage = (msg) => { console.error(msg); process.exit(2); };
+// The size of the window and the way of control are separate things: a new size only says which group it is in.
+const SIZES = {
+  mobile: { width: 844, height: 390, touch: true },
+  desktop: { width: 1280, height: 720, touch: false },
+  'desktop-tall': { width: 1280, height: 800, touch: false },
+  'mobile-portrait': { width: 390, height: 844, touch: true },
+};
+const size = SIZES[mode];
+if (!size) usage(`unknown size "${mode}": use one of ${Object.keys(SIZES).join(', ')}`);
+const touch = size.touch;
+const MIN_BUTTON = 44;      // px: the smallest width and height of anything that is pressed with a finger
 if (!GL_ARGS[gl]) usage(`unknown E2E_GL="${gl}": use "gl" (real GPU, default) or "swiftshader" (software rendering)`);
 if (!(slow > 0)) usage(`bad E2E_SLOW="${process.env.E2E_SLOW}": expected a positive number`);
 if (!(stuckMs > 0)) usage(`bad E2E_STUCK_MS="${process.env.E2E_STUCK_MS}": expected a positive number of milliseconds`);
@@ -55,9 +73,8 @@ const origins = new Set();
 const models = new Set();   // model files requested by the page, as paths under the site root: models/…
 let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
 try {
-  const ctx = await browser.newContext(mode === 'mobile'
-    ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true }
-    : { viewport: { width: 1280, height: 720 } });
+  const viewport = { width: size.width, height: size.height };
+  const ctx = await browser.newContext(touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport });
 
   // ---- network: every request of the context (pages and the service worker) must stay on our own origin ----
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
@@ -86,11 +103,13 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('websocket', (ws) => { if (!own(ws.url().replace(/^ws/, 'http'))) errors.push(`external request: WebSocket ${ws.url()}`); });
-  const shot = (n) => page.screenshot({ path: `${out}/${mode}-${n}.png` });
+  // Every picture of a screen is also a layout check of that screen (the failure picture is taken without it).
+  const picture = (n) => page.screenshot({ path: `${out}/${mode}-${n}.png` });
+  const shot = async (n) => { await picture(n); await checkLayout(n); };
   const wait = (ms) => page.waitForTimeout(T(ms));
   const g = (fn, ...a) => page.evaluate(fn, ...a);
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
-  const press = (sel) => page.locator(sel).dispatchEvent(mode === 'mobile' ? 'pointerdown' : 'click').catch(() => {});
+  const press = (sel) => page.locator(sel).dispatchEvent(touch ? 'pointerdown' : 'click').catch(() => {});
   // ---- links: no element of the document may point to another origin ----
   const checkLinks = async (where) => {
     const found = await g(() => {
@@ -106,6 +125,91 @@ try {
       return res;
     });
     for (const f of found) errors.push(`external link ${f} (${where})`);
+  };
+  // ---- layout: the screen must fit the window, nothing may overlap, a button must be big enough for a finger ----
+  // Measured in the page at every screenshot. An element is placed where it is drawn (the centre of its bounding
+  // box) but with its layout size, so the tilt of the task items and the "bump" / "pulse" animations do not change
+  // the result. Only what the player can reach counts as a button of the screen: elements behind a full-window layer
+  // (the game controls behind a task, the book or the parents section) are left out. Reports once per screen.
+  const checkLayout = async (screen) => {
+    const found = await g((min) => {
+      const vw = innerWidth, vh = innerHeight, out = [];
+      const px = (n) => Math.round(n * 10) / 10;
+      const label = (e) => {
+        if (e.id) return '#' + e.id;
+        let s = e.localName + [...e.classList].map((c) => '.' + c).join('');
+        const same = e.parentElement ? [...e.parentElement.children].filter((x) => x.localName === e.localName) : [];
+        if (same.length > 1) s += `:nth-of-type(${same.indexOf(e) + 1})`;
+        const a = e.parentElement?.closest('[id]');
+        return (a ? `#${a.id} ` : '') + s;
+      };
+      const shown = (e) => {
+        if (!(e.offsetWidth > 0 && e.offsetHeight > 0) || getComputedStyle(e).visibility !== 'visible') return false;
+        for (let x = e; x; x = x.parentElement) { const cs = getComputedStyle(x); if (cs.display === 'none' || Number(cs.opacity) === 0) return false; }
+        return true;
+      };
+      const box = (e) => {
+        const r = e.getBoundingClientRect(), w = e.offsetWidth, h = e.offsetHeight, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        return { l: cx - w / 2, t: cy - h / 2, r: cx + w / 2, b: cy + h / 2, w, h };
+      };
+      const at = (b) => `${px(b.w)}x${px(b.h)} at ${px(b.l)},${px(b.t)}`;
+      const outside = (b, c) => b.l < c.l - 1 || b.t < c.t - 1 || b.r > c.r + 1 || b.b > c.b + 1;
+      const cross = (a, b) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 1 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 1;
+      const win = { l: 0, t: 0, r: vw, b: vh };
+
+      // 1. the document does not scroll
+      for (const e of [document.documentElement, document.body]) {
+        if (e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1) out.push(`<${e.localName}> scrolls: content ${e.scrollWidth}x${e.scrollHeight} in ${e.clientWidth}x${e.clientHeight}`);
+      }
+      if (scrollX || scrollY) out.push(`the window is scrolled to ${px(scrollX)},${px(scrollY)}`);
+
+      // 2. panels: inside the window, no scrolling inside
+      const panels = [...document.querySelectorAll('#start .panel, #task .t-card, #book .card, #parents .card, #fanfare .card, #bubble, #hud, #answers')].filter(shown);
+      for (const p of panels) {
+        const b = box(p), cs = getComputedStyle(p);
+        if (outside(b, win)) out.push(`${label(p)} is outside the ${vw}x${vh} window: ${at(b)}`);
+        const scrolls = (v) => v === 'auto' || v === 'scroll';
+        if ((scrolls(cs.overflowY) && p.scrollHeight > p.clientHeight + 1) || (scrolls(cs.overflowX) && p.scrollWidth > p.clientWidth + 1)) {
+          out.push(`${label(p)} scrolls: content ${p.scrollWidth}x${p.scrollHeight} in ${p.clientWidth}x${p.clientHeight}`);
+        }
+      }
+
+      // 3. buttons and inputs of this screen. Full-window layers: #start, #task, #book, #parents, #fanfare.
+      const top = (e) => { while (e.parentElement && e.parentElement !== document.body) e = e.parentElement; return e; };
+      const order = (e) => [Number(getComputedStyle(e).zIndex) || 0, [...document.body.children].indexOf(e)];
+      const above = (a, b) => { const [za, ia] = order(a), [zb, ib] = order(b); return za > zb || (za === zb && ia > ib); };
+      const layers = [...document.body.children].filter((e) => e.localName !== 'canvas' && shown(e) && getComputedStyle(e).position === 'fixed'
+        && !outside(win, box(e)));
+      const reachable = (e) => !layers.some((l) => !l.contains(e) && above(l, top(e)));
+      const isButton = (e) => e.matches('button, [role=button], input[type=button], input[type=submit], input[type=reset], input[type=checkbox], input[type=radio]');
+      // No exceptions: every <button> counts, also the pictures of a task that are only counted, not pressed.
+      const els = [...document.querySelectorAll('button, input, select, textarea, a[href], [role=button]')].filter((e) => shown(e) && reachable(e));
+      const boxes = new Map(els.map((e) => [e, box(e)]));
+      for (const e of els) {
+        const b = boxes.get(e);
+        if (outside(b, win)) out.push(`${label(e)} is outside the ${vw}x${vh} window: ${at(b)}`);
+        for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
+          const cs = getComputedStyle(p);
+          if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+          const r = p.getBoundingClientRect();
+          if (outside(b, { l: r.left, t: r.top, r: r.right, b: r.bottom })) out.push(`${label(e)} is cut off by ${label(p)}: ${at(b)}`);
+          break;
+        }
+        if (isButton(e) && (b.w < min || b.h < min)) out.push(`${label(e)} is smaller than ${min}x${min}: ${px(b.w)}x${px(b.h)}`);
+      }
+      for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+        const [a, b] = [els[i], els[j]];
+        if (a.contains(b) || b.contains(a)) continue;
+        if (cross(boxes.get(a), boxes.get(b))) out.push(`${label(a)} overlaps ${label(b)}: ${at(boxes.get(a))} and ${at(boxes.get(b))}`);
+      }
+      // 4. the speech bubble lies over the game on purpose, but it may not cover a button of the screen
+      const bubble = panels.find((p) => p.id === 'bubble');
+      if (bubble) for (const e of els) {
+        if (!bubble.contains(e) && !above(top(e), bubble) && cross(boxes.get(bubble) ?? box(bubble), boxes.get(e))) out.push(`#bubble covers ${label(e)}: ${at(box(bubble))} and ${at(boxes.get(e))}`);
+      }
+      return out;
+    }, MIN_BUTTON);
+    for (const f of found) errors.push(`layout: ${mode} ${screen}: ${f}`);
   };
   // ---- offline: the network may be switched off only when the service worker can serve the whole game ----
   // Ready means: the worker is activated and controls this page, nothing newer is installing or waiting, and every
@@ -181,7 +285,7 @@ try {
         if (!(await g(() => __game.busy))) {
           await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
           await wait(400);
-          if (mode === 'mobile') await press('#btnAct'); else await page.keyboard.press('KeyE');
+          if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
         }
         await wait(600);
       }
@@ -192,23 +296,26 @@ try {
     await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
     // finale
     await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine');
-    if (mode === 'mobile') await press('#btnAct'); else await page.keyboard.press('KeyE');
+    if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
     await wait(2500); await shot('21-finale');
     await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(20000) }); await wait(800); await shot('22-final-card');
     await page.click('#fanfareOk'); await wait(4000); await shot('23-restored');
     // collection + parents
     await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
-    await page.click('#btnParents'); await page.fill('#gateA', '15'); await wait(500); await shot('31-parents'); await checkLinks('parents section');
+    await page.click('#btnParents'); await wait(500); await shot('31-gate');
+    await page.fill('#gateA', '15'); await wait(500); await shot('31-parents'); await checkLinks('parents section');
     await page.click('#parentsClose');
     const s = await g(() => __game.save);
     console.log('task types seen:', [...seen].join(' '));
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
     console.log('fps:', await page.textContent('#fps'));
+    // the start screen of a returning player: the saved game adds the "start again" button
+    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); await wait(1500); await shot('40-start-again');
   } catch (e) {
     // a stuck quest or a timed-out wait: report it with the rest and keep a picture of where it happened
     errors.push('scenario failed: ' + e.message);
-    await shot('99-failure').catch(() => {});
+    await picture('99-failure').catch(() => {});
   }
 } finally {
   await browser.close().catch(() => {});
