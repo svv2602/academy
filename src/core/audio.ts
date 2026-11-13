@@ -25,10 +25,17 @@ export function unlockAudio() {
   startMusic();
 }
 
+declare const spokenLine: unique symbol;
+/**
+ * The end of a spoken line. Only `say` makes one, so code that is required to speak (the task hooks) cannot satisfy
+ * its type with a plain promise: showing a subtitle without the voice does not compile.
+ */
+export type Spoken = Promise<void> & { readonly [spokenLine]: true };
+
 /** Plays `voice/<id>.mp3`; if the clip is missing, falls back to the device's Ukrainian speech synthesis. */
-export function say(id: string, text: string): Promise<void> {
+export function say(id: string, text: string): Spoken {
   stopVoice();
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     let done = false;
     // Safe to call again: Chrome reports a cancelled utterance through its own onend / onerror after stopVoice() has settled the line.
     const finish = () => { done = true; resolve(); };
@@ -42,7 +49,7 @@ export function say(id: string, text: string): Promise<void> {
     a.onerror = () => { speak(text, finish, live); };
     a.play().catch(() => { if (!done && a.error) return; finish(); });
     setTimeout(finish, 15000);
-  });
+  }) as Spoken;
 }
 
 /** Device speech synthesis; without a Ukrainian voice (or with the voice muted) the line is a silent pause long enough to read the subtitle. */

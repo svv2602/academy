@@ -5,6 +5,7 @@
  * is shown. The child may answer at any moment of that; nothing waits for the cat to finish.
  */
 import { shuffle, pick, randInt } from '../core/util';
+import type { Spoken } from '../core/audio';
 import type { SpokenKey } from '../ui/strings';
 
 export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
@@ -21,8 +22,8 @@ export interface TaskResult { solved: boolean; wrong: number; }
 export interface TaskHooks {
   prompt(key: SpokenKey): void;    // show + speak the question
   number(n: number): void;         // say a number aloud while counting
-  wrong(): Promise<void>;          // gentle "try again"
-  hint(key: SpokenKey): Promise<void>;   // the cat says the hint aloud, with its subtitle
+  wrong(): Spoken;                 // gentle "try again"
+  hint(key: SpokenKey): Spoken;    // the cat says the hint aloud, with its subtitle
   good(): void;                    // right-answer chime
 }
 

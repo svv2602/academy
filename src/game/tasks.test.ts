@@ -5,6 +5,10 @@ import { mulberry32 } from '../core/util';
 import type { Key } from '../ui/strings';
 import { SKILL, cheatTask, runTask } from './tasks';
 import type { TaskHooks, TaskResult, TaskType } from './tasks';
+import type { Spoken } from '../core/audio';
+
+/** A test stands in for the voice: only here a plain promise may pose as a spoken line. */
+const spoken = (end: Promise<void> = Promise.resolve()) => end as Spoken;
 
 // The generators build page elements instead of returning data, so every check here reads the task
 // off the screen and answers it through the same pointerdown handlers a child's finger reaches.
@@ -30,8 +34,8 @@ function listen(): { hooks: TaskHooks; heard: Heard } {
   const hooks: TaskHooks = {
     prompt: (key) => { heard.prompts.push(key); },
     number: (n) => { heard.numbers.push(n); },
-    wrong: () => { heard.wrong++; return Promise.resolve(); },
-    hint: (key) => { heard.hints.push(key); return Promise.resolve(); },
+    wrong: () => { heard.wrong++; return spoken(); },
+    hint: (key) => { heard.hints.push(key); return spoken(); },
     good: () => { heard.good++; heard.onGood(); },
   };
   return { hooks, heard };
@@ -381,8 +385,8 @@ describe('after a mistake: "try again", then the whole hint, then the solution',
     let end: (() => void) | null = null;
     const line = (what: string) => {
       end?.(); said.push(what);
-      if (muted) return Promise.resolve();
-      return new Promise<void>((resolve) => { end = () => { end = null; resolve(); }; });
+      if (muted) return spoken();
+      return spoken(new Promise<void>((resolve) => { end = () => { end = null; resolve(); }; }));
     };
     const hooks: TaskHooks = {
       prompt: (key) => { void line(key); },
