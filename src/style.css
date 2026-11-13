@@ -66,7 +66,7 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 .styles { display: flex; gap: 8px; }
 .styles button { min-height: 44px; padding: 6px 14px; border-radius: 999px; background: #f1e6fa; font-size: 17px; font-weight: 700; color: #a07ac0; }
 .styles button.sel { background: #a56bff; color: #fff; }
-.big { margin-top: 14px; padding: 12px 54px; font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #fff; border-radius: 999px;
+.big { margin-top: 14px; min-height: 44px; padding: 12px 54px; font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #fff; border-radius: 999px;
   background: linear-gradient(#ff9bd0, #ff5fa8); box-shadow: 0 7px 0 #d43f86; }
 .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #d43f86; }
 .link { display: block; min-height: 44px; margin: 12px auto 0; background: none; font-size: 15px; color: #a58bb8; text-decoration: underline; }
