@@ -139,7 +139,10 @@ const builders: Record<TaskType, Builder> = {
     const pairs = c.level === 1 ? 3 : c.level === 2 ? 4 : 6;
     const deck = shuffle(shuffle(THINGS).slice(0, pairs).flatMap((s) => [s, s]));
     c.stage.classList.add('cards'); c.stage.style.setProperty('--cols', String(pairs === 3 ? 3 : 4));
-    let open: HTMLElement[] = [], lock = false, left = pairs;
+    // Memory has no "wrong" move, so a non-matching pair is only counted, never scolded or hinted.
+    // Finding every pair takes about one miss per pair even with a perfect memory; more than that is
+    // guessing. The result is then shaky (1), not the miss count: two or more would drop the level at once.
+    let open: HTMLElement[] = [], lock = false, left = pairs, misses = 0;
     const cards = deck.map((s) => {
       const b = el('button', 'mcard'); b.appendChild(el('span', '', s)); b.dataset.s = s;
       tap(b, async () => {
@@ -147,8 +150,8 @@ const builders: Record<TaskType, Builder> = {
         b.classList.add('open'); open.push(b);
         if (open.length < 2) return;
         const [x, y] = open; open = [];
-        if (x.dataset.s === y.dataset.s) { x.classList.add('done'); y.classList.add('done'); c.hooks.good(); if (--left === 0) c.right(); }
-        else { lock = true; await wait(800); x.classList.remove('open'); y.classList.remove('open'); lock = false; }
+        if (x.dataset.s === y.dataset.s) { x.classList.add('done'); y.classList.add('done'); c.hooks.good(); if (--left === 0) { if (misses > pairs) c.wrongs = 1; c.right(); } }
+        else { misses++; lock = true; await wait(800); x.classList.remove('open'); y.classList.remove('open'); lock = false; }
       });
       c.stage.appendChild(b); return b;
     });
