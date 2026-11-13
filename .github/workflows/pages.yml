@@ -25,6 +25,30 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # The walkthrough plays the dist/ built above (--skip-build), so exactly what was checked gets published.
+      # tools/shot.mjs starts Chrome from this exact path; fail here with a clear reason if the runner has none.
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # The runner has no GPU: software rendering and the lowest fixed graphics tier.
+      - name: Walkthrough (mobile and desktop)
+        timeout-minutes: 30
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+        run: |
+          set -o pipefail
+          npm run e2e -- --skip-build 2>&1 | tee e2e.log
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            shots-e2e/
+            e2e.log
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

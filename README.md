@@ -13,6 +13,9 @@
     npm install
     npm run dev        # http://localhost:5173, с телефона в той же сети — адрес Network из вывода
     npm run build      # сборка в dist/ (относительные пути, годится для GitHub Pages)
+    npm test           # юнит-тесты (Vitest), около секунды
+    npm run e2e        # сборка и полное прохождение мира на телефоне и компьютере, проверка запросов и ссылок;
+                       # около 5,5 минуты; флаги — npm run e2e -- --help
 
     node tools/shot.mjs http://localhost:5173/ shots desktop|mobile   # полное прохождение мира со скриншотами
     node tools/closeup.mjs http://localhost:5173/ shots               # крупные планы
