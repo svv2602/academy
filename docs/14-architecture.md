@@ -49,6 +49,9 @@ src/ui/                     панели и общие строки
   `recordTask`, `levelFor`, `loadSave` (включая перенос сохранения первой версии).
 - **Пишет:** `package.json`, `package-lock.json`, `vite.config.ts` или `vitest.config.ts`,
   `.github/workflows/pages.yml`, `src/core/save.test.ts`. **Зависит от:** —.
+- **Состояние на 2026-11-13:** сделано в коде: `npm test` (Vitest), 28 тестов на `recordTask`, `levelFor`, `loadSave`
+  (и на `defaultSave`, `storeSave`, `clearSave`); шаг в workflow публикации стоит. Осталось: проверка пробной
+  веткой, что сломанный тест останавливает workflow.
 
 ### ARCH-02 — Автопрохождение — обязательная проверка перед публикацией
 - **Приоритет · объём · этап:** critical · M · Э0
