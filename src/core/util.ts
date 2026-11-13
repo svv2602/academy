@@ -46,3 +46,11 @@ export function angleDiff(a: number, b: number) {
   if (d < -Math.PI) d += Math.PI * 2;
   return d;
 }
+
+export const randInt = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1));
+export const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
+export function shuffle<T>(a: T[]): T[] {
+  const b = [...a];
+  for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+  return b;
+}

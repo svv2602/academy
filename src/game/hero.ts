@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { gltf, type Rig } from '../core/assets';
 
 export const HAIR_STYLES = ['long', 'buns', 'simpleparted'] as const;
@@ -27,10 +28,25 @@ function keepBones(mesh: THREE.SkinnedMesh, names: string[]) {
  * head of the base body + an outfit + one of several hairstyles, all re-bound to the base skeleton
  * so a single AnimationMixer drives everything.
  */
-export async function buildHero(look: Look): Promise<Rig & { setLook(l: Look): void; headBone: THREE.Object3D }> {
-  const [base, outfit, anims, ...hairs] = await Promise.all([
+export async function buildHero(look: Look, height = HEIGHT, headScale = HEAD_SCALE): Promise<Rig & { setLook(l: Look): void; headBone: THREE.Object3D }> {
+  const [baseSrc, outfitSrc, anims, ...hairSrc] = await Promise.all([
     gltf('hero/base'), gltf('hero/ranger'), gltf('hero/anims'), ...HAIR_STYLES.map((h) => gltf('hero/hair_' + h)),
   ]);
+  // Every character gets its own copy of the parts and materials, so several can coexist (heroine, Fairy Queen).
+  const mats = new Map<THREE.Material, THREE.Material>();
+  const copy = (src: THREE.Object3D) => {
+    const c = cloneSkinned(src);
+    c.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh) return;
+      const orig = m.material as THREE.Material;
+      if (!mats.has(orig)) mats.set(orig, orig.clone());
+      m.material = mats.get(orig)!;
+      if (m.geometry.index) m.geometry = m.geometry.clone();
+    });
+    return c;
+  };
+  const base = { scene: copy(baseSrc.scene) }, outfit = { scene: copy(outfitSrc.scene) }, hairs = hairSrc.map((h) => ({ scene: copy(h.scene) }));
   const model = base.scene;
   const bones: Record<string, THREE.Bone> = {};
   model.traverse((o) => { if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone; });
@@ -96,17 +112,17 @@ export async function buildHero(look: Look): Promise<Rig & { setLook(l: Look): v
   // Normalise height from the bind pose, then make the head a little bigger for storybook proportions.
   model.updateMatrixWorld(true);
   const top = new THREE.Vector3(); bones.Head.getWorldPosition(top);
-  model.scale.setScalar(HEIGHT / (top.y * 1.12));
+  model.scale.setScalar(height / (top.y * 1.12));
   const baseHead = bones.Head.scale.clone();
   const root = new THREE.Group(); root.add(model);
   const clips = new Map<string, THREE.AnimationClip>();
   for (const [name, src] of Object.entries(CLIPS)) {
-    const clip = anims.animations.find((a) => a.name === src);
+    const clip = anims.animations.find((a) => a.name === src)?.clone();
     if (!clip) continue;
     // The head keeps its enlarged scale: animations must not write to it.
     clip.tracks = clip.tracks.filter((t) => !(t.name.startsWith('Head.') && t.name.endsWith('.scale')));
     clips.set(name, clip);
   }
-  bones.Head.scale.copy(baseHead).multiplyScalar(HEAD_SCALE);
+  bones.Head.scale.copy(baseHead).multiplyScalar(headScale);
   return { root, model, clips, setLook, headBone: bones.Head };
 }

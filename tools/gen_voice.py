@@ -21,3 +21,7 @@ for item in phrases.items():
     cid, res = g.job(item)
     qa[cid] = res
     qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=1))
+
+# The game only requests clips listed here; everything else falls back to on-device speech or subtitles.
+clips = sorted(p.stem for p in g.AUDIO.glob('*.mp3'))
+(ROOT / 'src' / 'core' / 'clips.json').write_text(json.dumps(clips))

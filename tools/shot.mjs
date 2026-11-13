@@ -1,5 +1,7 @@
-// Headless smoke test: node tools/shot.mjs <url> <outDir> [mobile]
-// Loads the game, presses Play, walks around, and saves screenshots + console errors.
+// Full play-through smoke test: node tools/shot.mjs <url> <outDir> [desktop|mobile]
+// Plays the whole first world through the real UI handlers (talk to every character, solve all 15 tasks,
+// make one deliberate mistake per task type to exercise the hints, restore the crystal), saves screenshots
+// and reports console errors.
 import { chromium } from 'playwright-core';
 import { mkdirSync } from 'fs';
 
@@ -19,38 +21,67 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 const shot = (n) => page.screenshot({ path: `${out}/${mode}-${n}.png` });
 const wait = (ms) => page.waitForTimeout(ms);
 const g = (fn, ...a) => page.evaluate(fn, ...a);
+const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
+const press = (sel) => page.locator(sel).dispatchEvent(mode === 'mobile' ? 'pointerdown' : 'click').catch(() => {});
 
 await page.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
-await page.waitForSelector('#play', { state: 'visible', timeout: 60000 });
-await wait(1500); await shot('01-start');
+await page.waitForSelector('#play', { state: 'visible', timeout: 90000 });
+await wait(1500); await shot('00-start');
 await page.click('#play');
-await wait(2500); await shot('02-spawn');
-// look around from a few vantage points
-for (const [i, x, z, yaw] of [[3, 0, 2, 0], [4, 8, -6, -0.9], [5, -4, -40, 0.2], [6, -27, 10, 1.6], [7, 20, -4, 2.6]]) {
-  await g(([x, z, yaw]) => { __game.teleport(x, z); __game.cam.yaw = yaw; }, [x, z, yaw]);
-  await wait(1200); await shot(`0${i}-view`);
+await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: 20000 });
+await wait(9000); await shot('01-spawn');
+
+const seen = new Set();
+const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
+for (const q of quests) {
+  const t0 = Date.now();
+  while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
+    if (Date.now() - t0 > 240000) throw new Error('quest stuck: ' + q.id);
+    if (await visible('#fanfare')) { await shot(`shard-${q.id}`); await page.click('#fanfareOk'); await wait(500); continue; }
+    if (await visible('#task')) {
+      const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
+      if (!seen.has(type)) {
+        seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`);
+        // one deliberate mistake: a wrong answer button, to see the hint
+        const wrong = await g(() => { const b = [...document.querySelectorAll('#taskOpts .opt')].find((x) => !x.classList.contains('yes')); if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown')); return true; });
+        if (wrong) { await wait(3200); await shot(`hint-${type}`); }
+      }
+      await g(() => __game.cheat()); await wait(1500); continue;
+    }
+    if (await g(() => __game.bf.active)) {
+      if (!seen.has('butterflies')) { seen.add('butterflies'); await wait(1500); await shot('task-butterflies'); }
+      await g(() => __game.cheat()); await wait(1500); continue;
+    }
+    if (await g(() => __game.search.active)) {
+      if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); }
+      await g(() => __game.cheat()); await wait(700); continue;
+    }
+    if (!(await g(() => __game.busy))) {
+      await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
+      await wait(400);
+      if (mode === 'mobile') await press('#btnAct'); else await page.keyboard.press('KeyE');
+    }
+    await wait(600);
+  }
+  console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
 }
-// quest: walk to the unicorn with the keyboard/auto-walk, start the task, count, answer
-await g(() => { __game.teleport(4.0, -9.4); __game.cam.yaw = 0.3; });
-await page.waitForFunction(() => __game.stage === 1, null, { timeout: 30000 });
-await wait(800);
-if (mode === 'mobile') await page.locator('#btnAct').dispatchEvent('pointerdown'); else await page.keyboard.press('KeyE');
-await page.waitForSelector('#answers:not(.hidden)', { timeout: 30000 });
-await wait(2500); await shot('08-task');
-const n = await g(() => __game.task.n);
-// wrong answer first -> hint demo
-await page.locator('#answers button').nth(n === 10 ? 0 : n).dispatchEvent('pointerdown');
-await wait(1200 + n * 900 + 2500); await shot('09-hint');
-await page.locator('#answers button').nth(n - 1).dispatchEvent('pointerdown');
-await wait(6000); await shot('10-reward');
-console.log('stage after task', await g(() => __game.stage), 'stars', await g(() => __game.save.stars));
-await g(() => __game.teleport(2.2, -8.4));
-await page.waitForSelector('#fanfare:not(.hidden)', { timeout: 10000 });
-await wait(1200); await shot('11-fanfare');
-await page.click('#fanfareOk');
-await g(() => { __game.teleport(16, -2); __game.cam.yaw = 2.9; });
-await wait(5000); await shot('12-restored');
-console.log('final stage', await g(() => __game.stage), 'fps:', await page.textContent('#fps'));
-console.log('saved:', await g(() => localStorage.getItem('amw-save')));
+await page.waitForFunction(() => !__game.busy, null, { timeout: 30000 });
+// replay one finished quest
+await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: 20000 }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: 30000 });
+// finale
+await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine');
+if (mode === 'mobile') await press('#btnAct'); else await page.keyboard.press('KeyE');
+await wait(2500); await shot('21-finale');
+await page.waitForSelector('#fanfare:not(.hidden)', { timeout: 20000 }); await wait(800); await shot('22-final-card');
+await page.click('#fanfareOk'); await wait(4000); await shot('23-restored');
+// collection + parents
+await page.click('#btnBook'); await wait(500); await shot('30-book');
+await page.click('#btnParents'); await page.fill('#gateA', '15'); await wait(500); await shot('31-parents');
+await page.click('#parentsClose');
+const s = await g(() => __game.save);
+console.log('task types seen:', [...seen].join(' '));
+console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
+console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
+console.log('fps:', await page.textContent('#fps'));
 console.log(errors.length ? 'ERRORS:\n' + [...new Set(errors)].join('\n') : 'no console errors');
 await browser.close();

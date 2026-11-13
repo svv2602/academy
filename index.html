@@ -12,16 +12,42 @@
 
   <div id="hud" class="hidden">
     <div class="pill"><span>⭐</span><b id="stars">0</b></div>
-    <div class="pill"><span>💎</span><b id="crystals">0/1</b></div>
+    <div class="pill"><span>💎</span><b id="crystals">0/5</b></div>
+    <button id="btnBook" class="pill" aria-label="collection">📖</button>
   </div>
   <div id="fps"></div>
 
-  <div id="bubble" class="hidden"><div class="cat">🐱</div><p id="bubbleText"></p></div>
+  <div id="bubble" class="hidden"><div class="cat" id="speaker">🐱</div><p id="bubbleText"></p></div>
   <div id="answers" class="hidden"></div>
 
   <div id="joy"><div id="knob"></div></div>
   <button id="btnJump" class="round hidden" aria-label="jump">⬆</button>
   <button id="btnAct" class="round hidden"></button>
+
+  <div id="task" class="hidden">
+    <div class="t-card">
+      <button id="taskClose" aria-label="close">✕</button>
+      <div id="taskStage" class="t-stage"></div>
+      <div id="taskOpts" class="t-opts"></div>
+    </div>
+  </div>
+
+  <div id="book" class="hidden">
+    <div class="card sheet">
+      <h2 id="colTitle"></h2>
+      <div id="shards" class="shards"></div>
+      <div id="colStats" class="stats"></div>
+      <div class="sheet-btns"><button id="bookClose" class="big small"></button><button id="btnParents" class="link"></button></div>
+    </div>
+  </div>
+  <div id="parents" class="hidden">
+    <div class="card sheet">
+      <h2 id="pTitle"></h2>
+      <div id="gate"><p id="gateQ"></p><input id="gateA" inputmode="numeric" maxlength="3" autocomplete="off"></div>
+      <div id="pBody" class="hidden"></div>
+      <div class="sheet-btns"><button id="parentsClose" class="big small"></button></div>
+    </div>
+  </div>
 
   <div id="fanfare" class="hidden">
     <div class="card">

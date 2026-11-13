@@ -5,24 +5,25 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
-import { say, sfx, stopVoice, unlockAudio } from './core/audio';
+import { say, setVolumes, sfx, stopVoice, unlockAudio, volume } from './core/audio';
 import { initInput, input, pollInput } from './core/input';
-import { clearSave, defaultSave, loadSave, storeSave } from './core/save';
-import { angleDiff, clamp, damp, lerp } from './core/util';
+import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
+import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
 import { Actor } from './game/actor';
+import { glowTex, numberSprite, Sparks } from './game/fx';
 import { buildHero } from './game/hero';
+import { QUESTS, SHRINE, type QuestDef } from './game/quests';
+import { cheatTask, runTask, SKILL, type TaskHooks, type TaskResult, type TaskType } from './game/tasks';
 import { Butterflies } from './world/butterflies';
 import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, setDrawRange, updateRanged, uTime } from './world/scenery';
-import { CHEST, CRYSTAL, PATCH, SPAWN, UNICORN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
-import { bubble, el, fanfare, hideAnswers, initStart, setAct, setCounter, showAnswers } from './ui/ui';
-import { voiceText, type Key } from './ui/strings';
-
-/** Quest stages of the slice. */
-const enum Stage { Intro, GoUnicorn, Counting, CrystalReady, Done }
+import { CHEST, PATCH, SPAWN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
+import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers } from './ui/ui';
+import { t, tf, voiceText, type Key } from './ui/strings';
 
 const params = new URLSearchParams(location.search);
 const save = loadSave();
-if (save.stage === Stage.Counting) save.stage = Stage.GoUnicorn; // a task is never resumed half-way
+const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
+applyVolume();
 
 // ---------- renderer & quality tiers ----------
 const renderer = new THREE.WebGLRenderer({ canvas: el.canvas, antialias: true, powerPreference: 'high-performance' });
@@ -62,73 +63,14 @@ function applyTier() {
 }
 addEventListener('resize', applyTier);
 
-// ---------- shared sprite texture & particles ----------
-const glowTex = (() => {
-  const c = document.createElement('canvas'); c.width = c.height = 64;
-  const g = c.getContext('2d')!, grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.25, 'rgba(255,255,255,.7)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
-  return new THREE.CanvasTexture(c);
-})();
-
-class Sparks {
-  private n = 160; private pos = new Float32Array(this.n * 3); private col = new Float32Array(this.n * 3);
-  private vel = new Float32Array(this.n * 3); private life = new Float32Array(this.n); private next = 0;
-  private pts: THREE.Points;
-  constructor() {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3));
-    this.pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: glowTex, size: 0.5, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    this.pts.frustumCulled = false;
-    this.pos.fill(-999);
-    scene.add(this.pts);
-  }
-  burst(p: THREE.Vector3, color: string, count = 30, power = 4) {
-    const c = new THREE.Color(color);
-    for (let k = 0; k < count; k++) {
-      const i = this.next = (this.next + 1) % this.n;
-      const a = Math.random() * 6.28, u = Math.random() * 2 - 1, s = Math.sqrt(1 - u * u) * power * (0.4 + Math.random() * 0.6);
-      this.pos.set([p.x, p.y, p.z], i * 3);
-      this.vel.set([Math.cos(a) * s, Math.abs(u) * power + 1.5, Math.sin(a) * s], i * 3);
-      this.col.set([c.r, c.g, c.b], i * 3);
-      this.life[i] = 0.8 + Math.random() * 0.8;
-    }
-  }
-  update(dt: number) {
-    for (let i = 0; i < this.n; i++) {
-      if (this.life[i] <= 0) continue;
-      this.life[i] -= dt;
-      if (this.life[i] <= 0) { this.pos[i * 3 + 1] = -999; continue; }
-      this.vel[i * 3 + 1] -= 6 * dt;
-      for (let k = 0; k < 3; k++) this.pos[i * 3 + k] += this.vel[i * 3 + k] * dt;
-      const f = Math.min(1, this.life[i] * 2);
-      for (let k = 0; k < 3; k++) this.col[i * 3 + k] *= 0.985 + 0.015 * f;
-    }
-    this.pts.geometry.attributes.position.needsUpdate = true;
-    this.pts.geometry.attributes.color.needsUpdate = true;
-  }
-}
-
-function numberSprite(n: number) {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(64, 64, 56, 0, 6.28); g.fill();
-  g.lineWidth = 8; g.strokeStyle = '#ff8fc4'; g.stroke();
-  g.fillStyle = '#b0428a'; g.font = '800 78px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(String(n), 64, 70);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, fog: false, toneMapped: false }));
-  s.scale.setScalar(0.8); s.renderOrder = 20;
-  return s;
-}
-
 // ---------- boot ----------
 setProgressHandler((f) => { el.bar.style.width = `${Math.round(f * 100)}%`; });
 initStart(save, save.played, () => applyLook());
 let applyLook = () => {};
 applyTier();
 void boot();
+
+interface Npc { def: QuestDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number; }
 
 async function boot() {
   const density = touch ? 0.75 : 1;
@@ -137,13 +79,16 @@ async function boot() {
   const rainbowAlpha = buildRainbow(scene);
   const motes = buildMotes(scene, 260);
   buildGrass(scene, touch ? 9000 : 16000);
-  const [, updateClouds, heroRig, catRig, uniRig, chestRig, crystalGeo, starGeo] = await Promise.all([
+  const [, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = await Promise.all([
     buildScenery(scene, density), buildClouds(scene),
-    buildHero(save), rig('extra/cat2', 0.62, true), rig('animals_pack/Horse_White', 2.0, true), rig('platformer_game_pack/Chest', 0.9),
+    buildHero(save), rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
+    rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
+    rig('animals_pack/Deer', 1.55, true), buildHero({ dress: '#ffd54f', hair: '#f5d16b', hairStyle: 'buns' }, 1.72, 1.1),
   ]);
-  const sparks = new Sparks();
-  const flies = new Butterflies(scene, 64);
+  const sparks = new Sparks(scene);
+  const flies = new Butterflies(scene, 96);
+  const groundY = (x: number, z: number) => height(x, z);
 
   // ----- hero -----
   const hero = new Actor(heroRig);
@@ -156,14 +101,14 @@ async function boot() {
   const wingShape = new THREE.Shape();
   wingShape.moveTo(0, 0); wingShape.bezierCurveTo(0.15, 0.5, 0.75, 0.62, 0.72, 0.2); wingShape.bezierCurveTo(0.7, -0.02, 0.3, -0.05, 0.12, -0.02);
   wingShape.bezierCurveTo(0.5, -0.2, 0.5, -0.55, 0.28, -0.5); wingShape.bezierCurveTo(0.1, -0.45, 0.02, -0.2, 0, 0);
-  const wingMat = new THREE.MeshBasicMaterial({ color: '#d8f6ff', transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
-  const wings = [1, -1].map((s) => {
-    const w = new THREE.Mesh(new THREE.ShapeGeometry(wingShape, 8), wingMat);
-    w.scale.set(s * 0.8, 0.8, 0.8);
-    w.position.set(0, 1.08, -0.13);
-    hero.root.add(w);
-    return { mesh: w, side: s };
+  const wingGeo = new THREE.ShapeGeometry(wingShape, 8);
+  const addWings = (to: THREE.Object3D, color: string, y: number, size: number) => [1, -1].map((side) => {
+    const mesh = new THREE.Mesh(wingGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+    mesh.scale.set(side * size, size, size); mesh.position.set(0, y, -0.13);
+    to.add(mesh);
+    return { mesh, side };
   });
+  const wings = addWings(hero.root, '#d8f6ff', 1.08, 0.8);
 
   // ----- cat companion -----
   const cat = new Actor(catRig);
@@ -172,51 +117,67 @@ async function boot() {
   cat.play('Idle');
   tint(cat.model, { Cat_Main: '#f7a94b', Cat_Secondary: '#d27a2c', Ears: '#f9a8bd', Eye_White: '#ffffff' });
 
-  // ----- unicorn -----
-  const uni = new Actor(uniRig);
-  tint(uni.model, { Main: '#ffffff', Main_Light: '#fff4fb', Hair: '#ff9ed2', Hooves: '#ffd76a', Muzzle: '#ffd0e0', Eye_White: '#ffffff' });
-  uni.root.position.set(UNICORN.x, height(UNICORN.x, UNICORN.z), UNICORN.z);
-  uni.heading = -2.2; uni.root.rotation.y = uni.heading;
-  scene.add(uni.root);
-  uni.play('Idle');
-  colliders.push({ x: UNICORN.x, z: UNICORN.z, r: 0.9 }, { x: CHEST.x, z: CHEST.z, r: 0.6 });
-  const hornMat = new THREE.MeshStandardMaterial({ color: '#ffe68a', emissive: '#ffc94d', emissiveIntensity: 0.9, roughness: 0.3 });
-  const horn = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.5, 12), hornMat);
+  // ----- quest characters -----
+  tint(uniRig.model, { Main: '#ffffff', Main_Light: '#fff4fb', Hair: '#ff9ed2', Hooves: '#ffd76a', Muzzle: '#ffd0e0', Eye_White: '#ffffff' });
+  tint(foxRig.model, { Main: '#ff9a4d', Main_Light: '#fff3e2', Grey: '#6a4a3a', Black: '#4a3a3a' });
+  tint(deerRig.model, { Main: '#d39a62', Main_Light: '#f8e3c4', Main_Dark: '#9a6a44', Hooves: '#6a4a3a', Eye_White: '#ffffff' });
+  tint(kingRig.model, { MushroomKing_Main: '#ff6f91', MushroomKing_Secondary: '#fff3e0', Orc_Main: '#ffe2c4', Eye_White: '#ffffff' });
+  const rigs = { unicorn: uniRig, fox: foxRig, mushking: kingRig, deer: deerRig, queen: queenRig };
+  const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
+  const npcs: Npc[] = QUESTS.map((def) => {
+    const actor = new Actor(rigs[def.id]);
+    const pos = new THREE.Vector3(def.x, groundY(def.x, def.z), def.z);
+    actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
+    scene.add(actor.root);
+    actor.play('Idle');
+    colliders.push({ x: def.x, z: def.z, r: 0.8 });
+    const mark = new THREE.Mesh(starGeo, starMat);
+    scene.add(mark);
+    return { def, actor, pos, mark, idle: 'Idle', timer: 3 + Math.random() * 5 };
+  });
+  const npc = (id: QuestDef['id']) => npcs.find((n) => n.def.id === id)!;
+  const queenWings = addWings(queenRig.root, '#fff3b8', 1.25, 1.0);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.085, 0.09, 8, 1, true), new THREE.MeshStandardMaterial({ color: '#ffd84d', emissive: '#ffb300', emissiveIntensity: 0.7, roughness: 0.3, side: THREE.DoubleSide }));
+  scene.add(crown);
+  // Unicorn horn follows the head bone.
+  const horn = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.5, 12), new THREE.MeshStandardMaterial({ color: '#ffe68a', emissive: '#ffc94d', emissiveIntensity: 0.9, roughness: 0.3 }));
   horn.geometry.translate(0, 0.25, 0);
-  let headBone: THREE.Object3D | null = null;
+  scene.add(horn);
+  let uniHead: THREE.Object3D | null = null;
+  uniRig.model.traverse((o) => { if ((o as THREE.Bone).isBone && o.name === 'Head') uniHead = o; });
   const hornQ = new THREE.Quaternion(), hornDir = new THREE.Vector3(), yAxis = new THREE.Vector3(0, 1, 0);
-  const hornFwd = 0.16, hornUp = 0.2;
-  uni.model.traverse((o) => { if ((o as THREE.Bone).isBone && o.name === 'Head') headBone = o; });
-  const mark = new THREE.Mesh(starGeo, new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffcc33', emissiveIntensity: 1.2, vertexColors: false }));
-  mark.position.set(UNICORN.x, uni.root.position.y + 3, UNICORN.z);
-  scene.add(mark, horn);
+  colliders.push({ x: CHEST.x, z: CHEST.z, r: 0.6 });
 
-  // ----- crystal, chest, stars, beacon -----
-  const crystalMat = new THREE.MeshStandardMaterial({ color: '#bff4ff', emissive: '#56d8ff', emissiveIntensity: 0.9, roughness: 0.15, metalness: 0.1, flatShading: true });
-  const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+  // ----- shrine: the Crystal of Light and its five shards -----
+  const shrine = new THREE.Vector3(SHRINE.x, groundY(SHRINE.x, SHRINE.z) + 1.7, SHRINE.z);
+  const crystal = new THREE.Mesh(crystalGeo, new THREE.MeshStandardMaterial({ color: '#bff4ff', emissive: '#56d8ff', emissiveIntensity: 0.9, roughness: 0.15, flatShading: true, transparent: true }));
   const crystalLight = new THREE.PointLight('#8fe8ff', 0, 14, 1.6);
   crystal.add(crystalLight); crystalLight.position.y = 0.5;
+  crystal.position.copy(shrine);
   scene.add(crystal);
-  const crystalHome = new THREE.Vector3(CRYSTAL.x, height(CRYSTAL.x, CRYSTAL.z) + 0.9, CRYSTAL.z);
-  const crystalShrine = new THREE.Vector3(22.5, height(22.5, -8) + 1.9, -8); // inside the gazebo once found
+  const shards = QUESTS.map((q) => {
+    const m = new THREE.Mesh(crystalGeo, new THREE.MeshStandardMaterial({ color: q.shard, emissive: q.shard, emissiveIntensity: 0.7, roughness: 0.2, flatShading: true }));
+    m.scale.setScalar(0.34); m.visible = false;
+    scene.add(m);
+    return m;
+  });
+  const shardCount = () => QUESTS.filter((q) => (save.quests[q.id] ?? 0) >= 3).length;
 
+  // ----- chest, stars, guide -----
   const chest = new Actor(chestRig);
-  chest.root.position.set(CHEST.x, height(CHEST.x, CHEST.z), CHEST.z);
+  chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z);
   chest.root.rotation.y = 0.9;
   scene.add(chest.root);
   if (save.chestOpen) chest.pose('Chest_Open');
-
-  const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
-  const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [22.5, -8], [-17, -18], [7, -31], [-26, 11], [26, -30], [-2, -46]];
+  const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [18, -4], [-17, -14], [7, -31], [-26, 11], [26, -30], [-2, -40]];
   const stars = starSpots.map(([x, z], id) => {
     const p = { x, z }; resolve(p, 0.6);
     const mesh = new THREE.Mesh(starGeo, starMat);
-    mesh.position.set(p.x, height(p.x, p.z) + 1.0, p.z);
+    mesh.position.set(p.x, groundY(p.x, p.z) + 1.0, p.z);
     mesh.visible = !save.starsTaken.includes(id);
     scene.add(mesh);
     return { id, mesh };
   });
-
   const beacon = new THREE.Mesh(
     new THREE.CylinderGeometry(0.35, 0.7, 14, 20, 1, true),
     new THREE.ShaderMaterial({
@@ -238,142 +199,217 @@ async function boot() {
     const a = i * 2.4, r = 6 + (i * 37 % 40);
     flies.add(Math.cos(a) * r, Math.sin(a) * r - 6, 2 + (i % 3), palette[i % palette.length]);
   }
-  const ambientCount = flies.flies.length;
 
   // ---------- game state ----------
-  let stage: Stage = save.stage;
-  let busy = false;                 // hero can't move (task, fanfare)
+  let busy = false;                 // a conversation, task or cut-scene is running: the heroine stands still
+  let paused = false;               // a menu is open
   let vy = 0, grounded = true;
   let auto: { x: number; z: number; then?: () => void; stuck: number; last: number } | null = null;
   const cam = { yaw: 0, pitch: 0.36, dist: 6.2, target: new THREE.Vector3(), focus: null as THREE.Vector3 | null };
   cam.target.copy(hero.root.position);
-  const task = { active: false, n: 0, first: 0, counted: 0, wrong: 0, sprites: [] as THREE.Sprite[], demo: false, colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'] };
-  let glow = stage >= Stage.Done ? 1 : 0;
   let camOverride: number | null = null;
+  let glow = save.final ? 1 : 0;
+  let finale = 0;                   // >0 while the shards merge into the crystal
+  const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
+  const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
 
-  const persist = () => { save.stage = stage; save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
-  const line = (key: Key, hold = 0) => { bubble(key, hold); return say(key, voiceText(key)); };
-  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${stage >= Stage.Done ? 1 : 0}/1`); };
+  const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
+  const line = (key: Key, hold = 0, speaker = '🐱') => { bubble(key, hold, speaker); return say(key, voiceText(key)); };
+  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${shardCount()}/5`); };
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
-
-  interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
-  const spots: Spot[] = [
-    { pos: uni.root.position, r: 3.2, label: 'talk', on: () => stage === Stage.GoUnicorn && !busy, run: startCounting },
-    { pos: crystalHome, r: 2.2, label: 'take', on: () => stage === Stage.CrystalReady && !busy, run: takeCrystal },
-    { pos: chest.root.position, r: 2.2, label: 'open', on: () => !save.chestOpen && !busy, run: openChest },
-  ];
-
-  function openChest() {
-    save.chestOpen = true;
-    chest.once('Chest_Open', 'Chest_Open');
-    sfx('good');
-    addStars(5, chest.root.position.clone().setY(chest.root.position.y + 1));
-    void line('chest', 4000);
+  const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
+  async function praise() {
+    sfx('good'); cat.once('Yes', 'Idle');
+    sparks.burst(above(hero.root.position, 1.2), '#ff9ed2', 30, 4);
+    bubble(null);
+    await say(`praise_${pick([0, 1, 3, 4, 5, 6, 7])}`, 'Молодець!');
   }
 
-  // ----- the counting task -----
-  async function startCounting() {
-    stage = Stage.Counting; busy = true; auto = null; task.active = true; task.counted = 0; task.wrong = 0;
-    task.n = 4 + Math.floor(Math.random() * 5);
-    task.first = flies.flies.length;
-    for (let i = 0; i < task.n; i++) {
-      const a = (i / task.n) * 6.28 + Math.random() * 0.5, r = 0.5 + Math.random() * 1.6;
-      const id = flies.add(PATCH.x + Math.cos(a) * r, PATCH.z + Math.sin(a) * r, 0.45, task.colors[i % 4], 1.5);
-      flies.flies[id].home.y = height(PATCH.x, PATCH.z) + 1.0 + (i % 3) * 0.45;
-    }
-    cam.focus = new THREE.Vector3(PATCH.x, height(PATCH.x, PATCH.z) + 1.2, PATCH.z);
-    hero.play('Talk'); uni.play('Idle_2');
-    mark.visible = false;
-    await line('uni_ask');
-    if (!task.active) return;
-    showAnswers(10, pickAnswer);
-    void line('count_hint');
-  }
+  // ----- panel tasks -----
+  const hooksFor = (speaker: string): TaskHooks => ({
+    prompt: (key) => { void line(key, 0, speaker); },
+    number: (n) => { void say(`tap_${n}`, String(n)); },
+    wrong: () => { sfx('soft'); void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз'); },
+    hint: (key) => { bubble(key, 0, '🐱'); },
+    good: () => sfx('pop'),
+  });
 
+  // ----- task in the world: count the butterflies over the flower bed -----
+  function countButterflies(level: number): Promise<TaskResult> {
+    return new Promise((done) => {
+      Object.assign(bf, { active: true, counted: 0, wrong: 0, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5) : level === 2 ? randInt(5, 7) : randInt(7, 9) });
+      for (let i = 0; i < bf.n; i++) {
+        const a = (i / bf.n) * 6.28 + Math.random() * 0.5, r = 0.5 + Math.random() * 1.6;
+        const id = flies.add(PATCH.x + Math.cos(a) * r, PATCH.z + Math.sin(a) * r, 0.45, bf.colors[i % 4], 1.5);
+        flies.flies[id].home.y = groundY(PATCH.x, PATCH.z) + 1.0 + (i % 3) * 0.45;
+      }
+      cam.focus = new THREE.Vector3(PATCH.x, groundY(PATCH.x, PATCH.z) + 1.2, PATCH.z);
+      void line('t_count', 0, '🦄');
+      showAnswers(10, (n, btn) => {
+        if (!bf.active || bf.demo) return;
+        if (n === bf.n) {
+          btn.classList.add('yes'); bf.active = false;
+          setTimeout(() => {
+            hideAnswers();
+            for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.2; f.r = 2.2; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
+            bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0;
+            bf.done({ solved: true, wrong: bf.wrong });
+          }, 700);
+        } else {
+          btn.classList.add('no'); bf.wrong++; sfx('soft');
+          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз').then(() => { if (bf.active) void demoCount(); });
+        }
+      });
+    });
+  }
   function countFly(i: number) {
     const f = flies.flies[i];
     if (f.landed) return;
     f.landed = true; f.scale = 1.9;
     flies.setColor(i, '#ff9f1a');
-    task.counted++;
-    const s = numberSprite(task.counted);
+    const s = numberSprite(++bf.counted);
     s.position.copy(f.pos).y += 0.7;
-    scene.add(s); task.sprites.push(s);
+    scene.add(s); bf.sprites.push(s);
     sparks.burst(f.pos, '#fff2a8', 10, 2);
     sfx('pop');
-    void say(`tap_${task.counted}`, String(task.counted));
+    void say(`tap_${bf.counted}`, String(bf.counted));
   }
-
-  function resetCount() {
-    for (let i = task.first; i < task.first + task.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, task.colors[(i - task.first) % 4]); }
-    task.sprites.forEach((s) => { scene.remove(s); s.material.map?.dispose(); s.material.dispose(); });
-    task.sprites.length = 0; task.counted = 0;
-  }
-
   /** Hint after a miss: the cat counts every butterfly aloud, one by one. */
   async function demoCount() {
-    task.demo = true;
-    resetCount();
-    for (let i = task.first; i < task.first + task.n && task.active; i++) {
-      countFly(i);
-      await new Promise((r) => setTimeout(r, 850));
+    bf.demo = true; bubble('h_count');
+    for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
+    bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
+    for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await new Promise((r) => setTimeout(r, 850)); }
+    bf.demo = false;
+    if (bf.active) bubble('t_count', 0, '🦄');
+  }
+
+  // ----- task in the world: find the stars hidden around the deer -----
+  function startSearch(n: Npc) {
+    search.items.forEach((it) => scene.remove(it.mesh));
+    search.items = Array.from({ length: 5 }, (_, i) => {
+      const a = (i / 5) * 6.28 + Math.random() * 0.9, r = 5 + Math.random() * 7;
+      const p = { x: n.pos.x + Math.cos(a) * r, z: n.pos.z + Math.sin(a) * r };
+      resolve(p, 0.7);
+      const mesh = new THREE.Mesh(starGeo, starMat);
+      mesh.scale.setScalar(0.75); mesh.position.set(p.x, groundY(p.x, p.z) + 0.55, p.z);
+      scene.add(mesh);
+      return { mesh, found: false };
+    });
+    Object.assign(search, { active: true, found: 0, idle: 0 });
+    void line('t_stars', 6000, n.def.emoji);
+  }
+  function finishSearch() {
+    search.active = false;
+    save.quests.deer = Math.max(save.quests.deer ?? 0, 1);
+    recordTask(save, 'count', 0);
+    addStars(3, above(hero.root.position, 1.2));
+    void praise().then(() => line('t_stars_back', 6000));
+  }
+
+  // ----- conversations -----
+  async function talk(n: Npc) {
+    if (busy) return;
+    const q = n.def;
+    busy = true; auto = null; setAct(null);
+    cam.focus = above(n.pos, 1.1);
+    hero.play('Talk');
+    try {
+      const done = save.quests[q.id] ?? 0;
+      if (search.active && q.id === 'deer') { await line('t_stars', 0, q.emoji); return; }
+      if (done >= 3) {           // the quest is finished: replay one of its games for stars
+        await line('npc_again', 0, q.emoji);
+        const type = pick(q.steps.filter((s): s is TaskType => s !== 'butterflies' && s !== 'stars'));
+        const res = await runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji));
+        if (res.solved) { recordTask(save, SKILL[type], res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
+        return;
+      }
+      if (done === 0) await line(`${q.id}_hi`, 0, q.emoji);
+      for (let k = done; k < 3; k++) {
+        const step = q.steps[k];
+        if (step === 'stars') { startSearch(n); return; }
+        const skill = step === 'butterflies' ? 'count' : SKILL[step];
+        const res = step === 'butterflies' ? await countButterflies(levelFor(save, 'count')) : await runTask(step, levelFor(save, skill), hooksFor(q.emoji));
+        cam.focus = above(n.pos, 1.1);
+        if (!res.solved) return;                    // closed by the child: come back any time
+        save.quests[q.id] = k + 1;
+        recordTask(save, skill, res.wrong);
+        addStars(res.wrong ? 2 : 3, above(hero.root.position, 1.4));
+        if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
+        await praise();
+        if (k < 2) await line('npc_next', 0, q.emoji);
+      }
+      await giveShard(n);
+    } finally {
+      busy = false; cam.focus = null; hero.play('Idle');
+      if (!search.active) bubble(null);
     }
-    task.demo = false;
-    if (task.active) void line('pick_number');
   }
 
-  function pickAnswer(n: number, btn: HTMLButtonElement) {
-    if (!task.active || task.demo) return;
-    if (n === task.n) {
-      btn.classList.add('yes');
-      void finishCounting();
-    } else {
-      btn.classList.add('no');
-      task.wrong++;
-      sfx('soft');
-      const k = Math.floor(Math.random() * 3);
-      bubble('count_hint');
-      void say(`try_${k}`, 'Спробуй ще раз').then(() => { if (task.active) void demoCount(); });
-    }
-  }
-
-  async function finishCounting() {
-    task.active = false;
-    sfx('good');
-    cat.once('Yes', 'Idle'); hero.once('Dance', 'Idle');
-    const center = cam.focus!.clone();
-    sparks.burst(center, '#ff9ed2', 40, 5); sparks.burst(center, '#9fe8ff', 30, 4);
-    save.stars += 3; refreshHud();
-    await say(`praise_${[0, 1, 3, 4, 5, 6, 7][Math.floor(Math.random() * 7)]}`, 'Молодець!');
-    hideAnswers();
-    for (let i = task.first; i < task.first + task.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.2; f.r = 2.2; flies.setColor(i, palette[(i - task.first) % 4]); }
-    task.sprites.forEach((s) => scene.remove(s)); task.sprites.length = 0;
-    cam.focus = null; busy = false;
-    stage = Stage.CrystalReady;
-    sparks.burst(crystalHome, '#8fe8ff', 50, 5); sfx('chime');
-    persist();
-    void line('reward', 7000);
-  }
-
-  async function takeCrystal() {
-    busy = true; auto = null;
-    stage = Stage.Done;
+  async function giveShard(n: Npc) {
+    const count = shardCount();
     sfx('fanfare');
     hero.play('Dance'); cat.play('Dance');
-    sparks.burst(crystalHome, '#8fe8ff', 60, 6); sparks.burst(crystalHome, '#fff2a8', 40, 5);
+    sparks.burst(above(n.pos, 2), n.def.shard, 60, 6); sparks.burst(above(n.pos, 2), '#fff2a8', 40, 5);
     refreshHud(); persist();
-    void line('got_crystal');
-    await fanfare('crystal_name', 'got_crystal');
-    cat.play('Idle'); hero.play('Idle');
-    busy = false;
+    void line('npc_done', 0, n.def.emoji);
+    await fanfare('shard_title', tf('shard_text', { n: count }), n.def.shard);
+    cat.play('Idle');
+    if (count === 5) await line('all_shards', 0); else void line('go_next', 5000);
+  }
+
+  async function restoreCrystal() {
+    busy = true; auto = null; setAct(null);
+    cam.focus = shrine.clone();
+    hero.play('Talk');
+    finale = 0.001;
+    sfx('chime');
+    await new Promise((r) => setTimeout(r, 3600));
+    save.final = true; finale = 0; persist();
+    sfx('fanfare');
+    for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(shrine, c, 50, 7);
+    hero.play('Dance'); cat.play('Dance');
+    for (const n of npcs) if (n.actor.has('Dance')) n.actor.play('Dance');
+    void line('final_text');
+    await fanfare('final_title', t('final_text'));
+    cat.play('Idle'); hero.play('Idle'); npcs.forEach((n) => n.actor.play('Idle'));
+    busy = false; cam.focus = null;
     void line('free', 6000);
   }
 
-  // ---------- start screen ----------
+  function openChest() {
+    save.chestOpen = true;
+    chest.once('Chest_Open', 'Chest_Open');
+    sfx('good');
+    addStars(5, above(chest.root.position, 1));
+    void line('chest', 4000);
+  }
+
+  interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
+  const spots: Spot[] = [
+    ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+    { pos: shrine, r: 2.6, label: 'place', on: () => shardCount() === 5 && !save.final, run: () => { void restoreCrystal(); } },
+    { pos: chest.root.position, r: 2.2, label: 'open', on: () => !save.chestOpen, run: openChest },
+  ];
+
+  /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
+  function goal(): THREE.Vector3 | null {
+    if (search.active) {
+      if (search.idle < 20) return null;
+      let best: THREE.Vector3 | null = null, bd = 1e9;
+      for (const it of search.items) { const d = it.mesh.position.distanceTo(hero.root.position); if (!it.found && d < bd) { bd = d; best = it.mesh.position; } }
+      return best;
+    }
+    const next = npcs.find((n) => (save.quests[n.def.id] ?? 0) < 3);
+    if (next) return next.pos;
+    return save.final ? null : shrine;
+  }
+
+  // ---------- start screen & menus ----------
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
   el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
   el.play.addEventListener('click', async () => {
-    unlockAudio();
+    unlockAudio(); applyVolume();
     el.start.classList.add('hidden');
     el.hud.classList.remove('hidden'); el.btnJump.classList.remove('hidden');
     refreshHud();
@@ -381,16 +417,14 @@ async function boot() {
     save.played = true; persist();
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
-    if (stage === Stage.Intro) {
-      await line('intro');
-      stage = Stage.GoUnicorn; persist();
-      void line('go_unicorn', 6000);
-    } else if (!first) {
-      await line('welcome_back', 5000);
-      if (stage === Stage.GoUnicorn) void line('go_unicorn', 6000);
-      if (stage === Stage.CrystalReady) void line('reward', 6000);
-    }
+    if (first) { await line('intro'); void line('go_next', 6000); }
+    else await line('welcome_back', 5000);
   }, { once: true });
+  initBook(save, {
+    change: () => { applyVolume(); persist(); },
+    reset: () => { clearSave(); location.reload(); },
+    open: (v) => { paused = v; },
+  });
   initInput(el.canvas, el.joy, el.knob, el.btnJump, el.btnAct);
   setInterval(persist, 10000);
   addEventListener('pagehide', persist);
@@ -408,29 +442,21 @@ async function boot() {
     const time = (uTime.value += dt);
     pollInput();
     const hp = hero.root.position;
-    const canMove = started() && !busy;
+    const canMove = started() && !busy && !paused;
 
-    // camera yaw from drag
     cam.yaw -= input.lookDX * 0.006; input.lookDX = 0;
 
     // taps: count a butterfly, or walk to a spot / point on the ground
-    if (input.tap && started()) {
+    if (input.tap && started() && !paused) {
       const tx = input.tap.x, ty = input.tap.y;
-      if (task.active && !task.demo) {
+      const screenDist = (p: THREE.Vector3) => { v.copy(p).project(camera); return v.z < 1 ? Math.hypot((v.x * 0.5 + 0.5) * innerWidth - tx, (-v.y * 0.5 + 0.5) * innerHeight - ty) : 1e9; };
+      if (bf.active && !bf.demo) {
         let best = -1, bd = touch ? 70 : 46;
-        for (let i = task.first; i < task.first + task.n; i++) {
-          v.copy(flies.flies[i].pos).project(camera);
-          const d = Math.hypot((v.x * 0.5 + 0.5) * innerWidth - tx, (-v.y * 0.5 + 0.5) * innerHeight - ty);
-          if (d < bd && !flies.flies[i].landed) { bd = d; best = i; }
-        }
+        for (let i = bf.first; i < bf.first + bf.n; i++) { const d = screenDist(flies.flies[i].pos); if (d < bd && !flies.flies[i].landed) { bd = d; best = i; } }
         if (best >= 0) countFly(best);
       } else if (canMove) {
         let spot: Spot | null = null;
-        for (const s of spots) {
-          if (!s.on()) continue;
-          v.copy(s.pos).setY(s.pos.y + 1).project(camera);
-          if (v.z < 1 && Math.hypot((v.x * 0.5 + 0.5) * innerWidth - tx, (-v.y * 0.5 + 0.5) * innerHeight - ty) < 90) spot = s;
-        }
+        for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
         if (spot) auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
         else {
           ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
@@ -472,15 +498,16 @@ async function boot() {
     } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
     if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
     input.jump = false;
-    const ground = height(hp.x, hp.z);
+    const ground = groundY(hp.x, hp.z);
     vy -= 17 * dt; hp.y += vy * dt;
     if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
-    if (!busy || task.active) {
+    if (!busy) {
       if (!grounded) hero.play('Jump', 0.12);
       else if (mag > 0.08) hero.play(speed > 2.6 ? 'Run' : 'Walk', 0.18, speed > 2.6 ? speed / 4.2 : speed / 1.5);
-      else if (!busy) hero.play('Idle', 0.25);
+      else hero.play('Idle', 0.25);
     }
     wings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * (grounded ? 5 : 22)) * 0.35); });
+    queenWings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * 4 + 1) * 0.3); });
 
     // interaction prompt
     let near: Spot | null = null;
@@ -500,86 +527,116 @@ async function boot() {
       cat.face(Math.atan2(v.x - cp.x, v.z - cp.z), dt);
       if (!busy) cat.play('Walk', 0.15, clamp(cd * 1.2, 0.8, 2.2));
     } else { if (!busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
-    cp.y = height(cp.x, cp.z);
+    cp.y = groundY(cp.x, cp.z);
+
+    // quest characters: turn to the heroine when she is close, otherwise live their own life
+    for (const n of npcs) {
+      const d = Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z);
+      n.actor.face(d < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
+      if (!busy && (n.timer -= dt) < 0) {
+        n.timer = 4 + Math.random() * 6;
+        n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
+        n.actor.play(n.idle, 0.4);
+      }
+      const open = (save.quests[n.def.id] ?? 0) < 3;
+      n.mark.visible = open && !busy && !(search.active && n.def.id === 'deer');
+      n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
+      n.actor.update(dt);
+    }
+    if (uniHead) {
+      // The head bone points along the muzzle; the horn sits on the forehead and leans back a little.
+      const hb = uniHead as THREE.Object3D;
+      hb.getWorldPosition(horn.position); hb.getWorldQuaternion(hornQ);
+      hornDir.set(0, 1, 0).applyQuaternion(hornQ);
+      horn.position.addScaledVector(hornDir, 0.16).y += 0.2;
+      hornDir.multiplyScalar(-0.3).y += 0.9;
+      horn.quaternion.setFromUnitVectors(yAxis, hornDir.normalize());
+    }
+    queenRig.headBone.getWorldPosition(crown.position); crown.position.y += 0.27;
+    crown.rotation.y = npc('queen').actor.heading;
 
     // collectibles
     for (const s of stars) {
       if (!s.mesh.visible) continue;
-      s.mesh.rotation.y = time * 1.6; s.mesh.position.y = height(s.mesh.position.x, s.mesh.position.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
-      if (started() && Math.hypot(s.mesh.position.x - hp.x, s.mesh.position.z - hp.z) < 1.2) {
-        s.mesh.visible = false; save.starsTaken.push(s.id); addStars(1, s.mesh.position);
+      s.mesh.rotation.y = time * 1.6; s.mesh.position.y = groundY(s.mesh.position.x, s.mesh.position.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
+      if (canMove && Math.hypot(s.mesh.position.x - hp.x, s.mesh.position.z - hp.z) < 1.2) { s.mesh.visible = false; save.starsTaken.push(s.id); addStars(1, s.mesh.position); }
+    }
+    if (search.active) {
+      search.idle += dt;
+      for (const it of search.items) {
+        if (it.found) continue;
+        it.mesh.rotation.y = time * 2.2;
+        if (Math.hypot(it.mesh.position.x - hp.x, it.mesh.position.z - hp.z) < 1.3) {
+          it.found = true; it.mesh.visible = false; search.idle = 0;
+          sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
+          void say(`tap_${++search.found}`, String(search.found));
+          bubble('t_stars', 0, '🦌', `⭐ ${search.found} / 5`);
+          if (search.found === 5) finishSearch();
+        }
       }
     }
 
-    // crystal
-    const showCrystal = stage >= Stage.CrystalReady;
-    crystal.visible = showCrystal;
-    if (showCrystal) {
-      const home = stage >= Stage.Done ? crystalShrine : crystalHome;
-      crystal.position.lerp(v.copy(home).setY(home.y + Math.sin(time * 1.8) * 0.15), damp(2, dt));
-      crystal.rotation.y = time * 0.9;
-      crystalLight.intensity = 5 + Math.sin(time * 3) * 1.2;
-      if (stage === Stage.CrystalReady && !busy && Math.hypot(crystalHome.x - hp.x, crystalHome.z - hp.z) < 1.1) void takeCrystal();
-    } else crystal.position.copy(crystalHome);
-    glow = lerp(glow, stage >= Stage.Done ? 1 : 0, damp(0.6, dt));
+    // shrine: collected shards circle the place where the crystal will stand
+    if (finale > 0) finale += dt;
+    const pull = finale > 0 ? Math.max(0, 1 - finale / 3.4) : 1;
+    QUESTS.forEach((q, i) => {
+      const m = shards[i];
+      m.visible = (save.quests[q.id] ?? 0) >= 3 && !save.final;
+      if (!m.visible) return;
+      const a = time * (finale > 0 ? 1 + finale * 2.5 : 0.7) + (i / 5) * 6.28;
+      m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);
+      m.rotation.y = time * 1.5 + i;
+    });
+    const mat = crystal.material as THREE.MeshStandardMaterial;
+    mat.opacity = lerp(mat.opacity, save.final ? 1 : 0.18, damp(2, dt));
+    crystal.scale.setScalar(lerp(crystal.scale.x, save.final ? 1.25 : 0.8, damp(3, dt)));
+    crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
+    crystalLight.intensity = save.final ? 5 + Math.sin(time * 3) * 1.2 : finale > 0 ? finale * 2 : 0;
+    glow = lerp(glow, save.final ? 1 : 0, damp(0.6, dt));
     rainbowAlpha.value = glow;
     (world.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
     world.hemi.intensity = 1.25 + glow * 0.25;
 
     // guide: beacon + sparkle trail towards the next goal
-    const goal = stage <= Stage.GoUnicorn ? uni.root.position : stage === Stage.CrystalReady ? crystalHome : null;
-    const guiding = !!goal && started() && !busy;
-    beacon.visible = trail.visible = guiding;
-    if (guiding && goal) {
-      beacon.position.set(goal.x, height(goal.x, goal.z) + 7, goal.z);
-      const dx = goal.x - hp.x, dz = goal.z - hp.z, d = Math.hypot(dx, dz), len = Math.min(d, 14);
+    const target = started() && !busy ? goal() : null;
+    beacon.visible = trail.visible = !!target;
+    if (target) {
+      beacon.position.set(target.x, groundY(target.x, target.z) + 7, target.z);
+      const dx = target.x - hp.x, dz = target.z - hp.z, d = Math.hypot(dx, dz) || 1, len = Math.min(d, 14);
       for (let i = 0; i < trailN; i++) {
         const f = ((i / trailN + time * 0.35) % 1) * len, x = hp.x + (dx / d) * f, z = hp.z + (dz / d) * f;
-        trailPos.set([x, height(x, z) + 0.6 + Math.sin(time * 4 + i) * 0.2, z], i * 3);
+        trailPos.set([x, groundY(x, z) + 0.6 + Math.sin(time * 4 + i) * 0.2, z], i * 3);
       }
       trailGeo.attributes.position.needsUpdate = true;
     }
-    mark.visible = stage <= Stage.GoUnicorn;
-    mark.rotation.y = time * 2; mark.position.y = uni.root.position.y + 3 + Math.sin(time * 2.5) * 0.15;
     const ring = tapRing.material as THREE.MeshBasicMaterial;
     ring.opacity = Math.max(0, ring.opacity - dt * 1.4); tapRing.scale.setScalar(1 + (0.9 - ring.opacity));
 
-    // animation
-    hero.update(dt); cat.update(dt); uni.update(dt); chest.update(dt);
-    if (headBone) {
-      const hb = headBone as THREE.Object3D;
-      // The head bone points along the muzzle; the horn sits on the forehead and leans forward a little.
-      hb.getWorldPosition(horn.position); hb.getWorldQuaternion(hornQ);
-      hornDir.set(0, 1, 0).applyQuaternion(hornQ);
-      horn.position.addScaledVector(hornDir, hornFwd).y += hornUp;
-      hornDir.multiplyScalar(-0.3).y += 0.9;
-      horn.quaternion.setFromUnitVectors(yAxis, hornDir.normalize());
-    }
+    hero.update(dt); cat.update(dt); chest.update(dt);
     flies.update(time);
-    for (let i = 0; i < task.sprites.length; i++) task.sprites[i].position.y += Math.sin(time * 3 + i) * 0.002;
+    for (let i = 0; i < bf.sprites.length; i++) bf.sprites[i].position.y += Math.sin(time * 3 + i) * 0.002;
     updateClouds(dt);
     sparks.update(dt);
 
-    // camera: orbit behind the hero, or frame the task
+    // camera: dressing room on the start screen, a conversation/task framing, or orbit behind the heroine
     if (!cam.focus && mag > 0.3 && !input.touch) cam.yaw += clamp(angleDiff(hero.heading + Math.PI, cam.yaw), -1, 1) * 0.5 * dt * (Math.abs(angleDiff(hero.heading + Math.PI, cam.yaw)) < 2.3 ? 1 : 0);
     if (!started()) {
-      // Dressing room: the heroine stands beside the start panel so every colour/hair change is visible at once.
       const wide = camera.aspect > 1.25;
       cam.yaw = Math.PI + 0.3 + Math.sin(time * 0.4) * 0.12;
       v.set(hp.x - Math.cos(cam.yaw) * (wide ? 1.0 : 0), hp.y + (wide ? 0.95 : 1.9), hp.z + Math.sin(cam.yaw) * (wide ? 1.0 : 0));
       cam.target.copy(v); cam.dist = wide ? 3.6 : 5.2; cam.pitch = 0.12;
-    } else if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.12); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z), cam.yaw) * damp(2, dt); }
-    else v.set(hp.x, hp.y + 1.5, hp.z);
-    if (started()) {
-    cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
-    cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? 7 : camera.aspect < 1 ? 8 : 6.2), damp(3, dt));
-    cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : 0.36, damp(3, dt));
+    } else {
+      if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
+      else v.set(hp.x, hp.y + 1.5, hp.z);
+      cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
+      cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camera.aspect < 1 ? 8 : 6.2), damp(3, dt));
+      cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : 0.36, damp(3, dt));
     }
     camera.position.set(
       cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,
       cam.target.y + Math.sin(cam.pitch) * cam.dist,
       cam.target.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
-    camera.position.y = Math.max(camera.position.y, height(camera.position.x, camera.position.z) + 0.8);
+    camera.position.y = Math.max(camera.position.y, groundY(camera.position.x, camera.position.z) + 0.8);
     camera.lookAt(cam.target);
 
     world.sun.position.copy(hp).add(world.sunOffset);
@@ -607,11 +664,16 @@ async function boot() {
 
   // Test/debug hook.
   (window as unknown as Record<string, unknown>).__game = {
-    hero, cam, save, flies, ambientCount, task, scene, camera, renderer, THREE,
-    get stage() { return stage; },
-    teleport(x: number, z: number) { hp0.set(x, height(x, z), z); },
+    hero, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf,
+    get busy() { return busy; },
+    teleport(x: number, z: number) { hero.root.position.set(x, groundY(x, z), z); },
     closeup(d: number | null) { camOverride = d; },
-    reset() { Object.assign(save, defaultSave()); storeSave(save); location.reload(); },
+    talk(id: QuestDef['id']) { void talk(npc(id)); },
+    /** Does the right thing for whatever task is on screen; returns what it did. */
+    cheat() {
+      if (bf.active && !bf.demo) { (el.answers.children[bf.n - 1] as HTMLElement).dispatchEvent(new PointerEvent('pointerdown')); return 'butterflies'; }
+      if (search.active) { const it = search.items.find((s) => !s.found); if (it) hero.root.position.copy(it.mesh.position); return 'star'; }
+      return cheatTask() ? 'panel' : '';
+    },
   };
-  const hp0 = hero.root.position;
 }

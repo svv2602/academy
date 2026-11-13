@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { staticGeo, texturedParts, type Part } from '../core/assets';
 import { fbm, mulberry32, vnoise } from '../core/util';
-import { CASTLE, CHEST, CRYSTAL, PATCH, POND, SPAWN, UNICORN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
+import { QUESTS, SHRINE } from '../game/quests';
+import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 
 export const uTime = { value: 0 };
 
@@ -225,7 +226,7 @@ function reserved(x: number, z: number, margin: number) {
   if (pathDist(x, z) < 1.6 + margin) return true;
   if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 1 + margin) return true;
   if (Math.hypot(x - CASTLE.x, z - CASTLE.z) < 15 + margin) return true;
-  for (const p of [SPAWN, UNICORN, PATCH, CRYSTAL, CHEST]) if (Math.hypot(x - p.x, z - p.z) < 2.2 + margin) return true;
+  for (const p of [SPAWN, PATCH, CHEST, SHRINE, ...QUESTS]) if (Math.hypot(x - p.x, z - p.z) < 2.2 + margin) return true;
   return false;
 }
 

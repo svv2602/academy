@@ -1,3 +1,5 @@
+import type { Save, SkillId } from '../core/save';
+import { QUESTS } from '../game/quests';
 import { lang, setChildName, setLang, t, type Key } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -11,10 +13,11 @@ export const el = {
 };
 
 let bubbleTimer = 0;
-export function bubble(key: Key | null, holdMs = 0) {
+export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: string) {
   clearTimeout(bubbleTimer);
   if (!key) { el.bubble.classList.add('hidden'); return; }
-  el.bubbleText.textContent = t(key);
+  $('speaker').textContent = speaker;
+  el.bubbleText.textContent = text ?? t(key);
   el.bubble.classList.remove('hidden');
   el.bubble.style.animation = 'none'; void el.bubble.offsetWidth; el.bubble.style.animation = '';
   if (holdMs) bubbleTimer = window.setTimeout(() => el.bubble.classList.add('hidden'), holdMs);
@@ -45,9 +48,10 @@ export function setAct(label: Key | null) {
   if (label) el.btnAct.textContent = t(label);
 }
 
-export function fanfare(title: Key, text: Key): Promise<void> {
+export function fanfare(title: Key, text: string, gemColor = '#7fe3ff'): Promise<void> {
   el.fanfareTitle.textContent = t(title);
-  el.fanfareText.textContent = t(text);
+  el.fanfareText.textContent = text;
+  (el.fanfare.querySelector('.gem') as HTMLElement).style.filter = `drop-shadow(0 0 22px ${gemColor})`;
   el.fanfareOk.textContent = t('ok');
   el.fanfare.classList.remove('hidden');
   return new Promise((res) => { el.fanfareOk.onclick = () => { el.fanfare.classList.add('hidden'); res(); }; });
@@ -97,4 +101,49 @@ export function initStart(sel: { dress: string; hair: string; name: string; hair
     styles.appendChild(b);
   }
   el.restart.classList.toggle('hidden', !hasSave);
+}
+
+/** Collection book + the parents' section behind an "adult" gate. */
+export function initBook(save: Save, on: { change(): void; reset(): void; open(isOpen: boolean): void }) {
+  const book = $('book'), parents = $('parents');
+  const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
+  const renderBook = () => {
+    $('colTitle').textContent = t('col_title'); $('bookClose').textContent = t('close'); $('btnParents').textContent = t('parents');
+    $('shards').innerHTML = '';
+    for (const q of QUESTS) {
+      const d = document.createElement('div');
+      d.className = 'shard' + ((save.quests[q.id] ?? 0) >= 3 ? ' got' : '');
+      d.style.setProperty('--c', q.shard);
+      d.innerHTML = `<div class="gem"></div>${q.emoji}`;
+      $('shards').appendChild(d);
+    }
+    $('colStats').innerHTML = `<div>⭐ ${t('col_stars')}: ${save.stars}</div><div>🎁 ${t('col_chest')}: ${save.chestOpen ? '✔' : '?'}</div>`;
+  };
+  $('btnBook').addEventListener('click', () => { renderBook(); show(book, true); });
+  $('bookClose').addEventListener('click', () => show(book, false));
+
+  const gateA = $<HTMLInputElement>('gateA');
+  const renderParents = () => {
+    const skills: SkillId[] = ['count', 'add', 'sub', 'compare', 'logic'];
+    const rows = skills.map((k) => { const s = save.skills[k]; return `<tr><td>${t(('sk_' + k) as Key)}</td><td>${save.difficulty || s.level}</td><td>${s.tasks}</td><td>${s.tasks ? Math.round((s.first / s.tasks) * 100) + '%' : '–'}</td><td>${s.errors}</td></tr>`; }).join('');
+    $('pBody').innerHTML = `<table><tr><th>${t('p_skill')}</th><th>${t('p_level')}</th><th>${t('p_tasks')}</th><th>${t('p_first')}</th><th>${t('p_errors')}</th></tr>${rows}</table>
+      <div class="prow"><span>${t('p_diff')}</span>${[0, 1, 2, 3].map((d) => `<button data-d="${d}" class="${save.difficulty === d ? 'sel' : ''}">${t(('d' + d) as Key)}</button>`).join('')}</div>
+      ${(['music', 'sfx', 'voice'] as const).map((v) => `<div class="prow"><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></div>`).join('')}
+      <div class="prow"><button id="pReset">${t('p_reset')}</button></div>`;
+    $('pBody').querySelectorAll<HTMLElement>('[data-d]').forEach((b) => b.addEventListener('click', () => { save.difficulty = Number(b.dataset.d) as Save['difficulty']; on.change(); renderParents(); }));
+    $('pBody').querySelectorAll<HTMLInputElement>('[data-v]').forEach((r) => r.addEventListener('input', () => { save.vol[r.dataset.v as 'music'] = Number(r.value); on.change(); }));
+    const reset = $('pReset'); let armed = false;
+    reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });
+  };
+  $('btnParents').addEventListener('click', () => {
+    book.classList.add('hidden');
+    $('pTitle').textContent = t('p_title'); $('gateQ').textContent = t('gate_q'); $('parentsClose').textContent = t('close');
+    gateA.value = ''; $('gate').classList.remove('hidden'); $('pBody').classList.add('hidden');
+    show(parents, true);
+  });
+  gateA.addEventListener('input', () => {
+    if (gateA.value.trim() !== '15') return;
+    gateA.blur(); $('gate').classList.add('hidden'); $('pBody').classList.remove('hidden'); renderParents();
+  });
+  $('parentsClose').addEventListener('click', () => show(parents, false));
 }
