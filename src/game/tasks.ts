@@ -3,7 +3,7 @@
  * A task never punishes: a wrong tap shakes, the cat encourages, and a type-specific hint appears.
  */
 import { shuffle, pick, randInt } from '../core/util';
-import type { Key } from '../ui/strings';
+import type { Key, SpokenKey } from '../ui/strings';
 
 export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon';
@@ -12,7 +12,7 @@ export const SKILL: Record<TaskType, Skill> = {
 };
 export interface TaskResult { solved: boolean; wrong: number; }
 export interface TaskHooks {
-  prompt(key: Key): void;          // show + speak the question
+  prompt(key: SpokenKey): void;    // show + speak the question
   number(n: number): void;         // say a number aloud while counting
   wrong(): void;                   // gentle "try again"
   hint(key: Key): void;            // cat explains the hint
@@ -26,7 +26,7 @@ interface Ctx {
   onHint: (wrongs: number) => void;
   cheat: () => void;
 }
-type Builder = (c: Ctx) => Key;
+type Builder = (c: Ctx) => SpokenKey;
 
 const THINGS = ['🌸', '🦋', '🍓', '⭐', '🍄', '🐞', '🍎', '🌼', '🐟', '🍒'];
 const CATS = [['🍎', '🍐', '🍊', '🍋', '🍓', '🍇'], ['🐱', '🐶', '🐰', '🦊', '🐻', '🐼'], ['🌸', '🌼', '🌷', '🌻', '🌹', '💐'], ['🚗', '🚌', '🚲', '🚀', '⛵', '🚂'], ['🍰', '🍭', '🍩', '🍪', '🍫', '🧁']];

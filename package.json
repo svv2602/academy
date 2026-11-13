@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
-    "e2e": "node tools/e2e.mjs"
+    "e2e": "node tools/e2e.mjs",
+    "voice:sync": "node tools/sync_phrases.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

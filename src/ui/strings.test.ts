@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { STRINGS, lang, setChildName, setLang, t, tf, voiceText } from './strings';
+import phrases from '../../voice/phrases.json';
+import { SPOKEN, STRINGS, VOICE_STYLES, lang, recordable, recordingList, setChildName, setLang, t, tf, voiceText, type SpokenKey } from './strings';
 
 /** Language blocks as plain records, so the test keeps working even when the key sets differ. */
 const tables: Record<string, Record<string, unknown>> = STRINGS;
@@ -90,7 +91,7 @@ describe('language selection', () => {
     setLang('ru');
     expect(lang).toBe('ru');
     expect(t('play')).toBe('Играть');
-    expect(voiceText('play')).toBe('Грати');
+    expect(voiceText('go_next')).toBe(STRINGS.uk.go_next);
     setLang('uk');
     expect(t('play')).toBe('Грати');
   });
@@ -124,5 +125,87 @@ describe('placeholders', () => {
     expect(tf('shard_text', { n: 3 })).toBe('3 з 5');
     setLang('ru');
     expect(tf('shard_text', { n: 3 })).toBe('3 из 5');
+  });
+});
+
+describe('lines to record (voice/phrases.json)', () => {
+  afterEach(() => {
+    setLang('uk');
+    setChildName('');
+  });
+
+  /** The committed file as plain data, so a stale or hand-edited file is reported instead of breaking the test itself. */
+  const file: Record<string, unknown> = phrases;
+  const spoken = Object.keys(SPOKEN) as SpokenKey[];
+  const texts = () => Object.entries(file).map(([k, v]) => ({ key: k, text: Array.isArray(v) ? String(v[0]) : String(v) }));
+
+  it('lists exactly the lines marked as spoken, in the order of the marks', () => {
+    const keys = Object.keys(file);
+    // Named lists first, so a failure says which key to mark or which mark to sync.
+    expect({
+      notInFile: spoken.filter((k) => !keys.includes(k)),
+      notSpoken: keys.filter((k) => !(spoken as string[]).includes(k)),
+    }).toEqual({ notInFile: [], notSpoken: [] });
+    expect(keys).toEqual(spoken);
+    expect(spoken.length).toBeGreaterThan(0);
+  });
+
+  it('is what `npm run voice:sync` builds from the game texts', () => {
+    expect(file).toEqual(recordingList());
+  });
+
+  it('has a subtitle in every language for each spoken line', () => {
+    for (const l of langs) {
+      expect({ lang: l, noText: spoken.filter((k) => typeof tables[l][k] !== 'string') }).toEqual({ lang: l, noText: [] });
+    }
+  });
+
+  it('gives every line a text and a known intonation', () => {
+    const styles: readonly string[] = VOICE_STYLES;
+    const bad = Object.entries(file)
+      .filter(([, v]) => !(Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && v[0].trim() !== '' && styles.includes(v[1])))
+      .map(([k]) => k);
+    expect(bad).toEqual([]);
+  });
+
+  it('has no placeholder in any line', () => {
+    // Not vacuous: the game texts do carry the name placeholder.
+    expect(STRINGS.uk.intro).toContain('{, name}');
+    expect(STRINGS.uk.welcome_back).toContain('{, name}');
+    expect(texts().filter(({ text }) => /[{}]/.test(text)).map(({ key }) => key)).toEqual([]);
+  });
+
+  it('cuts the name placeholder out and refuses any other placeholder', () => {
+    expect(recordable('intro', STRINGS.uk.intro)).toBe('Привіт! Ми в Королівстві фей. Кристал світла розбився на пʼять уламків! Допоможеш їх зібрати?');
+    expect(recordable('x', 'Раз{, name}, два{, name}.')).toBe('Раз, два.');
+    // A counter or any other variable cannot be one fixed clip; the error names the key.
+    expect(() => recordable('shard_text', STRINGS.uk.shard_text)).toThrow(/shard_text/);
+    expect(() => recordable('x', 'Привіт{,name}!')).toThrow(/"x"/);
+    expect(() => recordable('x', 'Привіт, name}!')).toThrow(/"x"/);
+    expect(() => recordable('x', 'Привіт{!')).toThrow(/"x"/);
+  });
+
+  it('records each line as the game speaks it when no name is set', () => {
+    setChildName('');
+    expect(texts().filter(({ key, text }) => text !== voiceText(key as SpokenKey)).map(({ key }) => key)).toEqual([]);
+  });
+
+  it('never carries the name, whatever name and language are set', () => {
+    setChildName('Зоряна');
+    setLang('ru');
+    // The name reaches the subtitle and the on-device speech only…
+    expect(t('intro')).toContain('Зоряна');
+    expect(voiceText('intro')).toContain('Зоряна');
+    // …the list for recording is built the same and matches the committed file.
+    expect(JSON.stringify(recordingList())).not.toContain('Зоряна');
+    expect(recordingList()).toEqual(file);
+    expect(JSON.stringify(file)).not.toContain('Зоряна');
+  });
+
+  it('cannot speak an interface-only string (compile-time guard)', () => {
+    // `tsc` fails on the directive below if `voiceText` ever accepts keys that are not marked as spoken.
+    // @ts-expect-error 'ok' is a button label, it is not in SPOKEN
+    expect(voiceText('ok')).toBe(STRINGS.uk.ok);
+    expect(Object.keys(SPOKEN)).not.toContain('ok');
   });
 });

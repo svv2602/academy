@@ -89,6 +89,42 @@ const S = sameKeys({
 export type Key = keyof typeof S.uk;
 /** The whole table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
 export { S as STRINGS };
+/** Intonations the recording pipeline knows; tools/gen_voice.py passes the name on as it is. */
+export const VOICE_STYLES = ['warm', 'joy', 'calm'] as const;
+export type VoiceStyle = (typeof VOICE_STYLES)[number];
+/**
+ * Every line the game speaks, with the intonation of its recording: joy for praise and the finale, warm for
+ * requests and questions, calm for "watch closely". Interface-only strings are not listed.
+ * This table is the only source of voice/phrases.json (`npm run voice:sync`), and `SpokenKey` is the only key type
+ * `voiceText` and the speaking code accept, so a line cannot be spoken without being listed for recording.
+ * To make a string spoken, add `key: 'style'` here and run `npm run voice:sync`.
+ */
+const SPOKEN = {
+  intro: 'joy', welcome_back: 'joy', chest: 'joy', free: 'warm',
+  unicorn_hi: 'warm', fox_hi: 'warm', mushking_hi: 'warm', deer_hi: 'warm', queen_hi: 'warm',
+  npc_next: 'joy', npc_done: 'joy', npc_again: 'warm', go_next: 'warm',
+  t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
+  t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
+  t_stars: 'warm', t_stars_back: 'joy',
+  all_shards: 'joy', final_text: 'joy',
+} as const satisfies Partial<Record<Key, VoiceStyle>>;
+export type SpokenKey = keyof typeof SPOKEN;
+export { SPOKEN };
+/**
+ * A line as it is recorded: the name placeholder is cut out, so neither a clip nor a request to the voice service
+ * ever carries a name. Any other placeholder cannot be recorded as one fixed clip and is an error.
+ */
+export function recordable(key: string, text: string): string {
+  const out = text.replace(/\{, name\}/g, '');
+  if (/[{}]/.test(out)) throw new Error(`spoken line "${key}" still has a placeholder after the name is cut out: ${out}`);
+  return out;
+}
+/** What is sent for recording: every spoken line in Ukrainian with its intonation, in the order of `SPOKEN`. */
+export function recordingList(): Record<SpokenKey, [text: string, style: VoiceStyle]> {
+  const list = {} as Record<SpokenKey, [text: string, style: VoiceStyle]>;
+  for (const k of Object.keys(SPOKEN) as SpokenKey[]) list[k] = [recordable(k, S.uk[k]), SPOKEN[k]];
+  return list;
+}
 /** Saved language; falls back to Ukrainian when storage is missing, blocked or holds an unknown value. */
 function savedLang(): Lang {
   try {
@@ -103,7 +139,7 @@ let childName = '';
 export function setChildName(n: string) { childName = n.trim().slice(0, 20); }
 const fill = (s: string) => s.replace(/\{, name\}/g, childName ? `, ${childName}` : '');
 export const t = (k: Key) => fill(S[lang][k]);
-/** Voice lines are always spoken in Ukrainian. */
-export const voiceText = (k: Key) => fill(S.uk[k]);
+/** Voice lines are always spoken in Ukrainian. Only lines marked in `SPOKEN` can be spoken. */
+export const voiceText = (k: SpokenKey) => fill(S.uk[k]);
 /** Text with {n}-style variables. */
 export const tf = (k: Key, vars: Record<string, string | number>) => t(k).replace(/\{(\w+)\}/g, (_, v) => String(vars[v] ?? ''));

@@ -18,7 +18,7 @@ import { Butterflies } from './world/butterflies';
 import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, setDrawRange, updateRanged, uTime } from './world/scenery';
 import { CHEST, PATCH, SPAWN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
 import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers } from './ui/ui';
-import { t, tf, voiceText, type Key } from './ui/strings';
+import { t, tf, voiceText, type Key, type SpokenKey } from './ui/strings';
 
 const params = new URLSearchParams(location.search);
 const save = loadSave();
@@ -215,7 +215,7 @@ async function boot() {
   const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
 
   const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
-  const line = (key: Key, hold = 0, speaker = '🐱') => { bubble(key, hold, speaker); return say(key, voiceText(key)); };
+  const line = (key: SpokenKey, hold = 0, speaker = '🐱') => { bubble(key, hold, speaker); return say(key, voiceText(key)); };
   const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${shardCount()}/5`); };
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
