@@ -24,7 +24,9 @@
     node tools/pack_hero.mjs <src>                                    # пересобрать героиню из исходных glTF
     python tools/usd2glb.py <kit> public/models/nature2               # пересобрать набор природы из USD
     npm run voice:sync                                                # собрать voice/phrases.json из текстов игры (перед записью)
-    python3 tools/gen_voice.py                                        # озвучка voice/phrases.json (Gemini TTS)
+    python3 tools/gen_voice.py --dry-run                              # какие реплики нужно записать (ничего не отправляет)
+    python3 tools/gen_voice.py                                        # записать их (Gemini TTS, платно; ключ — ~/.config/academy/gemini.env)
+    python3 tools/gen_voice.py --only=id1,id2                         # перезаписать названные реплики
 
 Параметры URL: `?q=0|1|2` — зафиксировать уровень графики (иначе снижается сам при <34 fps).
 
