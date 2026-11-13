@@ -258,6 +258,7 @@ try {
     await wait(9000); await shot('01-spawn');
 
     const seen = new Set();
+    const mistakes = new Set();   // task types in which the deliberate mistake was made
     const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
     for (const q of quests) {
       const t0 = Date.now();
@@ -268,14 +269,52 @@ try {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
           if (!seen.has(type)) {
             seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`);
-            // one deliberate mistake: a wrong answer button, to see the hint
-            const wrong = await g(() => { const b = [...document.querySelectorAll('#taskOpts .opt')].find((x) => !x.classList.contains('yes')); if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown')); return true; });
-            if (wrong) { await wait(3200); await shot(`hint-${type}`); }
+            // One deliberate mistake per task type, to hear "try again", the spoken hint and to see the solution shown.
+            // The right element is learnt from the game itself: the task's own "solve" is run with its taps swallowed
+            // on the way down, so nothing is answered, and then any other element of the same kind is tapped.
+            // Sorting solves in a loop that needs its taps to land, so there the wrong basket is told by its colour.
+            // Memory pairs have no wrong move and no hint.
+            if (type !== 'pairs') {
+              const wrong = await g((kind) => {
+                const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
+                if (kind === 'sort') {
+                  const colour = [...document.querySelector('.gem.current').classList].find((c) => c !== 'gem' && c !== 'current');
+                  const basket = [...document.querySelectorAll('#taskOpts .basket')].find((b) => !b.classList.contains(colour));
+                  if (!basket) return 'no basket of another colour';
+                  tap(basket); return '';
+                }
+                let right = null;
+                const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+                document.addEventListener('pointerdown', swallow, true);
+                try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+                if (!right) return 'the game did not show which element is right';
+                const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
+                  .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('yes') && !e.classList.contains('q'));
+                if (!same.length) return `no other element like the right one (${right.className})`;
+                tap(same[0]); return '';
+              }, type);
+              if (wrong) errors.push(`no deliberate mistake in the "${type}" task: ${wrong}`);
+              // Long enough for "try again" and the whole spoken hint to end, so that the solution is on screen
+              // in the picture and a broken "show the solution" step fails the run.
+              else { mistakes.add(type); await wait(5500); await shot(`hint-${type}`); }
+            }
           }
           await g(() => __game.cheat()); await wait(1500); continue;
         }
         if (await g(() => __game.bf.active)) {
-          if (!seen.has('butterflies')) { seen.add('butterflies'); await wait(1500); await shot('task-butterflies'); }
+          if (!seen.has('butterflies')) {
+            seen.add('butterflies'); await wait(1500); await shot('task-butterflies');
+            // a deliberate wrong number: the cat says the hint, then counts every butterfly aloud
+            const wrong = await g(() => {
+              const b = [...document.querySelectorAll('#answers button')].find((x) => Number(x.textContent) !== __game.bf.n);
+              if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown')); return true;
+            });
+            if (!wrong) errors.push('no deliberate mistake in the "butterflies" task: no other number to tap');
+            else {
+              mistakes.add('butterflies'); await wait(5500); await shot('hint-butterflies');
+              await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
+            }
+          }
           await g(() => __game.cheat()); await wait(1500); continue;
         }
         if (await g(() => __game.search.active)) {
@@ -307,6 +346,10 @@ try {
     await page.click('#parentsClose');
     const s = await g(() => __game.save);
     console.log('task types seen:', [...seen].join(' '));
+    console.log('deliberate mistakes:', [...mistakes].join(' '));
+    // Every task type that has a hint must have been failed once, or the hints went unchecked in this run.
+    const unchecked = [...seen].filter((t) => !mistakes.has(t) && t !== 'pairs' && t !== 'stars');
+    if (unchecked.length) errors.push(`no deliberate mistake was made in: ${unchecked.join(', ')}`);
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
     console.log('fps:', await page.textContent('#fps'));

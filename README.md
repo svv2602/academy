@@ -15,7 +15,7 @@
     npm run build      # сборка в dist/ (относительные пути, годится для GitHub Pages)
     npm test           # юнит-тесты (Vitest), около 15 секунд
     npm run e2e        # сборка и полное прохождение мира на телефоне и компьютере, проверка запросов и ссылок;
-                       # около 5,5 минуты; флаги — npm run e2e -- --help
+                       # около 7,5 минуты; флаги — npm run e2e -- --help
 
     node tools/shot.mjs http://localhost:5173/ shots desktop|mobile   # полное прохождение мира со скриншотами
     node tools/closeup.mjs http://localhost:5173/ shots               # крупные планы
