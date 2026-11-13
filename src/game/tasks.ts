@@ -30,6 +30,8 @@ export interface TaskHooks {
 interface Ctx {
   stage: HTMLElement; opts: HTMLElement; level: number; hooks: TaskHooks;
   wrongs: number; alive: boolean;
+  /** The mistake (value of `wrongs`) after which the child last counted the things by herself; -1 = not yet. */
+  own: number;
   right(): void; wrong(el?: HTMLElement): void;
   /** The hint of this task type: the line the cat says, and the solution shown once the line has ended. */
   hint: { key: SpokenKey; show(wrongs: number): void } | null;
@@ -85,7 +87,7 @@ const builders: Record<TaskType, Builder> = {
     const n = c.level === 1 ? randInt(3, 6) : c.level === 2 ? randInt(5, 9) : randInt(7, 10);
     const list = items(c.stage, pick(THINGS), n);
     let counted = 0;
-    list.forEach((b) => tap(b, () => { if (!b.classList.contains('hit')) { b.classList.add('hit'); badge(b, ++counted); c.hooks.number(counted); } }));
+    list.forEach((b) => tap(b, () => { if (!b.classList.contains('hit')) { b.classList.add('hit'); badge(b, ++counted); c.own = c.wrongs; c.hooks.number(counted); } }));
     const ok = options(c, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], n);
     c.hint = { key: 'h_count', show: (w) => { counted = n; void countAloud(c, list); if (w >= 2) ok.classList.add('pulse'); } };
     return 't_count';
@@ -250,7 +252,7 @@ export function runTask(type: TaskType, level: number, hooks: TaskHooks): Promis
   return new Promise((resolve) => {
     const finish = (solved: boolean) => { c.alive = false; current = null; root.classList.add('hidden'); resolve({ solved, wrong: c.wrongs }); };
     const c: Ctx = {
-      stage, opts, level, hooks, wrongs: 0, alive: true, hint: null, cheat: () => {},
+      stage, opts, level, hooks, wrongs: 0, alive: true, own: -1, hint: null, cheat: () => {},
       right() { if (!c.alive) return; c.alive = false; hooks.good(); root.classList.add('won'); setTimeout(() => finish(true), 1100); },
       wrong(e) {
         if (!c.alive) return;
@@ -263,7 +265,9 @@ export function runTask(type: TaskType, level: number, hooks: TaskHooks): Promis
           await Promise.all([hooks.wrong(), wait(SHAKE_MS)]);
           if (!wanted() || !c.hint) return;
           await hooks.hint(c.hint.key);
-          if (wanted()) c.hint.show(round);
+          // Her own tap on a thing says its number and so cuts the hint off. She is doing what the hint asked:
+          // the cat must not start counting from one over her. The next mistake brings the cat's count back.
+          if (wanted() && c.own !== round) c.hint.show(round);
         })();
       },
     };

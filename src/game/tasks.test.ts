@@ -617,6 +617,38 @@ describe('after a mistake: "try again", then the whole hint, then the solution',
     expect(pulsing()).toHaveLength(1);
   });
 
+  it('count: when the child counts by herself during the hint, the cat does not count over her', async () => {
+    const { cat, done, miss, solve } = await open('count');
+    await miss();
+    await cat.hearOut();                                   // "try again" has ended, the hint is being said
+    expect(cat.said.at(-1)).toBe('h_count');
+    const things = [...all(root(), '#taskStage .it')];
+    tap(things[0]); await vi.advanceTimersByTimeAsync(0);  // her own "one" cuts the hint off
+    tap(things[1]); await vi.advanceTimersByTimeAsync(0);
+    expect(cat.numbers()).toEqual([1, 2]);
+    await vi.advanceTimersByTimeAsync(LONG);               // nothing starts over from one
+    expect(cat.numbers()).toEqual([1, 2]);
+    expect([...all(root(), '#taskStage .it > i')].map((b) => b.textContent)).toEqual(['1', '2']);
+    await solve();
+    await vi.advanceTimersByTimeAsync(LONG);
+    expect(await done).toEqual({ solved: true, wrong: 1 });
+  });
+
+  it('count: after the next mistake the cat counts again, even though she counted by herself before', async () => {
+    const { cat, miss } = await open('count');
+    await miss();
+    await cat.hearOut();
+    tap([...all(root(), '#taskStage .it')][0]);            // her own count during the first hint
+    await vi.advanceTimersByTimeAsync(LONG);
+    expect(cat.numbers()).toEqual([1]);
+    await miss();                                          // a second mistake: "try again" ...
+    await cat.hearOut();                                   // ... then the hint ...
+    await cat.hearOut();                                   // ... heard to the end: now the cat counts everything
+    await vi.advanceTimersByTimeAsync(LONG);
+    const things = all(root(), '#taskStage .it').length;
+    expect(cat.numbers().slice(1)).toEqual(Array.from({ length: things }, (_, i) => i + 1));
+  });
+
   it('simon: the replay locks the buttons, then the sequence can be repeated', async () => {
     const { cat, done, miss, solve } = await open('simon');
     await miss();

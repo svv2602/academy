@@ -211,7 +211,7 @@ async function boot() {
   let userPitch = 0.36;             // set by dragging up/down
   let glow = save.final ? 1 : 0;
   let finale = 0;                   // >0 while the shards merge into the crystal
-  const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
+  const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, own: -1, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
   const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
 
   const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
@@ -238,7 +238,7 @@ async function boot() {
   // ----- task in the world: count the butterflies over the flower bed -----
   function countButterflies(level: number): Promise<TaskResult> {
     return new Promise((done) => {
-      Object.assign(bf, { active: true, counted: 0, wrong: 0, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5) : level === 2 ? randInt(5, 7) : randInt(7, 9) });
+      Object.assign(bf, { active: true, counted: 0, wrong: 0, own: -1, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5) : level === 2 ? randInt(5, 7) : randInt(7, 9) });
       for (let i = 0; i < bf.n; i++) {
         const a = (i / bf.n) * 6.28 + Math.random() * 0.5, r = 0.5 + Math.random() * 1.6;
         const id = flies.add(PATCH.x + Math.cos(a) * r, PATCH.z + Math.sin(a) * r, 0.45, bf.colors[i % 4], 1.5);
@@ -284,7 +284,7 @@ async function boot() {
   async function demoCount() {
     const round = bf.wrong;
     await line('h_count');
-    if (!bf.active || bf.demo || bf.wrong !== round) return;
+    if (!bf.active || bf.demo || bf.wrong !== round || bf.own === round) return;
     bf.demo = true;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
@@ -463,7 +463,7 @@ async function boot() {
       if (bf.active && !bf.demo) {
         let best = -1, bd = touch ? 70 : 46;
         for (let i = bf.first; i < bf.first + bf.n; i++) { const d = screenDist(flies.flies[i].pos); if (d < bd && !flies.flies[i].landed) { bd = d; best = i; } }
-        if (best >= 0) countFly(best);
+        if (best >= 0) { bf.own = bf.wrong; countFly(best); }   // her own count: the cat will not count over it (see demoCount)
       } else if (canMove) {
         let spot: Spot | null = null;
         for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
