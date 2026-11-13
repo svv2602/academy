@@ -239,6 +239,14 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
 
 const TYPES = Object.keys(PLAY) as TaskType[];
 const TASKS = 1000;
+/**
+ * happy-dom caches query results behind WeakRefs, and the engine keeps a WeakRef's target (here: the whole page of
+ * a finished task) alive until the code returns to the event loop. Awaiting promises never gets there, so without a
+ * real pause the 30 000 pages add up to more than 4 GB and the run dies on a machine with the default heap.
+ */
+const BREATH = 50;
+const realTimeout = setTimeout;                   // taken before any test installs the fake clock, which would never fire it
+const breathe = () => new Promise<void>((resolve) => { realTimeout(resolve, 0); });
 /** One seed per task: to replay a failure, set Math.random = mulberry32(seed) and run that single task. */
 const seedOf = (type: TaskType, level: number, i: number) => (TYPES.indexOf(type) * 3 + level - 1) * 100_000 + i + 1;
 
@@ -263,6 +271,7 @@ describe.each(TYPES)('generator %s', (type) => {
         throw new Error(`${type}, level ${level}, task #${i} (seed ${seed}): ${(e as Error).message}\n  on screen: ${seen}`);
       }
       vi.clearAllTimers();
+      if (i % BREATH === BREATH - 1) await breathe();
     }
   });
 });
