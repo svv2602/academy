@@ -4,6 +4,8 @@
 #   $ACADEMY_PRIVATE_WORDS, or ~/.config/academy/private-words.txt
 # One word or word stem per line, '#' starts a comment. Matching is case-insensitive and by substring,
 # so a stem also catches declined forms.
+# Every grep over commit content runs with -a: without it a single binary file in the commit (a model, a clip)
+# makes grep print "binary file matches" instead of the lines, and the text of the whole commit goes unchecked.
 #
 # Enable once per clone:  git config core.hooksPath tools/hooks
 #
@@ -33,19 +35,19 @@ if [ ! -s "$words" ]; then
 fi
 
 if [ "$mode" = message ]; then
-  hits="$(grep -v '^#' "$2" | grep -n -i -F -f "$words" || true)"
+  hits="$(grep -a -v '^#' "$2" | grep -a -n -i -F -f "$words" || true)"
   where="the commit message"
 else
   hits="$( { git -c core.quotepath=false diff --cached --name-only --diff-filter=ACMR | sed 's/^/file name: /'
-             git diff --cached -U0 --no-color --diff-filter=ACMR --text | grep '^+' | grep -v '^+++ '
-           } | grep -n -i -F -f "$words" || true)"
+             git diff --cached -U0 --no-color --diff-filter=ACMR --text | grep -a '^+' | grep -a -v '^+++ '
+           } | grep -a -n -i -F -f "$words" || true)"
   where="the staged changes"
 fi
 
 if [ -n "$hits" ]; then
   # The matched text is deliberately not printed: hook output ends up in logs and transcripts.
   echo "commit rejected: a word from the private list occurs in $where ($(printf '%s\n' "$hits" | wc -l) place(s))." >&2
-  echo "Find it with:  git diff --cached | grep -n -i -F -f \"$list\"" >&2
+  echo "Find it with:  git diff --cached --text | grep -a -n -i -F -f \"$list\"" >&2
   exit 1
 fi
 exit 0
