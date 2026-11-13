@@ -1,6 +1,18 @@
 /** UI and subtitle text. Voice is Ukrainian only; Russian is text-only for now. */
 export type Lang = 'uk' | 'ru';
-const S = {
+/** Keys of every member of a union (plain `keyof` would keep only the keys they all share). */
+type KeysOf<T> = T extends unknown ? keyof T : never;
+/**
+ * Compile-time parity guard: every language block must have exactly the keys of every other block.
+ * A missing translation fails `tsc` right at the incomplete block ("Property 'x' is missing…"); a key that
+ * exists in one block only is reported the same way, at every block that lacks it. Either way the build
+ * breaks instead of the game showing `undefined`.
+ * Any block added to the table (a third language) is covered automatically.
+ */
+const sameKeys = <const T extends Record<Lang, Record<string, string>>>(
+  table: T & { [L in keyof T]: Record<KeysOf<T[keyof T]>, string> },
+): T => table;
+const S = sameKeys({
   uk: {
     title: 'Академія чарівних світів', subtitle: 'Королівство фей', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
     dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', style: 'Зачіска', style_long: 'Каре', style_buns: 'Гульки', style_simpleparted: 'Коротка', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити',
@@ -73,9 +85,18 @@ const S = {
     p_diff: 'Сложность', d0: 'Авто', d1: 'Легко', d2: 'Средне', d3: 'Сложно',
     p_music: 'Музыка', p_sfx: 'Звуки', p_voice: 'Голос', p_reset: 'Сбросить прогресс', p_reset_sure: 'Точно сбросить? Нажми ещё раз.',
   },
-} as const;
+});
 export type Key = keyof typeof S.uk;
-export let lang: Lang = (localStorage.getItem('amw-lang') as Lang) || 'uk';
+/** The whole table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
+export { S as STRINGS };
+/** Saved language; falls back to Ukrainian when storage is missing, blocked or holds an unknown value. */
+function savedLang(): Lang {
+  try {
+    const v = localStorage.getItem('amw-lang');
+    return v !== null && Object.hasOwn(S, v) ? (v as Lang) : 'uk';
+  } catch { return 'uk'; }
+}
+export let lang: Lang = savedLang();
 export function setLang(l: Lang) { lang = l; try { localStorage.setItem('amw-lang', l); } catch { /* ignore */ } }
 /** The child's name as she is addressed ("Оленко", "Софійко"); empty = lines simply drop it. Stored only in the local save. */
 let childName = '';
