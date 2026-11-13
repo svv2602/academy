@@ -23,14 +23,14 @@
 | Что | Команда | Примечания |
 |---|---|---|
 | Baseline FAIL-список | `npm test > <root>/logs/baseline-test.txt 2>&1`; `npm run build > <root>/logs/baseline-build.txt 2>&1`; `npm run e2e > <root>/logs/baseline-e2e.txt 2>&1` | `npm test` — Vitest, `src/**/*.test.ts`, около секунды; `npm run e2e` — около 5,5 минуты с видеокартой |
-| Тест на волну | `npm test` + `npm run build` + `npm run e2e -- --mode mobile` | сразу после зелёного `npm run build` можно `npm run e2e -- --skip-build --mode mobile` — около 3 минут |
+| Тест на волну | `npm test` + `npm run build` + `npm run e2e -- --mode mobile` | сразу после зелёного `npm run build` можно `npm run e2e -- --skip-build --mode mobile` — около 3,5 минуты. Правка `src/style.css` или разметки — `npm run e2e -- --all-sizes` (около 15 минут). Правка строк — ещё `npm run voice:sync` и `node tools/sync_phrases.mjs --check` |
 | Селектор diff-selected | нет — проект мал, гонять всё | |
 | «Ядро тестов» | — | |
-| Финальные суиты | `npm test`; `npm run e2e` | `npm run e2e` сам собирает игру и проходит оба размера, `mobile` и `desktop` |
+| Финальные суиты | `npm test`; `npm run e2e -- --all-sizes`; `node tools/sync_phrases.mjs --check` | `npm run e2e` сам собирает игру; четыре размера: `mobile` 844×390 (уровень заданий 3), `desktop` 1280×720 (без сети после первой загрузки, уровень адаптивный), `desktop-tall` 1280×800 (уровень 2), `mobile-portrait` 390×844 (уровень 3); в каждом — намеренная ошибка в каждом виде задания, проверка вёрстки, список моделей, ссылки |
 | Линт по файлам | отдельного линтера нет; проверка типов — `npx tsc --noEmit` (входит в `npm run build`) | |
 | Сборки | `npm run build` | пишет в `dist/`; в рабочей копии агента — свой `dist/` |
 | Миграции | нет | формат сохранения имеет версию (`src/core/save.ts`); смена формата = миграция в коде + тест |
-| Smoke / E2E | `npm run e2e` | сборка → сервер собранной игры → прохождение первого мира `mobile` и `desktop` (по 2,5–3 минуты) → ссылки в `dist/`; успех — `[e2e] PASSED` и код 0; падает на ошибке или предупреждении в консоли, зависшем задании, неудавшемся или внешнем запросе, внешней ссылке. Флаги: `--skip-build`, `--mode mobile\|desktop`, `--bail`, `--help`; переменные: `Q`, `E2E_GL`, `E2E_SLOW`, `E2E_STUCK_MS`, `E2E_PORT`, `E2E_RUN_TIMEOUT_MS` |
+| Smoke / E2E | `npm run e2e` (два основных размера) или `npm run e2e -- --all-sizes` (четыре, так идёт в CI) | сборка → сервер собранной игры → прохождения (около 3,5 минуты каждое; размер компьютера — без сети) → список моделей → ссылки в `dist/`; успех — `[e2e] PASSED` и код 0; падает на ошибке или предупреждении в консоли, зависшем задании, неудавшемся или внешнем запросе, нарушении вёрстки (`layout: …`), расхождении списка моделей, внешней ссылке, а также если в каком-то виде задания не удалось сделать намеренную ошибку |
 
 Дополнительно: `node tools/fps.mjs q=2 q=1` (кадры), `node tools/budget.mjs` (треугольники),
 `node tools/closeup.mjs <url> <каталог>` (крупные планы для визуальной сверки).

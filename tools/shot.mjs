@@ -19,6 +19,8 @@
 //   E2E_GL=gl|swiftshader   gl (default): real GPU; swiftshader: software rendering, for machines without a GPU
 //   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
 //   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
+//   E2E_LEVEL=<1|2|3>       fix the task difficulty (the parents' setting) for the whole run; default: adaptive, which
+//                           stays on level 1 here because the scenario fails every task type once on purpose
 //   E2E_OFFLINE=1           play without network: after the first load wait until the service worker is active and
 //                           its whole precache list is in the cache, switch the network off, reload and play as
 //                           usual. Needs the built game (the development server has no service worker)
@@ -34,6 +36,8 @@ const GL_ARGS = {
 const gl = process.env.E2E_GL || 'gl';
 const slow = Number(process.env.E2E_SLOW || 1);
 const stuckMs = Number(process.env.E2E_STUCK_MS || 240000);
+const level = process.env.E2E_LEVEL || '';
+if (!['', '1', '2', '3'].includes(level)) { console.error(`bad E2E_LEVEL="${level}": expected 1, 2 or 3`); process.exit(2); }
 const usage = (msg) => { console.error(msg); process.exit(2); };
 // The size of the window and the way of control are separate things: a new size only says which group it is in.
 const SIZES = {
@@ -254,6 +258,7 @@ try {
     }
     await wait(1500); await shot('00-start'); await checkLinks('start screen');
     await page.click('#play');
+    if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
     await wait(9000); await shot('01-spawn');
 

@@ -42,6 +42,8 @@ Environment (passed on to tools/shot.mjs unchanged):
   E2E_GL=gl|swiftshader   gl (default): real GPU; swiftshader: software rendering, for machines without a GPU
   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
+  E2E_LEVEL=<1|2|3>       task difficulty for every size (default: mobile 3, desktop adaptive, desktop-tall 2,
+                          mobile-portrait 3)
 Environment (this script):
   E2E_PORT=<n>            first port to try for the preview server (default 4183)
   E2E_RUN_TIMEOUT_MS=<ms> hard limit for one walkthrough process (default 1200000)`;
@@ -53,6 +55,10 @@ const EXTRA_MODES = ['desktop-tall', 'mobile-portrait'];   // added by --all-siz
 const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, modes: [...MAIN_MODES] };
 // Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
 const OFFLINE_MODES = ['desktop'];
+// The scenario fails every task type once on purpose, so the adaptive difficulty never leaves level 1. To play and
+// measure the fuller screens of the higher levels as well, most sizes get a fixed level (the parents' setting);
+// the desktop size keeps the adaptive one. E2E_LEVEL in the environment overrides this for every size.
+const LEVELS = { mobile: '3', 'desktop-tall': '2', 'mobile-portrait': '3' };
 const MODELS_FILE = 'tools/models-used.json';
 const argv = process.argv.slice(2);
 const usage = (msg) => { console.error(`[e2e] ${msg}\n\n${HELP}`); process.exit(2); };
@@ -178,6 +184,7 @@ const modelsOut = (mode) => join(root, 'shots-e2e', `models-requested-${mode}.js
 async function walkthrough(url, mode) {
   rmSync(modelsOut(mode), { force: true });   // never compare against the list of an earlier run
   const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode) };
+  if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);
   if (timedOut) throw new Error(`killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
   if (code !== 0) throw new Error(`tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
