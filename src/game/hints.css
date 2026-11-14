@@ -1,0 +1,25 @@
+/* What to do, shown without the voice and without reading (VOICE-09), for the tasks of src/game/tasks.ts.
+   Only `scale` and `opacity` move, so nothing is laid out again, and nothing grows past its own size:
+   no frame or animation leaves its group or the task panel. Frames are drawn inside (inset shadows). */
+
+/* "What is odd": after the first mistake the alike things share one blue frame; the odd one keeps the plain look. */
+.it.big.alike { background: #e4f3ff; box-shadow: inset 0 0 0 5px #5cb8ff, 0 5px 0 #b9dcf7; }
+
+/* "More / less": the mark of the question between the two groups, from the start - a dot that keeps growing
+   ("more") or shrinking ("less") inside a dashed ring. After a mistake the right group gets the ring's colour
+   and its things do what the dot does. The groups give up the room of the mark: the row is no wider than before,
+   and the close button in the corner of the panel stays clear of the right group. */
+.t-stage.t-compare .group.pickable { max-width: calc(44% - 32px); }
+.t-stage .ask { flex: none; width: 46px; height: 46px; box-sizing: border-box; border-radius: 50%; border: 3px dashed #ffa62b; background: #fff7e8;
+  display: grid; place-items: center; }
+.t-stage .ask b { width: 34px; height: 34px; border-radius: 50%; background: #ff9f1c; --low: .35; }
+.t-stage .ask.more b, .group.pickable.grow > .it { animation: grow 1.6s ease-out infinite; }
+.t-stage .ask.less b, .group.pickable.shrink > .it { animation: shrink 1.6s ease-in infinite; }
+.group.pickable.grow > .it, .group.pickable.shrink > .it { --low: .6; }
+.group.pickable.grow, .group.pickable.shrink { background: #fff3df; box-shadow: inset 0 0 0 4px #ffa62b, 0 6px 0 #e2d2f1; }
+@keyframes grow { 0% { scale: var(--low); opacity: .6; } 70%, 100% { scale: 1; opacity: 1; } }
+@keyframes shrink { 0%, 15% { scale: 1; opacity: 1; } 85%, 100% { scale: var(--low); opacity: .6; } }
+
+/* Memory pairs: the opening peek shows every face through the stage; the cards keep their own state. */
+.t-stage.peek .mcard:not(.done) { background: #fff; box-shadow: 0 5px 0 #e2d2f1; }
+.t-stage.peek .mcard span { visibility: visible; }

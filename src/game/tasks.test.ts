@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSave, levelFor, recordTask } from '../core/save';
 import { mulberry32 } from '../core/util';
 import type { Key } from '../ui/strings';
-import { SKILL, cheatTask, runTask } from './tasks';
+import { PAIRS_PEEK_MS, SKILL, cheatTask, runTask } from './tasks';
 import type { TaskHooks, TaskResult, TaskType } from './tasks';
 import type { Spoken } from '../core/audio';
 
@@ -171,6 +171,10 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(cards.every((c) => c.dataset.s === text(c)), 'a card is matched by something other than its picture');
     const kinds = [...new Set(faces)];
     must(kinds.length === PAIRS[level], `${kinds.length} different pictures, declared ${PAIRS[level]}`);
+    // The opening peek: every face is shown, taps do nothing; then the cards turn face down.
+    must(stage().classList.contains('peek') && cards.every((c) => !c.classList.contains('open')), 'the task does not start with the peek');
+    vi.advanceTimersByTime(PAIRS_PEEK_MS[level]);
+    must(!stage().classList.contains('peek'), 'the cards did not turn face down after the peek');
     for (const k of kinds) {
       const pair = cards.filter((_, i) => faces[i] === k);
       must(pair.length === 2, `the picture ${k} is on ${pair.length} cards, expected exactly two`);
@@ -281,6 +285,7 @@ describe('pairs: extra openings make the result shaky, never "wrong"', () => {
   async function playPairs(level: number, misses: number, hooks: TaskHooks, whileShown?: (cards: HTMLElement[]) => void): Promise<TaskResult> {
     const done = runTask('pairs', level, hooks);
     const cards = all(stage(), '.mcard');
+    await vi.advanceTimersByTimeAsync(PAIRS_PEEK_MS[level]);   // the opening peek is over: the game starts
     for (let k = 0; k < misses; k++) {
       const first = cards[k % cards.length], second = cards.find((c) => text(c) !== text(first))!;
       tap(first); tap(second);
@@ -364,6 +369,170 @@ describe('pairs: extra openings make the result shaky, never "wrong"', () => {
     await playAndRecord(save, 3);                  // within the allowance: clean
     await playAndRecord(save, 3);
     expect(save.skills.logic.level).toBe(2);
+  });
+});
+
+// What a child sees without the voice and without reading (VOICE-09): the three shows of "odd", "compare" and "pairs".
+describe('shown without the voice: what to do in "odd", "compare" and "pairs"', () => {
+  /** The first mistake has run its course: the shake, "try again" and the hint, all heard to the end at once. */
+  const afterMistake = () => vi.advanceTimersByTimeAsync(1000);
+
+  it.each([1, 2, 3])('odd, level %i: after the first mistake the alike things share one frame, the odd one has none', async (level) => {
+    for (let i = 0; i < 20; i++) {
+      Math.random = mulberry32(31_000 + level * 100 + i);
+      document.body.innerHTML = MARKUP;
+      const { hooks, heard } = listen();
+      const done = runTask('odd', level, hooks);
+      const things = all(stage(), '.it.big'), sizes = new Map<number, number>();
+      for (const t of things) sizes.set(groupOf(text(t)), (sizes.get(groupOf(text(t))) ?? 0) + 1);
+      const odd = things.find((t) => sizes.get(groupOf(text(t))) === 1)!, alike = things.filter((t) => t !== odd);
+      const framed = () => things.filter((t) => t.classList.contains('alike'));
+      expect(framed()).toEqual([]);                                  // nothing is given away before a mistake
+      tap(alike[0]);
+      await vi.advanceTimersByTimeAsync(899);
+      expect(framed()).toEqual([]);                                  // the shake and the lines come first
+      await afterMistake();
+      expect(heard.hints).toEqual(['h_odd']);
+      expect(framed()).toEqual(alike);                               // one frame for all the alike ones ...
+      expect(odd.classList.contains('alike')).toBe(false);           // ... and none for the odd one
+      expect(all(root(), '.pulse')).toEqual([]);
+      tap(alike[1]);                                                 // the second mistake lights the answer, as before
+      await afterMistake();
+      expect(all(root(), '.pulse')).toEqual([odd]);
+      expect(framed()).toEqual(alike);
+      tap(odd);
+      await vi.advanceTimersByTimeAsync(1100);
+      expect(await done).toEqual({ solved: true, wrong: 2 });
+      vi.clearAllTimers();
+    }
+  });
+
+  /** A compare task of `level` from `seed`: its question, the group that answers it and the mark of the question. */
+  function compareTask(level: number, seed: number) {
+    Math.random = mulberry32(seed);
+    document.body.innerHTML = MARKUP;
+    const { hooks, heard } = listen();
+    const done = runTask('compare', level, hooks);
+    const groups = all(stage(), '.group.pickable'), sizes = groups.map((g) => all(g, '.it').length);
+    const more = heard.prompts[0] === 't_compare_more';
+    const right = sizes.indexOf(more ? Math.max(...sizes) : Math.min(...sizes));
+    return { done, heard, groups, right, more, marks: all(stage(), '.ask') };
+  }
+
+  it('compare: the question is marked from the start, and the mark is the same whichever group is right', () => {
+    const looks = new Map<boolean, Set<string>>(), rights = new Map<boolean, Set<number>>();
+    for (const level of [1, 2, 3]) for (let i = 0; i < 300; i++) {
+      const { groups, right, more, marks } = compareTask(level, 32_000 + level * 1000 + i);
+      if (level === 1) expect(more).toBe(true);                     // the first level always asks "more"
+      expect(marks).toHaveLength(1);
+      const [mark] = marks;
+      // Between the two groups, never inside one, not a button: it only tells what is asked.
+      expect([...stage().children].indexOf(mark)).toBe(1);
+      expect(groups.some((g) => g.contains(mark)) || mark.matches('button')).toBe(false);
+      expect(mark.classList.contains(more ? 'more' : 'less')).toBe(true);
+      looks.set(more, (looks.get(more) ?? new Set()).add(mark.outerHTML));
+      rights.set(more, (rights.get(more) ?? new Set()).add(right));
+      expect(all(root(), '.grow, .shrink, .pulse, .group > em')).toEqual([]);
+      vi.clearAllTimers();
+    }
+    for (const more of [true, false]) {
+      expect(rights.get(more)).toEqual(new Set([0, 1]));             // both groups were right for this question ...
+      expect(looks.get(more)!.size).toBe(1);                         // ... and the mark looked the same every time
+    }
+    expect([...looks.get(true)!][0]).not.toBe([...looks.get(false)!][0]);
+  });
+
+  it.each([1, 2, 3])('compare, level %i: after the first mistake the right group grows for "more" and shrinks for "less"', async (level) => {
+    const asked = new Set<boolean>();
+    for (let i = 0; i < 20; i++) {
+      const { done, groups, right, more } = compareTask(level, 33_000 + level * 100 + i);
+      asked.add(more);
+      tap(groups[1 - right]);
+      await vi.advanceTimersByTimeAsync(899);
+      expect(all(root(), '.grow, .shrink')).toEqual([]);
+      await afterMistake();
+      expect(all(root(), '.group > em')).toHaveLength(2);           // together with the numbers over the groups
+      expect(all(root(), more ? '.grow' : '.shrink')).toEqual([groups[right]]);
+      expect(all(root(), more ? '.shrink' : '.grow')).toEqual([]);
+      tap(groups[right]);
+      await vi.advanceTimersByTimeAsync(1100);
+      expect(await done).toEqual({ solved: true, wrong: 1 });
+      vi.clearAllTimers();
+    }
+    expect(asked).toEqual(new Set(level === 1 ? [true] : [true, false]));
+  });
+
+  it('pairs: the peek is longest on the first level and shortest on the third', () => {
+    expect(PAIRS_PEEK_MS[1]).toBeGreaterThan(PAIRS_PEEK_MS[2]);
+    expect(PAIRS_PEEK_MS[2]).toBeGreaterThan(PAIRS_PEEK_MS[3]);
+    expect(PAIRS_PEEK_MS[3]).toBeGreaterThanOrEqual(1500);         // long enough to see the faces at all
+  });
+
+  it.each([1, 2, 3])('pairs, level %i: every face is shown at the start, taps meanwhile do nothing, then the game is as before', async (level) => {
+    Math.random = mulberry32(34_000 + level);
+    const { hooks, heard } = listen();
+    const done = runTask('pairs', level, hooks);
+    const cards = all(stage(), '.mcard'), peek = PAIRS_PEEK_MS[level];
+    expect(stage().classList.contains('peek')).toBe(true);
+    for (let k = 0; k < 3; k++) cards.forEach(tap);                // a pair among them, a miss among them: none counts
+    await vi.advanceTimersByTimeAsync(peek - 1);
+    expect(stage().classList.contains('peek')).toBe(true);
+    expect(all(stage(), '.mcard.open, .mcard.done')).toEqual([]);
+    expect(heard.good).toBe(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(stage().classList.contains('peek')).toBe(false);        // face down now
+    expect(all(stage(), '.mcard.open')).toEqual([]);
+    // As before: a miss opens two cards for a moment, a pair stays open.
+    const first = cards[0], other = cards.find((c) => text(c) !== text(first))!;
+    tap(first); tap(other);
+    expect(all(stage(), '.mcard.open')).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(800);
+    expect(all(stage(), '.mcard.open')).toEqual([]);
+    for (const face of new Set(cards.map(text))) cards.filter((c) => text(c) === face).forEach(tap);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(await done).toEqual({ solved: true, wrong: 0 });
+    expect(heard.good).toBe(PAIRS[level] + 1);
+  });
+
+  it('pairs: the test hook solves the task during the peek as well', async () => {
+    Math.random = mulberry32(34_100);
+    const done = runTask('pairs', 3, listen().hooks);
+    await vi.advanceTimersByTimeAsync(PAIRS_PEEK_MS[3] / 2);
+    expect(cheatTask()).toBe(true);
+    expect(all(stage(), '.mcard.done')).toHaveLength(PAIRS[3] * 2);
+    await vi.advanceTimersByTimeAsync(PAIRS_PEEK_MS[3]);
+    expect(await done).toEqual({ solved: true, wrong: 0 });
+    expect(all(stage(), '.mcard.open.done')).toHaveLength(PAIRS[3] * 2);   // the end of the peek turns no found card down
+  });
+
+  it('the shows are drawn: tasks.ts imports hints.css, and it styles every class the shows put on screen', async () => {
+    // happy-dom applies no style sheet, so the tests above only see classes; without these rules they would draw nothing.
+    // Vitest hands CSS to a test as an empty module (also with ?raw), so the files are read from the disk.
+    // The module name is a variable: the game's type check knows no Node modules.
+    const fsModule = 'node:fs';
+    const { readFileSync } = await import(/* @vite-ignore */ fsModule) as { readFileSync(path: URL, encoding: 'utf8'): string };
+    const source = (name: string) => readFileSync(new URL(name, import.meta.url), 'utf8');
+    expect(source('./tasks.ts')).toMatch(/^import '\.\/hints\.css';$/m);
+    const rules = source('./hints.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const rule of [
+      /\.it\.big\.alike \{[^}]*inset/,                                   // the frame of the alike things
+      /\.ask\.more b[^{]*\{[^}]*animation: grow/, /\.ask\.less b[^{]*\{[^}]*animation: shrink/,
+      /\.grow > \.it \{[^}]*animation: grow/, /\.shrink > \.it \{[^}]*animation: shrink/,
+      /@keyframes grow \{/, /@keyframes shrink \{/,
+      /\.t-stage\.peek \.mcard span \{ visibility: visible; \}/,           // the faces during the peek
+    ]) expect(rules).toMatch(rule);
+  });
+
+  it('pairs: closing the task during the peek leaves nothing to catch up', async () => {
+    Math.random = mulberry32(34_200);
+    const done = runTask('pairs', 1, listen().hooks);
+    document.getElementById('taskClose')!.click();
+    expect(await done).toEqual({ solved: false, wrong: 0 });
+    await vi.advanceTimersByTimeAsync(1000);                         // the old peek would end in the middle of the new one
+    Math.random = mulberry32(34_201);
+    void runTask('pairs', 1, listen().hooks);                       // the next pairs task has a peek of its own
+    await vi.advanceTimersByTimeAsync(PAIRS_PEEK_MS[1] - 1);
+    expect(stage().classList.contains('peek')).toBe(true);          // the old timer did not end it early
   });
 });
 

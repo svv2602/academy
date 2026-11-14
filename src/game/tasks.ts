@@ -7,6 +7,7 @@
 import { shuffle, pick, randInt } from '../core/util';
 import type { Spoken } from '../core/audio';
 import type { SpokenKey } from '../ui/strings';
+import './hints.css';
 
 export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon';
@@ -46,6 +47,13 @@ const tap = (e: HTMLElement, fn: () => void) => e.addEventListener('pointerdown'
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** The shake of a wrong answer must be seen before the hint, even when "try again" is silent and ends at once. */
 const SHAKE_MS = 900;
+/**
+ * Memory pairs open with every face shown for a moment (by level), before the first tap counts: the child sees that
+ * the pictures come in twos and roughly where they lie. Six cards can be taken in at about half a second each; twelve
+ * cannot be learnt in any short look, so the third level only gets a reminder and stays a memory game.
+ * This is not a time limit: the game has not started yet, and nothing is lost when the cards turn face down.
+ */
+export const PAIRS_PEEK_MS = [0, 3000, 2500, 2000];
 
 function items(parent: HTMLElement, emoji: string, n: number, cls = '') {
   const out: HTMLElement[] = [];
@@ -117,10 +125,19 @@ const builders: Record<TaskType, Builder> = {
     while (Math.abs(a - b) < gap) b = randInt(1, max);
     const more = c.level === 1 || Math.random() < 0.6, e = pick(THINGS);
     const groups = [a, b].map((n) => { const g = el('button', 'group pickable'); items(g, e, n, 'still'); c.stage.appendChild(g); return g; });
+    // The question without words, from the start: a dot that keeps growing ("more") or shrinking ("less").
+    // It sits between the groups and depends on the question alone, so it never points at the right group.
+    const ask = el('span', 'ask ' + (more ? 'more' : 'less')); ask.setAttribute('aria-hidden', 'true'); ask.appendChild(el('b'));
+    c.stage.insertBefore(ask, groups[1]);
     const right = (a > b) === more ? 0 : 1;
     groups.forEach((g, i) => tap(g, () => { if (i === right) { g.classList.add('yes'); c.right(); } else { g.classList.add('no'); c.wrong(g); } }));
     c.cheat = () => groups[right].dispatchEvent(new PointerEvent('pointerdown'));
-    c.hint = { key: 'h_compare', show: (w) => { groups.forEach((g, i) => { g.querySelector('em')?.remove(); g.appendChild(el('em', '', String(i ? b : a))); }); if (w >= 2) groups[right].classList.add('pulse'); } };
+    // With the numbers, the right group does what the dot of the question does: its things grow or shrink.
+    c.hint = { key: 'h_compare', show: (w) => {
+      groups.forEach((g, i) => { g.querySelector('em')?.remove(); g.appendChild(el('em', '', String(i ? b : a))); });
+      groups[right].classList.add(more ? 'grow' : 'shrink');
+      if (w >= 2) groups[right].classList.add('pulse');
+    } };
     return more ? 't_compare_more' : 't_compare_less';
   },
   pattern(c) {
@@ -139,14 +156,16 @@ const builders: Record<TaskType, Builder> = {
     const base = c.level === 1 ? Array(3).fill(pick(main)) : shuffle(main).slice(0, c.level === 2 ? 3 : 4);
     const odd = pick(other), list = shuffle([...base, odd]);
     let ok!: HTMLElement;
+    const alike: HTMLElement[] = [];
     for (const s of list) {
       const b = el('button', 'it big', s);
-      if (s === odd) ok = b;
+      if (s === odd) ok = b; else alike.push(b);
       tap(b, () => { if (s === odd) { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
       c.stage.appendChild(b);
     }
     c.cheat = () => ok.dispatchEvent(new PointerEvent('pointerdown'));
-    c.hint = { key: 'h_odd', show: (w) => { if (w >= 2) ok.classList.add('pulse'); } };
+    // The alike things share one frame, the odd one is left without: who belongs together is seen, not read.
+    c.hint = { key: 'h_odd', show: (w) => { alike.forEach((b) => b.classList.add('alike')); if (w >= 2) ok.classList.add('pulse'); } };
     return 't_odd';
   },
   pairs(c) {
@@ -156,11 +175,11 @@ const builders: Record<TaskType, Builder> = {
     // Memory has no "wrong" move, so a non-matching pair is only counted, never scolded or hinted.
     // Finding every pair takes about one miss per pair even with a perfect memory; more than that is
     // guessing. The result is then shaky (1), not the miss count: two or more would drop the level at once.
-    let open: HTMLElement[] = [], lock = false, left = pairs, misses = 0;
+    let open: HTMLElement[] = [], lock = false, left = pairs, misses = 0, peeking = true;
     const cards = deck.map((s) => {
       const b = el('button', 'mcard'); b.appendChild(el('span', '', s)); b.dataset.s = s;
       tap(b, async () => {
-        if (lock || b.classList.contains('open')) return;
+        if (peeking || lock || b.classList.contains('open')) return;
         b.classList.add('open'); open.push(b);
         if (open.length < 2) return;
         const [x, y] = open; open = [];
@@ -170,6 +189,10 @@ const builders: Record<TaskType, Builder> = {
       c.stage.appendChild(b); return b;
     });
     c.cheat = () => { cards.forEach((b) => b.classList.add('open', 'done')); c.right(); };
+    // The opening peek shows the faces through the stage, so the cards themselves stay as they are: taps meanwhile
+    // open nothing and are not counted. A task that is over by then (solved or closed) is left alone.
+    c.stage.classList.add('peek');
+    setTimeout(() => { if (!c.alive) return; peeking = false; c.stage.classList.remove('peek'); }, PAIRS_PEEK_MS[c.level]);
     return 't_pairs';
   },
   order(c) {
