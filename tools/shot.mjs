@@ -216,7 +216,14 @@ try {
   page.on('websocket', (ws) => { if (!own(ws.url().replace(/^ws/, 'http'))) errors.push(`external request: WebSocket ${ws.url()}`); });
   // Every picture of a screen is also a layout check of that screen (the failure picture is taken without it).
   const picture = (n) => page.screenshot({ path: `${out}/${mode}-${n}.png` });
-  const shot = async (n) => { await picture(n); await checkLayout(n); };
+  // A panel measured while it still flies in is cut off by its own frame. On a starved CI runner the entrance
+  // animations (style.css: the task panel's "rise", the bubble's "pop", the card's "pop2", the fanfare's "fade") take
+  // seconds instead of a fraction of one, so a picture waits for them - and only for them: a hint's show of the answer
+  // is a different animation, and it is pictured while it runs.
+  const ENTRANCES = new Set(['rise', 'pop', 'pop2', 'fade']);
+  const entered = () => page.waitForFunction((names) => document.getAnimations()
+    .every((a) => !(names.includes(a.animationName) && a.playState === 'running')), [...ENTRANCES], { timeout: T(10000) }).catch(() => {});
+  const shot = async (n) => { await entered(); await picture(n); await checkLayout(n); };
   const wait = (ms) => page.waitForTimeout(T(ms));
   const g = (fn, ...a) => page.evaluate(fn, ...a);
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
