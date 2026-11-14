@@ -422,11 +422,29 @@ describe('say: recorded clips', () => {
     expect(b.done).toBe(true);
   });
 
-  it('falls back to the synthesizer when the clip fails to load', async () => {
+  it('asks for a clip that failed to load once more, and plays it when it loads then', async () => {
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog } = await load(synth);
+    const a = track(say(CLIP_A, 'один', 'task'));
+    FakeAudio.made[0].fail();
+    await tick(0);
+    expect(FakeAudio.made).toHaveLength(2);                 // the same clip again
+    expect(FakeAudio.made[1].src).toBe(FakeAudio.made[0].src);
+    expect(synth.spoken).toHaveLength(0);
+    FakeAudio.made[1].start();
+    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    FakeAudio.made[1].onended?.();
+    await tick(0);
+    expect(a.done).toBe(true);
+  });
+
+  it('falls back to the synthesizer when the clip fails to load twice', async () => {
     const synth = fakeSynth([UK]);
     const { say } = await load(synth);
     const a = track(say(CLIP_A, 'один', 'task'));
     FakeAudio.made[0].fail();
+    FakeAudio.made[1].fail();
+    expect(FakeAudio.made).toHaveLength(2);                 // one more try only
     await tick(0);
     expect(synth.spoken).toHaveLength(1);
     expect(synth.spoken[0].text).toBe('один');
@@ -445,12 +463,13 @@ describe('say: recorded clips', () => {
     expect(voiceLog).toEqual({ clips: 1, synth: [] });
     void say('no_clip_a', TEXT, 'task');                         // no recording at all
     void say(CLIP_B, 'два', 'task');
-    FakeAudio.made[1].fail();                            // the recording did not load
+    FakeAudio.made[1].fail();                            // the recording did not load,
+    FakeAudio.made[2].fail();                            // nor did it the second time
     expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
     void say(CLIP_A, 'один', 'task');
     stopVoice();
-    FakeAudio.made[2].start();                           // a stray event of an interrupted clip
-    FakeAudio.made[2].fail();
+    FakeAudio.made[3].start();                           // a stray event of an interrupted clip
+    FakeAudio.made[3].fail();
     expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
   });
 

@@ -19,6 +19,8 @@ let endLine: (() => void) | null = null;
 let sounding: Priority | null = null;
 let taskOpen = false;
 const VOICE_WAIT_MS = 1500;
+/** How many times a voice clip that failed to load is asked for again before the synthesizer says the line. */
+export const CLIP_RETRIES = 1;
 let ukVoice: SpeechSynthesisVoice | null = null;   // remembered once found
 let listWait: Promise<void> | null = null;         // the one wait for the voice list, shared by the lines that start during it
 let listWaited = false;
@@ -124,14 +126,22 @@ export function say(id: string, text: string, priority: Priority): Spoken {
     whenShown(() => {
       if (done) return;
       if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
-      const a = new Audio(`${base}voice/${id}.mp3`);
-      a.volume = volume.voice;
-      current = a;
-      a.onplaying = () => { voiceLog.clips++; };
-      a.onended = finish;
-      a.onerror = () => { voiceLog.synth.push(id); speak(text, finish, live); };
-      // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown.
-      a.play().catch(() => { if (!done && (a.error || hidden)) return; finish(); });
+      // A clip that failed to load is asked for once more before the device's synthesizer takes the line (TECH-08).
+      let retries = CLIP_RETRIES;
+      const play = () => {
+        const a = new Audio(`${base}voice/${id}.mp3`);
+        a.volume = volume.voice;
+        current = a;
+        a.onplaying = () => { voiceLog.clips++; };
+        a.onended = finish;
+        a.onerror = () => {
+          if (retries-- > 0) { play(); return; }
+          voiceLog.synth.push(id); speak(text, finish, live);
+        };
+        // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown.
+        a.play().catch(() => { if (!done && (a.error || hidden)) return; finish(); });
+      };
+      play();
       lineTimer(finish, 15000);
     });
   }) as Spoken;

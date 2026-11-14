@@ -77,6 +77,13 @@ describe('stars are only ever added (LEARN-14, R13)', () => {
     expect(others, `stars are set outside the fresh save (defaultSave): ${where(others)}`).toEqual([]);
   });
 
+  it('the reward of a task does not depend on its mistakes (decision of 2026-11-14)', () => {
+    const calls = find(/\baddStars\([^;\n]*/g);
+    const bad = calls.filter((c) => /\bwrong\b|\berrors?\b|\bmistakes?\b/.test(c.text));
+    expect(calls.length, 'no call of addStars was found: the check reads nothing').toBeGreaterThanOrEqual(3);
+    expect(bad, `the number of stars depends on mistakes: ${where(bad)}`).toEqual([]);
+  });
+
   it('every call of addStars gives a positive number of stars', () => {
     const calls = find(/\baddStars\(([^,()]*(?:\([^()]*\)[^,()]*)*),/g);
     expect(calls.length, 'no call of addStars was found: the check reads nothing').toBeGreaterThanOrEqual(3);

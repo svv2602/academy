@@ -429,7 +429,7 @@ async function boot() {
         if (!res.solved) return;                    // closed by the child: come back any time
         save.quests[q.id] = k + 1;
         recordTask(save, skill, res.wrong);
-        addStars(res.wrong ? 2 : 3, above(hero.root.position, 1.4));
+        addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
         if (k < 2) await line('npc_next', 'story', 0, q.emoji);
