@@ -1,4 +1,5 @@
-// Packs the heroine from Quaternius CC0 sources into compact GLBs under public/models/hero/.
+// Packs the heroine from Quaternius CC0 sources into compact GLBs under models-src/hero/ (the sources of
+// `npm run assets`, which compresses them into public/models/hero/).
 //   node tools/pack_hero.mjs <src_dir>
 // <src_dir> holds the original glTF files: Superhero_Female_FullBody, Female_Ranger, Hair_*, UAL1.glb and their
 // textures (Universal Base Characters, Modular Character Outfits - Fantasy, Universal Animation Library).
@@ -8,7 +9,7 @@ import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, resample } from '@gltf-transform/functions';
 
-const src = process.argv[2], out = 'public/models/hero';
+const src = process.argv[2], out = 'models-src/hero';
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const KEEP_ANIMS = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Jump_Loop', 'Jump_Land', 'Interact', 'Dance_Loop', 'Idle_Talking_Loop', 'Spell_Simple_Shoot'];
 

@@ -214,7 +214,7 @@ function checkModels() {
     throw new Error(`${notListed.length} requested but not in ${MODELS_FILE}, ${notRequested.length} in the list but not requested`
       + (notListed.length ? `\n  requested by the game, but not in the list:\n    ${notListed.join('\n    ')}` : '')
       + (notRequested.length ? `\n  in the list, but not requested in any walkthrough:\n    ${notRequested.join('\n    ')}` : '')
-      + '\n  if the change is intended: npm run e2e -- --update-models; a file nobody requests belongs in models-unused/');
+      + '\n  if the change is intended: npm run e2e -- --update-models; a model nobody requests: move its source from models-src/ to models-unused/ and run npm run assets');
   }
   return `${actual.length} model file(s) requested, same as ${MODELS_FILE}`;
 }

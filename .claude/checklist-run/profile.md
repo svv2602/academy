@@ -105,8 +105,9 @@
   - `src/core/clips.json` и `public/voice/` — пишутся только конвейером озвучки;
   - `CLAUDE.md`, `CREDITS.md`, `docs/README.md`, `docs/20-roadmap.md`, `docs/21-open-decisions.md`.
 - Сгенерированные файлы (в cap 8 не считаются, shared вместе с источником):
-  `src/core/clips.json` ← `tools/gen_voice.py` + `voice/phrases.json`; `public/models/**` ← `tools/usd2glb.py`,
-  `tools/pack_hero.mjs`; `dist/` (не в git).
+  `src/core/clips.json` ← `tools/gen_voice.py` + `voice/phrases.json`; `public/models/**` ← `npm run assets`
+  (`tools/assets.mjs`) из `models-src/**`, руками не правится; `models-src/**` ← `tools/usd2glb.py`, `tools/pack_hero.mjs`;
+  `dist/` (не в git).
 - Миграций на волну: неприменимо. Смена формата сохранения — не больше одного чеклиста на волну.
 - Expansions:
   - новая или изменённая строка интерфейса → `src/ui/strings.ts`, оба языка;
@@ -147,7 +148,7 @@
 ## §8 Команды общего состояния (только runner, между волнами, после /sessions)
 `npm install` / `npm ci`, `npm run build` в основном дереве, перезапуск сервера на 5173,
 `python3 tools/gen_voice.py` (платный сервис, см. §10), пересборка моделей (`tools/usd2glb.py`,
-`tools/pack_hero.mjs`), любой `git push`.
+`tools/pack_hero.mjs`, `npm run assets`), любой `git push`.
 
 ## §9 Доставка
 - Push: `git push origin dev` — после прогона, с подтверждения пользователя; ничего не публикует. Запускает

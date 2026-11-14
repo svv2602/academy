@@ -5,7 +5,8 @@ Each model becomes one GLB with one primitive per material; textures are resized
 around leaf cut-outs) and written once to <out>/tex/, referenced by relative URI so all models share them.
 
 Needs: pip install usd-core numpy pillow
-Run:   python tools/usd2glb.py <kit_dir> public/models/nature2 [Name1 Name2 ...]
+Run:   python tools/usd2glb.py <kit_dir> models-src/nature2 [Name1 Name2 ...]
+Then:  npm run assets   (compresses models-src/ into public/models/, which is what the game loads)
 """
 import json
 import struct

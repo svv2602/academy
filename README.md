@@ -21,8 +21,9 @@
     node tools/closeup.mjs http://localhost:5173/ shots               # крупные планы
     node tools/budget.mjs                                             # на что уходят треугольники в кадре
     node tools/fps.mjs q=2 q=1                                        # частота кадров по уровням качества
-    node tools/pack_hero.mjs <src>                                    # пересобрать героиню из исходных glTF
-    python tools/usd2glb.py <kit> public/models/nature2               # пересобрать набор природы из USD
+    npm run assets                                                    # сжать модели: models-src/ -> public/models/ (см. ниже)
+    node tools/pack_hero.mjs <src>                                    # пересобрать героиню из исходных glTF в models-src/hero
+    python tools/usd2glb.py <kit> models-src/nature2                  # пересобрать набор природы из USD в models-src/nature2
     npm run voice:sync                                                # собрать voice/phrases.json из текстов игры (перед записью)
     python3 tools/gen_voice.py --dry-run                              # какие реплики нужно записать (ничего не отправляет)
     python3 tools/gen_voice.py                                        # записать их (Gemini TTS, платно; ключ — ~/.config/academy/gemini.env)
@@ -34,4 +35,13 @@
 Разработка идёт в ветке `dev`, ветка `main` публикуется на GitHub Pages.
 
 Структура: `src/core` — движковые вещи (модели, ввод, звук, сохранение), `src/world` — локация,
-`src/game` — персонажи, `src/ui` — интерфейс и строки (uk/ru), `public/models` — CC0-модели (см. CREDITS.md).
+`src/game` — персонажи, `src/ui` — интерфейс и строки (uk/ru), `models-src` — исходники CC0-моделей (см. CREDITS.md),
+`public/models` — их сжатые копии, которые загружает игра.
+
+Модели: исходные `.glb` и текстуры лежат в `models-src/` и в сборку не попадают. `npm run assets` (`tools/assets.mjs`)
+пересобирает из них `public/models/` целиком: геометрия и анимации сжимаются без потерь (meshopt), текстуры переводятся
+в WebP не больше 1024 по большей стороне (цветовые — с потерями, карты нормалей — без) и кладутся отдельными файлами
+в `<каталог модели>/tex/`. Руками `public/models/`
+не правится. Добавить модель: положить исходный `.glb` в `models-src/`, `npm run assets`, `npm run e2e -- --update-models`,
+закоммитить `models-src/`, `public/models/` и `tools/models-used.json`. Пределы (один файл — до 1 МБ, весь каталог —
+до 9 МБ, текстура — до 1024) проверяют сам скрипт и `npm test`.

@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
-const loader = new GLTFLoader();
+// Every model in public/models is written by `npm run assets` (tools/assets.mjs) with EXT_meshopt_compression and
+// WebP textures. The decoder is one module with its wasm inlined, so it is part of the bundle and works offline.
+// The pipeline does not quantize: attributes arrive as the same Float32 arrays the functions below always read.
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const cache = new Map<string, Promise<GLTF>>();
 let total = 0, loaded = 0;
 export let onProgress: (f: number) => void = () => {};
