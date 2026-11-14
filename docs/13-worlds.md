@@ -195,7 +195,8 @@
 - **Пишет:** `public/story/*`, `src/game/story.ts` (новый), `src/core/save.ts` (отметка «показано»), строки мира,
   `voice/phrases.json`, `public/voice/*`, `index.html`, `src/style.css`, `tools/shot.mjs`, `vite.config.ts`
   (тип файла кадров в списке кэша), `CREDITS.md`.
-  **Зависит от:** ARCH-05, ARCH-06, VOICE-06, WORLD-11, решение Q13 (права на сгенерированные изображения).
+  **Зависит от:** ARCH-05, ARCH-06, VOICE-06, WORLD-11. Q13 решён 2026-11-14: сгенерированные кадры разрешены
+  на условиях из `CLAUDE.md` («Содержание игры»).
 
 ## Модели для миров 2–5
 
