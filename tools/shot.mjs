@@ -844,6 +844,13 @@ try {
     // and with twice that. Camera: the distance follows its slider. Then "reset" brings back every value of the code.
     {
       const fail = (what) => { throw new Error(`tuning panel: ${what}`); };
+      // Smoothed values (camera distance, tilt) follow in game time (__game.time): a frame counts at most 0.05 s, so on
+      // a starved CI runner a wall-clock pause is a fraction of that in the game. Waits here are in game seconds.
+      const gameWait = async (s) => {
+        const t0 = await g(() => __game.time);
+        await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(s * 30000 + 5000) })
+          .catch(() => fail(`${s} s of game time did not pass`));
+      };
       const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
       // `ms` is game time (__game.time): a frame counts at most 0.05 s, so with software rendering (CI) a second
       // on the wall clock is a quarter of a second in the game, and the path in it is a quarter as long.
@@ -893,11 +900,11 @@ try {
         const from = await g(() => [__game.cam.yaw, __game.cam.pitch]);
         await page.mouse.move(x, y); await page.mouse.down();
         await page.mouse.move(x + dx, y + dy, { steps: 5 }); await page.mouse.up();
-        await wait(800);
+        await gameWait(0.8);
         const to = await g(() => [__game.cam.yaw, __game.cam.pitch]);
         await page.mouse.move(x, y); await page.mouse.down();                    // the same way back
         await page.mouse.move(x - dx, y - dy, { steps: 5 }); await page.mouse.up();
-        await wait(800);
+        await gameWait(0.8);
         return dx ? from[0] - to[0] : to[1] - from[1];
       };
       await page.locator('#tune input[data-k=lookX]').fill(String(defaults.lookX * 2));
@@ -905,8 +912,14 @@ try {
       await page.locator('#tune input[data-k=camDist]').fill('9');
       await tapOn('#tuneBtn');
       if (await visible('#tune')) fail('the button did not close the panel');
-      await page.waitForFunction(() => __game.cam.dist > 8.5 && !__game.cam.focus, null, { timeout: T(5000) })
-        .catch(async () => fail(`the camera distance did not follow its slider: ${(await g(() => __game.cam.dist)).toFixed(2)}`));
+      {
+        const t0 = await g(() => __game.time);   // up to 5 s of game time, however slow the frames are
+        await page.waitForFunction((t) => (__game.cam.dist > 8.5 && !__game.cam.focus) || __game.time - t > 5, t0, { timeout: T(155000) })
+          .catch(() => {});
+        if (!(await g(() => __game.cam.dist > 8.5 && !__game.cam.focus))) {
+          fail(`the camera distance did not follow its slider: ${(await g(() => __game.cam.dist)).toFixed(2)} after ${(await g((t) => __game.time - t, t0)).toFixed(1)} s of game time`);
+        }
+      }
       const fast = [await turn(100, 0), await turn(0, 40)];
       await g((v) => { __game.tuning.lookX = v.lookX; __game.tuning.lookY = v.lookY; }, defaults);
       const usual = [await turn(100, 0), await turn(0, 40)];
