@@ -13,6 +13,7 @@ import { Actor } from './game/actor';
 import { glowTex, numberSprite, Sparks } from './game/fx';
 import { buildHero } from './game/hero';
 import { QUESTS, SHRINE, type QuestDef } from './game/quests';
+import { playScene, type Stage } from './game/stage';
 import { cheatTask, runTask, SKILL, type TaskHooks, type TaskResult, type TaskType } from './game/tasks';
 import { Butterflies } from './world/butterflies';
 import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, setDrawRange, updateRanged, uTime } from './world/scenery';
@@ -219,6 +220,18 @@ async function boot() {
   const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${shardCount()}/5`); };
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
+  // Every scene that takes the controls goes through playScene (game/stage.ts): they come back whatever happens inside.
+  const stage: Stage = {
+    busy: () => busy,
+    take: () => { busy = true; auto = null; setAct(null); },
+    release: () => {
+      busy = false; cam.focus = null; finale = 0;
+      hero.play('Idle');
+      if (!search.active) bubble(null);
+    },
+  };
+  let failNext = false;             // test hook (__game.failNext): the next scene breaks once
+  const fault = () => { if (failNext) { failNext = false; throw new Error('broken on purpose by __game.failNext()'); } };
   async function praise() {
     sfx('good'); cat.once('Yes', 'Idle');
     sparks.burst(above(hero.root.position, 1.2), '#ff9ed2', 30, 4);
@@ -261,8 +274,20 @@ async function boot() {
           const round = ++bf.wrong;            // a newer mistake cuts "try again" off and starts its own round
           void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
         }
-      });
+      }, closeButterflies);
     });
+  }
+  /**
+   * The close button: the task ends unsolved and leaves nothing behind - no butterflies, numbers, panel or voice.
+   * Nothing is recorded; the unicorn starts the task anew. Does nothing once the right answer is given.
+   */
+  function closeButterflies() {
+    if (!bf.active) return;
+    bf.active = false; bf.demo = false;
+    hideAnswers(); stopVoice();
+    bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0;
+    flies.truncate(bf.n);                      // the task butterflies are the last ones while the task is open
+    bf.done({ solved: false, wrong: bf.wrong });
   }
   function countFly(i: number) {
     const f = flies.flies[i];
@@ -311,19 +336,17 @@ async function boot() {
   function finishSearch() {
     search.active = false;
     save.quests.deer = Math.max(save.quests.deer ?? 0, 1);
-    recordTask(save, 'count', 0);
     addStars(3, above(hero.root.position, 1.2));
     void praise().then(() => line('t_stars_back', 6000));
   }
 
   // ----- conversations -----
   async function talk(n: Npc) {
-    if (busy) return;
     const q = n.def;
-    busy = true; auto = null; setAct(null);
-    cam.focus = above(n.pos, 1.1);
-    hero.play('Talk');
-    try {
+    await playScene(stage, `talk ${q.id}`, async () => {
+      cam.focus = above(n.pos, 1.1);
+      hero.play('Talk');
+      fault();
       const done = save.quests[q.id] ?? 0;
       if (search.active && q.id === 'deer') { await line('t_stars', 0, q.emoji); return; }
       if (done >= 3) {           // the quest is finished: replay one of its games for stars
@@ -349,10 +372,7 @@ async function boot() {
         if (k < 2) await line('npc_next', 0, q.emoji);
       }
       await giveShard(n);
-    } finally {
-      busy = false; cam.focus = null; hero.play('Idle');
-      if (!search.active) bubble(null);
-    }
+    });
   }
 
   async function giveShard(n: Npc) {
@@ -368,22 +388,23 @@ async function boot() {
   }
 
   async function restoreCrystal() {
-    busy = true; auto = null; setAct(null);
-    cam.focus = shrine.clone();
-    hero.play('Talk');
-    finale = 0.001;
-    sfx('chime');
-    await new Promise((r) => setTimeout(r, 3600));
-    save.final = true; finale = 0; persist();
-    sfx('fanfare');
-    for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(shrine, c, 50, 7);
-    hero.play('Dance'); cat.play('Dance');
-    for (const n of npcs) if (n.actor.has('Dance')) n.actor.play('Dance');
-    void line('final_text');
-    await fanfare('final_title', t('final_text'));
-    cat.play('Idle'); hero.play('Idle'); npcs.forEach((n) => n.actor.play('Idle'));
-    busy = false; cam.focus = null;
-    void line('free', 6000);
+    const end = await playScene(stage, 'finale', async () => {
+      cam.focus = shrine.clone();
+      hero.play('Talk');
+      finale = 0.001;
+      fault();
+      sfx('chime');
+      await new Promise((r) => setTimeout(r, 3600));
+      save.final = true; finale = 0; persist();
+      sfx('fanfare');
+      for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(shrine, c, 50, 7);
+      hero.play('Dance'); cat.play('Dance');
+      for (const n of npcs) if (n.actor.has('Dance')) n.actor.play('Dance');
+      void line('final_text');
+      await fanfare('final_title', t('final_text'));
+      cat.play('Idle'); hero.play('Idle'); npcs.forEach((n) => n.actor.play('Idle'));
+    });
+    if (end === 'done') void line('free', 6000);   // after the scene: its end clears the bubble
   }
 
   function openChest() {
@@ -676,6 +697,9 @@ async function boot() {
   (window as unknown as Record<string, unknown>).__game = {
     hero, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog,
     get busy() { return busy; },
+    get finale() { return finale; },
+    /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */
+    failNext() { failNext = true; },
     teleport(x: number, z: number) { hero.root.position.set(x, groundY(x, z), z); },
     closeup(d: number | null) { camOverride = d; },
     talk(id: QuestDef['id']) { void talk(npc(id)); },

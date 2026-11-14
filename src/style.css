@@ -31,6 +31,9 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 #answers button.no { opacity: .35; animation: shake .35s; pointer-events: none; }
 #answers button.yes { background: linear-gradient(#eaffd6, #b9f08b); box-shadow: 0 6px 0 #6fc24b; color: #2d7a1f; animation: bump .5s; }
 @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+/* Closes the task of the answers panel. It sits in the top corner, away from the numbers: a finger aiming at a number never hits it. */
+#answersClose { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 48px; height: 48px; border-radius: 50%;
+  background: #fff; color: #b9a3cc; font-size: 22px; box-shadow: 0 4px 0 rgba(160,110,200,.25); }
 
 #joy { position: fixed; width: 132px; height: 132px; margin: -66px 0 0 -66px; border-radius: 50%; background: rgba(255,255,255,.28);
   border: 3px solid rgba(255,255,255,.7); pointer-events: none; opacity: 0; transition: opacity .15s; }

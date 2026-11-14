@@ -6,7 +6,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 export const el = {
   canvas: $<HTMLCanvasElement>('c'), hud: $('hud'), stars: $('stars'), crystals: $('crystals'), fps: $('fps'),
-  bubble: $('bubble'), bubbleText: $('bubbleText'), answers: $('answers'),
+  bubble: $('bubble'), bubbleText: $('bubbleText'), answers: $('answers'), answersClose: $('answersClose'),
   joy: $('joy'), knob: $('knob'), btnJump: $('btnJump'), btnAct: $('btnAct'),
   fanfare: $('fanfare'), fanfareTitle: $('fanfareTitle'), fanfareText: $('fanfareText'), fanfareOk: $('fanfareOk'),
   start: $('start'), loading: $('loading'), bar: $('bar'), setup: $('setup'), play: $('play'), restart: $('restart'),
@@ -31,7 +31,8 @@ export function setCounter(which: 'stars' | 'crystals', text: string) {
   pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump');
 }
 
-export function showAnswers(max: number, onPick: (n: number, btn: HTMLButtonElement) => void) {
+/** The number buttons of a task in the world, with a close button of their own (it lies outside the list of numbers). */
+export function showAnswers(max: number, onPick: (n: number, btn: HTMLButtonElement) => void, onClose: () => void) {
   el.answers.innerHTML = '';
   for (let n = 1; n <= max; n++) {
     const b = document.createElement('button');
@@ -39,9 +40,10 @@ export function showAnswers(max: number, onPick: (n: number, btn: HTMLButtonElem
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); onPick(n, b); });
     el.answers.appendChild(b);
   }
-  el.answers.classList.remove('hidden');
+  el.answersClose.onclick = onClose;
+  el.answers.classList.remove('hidden'); el.answersClose.classList.remove('hidden');
 }
-export const hideAnswers = () => el.answers.classList.add('hidden');
+export const hideAnswers = () => { el.answers.classList.add('hidden'); el.answersClose.classList.add('hidden'); };
 
 export function setAct(label: Key | null) {
   el.btnAct.classList.toggle('hidden', !label);

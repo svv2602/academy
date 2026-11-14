@@ -2,6 +2,9 @@
 // Plays the whole first world through the real UI handlers (talk to every character, solve all 15 tasks,
 // make one deliberate mistake per task type to exercise the hints, restore the crystal), saves screenshots
 // and fails on anything suspicious. Every screenshot is also a layout check of the screen it shows.
+// On the way it closes the butterflies task twice with its own button and comes back to it, compares the skills
+// before and after the star search, and breaks a conversation and the finale once each on purpose to see that the
+// heroine walks afterwards.
 //
 // Screen sizes (the size is one thing, the way of control another — see SIZES below):
 //   mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
@@ -104,7 +107,25 @@ try {
   ctx.on('response', (r) => { if (r.status() >= 400) errors.push(`request failed: ${r.url()} (HTTP ${r.status()})`); });
 
   const page = await ctx.newPage();
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
+  // The voice is played by Audio elements that are not in the document: every one that was started is remembered
+  // (the last few), so that the scenario can tell whether a spoken line is sounding.
+  await page.addInitScript(() => {
+    const play = HTMLMediaElement.prototype.play, started = window.__started = [];
+    HTMLMediaElement.prototype.play = function () { started.push(this); if (started.length > 8) started.shift(); return play.call(this); };
+  });
+  const sounding = () => page.evaluate(() => window.__started.some((a) => !a.paused && !a.ended));
+  // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
+  // finale once - to see that the heroine is not left standing. Excused is the text of that very scene only, only
+  // while the scenario waits for it, and only once.
+  // The first line is the message; the lines after it are the stack of the error, different in every build.
+  const sceneFault = (name) => `error: scene "${name}" failed: Error: broken on purpose by __game.failNext()`;
+  const fault = { text: '', expected: 0, seen: 0 };
+  page.on('console', (m) => {
+    if (m.type() !== 'error' && m.type() !== 'warning') return;
+    const text = `${m.type()}: ${m.text()}`;
+    if (fault.seen < fault.expected && text.split('\n')[0] === fault.text) { fault.seen++; return; }
+    errors.push(text);
+  });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('websocket', (ws) => { if (!own(ws.url().replace(/^ws/, 'http'))) errors.push(`external request: WebSocket ${ws.url()}`); });
   // Every picture of a screen is also a layout check of that screen (the failure picture is taken without it).
@@ -114,6 +135,38 @@ try {
   const g = (fn, ...a) => page.evaluate(fn, ...a);
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
   const press = (sel) => page.locator(sel).dispatchEvent(touch ? 'pointerdown' : 'click').catch(() => {});
+  const act = () => (touch ? press('#btnAct') : page.keyboard.press('KeyE'));
+  // The heroine walks: "forward" is held until she has moved half a step, however slow the frames are.
+  const walks = async () => {
+    const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+    await page.keyboard.down('KeyW');
+    try {
+      await page.waitForFunction(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z) > 0.5, from, { timeout: T(5000) });
+      return true;
+    } catch { return false; } finally { await page.keyboard.up('KeyW'); }
+  };
+  // What a scene that has ended may not leave behind, whichever way it ended.
+  const held = () => g(() => {
+    const left = [];
+    if (__game.busy) left.push('the heroine is still held (busy)');
+    if (__game.cam.focus) left.push('the camera is still held');
+    if (__game.finale !== 0) left.push('the shards are still merging');
+    if (!document.querySelector('#bubble').classList.contains('hidden')) left.push('the speech bubble is still shown');
+    return left;
+  });
+  // A scene that breaks gives the controls back (PLAY-03): the next scene is broken on purpose right after it has taken
+  // them. Returns what the broken scene left behind; the error it must report is excused by its exact text, once.
+  const breakScene = async (name, start) => {
+    const seen = fault.seen;
+    fault.text = sceneFault(name); fault.expected = seen + 1;
+    await g(() => __game.failNext());
+    await start();
+    for (const t1 = Date.now(); fault.seen === seen && Date.now() - t1 < T(10000);) await page.waitForTimeout(100);
+    const left = await held();
+    if (fault.seen === seen) left.push('the scene did not report its error in the console');
+    fault.expected = fault.seen;
+    return left;
+  };
   // ---- links: no element of the document may point to another origin ----
   const checkLinks = async (where) => {
     const found = await g(() => {
@@ -264,11 +317,66 @@ try {
 
     const seen = new Set();
     const mistakes = new Set();   // task types in which the deliberate mistake was made
+    // ---- butterflies: the task can be closed with its own button and started again (PLAY-02) ----
+    const ambient = await g(() => __game.flies.flies.length);   // butterflies in the world before any task
+    let bfVisits = 0;             // how many times the open butterflies task was met
+    let cutOff = 0;               // how many times closing the task had a spoken line to stop
+    const wrongNumber = () => g(() => {
+      const b = [...document.querySelectorAll('#answers button')].find((x) => Number(x.textContent) !== __game.bf.n);
+      if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown')); return true;
+    });
+    // Presses the close button the way a child does and checks that nothing of the task is left, at once and after
+    // the longest pause of the task (a step of the cat's count): the heroine is free, the task butterflies and the
+    // numbers are gone, the voice is silent, nothing was recorded. Then walks away; the loop below comes back and talks
+    // to the unicorn again.
+    const closeButterflies = async (q, when) => {
+      const fail = (what) => { throw new Error(`closing the butterflies task (${when}): ${what}`); };
+      const record = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.quests, stars: __game.save.stars }));
+      const before = await record();
+      if (await sounding()) cutOff++;
+      await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) }))
+        .catch((e) => fail(`the close button cannot be pressed: ${e.message.split('\n')[0]}`));
+      for (const pause of [400, 1200]) {
+        await wait(pause);
+        const left = await held();
+        left.push(...await g((n) => {
+          const out = [], shownEl = (sel) => !document.querySelector(sel).classList.contains('hidden');
+          if (shownEl('#answers')) out.push('the answers panel is still open');
+          if (shownEl('#answersClose')) out.push('the close button is still shown');
+          if (__game.bf.active) out.push('the task is still open');
+          const { flies, mesh } = __game.flies;
+          if (flies.length !== n || mesh.count !== n) out.push(`${flies.length} butterflies in the world (${mesh.count} drawn) instead of ${n}`);
+          if (__game.bf.sprites.length) out.push(`${__game.bf.sprites.length} numbers of the count are left`);
+          return out;
+        }, ambient));
+        const after = await record();
+        if (after !== before) left.push(`the save changed: ${before} -> ${after}`);
+        if (await sounding()) left.push('a spoken line is still sounding');
+        if (left.length) fail(`${left.join('; ')} (${pause} ms later)`);
+      }
+      await g(([x, z]) => __game.teleport(x + 8, z + 8), [q.x, q.z]); await wait(300);
+      if (!(await walks())) fail('the heroine does not walk');
+      console.log(`butterflies closed ${when}: ${ambient} butterflies in the world, nothing recorded, the heroine walks`);
+    };
+    // ---- star search: it is not a counting task, no skill may change while it runs (LEARN-02) ----
+    const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.quests.deer ?? 0, stars: __game.save.stars }));
+    let searchBefore = null, searchAfter = null;
     const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
     for (const q of quests) {
       const t0 = Date.now();
       while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
         if (Date.now() - t0 > T(stuckMs)) throw new Error('quest stuck: ' + q.id);
+        if (searchBefore && !searchAfter && !(await g(() => __game.search.active))) {
+          // the search has just ended and no other task was opened since: whatever differs was written by the search
+          searchAfter = await progress();
+          for (const k of Object.keys(searchAfter.skills)) {
+            const [a, b] = [searchBefore.skills[k], searchAfter.skills[k]].map((v) => JSON.stringify(v));
+            if (a !== b) errors.push(`the star search changed the "${k}" skill: ${a} -> ${b}`);
+          }
+          if (searchAfter.deer < 1) errors.push('the star search did not move the quest of the deer on');
+          if (searchAfter.stars < searchBefore.stars + 3) errors.push(`the star search gave ${searchAfter.stars - searchBefore.stars} stars, not 3`);
+          console.log('star search: "count" skill before', JSON.stringify(searchBefore.skills.count), 'after', JSON.stringify(searchAfter.skills.count));
+        }
         if (await visible('#fanfare')) { await shot(`shard-${q.id}`); await page.click('#fanfareOk'); await wait(500); continue; }
         if (await visible('#task')) {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
@@ -307,23 +415,40 @@ try {
           await g(() => __game.cheat()); await wait(1500); continue;
         }
         if (await g(() => __game.bf.active)) {
-          if (!seen.has('butterflies')) {
-            seen.add('butterflies'); await wait(1500); await shot('task-butterflies');
+          bfVisits++;
+          if (bfVisits === 1) {
+            // first meeting: close the task at once, while the unicorn is still asking; walk away, come back
+            seen.add('butterflies');
+            await closeButterflies(q, 'before an answer'); continue;
+          }
+          if (bfVisits === 2) {
+            // second meeting: a wrong number, and the task is closed while the cat counts the butterflies aloud
+            await wait(1500); await shot('task-butterflies');
+            if (!(await wrongNumber())) throw new Error('closing the butterflies task: no wrong number to tap');
+            await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 2, null, { timeout: T(30000) });
+            await closeButterflies(q, 'while the cat counts'); continue;
+          }
+          if (bfVisits === 3) {
+            await wait(1500);
             // a deliberate wrong number: the cat says the hint, then counts every butterfly aloud
-            const wrong = await g(() => {
-              const b = [...document.querySelectorAll('#answers button')].find((x) => Number(x.textContent) !== __game.bf.n);
-              if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown')); return true;
-            });
+            const wrong = await wrongNumber();
             if (!wrong) errors.push('no deliberate mistake in the "butterflies" task: no other number to tap');
             else {
               mistakes.add('butterflies'); await wait(5500); await shot('hint-butterflies');
               await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
             }
           }
-          await g(() => __game.cheat()); await wait(1500); continue;
+          // The right answer, and at once the close button (the panel stays on screen for a moment): the answer stands.
+          const step = await g((id) => __game.save.quests[id] ?? 0, q.id);
+          await g(() => __game.cheat());
+          await page.locator('#answersClose').dispatchEvent('click');
+          await wait(1500);
+          if ((await g((id) => __game.save.quests[id] ?? 0, q.id)) !== step + 1) errors.push('the close button undid the right answer of the butterflies task');
+          continue;
         }
         if (await g(() => __game.search.active)) {
           if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); }
+          searchBefore ??= await progress();
           await g(() => __game.cheat()); await wait(700); continue;
         }
         if (!(await g(() => __game.busy))) {
@@ -336,10 +461,29 @@ try {
       console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
     }
     await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
+    // A conversation is broken once on purpose, right after it has taken the controls: the heroine must walk again,
+    // and the same conversation must start anew (the replay below).
+    {
+      const left = await breakScene('talk fox', () => g(() => __game.talk('fox')));
+      if (await visible('#task')) left.push('a task was opened although the scene broke');
+      if (left.length) throw new Error(`the broken conversation: ${left.join('; ')}`);
+      if (!(await walks())) throw new Error('the broken conversation: the heroine does not walk');
+      console.log('broken conversation: reported, the controls are back, the heroine walks');
+    }
     // replay one finished quest
     await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
     // finale
     await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine');
+    // The finale is broken once on purpose, right after it has taken the controls and started to merge the shards.
+    // The heroine must walk again; then the finale is played for real.
+    {
+      const left = await breakScene('finale', act);
+      if (await g(() => __game.save.final)) left.push('the crystal is restored although the scene broke');
+      if (left.length) throw new Error(`the broken finale: ${left.join('; ')}`);
+      if (!(await walks())) throw new Error('the broken finale: the heroine does not walk');
+      console.log('broken finale: reported, the controls are back, the heroine walks');
+    }
+    await g(() => __game.teleport(21.2, -6.4)); await wait(600);
     if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
     await wait(2500); await shot('21-finale');
     await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(20000) }); await wait(800); await shot('22-final-card');
@@ -355,6 +499,9 @@ try {
     // Every task type that has a hint must have been failed once, or the hints went unchecked in this run.
     const unchecked = [...seen].filter((t) => !mistakes.has(t) && t !== 'pairs' && t !== 'stars');
     if (unchecked.length) errors.push(`no deliberate mistake was made in: ${unchecked.join(', ')}`);
+    if (bfVisits < 3) errors.push(`the butterflies task was met ${bfVisits} times: closing it and coming back went unchecked`);
+    else if (!cutOff) errors.push('no line was sounding when the butterflies task was closed: stopping the voice went unchecked');
+    if (!searchAfter) errors.push('the skills were not compared around the star search');
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
     // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
