@@ -170,9 +170,13 @@ try {
   const bubbleNow = () => g(() => ({ shown: !document.querySelector('#bubble').classList.contains('hidden'), text: document.querySelector('#bubbleText').textContent.trim(), key: __game.line }));
   const asked = {};           // task type -> the bubble on its "task-…" picture
   // On the picture of a task the bubble shows the question of that task (VOICE-09).
+  // The one exception: with the voice the question of the star search is shown for six seconds only (the heroine
+  // walks, the bubble must not hang over the world), and a slow machine takes the picture later than that. The game
+  // still remembers the question then - that is what is checked; without the voice no timer hides it (see below).
   const checkQuestion = async (type) => {
     const b = asked[type] = await bubbleNow();
-    if (!b.shown || !b.text) errors.push(`question: ${mode} task-${type}: the bubble with the question is not shown`);
+    const timed = type === 'stars' && !mute;
+    if (!timed && (!b.shown || !b.text)) errors.push(`question: ${mode} task-${type}: the bubble with the question is not shown`);
     else if (!QUESTIONS[type].includes(b.key)) errors.push(`question: ${mode} task-${type}: the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
   };
   // On the picture of a hint: with the voice the bubble shows the hint the cat says; without the voice it still shows
