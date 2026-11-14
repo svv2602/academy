@@ -240,6 +240,18 @@ describe('loadSave', () => {
     expect(loaded.pinTier).toBe(1);
   });
 
+  it('drops a damaged quality field: a pinned tier that is not 0, 1 or 2 becomes automatic', () => {
+    const raw = JSON.parse(JSON.stringify(defaultSave()));
+    raw.pinTier = 'x'; raw.tier = 7;
+    storage.setItem(KEY, JSON.stringify(raw));
+    const loaded = loadSave();
+    expect(loaded.pinTier).toBeNull();
+    expect(loaded.tier).toBe(2);
+    raw.pinTier = 0; raw.tier = 1;
+    storage.setItem(KEY, JSON.stringify(raw));
+    expect([loadSave().pinTier, loadSave().tier]).toEqual([0, 1]);
+  });
+
   it('carries only the name and the look over from a version 1 save', () => {
     storage.setItem(KEY, JSON.stringify({
       v: 1, name: 'Зоряна', dress: '#00ff00', hair: '#112233', hairStyle: 'buns',

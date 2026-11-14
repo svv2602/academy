@@ -1,5 +1,5 @@
 /** Versioned local save. Bump `v` and migrate in loadSave() when the shape changes. */
-import type { Tier } from './quality';
+import { isTier, type Tier } from './quality';
 export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'logic';
 export interface SkillStat { level: number; streak: number; tasks: number; first: number; errors: number; }
 export interface Save {
@@ -39,7 +39,13 @@ export function loadSave(): Save {
   const d = defaultSave();
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (s?.v === 2) return { ...d, ...s, skills: { ...d.skills, ...s.skills }, vol: { ...d.vol, ...s.vol } };
+    if (s?.v === 2) {
+      const out: Save = { ...d, ...s, skills: { ...d.skills, ...s.skills }, vol: { ...d.vol, ...s.vol } };
+      // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
+      if (!isTier(out.tier)) out.tier = d.tier;
+      if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
+      return out;
+    }
     // v1 (the one-quest slice): keep who the child is, restart the story.
     if (s?.v === 1) return { ...d, name: s.name ?? '', dress: s.dress ?? d.dress, hair: s.hair ?? d.hair, hairStyle: s.hairStyle ?? d.hairStyle };
   } catch { /* private mode or corrupted data: start fresh */ }
