@@ -13,12 +13,13 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 #fps { position: fixed; right: 8px; top: 6px; font: 11px monospace; color: #fff; text-shadow: 0 1px 2px #0008; pointer-events: none; opacity: .8; }
 
 /* The bubble is centred in the window while there is room for it; in a narrower window it moves to the right, so that
-   it never covers the counters and the book button (--hud: the right edge of #hud at its widest, a 3-digit star count). */
+   it never covers the counters and the book button (--hud: the right edge of #hud at its widest, a 3-digit star count).
+   It is pressed with a finger: a tap says its line again. */
 #bubble { position: fixed; --hud: calc(268px + max(12px, env(safe-area-inset-left))); --w: min(620px, 50vw); left: var(--hud);
   right: clamp(max(12px, env(safe-area-inset-right)), calc(100vw - var(--hud) - var(--w)), var(--hud)); top: max(14px, env(safe-area-inset-top));
   margin: 0 auto; width: fit-content; max-width: var(--w);
   background: #fff; border-radius: 26px; padding: 10px 20px 10px 12px; display: flex; gap: 12px; align-items: center;
-  box-shadow: 0 6px 0 rgba(120,80,160,.2), 0 10px 30px rgba(90,60,130,.2); animation: pop .3s; pointer-events: none; }
+  box-shadow: 0 6px 0 rgba(120,80,160,.2), 0 10px 30px rgba(90,60,130,.2); animation: pop .3s; cursor: pointer; }
 #bubble .cat { font-size: clamp(28px, 8vh, 40px); line-height: 1; flex: none; }
 #bubble p { margin: 0; font-size: clamp(16px, min(2.6vw, 5.2vh), 24px); font-weight: 600; line-height: 1.25; }
 @keyframes pop { from { transform: scale(.7); opacity: 0; } }

@@ -17,7 +17,6 @@
   </div>
   <div id="fps"></div>
 
-  <div id="bubble" class="hidden"><div class="cat" id="speaker">🐱</div><p id="bubbleText"></p></div>
   <div id="answers" class="hidden"></div>
   <button id="answersClose" class="hidden" aria-label="close">✕</button>
 
@@ -32,6 +31,8 @@
       <div id="taskOpts" class="t-opts"></div>
     </div>
   </div>
+  <!-- After the task panel, so that it lies over it: a tap on the bubble says its line again. -->
+  <div id="bubble" class="hidden" role="button"><div class="cat" id="speaker">🐱</div><p id="bubbleText"></p></div>
 
   <div id="book" class="hidden">
     <div class="card sheet">

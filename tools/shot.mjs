@@ -4,7 +4,10 @@
 // and fails on anything suspicious. Every screenshot is also a layout check of the screen it shows.
 // On the way it closes the butterflies task twice with its own button and comes back to it, compares the skills
 // before and after the star search, and breaks a conversation and the finale once each on purpose to see that the
-// heroine walks afterwards.
+// heroine walks afterwards. The voice: a tap on the cat and on the speech bubble says the line once more (only while
+// the voice is silent), a conversation started right after the fifth star of the search is heard to its end, the
+// cat's "go on" after a shard comes with its subtitle, and the planner of spoken lines turns away nothing but the
+// lines this scenario provokes.
 //
 // Screen sizes (the size is one thing, the way of control another — see SIZES below):
 //   mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
@@ -109,11 +112,20 @@ try {
   const page = await ctx.newPage();
   // The voice is played by Audio elements that are not in the document: every one that was started is remembered
   // (the last few), so that the scenario can tell whether a spoken line is sounding.
+  // Also counted: how many times each clip was started (__starts, by the name of the line) and the serial number of
+  // every start (__plays; on the element: __n), so that the scenario can tell what was started since a moment.
   await page.addInitScript(() => {
-    const play = HTMLMediaElement.prototype.play, started = window.__started = [];
-    HTMLMediaElement.prototype.play = function () { started.push(this); if (started.length > 8) started.shift(); return play.call(this); };
+    const play = HTMLMediaElement.prototype.play, started = window.__started = [], starts = window.__starts = {};
+    window.__plays = 0;
+    window.__clip = (a) => (a.src.match(/voice\/(.+)\.mp3/) ?? [])[1] ?? '';
+    HTMLMediaElement.prototype.play = function () {
+      started.push(this); if (started.length > 8) started.shift();
+      const id = window.__clip(this); starts[id] = (starts[id] ?? 0) + 1; this.__n = ++window.__plays;
+      return play.call(this);
+    };
   });
   const sounding = () => page.evaluate(() => window.__started.some((a) => !a.paused && !a.ended));
+  const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
   // finale once - to see that the heroine is not left standing. Excused is the text of that very scene only, only
   // while the scenario waits for it, and only once.
@@ -136,6 +148,9 @@ try {
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
   const press = (sel) => page.locator(sel).dispatchEvent(touch ? 'pointerdown' : 'click').catch(() => {});
   const act = () => (touch ? press('#btnAct') : page.keyboard.press('KeyE'));
+  // A real tap or click: fails when the element is hidden, covered by another one or outside the window.
+  const tapOn = (sel) => (touch ? page.tap(sel, { timeout: T(5000) }) : page.click(sel, { timeout: T(5000) }));
+  const saved = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.quests, stars: __game.save.stars }));
   // The heroine walks: "forward" is held until she has moved half a step, however slow the frames are.
   const walks = async () => {
     const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
@@ -310,16 +325,50 @@ try {
       await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
     }
     await wait(1500); await shot('00-start'); await checkLinks('start screen');
+    let catRepeated = false;      // a tap on the cat repeated a line
     await page.click('#play');
     if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
     await wait(9000); await shot('01-spawn');
+    // ---- a tap on the cat says the line of the bubble once more, and the heroine does not walk to the cat (VOICE-08) ----
+    {
+      const fail = (what) => { throw new Error(`a tap on the cat: ${what}`); };
+      await silence().catch(() => fail('the voice did not fall silent after the introduction'));
+      const cat = await g(() => {
+        const key = __game.line, p = __game.cat.root.position, hp = __game.hero.root.position;
+        const s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+        const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+        const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
+        return { key, x, y, under: under ? under.id || under.localName : 'nothing', n: window.__starts[key] ?? 0, at: [hp.x, hp.z] };
+      });
+      if (!cat.key) fail('the game remembers no line after the introduction');
+      if (cat.under !== 'c') fail(`the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
+      await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
+      await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [cat.key, cat.n], { timeout: T(5000) })
+        .catch(() => fail(`the clip "${cat.key}" was not started again`));
+      await wait(300);
+      const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), cat.at);
+      if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m instead of standing`);
+      if (!(await visible('#bubble'))) fail(`"${cat.key}" is said again without its subtitle`);
+      console.log(`a tap on the cat: "${cat.key}" is said again, the heroine stands`);
+      catRepeated = true;
+    }
 
     const seen = new Set();
     const mistakes = new Set();   // task types in which the deliberate mistake was made
+    // An open task is known to the planner of spoken lines (VOICE-03): asked in one go, a task may close in between.
+    // And once nothing holds the heroine, no task is open for it either.
+    const unplanned = () => g(() => {
+      const open = !document.querySelector('#task').classList.contains('hidden') || __game.bf.active;
+      return open && !__game.inTask ? 'a task is open, but the planner of spoken lines does not know it'
+        : !__game.busy && __game.inTask ? 'no task is open, but the planner of spoken lines still thinks one is' : '';
+    });
+    const noPlan = 'a task is open, but the planner of spoken lines does not know it';
     // ---- butterflies: the task can be closed with its own button and started again (PLAY-02) ----
     const ambient = await g(() => __game.flies.flies.length);   // butterflies in the world before any task
     let bfVisits = 0;             // how many times the open butterflies task was met
+    let onward = false;           // the cat's "go on" after a shard was seen with its subtitle
+    let hurried = false;          // the talk right after the fifth star was played
     let cutOff = 0;               // how many times closing the task had a spoken line to stop
     const wrongNumber = () => g(() => {
       const b = [...document.querySelectorAll('#answers button')].find((x) => Number(x.textContent) !== __game.bf.n);
@@ -362,6 +411,74 @@ try {
     const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.quests.deer ?? 0, stars: __game.save.stars }));
     let searchBefore = null, searchAfter = null;
     const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
+    // ---- the fifth star, and at once a talk to another character (VOICE-03); then the bubble repeats the question (VOICE-08) ----
+    // The praise and "back to the deer" of the search must not cut that conversation off: its greeting and the question
+    // of its task are heard to the end, and the bubble shows no line that is not spoken. A tap on the bubble starts the
+    // question anew only once it is over. The task is then closed with its button: nothing is recorded.
+    const talkAfterLastStar = async (q) => {
+      const fail = (what) => { throw new Error(`a talk right after the fifth star: ${what}`); };
+      const done = await g(() => ({ ...__game.save.quests }));
+      // Someone whose quest is finished: a greeting, then one of his games - none of them is the "watch and repeat" one,
+      // whose second question cuts the first one off by design.
+      const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+      if (!other) fail('no character with a finished quest to talk to');
+      const mark = await g((id) => new Promise((res) => {
+        const t0 = performance.now(), captions = window.__captions = [];
+        const watch = () => {            // every line the bubble shows from now on
+          const key = document.querySelector('#bubble').classList.contains('hidden') ? null : __game.line;
+          if (key && captions.at(-1) !== key) captions.push(key);
+          if (window.__captions === captions) requestAnimationFrame(watch);
+        };
+        __game.cheat();                  // onto the last star
+        const tick = () => {
+          if (__game.search.active) { if (performance.now() - t0 > 10000) res(-1); else requestAnimationFrame(tick); return; }
+          const plays = window.__plays;
+          __game.talk(id); watch(); res(plays);
+        };
+        tick();
+      }), other.id);
+      if (mark < 0) fail('the search did not end on the fifth star');
+      await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the task of "${other.id}" did not open`));
+      const before = await saved();
+      const probe = await g(() => {
+        const key = __game.line, n = window.__starts[key] ?? 0;
+        const live = window.__started.filter((a) => !a.paused && !a.ended).map(window.__clip);
+        document.querySelector('#bubble').click();
+        return { key, live, again: (window.__starts[key] ?? 0) - n, inTask: __game.inTask };
+      });
+      if (!probe.inTask) fail(noPlan);
+      if (!probe.live.includes(probe.key)) fail(`the question "${probe.key}" is not sounding when its task opens (sounding: ${probe.live.join(' ') || 'nothing'})`);
+      if (probe.again) fail(`a tap on the bubble started "${probe.key}" anew while it was still sounding`);
+      await page.waitForFunction((k) => window.__started.findLast((a) => window.__clip(a) === k)?.paused, probe.key, { timeout: T(20000) })
+        .catch(() => fail(`the question "${probe.key}" did not end`));
+      const heard = await g((from) => {
+        const captions = window.__captions; window.__captions = null;
+        return { clips: window.__started.filter((a) => a.__n > from).map((a) => ({ id: window.__clip(a), ended: a.ended })), captions, dropped: [...__game.dropped] };
+      }, mark);
+      const names = heard.clips.map((c) => c.id);
+      const cut = heard.clips.filter((c) => !c.ended).map((c) => c.id);
+      if (cut.length) fail(`cut off before the end: ${cut.join(' ')} (started since the star: ${names.join(' ')})`);
+      if (names.length < 2 || names.at(-1) !== probe.key) fail(`a greeting and the question "${probe.key}" had to sound, but these did: ${names.join(' ') || 'nothing'}`);
+      const mute = heard.captions.filter((k) => !names.includes(k));
+      if (mute.length) fail(`the bubble showed a line that was not spoken: ${mute.join(' ')}`);
+      if (!heard.dropped.includes('t_stars_back')) fail('"t_stars_back" was not turned away: the conversation did not start before it');
+      const n = await g((k) => window.__starts[k] ?? 0, probe.key);
+      await tapOn('#bubble').catch((e) => fail(`the bubble cannot be tapped: ${e.message.split('\n')[0]}`));
+      await page.waitForFunction(([k, was]) => (window.__starts[k] ?? 0) === was + 1, [probe.key, n], { timeout: T(5000) })
+        .catch(() => fail(`a tap on the bubble did not start "${probe.key}" again once it was over`));
+      await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${e.message.split('\n')[0]}`));
+      await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
+      const left = [];
+      if (await sounding()) left.push('the question is still sounding after its task was closed');
+      if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
+      if (await g(() => __game.line)) left.push('the game still remembers the line of the closed task: a tap on the cat would say it again');
+      const after = await saved();
+      if (after !== before) left.push(`the save changed: ${before} -> ${after}`);
+      if (left.length) fail(left.join('; '));
+      console.log(`a talk right after the fifth star (${other.id}): ${names.join(', ')} heard to the end, "t_stars_back" turned away; `
+        + `a tap on the bubble repeated "${probe.key}" only once it was over; the closed task recorded nothing`);
+      hurried = true;
+    };
     for (const q of quests) {
       const t0 = Date.now();
       while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
@@ -377,7 +494,24 @@ try {
           if (searchAfter.stars < searchBefore.stars + 3) errors.push(`the star search gave ${searchAfter.stars - searchBefore.stars} stars, not 3`);
           console.log('star search: "count" skill before', JSON.stringify(searchBefore.skills.count), 'after', JSON.stringify(searchAfter.skills.count));
         }
-        if (await visible('#fanfare')) { await shot(`shard-${q.id}`); await page.click('#fanfareOk'); await wait(500); continue; }
+        if (await visible('#fanfare')) {
+          await shot(`shard-${q.id}`);
+          // After the first shard: the cat's "go on" comes with its subtitle - after the scene (its end clears the bubble)
+          // and after the character's thanks, which still sound when the button is pressed (a hint does not cut them off).
+          if (!onward) {
+            const fail = (what) => { throw new Error(`after the shard: ${what}`); };
+            const during = await sounding();   // false only on a very slow machine: then the order is not put to the test
+            const said = await g(() => window.__starts.go_next ?? 0);
+            await page.click('#fanfareOk');
+            await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
+              && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
+              .catch(() => fail('"go_next" was not said with its subtitle once the thanks were over'));
+            console.log(`after the shard: "go_next" is said with its subtitle (the button was pressed ${during ? 'while the thanks sounded' : 'after the thanks'})`);
+            onward = true;
+          } else await page.click('#fanfareOk');
+          await wait(500); continue;
+        }
+        { const wrong = await unplanned(); if (wrong) errors.push(wrong); }
         if (await visible('#task')) {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
           if (!seen.has(type)) {
@@ -449,6 +583,7 @@ try {
         if (await g(() => __game.search.active)) {
           if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); }
           searchBefore ??= await progress();
+          if (!hurried && (await g(() => __game.search.found)) === 4) { await talkAfterLastStar(q); continue; }
           await g(() => __game.cheat()); await wait(700); continue;
         }
         if (!(await g(() => __game.busy))) {
@@ -487,7 +622,13 @@ try {
     if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
     await wait(2500); await shot('21-finale');
     await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(20000) }); await wait(800); await shot('22-final-card');
-    await page.click('#fanfareOk'); await wait(4000); await shot('23-restored');
+    const freeSaid = await g(() => window.__starts.free ?? 0);
+    await page.click('#fanfareOk'); await wait(4000);
+    // "Walk around" comes after the scene and after the final words, with its subtitle - like "go on" after a shard.
+    await page.waitForFunction((n) => !__game.busy && __game.line === 'free' && (window.__starts.free ?? 0) > n
+      && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(10000) })
+      .catch(() => { throw new Error('after the finale: "free" was not said with its subtitle'); });
+    await shot('23-restored');
     // collection + parents
     await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
     await page.click('#btnParents'); await wait(500); await shot('31-gate');
@@ -502,11 +643,21 @@ try {
     if (bfVisits < 3) errors.push(`the butterflies task was met ${bfVisits} times: closing it and coming back went unchecked`);
     else if (!cutOff) errors.push('no line was sounding when the butterflies task was closed: stopping the voice went unchecked');
     if (!searchAfter) errors.push('the skills were not compared around the star search');
+    if (!catRepeated) errors.push('repeating a line by a tap on the cat went unchecked');
+    if (!hurried) errors.push('the talk right after the fifth star went unchecked');
+    if (!onward) errors.push('the cat\'s "go on" after a shard went unchecked');
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
     // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
-    const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)] }));
+    const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
     console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
+    // The planner of spoken lines turns away only what this scenario provokes: "back to the deer" in the talk right
+    // after the fifth star, and the cat's "go on" after a shard when the next conversation has already begun.
+    const turned = {};
+    for (const id of voice.dropped) turned[id] = (turned[id] ?? 0) + 1;
+    console.log(`lines turned away by the planner: ${Object.entries(turned).map(([id, n]) => `${id} x${n}`).join(' ') || 'none'}`);
+    const lost = Object.keys(turned).filter((id) => id !== 'go_next' && id !== 't_stars_back');
+    if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
     if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
     if (!voice.clips) errors.push('not a single voice clip sounded during the walkthrough');
     console.log('fps:', await page.textContent('#fps'));

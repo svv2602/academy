@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
-import { say, setVolumes, sfx, stopVoice, unlockAudio, voiceLog, volume } from './core/audio';
+import { beginTask, dropped, endTask, inTask, say, setVolumes, sfx, speaking, stopVoice, unlockAudio, voiceLog, volume, willSay, type Priority } from './core/audio';
 import { initInput, input, pollInput } from './core/input';
 import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
 import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
@@ -216,7 +216,21 @@ async function boot() {
   const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
 
   const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
-  const line = (key: SpokenKey, hold = 0, speaker = '🐱') => { bubble(key, hold, speaker); return say(key, voiceText(key)); };
+  /** The line of the bubble, also after its timer has hidden it: what a tap on the bubble or on the cat says once more. */
+  let shown: { key: SpokenKey; pri: Priority; hold: number; speaker: string; text?: string } | null = null;
+  const caption = (l: typeof shown) => { shown = l; if (l) bubble(l.key, l.hold, l.speaker, l.text); else bubble(null); };
+  /** Subtitle + voice. A line the planner turns away (core/audio.ts) leaves the bubble as it is: no text without its voice. */
+  const line = (key: SpokenKey, pri: Priority, hold = 0, speaker = '🐱', text?: string) => {
+    if (willSay(pri)) caption({ key, pri, hold, speaker, text });
+    return say(key, voiceText(key), pri);
+  };
+  /**
+   * A tap on the bubble or on the cat (VOICE-08): the line is said again, with its own priority. Only while the voice
+   * is silent - a repeat that cut "try again" off would bring the hint too early. Nothing is recorded.
+   */
+  const repeat = () => { if (shown && !speaking()) void line(shown.key, shown.pri, shown.hold, shown.speaker, shown.text); };
+  /** A task from its opening to its end, whichever way it ends: meanwhile only its own lines sound, and its end stops them. */
+  const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
   const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${shardCount()}/5`); };
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
@@ -227,7 +241,7 @@ async function boot() {
     release: () => {
       busy = false; cam.focus = null; finale = 0;
       hero.play('Idle');
-      if (!search.active) bubble(null);
+      if (!search.active) caption(null);
     },
   };
   let failNext = false;             // test hook (__game.failNext): the next scene breaks once
@@ -235,16 +249,16 @@ async function boot() {
   async function praise() {
     sfx('good'); cat.once('Yes', 'Idle');
     sparks.burst(above(hero.root.position, 1.2), '#ff9ed2', 30, 4);
-    bubble(null);
-    await say(`praise_${pick([0, 1, 3, 4, 5, 6, 7])}`, 'Молодець!');
+    caption(null);
+    await say(`praise_${pick([0, 1, 3, 4, 5, 6, 7])}`, 'Молодець!', 'story');
   }
 
   // ----- panel tasks -----
   const hooksFor = (speaker: string): TaskHooks => ({
-    prompt: (key) => { void line(key, 0, speaker); },
-    number: (n) => { void say(`tap_${n}`, String(n)); },
-    wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз'); },
-    hint: (key) => line(key, 0, '🐱'),
+    prompt: (key) => { void line(key, 'task', 0, speaker); },
+    number: (n) => { void say(`tap_${n}`, String(n), 'task'); },
+    wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task'); },
+    hint: (key) => line(key, 'task', 0, '🐱'),
     good: () => sfx('pop'),
   });
 
@@ -258,7 +272,7 @@ async function boot() {
         flies.flies[id].home.y = groundY(PATCH.x, PATCH.z) + 1.0 + (i % 3) * 0.45;
       }
       cam.focus = new THREE.Vector3(PATCH.x, groundY(PATCH.x, PATCH.z) + 1.2, PATCH.z);
-      void line('t_count', 0, '🦄');
+      void line('t_count', 'task', 0, '🦄');
       showAnswers(10, (n, btn) => {
         if (!bf.active || bf.demo) return;
         if (n === bf.n) {
@@ -272,19 +286,20 @@ async function boot() {
         } else {
           btn.classList.add('no'); sfx('soft');
           const round = ++bf.wrong;            // a newer mistake cuts "try again" off and starts its own round
-          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
+          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
         }
       }, closeButterflies);
     });
   }
   /**
-   * The close button: the task ends unsolved and leaves nothing behind - no butterflies, numbers, panel or voice.
+   * The close button: the task ends unsolved and leaves nothing behind - no butterflies, numbers, panel or voice
+   * (the voice is stopped by the end of the task, see `task`).
    * Nothing is recorded; the unicorn starts the task anew. Does nothing once the right answer is given.
    */
   function closeButterflies() {
     if (!bf.active) return;
     bf.active = false; bf.demo = false;
-    hideAnswers(); stopVoice();
+    hideAnswers();
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0;
     flies.truncate(bf.n);                      // the task butterflies are the last ones while the task is open
     bf.done({ solved: false, wrong: bf.wrong });
@@ -299,7 +314,7 @@ async function boot() {
     scene.add(s); bf.sprites.push(s);
     sparks.burst(f.pos, '#fff2a8', 10, 2);
     sfx('pop');
-    void say(`tap_${bf.counted}`, String(bf.counted));
+    void say(`tap_${bf.counted}`, String(bf.counted), 'task');
   }
   /**
    * Hint after a miss: the cat says "let's count together" to the end, then counts every butterfly aloud, one by one.
@@ -308,14 +323,14 @@ async function boot() {
    */
   async function demoCount() {
     const round = bf.wrong;
-    await line('h_count');
+    await line('h_count', 'task');
     if (!bf.active || bf.demo || bf.wrong !== round || bf.own === round) return;
     bf.demo = true;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
     for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await new Promise((r) => setTimeout(r, 850)); }
     bf.demo = false;
-    if (bf.active) bubble('t_count', 0, '🦄');
+    if (bf.active) caption({ key: 't_count', pri: 'task', hold: 0, speaker: '🦄' });
   }
 
   // ----- task in the world: find the stars hidden around the deer -----
@@ -331,37 +346,40 @@ async function boot() {
       return { mesh, found: false };
     });
     Object.assign(search, { active: true, found: 0, idle: 0 });
-    void line('t_stars', 6000, n.def.emoji);
+    void line('t_stars', 'task', 6000, n.def.emoji);
   }
   function finishSearch() {
     search.active = false;
     save.quests.deer = Math.max(save.quests.deer ?? 0, 1);
     addStars(3, above(hero.root.position, 1.2));
-    void praise().then(() => line('t_stars_back', 6000));
+    stopVoice();                                 // the search is over: its last number must not hold the praise back
+    // Whoever she talks to meanwhile is not cut off: the planner turns this hint away (VOICE-03).
+    void praise().then(() => line('t_stars_back', 'hint', 6000));
   }
 
   // ----- conversations -----
   async function talk(n: Npc) {
     const q = n.def;
+    let onward = () => {};      // what the cat says once the scene is over, see giveShard
     await playScene(stage, `talk ${q.id}`, async () => {
       cam.focus = above(n.pos, 1.1);
       hero.play('Talk');
       fault();
       const done = save.quests[q.id] ?? 0;
-      if (search.active && q.id === 'deer') { await line('t_stars', 0, q.emoji); return; }
+      if (search.active && q.id === 'deer') { await line('t_stars', 'task', 0, q.emoji); return; }
       if (done >= 3) {           // the quest is finished: replay one of its games for stars
-        await line('npc_again', 0, q.emoji);
+        await line('npc_again', 'story', 0, q.emoji);
         const type = pick(q.steps.filter((s): s is TaskType => s !== 'butterflies' && s !== 'stars'));
-        const res = await runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji));
+        const res = await task(() => runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji)));
         if (res.solved) { recordTask(save, SKILL[type], res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
         return;
       }
-      if (done === 0) await line(`${q.id}_hi`, 0, q.emoji);
+      if (done === 0) await line(`${q.id}_hi`, 'story', 0, q.emoji);
       for (let k = done; k < 3; k++) {
         const step = q.steps[k];
         if (step === 'stars') { startSearch(n); return; }
         const skill = step === 'butterflies' ? 'count' : SKILL[step];
-        const res = step === 'butterflies' ? await countButterflies(levelFor(save, 'count')) : await runTask(step, levelFor(save, skill), hooksFor(q.emoji));
+        const res = await task(() => step === 'butterflies' ? countButterflies(levelFor(save, 'count')) : runTask(step, levelFor(save, skill), hooksFor(q.emoji)));
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         save.quests[q.id] = k + 1;
@@ -369,26 +387,33 @@ async function boot() {
         addStars(res.wrong ? 2 : 3, above(hero.root.position, 1.4));
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
-        if (k < 2) await line('npc_next', 0, q.emoji);
+        if (k < 2) await line('npc_next', 'story', 0, q.emoji);
       }
-      await giveShard(n);
+      onward = await giveShard(n);
     });
+    onward();
   }
 
-  async function giveShard(n: Npc) {
+  /**
+   * Returns what is left for after the scene: its end clears the bubble, so the cat's "go on" comes after it, and after
+   * the character's thanks - a hint does not cut the story off.
+   */
+  async function giveShard(n: Npc): Promise<() => void> {
     const count = shardCount();
     sfx('fanfare');
     hero.play('Dance'); cat.play('Dance');
     sparks.burst(above(n.pos, 2), n.def.shard, 60, 6); sparks.burst(above(n.pos, 2), '#fff2a8', 40, 5);
     refreshHud(); persist();
-    void line('npc_done', 0, n.def.emoji);
+    const thanks = line('npc_done', 'story', 0, n.def.emoji);
     await fanfare('shard_title', tf('shard_text', { n: count }), n.def.shard);
     cat.play('Idle');
-    if (count === 5) await line('all_shards', 0); else void line('go_next', 5000);
+    if (count === 5) { await line('all_shards', 'story'); return () => {}; }
+    return () => { void thanks.then(() => line('go_next', 'hint', 5000)); };
   }
 
   async function restoreCrystal() {
-    const end = await playScene(stage, 'finale', async () => {
+    let onward = () => {};      // what the cat says once the scene is over
+    await playScene(stage, 'finale', async () => {
       cam.focus = shrine.clone();
       hero.play('Talk');
       finale = 0.001;
@@ -400,11 +425,13 @@ async function boot() {
       for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(shrine, c, 50, 7);
       hero.play('Dance'); cat.play('Dance');
       for (const n of npcs) if (n.actor.has('Dance')) n.actor.play('Dance');
-      void line('final_text');
+      const words = line('final_text', 'story');
       await fanfare('final_title', t('final_text'));
       cat.play('Idle'); hero.play('Idle'); npcs.forEach((n) => n.actor.play('Idle'));
+      // After the scene (its end clears the bubble) and after the final words: a hint does not cut the story off.
+      onward = () => { void words.then(() => line('free', 'hint', 6000)); };
     });
-    if (end === 'done') void line('free', 6000);   // after the scene: its end clears the bubble
+    onward();
   }
 
   function openChest() {
@@ -412,7 +439,7 @@ async function boot() {
     chest.once('Chest_Open', 'Chest_Open');
     sfx('good');
     addStars(5, above(chest.root.position, 1));
-    void line('chest', 4000);
+    void line('chest', 'hint', 4000);
   }
 
   interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
@@ -447,8 +474,8 @@ async function boot() {
     save.played = true; persist();
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
-    if (first) { await line('intro'); void line('go_next', 6000); }
-    else await line('welcome_back', 5000);
+    if (first) { await line('intro', 'story'); void line('go_next', 'hint', 6000); }
+    else await line('welcome_back', 'hint', 5000);
   }, { once: true });
   initBook(save, {
     change: () => { applyVolume(); persist(); },
@@ -456,6 +483,7 @@ async function boot() {
     open: (v) => { paused = v; },
   });
   initInput(el.canvas, el.joy, el.knob, el.btnJump, el.btnAct);
+  el.bubble.addEventListener('click', repeat);
   setInterval(persist, 10000);
   addEventListener('pagehide', persist);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); stopVoice(); } });
@@ -489,6 +517,8 @@ async function boot() {
         let spot: Spot | null = null;
         for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
         if (spot) auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
+        // A tap on the cat asks it to say its line again, not to walk to it. (In the butterflies task the cat is out of the frame.)
+        else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) repeat();
         else {
           ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
           if (raycastGround(ray.ray.origin, ray.ray.direction, v)) {
@@ -600,8 +630,8 @@ async function boot() {
         if (Math.hypot(it.mesh.position.x - hp.x, it.mesh.position.z - hp.z) < 1.3) {
           it.found = true; it.mesh.visible = false; search.idle = 0;
           sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
-          void say(`tap_${++search.found}`, String(search.found));
-          bubble('t_stars', 0, '🦌', `⭐ ${search.found} / 5`);
+          void say(`tap_${++search.found}`, String(search.found), 'task');
+          caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `⭐ ${search.found} / 5` });
           if (search.found === 5) finishSearch();
         }
       }
@@ -695,8 +725,11 @@ async function boot() {
 
   // Test/debug hook.
   (window as unknown as Record<string, unknown>).__game = {
-    hero, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog,
+    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog, dropped,
     get busy() { return busy; },
+    /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
+    get inTask() { return inTask(); },
+    get line() { return shown?.key ?? null; },
     get finale() { return finale; },
     /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */
     failNext() { failNext = true; },

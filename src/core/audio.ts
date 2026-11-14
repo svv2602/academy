@@ -7,6 +7,9 @@ let musicGain: GainNode, sfxGain: GainNode;
 let current: HTMLAudioElement | null = null;
 /** Settles the promise of the line that sounds now: a caller awaiting an interrupted line goes on at once, not when a safety timer fires. */
 let endLine: (() => void) | null = null;
+/** Priority of the line that sounds now (a silent reading pause counts as sounding); null in silence. */
+let sounding: Priority | null = null;
+let taskOpen = false;
 const VOICE_WAIT_MS = 1500;
 let ukVoice: SpeechSynthesisVoice | null = null;   // remembered once found
 let listWait: Promise<void> | null = null;         // the one wait for the voice list, shared by the lines that start during it
@@ -16,6 +19,8 @@ const base = import.meta.env.BASE_URL;
 export const volume = { music: 0.5, sfx: 0.8, voice: 1 };
 /** What the voice did in this session, for the walkthrough: clips that started to sound, and the ids of the lines left to the synthesizer. */
 export const voiceLog = { clips: 0, synth: [] as string[] };
+/** Ids of the lines the planner turned away, in order; for the walkthrough. Such a line is in neither list of `voiceLog`. */
+export const dropped: string[] = [];
 
 export function unlockAudio() {
   if (ctx) { void ctx.resume(); return; }
@@ -34,13 +39,42 @@ declare const spokenLine: unique symbol;
  */
 export type Spoken = Promise<void> & { readonly [spokenLine]: true };
 
-/** Plays `voice/<id>.mp3`; if the clip is missing, falls back to the device's Ukrainian speech synthesis. */
-export function say(id: string, text: string): Spoken {
+/** What a line is, highest first: a line of a task (its question, numbers, "try again", hint), the story, a background hint of the cat. */
+export type Priority = 'task' | 'story' | 'hint';
+const RANK: Record<Priority, number> = { hint: 0, story: 1, task: 2 };
+
+/**
+ * The planner's whole decision, free of Audio and DOM: may a new line start? `now` is the priority of the line that
+ * sounds (null in silence). A lower line never cuts a higher one off; an equal or higher one does (a new mistake
+ * cuts "try again" off). While a task is open only its own lines pass, even after its question has ended.
+ */
+export function mayStart(now: Priority | null, next: Priority, inTask: boolean): boolean {
+  if (inTask && next !== 'task') return false;
+  return now === null || RANK[next] >= RANK[now];
+}
+/** Would `say` start a line of this priority right now? Whoever shows a subtitle asks first: a line that is turned away shows nothing. */
+export const willSay = (priority: Priority) => mayStart(sounding, priority, taskOpen);
+/** True while a line sounds. */
+export const speaking = () => sounding !== null;
+/** The game opens a task: until `endTask` only lines of the `task` priority sound. */
+export function beginTask() { taskOpen = true; }
+/** The task is over, whichever way: its lines stop and no longer hold back the story that follows. */
+export function endTask() { taskOpen = false; stopVoice(); }
+export const inTask = () => taskOpen;
+
+/**
+ * Plays `voice/<id>.mp3`; if the clip is missing, falls back to the device's Ukrainian speech synthesis.
+ * A line the planner turns away (see `mayStart`) starts nothing and its end is already settled.
+ */
+export function say(id: string, text: string, priority: Priority): Spoken {
+  if (!willSay(priority)) { dropped.push(id); return Promise.resolve() as Spoken; }
   stopVoice();
+  sounding = priority;
   return new Promise<void>((resolve) => {
     let done = false;
     // Safe to call again: Chrome reports a cancelled utterance through its own onend / onerror after stopVoice() has settled the line.
-    const finish = () => { done = true; resolve(); };
+    // Only the line that still sounds leaves silence behind: a late call of an interrupted one must not hide its successor.
+    const finish = () => { if (endLine === finish) { endLine = null; sounding = null; } done = true; resolve(); };
     const live = () => !done;
     endLine = finish;
     if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
@@ -97,7 +131,7 @@ function withVoice(use: (voice: SpeechSynthesisVoice | null) => void) {
 }
 
 export function stopVoice() {
-  const end = endLine; endLine = null;
+  const end = endLine; endLine = null; sounding = null;
   if (current) { current.onplaying = null; current.onended = null; current.onerror = null; current.pause(); current = null; }
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   end?.();

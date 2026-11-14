@@ -106,7 +106,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('speaks at once with the uk-UA voice when the list is already there', async () => {
     const synth = fakeSynth([EN, RU, UK]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     expect(synth.spoken).toHaveLength(1);            // synchronously: no wait, no timer
     expect(synth.spoken[0].voice).toBe(UK);
     expect(synth.spoken[0].text).toBe(TEXT);
@@ -120,7 +120,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('waits for voiceschanged when the list is empty at first, then speaks with the uk-UA voice', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(300);
     expect(synth.spoken).toHaveLength(0);
     expect(a.done).toBe(false);
@@ -139,7 +139,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('keeps waiting through a voiceschanged that still brings an empty list', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     await tick(100);
     synth.fire();
     await tick(100);
@@ -153,7 +153,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('gives up after 1.5 s without a list: the line becomes a silent reading pause', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(VOICE_WAIT + READ_TIME - 1);
     expect(a.done).toBe(false);
     await tick(1);
@@ -164,7 +164,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('takes a list that showed up without any event when the wait runs out', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     await tick(1000);
     synth.voices = [EN, UK];                         // no voiceschanged: some Android browsers never fire it
     await tick(VOICE_WAIT - 1000 - 1);
@@ -177,14 +177,14 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('remembers the found voice: the next line speaks at once and does not look the list up again', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     await tick(300);
     synth.arrive([EN, UK]);
     await tick(0);
     expect(synth.spoken).toHaveLength(1);
     const lookups = synth.getVoices.mock.calls.length;
     synth.voices = [];                               // even a list that went away cannot take the voice back
-    void say('no_clip_b', 'Ходімо далі');
+    void say('no_clip_b', 'Ходімо далі', 'task');
     expect(synth.spoken).toHaveLength(2);            // synchronously
     expect(synth.spoken[1].voice).toBe(UK);
     expect(synth.getVoices.mock.calls.length).toBe(lookups);
@@ -193,10 +193,10 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('waits for the list only once per session: after a failed wait the next line does not wait again', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(VOICE_WAIT + READ_TIME);
     expect(a.done).toBe(true);
-    const b = track(say('no_clip_b', TEXT));
+    const b = track(say('no_clip_b', TEXT, 'task'));
     await tick(READ_TIME - 1);
     expect(b.done).toBe(false);
     await tick(1);
@@ -207,9 +207,9 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('a line that starts during the wait shares it: 1.5 s in total, not 1.5 s each', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     await tick(1000);
-    const b = track(say('no_clip_b', TEXT));
+    const b = track(say('no_clip_b', TEXT, 'task'));
     expect(synth.listening()).toBe(1);
     await tick(VOICE_WAIT - 1000 + READ_TIME - 1);
     expect(b.done).toBe(false);
@@ -220,10 +220,10 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('still picks up a voice that arrives after the failed wait', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     await tick(VOICE_WAIT + READ_TIME);
     synth.arrive([UK]);
-    void say('no_clip_b', TEXT);
+    void say('no_clip_b', TEXT, 'task');
     expect(synth.spoken).toHaveLength(1);
     expect(synth.spoken[0].voice).toBe(UK);
   });
@@ -231,7 +231,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('does not speak and does not wait when the list has no Ukrainian voice', async () => {
     const synth = fakeSynth([EN, RU]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(READ_TIME - 1);
     expect(a.done).toBe(false);
     await tick(1);
@@ -243,7 +243,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
     const synth = fakeSynth([UK]);
     const { say, volume } = await load(synth);
     volume.voice = 0;
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(READ_TIME);
     expect(a.done).toBe(true);
     expect(synth.spoken).toHaveLength(0);
@@ -251,7 +251,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
 
   it('falls back to the reading pause without waiting when the device has no speech synthesis', async () => {
     const { say } = await load(null);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(READ_TIME - 1);
     expect(a.done).toBe(false);
     await tick(1);
@@ -261,9 +261,9 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('a line interrupted while the list was loading stays silent when the list arrives', async () => {
     const synth = fakeSynth([]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', 'перша'));
+    const a = track(say('no_clip_a', 'перша', 'task'));
     await tick(200);
-    const b = track(say('no_clip_b', 'друга'));
+    const b = track(say('no_clip_b', 'друга', 'task'));
     await tick(50);
     expect(a.done).toBe(true);
     expect(b.done).toBe(false);
@@ -275,7 +275,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('stopVoice during the wait: nothing is spoken afterwards', async () => {
     const synth = fakeSynth([]);
     const { say, stopVoice } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(200);
     stopVoice();
     await tick(50);
@@ -288,7 +288,7 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
   it('gives up on an utterance that never reports its end after 12 s', async () => {
     const synth = fakeSynth([UK]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(11999);
     expect(a.done).toBe(false);
     await tick(1);
@@ -299,9 +299,9 @@ describe('say: finding the Ukrainian voice (VOICE-01)', () => {
 describe('say: an interrupted line settles at once (VOICE-02)', () => {
   it('recorded clip: say(a) then say(b) settles a within 50 ms, b keeps playing', async () => {
     const { say } = await load(fakeSynth([UK]));
-    const a = track(say(CLIP_A, 'один'));
+    const a = track(say(CLIP_A, 'один', 'task'));
     await tick(1000);
-    const b = track(say(CLIP_B, 'два'));
+    const b = track(say(CLIP_B, 'два', 'task'));
     await tick(50);
     expect(a.done).toBe(true);
     expect(FakeAudio.made).toHaveLength(2);
@@ -316,9 +316,9 @@ describe('say: an interrupted line settles at once (VOICE-02)', () => {
   it('synthesizer: say(a) then say(b) settles a within 50 ms, b keeps talking', async () => {
     const synth = fakeSynth([UK]);                   // cancel() is silent here: nothing but stopVoice can settle a
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', 'перша'));
+    const a = track(say('no_clip_a', 'перша', 'task'));
     await tick(1000);
-    const b = track(say('no_clip_b', 'друга'));
+    const b = track(say('no_clip_b', 'друга', 'task'));
     await tick(50);
     expect(a.done).toBe(true);
     expect(synth.cancel).toHaveBeenCalled();
@@ -332,8 +332,8 @@ describe('say: an interrupted line settles at once (VOICE-02)', () => {
   it('synthesizer: the late onerror of a cancelled utterance does not end the next line', async () => {
     const synth = fakeSynth([UK], { cancelFiresError: true });
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', 'перша'));
-    const b = track(say('no_clip_b', 'друга'));
+    const a = track(say('no_clip_a', 'перша', 'task'));
+    const b = track(say('no_clip_b', 'друга', 'task'));
     await tick(50);                                  // the cancelled utterance has reported its error by now
     expect(a.done).toBe(true);
     expect(b.done).toBe(false);
@@ -348,9 +348,9 @@ describe('say: an interrupted line settles at once (VOICE-02)', () => {
   it('reading pause: say(a) then say(b) settles a within 50 ms, b lasts its own pause', async () => {
     const synth = fakeSynth([EN]);
     const { say } = await load(synth);
-    const a = track(say('no_clip_a', TEXT));
+    const a = track(say('no_clip_a', TEXT, 'task'));
     await tick(100);
-    const b = track(say('no_clip_b', TEXT));
+    const b = track(say('no_clip_b', TEXT, 'task'));
     await tick(50);
     expect(a.done).toBe(true);
     expect(b.done).toBe(false);
@@ -363,17 +363,17 @@ describe('say: an interrupted line settles at once (VOICE-02)', () => {
   it('stopVoice without a new line settles the current one (clip, synthesizer, pause)', async () => {
     const synth = fakeSynth([UK]);
     const { say, stopVoice, volume } = await load(synth);
-    const clip = track(say(CLIP_A, 'один'));
+    const clip = track(say(CLIP_A, 'один', 'task'));
     stopVoice();
     await tick(50);
     expect(clip.done).toBe(true);
     expect(FakeAudio.made[0].paused).toBe(true);
-    const spoken = track(say('no_clip_a', TEXT));
+    const spoken = track(say('no_clip_a', TEXT, 'task'));
     stopVoice();
     await tick(50);
     expect(spoken.done).toBe(true);
     volume.voice = 0;
-    const pause = track(say('no_clip_b', TEXT));
+    const pause = track(say('no_clip_b', TEXT, 'task'));
     stopVoice();
     await tick(50);
     expect(pause.done).toBe(true);
@@ -389,24 +389,24 @@ describe('say: recorded clips', () => {
   it('plays voice/<id>.mp3 for a recorded id and no file for an unrecorded one', async () => {
     const synth = fakeSynth([UK]);
     const { say } = await load(synth);
-    void say(CLIP_A, 'один');
+    void say(CLIP_A, 'один', 'task');
     expect(FakeAudio.made).toHaveLength(1);
     expect(FakeAudio.made[0].src.endsWith(`voice/${CLIP_A}.mp3`)).toBe(true);
     expect(synth.spoken).toHaveLength(0);
-    void say('no_clip_a', TEXT);
+    void say('no_clip_a', TEXT, 'task');
     expect(FakeAudio.made).toHaveLength(1);
     expect(synth.spoken).toHaveLength(1);
   });
 
   it('settles when the clip plays to its end, and a later stopVoice changes nothing', async () => {
     const { say, stopVoice } = await load(fakeSynth([UK]));
-    const a = track(say(CLIP_A, 'один'));
+    const a = track(say(CLIP_A, 'один', 'task'));
     await tick(2000);
     expect(a.done).toBe(false);
     FakeAudio.made[0].end();
     await tick(0);
     expect(a.done).toBe(true);
-    const b = track(say(CLIP_B, 'два'));
+    const b = track(say(CLIP_B, 'два', 'task'));
     FakeAudio.made[0].end();                         // a stray event of the finished clip
     await tick(0);
     expect(b.done).toBe(false);
@@ -418,7 +418,7 @@ describe('say: recorded clips', () => {
   it('falls back to the synthesizer when the clip fails to load', async () => {
     const synth = fakeSynth([UK]);
     const { say } = await load(synth);
-    const a = track(say(CLIP_A, 'один'));
+    const a = track(say(CLIP_A, 'один', 'task'));
     FakeAudio.made[0].fail();
     await tick(0);
     expect(synth.spoken).toHaveLength(1);
@@ -432,15 +432,15 @@ describe('say: recorded clips', () => {
 
   it('the voice log counts the clips that sounded and names the lines left to the synthesizer', async () => {
     const { say, stopVoice, voiceLog } = await load(fakeSynth([UK]));
-    void say(CLIP_A, 'один');
+    void say(CLIP_A, 'один', 'task');
     expect(voiceLog).toEqual({ clips: 0, synth: [] });   // asked for, not sounding yet
     FakeAudio.made[0].start();
     expect(voiceLog).toEqual({ clips: 1, synth: [] });
-    void say('no_clip_a', TEXT);                         // no recording at all
-    void say(CLIP_B, 'два');
+    void say('no_clip_a', TEXT, 'task');                         // no recording at all
+    void say(CLIP_B, 'два', 'task');
     FakeAudio.made[1].fail();                            // the recording did not load
     expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
-    void say(CLIP_A, 'один');
+    void say(CLIP_A, 'один', 'task');
     stopVoice();
     FakeAudio.made[2].start();                           // a stray event of an interrupted clip
     FakeAudio.made[2].fail();
@@ -450,17 +450,167 @@ describe('say: recorded clips', () => {
   it('settles at once when the browser refuses to play', async () => {
     FakeAudio.blocked = true;
     const { say } = await load(fakeSynth([UK]));
-    const a = track(say(CLIP_A, 'один'));
+    const a = track(say(CLIP_A, 'один', 'task'));
     await tick(0);
     expect(a.done).toBe(true);
   });
 
   it('gives up on a clip that never ends after 15 s', async () => {
     const { say } = await load(fakeSynth([UK]));
-    const a = track(say(CLIP_A, 'один'));
+    const a = track(say(CLIP_A, 'один', 'task'));
     await tick(14999);
     expect(a.done).toBe(false);
     await tick(1);
     expect(a.done).toBe(true);
+  });
+});
+
+describe('the planner of spoken lines (VOICE-03)', () => {
+  type P = 'task' | 'story' | 'hint';
+  const ALL: P[] = ['task', 'story', 'hint'];
+
+  it('decides every pair of priorities: a lower line never cuts a higher one off, an equal or higher one does', async () => {
+    const { mayStart } = await load(null);
+    //      sounding, new, starts?
+    const pairs: [P, P, boolean][] = [
+      ['task', 'task', true], ['task', 'story', false], ['task', 'hint', false],
+      ['story', 'task', true], ['story', 'story', true], ['story', 'hint', false],
+      ['hint', 'task', true], ['hint', 'story', true], ['hint', 'hint', true],
+    ];
+    expect(new Set(pairs.map(([now, next]) => `${now} ${next}`)).size).toBe(9);
+    for (const [now, next, starts] of pairs) expect(mayStart(now, next, false), `${next} over ${now}`).toBe(starts);
+  });
+
+  it('lets any line start in silence while no task is open', async () => {
+    const { mayStart } = await load(null);
+    for (const next of ALL) expect(mayStart(null, next, false), next).toBe(true);
+  });
+
+  it('while a task is open only task lines start: whatever sounds, and in silence after the question has ended', async () => {
+    const { mayStart } = await load(null);
+    for (const now of [null, ...ALL]) {
+      expect(mayStart(now, 'task', true), `task over ${now}`).toBe(true);
+      expect(mayStart(now, 'story', true), `story over ${now}`).toBe(false);
+      expect(mayStart(now, 'hint', true), `hint over ${now}`).toBe(false);
+    }
+  });
+
+  it('say: a lower line is turned away - nothing starts, the line that sounds goes on, its own end is settled at once', async () => {
+    const { say, voiceLog, dropped, willSay } = await load(fakeSynth([UK]));
+    const question = track(say(CLIP_A, 'один', 'task'));
+    FakeAudio.made[0].start();
+    expect(willSay('story')).toBe(false);
+    const story = track(say(CLIP_B, 'два', 'story'));
+    const hint = track(say('no_clip_a', TEXT, 'hint'));       // unrecorded: must not reach the synthesizer either
+    await tick(0);
+    expect(story.done).toBe(true);
+    expect(hint.done).toBe(true);
+    expect(question.done).toBe(false);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(FakeAudio.made[0].paused).toBe(false);
+    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    expect(dropped).toEqual([CLIP_B, 'no_clip_a']);
+  });
+
+  it('say: an equal or a higher line cuts the sounding one off and is not listed as turned away', async () => {
+    const { say, dropped } = await load(fakeSynth([UK]));
+    const first = track(say(CLIP_A, 'один', 'hint'));
+    const equal = track(say(CLIP_B, 'два', 'hint'));
+    await tick(0);
+    expect(first.done).toBe(true);
+    expect(FakeAudio.made[0].paused).toBe(true);
+    const higher = track(say(CLIP_A, 'один', 'story'));
+    await tick(0);
+    expect(equal.done).toBe(true);
+    expect(FakeAudio.made[1].paused).toBe(true);
+    expect(FakeAudio.made).toHaveLength(3);
+    expect(FakeAudio.made[2].paused).toBe(false);
+    expect(higher.done).toBe(false);
+    expect(dropped).toEqual([]);
+  });
+
+  it('say: once the higher line has ended by itself, a lower one starts', async () => {
+    const { say, speaking, willSay } = await load(fakeSynth([UK]));
+    void say(CLIP_A, 'один', 'task');
+    expect(speaking()).toBe(true);
+    FakeAudio.made[0].end();
+    expect(speaking()).toBe(false);
+    expect(willSay('hint')).toBe(true);
+    const hint = track(say(CLIP_B, 'два', 'hint'));
+    await tick(0);
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(hint.done).toBe(false);
+    expect(speaking()).toBe(true);
+  });
+
+  it('say: the late end of an interrupted line does not make its successor look silent', async () => {
+    const { say, speaking } = await load(fakeSynth([UK]));
+    void say(CLIP_A, 'один', 'task');
+    await tick(10000);
+    const b = track(say(CLIP_B, 'два', 'task'));
+    await tick(5000);                                  // the 15 s safety timer of the first line fires now
+    expect(speaking()).toBe(true);
+    expect(b.done).toBe(false);
+    const hint = track(say(CLIP_A, 'один', 'hint'));
+    await tick(0);
+    expect(hint.done).toBe(true);                      // turned away: the second line still sounds
+    expect(FakeAudio.made).toHaveLength(2);
+  });
+
+  it('say: a silent reading pause is a sounding line too, and leaves silence when it runs out', async () => {
+    const { say, speaking } = await load(fakeSynth([RU]));
+    void say('no_clip_a', TEXT, 'story');
+    await tick(READ_TIME - 1);
+    expect(speaking()).toBe(true);
+    await tick(1);
+    expect(speaking()).toBe(false);
+  });
+
+  it('stopVoice leaves silence: any line starts after it', async () => {
+    const { say, stopVoice, speaking } = await load(fakeSynth([UK]));
+    void say(CLIP_A, 'один', 'task');
+    stopVoice();
+    expect(speaking()).toBe(false);
+    void say(CLIP_B, 'два', 'hint');
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(FakeAudio.made[1].paused).toBe(false);
+  });
+
+  it('an open task turns the story and the hints away even in silence; its own lines sound', async () => {
+    const { say, beginTask, inTask, speaking, willSay, dropped } = await load(fakeSynth([UK]));
+    expect(inTask()).toBe(false);
+    beginTask();
+    expect(inTask()).toBe(true);
+    void say(CLIP_A, 'один', 'task');
+    FakeAudio.made[0].end();                           // the question has ended, the task is still open
+    expect(speaking()).toBe(false);
+    expect(willSay('story')).toBe(false);
+    const story = track(say(CLIP_B, 'два', 'story'));
+    const hint = track(say(CLIP_B, 'два', 'hint'));
+    await tick(0);
+    expect(story.done).toBe(true);
+    expect(hint.done).toBe(true);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(dropped).toEqual([CLIP_B, CLIP_B]);
+    void say(CLIP_B, 'два', 'task');                   // "try again", a hint, a number: the task goes on talking
+    expect(FakeAudio.made).toHaveLength(2);
+    void say(CLIP_A, 'один', 'task');                  // and an equal line still cuts the previous one off
+    expect(FakeAudio.made).toHaveLength(3);
+    expect(FakeAudio.made[1].paused).toBe(true);
+  });
+
+  it('endTask stops the line of the task and lets the story sound again', async () => {
+    const { say, beginTask, endTask, inTask, speaking } = await load(fakeSynth([UK]));
+    beginTask();
+    const question = track(say(CLIP_A, 'один', 'task'));
+    endTask();
+    await tick(0);
+    expect(inTask()).toBe(false);
+    expect(question.done).toBe(true);
+    expect(FakeAudio.made[0].paused).toBe(true);
+    expect(speaking()).toBe(false);
+    void say(CLIP_B, 'два', 'story');
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(FakeAudio.made[1].paused).toBe(false);
   });
 });
