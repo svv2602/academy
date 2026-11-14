@@ -32,7 +32,7 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
     canvas.setPointerCapture(e.pointerId);
     if (input.touch && e.clientX < innerWidth * tuning.joyZone && !stick) {
       stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
-      joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; joy.classList.add('on');
+      joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; sizeRing(joy, tuning.joyRadius); joy.classList.add('on');
       knob.style.transform = 'translate(-50%,-50%)';
     } else if (!look) {
       look = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false };
@@ -73,6 +73,16 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
 }
 
 let stickX = 0, stickY = 0;
+
+/** The ring is as wide as the knob's travel plus a 10 px rim each side: 132 px at the default radius, as in style.css. */
+export function joyRingSize(radius: number) { return 2 * (radius + 10); }
+
+/** Sizes the ring around the point it is centred on (set when a touch starts, so a radius from the debug panel fits). */
+function sizeRing(joy: HTMLElement, radius: number) {
+  const size = joyRingSize(radius);
+  joy.style.width = joy.style.height = `${size}px`;
+  joy.style.marginLeft = joy.style.marginTop = `${-size / 2}px`;
+}
 
 export function pollInput() {
   let x = stickX, y = stickY;

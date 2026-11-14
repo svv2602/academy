@@ -245,6 +245,7 @@ const builders: Record<TaskType, Builder> = {
       showing = true; pos = 0; c.stage.classList.add('watch');
       await wait(600);
       for (const s of seq) { if (!c.alive) return; const b = btns.get(s)!; b.classList.add('flash'); c.hooks.good(); await wait(620); b.classList.remove('flash'); await wait(180); }
+      if (!c.alive) return;   // closed or solved during the last flash: say nothing, leave the stage alone
       c.stage.classList.remove('watch'); showing = false; c.hooks.prompt('t_simon_repeat');
     };
     for (const s of sym) {
