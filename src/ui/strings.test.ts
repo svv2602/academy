@@ -209,3 +209,42 @@ describe('lines to record (voice/phrases.json)', () => {
     expect(Object.keys(SPOKEN)).not.toContain('ok');
   });
 });
+
+describe('messages of a device that cannot run the game and of a failed load (TECH-07, TECH-08)', () => {
+  afterEach(() => {
+    setLang('uk');
+  });
+  const NOTICES = ['no_webgl', 'load_failed', 'retry'] as const;
+  // Letters that only one of the two languages has: a Russian text copied into the Ukrainian block (or the other
+  // way round) is caught, which the parity of the keys alone would not see.
+  const UK_ONLY = /[іїєґ]/i, RU_ONLY = /[ыэъё]/i;
+
+  it.each(NOTICES)('%s is written in Ukrainian and in Russian, not one text twice', (k) => {
+    expect(STRINGS.uk[k]).not.toBe(STRINGS.ru[k]);
+    expect(STRINGS.uk[k]).not.toMatch(RU_ONLY);
+    expect(STRINGS.ru[k]).not.toMatch(UK_ONLY);
+  });
+
+  it('shows them in the chosen language', () => {
+    setLang('uk');
+    expect(t('retry')).toBe('Спробувати ще раз');
+    expect(t('load_failed')).toMatch(/спробуйте ще раз/);
+    setLang('ru');
+    expect(t('retry')).toBe('Попробовать ещё раз');
+    expect(t('load_failed')).toMatch(/попробуйте ещё раз/);
+    expect(t('no_webgl')).toMatch(/Обновите браузер/);
+  });
+
+  it('advises to update the browser in both languages', () => {
+    expect(STRINGS.uk.no_webgl).toMatch(/Оновіть браузер/);
+    expect(STRINGS.ru.no_webgl).toMatch(/Обновите браузер/);
+  });
+
+  it('never speaks them: they are not lines to record', () => {
+    const file: Record<string, unknown> = phrases;
+    for (const k of NOTICES) {
+      expect(Object.keys(SPOKEN)).not.toContain(k);
+      expect(Object.keys(file)).not.toContain(k);
+    }
+  });
+});

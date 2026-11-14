@@ -23,8 +23,8 @@ import { checkDistSize } from './dist-size.mjs';
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
 Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
-desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> models used -> dist links -> dist size
--> stop server.
+desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> [with the mobile size: failure screens]
+-> models used -> dist links -> dist size -> stop server.
 The exit code is non-zero if any step fails.
 Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
 mobile-portrait 390x844 (touch).
@@ -38,6 +38,10 @@ task. The other sizes are played with the voice: there the hint replaces the que
 "silent walkthrough" (--all-sizes only) fails if none of the walkthroughs was played without the voice.
 Every walkthrough opens the parents' section through its gate (a multiplication read from the screen) and compares
 the commit number shown there with "git rev-parse --short HEAD" of the sources ("no-git" where git gives none).
+"failure screens" (tools/failures.mjs; once per run, only when the mobile size is played - in CI only its job plays it):
+Chrome with WebGL switched off shows the message with the advice to update the browser and has nothing in the console;
+with one model blocked the game asks for it 1 + 3 times, then shows the message and "try again"; the block lifted and
+the button pressed, the start screen with "Play" appears. Both screens are measured in 844x390 and 390x844.
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
 "dist size" holds the build to the budget of docs/15-tech.md: all of dist/ at most 12 MB, one file at most 1 MB
 (tools/dist-size.mjs).
@@ -89,6 +93,9 @@ const LEVELS = { mobile: '3', 'desktop-tall': '2', 'mobile-portrait': '3' };
 // desktop size, so that the bubble with a hint is still measured on both phone sizes. E2E_MUTE in the environment
 // overrides this for every size.
 const MUTE_MODES = ['desktop-tall'];
+// The failure screens (TECH-07, TECH-08) are played once per run, with this size: CI plays each size in a job of its
+// own, so only that job plays them.
+const FAILURE_MODE = 'mobile';
 if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) { console.error(`[e2e] bad E2E_MUTE "${process.env.E2E_MUTE}": expected 0 or 1`); process.exit(2); }
 const muted = (mode) => (process.env.E2E_MUTE ? process.env.E2E_MUTE === '1' : MUTE_MODES.includes(mode));
 // The commit the sources are at: what the build had to put into the parents' section (TECH-10). Worked out at the
@@ -253,6 +260,13 @@ async function walkthrough(url, mode) {
   }
   return `voice ${voice.mute ? 'off' : 'on'}: ${voice.loud} of ${voice.clips} clips with a volume`;
 }
+// No WebGL, a blocked model: tools/failures.mjs on the same server, in browsers of its own.
+async function failureScreens(url) {
+  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/failures.mjs'), url, 'shots-e2e'], 300000);
+  if (timedOut) throw new Error('killed after 300000 ms');
+  if (code !== 0) throw new Error(`tools/failures.mjs exited with ${signal ?? `code ${code}`} — see "failures:" above`);
+  return 'no WebGL: message, clean console; blocked model: repeats, message and button, the game starts after "try again"';
+}
 // With all four sizes (the way CI runs) one walkthrough must have been played in silence, by its own report.
 function checkSilent() {
   const silent = opts.modes.filter((m) => { const v = voiceReport(m); return v?.mute && v.loud === 0 && v.clips > 0; });
@@ -271,6 +285,8 @@ function checkPlayed() {
     else if (s.commit !== commit) bad.push(`${mode}: played on commit ${s.commit}, the sources are at ${commit}`);
     else if (s.walkthrough !== 'ok') bad.push(`${mode}: the walkthrough ${s.walkthrough}${s.note ? ` — ${s.note}` : ''}`);
     else if (s.passed !== true) bad.push(`${mode}: the walkthrough passed, but another step of that run failed`);
+    // The failure screens are played in one job only (FAILURE_MODE): its run must have played them, and passed.
+    else if (mode === FAILURE_MODE && s.failureScreens !== 'ok') bad.push(`${mode}: the failure screens were ${s.failureScreens ? `${s.failureScreens} in` : 'not played by'} its run`);
   }
   if (bad.length) throw new Error(`${bad.length} of ${opts.modes.length} walkthroughs did not pass:\n  ${bad.join('\n  ')}`);
   return `${opts.modes.join(', ')}: passed on ${commit}`;
@@ -362,6 +378,11 @@ if (ready) {
       else if (opts.bail && failed()) skip(name, '--bail');
       else await step(name, () => walkthrough(url, mode));
     }
+    if (opts.modes.includes(FAILURE_MODE)) {
+      if (!url) skip('failure screens', 'no server');
+      else if (opts.bail && failed()) skip('failure screens', '--bail');
+      else await step('failure screens', () => failureScreens(url));
+    }
     const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
     if (opts.allSizes) {
       if (process.env.E2E_MUTE) skip('silent walkthrough', 'E2E_MUTE is set: the voice of every size was chosen by hand');
@@ -386,7 +407,9 @@ if (!opts.combine) {
   const commit = sourceCommit();
   for (const mode of opts.modes) {
     const r = results.find((x) => x.name === walkthroughName(mode));
-    writeFileSync(summaryOut(mode), JSON.stringify({ mode, commit, walkthrough: r?.result ?? 'not played', note: r?.note.split('\n')[0] ?? '', passed: !failed() }, null, 2) + '\n');
+    const fs = results.find((x) => x.name === 'failure screens');
+    writeFileSync(summaryOut(mode), JSON.stringify({ mode, commit, walkthrough: r?.result ?? 'not played', note: r?.note.split('\n')[0] ?? '', passed: !failed(),
+      ...(mode === FAILURE_MODE ? { failureScreens: fs?.result ?? 'not played' } : {}) }, null, 2) + '\n');
   }
 }
 

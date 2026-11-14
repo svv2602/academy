@@ -7,8 +7,6 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 // Every model in public/models is written by `npm run assets` (tools/assets.mjs) with EXT_meshopt_compression and
 // WebP textures. The decoder is one module with its wasm inlined, so it is part of the bundle and works offline.
 // The pipeline does not quantize: attributes arrive as the same Float32 arrays the functions below always read.
-const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-const cache = new Map<string, Promise<GLTF>>();
 let total = 0, loaded = 0;
 export let onProgress: (f: number) => void = () => {};
 export function setProgressHandler(fn: (f: number) => void) { onProgress = fn; }
@@ -27,15 +25,58 @@ function storybook(name: string, src: THREE.Color, recolor?: Record<string, stri
   return new THREE.Color(Math.pow(src.r, 0.62), Math.pow(src.g, 0.62), Math.pow(src.b, 0.62));
 }
 
+/** TECH-08: how many times a load that failed is repeated before the game gives up and says so. */
+export const RETRIES = 3;
+/** The pause before repeat `n` (0, 1, 2): 0.3, 0.6, 1.2 s - short, the loading bar is on the screen meanwhile. */
+const pause = (n: number) => new Promise<void>((r) => setTimeout(r, 300 * 2 ** n));
+
+/** Runs `load`; if it fails, runs it again up to `retries` more times, waiting `wait(n)` before repeat n. */
+export async function retry<T>(load: () => Promise<T>, retries = RETRIES, wait: (n: number) => Promise<void> = pause): Promise<T> {
+  for (let n = 0; ; n++) {
+    try { return await load(); } catch (e) { if (n >= retries) throw e; }
+    await wait(n);
+  }
+}
+
+/**
+ * Loads by key, once per key, with repeats (`retry`). A load that failed every attempt leaves the cache at once, so
+ * asking for the key again starts over instead of handing back the same failure.
+ */
+export function loadCache<T>(load: (key: string) => Promise<T>, retries = RETRIES, wait: (n: number) => Promise<void> = pause) {
+  const cache = new Map<string, Promise<T>>();
+  return (key: string): Promise<T> => {
+    let p = cache.get(key);
+    if (!p) {
+      const mine: Promise<T> = p = retry(() => load(key), retries, wait);
+      cache.set(key, mine);
+      mine.catch(() => { if (cache.get(key) === mine) cache.delete(key); });
+    }
+    return p;
+  };
+}
+
+/**
+ * One attempt at a model: the .glb and every texture it references. GLTFLoader only logs a texture it could not
+ * fetch and goes on without it; here that counts as a failed attempt, so the texture is asked for again too.
+ * Each attempt has a loader and a manager of its own: a failure is then known to belong to this model.
+ */
+function loadModel(path: string): Promise<GLTF> {
+  const manager = new THREE.LoadingManager();
+  let failed = '';
+  manager.onError = (url) => { failed ||= url; };
+  return new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder).loadAsync(`${import.meta.env.BASE_URL}models/${path}.glb`).then((g) => {
+    if (failed) throw new Error(`could not load ${failed}`);
+    return g;
+  });
+}
+const models = loadCache(loadModel);
+const counted = new WeakSet<Promise<GLTF>>();
+
 export function gltf(path: string): Promise<GLTF> {
-  let p = cache.get(path);
-  if (!p) {
-    total++;
-    p = loader.loadAsync(`${import.meta.env.BASE_URL}models/${path}.glb`).then((g) => {
-      loaded++; onProgress(loaded / total);
-      return g;
-    });
-    cache.set(path, p);
+  const p = models(path);
+  if (!counted.has(p)) {
+    counted.add(p); total++;
+    p.then(() => { loaded++; onProgress(loaded / total); }, () => { total--; });
   }
   return p;
 }

@@ -11,7 +11,27 @@ export const el = {
   joy: $('joy'), knob: $('knob'), btnJump: $('btnJump'), btnAct: $('btnAct'),
   fanfare: $('fanfare'), fanfareTitle: $('fanfareTitle'), fanfareText: $('fanfareText'), fanfareOk: $('fanfareOk'),
   start: $('start'), loading: $('loading'), bar: $('bar'), setup: $('setup'), play: $('play'), restart: $('restart'),
+  notice: $('notice'), noticeText: $('noticeText'), retry: $('retry'),
 };
+
+/**
+ * TECH-07, TECH-08: a message on the start screen in place of the loading bar - this device cannot run the game, or
+ * the game did not load. It is for the grown-ups and is text only, never spoken. It follows the language buttons.
+ * `onRetry` adds the "try again" button.
+ */
+let noticeKey: 'no_webgl' | 'load_failed' | null = null;
+const renderNotice = () => {
+  el.noticeText.textContent = noticeKey ? t(noticeKey) : '';
+  el.retry.textContent = t('retry');
+};
+export function showNotice(key: 'no_webgl' | 'load_failed', onRetry?: () => void) {
+  noticeKey = key;
+  renderNotice();
+  el.loading.classList.add('hidden'); el.setup.classList.add('hidden');
+  el.retry.classList.toggle('hidden', !onRetry);
+  el.retry.onclick = onRetry ?? null;
+  el.notice.classList.remove('hidden');
+}
 
 let bubbleTimer = 0;
 export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: string) {
@@ -70,6 +90,7 @@ export function initStart(sel: { dress: string; hair: string; name: string; hair
     document.querySelectorAll<HTMLElement>('#style button').forEach((b) => { b.textContent = t(('style_' + b.dataset.style) as Key); }); $('lblName').textContent = t('name'); $<HTMLInputElement>('name').placeholder = t('namePh'); $('lblHair').textContent = t('hair');
     el.play.textContent = hasSave ? t('cont') : t('play'); el.restart.textContent = t('again');
     document.querySelectorAll<HTMLElement>('#langs button').forEach((b) => b.classList.toggle('sel', b.dataset.lang === lang));
+    renderNotice();
   };
   applyText();
   const name = $<HTMLInputElement>('name');

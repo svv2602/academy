@@ -92,6 +92,9 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 #loading { width: min(360px, 70vw); margin: 18px auto 6px; }
 #loading #bar { height: 14px; border-radius: 7px; background: linear-gradient(90deg, #ff9bd0, #a56bff); width: 0; transition: width .2s; }
 #loading span { font-size: 16px; color: #b07ad6; }
+#notice { max-width: min(440px, 80vw); margin: 10px auto 0; }
+#notice p { margin: 0; font-size: clamp(15px, 2.2vw, 19px); line-height: 1.35; color: #6b4a8a; font-weight: 600; }
+#notice .big { padding: 10px 32px; font-size: clamp(18px, 3vw, 26px); }
 #langs { position: absolute; top: 12px; right: 16px; display: flex; gap: 6px; }
 #langs button { min-width: 44px; min-height: 44px; background: #f1e6fa; border-radius: 10px; padding: 3px 9px; font-size: 13px; font-weight: 700; color: #a07ac0; }
 #langs button.sel { background: #a56bff; color: #fff; }

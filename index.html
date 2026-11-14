@@ -66,6 +66,8 @@
       <h1 id="title"></h1>
       <h3 id="subtitle"></h3>
       <div id="loading"><div id="bar"></div><span id="loadingText"></span></div>
+      <!-- In place of the loading bar: this device cannot run the game (TECH-07) or the game did not load (TECH-08). -->
+      <div id="notice" class="hidden" role="alert"><p id="noticeText"></p><button id="retry" class="big hidden"></button></div>
       <div id="setup" class="hidden">
         <div class="row"><span id="lblName"></span><input id="name" maxlength="20" autocomplete="off" autocapitalize="words"></div>
         <div class="row"><span id="lblDress"></span><div id="dress" class="swatches"></div></div>

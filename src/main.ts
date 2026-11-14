@@ -20,7 +20,7 @@ import { cheatTask, runTask, SKILL, type TaskHooks, type TaskResult, type TaskTy
 import { Butterflies } from './world/butterflies';
 import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, setDrawRange, updateRanged, uTime } from './world/scenery';
 import { CHEST, PATCH, SPAWN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
-import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers } from './ui/ui';
+import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers, showNotice } from './ui/ui';
 import { t, tf, voiceText, type Key, type SpokenKey } from './ui/strings';
 import { initTuningPanel } from './ui/tuning';
 
@@ -32,6 +32,17 @@ if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
 applyVolume();
+initStart(save, save.played, () => applyLook());
+
+// ---------- TECH-07: no WebGL2, no game ----------
+// Three.js 0.170 draws with WebGL2 only: without it the renderer below throws, and the page would stay on the loading
+// bar with an error. The check asks a canvas of its own (a context made on #c would keep the attributes of the check).
+// Without WebGL2 the start screen shows the message instead, and this module stops right here, before anything of
+// Three.js is created - no renderer, no quality tier, no launch counted. The await never settles, on purpose.
+function webgl2(): boolean {
+  try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; }
+}
+if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 
 // ---------- renderer & quality tiers ----------
 const renderer = new THREE.WebGLRenderer({ canvas: el.canvas, antialias: true, powerPreference: 'high-performance' });
@@ -85,7 +96,6 @@ function applyPin() {
 
 // ---------- boot ----------
 setProgressHandler((f) => { el.bar.style.width = `${Math.round(f * 100)}%`; });
-initStart(save, save.played, () => applyLook());
 let applyLook = () => {};
 applyTier();
 void boot();
@@ -99,13 +109,22 @@ async function boot() {
   const rainbowAlpha = buildRainbow(scene);
   const motes = buildMotes(scene, 260);
   buildGrass(scene, touch ? 9000 : 16000);
-  const [, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = await Promise.all([
+  const loads = await Promise.all([
     buildScenery(scene, density), buildClouds(scene),
     buildHero(save), rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
     rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
     rig('animals_pack/Deer', 1.55, true), buildHero({ dress: '#ffd54f', hair: '#f5d16b', hairStyle: 'buns' }, 1.72, 1.1),
-  ]);
+  ]).catch((e: unknown) => {
+    // TECH-08: a model failed even after its repeats (src/core/assets.ts). "Try again" reloads the page rather than
+    // building again here: the terrain, the water, the grass and part of the props are in the scene already, and a
+    // second build in this page would double them. The models that did load come from the cache then.
+    console.error('the game could not load:', e);
+    showNotice('load_failed', () => location.reload());
+    return null;
+  });
+  if (!loads) return;
+  const [, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = loads;
   const sparks = new Sparks(scene);
   const flies = new Butterflies(scene, 96);
   const groundY = (x: number, z: number) => height(x, z);

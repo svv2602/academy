@@ -30,7 +30,7 @@ function results(change = {}) {
   const files = {};
   for (const mode of SIZES) {
     const mute = mode === 'desktop-tall';
-    files[`summary-${mode}.json`] = { mode, commit, walkthrough: 'ok', note: '', passed: true };
+    files[`summary-${mode}.json`] = { mode, commit, walkthrough: 'ok', note: '', passed: true, ...(mode === 'mobile' ? { failureScreens: 'ok' } : {}) };
     files[`voice-${mode}.json`] = { mute, clips: 110, loud: mute ? 0 : 110 };
     // as in a real run, one size alone does not request every model: the phone gets one half, the desktop the rest
     files[`models-requested-${mode}.json`] = mode === 'mobile' ? models.slice(0, 40) : mode === 'desktop' ? models.slice(30) : models.slice(0, 10);
@@ -45,7 +45,7 @@ function combine(dir, ...extra) {
   const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine', dir, ...extra], { cwd: root, encoding: 'utf8', env, timeout: 30000 });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 }
-const summary = (mode, change) => ({ [`summary-${mode}.json`]: { mode, commit, walkthrough: 'ok', note: '', passed: true, ...change } });
+const summary = (mode, change) => ({ [`summary-${mode}.json`]: { mode, commit, walkthrough: 'ok', note: '', passed: true, ...(mode === 'mobile' ? { failureScreens: 'ok' } : {}), ...change } });
 
 describe('tools/e2e.mjs --combine: the checks over the walkthroughs CI plays in separate jobs', () => {
   it('passes when all four sizes passed on this commit, one of them without the voice, and the models add up', () => {
@@ -79,6 +79,14 @@ describe('tools/e2e.mjs --combine: the checks over the walkthroughs CI plays in 
     const r = combine(results(summary('mobile', { passed: false })));
     expect(r.code, r.out).toBe(1);
     expect(r.out).toContain('mobile: the walkthrough passed, but another step of that run failed');
+  });
+
+  it('fails when the job of the phone size did not play the failure screens, or they failed', () => {
+    const none = combine(results(summary('mobile', { failureScreens: undefined })));
+    expect(none.code, none.out).toBe(1);
+    expect(none.out).toContain('mobile: the failure screens were not played by its run');
+    const red = combine(results(summary('mobile', { failureScreens: 'FAILED', passed: false })));
+    expect(red.code, red.out).toBe(1);
   });
 
   it('fails when a summary is of another size', () => {
