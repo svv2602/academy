@@ -407,9 +407,18 @@ try {
         await p.waitForTimeout(T(1500));
         if (!process.env.Q && touch) {
           const w0 = await p.evaluate(() => document.querySelector('#c').width);
-          await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) })
-            .then(async () => console.log(`without ?debug: slow frames lowered the quality by itself (canvas ${w0} -> ${await p.evaluate(() => document.querySelector('#c').width)} px wide)`))
-            .catch(() => errors.push(`without ?debug: slow frames did not lower the quality (the canvas stayed ${w0} px wide)`));
+          const lowered = await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) })
+            .then(async () => { const w1 = await p.evaluate(() => document.querySelector('#c').width); console.log(`without ?debug: slow frames lowered the quality by itself (canvas ${w0} -> ${w1} px wide)`); return true; })
+            .catch(() => { errors.push(`without ?debug: slow frames did not lower the quality (the canvas stayed ${w0} px wide)`); return false; });
+          // TECH-04: the lowered tier is remembered, so the next launch starts with it, not with the top one again.
+          // Read as soon as the start button shows: the game's own fallback needs seconds of frames before it acts.
+          if (lowered) {
+            await p.reload();
+            await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+            const w2 = await p.evaluate(() => document.querySelector('#c').width);
+            if (w2 < w0) console.log(`without ?debug: after a reload the game starts with the lowered quality (canvas ${w2} px wide, ${w0} before the fallback)`);
+            else errors.push(`without ?debug: after the fallback and a reload the game started with the top quality again (the canvas is ${w2} px wide, as before the fallback)`);
+          }
         }
         const found = await p.evaluate(() => [
           '__game' in window ? 'window.__game is defined' : '',
@@ -434,6 +443,29 @@ try {
     await page.click('#play');
     if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
+    // ---- a hidden page (another app, a locked screen) pauses the line that sounds; shown again, it plays on (TECH-05) ----
+    // The page is "hidden" by its visibility state alone: what the game hears from a phone that leaves it.
+    {
+      const fail = (what) => { throw new Error(`a hidden page: ${what}`); };
+      const visibility = (hidden) => g((h) => {
+        if (h) {
+          Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+          Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        } else { delete document.hidden; delete document.visibilityState; }       // back to the real ones
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, hidden);
+      await page.waitForFunction(() => window.__started.some((a) => !a.paused && !a.ended && a.currentTime > 0.2), null, { timeout: T(10000) })
+        .catch(() => fail('no line was sounding after "play"'));
+      const id = await g(() => { const a = window.__started.findLast((x) => !x.paused && !x.ended); a.__probe = true; return window.__clip(a); });
+      await visibility(true);
+      await wait(1200);
+      const away = await g(() => { const a = window.__started.find((x) => x.__probe); return { paused: a.paused, ended: a.ended, at: a.currentTime }; });
+      await visibility(false);
+      if (!away.paused || away.ended) fail(`the line "${id}" did not pause (${away.ended ? 'it ended' : 'it went on sounding'})`);
+      await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(5000) })
+        .catch(() => fail(`the line "${id}" did not play on when the page was shown again`));
+      console.log(`a hidden page: "${id}" paused at ${away.at.toFixed(2)} s and played on when shown`);
+    }
     await wait(9000); await shot('01-spawn');
     await checkVoice('after the introduction');
     // ---- a tap on the cat says the line of the bubble once more, and the heroine does not walk to the cat (VOICE-08) ----
@@ -878,6 +910,23 @@ try {
       // the voice slider shows what this walkthrough plays with
       const slider = await g(() => Number(document.querySelector('#pBody [data-v=voice]')?.value));
       if (mute ? slider !== 0 : !(slider > 0)) errors.push(`the voice slider of the parents' section is at ${slider} in a walkthrough ${mute ? 'without' : 'with'} the voice`);
+      // the quality button (TECH-04): automatic -> high -> medium -> plain -> automatic; a pinned tier applies at once
+      {
+        const steps = [];
+        for (let i = 0; i < 4; i++) {
+          await page.click('#pQuality'); await wait(300);
+          const pin = await g(() => __game.save.pinTier);
+          let shown = '';
+          if (pin !== null && !process.env.Q) {
+            await page.waitForFunction((t) => (document.querySelector('#fps')?.textContent ?? '').includes(` q${t} `), pin, { timeout: T(5000) })
+              .catch(async () => errors.push(`quality: the parent pinned q${pin}, but the counter shows "${await g(() => document.querySelector('#fps')?.textContent)}"`));
+            shown = ` (counter q${pin})`;
+          }
+          steps.push(`${pin === null ? 'auto' : `q${pin}`}${shown}`);
+        }
+        if (steps.map((x) => x.split(' ')[0]).join(' ') !== 'q2 q1 q0 auto') errors.push(`quality: the button steps through ${steps.join(' -> ')}, not q2 -> q1 -> q0 -> auto`);
+        console.log(`quality button: ${steps.join(' -> ')}`);
+      }
       // closed and opened again: another example, and the section is shut until it is answered
       await page.click('#parentsClose'); await page.click('#btnBook'); await wait(300); await page.click('#btnParents'); await wait(300);
       if (await open()) fail('opened for the second time, the section is not shut');

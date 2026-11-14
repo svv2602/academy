@@ -9,6 +9,7 @@ import { beginTask, dropped, endTask, inTask, say, setVolumes, sfx, speaking, st
 import { initInput, input, pollInput } from './core/input';
 import { camDistance, tuning } from './core/tuning';
 import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
+import { startTier, type Tier } from './core/quality';
 import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
 import { Actor } from './game/actor';
 import { glowTex, numberSprite, Sparks } from './game/fx';
@@ -41,7 +42,14 @@ renderer.info.autoReset = false;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, 1, 0.3, 600);
 const touch = matchMedia('(pointer: coarse)').matches;
-let tier = params.has('q') ? Number(params.get('q')) : 2;   // 2: bloom+shadows, 1: shadows, 0: plain
+// 2: bloom+shadows, 1: shadows, 0: plain. TECH-04: ?q= > the parent's pin > the tier the last session ended on (every
+// tenth launch one higher). A launch is a page load: the counter and the tier are stored at once.
+const start = startTier({ param: params.get('q'), pinned: save.pinTier, saved: save.tier, launches: save.launches });
+let tier: Tier = start.tier;
+const byParam = start.by === 'param';         // ?q= fixes the tier for this page and leaves the remembered one alone
+save.launches = start.launches;
+if (!byParam) save.tier = tier;
+storeSave(save);
 let composer: EffectComposer | null = null;
 const world = buildSky(scene);
 
@@ -69,6 +77,11 @@ function applyTier() {
   scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m && !Array.isArray(m)) m.needsUpdate = true; });
 }
 addEventListener('resize', applyTier);
+/** The parent pinned a tier (or went back to automatic): it applies at once, unless ?q= holds this page. */
+function applyPin() {
+  if (byParam || save.pinTier === null || save.pinTier === tier) return;
+  tier = save.pinTier; save.tier = tier; applyTier();
+}
 
 // ---------- boot ----------
 setProgressHandler((f) => { el.bar.style.width = `${Math.round(f * 100)}%`; });
@@ -491,7 +504,7 @@ async function boot() {
     else await line('welcome_back', 'hint', 5000);
   }, { once: true });
   initBook(save, {
-    change: () => { applyVolume(); persist(); },
+    change: () => { applyVolume(); applyPin(); persist(); },
     reset: () => { clearSave(); location.reload(); },
     open: (v) => { paused = v; },
   });
@@ -499,7 +512,8 @@ async function boot() {
   el.bubble.addEventListener('click', repeat);
   setInterval(persist, 10000);
   addEventListener('pagehide', persist);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); stopVoice(); } });
+  // The voice, the music and the effects pause and resume by themselves (audio.ts, TECH-05): a hidden page only saves.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
 
   // ---------- loop ----------
   const clock = new THREE.Clock();
@@ -727,9 +741,10 @@ async function boot() {
     if (fpsT >= 1) {
       const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
       if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
-      if (warm > 4 && !params.has('q') && !document.hidden) {
+      if (warm > 4 && !byParam && save.pinTier === null && !document.hidden) {
         slow = fps < 34 ? slow + 1 : 0;
-        if (slow >= 3 && tier > 0) { tier--; slow = 0; warm = 0; applyTier(); }
+        // the lowered tier is saved at once: the next launch starts from it (TECH-04)
+        if (slow >= 3 && tier > 0) { tier = (tier - 1) as Tier; slow = 0; warm = 0; applyTier(); save.tier = tier; persist(); }
       }
     }
   }

@@ -22,8 +22,13 @@ class FakeAudio {
   volume = 1;
   error: { code: number } | null = null;
   paused = false;
+  plays = 0;
   constructor(public src: string) { FakeAudio.made.push(this); }
-  play(): Promise<void> { return FakeAudio.blocked ? Promise.reject(new Error('NotAllowedError')) : Promise.resolve(); }
+  play(): Promise<void> {
+    if (FakeAudio.blocked) return Promise.reject(new Error('NotAllowedError'));
+    this.plays++; this.paused = false;
+    return Promise.resolve();
+  }
   pause() { this.paused = true; }
   start() { this.onplaying?.(); }
   end() { this.onended?.(); }
@@ -48,6 +53,8 @@ function fakeSynth(initial: FakeVoice[], opts: { cancelFiresError?: boolean } = 
     onvoiceschanged: null as (() => void) | null,
     getVoices: vi.fn(() => synth.voices),
     speak: vi.fn((u: FakeUtterance) => { synth.spoken.push(u); synth.speaking = u; }),
+    pause: vi.fn(),
+    resume: vi.fn(),
     cancel: vi.fn(() => {
       const u = synth.speaking;
       synth.speaking = null;
@@ -612,5 +619,207 @@ describe('the planner of spoken lines (VOICE-03)', () => {
     void say(CLIP_B, 'два', 'story');
     expect(FakeAudio.made).toHaveLength(2);
     expect(FakeAudio.made[1].paused).toBe(false);
+  });
+});
+
+// ---------- a hidden page (TECH-05) ----------
+
+/** Stand-in for an AudioParam / AudioNode: only what audio.ts touches. */
+class FakeParam { value = 0; setValueAtTime() {} linearRampToValueAtTime() {} exponentialRampToValueAtTime() {} }
+class FakeNode { gain = new FakeParam(); frequency = new FakeParam(); delayTime = new FakeParam(); type = ''; connect() {} }
+class FakeOsc extends FakeNode {
+  constructor(private c: FakeCtx) { super(); }
+  start(t: number) { this.c.starts.push(t); }
+  stop() {}
+}
+/** Stand-in for AudioContext: its clock is moved by the test; every oscillator start is recorded with its time. */
+class FakeCtx {
+  static made: FakeCtx[] = [];
+  currentTime = 0;
+  state = 'running';
+  destination = new FakeNode();
+  starts: number[] = [];
+  suspend = vi.fn(async () => { this.state = 'suspended'; });
+  resume = vi.fn(async () => { this.state = 'running'; });
+  constructor() { FakeCtx.made.push(this); }
+  createGain() { return new FakeNode(); }
+  createDelay() { return new FakeNode(); }
+  createOscillator() { return new FakeOsc(this); }
+}
+
+/** Stand-in for `document`: the test hides and shows the page the way the browser does, with visibilitychange. */
+function fakePage() {
+  const listeners = new Set<() => void>();
+  const page = {
+    hidden: false,
+    addEventListener: (type: string, fn: () => void) => { if (type === 'visibilitychange') listeners.add(fn); },
+    set(hidden: boolean) { page.hidden = hidden; [...listeners].forEach((fn) => fn()); },
+    listening: () => listeners.size,
+  };
+  return page;
+}
+
+async function loadPage(synth: Synth) {
+  FakeCtx.made = [];
+  const page = fakePage();
+  vi.stubGlobal('window', { speechSynthesis: synth, AudioContext: FakeCtx });
+  vi.stubGlobal('speechSynthesis', synth);
+  vi.stubGlobal('document', page);
+  return { page, ...(await import('./audio')) };
+}
+
+describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
+  it('listens to the visibility of the page by itself', async () => {
+    const { page } = await loadPage(fakeSynth([UK]));
+    expect(page.listening()).toBe(1);
+  });
+
+  it('suspends the audio context when the page is hidden and resumes it when it is shown', async () => {
+    const { page, unlockAudio } = await loadPage(fakeSynth([UK]));
+    unlockAudio();
+    const ctx = FakeCtx.made[0];
+    expect(ctx.suspend).not.toHaveBeenCalled();
+    page.set(true);
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+    expect(ctx.resume).not.toHaveBeenCalled();
+    page.set(false);
+    expect(ctx.resume).toHaveBeenCalledTimes(1);
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses the clip without ending its line and plays it on from the same place', async () => {
+    const { page, say } = await loadPage(fakeSynth([UK]));
+    const a = track(say(CLIP_A, 'один', 'task'));
+    const clip = FakeAudio.made[0];
+    clip.start();
+    page.set(true);
+    expect(clip.paused).toBe(true);
+    await tick(60000);                               // a minute in the background: far past the 15 s safety timer
+    expect(a.done).toBe(false);
+    page.set(false);
+    expect(FakeAudio.made).toHaveLength(1);          // the same clip, not a new one from the start
+    expect(clip.paused).toBe(false);
+    expect(clip.plays).toBe(2);
+    await tick(1000);
+    expect(a.done).toBe(false);
+    clip.end();
+    await tick(0);
+    expect(a.done).toBe(true);
+  });
+
+  it('a safety timer due in the background counts its whole time again after the return', async () => {
+    const { page, say } = await loadPage(fakeSynth([UK]));
+    const a = track(say(CLIP_A, 'один', 'task'));
+    page.set(true);
+    await tick(20000);
+    page.set(false);
+    await tick(14999);
+    expect(a.done).toBe(false);
+    await tick(1);
+    expect(a.done).toBe(true);
+  });
+
+  it('pauses and resumes the synthesizer; its line waits for its end', async () => {
+    const synth = fakeSynth([UK]);
+    const { page, say } = await loadPage(synth);
+    const a = track(say('no_clip_a', TEXT, 'task'));
+    const cancels = synth.cancel.mock.calls.length;   // say() itself clears the synthesizer before it speaks
+    page.set(true);
+    expect(synth.pause).toHaveBeenCalledTimes(1);
+    expect(synth.cancel).toHaveBeenCalledTimes(cancels);
+    await tick(30000);
+    expect(a.done).toBe(false);
+    page.set(false);
+    expect(synth.resume).toHaveBeenCalledTimes(1);
+    expect(a.done).toBe(false);
+    synth.spoken[0].onend?.();
+    await tick(0);
+    expect(a.done).toBe(true);
+  });
+
+  it('an end reported while the page is hidden lets the awaiting code go on only after the return', async () => {
+    const synth = fakeSynth([UK]);
+    const { page, say } = await loadPage(synth);
+    const next = vi.fn();
+    void say('no_clip_a', TEXT, 'task').then(next);
+    page.set(true);
+    synth.spoken[0].onend?.();                       // Android may end an utterance on pause()
+    await tick(5000);
+    expect(next).not.toHaveBeenCalled();
+    page.set(false);
+    await tick(0);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('a chain of lines does not go on while the page is hidden', async () => {
+    const { page, say } = await loadPage(fakeSynth([UK]));
+    const chain = track((async () => { await say(CLIP_A, 'один', 'story'); await say(CLIP_B, 'два', 'story'); })());
+    FakeAudio.made[0].start();
+    page.set(true);
+    await tick(120000);
+    expect(FakeAudio.made).toHaveLength(1);
+    page.set(false);
+    FakeAudio.made[0].end();
+    await tick(0);
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(FakeAudio.made[1].src.endsWith(`voice/${CLIP_B}.mp3`)).toBe(true);
+    FakeAudio.made[1].end();
+    await tick(0);
+    expect(chain.done).toBe(true);
+  });
+
+  it('a line asked for while the page is hidden starts when it is shown, and not at all if stopped before', async () => {
+    const { page, say, stopVoice } = await loadPage(fakeSynth([UK]));
+    page.set(true);
+    const a = track(say(CLIP_A, 'один', 'task'));
+    await tick(1000);
+    expect(FakeAudio.made).toHaveLength(0);
+    page.set(false);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(a.done).toBe(false);
+    page.set(true);
+    const b = track(say(CLIP_B, 'два', 'task'));    // cuts a off; b waits for the page
+    stopVoice();
+    page.set(false);
+    await tick(0);
+    expect(FakeAudio.made).toHaveLength(1);          // b never started
+    expect(a.done).toBe(true);
+    expect(b.done).toBe(true);
+  });
+
+  it('makes no effects while the page is hidden', async () => {
+    const { page, unlockAudio, sfx } = await loadPage(fakeSynth([UK]));
+    unlockAudio();
+    const ctx = FakeCtx.made[0];
+    const before = ctx.starts.length;
+    page.set(true);
+    sfx('chime');
+    expect(ctx.starts.length).toBe(before);
+    page.set(false);
+    sfx('chime');
+    expect(ctx.starts.length).toBeGreaterThan(before);
+  });
+
+  it('the music does not play the notes it missed: a suspended clock schedules nothing, a late timer goes on from now', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);   // a bell on every step
+    const { page, unlockAudio } = await loadPage(fakeSynth([UK]));
+    unlockAudio();
+    const ctx = FakeCtx.made[0];
+    expect(ctx.starts.length).toBeGreaterThan(0);
+    // hidden: the suspended context's clock stands still, the timer of the scheduler keeps firing
+    page.set(true);
+    const hiddenAt = ctx.starts.length;
+    await tick(60000);
+    expect(ctx.starts.length).toBe(hiddenAt);
+    page.set(false);
+    // a context that went on in the background (or a timer that came late): one minute passes between two runs
+    ctx.currentTime = 60;
+    const lateAt = ctx.starts.length;
+    await tick(400);
+    const fresh = ctx.starts.slice(lateAt);
+    expect(fresh.length).toBeGreaterThan(0);
+    expect(fresh.every((t) => t >= 60)).toBe(true);
+    expect(fresh.length).toBeLessThan(16);             // a few steps of 0.55 s up to 1.5 s ahead, not a minute of them
+    vi.restoreAllMocks();
   });
 });

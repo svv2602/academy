@@ -106,6 +106,9 @@ export function initStart(sel: { dress: string; hair: string; name: string; hair
   el.restart.classList.toggle('hidden', !hasSave);
 }
 
+/** The order the quality button of the parents' section steps through: automatic (null), then high to plain. */
+const QUALITY_STEPS: Save['pinTier'][] = [null, 2, 1, 0];
+
 /** Collection book + the parents' section behind an "adult" gate. */
 export function initBook(save: Save, on: { change(): void; reset(): void; open(isOpen: boolean): void }) {
   const book = $('book'), parents = $('parents');
@@ -131,9 +134,13 @@ export function initBook(save: Save, on: { change(): void; reset(): void; open(i
     const rows = skills.map((k) => { const s = save.skills[k]; return `<tr><td>${t(('sk_' + k) as Key)}</td><td>${save.difficulty || s.level}</td><td>${s.tasks}</td><td>${s.tasks ? Math.round((s.first / s.tasks) * 100) + '%' : '–'}</td><td>${s.errors}</td></tr>`; }).join('');
     $('pBody').innerHTML = `<table><tr><th>${t('p_skill')}</th><th>${t('p_level')}</th><th>${t('p_tasks')}</th><th>${t('p_first')}</th><th>${t('p_errors')}</th></tr>${rows}</table>
       <div class="prow"><span>${t('p_diff')}</span>${[0, 1, 2, 3].map((d) => `<button data-d="${d}" class="${save.difficulty === d ? 'sel' : ''}">${t(('d' + d) as Key)}</button>`).join('')}</div>
+      <div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       ${(['music', 'sfx', 'voice'] as const).map((v) => `<div class="prow"><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></div>`).join('')}
       <div class="prow"><button id="pReset">${t('p_reset')}</button><span id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span></span></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-d]').forEach((b) => b.addEventListener('click', () => { save.difficulty = Number(b.dataset.d) as Save['difficulty']; on.change(); renderParents(); }));
+    // Graphics quality (TECH-04): one button that steps through automatic, high, medium, plain - four buttons would not
+    // fit the phone held sideways. A pinned tier applies at once and the game no longer lowers it by itself.
+    $('pQuality').addEventListener('click', () => { save.pinTier = QUALITY_STEPS[(QUALITY_STEPS.indexOf(save.pinTier) + 1) % QUALITY_STEPS.length]; on.change(); renderParents(); });
     $('pBody').querySelectorAll<HTMLInputElement>('[data-v]').forEach((r) => r.addEventListener('input', () => { save.vol[r.dataset.v as 'music'] = Number(r.value); on.change(); }));
     const reset = $('pReset'); let armed = false;
     reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });

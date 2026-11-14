@@ -213,6 +213,33 @@ describe('loadSave', () => {
     expect(loadSave()).toEqual({ ...defaultSave(), name: 'Зоряна', stars: 3 });
   });
 
+  it('opens a version 2 save written before the quality fields with all its progress (TECH-04)', () => {
+    const s = defaultSave();
+    s.name = 'Зоряна'; s.played = true; s.stars = 12; s.starsTaken = [1, 3]; s.chestOpen = true; s.pos = [4, -7];
+    s.quests = { unicorn: 3, fox: 1 }; s.difficulty = 2; s.vol.voice = 0.4;
+    play(s, 'count', 0, 0, 1);
+    const raw = JSON.parse(JSON.stringify(s));
+    delete raw.tier; delete raw.launches; delete raw.pinTier;
+    storage.setItem(KEY, JSON.stringify(raw));
+
+    const loaded = loadSave();
+    expect(loaded).toEqual(s);                      // every bit of progress is kept
+    expect(loaded.tier).toBe(2);
+    expect(loaded.launches).toBe(0);
+    expect(loaded.pinTier).toBeNull();
+    expect(loaded.v).toBe(2);
+  });
+
+  it('keeps the quality fields through storeSave and loadSave', () => {
+    const s = defaultSave();
+    s.tier = 0; s.launches = 17; s.pinTier = 1;
+    storeSave(s);
+    const loaded = loadSave();
+    expect(loaded.tier).toBe(0);
+    expect(loaded.launches).toBe(17);
+    expect(loaded.pinTier).toBe(1);
+  });
+
   it('carries only the name and the look over from a version 1 save', () => {
     storage.setItem(KEY, JSON.stringify({
       v: 1, name: 'Зоряна', dress: '#00ff00', hair: '#112233', hairStyle: 'buns',

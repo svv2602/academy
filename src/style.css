@@ -211,8 +211,8 @@ button.it { min-width: 44px; min-height: 44px; }
   /* The parents section does not fit a phone in landscape as one column: the table and "reset" go left, the settings right. */
   #parents .sheet { width: min(96vw, 820px); }
   #pBody { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0 16px; align-items: center; }
-  #pBody table { grid-column: 1; grid-row: 1 / span 3; margin: 0; } #pBody .prow { grid-column: 2; margin: 2px 0; gap: 6px 8px; font-size: 15px; }
-  #pBody .prow:last-child { grid-column: 1; grid-row: 4; }
+  #pBody table { grid-column: 1; grid-row: 1 / span 4; margin: 0; } #pBody .prow { grid-column: 2; margin: 2px 0; gap: 6px 8px; font-size: 15px; }
+  #pBody .prow:last-child { grid-column: 1; grid-row: 5; }
   #parents .big.small { margin-top: 6px; }
 }
 @media (max-aspect-ratio: 5/4) {

@@ -1,4 +1,5 @@
 /** Versioned local save. Bump `v` and migrate in loadSave() when the shape changes. */
+import type { Tier } from './quality';
 export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'logic';
 export interface SkillStat { level: number; streak: number; tasks: number; first: number; errors: number; }
 export interface Save {
@@ -15,6 +16,10 @@ export interface Save {
   skills: Record<SkillId, SkillStat>;
   difficulty: 0 | 1 | 2 | 3;        // 0 = adaptive, otherwise fixed by the parent
   vol: { music: number; sfx: number; voice: number };
+  // Graphics quality (TECH-04); a save without them gets the defaults, so the version stays 2.
+  tier: Tier;                       // the tier the session runs on now, the next launch starts from it
+  launches: number;                 // page loads counted so far: every tenth tries a tier higher
+  pinTier: Tier | null;             // fixed by the parent; null = automatic
 }
 
 const KEY = 'amw-save';
@@ -26,6 +31,7 @@ export function defaultSave(): Save {
     stars: 0, starsTaken: [], chestOpen: false, pos: null, quests: {}, final: false,
     skills: Object.fromEntries(SKILLS.map((s) => [s, { level: 1, streak: 0, tasks: 0, first: 0, errors: 0 }])) as Save['skills'],
     difficulty: 0, vol: { music: 0.5, sfx: 0.8, voice: 1 },
+    tier: 2, launches: 0, pinTier: null,
   };
 }
 
