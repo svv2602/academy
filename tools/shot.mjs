@@ -492,6 +492,19 @@ try {
       catRepeated = true;
     }
 
+    // ---- stars never go down (LEARN-14): watched on every frame from here to the end of the world, read on every step ----
+    await g(() => {
+      const w = window.__stars = { last: __game.save.stars, drops: [], frames: 0 };
+      const look = () => { const n = __game.save.stars; if (n < w.last) w.drops.push(`${w.last} -> ${n}`); w.last = n; w.frames++; requestAnimationFrame(look); };
+      look();
+    });
+    let starDrops = 0;
+    const starsKept = async (where) => {
+      const w = await g(() => ({ drops: window.__stars.drops, frames: window.__stars.frames }));
+      for (const d of w.drops.slice(starDrops)) errors.push(`stars: ${mode}: the number of stars went down ${where}: ${d}`);
+      starDrops = w.drops.length;
+      return w.frames;
+    };
     const seen = new Set();
     const mistakes = new Set();   // task types in which the deliberate mistake was made
     // An open task is known to the planner of spoken lines (VOICE-03): asked in one go, a task may close in between.
@@ -618,10 +631,35 @@ try {
         + `a tap on the bubble repeated "${probe.key}" only once it was over; the closed task recorded nothing`);
       hurried = true;
     };
+    // ---- every panel task can be closed with its button (LEARN-14): the first meeting of each kind closes it at once ----
+    // A real tap or click on the cross, then: the controls are back, nothing of the task is left (panel, planner, voice,
+    // bubble), the save is the same (skills, quests, stars), and the heroine walks. The loop below talks to the same
+    // character again; the second meeting is the usual one (picture, deliberate mistake, hint, answer).
+    const closed = new Map();     // task type -> { quest, step } when it was closed
+    const closeTask = async (q, type) => {
+      const fail = (what) => { throw new Error(`closing the "${type}" task: ${what}`); };
+      const step = await g((id) => __game.save.quests[id] ?? 0, q.id);
+      const before = await saved();
+      await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${e.message.split('\n')[0]}`));
+      await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
+      await wait(500);
+      const left = await held();
+      if (await visible('#task')) left.push('the task is still on screen');
+      if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
+      if (await sounding()) left.push('a spoken line is still sounding');
+      const after = await saved();
+      if (after !== before) left.push(`the save changed: ${before} -> ${after}`);
+      if (left.length) fail(left.join('; '));
+      await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(300);   // open ground at the spawn
+      if (!(await walks())) fail('the heroine does not walk');
+      closed.set(type, { quest: q.id, step });
+      console.log(`"${type}" closed with the cross (${q.id}, step ${step + 1}): nothing recorded, the heroine walks`);
+    };
     for (const q of quests) {
       const t0 = Date.now();
       while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
         if (Date.now() - t0 > T(stuckMs)) throw new Error('quest stuck: ' + q.id);
+        await starsKept(`in the quest "${q.id}"`);
         if (searchBefore && !searchAfter && !(await g(() => __game.search.active))) {
           // the search has just ended and no other task was opened since: whatever differs was written by the search
           searchAfter = await progress();
@@ -653,6 +691,7 @@ try {
         { const wrong = await unplanned(); if (wrong) errors.push(wrong); }
         if (await visible('#task')) {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
+          if (!closed.has(type)) { await closeTask(q, type); continue; }
           if (!seen.has(type)) {
             seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); await checkQuestion(type);
             // One deliberate mistake per task type, to hear "try again", the spoken hint and to see the solution shown.
@@ -756,6 +795,17 @@ try {
         await wait(600);
       }
       console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
+    }
+    {
+      // Each kind closed at its first meeting was met again and played: its quest went past the step it was closed at.
+      const done = await g(() => ({ ...__game.save.quests }));
+      const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars');
+      const unclosed = panel.filter((t) => !closed.has(t));
+      if (unclosed.length) errors.push(`close: ${mode}: never closed with its button: ${unclosed.join(', ')}`);
+      for (const [t, c] of closed) {
+        if (!seen.has(t) || (done[c.quest] ?? 0) <= c.step) errors.push(`close: ${mode}: the "${t}" task was closed and not played again (${c.quest}, step ${c.step + 1})`);
+      }
+      console.log(`closed with the cross at the first meeting, nothing recorded, the heroine walked, then played: ${[...closed.keys()].join(' ')}`);
     }
     await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
     // A conversation is broken once on purpose, right after it has taken the controls: the heroine must walk again,
@@ -951,6 +1001,11 @@ try {
     if (!hurried) errors.push('the talk right after the fifth star went unchecked');
     if (!onward) errors.push('the cat\'s "go on" after a shard went unchecked');
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
+    {
+      const frames = await starsKept('by the end of the world');
+      if (!frames) errors.push(`stars: ${mode}: the watch of the stars saw no frame`);
+      console.log(`stars: watched on ${frames} frames, ${starDrops ? `went down ${starDrops} times` : 'never went down'}`);
+    }
     console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
     // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
     const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
