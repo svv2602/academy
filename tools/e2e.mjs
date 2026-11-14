@@ -1,4 +1,5 @@
 // The pre-publish gate: npm run e2e [-- --skip-build] [--all-sizes] [--mode <size>] [--bail] [--update-models]
+//                       npm run e2e -- --combine <folder>
 // Builds the game, serves the build on localhost, plays the whole world in phone and desktop sizes
 // (tools/shot.mjs, one process per size), checks that no .html in dist/ links to another site, stops the server
 // and prints a summary table. With --all-sizes two more sizes are played after the two main ones: desktop-tall
@@ -7,11 +8,13 @@
 // the other ones are played online. The desktop-tall walkthrough is played WITH THE VOICE TURNED OFF (the game must
 // be playable in silence). The model files the page requested in the walkthroughs must be exactly
 // tools/models-used.json. Every walkthrough compares the commit number shown in the parents' section with
-// `git rev-parse --short HEAD` of the sources.
+// `git rev-parse --short HEAD` of the sources. Every walkthrough leaves its summary in shots-e2e/summary-<size>.json.
+// --combine: CI plays each size in a job of its own; this mode only reads their results and runs the checks that need
+// every size at once (see the help text).
 // Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
 // 130 / 143 — interrupted (the server is stopped in that case too).
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +37,13 @@ task. The other sizes are played with the voice: there the hint replaces the que
 Every walkthrough opens the parents' section through its gate (a multiplication read from the screen) and compares
 the commit number shown there with "git rev-parse --short HEAD" of the sources ("no-git" where git gives none).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
+Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and
+whether the whole run passed.
+
+--combine <folder>: build nothing, play nothing. The folder holds what walkthroughs of all four sizes left behind
+(summary-, models-requested- and voice-<size>.json; CI plays each size in a job of its own and collects them there).
+Steps: walkthroughs (all four summaries are there, of the commit of these sources, and passed) -> silent walkthrough
+-> models used. Any missing or red size fails it.
 
 Flags:
   --skip-build            reuse the existing dist/ (fails if dist/index.html is missing)
@@ -43,6 +53,7 @@ Flags:
   --bail                  stop at the first failed step (default: run every step to show everything broken)
   --update-models         rewrite tools/models-used.json from this run instead of comparing (needs both main sizes);
                           use it after adding or removing a model, then commit the file
+  --combine <folder>      check the results of the four walkthroughs played elsewhere (see above); takes no other flag
   --help                  this text
 
 Environment (passed on to tools/shot.mjs unchanged):
@@ -62,7 +73,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // The sizes themselves (pixels, touch or mouse) are defined in tools/shot.mjs; here only their names and order.
 const MAIN_MODES = ['mobile', 'desktop'];
 const EXTRA_MODES = ['desktop-tall', 'mobile-portrait'];   // added by --all-sizes, played after the main ones
-const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, modes: [...MAIN_MODES] };
+const ALL_MODES = [...MAIN_MODES, ...EXTRA_MODES];
+const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, combine: '', modes: [...MAIN_MODES] };
 // Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
 const OFFLINE_MODES = ['desktop'];
 // The scenario fails every task type once on purpose, so the adaptive difficulty never leaves level 1. To play and
@@ -103,14 +115,22 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--bail') opts.bail = true;
   else if (a === '--update-models') opts.updateModels = true;
   else if (a === '--all-sizes') opts.allSizes = true;
-  else if (a === '--mode' || a.startsWith('--mode=')) {
+  else if (a === '--combine' || a.startsWith('--combine=')) {
+    const d = a === '--combine' ? argv[++i] : a.slice('--combine='.length);
+    if (!d || d.startsWith('--')) usage('--combine needs the folder with the results of the walkthroughs');
+    opts.combine = resolve(d);
+  }  else if (a === '--mode' || a.startsWith('--mode=')) {
     const m = a === '--mode' ? argv[++i] : a.slice('--mode='.length);
     if (![...MAIN_MODES, ...EXTRA_MODES].includes(m)) usage(`bad --mode "${m}": expected ${[...MAIN_MODES, ...EXTRA_MODES].join(', ')}`);
     opts.modes = [m]; opts.oneMode = true;
   } else usage(`unknown argument "${a}"`);
 }
 if (opts.allSizes && opts.oneMode) usage('--all-sizes and --mode exclude each other');
-if (opts.allSizes) opts.modes = [...MAIN_MODES, ...EXTRA_MODES];
+if (opts.allSizes) opts.modes = [...ALL_MODES];
+if (opts.combine && (opts.oneMode || opts.allSizes || opts.skipBuild || opts.updateModels || opts.bail)) {
+  usage('--combine takes no other flag: it only reads the results of walkthroughs played elsewhere');
+}
+if (opts.combine) opts.modes = [...ALL_MODES];
 // "models used" needs both main sizes: one size alone does not request every model.
 const bothMain = MAIN_MODES.every((m) => opts.modes.includes(m));
 if (opts.updateModels && !bothMain) usage('--update-models needs both sizes: do not combine it with --mode');
@@ -204,13 +224,17 @@ async function stopServer() {
 }
 
 const walkthroughName = (mode) => `walkthrough ${mode}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
-const modelsOut = (mode) => join(root, 'shots-e2e', `models-requested-${mode}.json`);
-const voiceOut = (mode) => join(root, 'shots-e2e', `voice-${mode}.json`);
+// Where the walkthroughs leave their results: shots-e2e/ here, or the folder of --combine.
+const resultsDir = opts.combine || join(root, 'shots-e2e');
+const modelsOut = (mode) => join(resultsDir, `models-requested-${mode}.json`);
+const voiceOut = (mode) => join(resultsDir, `voice-${mode}.json`);
+const summaryOut = (mode) => join(resultsDir, `summary-${mode}.json`);
 // What the walkthrough itself reports about its voice: { mute, clips, loud }, or null if it did not get that far.
 const voiceReport = (mode) => { try { return JSON.parse(readFileSync(voiceOut(mode), 'utf8')); } catch { return null; } };
 async function walkthrough(url, mode) {
   rmSync(modelsOut(mode), { force: true });   // never compare against the list of an earlier run
   rmSync(voiceOut(mode), { force: true });
+  rmSync(summaryOut(mode), { force: true });
   const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode),
     E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(mode), E2E_COMMIT: sourceCommit() };
   if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
@@ -230,6 +254,22 @@ function checkSilent() {
   const silent = opts.modes.filter((m) => { const v = voiceReport(m); return v?.mute && v.loud === 0 && v.clips > 0; });
   if (!silent.length) throw new Error(`none of the ${opts.modes.length} walkthroughs was played without the voice: the game in silence went unchecked`);
   return `without the voice: ${silent.join(', ')}`;
+}
+
+// --combine: the walkthroughs were played elsewhere, each left its summary. All of them must be there, of the commit
+// of these sources (results of an older run must not stand in for this one) and passed - or nothing else is believed.
+function checkPlayed() {
+  const commit = sourceCommit(), bad = [];
+  for (const mode of opts.modes) {
+    let s;
+    try { s = JSON.parse(readFileSync(summaryOut(mode), 'utf8')); } catch { bad.push(`${mode}: no summary of its walkthrough (${summaryOut(mode)})`); continue; }
+    if (s.mode !== mode) bad.push(`${mode}: the summary is of "${s.mode}"`);
+    else if (s.commit !== commit) bad.push(`${mode}: played on commit ${s.commit}, the sources are at ${commit}`);
+    else if (s.walkthrough !== 'ok') bad.push(`${mode}: the walkthrough ${s.walkthrough}${s.note ? ` — ${s.note}` : ''}`);
+    else if (s.passed !== true) bad.push(`${mode}: the walkthrough passed, but another step of that run failed`);
+  }
+  if (bad.length) throw new Error(`${bad.length} of ${opts.modes.length} walkthroughs did not pass:\n  ${bad.join('\n  ')}`);
+  return `${opts.modes.join(', ')}: passed on ${commit}`;
 }
 
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
@@ -289,8 +329,15 @@ function checkDist() {
 }
 
 // ---- run ----
-let ready = true;
-if (!opts.skipBuild) ready = await step('build', build);
+let ready = !opts.combine;
+if (opts.combine) {
+  const played = await step('walkthroughs', checkPlayed);
+  if (!played) skip('silent walkthrough', 'a walkthrough did not pass');
+  else if (process.env.E2E_MUTE) skip('silent walkthrough', 'E2E_MUTE is set: the voice of every size was chosen by hand');
+  else await step('silent walkthrough', checkSilent);
+  if (!played) skip('models used', 'a walkthrough did not pass: its list of requests may be incomplete');
+  else await step('models used', checkModels);
+} else if (!opts.skipBuild) ready = await step('build', build);
 else if (!existsSync(join(root, 'dist/index.html'))) ready = await step('build', () => { throw new Error('--skip-build, but dist/index.html is missing: run without --skip-build first'); });
 else skip('build', '--skip-build');
 
@@ -317,6 +364,16 @@ if (ready) {
     else await step('dist links', checkDist);
   } finally {
     await step('stop server', stopServer);
+  }
+}
+
+// Each walkthrough of this run leaves its summary: what --combine reads when the sizes are played in separate jobs.
+if (!opts.combine) {
+  mkdirSync(resultsDir, { recursive: true });
+  const commit = sourceCommit();
+  for (const mode of opts.modes) {
+    const r = results.find((x) => x.name === walkthroughName(mode));
+    writeFileSync(summaryOut(mode), JSON.stringify({ mode, commit, walkthrough: r?.result ?? 'not played', note: r?.note.split('\n')[0] ?? '', passed: !failed() }, null, 2) + '\n');
   }
 }
 

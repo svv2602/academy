@@ -1,21 +1,20 @@
 name: Deploy to GitHub Pages
+# The same checks as ci.yml (ARCH-15), then the very build that was checked is published - and only if "check" passed.
+# Keep the jobs build, walk and check the same as in ci.yml.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  deploy:
+  build:
+    name: unit tests and build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,32 +22,119 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
-      - run: npm run build
-      # The walkthrough plays the dist/ built above (--skip-build), so exactly what was checked gets published.
+      - name: Unit tests
+        run: npm test
+      - name: Type check and build
+        run: npm run build
+      - name: Keep the build for the walkthroughs and the publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  walk:
+    name: walkthrough ${{ matrix.size }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        size: [mobile, desktop, desktop-tall, mobile-portrait]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
       # tools/shot.mjs starts Chrome from this exact path; fail here with a clear reason if the runner has none.
       - name: Check Chrome
         run: /usr/bin/google-chrome --version
       # The runner has no GPU: software rendering and the lowest fixed graphics tier.
-      - name: Walkthrough (four screen sizes)
-        timeout-minutes: 45
+      - name: Walkthrough
         shell: bash
         env:
           E2E_GL: swiftshader
           Q: '0'
         run: |
           set -o pipefail
-          npm run e2e -- --skip-build --all-sizes 2>&1 | tee e2e.log
+          npm run e2e -- --skip-build --mode ${{ matrix.size }} 2>&1 | tee e2e.log
+      - name: Results for "check"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.size }}
+          path: |
+            shots-e2e/summary-${{ matrix.size }}.json
+            shots-e2e/models-requested-${{ matrix.size }}.json
+            shots-e2e/voice-${{ matrix.size }}.json
+          if-no-files-found: warn
+          retention-days: 1
       - name: Upload screenshots and log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-failure
+          name: e2e-failure-${{ matrix.size }}
           path: |
             shots-e2e/
             e2e.log
           if-no-files-found: ignore
           retention-days: 7
+
+  check:
+    needs: [build, walk]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Every job passed
+        shell: bash
+        run: |
+          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}"
+          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success
+      - uses: actions/checkout@v4
+        if: ${{ !cancelled() }}
+      - uses: actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        with:
+          node-version: 22
+      - name: Results of the walkthroughs
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: results-*
+          path: e2e-results
+          merge-multiple: true
+      - name: Checks over all sizes
+        if: ${{ !cancelled() }}
+        run: node tools/e2e.mjs --combine e2e-results
+
+  deploy:
+    needs: check            # published only after a green "check": the build checked above, not a new one
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: The build that was checked
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

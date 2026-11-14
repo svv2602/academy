@@ -1,19 +1,31 @@
 name: CI
-# Checks every branch except main: unit tests, type check and build, then the full walkthrough of the built game.
-# main is checked by pages.yml, which runs the same steps before it publishes.
+# Checks every branch except main (main is checked by pages.yml, the same way, before it publishes).
+# Unit tests, type check and build run once; the built game is then played in the four screen sizes at the same time,
+# one job per size, on that very build. The job "check" passes only if all of them passed and the checks that need every
+# size at once (the models requested, the walkthrough without the voice) pass over their results (ARCH-15).
+# "check" is the status the protection of main requires: do not rename that job.
 on:
   push:
     branches-ignore: [main]
   pull_request:
+  # Proof that "check" really fails: a run started by hand can break the walkthrough of one size on purpose.
+  workflow_dispatch:
+    inputs:
+      break:
+        description: 'Break the walkthrough of one size on purpose (none: a normal run)'
+        type: choice
+        options: [none, mobile, desktop, desktop-tall, mobile-portrait]
+        default: none
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  check:
+  build:
+    name: unit tests and build
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,27 +37,100 @@ jobs:
         run: npm test
       - name: Type check and build
         run: npm run build
+      - name: Keep the build for the walkthroughs
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  walk:
+    name: walkthrough ${{ matrix.size }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false        # every size reports, not only the first that failed
+      matrix:
+        size: [mobile, desktop, desktop-tall, mobile-portrait]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
       # tools/shot.mjs starts Chrome from this exact path; fail here with a clear reason if the runner has none.
       - name: Check Chrome
         run: /usr/bin/google-chrome --version
-      # The runner has no GPU: software rendering and the lowest fixed graphics tier.
-      # Measured locally on 4 cores: the two main sizes take about 10 minutes, all four about twice as long.
-      - name: Walkthrough (four screen sizes)
-        timeout-minutes: 45
+      # The runner has no GPU: software rendering and the lowest fixed graphics tier. One size takes 7-8.5 minutes.
+      # The size decides the rest itself (tools/e2e.mjs): desktop is played offline, desktop-tall without the voice.
+      - name: Walkthrough
         shell: bash
         env:
           E2E_GL: swiftshader
           Q: '0'
+          # workflow_dispatch "break": every quest of this size counts as stuck at once, so its walkthrough fails.
+          E2E_STUCK_MS: ${{ inputs.break == matrix.size && '1' || '' }}
         run: |
           set -o pipefail
-          npm run e2e -- --skip-build --all-sizes 2>&1 | tee e2e.log
+          npm run e2e -- --skip-build --mode ${{ matrix.size }} 2>&1 | tee e2e.log
+      # What "check" reads; uploaded also when the walkthrough failed, so that "check" can name it.
+      - name: Results for "check"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.size }}
+          path: |
+            shots-e2e/summary-${{ matrix.size }}.json
+            shots-e2e/models-requested-${{ matrix.size }}.json
+            shots-e2e/voice-${{ matrix.size }}.json
+          if-no-files-found: warn
+          retention-days: 1
       - name: Upload screenshots and log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-failure
+          name: e2e-failure-${{ matrix.size }}
           path: |
             shots-e2e/
             e2e.log
           if-no-files-found: ignore
           retention-days: 7
+
+  check:
+    needs: [build, walk]
+    # Runs when they failed too: a job skipped because of a failure would count as passed for the protection of main.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Every job passed
+        shell: bash
+        run: |
+          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}"
+          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success
+      - uses: actions/checkout@v4
+        if: ${{ !cancelled() }}
+      - uses: actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        with:
+          node-version: 22
+      - name: Results of the walkthroughs
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true   # none at all when the build failed: the next step says what is missing
+        with:
+          pattern: results-*
+          path: e2e-results
+          merge-multiple: true
+      # All four sizes passed on this commit, one was played without the voice, the models requested add up.
+      - name: Checks over all sizes
+        if: ${{ !cancelled() }}
+        run: node tools/e2e.mjs --combine e2e-results

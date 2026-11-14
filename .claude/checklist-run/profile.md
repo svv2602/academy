@@ -163,8 +163,10 @@
 
 ## §9 Доставка
 - Push: `git push origin dev` — после прогона, с подтверждения пользователя; ничего не публикует. Запускает
-  workflow `ci.yml`: `npm test`, `npm run build`, автопрохождение собранной игры (`npm run e2e -- --skip-build`
-  с программной отрисовкой). Итог: `gh run list --workflow ci.yml --branch dev --limit 1`.
+  workflow `ci.yml` (ARCH-15): задание `unit tests and build`, затем четыре параллельных задания `walkthrough <размер>`
+  на той же сборке (`npm run e2e -- --skip-build --mode <размер>` с программной отрисовкой), затем `check`
+  (`npm run e2e -- --combine`). Итог: `gh run list --workflow ci.yml --branch dev --limit 1`. Проверить, что `check`
+  краснеет: `gh workflow run ci.yml --ref dev -f break=<размер>` — этот запуск обязан закончиться ошибкой.
 - Публикация: `git checkout main && git merge --ff-only dev && git push origin main` — **только по прямой
   команде пользователя в текущей сессии**. Запускает сборку и обновляет игру на телефоне ребёнка.
   Условия: `npm test` и `npm run e2e` зелёные на этом коммите — запуск `ci.yml` на `dev` с этим коммитом
