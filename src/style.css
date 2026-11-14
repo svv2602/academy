@@ -186,6 +186,8 @@ button.it { min-width: 44px; min-height: 44px; }
 .prow button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .prow button.sel { background: #a56bff; color: #fff; }
 .prow input[type=range] { width: 150px; accent-color: #a56bff; }
 #pReset { background: #ffe3ea; color: #d0496f; }
+/* The version of the build: small print next to "reset", it never takes a line of its own from the settings. */
+#pVersion { font-size: 12px; font-weight: 600; color: #a79bb5; white-space: nowrap; }
 @media (max-height: 480px) {
   .t-card { padding: 8px 12px 10px; border-radius: 22px; } .t-stage { min-height: 30vh; padding: 2px 4px 6px; }
   #taskClose { top: -8px; }

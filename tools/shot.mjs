@@ -8,6 +8,11 @@
 // the voice is silent), a conversation started right after the fifth star of the search is heard to its end, the
 // cat's "go on" after a shard comes with its subtitle, and the planner of spoken lines turns away nothing but the
 // lines this scenario provokes.
+// The parents' section: the gate asks to multiply two numbers from 6 to 9, a wrong answer and a part of the right one
+// open nothing, the right one opens it, the next opening asks another example; the section shows the day of the build
+// and the commit number (compared with E2E_COMMIT).
+// Without the voice (E2E_MUTE=1): the game is loaded with the voice volume 0 in its save, every clip must be started
+// with zero volume, and on every picture of a task and of its hint the bubble shows the question of that task.
 //
 // Screen sizes (the size is one thing, the way of control another — see SIZES below):
 //   mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
@@ -31,6 +36,12 @@
 //                           its whole precache list is in the cache, switch the network off, reload and play as
 //                           usual. Needs the built game (the development server has no service worker)
 //   E2E_MODELS_OUT=<file>   write the sorted JSON list of model files the page requested (see tools/models-used.json)
+//   E2E_MUTE=1              play with the voice turned off (volume 0 in the save, as the parents' section writes it);
+//                           default: with the voice
+//   E2E_VOICE_OUT=<file>    write {"mute", "clips", "loud"}: was the voice off, how many clips were started and how
+//                           many of them with a volume above zero
+//   E2E_COMMIT=<text>       the commit number the parents' section must show (tools/e2e.mjs: git rev-parse --short HEAD,
+//                           or "no-git"); default: only the form of the version line is checked
 import { chromium } from 'playwright-core';
 import { mkdirSync, writeFileSync } from 'fs';
 
@@ -62,6 +73,23 @@ if (!(stuckMs > 0)) usage(`bad E2E_STUCK_MS="${process.env.E2E_STUCK_MS}": expec
 if (!['', '0', '1'].includes(process.env.E2E_OFFLINE ?? '')) usage(`bad E2E_OFFLINE="${process.env.E2E_OFFLINE}": expected 1 (play without network) or 0`);
 const offline = process.env.E2E_OFFLINE === '1';
 const modelsOut = process.env.E2E_MODELS_OUT || '';
+if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) usage(`bad E2E_MUTE="${process.env.E2E_MUTE}": expected 1 (play without the voice) or 0`);
+const mute = process.env.E2E_MUTE === '1';
+const voiceOut = process.env.E2E_VOICE_OUT || '';
+const commit = process.env.E2E_COMMIT || '';
+// The question(s) of every task type: what the bubble shows while the task waits for its answer.
+const QUESTIONS = {
+  count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
+  pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
+};
+// The solution a task shows after a mistake, once "try again" and the hint have ended - what a child sees without the
+// voice and without reading: numbers on the things counted, numbers over the groups, the repeating links of the row,
+// the pulsing next number or basket, the sequence played again. "What is odd" draws nothing after the first mistake
+// (the right picture pulses from the second one on), memory pairs have no hint.
+const SHOWS = {
+  count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em', pattern: '#taskStage.units',
+  order: '#taskStage .opt.pulse', sort: '#taskOpts .basket.pulse', simon: '#taskStage.watch',
+};
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -82,6 +110,7 @@ const cancelled = [];
 const origins = new Set();
 const models = new Set();   // model files requested by the page, as paths under the site root: models/…
 let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
+let voiceUsed = null;       // { clips, loud }: voice clips started in the walkthrough, and those of them with a volume
 try {
   const viewport = { width: size.width, height: size.height };
   const ctx = await browser.newContext(touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport });
@@ -117,13 +146,49 @@ try {
   await page.addInitScript(() => {
     const play = HTMLMediaElement.prototype.play, started = window.__started = [], starts = window.__starts = {};
     window.__plays = 0;
+    window.__loud = [];         // clips started with a volume above zero: none of them in a walkthrough without the voice
     window.__clip = (a) => (a.src.match(/voice\/(.+)\.mp3/) ?? [])[1] ?? '';
     HTMLMediaElement.prototype.play = function () {
       started.push(this); if (started.length > 8) started.shift();
       const id = window.__clip(this); starts[id] = (starts[id] ?? 0) + 1; this.__n = ++window.__plays;
+      if (this.volume > 0 && !this.muted) window.__loud.push(id);
       return play.call(this);
     };
   });
+  // Without the voice: the game starts from a save that holds nothing but the voice volume 0 - what the slider of the
+  // parents' section writes. Only when there is no save yet: the reloads of this scenario keep the game's own save.
+  if (mute) await page.addInitScript(() => { if (!localStorage.getItem('amw-save')) localStorage.setItem('amw-save', JSON.stringify({ v: 2, vol: { voice: 0 } })); });
+  // Is the voice really what this walkthrough was asked for? Every clip started so far is looked at, not the setting.
+  const checkVoice = async (when) => {
+    const v = await g(() => ({ clips: window.__plays, loud: window.__loud.length, first: window.__loud[0], vol: __game.save.vol.voice }));
+    if (mute && (v.loud || v.vol !== 0)) throw new Error(`the walkthrough without the voice is played with it (${when}): ${v.loud} of ${v.clips} clips were started with a volume, the first one "${v.first}"; the voice volume in the save is ${v.vol}`);
+    if (!mute && v.loud !== v.clips) throw new Error(`the walkthrough with the voice (${when}): ${v.clips - v.loud} of ${v.clips} clips were started with zero volume`);
+    if (!v.clips) throw new Error(`no voice clip was started (${when}): the volume of the voice went unchecked`);
+    return v;
+  };
+  // The bubble on a picture of a task: is it shown, with what text, and which line does the game remember for a repeat.
+  const bubbleNow = () => g(() => ({ shown: !document.querySelector('#bubble').classList.contains('hidden'), text: document.querySelector('#bubbleText').textContent.trim(), key: __game.line }));
+  const asked = {};           // task type -> the bubble on its "task-…" picture
+  // On the picture of a task the bubble shows the question of that task (VOICE-09).
+  const checkQuestion = async (type) => {
+    const b = asked[type] = await bubbleNow();
+    if (!b.shown || !b.text) errors.push(`question: ${mode} task-${type}: the bubble with the question is not shown`);
+    else if (!QUESTIONS[type].includes(b.key)) errors.push(`question: ${mode} task-${type}: the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
+  };
+  // On the picture of a hint: with the voice the bubble shows the hint the cat says; without the voice it still shows
+  // the question, with the same text as before the mistake. "Watch and repeat" has two questions and replays its
+  // show after the hint, the butterflies get their question back after the cat's count: there both are right with the voice.
+  const checkHint = async (type) => {
+    const b = await bubbleNow(), was = asked[type], name = `${mode} hint-${type}`;
+    if (!b.shown || !b.text) { errors.push(`question: ${name}: the bubble is not shown`); return; }
+    const question = QUESTIONS[type].includes(b.key);
+    if (mute) {
+      if (!question) errors.push(`question: ${name}: without the voice the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
+      else if (was && b.key === was.key && b.text !== was.text) errors.push(`question: ${name}: the text of the question changed: "${was.text}" -> "${b.text}"`);
+    } else if (question ? type !== 'simon' && type !== 'butterflies' : !b.key?.startsWith('h_')) {
+      errors.push(`question: ${name}: with the voice the bubble shows "${b.key}" (${b.text}), not the hint of the task`);
+    }
+  };
   const sounding = () => page.evaluate(() => window.__started.some((a) => !a.paused && !a.ended));
   const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
@@ -330,6 +395,7 @@ try {
     if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
     await wait(9000); await shot('01-spawn');
+    await checkVoice('after the introduction');
     // ---- a tap on the cat says the line of the bubble once more, and the heroine does not walk to the cat (VOICE-08) ----
     {
       const fail = (what) => { throw new Error(`a tap on the cat: ${what}`); };
@@ -369,6 +435,7 @@ try {
     let bfVisits = 0;             // how many times the open butterflies task was met
     let onward = false;           // the cat's "go on" after a shard was seen with its subtitle
     let hurried = false;          // the talk right after the fifth star was played
+    let starsCounted = false;     // the bubble was looked at after a star of the search was found
     let cutOff = 0;               // how many times closing the task had a spoken line to stop
     const wrongNumber = () => g(() => {
       const b = [...document.querySelectorAll('#answers button')].find((x) => Number(x.textContent) !== __game.bf.n);
@@ -515,7 +582,7 @@ try {
         if (await visible('#task')) {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
           if (!seen.has(type)) {
-            seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`);
+            seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); await checkQuestion(type);
             // One deliberate mistake per task type, to hear "try again", the spoken hint and to see the solution shown.
             // The right element is learnt from the game itself: the task's own "solve" is run with its taps swallowed
             // on the way down, so nothing is answered, and then any other element of the same kind is tapped.
@@ -541,9 +608,15 @@ try {
                 tap(same[0]); return '';
               }, type);
               if (wrong) errors.push(`no deliberate mistake in the "${type}" task: ${wrong}`);
-              // Long enough for "try again" and the whole spoken hint to end, so that the solution is on screen
-              // in the picture and a broken "show the solution" step fails the run.
-              else { mistakes.add(type); await wait(5500); await shot(`hint-${type}`); }
+              // The picture is taken once "try again" and the whole spoken hint have ended and the solution is on
+              // screen: a broken "show the solution" step fails the run. Where nothing is drawn - long enough for both lines.
+              else {
+                mistakes.add(type);
+                if (!SHOWS[type]) await wait(7000);
+                else await page.waitForSelector(SHOWS[type], { state: 'attached', timeout: T(15000) })
+                  .catch(() => errors.push(`hint: ${mode} hint-${type}: the solution was not shown after the mistake (no ${SHOWS[type]})`));
+                await wait(300); await shot(`hint-${type}`); await checkHint(type);
+              }
             }
           }
           await g(() => __game.cheat()); await wait(1500); continue;
@@ -557,7 +630,7 @@ try {
           }
           if (bfVisits === 2) {
             // second meeting: a wrong number, and the task is closed while the cat counts the butterflies aloud
-            await wait(1500); await shot('task-butterflies');
+            await wait(1500); await shot('task-butterflies'); await checkQuestion('butterflies');
             if (!(await wrongNumber())) throw new Error('closing the butterflies task: no wrong number to tap');
             await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 2, null, { timeout: T(30000) });
             await closeButterflies(q, 'while the cat counts'); continue;
@@ -568,7 +641,10 @@ try {
             const wrong = await wrongNumber();
             if (!wrong) errors.push('no deliberate mistake in the "butterflies" task: no other number to tap');
             else {
-              mistakes.add('butterflies'); await wait(5500); await shot('hint-butterflies');
+              mistakes.add('butterflies');
+              await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 1, null, { timeout: T(15000) })
+                .catch(() => errors.push(`hint: ${mode} hint-butterflies: the cat did not start counting the butterflies after the mistake`));
+              await wait(300); await shot('hint-butterflies'); await checkHint('butterflies');
               await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
             }
           }
@@ -581,7 +657,21 @@ try {
           continue;
         }
         if (await g(() => __game.search.active)) {
-          if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); }
+          if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); await checkQuestion('stars');
+            // Without the voice no timer hides the question: it is still there after the six seconds it gets with the voice.
+            if (mute) {
+              await wait(6500);
+              const b = await bubbleNow();
+              if (!b.shown || b.text !== asked.stars.text) errors.push(`question: ${mode} task-stars: without the voice the question was gone before the first star: ${b.shown ? `"${b.text}"` : 'the bubble is hidden'}`);
+            }
+          }
+          // Without the voice the question stays next to the count of the stars found; with the voice the count replaces it.
+          if (!starsCounted && (await g(() => __game.search.found)) >= 1) {
+            starsCounted = true; await shot('task-stars-found');
+            const b = await bubbleNow(), q = asked.stars?.text ?? '';
+            if (!b.shown || !/⭐ \d \/ 5$/.test(b.text)) errors.push(`question: ${mode} task-stars-found: the bubble does not show the count of the stars: "${b.text}"`);
+            else if (mute ? !q || !b.text.startsWith(q) : b.text.length > 10) errors.push(`question: ${mode} task-stars-found: ${mute ? 'without' : 'with'} the voice the bubble shows "${b.text}"`);
+          }
           searchBefore ??= await progress();
           if (!hurried && (await g(() => __game.search.found)) === 4) { await talkAfterLastStar(q); continue; }
           await g(() => __game.cheat()); await wait(700); continue;
@@ -631,8 +721,56 @@ try {
     await shot('23-restored');
     // collection + parents
     await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
+    // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
+    // the second one different.
+    await g(() => { window.__random = Math.random; Math.random = () => 0.42; });
     await page.click('#btnParents'); await wait(500); await shot('31-gate');
-    await page.fill('#gateA', '15'); await wait(500); await shot('31-parents'); await checkLinks('parents section');
+    // ---- the gate (PLAY-14): the example is read from the screen; only its whole right answer opens the section ----
+    {
+      const fail = (what) => { throw new Error(`the gate of the parents' section: ${what}`); };
+      const read = async () => {
+        const text = await page.textContent('#gateQ');
+        const m = /(\d+) × (\d+)/.exec(text);
+        if (!m) fail(`no multiplication in the question "${text}"`);
+        const [a, b] = [Number(m[1]), Number(m[2])];
+        if (![a, b].every((n) => n >= 6 && n <= 9)) fail(`the question "${text}" is not about two numbers from 6 to 9`);
+        return { text, answer: a * b };
+      };
+      const open = () => g(() => !document.querySelector('#pBody').classList.contains('hidden') || document.querySelector('#gate').classList.contains('hidden'));
+      const first = await read();
+      // typed the way a parent does, key by key: the first digit alone and a wrong number open nothing
+      for (const typed of [String(first.answer)[0], String(first.answer + 1), '']) {
+        await page.fill('#gateA', ''); if (typed) await page.type('#gateA', typed); await wait(200);
+        if (await open()) fail(`"${typed}" opened the section, the question was "${first.text}"`);
+      }
+      await page.type('#gateA', String(first.answer)); await wait(500);
+      if (!(await open())) fail(`the right answer ${first.answer} did not open the section, the question was "${first.text}"`);
+      await shot('31-parents'); await checkLinks('parents section');
+      // ---- the version (TECH-10): the day of the build and the commit number the game was built from ----
+      const ver = await g(() => {
+        const e = document.querySelector('#pVersion'), r = e?.getBoundingClientRect();
+        return e ? { text: e.textContent, built: document.querySelector('#pBuilt')?.textContent, commit: document.querySelector('#pCommit')?.textContent,
+          seen: r.width > 0 && r.height > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight } : null;
+      });
+      if (!ver) throw new Error('version: the parents\' section shows no version line');
+      if (!ver.seen) errors.push(`version: ${mode}: the version line "${ver.text}" is not inside the window`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ver.built ?? '')) errors.push(`version: the day of the build is "${ver.built}", not YYYY-MM-DD`);
+      if (!/^([0-9a-f]{4,40}|no-git)$/.test(ver.commit ?? '')) errors.push(`version: the commit number is "${ver.commit}"`);
+      if (commit && ver.commit !== commit) errors.push(`version: the parents' section shows commit "${ver.commit}", but the sources are at "${commit}" (git rev-parse --short HEAD): the build is not of this commit`);
+      console.log(`version: "${ver.text}"${commit ? `, the commit is that of the sources (${commit})` : ', E2E_COMMIT is not set: the commit was not compared'}`);
+      // the voice slider shows what this walkthrough plays with
+      const slider = await g(() => Number(document.querySelector('#pBody [data-v=voice]')?.value));
+      if (mute ? slider !== 0 : !(slider > 0)) errors.push(`the voice slider of the parents' section is at ${slider} in a walkthrough ${mute ? 'without' : 'with'} the voice`);
+      // closed and opened again: another example, and the section is shut until it is answered
+      await page.click('#parentsClose'); await page.click('#btnBook'); await wait(300); await page.click('#btnParents'); await wait(300);
+      if (await open()) fail('opened for the second time, the section is not shut');
+      const second = await read();
+      if (second.answer === first.answer) fail(`two openings in a row asked the same example: "${first.text}" and "${second.text}"`);
+      await page.type('#gateA', String(first.answer)); await wait(200);
+      if (await open()) fail(`the answer of the previous example (${first.answer}) opened the section, the question was "${second.text}"`);
+      console.log(`the gate: "${first.text}" was opened by ${first.answer} only; the next opening asked "${second.text}"`);
+    }
+    await g(() => { Math.random = window.__random; });
     await page.click('#parentsClose');
     const s = await g(() => __game.save);
     console.log('task types seen:', [...seen].join(' '));
@@ -651,6 +789,9 @@ try {
     // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
     const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
     console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
+    voiceUsed = await checkVoice('at the end');
+    console.log(`voice volume: ${mute ? 'off' : 'on'} - ${voiceUsed.clips} clips started, ${voiceUsed.loud} of them with a volume above zero`);
+    if (!starsCounted) errors.push('the bubble of the star search was not looked at after a star was found');
     // The planner of spoken lines turns away only what this scenario provokes: "back to the deer" in the talk right
     // after the fifth star, and the cat's "go on" after a shard when the next conversation has already begun.
     const turned = {};
@@ -672,6 +813,8 @@ try {
   await browser.close().catch(() => {});
 }
 if (modelsOut) writeFileSync(modelsOut, JSON.stringify([...models].sort(), null, 2) + '\n');
+// Written only by a walkthrough that reached its end with the voice checked: tools/e2e.mjs reads who played in silence.
+if (voiceOut && voiceUsed) writeFileSync(voiceOut, JSON.stringify({ mute, clips: voiceUsed.clips, loud: voiceUsed.loud }) + '\n');
 console.log(`offline: ${offline ? `yes, files in the cache: ${cachedFiles ?? 'unknown (the network was never switched off)'}` : 'no'}`);
 console.log(`model files requested by the page: ${models.size}`);
 console.log(`requests: ${nRequests}, origins: ${origins.size}` + (cancelled.length ? `, cancelled by the browser: ${cancelled.length}` : ''));

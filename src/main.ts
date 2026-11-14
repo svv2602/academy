@@ -228,6 +228,13 @@ async function boot() {
    * A tap on the bubble or on the cat (VOICE-08): the line is said again, with its own priority. Only while the voice
    * is silent - a repeat that cut "try again" off would bring the hint too early. Nothing is recorded.
    */
+  /**
+   * With the voice turned off in the parents' section (VOICE-09) the bubble is the only way to learn the question, so
+   * it keeps the question of the task until the answer: a hint is then "said" (in silence, for its usual time) without
+   * its subtitle, and the bubble with the question is not hidden by a timer. A tap on the bubble repeats the question.
+   */
+  const muted = () => volume.voice === 0;
+  const hintLine = (key: SpokenKey) => (muted() ? say(key, voiceText(key), 'task') : line(key, 'task'));
   const repeat = () => { if (shown && !speaking()) void line(shown.key, shown.pri, shown.hold, shown.speaker, shown.text); };
   /** A task from its opening to its end, whichever way it ends: meanwhile only its own lines sound, and its end stops them. */
   const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
@@ -258,7 +265,7 @@ async function boot() {
     prompt: (key) => { void line(key, 'task', 0, speaker); },
     number: (n) => { void say(`tap_${n}`, String(n), 'task'); },
     wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task'); },
-    hint: (key) => line(key, 'task', 0, '🐱'),
+    hint: hintLine,
     good: () => sfx('pop'),
   });
 
@@ -323,7 +330,7 @@ async function boot() {
    */
   async function demoCount() {
     const round = bf.wrong;
-    await line('h_count', 'task');
+    await hintLine('h_count');
     if (!bf.active || bf.demo || bf.wrong !== round || bf.own === round) return;
     bf.demo = true;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
@@ -346,7 +353,7 @@ async function boot() {
       return { mesh, found: false };
     });
     Object.assign(search, { active: true, found: 0, idle: 0 });
-    void line('t_stars', 'task', 6000, n.def.emoji);
+    void line('t_stars', 'task', muted() ? 0 : 6000, n.def.emoji);
   }
   function finishSearch() {
     search.active = false;
@@ -631,7 +638,7 @@ async function boot() {
           it.found = true; it.mesh.visible = false; search.idle = 0;
           sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
           void say(`tap_${++search.found}`, String(search.found), 'task');
-          caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `⭐ ${search.found} / 5` });
+          caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `${muted() ? t('t_stars') + ' ' : ''}⭐ ${search.found} / 5` });
           if (search.found === 5) finishSearch();
         }
       }

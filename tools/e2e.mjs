@@ -4,11 +4,13 @@
 // and prints a summary table. With --all-sizes two more sizes are played after the two main ones: desktop-tall
 // (1280x800) and mobile-portrait (390x844). Every walkthrough also checks the layout of every screen it shows.
 // The desktop walkthrough is played WITHOUT NETWORK after the first load (the installed game must work offline);
-// the other ones are played online. The model files the page requested in the walkthroughs must be exactly
-// tools/models-used.json.
+// the other ones are played online. The desktop-tall walkthrough is played WITH THE VOICE TURNED OFF (the game must
+// be playable in silence). The model files the page requested in the walkthroughs must be exactly
+// tools/models-used.json. Every walkthrough compares the commit number shown in the parents' section with
+// `git rev-parse --short HEAD` of the sources.
 // Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
 // 130 / 143 — interrupted (the server is stopped in that case too).
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -17,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
 Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
-desktop-tall -> walkthrough mobile-portrait] -> models used -> dist links -> stop server.
+desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> models used -> dist links -> stop server.
 The exit code is non-zero if any step fails.
 Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
 mobile-portrait 390x844 (touch).
@@ -25,6 +27,12 @@ Every walkthrough checks the layout of each screen it takes a picture of: nothin
 input is inside the window, buttons do not overlap and are at least 44x44 px ("layout: <size> <screen>: …").
 The desktop walkthrough goes without network: after the first load it waits for the service worker and its cache,
 switches the network off, reloads and plays the whole world; any request that fails then is an error.
+The desktop-tall walkthrough is played without the voice (volume 0, as the parents' section sets it): every clip must
+be started with zero volume, and on every picture of a task and of its hint the bubble must show the question of the
+task. The other sizes are played with the voice: there the hint replaces the question in the bubble.
+"silent walkthrough" (--all-sizes only) fails if none of the walkthroughs was played without the voice.
+Every walkthrough opens the parents' section through its gate (a multiplication read from the screen) and compares
+the commit number shown there with "git rev-parse --short HEAD" of the sources ("no-git" where git gives none).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
 
 Flags:
@@ -44,6 +52,8 @@ Environment (passed on to tools/shot.mjs unchanged):
   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
   E2E_LEVEL=<1|2|3>       task difficulty for every size (default: mobile 3, desktop adaptive, desktop-tall 2,
                           mobile-portrait 3)
+  E2E_MUTE=<0|1>          1: every size is played without the voice, 0: every size with it (default: desktop-tall
+                          without the voice, the other sizes with it)
 Environment (this script):
   E2E_PORT=<n>            first port to try for the preview server (default 4183)
   E2E_RUN_TIMEOUT_MS=<ms> hard limit for one walkthrough process (default 1200000)`;
@@ -59,6 +69,20 @@ const OFFLINE_MODES = ['desktop'];
 // measure the fuller screens of the higher levels as well, most sizes get a fixed level (the parents' setting);
 // the desktop size keeps the adaptive one. E2E_LEVEL in the environment overrides this for every size.
 const LEVELS = { mobile: '3', 'desktop-tall': '2', 'mobile-portrait': '3' };
+// Sizes played with the voice turned off (VOICE-09). One of the four existing walkthroughs, not a fifth one; it is a
+// desktop size, so that the bubble with a hint is still measured on both phone sizes. E2E_MUTE in the environment
+// overrides this for every size.
+const MUTE_MODES = ['desktop-tall'];
+if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) { console.error(`[e2e] bad E2E_MUTE "${process.env.E2E_MUTE}": expected 0 or 1`); process.exit(2); }
+const muted = (mode) => (process.env.E2E_MUTE ? process.env.E2E_MUTE === '1' : MUTE_MODES.includes(mode));
+// The commit the sources are at: what the build had to put into the parents' section (TECH-10). Worked out at the
+// moment of the walkthrough, the same way as in vite.config.ts; with --skip-build it tells a stale dist/ apart.
+function sourceCommit() {
+  try {
+    const out = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return /^[0-9a-f]{4,40}$/.test(out) ? out : 'no-git';
+  } catch { return 'no-git'; }
+}
 const MODELS_FILE = 'tools/models-used.json';
 const argv = process.argv.slice(2);
 const usage = (msg) => { console.error(`[e2e] ${msg}\n\n${HELP}`); process.exit(2); };
@@ -179,15 +203,33 @@ async function stopServer() {
   return `pid ${pid} stopped`;
 }
 
-const walkthroughName = (mode) => `walkthrough ${mode}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}`;
+const walkthroughName = (mode) => `walkthrough ${mode}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
 const modelsOut = (mode) => join(root, 'shots-e2e', `models-requested-${mode}.json`);
+const voiceOut = (mode) => join(root, 'shots-e2e', `voice-${mode}.json`);
+// What the walkthrough itself reports about its voice: { mute, clips, loud }, or null if it did not get that far.
+const voiceReport = (mode) => { try { return JSON.parse(readFileSync(voiceOut(mode), 'utf8')); } catch { return null; } };
 async function walkthrough(url, mode) {
   rmSync(modelsOut(mode), { force: true });   // never compare against the list of an earlier run
-  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode) };
+  rmSync(voiceOut(mode), { force: true });
+  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode),
+    E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(mode), E2E_COMMIT: sourceCommit() };
   if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);
   if (timedOut) throw new Error(`killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
   if (code !== 0) throw new Error(`tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
+  // The walkthrough says for itself how it was played: asked to be silent, it must have started every clip in silence.
+  const voice = voiceReport(mode);
+  if (!voice) throw new Error(`no report about the voice from the ${mode} walkthrough`);
+  if (voice.mute !== muted(mode) || (voice.loud > 0) === muted(mode)) {
+    throw new Error(`the ${mode} walkthrough had to be played ${muted(mode) ? 'without' : 'with'} the voice, but it reports: voice ${voice.mute ? 'off' : 'on'}, ${voice.loud} of ${voice.clips} clips started with a volume`);
+  }
+  return `voice ${voice.mute ? 'off' : 'on'}: ${voice.loud} of ${voice.clips} clips with a volume`;
+}
+// With all four sizes (the way CI runs) one walkthrough must have been played in silence, by its own report.
+function checkSilent() {
+  const silent = opts.modes.filter((m) => { const v = voiceReport(m); return v?.mute && v.loud === 0 && v.clips > 0; });
+  if (!silent.length) throw new Error(`none of the ${opts.modes.length} walkthroughs was played without the voice: the game in silence went unchecked`);
+  return `without the voice: ${silent.join(', ')}`;
 }
 
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
@@ -263,6 +305,11 @@ if (ready) {
       else await step(name, () => walkthrough(url, mode));
     }
     const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
+    if (opts.allSizes) {
+      if (process.env.E2E_MUTE) skip('silent walkthrough', 'E2E_MUTE is set: the voice of every size was chosen by hand');
+      else if (!played.every((r) => r === 'ok')) skip('silent walkthrough', 'a walkthrough did not pass');
+      else await step('silent walkthrough', checkSilent);
+    }
     if (!bothMain) skip('models used', '--mode: one size does not request every model');
     else if (!played.every((r) => r === 'ok')) skip('models used', 'a walkthrough did not pass: its list of requests is incomplete');
     else await step('models used', checkModels);

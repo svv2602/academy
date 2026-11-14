@@ -1,6 +1,7 @@
 import type { Save, SkillId } from '../core/save';
 import { QUESTS } from '../game/quests';
-import { lang, setChildName, setLang, t, type Key } from './strings';
+import { gateOpens, gateQuestion, type GateQuestion } from './gate';
+import { lang, setChildName, setLang, t, tf, type Key } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -131,20 +132,23 @@ export function initBook(save: Save, on: { change(): void; reset(): void; open(i
     $('pBody').innerHTML = `<table><tr><th>${t('p_skill')}</th><th>${t('p_level')}</th><th>${t('p_tasks')}</th><th>${t('p_first')}</th><th>${t('p_errors')}</th></tr>${rows}</table>
       <div class="prow"><span>${t('p_diff')}</span>${[0, 1, 2, 3].map((d) => `<button data-d="${d}" class="${save.difficulty === d ? 'sel' : ''}">${t(('d' + d) as Key)}</button>`).join('')}</div>
       ${(['music', 'sfx', 'voice'] as const).map((v) => `<div class="prow"><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></div>`).join('')}
-      <div class="prow"><button id="pReset">${t('p_reset')}</button></div>`;
+      <div class="prow"><button id="pReset">${t('p_reset')}</button><span id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span></span></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-d]').forEach((b) => b.addEventListener('click', () => { save.difficulty = Number(b.dataset.d) as Save['difficulty']; on.change(); renderParents(); }));
     $('pBody').querySelectorAll<HTMLInputElement>('[data-v]').forEach((r) => r.addEventListener('input', () => { save.vol[r.dataset.v as 'music'] = Number(r.value); on.change(); }));
     const reset = $('pReset'); let armed = false;
     reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });
   };
+  // The gate (PLAY-14): every opening asks a new example, never the one asked last time.
+  let gate: GateQuestion | null = null;
   $('btnParents').addEventListener('click', () => {
     book.classList.add('hidden');
-    $('pTitle').textContent = t('p_title'); $('gateQ').textContent = t('gate_q'); $('parentsClose').textContent = t('close');
+    gate = gateQuestion(gate);
+    $('pTitle').textContent = t('p_title'); $('gateQ').textContent = tf('gate_q', { a: gate.a, b: gate.b }); $('parentsClose').textContent = t('close');
     gateA.value = ''; $('gate').classList.remove('hidden'); $('pBody').classList.add('hidden');
     show(parents, true);
   });
   gateA.addEventListener('input', () => {
-    if (gateA.value.trim() !== '15') return;
+    if (!gate || !gateOpens(gate, gateA.value)) return;
     gateA.blur(); $('gate').classList.add('hidden'); $('pBody').classList.remove('hidden'); renderParents();
   });
   $('parentsClose').addEventListener('click', () => show(parents, false));
