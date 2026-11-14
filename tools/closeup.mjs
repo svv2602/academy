@@ -1,11 +1,12 @@
 // node tools/closeup.mjs <url> <outDir> : close-up screenshots of the characters for visual review
+// (opens the game with ?debug added to the address: window.__game exists only then)
 import { chromium } from 'playwright-core';
 const [url = 'http://localhost:5173/', out = 'shots'] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--use-angle=gl', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio'] });
 const page = await (await browser.newContext({ viewport: { width: 960, height: 600 } })).newPage();
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 await page.addInitScript(() => localStorage.setItem('amw-save', JSON.stringify({ v: 1, stage: 4, stars: 7, starsTaken: [], chestOpen: false, pos: [0, 12], dress: '#ff7eb6', hair: '#6b3a1e', wings: true, played: true })));
-await page.goto(url, { waitUntil: 'networkidle' });
+await page.goto(url + (url.includes('?') ? '&' : '?') + 'debug', { waitUntil: 'networkidle' });
 await page.waitForSelector('#play', { state: 'visible', timeout: 60000 });
 await page.waitForTimeout(1500); await page.screenshot({ path: `${out}/close-start.png` });
 await page.click('#play');

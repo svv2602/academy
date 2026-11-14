@@ -11,6 +11,21 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 .pill.bump { animation: bump .45s; }
 @keyframes bump { 40% { transform: scale(1.3); } }
 #fps { position: fixed; right: 8px; top: 6px; font: 11px monospace; color: #fff; text-shadow: 0 1px 2px #0008; pointer-events: none; opacity: .8; }
+/* The tuning panel of ?debug (src/ui/tuning.ts). Its button sits at the right edge halfway down: away from the counters,
+   the bubble, the close button of the butterflies, the jump and action buttons and the joystick half. Both lie under the
+   full-window layers (start, task, book, parents, card): they are placed in the document before them. */
+#tuneBtn { position: fixed; right: max(12px, env(safe-area-inset-right)); top: calc(50% - 22px); width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,.7); color: #7a5ca0; font-size: 22px; line-height: 1; padding: 0; }
+#tune { position: fixed; top: max(28px, env(safe-area-inset-top)); right: max(120px, calc(env(safe-area-inset-right) + 100px)); width: min(280px, calc(100vw - 140px));
+  max-height: calc(100% - 36px); overflow: auto; padding: 4px 10px 6px; border-radius: 14px; background: rgba(255,255,255,.92);
+  font: 12px system-ui, sans-serif; color: #4a3060; }
+.tune-row { display: grid; grid-template-columns: 92px 1fr 44px; white-space: nowrap; align-items: center; gap: 6px; height: 28px; }
+.tune-row input { width: 100%; margin: 0; accent-color: #a56bff; }
+.tune-row b { text-align: right; font-variant-numeric: tabular-nums; }
+.tune-btns { display: flex; gap: 8px; margin-top: 4px; }
+.tune-btns button { flex: 1; min-height: 44px; border-radius: 12px; background: #f1e6fa; color: #7a4fd0; font-weight: 700; font-size: 14px; }
+#tuneText { width: 100%; margin-top: 4px; font: 12px monospace; user-select: text; -webkit-user-select: text; }
+@media (max-aspect-ratio: 5/4) { #tune { top: 140px; right: 64px; width: min(280px, calc(100vw - 80px)); } }
 
 /* The bubble is centred in the window while there is room for it; in a narrower window it moves to the right, so that
    it never covers the counters and the book button (--hud: the right edge of #hud at its widest, a 3-digit star count).

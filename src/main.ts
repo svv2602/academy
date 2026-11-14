@@ -7,6 +7,7 @@ import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
 import { beginTask, dropped, endTask, inTask, say, setVolumes, sfx, speaking, stopVoice, unlockAudio, voiceLog, volume, willSay, type Priority } from './core/audio';
 import { initInput, input, pollInput } from './core/input';
+import { camDistance, tuning } from './core/tuning';
 import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
 import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
 import { Actor } from './game/actor';
@@ -20,8 +21,13 @@ import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildS
 import { CHEST, PATCH, SPAWN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
 import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers } from './ui/ui';
 import { t, tf, voiceText, type Key, type SpokenKey } from './ui/strings';
+import { initTuningPanel } from './ui/tuning';
 
 const params = new URLSearchParams(location.search);
+// Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
+// address or on the development server. The frames are measured either way: the quality fallback needs them.
+const debug = params.has('debug') || import.meta.env.DEV;
+if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
 applyVolume();
@@ -206,7 +212,7 @@ async function boot() {
   let paused = false;               // a menu is open
   let vy = 0, grounded = true;
   let auto: { x: number; z: number; then?: () => void; stuck: number; last: number } | null = null;
-  const cam = { yaw: 0, pitch: 0.36, dist: 6.2, target: new THREE.Vector3(), focus: null as THREE.Vector3 | null };
+  const cam = { yaw: 0, pitch: 0.36, dist: tuning.camDist, target: new THREE.Vector3(), focus: null as THREE.Vector3 | null };
   cam.target.copy(hero.root.position);
   let camOverride: number | null = null;
   let userPitch = 0.36;             // set by dragging up/down
@@ -509,8 +515,8 @@ async function boot() {
     const hp = hero.root.position;
     const canMove = started() && !busy && !paused;
 
-    cam.yaw -= input.lookDX * 0.006; input.lookDX = 0;
-    userPitch = clamp(userPitch + input.lookDY * 0.004, 0.06, 1.15); input.lookDY = 0;
+    cam.yaw -= input.lookDX * tuning.lookX; input.lookDX = 0;
+    userPitch = clamp(userPitch + input.lookDY * tuning.lookY, 0.06, 1.15); input.lookDY = 0;
 
     // taps: count a butterfly, or walk to a spot / point on the ground
     if (input.tap && started() && !paused) {
@@ -557,7 +563,7 @@ async function boot() {
       }
     } else auto = null;
 
-    const speed = 5.4 * Math.min(1, mag);
+    const speed = tuning.speed * Math.min(1, mag);
     if (mag > 0.08) {
       const l = Math.hypot(mx, mz) || 1;
       hp.x += (mx / l) * speed * dt; hp.z += (mz / l) * speed * dt;
@@ -571,7 +577,7 @@ async function boot() {
     if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
     if (!busy) {
       if (!grounded) hero.play('Jump', 0.12);
-      else if (mag > 0.08) hero.play(speed > 2.6 ? 'Run' : 'Walk', 0.18, speed > 2.6 ? speed / 4.2 : speed / 1.5);
+      else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, speed > tuning.runFrom ? speed / 4.2 : speed / 1.5);
       else hero.play('Idle', 0.25);
     }
     wings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * (grounded ? 5 : 22)) * 0.35); });
@@ -697,7 +703,7 @@ async function boot() {
       if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
       else v.set(hp.x, hp.y + 1.5, hp.z);
       cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
-      cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camera.aspect < 1 ? 8 : 6.2), damp(3, dt));
+      cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camDistance(camera.aspect)), damp(3, dt));
       cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : userPitch, damp(cam.focus ? 3 : 10, dt));
     }
     camera.position.set(
@@ -720,7 +726,7 @@ async function boot() {
     fpsT += dt; fpsN++; warm += dt;
     if (fpsT >= 1) {
       const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
-      el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
+      if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
       if (warm > 4 && !params.has('q') && !document.hidden) {
         slow = fps < 34 ? slow + 1 : 0;
         if (slow >= 3 && tier > 0) { tier--; slow = 0; warm = 0; applyTier(); }
@@ -730,9 +736,9 @@ async function boot() {
   refreshHud();
   frame();
 
-  // Test/debug hook.
-  (window as unknown as Record<string, unknown>).__game = {
-    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog, dropped,
+  // Test/debug hook: only with ?debug or on the development server (ARCH-11).
+  if (debug) (window as unknown as Record<string, unknown>).__game = {
+    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog, dropped, tuning,
     get busy() { return busy; },
     /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
     get inTask() { return inTask(); },

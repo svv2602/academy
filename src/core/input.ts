@@ -1,4 +1,6 @@
 /** Unified input: keyboard + mouse on desktop, floating joystick + taps on touch screens. */
+import { tuning } from './tuning';
+
 export const input = {
   moveX: 0, moveY: 0,          // camera-relative, -1..1 (Y forward)
   jump: false, act: false,     // edge-triggered, consumed by the game loop
@@ -25,11 +27,10 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   // One pointer may steer (left half on touch), another may look around; a short press is a tap.
   let stick: { id: number; x: number; y: number; t: number; moved: boolean } | null = null;
   let look: { id: number; x: number; y: number; sx: number; sy: number; t: number; moved: boolean } | null = null;
-  const R = 56;
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
-    if (input.touch && e.clientX < innerWidth * 0.4 && !stick) {
+    if (input.touch && e.clientX < innerWidth * tuning.joyZone && !stick) {
       stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
       joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; joy.classList.add('on');
       knob.style.transform = 'translate(-50%,-50%)';
@@ -40,7 +41,7 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   canvas.addEventListener('pointermove', (e) => {
     if (stick && e.pointerId === stick.id) {
       let dx = e.clientX - stick.x, dy = e.clientY - stick.y;
-      const d = Math.hypot(dx, dy);
+      const d = Math.hypot(dx, dy), R = tuning.joyRadius;   // read on every move: the debug panel may change it
       if (d > 12) stick.moved = true;
       if (d > R) { dx *= R / d; dy *= R / d; }
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;

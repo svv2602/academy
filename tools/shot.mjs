@@ -8,6 +8,10 @@
 // the voice is silent), a conversation started right after the fifth star of the search is heard to its end, the
 // cat's "go on" after a shard comes with its subtitle, and the planner of spoken lines turns away nothing but the
 // lines this scenario provokes.
+// Debug tools (ARCH-11, ARCH-14): the game is played with ?debug in the address (window.__game, the frame counter, the
+// tuning panel exist only then); before the walkthrough the built game is opened once without it, in a browser context
+// of its own (nothing it stores reaches the walkthrough), and must have none of the three. In the walkthrough the speed
+// slider of the tuning panel must slow the heroine down (the path she walks in the same time), the open panel is a picture.
 // The parents' section: the gate asks to multiply two numbers from 6 to 9, a wrong answer and a part of the right one
 // open nothing, the right one opens it, the next opening asks another example; the section shows the day of the build
 // and the commit number (compared with E2E_COMMIT).
@@ -84,11 +88,11 @@ const QUESTIONS = {
 };
 // The solution a task shows after a mistake, once "try again" and the hint have ended - what a child sees without the
 // voice and without reading: numbers on the things counted, numbers over the groups, the repeating links of the row,
-// the pulsing next number or basket, the sequence played again. "What is odd" draws nothing after the first mistake
-// (the right picture pulses from the second one on), memory pairs have no hint.
+// the pulsing next number or basket, the sequence played again, the frame shared by the alike pictures of "what is odd",
+// the right group of "more / less" growing or shrinking. Memory pairs have no hint: they open with every face shown.
 const SHOWS = {
-  count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em', pattern: '#taskStage.units',
-  order: '#taskStage .opt.pulse', sort: '#taskOpts .basket.pulse', simon: '#taskStage.watch',
+  count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group.grow, #taskStage .group.shrink', pattern: '#taskStage.units',
+  odd: '#taskStage .it.alike', order: '#taskStage .opt.pulse', sort: '#taskOpts .basket.pulse', simon: '#taskStage.watch',
 };
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
@@ -113,7 +117,8 @@ let cachedFiles = null;     // offline run: how many files of the precache list 
 let voiceUsed = null;       // { clips, loud }: voice clips started in the walkthrough, and those of them with a volume
 try {
   const viewport = { width: size.width, height: size.height };
-  const ctx = await browser.newContext(touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport });
+  const ctxOptions = touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport };
+  const ctx = await browser.newContext(ctxOptions);
 
   // ---- network: every request of the context (pages and the service worker) must stay on our own origin ----
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
@@ -385,7 +390,38 @@ try {
   };
 
   try {
-    await page.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
+    // ---- without ?debug (ARCH-11): the published game has no window.__game, no frame counter and no tuning panel ----
+    // A context of its own: its save and its service worker never reach the walkthrough. Its page must not report errors either.
+    {
+      const plain = await browser.newContext(ctxOptions);
+      try {
+        await plain.route((u) => !own(u.href), (route) => route.abort());
+        const p = await plain.newPage();
+        p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`without ?debug: ${m.type()}: ${m.text()}`); });
+        p.on('pageerror', (e) => errors.push('without ?debug: pageerror: ' + e.message));
+        // Slow frames (about 18 a second), so that the game lowers its quality by itself; on a phone screen
+        // (2 device pixels per pixel) that shows as a smaller canvas: q2 draws 2 pixels per pixel, q1 1.5.
+        if (!process.env.Q) await p.addInitScript(() => { const raf = requestAnimationFrame.bind(window); window.requestAnimationFrame = (cb) => setTimeout(() => raf(cb), 40); });
+        await p.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
+        await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+        await p.waitForTimeout(T(1500));
+        if (!process.env.Q && touch) {
+          const w0 = await p.evaluate(() => document.querySelector('#c').width);
+          await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) })
+            .then(async () => console.log(`without ?debug: slow frames lowered the quality by itself (canvas ${w0} -> ${await p.evaluate(() => document.querySelector('#c').width)} px wide)`))
+            .catch(() => errors.push(`without ?debug: slow frames did not lower the quality (the canvas stayed ${w0} px wide)`));
+        }
+        const found = await p.evaluate(() => [
+          '__game' in window ? 'window.__game is defined' : '',
+          document.querySelector('#fps') ? 'the frame counter (#fps) is in the document' : '',
+          document.querySelector('#tune, #tuneBtn') ? 'the tuning panel is in the document' : '',
+        ].filter(Boolean));
+        for (const f of found) errors.push(`debug tools without ?debug: ${f}`);
+        console.log(`without ?debug: ${found.length ? found.join('; ') : 'no window.__game, no frame counter, no tuning panel'}`);
+      } finally { await plain.close().catch(() => {}); }
+    }
+    // Everything below plays with ?debug: the reloads keep the address.
+    await page.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : ''));
     await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
     if (offline) {
       cachedFiles = await waitForOfflineCache();
@@ -699,6 +735,83 @@ try {
       if (!(await walks())) throw new Error('the broken conversation: the heroine does not walk');
       console.log('broken conversation: reported, the controls are back, the heroine walks');
     }
+    // ---- the tuning panel (?debug, ARCH-14): its sliders work at once, without a reload ----
+    // Speed: the path walked forward in the same time from the same spot at the spawn (open ground towards the castle),
+    // with the speed of the code and with half of it. Look: the camera turn of the same drag with the code's sensitivity
+    // and with twice that. Camera: the distance follows its slider. Then "reset" brings back every value of the code.
+    {
+      const fail = (what) => { throw new Error(`tuning panel: ${what}`); };
+      const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+      const path = async (ms) => {
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(400);
+        const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        await page.keyboard.down('KeyW');
+        let anim = '';
+        try { await page.waitForTimeout(ms); anim = await g(() => __game.hero.current); } finally { await page.keyboard.up('KeyW'); }
+        path.anim = anim;            // the animation she walks with: "Run" above the run threshold, "Walk" below
+        return g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), from);
+      };
+      // The picture of the open panel: at the spawn, with no bubble and no action button over the game.
+      await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
+      await page.waitForFunction(() => document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) })
+        .catch(() => fail('the speech bubble did not go away'));
+      await wait(600);
+      await tapOn('#tuneBtn');
+      if (!(await visible('#tune'))) fail('the button did not open the panel');
+      await shot('32-tuning');
+      const defaults = await g(() => ({ ...__game.tuning }));
+      const code = defaults.speed;
+      await path(300);                         // she turns to walk forward, the same in both runs
+      const full = await path(1000);
+      await page.locator('#tune input[data-k=speed]').fill(String(code / 2));
+      const half = await g(() => __game.tuning.speed);
+      if (half !== code / 2) fail(`the speed slider set the speed to ${half} instead of ${code / 2}`);
+      const slow = await path(1000);
+      const slowAnim = path.anim;
+      console.log(`tuning panel: speed ${code} -> ${full.toFixed(2)} m in 1 s, speed ${half} -> ${slow.toFixed(2)} m`);
+      if (!(full > 1)) fail(`with the speed of the code the heroine walked ${full.toFixed(2)} m in 1 s`);
+      if (!(slow < full * 0.75)) fail(`the speed slider does not slow the heroine down: ${full.toFixed(2)} m, then ${slow.toFixed(2)} m with half the speed`);
+      // The run threshold: at the same speed she runs while it is below the speed and walks once it is above.
+      await page.locator('#tune input[data-k=runFrom]').fill(String(half + 0.5));
+      await path(600);
+      console.log(`tuning panel: at ${half} m/s "${slowAnim}" with the run threshold ${defaults.runFrom}, "${path.anim}" with ${half + 0.5}`);
+      if (slowAnim !== 'Run' || path.anim !== 'Walk') fail(`the run threshold slider: at ${half} m/s "${slowAnim}" with the threshold ${defaults.runFrom}, "${path.anim}" with ${half + 0.5}`);
+      // A drag over the free middle of the screen (right of the joystick half) turns the camera.
+      // Across: the camera turn (yaw); down: its tilt (pitch), which follows the drag smoothly - read after it settles.
+      const turn = async (dx, dy) => {
+        const x = Math.round(size.width * 0.45), y = Math.round(size.height * 0.45);
+        const from = await g(() => [__game.cam.yaw, __game.cam.pitch]);
+        await page.mouse.move(x, y); await page.mouse.down();
+        await page.mouse.move(x + dx, y + dy, { steps: 5 }); await page.mouse.up();
+        await wait(800);
+        const to = await g(() => [__game.cam.yaw, __game.cam.pitch]);
+        await page.mouse.move(x, y); await page.mouse.down();                    // the same way back
+        await page.mouse.move(x - dx, y - dy, { steps: 5 }); await page.mouse.up();
+        await wait(800);
+        return dx ? from[0] - to[0] : to[1] - from[1];
+      };
+      await page.locator('#tune input[data-k=lookX]').fill(String(defaults.lookX * 2));
+      await page.locator('#tune input[data-k=lookY]').fill(String(defaults.lookY * 2));
+      await page.locator('#tune input[data-k=camDist]').fill('9');
+      await tapOn('#tuneBtn');
+      if (await visible('#tune')) fail('the button did not close the panel');
+      await page.waitForFunction(() => __game.cam.dist > 8.5 && !__game.cam.focus, null, { timeout: T(5000) })
+        .catch(async () => fail(`the camera distance did not follow its slider: ${(await g(() => __game.cam.dist)).toFixed(2)}`));
+      const fast = [await turn(100, 0), await turn(0, 40)];
+      await g((v) => { __game.tuning.lookX = v.lookX; __game.tuning.lookY = v.lookY; }, defaults);
+      const usual = [await turn(100, 0), await turn(0, 40)];
+      ['across', 'down'].forEach((way, i) => {
+        console.log(`tuning panel: a drag ${way} turns the camera by ${usual[i].toFixed(3)} rad, by ${fast[i].toFixed(3)} rad with twice the sensitivity`);
+        if (!(usual[i] > 0.1 && fast[i] > usual[i] * 1.6 && fast[i] < usual[i] * 2.4)) fail(`the look sensitivity slider (${way}): the same drag turned the camera by ${usual[i].toFixed(3)} and ${fast[i].toFixed(3)} rad`);
+      });
+      await tapOn('#tuneBtn');
+      await tapOn('#tuneReset');
+      const now = await g(() => ({ ...__game.tuning }));
+      if (JSON.stringify(now) !== JSON.stringify(defaults)) fail(`"reset" did not bring the values of the code back: ${JSON.stringify(now)}`);
+      await tapOn('#tuneBtn');
+      if (await visible('#tune')) fail('the button did not close the panel');
+      await g(([x, z]) => __game.teleport(x, z), back); await wait(300);
+    }
     // replay one finished quest
     await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
     // finale
@@ -805,7 +918,10 @@ try {
     if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
     if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
     if (!voice.clips) errors.push('not a single voice clip sounded during the walkthrough');
-    console.log('fps:', await page.textContent('#fps'));
+    // With ?debug the counter shows what docs/perf.md tells the parent to read on the phone.
+    const counter = await page.textContent('#fps').catch(() => null);
+    console.log('fps:', counter);
+    if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     // the start screen of a returning player: the saved game adds the "start again" button
     await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); await wait(1500); await shot('40-start-again');
   } catch (e) {

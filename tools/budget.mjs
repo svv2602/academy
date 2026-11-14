@@ -2,7 +2,7 @@
 import { chromium } from 'playwright-core';
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--use-angle=gl', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio'] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
-await page.goto('http://localhost:5173/?' + (process.argv[2] || 'q=2'), { waitUntil: 'networkidle' });
+await page.goto('http://localhost:5173/?debug&' + (process.argv[2] || 'q=2'), { waitUntil: 'networkidle' });   // ?debug: __game
 await page.waitForSelector('#play', { state: 'visible' }); await page.click('#play');
 await page.waitForTimeout(5000);
 const rows = await page.evaluate(() => {
