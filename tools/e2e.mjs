@@ -18,11 +18,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkDistSize } from './dist-size.mjs';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
 Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
-desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> models used -> dist links -> stop server.
+desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> models used -> dist links -> dist size
+-> stop server.
 The exit code is non-zero if any step fails.
 Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
 mobile-portrait 390x844 (touch).
@@ -37,6 +39,8 @@ task. The other sizes are played with the voice: there the hint replaces the que
 Every walkthrough opens the parents' section through its gate (a multiplication read from the screen) and compares
 the commit number shown there with "git rev-parse --short HEAD" of the sources ("no-git" where git gives none).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
+"dist size" holds the build to the budget of docs/15-tech.md: all of dist/ at most 12 MB, one file at most 1 MB
+(tools/dist-size.mjs).
 Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and
 whether the whole run passed.
 
@@ -328,6 +332,13 @@ function checkDist() {
   return `${files.length} html file(s), no external links`;
 }
 
+// The size budget (TECH-02): the build that is played is the build that is published.
+function checkSize() {
+  const r = checkDistSize(join(root, 'dist'));
+  if (r.problems.length) throw new Error(`the build is over its budget:\n  ${r.problems.join('\n  ')}`);
+  return `${(r.total / 1e6).toFixed(2)} MB in ${r.files} files; the heaviest: ${r.heaviest.path}, ${(r.heaviest.size / 1e6).toFixed(2)} MB`;
+}
+
 // ---- run ----
 let ready = !opts.combine;
 if (opts.combine) {
@@ -362,6 +373,8 @@ if (ready) {
     else await step('models used', checkModels);
     if (opts.bail && failed()) skip('dist links', '--bail');
     else await step('dist links', checkDist);
+    if (opts.bail && failed()) skip('dist size', '--bail');
+    else await step('dist size', checkSize);
   } finally {
     await step('stop server', stopServer);
   }
