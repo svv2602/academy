@@ -659,6 +659,46 @@ try {
         + `a tap on the bubble repeated "${probe.key}" only once it was over; the closed task recorded nothing`);
       hurried = true;
     };
+    // ---- the fifth star in silence: its number "five" is heard to the end, and only then the praise ----
+    // The one search of the world is taken by the talk above, where the number is cut off by design; so once it is over
+    // the deer's quest is put back to its start (in memory) and searched a second time.
+    let fifthHeard = false;
+    const fifthStar = async () => {
+      const fail = (what) => { throw new Error(`fifth star: ${what}`); };
+      const from = await g(() => { const n = window.__plays; __game.cheat(); return n; });
+      const since = () => g((f) => window.__started.filter((a) => a.__n > f).map((a) => ({ id: window.__clip(a), ended: a.ended })), from);
+      await page.waitForFunction((f) => window.__started.some((a) => a.__n > f && window.__clip(a).startsWith('praise_')), from, { timeout: T(15000) })
+        .catch(async () => fail(`no praise was started after it (started since: ${(await since()).map((c) => c.id).join(' ') || 'nothing'})`));
+      const clips = await since(), names = clips.map((c) => c.id).join(' ');
+      const five = clips.findIndex((c) => c.id === 'tap_5'), praised = clips.findIndex((c) => c.id.startsWith('praise_'));
+      if (five < 0) fail(`"tap_5" was not started (started since the star: ${names})`);
+      if (five > praised) fail(`the praise started before "tap_5" (${names})`);
+      if (!clips[five].ended) fail(`"tap_5" was cut off before its end (started since the star: ${names})`);
+      console.log(`the fifth star in silence: ${names} - "tap_5" heard to the end, then the praise`);
+      fifthHeard = true;
+    };
+    // ---- a task of another character during the search, closed with its cross: the bubble is the search's again ----
+    // Its line, its count of the stars found, and (without the voice) its question: a tap on the bubble or the cat
+    // repeats the search, not the closed task.
+    let searchResumed = false;
+    const closedInSearch = async (q) => {
+      const fail = (what) => { throw new Error(`star search after a closed task: ${what}`); };
+      const done = await g(() => ({ ...__game.save.quests }));
+      const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+      if (!other) fail('no character with a finished quest to talk to');
+      const found = await g((id) => { __game.talk(id); return __game.search.found; }, other.id);
+      await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the task of "${other.id}" did not open`));
+      await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${why(e)}`));
+      await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
+      const b = await bubbleNow(), left = [];
+      if (!b.shown) left.push('the bubble is hidden');
+      if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search: a tap on the cat would say it`);
+      if (!b.text.includes(`⭐ ${found} / 5`)) left.push(`the bubble shows "${b.text}", not the count ⭐ ${found} / 5`);
+      if (mute && !b.text.startsWith(asked.stars?.text ?? '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
+      if (left.length) fail(`${left.join('; ')} (${other.id})`);
+      console.log(`a closed task of "${other.id}" during the search: the bubble shows "${b.text}" (${b.key})`);
+      searchResumed = true;
+    };
     // ---- every panel task can be closed with its button (LEARN-14): the first meeting of each kind closes it at once ----
     // A real tap or click on the cross, then: the controls are back, nothing of the task is left (panel, planner, voice,
     // bubble), the save is the same (skills, quests, stars), and the heroine walks. The loop below talks to the same
@@ -698,6 +738,7 @@ try {
           if (searchAfter.deer < 1) errors.push('the star search did not move the quest of the deer on');
           if (searchAfter.stars < searchBefore.stars + 3) errors.push(`the star search gave ${searchAfter.stars - searchBefore.stars} stars, not 3`);
           console.log('star search: "count" skill before', JSON.stringify(searchBefore.skills.count), 'after', JSON.stringify(searchAfter.skills.count));
+          if (hurried && !fifthHeard) await g(() => { __game.save.quests.deer = 0; });   // the second search, see fifthStar
         }
         if (await visible('#fanfare')) {
           await shot(`shard-${q.id}`);
@@ -812,7 +853,10 @@ try {
             else if (mute ? !q || !b.text.startsWith(q) : b.text.length > 10) errors.push(`question: ${mode} task-stars-found: ${mute ? 'without' : 'with'} the voice the bubble shows "${b.text}"`);
           }
           searchBefore ??= await progress();
-          if (!hurried && (await g(() => __game.search.found)) === 4) { await talkAfterLastStar(q); continue; }
+          const found = await g(() => __game.search.found);
+          if (!searchResumed && !hurried && found >= 1 && found <= 3) { await closedInSearch(q); continue; }
+          if (!hurried && found === 4) { await talkAfterLastStar(q); continue; }
+          if (!fifthHeard && found === 4) { await fifthStar(); continue; }
           await g(() => __game.cheat()); await wait(700); continue;
         }
         if (!(await g(() => __game.busy))) {
@@ -1047,6 +1091,8 @@ try {
     if (!searchAfter) errors.push('the skills were not compared around the star search');
     if (!catRepeated) errors.push('repeating a line by a tap on the cat went unchecked');
     if (!hurried) errors.push('the talk right after the fifth star went unchecked');
+    if (!fifthHeard) errors.push('fifth star: the number of the fifth star in silence went unchecked');
+    if (!searchResumed) errors.push('star search after a closed task: went unchecked');
     if (!onward) errors.push('the cat\'s "go on" after a shard went unchecked');
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     {

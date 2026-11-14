@@ -286,7 +286,9 @@ async function boot() {
     release: () => {
       busy = false; cam.focus = null; finale = 0;
       hero.play('Idle');
+      // A scene during the search (another character's task, closed or solved) gives the bubble back to the search.
       if (!search.active) caption(null);
+      else if (shown?.key !== 't_stars') searchCaption();
     },
   };
   let failNext = false;             // test hook (__game.failNext): the next scene breaks once
@@ -393,13 +395,18 @@ async function boot() {
     Object.assign(search, { active: true, found: 0, idle: 0 });
     void line('t_stars', 'task', muted() ? 0 : 6000, n.def.emoji);
   }
-  function finishSearch() {
+  /** The bubble of the search: the count of the stars found, after its question when the voice is off (VOICE-09). */
+  const searchCaption = () => caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `${muted() ? t('t_stars') + ' ' : ''}⭐ ${search.found} / 5` });
+  /**
+   * `last` is the fifth number: the praise comes once it is said to the end. A conversation started at that moment
+   * cuts the number off (it is of the story's rank) and is not cut off in turn: the praise is left out then, and the
+   * planner turns "back to the deer" away (VOICE-03).
+   */
+  function finishSearch(last: Promise<void>) {
     search.active = false;
     save.quests.deer = Math.max(save.quests.deer ?? 0, 1);
     addStars(3, above(hero.root.position, 1.2));
-    stopVoice();                                 // the search is over: its last number must not hold the praise back
-    // Whoever she talks to meanwhile is not cut off: the planner turns this hint away (VOICE-03).
-    void praise().then(() => line('t_stars_back', 'hint', 6000));
+    void last.then(() => (speaking() ? undefined : praise())).then(() => line('t_stars_back', 'hint', 6000));
   }
 
   // ----- conversations -----
@@ -676,9 +683,12 @@ async function boot() {
         if (Math.hypot(it.mesh.position.x - hp.x, it.mesh.position.z - hp.z) < 1.3) {
           it.found = true; it.mesh.visible = false; search.idle = 0;
           sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
-          void say(`tap_${++search.found}`, String(search.found), 'task');
-          caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `${muted() ? t('t_stars') + ' ' : ''}⭐ ${search.found} / 5` });
-          if (search.found === 5) finishSearch();
+          const n = ++search.found;
+          if (n < 5) void say(`tap_${n}`, String(n), 'task');
+          searchCaption();
+          // The last number is heard to the end before the praise (see finishSearch). It cuts off whatever sounds, as
+          // every number does, but has the story's rank: a conversation started at this moment is not turned away.
+          if (n === 5) { stopVoice(); finishSearch(say(`tap_${n}`, String(n), 'story')); }
         }
       }
     }
