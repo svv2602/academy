@@ -778,6 +778,8 @@ async function boot() {
     get inTask() { return inTask(); },
     get line() { return shown?.key ?? null; },
     get finale() { return finale; },
+    /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
+    get time() { return uTime.value; },
     /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */
     failNext() { failNext = true; },
     teleport(x: number, z: number) { hero.root.position.set(x, groundY(x, z), z); },

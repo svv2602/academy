@@ -223,7 +223,28 @@ try {
   const press = (sel) => page.locator(sel).dispatchEvent(touch ? 'pointerdown' : 'click').catch(() => {});
   const act = () => (touch ? press('#btnAct') : page.keyboard.press('KeyE'));
   // A real tap or click: fails when the element is hidden, covered by another one or outside the window.
-  const tapOn = (sel) => (touch ? page.tap(sel, { timeout: T(5000) }) : page.click(sel, { timeout: T(5000) }));
+  // First the element and its parents end their entrance animations (the task panel rises for .35 s): on a starved
+  // CI runner such an animation takes seconds, the element is not "stable" for Playwright all that time, and the tap
+  // either times out or lands late. Endless animations (a pulse) are not waited for; a slow one ends the wait after
+  // 20 s and the tap then reports why it failed.
+  const settled = (sel) => page.waitForFunction((s) => {
+    const e = document.querySelector(s);
+    return !!e && document.getAnimations().every((a) => {
+      const t = a.effect?.target;
+      return !(t instanceof Element && t.contains(e) && a.playState === 'running' && Number.isFinite(a.effect.getComputedTiming().endTime));
+    });
+  }, sel, { timeout: T(20000) }).catch(() => {});
+  const tapOn = async (sel) => {
+    await settled(sel);
+    return touch ? page.tap(sel, { timeout: T(5000) }) : page.click(sel, { timeout: T(5000) });
+  };
+  // Why a tap failed: the first line of the error and the last steps of Playwright's call log (what covered the element,
+  // or that it never stood still) - the first line alone says only "Timeout exceeded".
+  const why = (e) => {
+    const lines = String(e?.message ?? e).split('\n').map((s) => s.trim()).filter(Boolean);
+    const steps = lines.filter((s) => s.startsWith('- ')).slice(-3);
+    return [lines[0], ...steps].join(' | ');
+  };
   const saved = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.quests, stars: __game.save.stars }));
   // The heroine walks: "forward" is held until she has moved half a step, however slow the frames are.
   const walks = async () => {
@@ -536,7 +557,7 @@ try {
       const before = await record();
       if (await sounding()) cutOff++;
       await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) }))
-        .catch((e) => fail(`the close button cannot be pressed: ${e.message.split('\n')[0]}`));
+        .catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
       for (const pause of [400, 1200]) {
         await wait(pause);
         const left = await held();
@@ -615,10 +636,10 @@ try {
       if (mute.length) fail(`the bubble showed a line that was not spoken: ${mute.join(' ')}`);
       if (!heard.dropped.includes('t_stars_back')) fail('"t_stars_back" was not turned away: the conversation did not start before it');
       const n = await g((k) => window.__starts[k] ?? 0, probe.key);
-      await tapOn('#bubble').catch((e) => fail(`the bubble cannot be tapped: ${e.message.split('\n')[0]}`));
+      await tapOn('#bubble').catch((e) => fail(`the bubble cannot be tapped: ${why(e)}`));
       await page.waitForFunction(([k, was]) => (window.__starts[k] ?? 0) === was + 1, [probe.key, n], { timeout: T(5000) })
         .catch(() => fail(`a tap on the bubble did not start "${probe.key}" again once it was over`));
-      await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${e.message.split('\n')[0]}`));
+      await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${why(e)}`));
       await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
       const left = [];
       if (await sounding()) left.push('the question is still sounding after its task was closed');
@@ -640,7 +661,7 @@ try {
       const fail = (what) => { throw new Error(`closing the "${type}" task: ${what}`); };
       const step = await g((id) => __game.save.quests[id] ?? 0, q.id);
       const before = await saved();
-      await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${e.message.split('\n')[0]}`));
+      await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
       await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
       await wait(500);
       const left = await held();
@@ -824,12 +845,19 @@ try {
     {
       const fail = (what) => { throw new Error(`tuning panel: ${what}`); };
       const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+      // `ms` is game time (__game.time): a frame counts at most 0.05 s, so with software rendering (CI) a second
+      // on the wall clock is a quarter of a second in the game, and the path in it is a quarter as long.
       const path = async (ms) => {
         await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(400);
         const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
         await page.keyboard.down('KeyW');
         let anim = '';
-        try { await page.waitForTimeout(ms); anim = await g(() => __game.hero.current); } finally { await page.keyboard.up('KeyW'); }
+        try {
+          const t0 = await g(() => __game.time);
+          await page.waitForFunction(([t, s]) => __game.time - t >= s, [t0, ms / 1000], { timeout: T(ms * 30 + 5000), polling: 'raf' })
+            .catch(() => fail(`${ms / 1000} s of game time did not pass`));
+          anim = await g(() => __game.hero.current);
+        } finally { await page.keyboard.up('KeyW'); }
         path.anim = anim;            // the animation she walks with: "Run" above the run threshold, "Walk" below
         return g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), from);
       };
