@@ -1,27 +1,25 @@
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
-import { beginTask, dropped, endTask, inTask, say, setVolumes, sfx, speaking, stopVoice, unlockAudio, voiceLog, volume, willSay, type Priority } from './core/audio';
+import { say, setVolumes, sfx, speaking, stopVoice, unlockAudio, volume } from './core/audio';
 import { initInput, input, pollInput } from './core/input';
 import { camDistance, tuning } from './core/tuning';
-import { clearSave, levelFor, loadSave, recordTask, storeSave } from './core/save';
-import { startTier, type Tier } from './core/quality';
+import { clearSave, levelFor, loadSave, recordTask } from './core/save';
+import { createQuality, createRenderer } from './core/renderer';
 import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
 import { Actor } from './game/actor';
-import { glowTex, numberSprite, Sparks } from './game/fx';
+import { createGame, createStage } from './game/context';
+import { exposeDebug } from './game/debug';
+import { glowTex, numberSprite } from './game/fx';
 import { buildHero } from './game/hero';
 import { QUESTS, SHRINE, type QuestDef } from './game/quests';
-import { playScene, type Stage } from './game/stage';
-import { cheatTask, runTask, SKILL, type TaskHooks, type TaskResult, type TaskType } from './game/tasks';
-import { Butterflies } from './world/butterflies';
-import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, setDrawRange, updateRanged, uTime } from './world/scenery';
-import { CHEST, PATCH, SPAWN, buildTerrain, colliders, height, raycastGround, resolve } from './world/terrain';
-import { bubble, el, fanfare, hideAnswers, initBook, initStart, setAct, setCounter, showAnswers, showNotice } from './ui/ui';
-import { t, tf, voiceText, type Key, type SpokenKey } from './ui/strings';
+import { createSpeech } from './game/speech';
+import { playScene } from './game/stage';
+import { runTask, SKILL, type TaskResult, type TaskType } from './game/tasks';
+import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, updateRanged, uTime } from './world/scenery';
+import { CHEST, PATCH, buildTerrain, colliders, raycastGround, resolve } from './world/terrain';
+import { el, fanfare, hideAnswers, initBook, initStart, setAct, showAnswers, showNotice } from './ui/ui';
+import { t, tf, type Key } from './ui/strings';
 import { initTuningPanel } from './ui/tuning';
 
 const params = new URLSearchParams(location.search);
@@ -45,59 +43,17 @@ function webgl2(): boolean {
 if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 
 // ---------- renderer & quality tiers ----------
-const renderer = new THREE.WebGLRenderer({ canvas: el.canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.info.autoReset = false;
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(55, 1, 0.3, 600);
+const { renderer, scene, camera } = createRenderer(el.canvas);
 const touch = matchMedia('(pointer: coarse)').matches;
-// 2: bloom+shadows, 1: shadows, 0: plain. TECH-04: ?q= > the parent's pin > the tier the last session ended on (every
-// tenth launch one higher). A launch is a page load: the counter and the tier are stored at once.
-const start = startTier({ param: params.get('q'), pinned: save.pinTier, saved: save.tier, launches: save.launches });
-let tier: Tier = start.tier;
-const byParam = start.by === 'param';         // ?q= fixes the tier for this page and leaves the remembered one alone
-save.launches = start.launches;
-if (!byParam) save.tier = tier;
-storeSave(save);
-let composer: EffectComposer | null = null;
-const world = buildSky(scene);
-
-function applyTier() {
-  const dpr = Math.min(devicePixelRatio, tier === 2 ? 2 : tier === 1 ? 1.5 : 1);
-  renderer.setPixelRatio(dpr);
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight;
-  camera.fov = camera.aspect < 1 ? 70 : 55;
-  camera.updateProjectionMatrix();
-  setDrawRange(tier === 2 ? 1 : tier === 1 ? 0.8 : 0.62);
-  renderer.shadowMap.enabled = tier > 0;
-  world.sun.castShadow = tier > 0;
-  world.sun.shadow.mapSize.setScalar(tier === 2 ? 2048 : 1024);
-  world.sun.shadow.map?.dispose(); world.sun.shadow.map = null;
-  composer?.dispose(); composer = null;
-  if (tier === 2) {
-    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: touch ? 2 : 4 });
-    composer = new EffectComposer(renderer, rt);
-    composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.32, 0.7, 0.9));
-    composer.addPass(new OutputPass());
-  }
-  scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m && !Array.isArray(m)) m.needsUpdate = true; });
-}
-addEventListener('resize', applyTier);
-/** The parent pinned a tier (or went back to automatic): it applies at once, unless ?q= holds this page. */
-function applyPin() {
-  if (byParam || save.pinTier === null || save.pinTier === tier) return;
-  tier = save.pinTier; save.tier = tier; applyTier();
-}
+const sky = buildSky(scene);
+// The tier, the launch counter and the frame meter (core/renderer.ts): the tier is chosen and stored right here.
+const quality = createQuality({ renderer, scene, camera, sun: sky.sun, save, param: params.get('q'), touch, debug });
+addEventListener('resize', () => quality.apply());
 
 // ---------- boot ----------
 setProgressHandler((f) => { el.bar.style.width = `${Math.round(f * 100)}%`; });
 let applyLook = () => {};
-applyTier();
+quality.apply();
 void boot();
 
 interface Npc { def: QuestDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number; }
@@ -125,16 +81,11 @@ async function boot() {
   });
   if (!loads) return;
   const [, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = loads;
-  const sparks = new Sparks(scene);
-  const flies = new Butterflies(scene, 96);
-  const groundY = (x: number, z: number) => height(x, z);
-
-  // ----- hero -----
-  const hero = new Actor(heroRig);
-  hero.root.position.set(save.pos?.[0] ?? SPAWN.x, 0, save.pos?.[1] ?? SPAWN.z);
-  hero.heading = Math.PI; hero.root.rotation.y = Math.PI;
-  scene.add(hero.root);
-  hero.play('Idle');
+  const speech = createSpeech();
+  const g = createGame({ scene, camera, renderer, save, touch, debug, speech, heroRig, catRig, crystals: () => `${shardCount()}/5` });
+  // Objects and functions only: the flags (busy, paused, auto, ...) are read as g.busy and so on, never copied.
+  const { hero, cat, cam, sparks, flies, groundY, started, persist, refreshHud, addStars, above, fault, praise, task, hooksFor } = g;
+  const { caption, line, muted, hintLine, repeat } = speech;
   applyLook = () => heroRig.setLook(save);
   // Fairy wings: two translucent petals behind the shoulders.
   const wingShape = new THREE.Shape();
@@ -148,13 +99,6 @@ async function boot() {
     return { mesh, side };
   });
   const wings = addWings(hero.root, '#d8f6ff', 1.08, 0.8);
-
-  // ----- cat companion -----
-  const cat = new Actor(catRig);
-  cat.root.position.set(hero.root.position.x + 1, 0, hero.root.position.z + 0.6);
-  scene.add(cat.root);
-  cat.play('Idle');
-  tint(cat.model, { Cat_Main: '#f7a94b', Cat_Secondary: '#d27a2c', Ears: '#f9a8bd', Eye_White: '#ffffff' });
 
   // ----- quest characters -----
   tint(uniRig.model, { Main: '#ffffff', Main_Light: '#fff4fb', Hair: '#ff9ed2', Hooves: '#ffd76a', Muzzle: '#ffd0e0', Eye_White: '#ffffff' });
@@ -240,73 +184,15 @@ async function boot() {
   }
 
   // ---------- game state ----------
-  let busy = false;                 // a conversation, task or cut-scene is running: the heroine stands still
-  let paused = false;               // a menu is open
   let vy = 0, grounded = true;
-  let auto: { x: number; z: number; then?: () => void; stuck: number; last: number } | null = null;
-  const cam = { yaw: 0, pitch: 0.36, dist: tuning.camDist, target: new THREE.Vector3(), focus: null as THREE.Vector3 | null };
-  cam.target.copy(hero.root.position);
-  let camOverride: number | null = null;
   let userPitch = 0.36;             // set by dragging up/down
   let glow = save.final ? 1 : 0;
-  let finale = 0;                   // >0 while the shards merge into the crystal
   const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, own: -1, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
   const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
-
-  const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
-  /** The line of the bubble, also after its timer has hidden it: what a tap on the bubble or on the cat says once more. */
-  let shown: { key: SpokenKey; pri: Priority; hold: number; speaker: string; text?: string } | null = null;
-  const caption = (l: typeof shown) => { shown = l; if (l) bubble(l.key, l.hold, l.speaker, l.text); else bubble(null); };
-  /** Subtitle + voice. A line the planner turns away (core/audio.ts) leaves the bubble as it is: no text without its voice. */
-  const line = (key: SpokenKey, pri: Priority, hold = 0, speaker = '🐱', text?: string) => {
-    if (willSay(pri)) caption({ key, pri, hold, speaker, text });
-    return say(key, voiceText(key), pri);
-  };
-  /**
-   * A tap on the bubble or on the cat (VOICE-08): the line is said again, with its own priority. Only while the voice
-   * is silent - a repeat that cut "try again" off would bring the hint too early. Nothing is recorded.
-   */
-  /**
-   * With the voice turned off in the parents' section (VOICE-09) the bubble is the only way to learn the question, so
-   * it keeps the question of the task until the answer: a hint is then "said" (in silence, for its usual time) without
-   * its subtitle, and the bubble with the question is not hidden by a timer. A tap on the bubble repeats the question.
-   */
-  const muted = () => volume.voice === 0;
-  const hintLine = (key: SpokenKey) => (muted() ? say(key, voiceText(key), 'task') : line(key, 'task'));
-  const repeat = () => { if (shown && !speaking()) void line(shown.key, shown.pri, shown.hold, shown.speaker, shown.text); };
-  /** A task from its opening to its end, whichever way it ends: meanwhile only its own lines sound, and its end stops them. */
-  const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
-  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', `${shardCount()}/5`); };
-  const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
-  const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
-  // Every scene that takes the controls goes through playScene (game/stage.ts): they come back whatever happens inside.
-  const stage: Stage = {
-    busy: () => busy,
-    take: () => { busy = true; auto = null; setAct(null); },
-    release: () => {
-      busy = false; cam.focus = null; finale = 0;
-      hero.play('Idle');
-      // A scene during the search (another character's task, closed or solved) gives the bubble back to the search.
-      if (!search.active) caption(null);
-      else if (shown?.key !== 't_stars') searchCaption();
-    },
-  };
-  let failNext = false;             // test hook (__game.failNext): the next scene breaks once
-  const fault = () => { if (failNext) { failNext = false; throw new Error('broken on purpose by __game.failNext()'); } };
-  async function praise() {
-    sfx('good'); cat.once('Yes', 'Idle');
-    sparks.burst(above(hero.root.position, 1.2), '#ff9ed2', 30, 4);
-    caption(null);
-    await say(`praise_${pick([0, 1, 3, 4, 5, 6, 7])}`, 'Молодець!', 'story');
-  }
-
-  // ----- panel tasks -----
-  const hooksFor = (speaker: string): TaskHooks => ({
-    prompt: (key) => { void line(key, 'task', 0, speaker); },
-    number: (n) => { void say(`tap_${n}`, String(n), 'task'); },
-    wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task'); },
-    hint: hintLine,
-    good: () => sfx('pop'),
+  // A scene during the search (another character's task, closed or solved) gives the bubble back to the search.
+  const stage = createStage(g, () => {
+    if (!search.active) caption(null);
+    else if (speech.shown?.key !== 't_stars') searchCaption();
   });
 
   // ----- task in the world: count the butterflies over the flower bed -----
@@ -468,11 +354,11 @@ async function boot() {
     await playScene(stage, 'finale', async () => {
       cam.focus = shrine.clone();
       hero.play('Talk');
-      finale = 0.001;
+      g.finale = 0.001;
       fault();
       sfx('chime');
       await new Promise((r) => setTimeout(r, 3600));
-      save.final = true; finale = 0; persist();
+      save.final = true; g.finale = 0; persist();
       sfx('fanfare');
       for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(shrine, c, 50, 7);
       hero.play('Dance'); cat.play('Dance');
@@ -530,9 +416,9 @@ async function boot() {
     else await line('welcome_back', 'hint', 5000);
   }, { once: true });
   initBook(save, {
-    change: () => { applyVolume(); applyPin(); persist(); },
+    change: () => { applyVolume(); quality.applyPin(); persist(); },
     reset: () => { clearSave(); location.reload(); },
-    open: (v) => { paused = v; },
+    open: (v) => { g.paused = v; },
   });
   initInput(el.canvas, el.joy, el.knob, el.btnJump, el.btnAct);
   el.bubble.addEventListener('click', repeat);
@@ -544,8 +430,6 @@ async function boot() {
   // ---------- loop ----------
   const clock = new THREE.Clock();
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
-  let fpsT = 0, fpsN = 0, slow = 0, warm = 0;
-  const started = () => el.start.classList.contains('hidden');
 
   function frame() {
     requestAnimationFrame(frame);
@@ -553,13 +437,13 @@ async function boot() {
     const time = (uTime.value += dt);
     pollInput();
     const hp = hero.root.position;
-    const canMove = started() && !busy && !paused;
+    const canMove = started() && !g.busy && !g.paused;
 
     cam.yaw -= input.lookDX * tuning.lookX; input.lookDX = 0;
     userPitch = clamp(userPitch + input.lookDY * tuning.lookY, 0.06, 1.15); input.lookDY = 0;
 
     // taps: count a butterfly, or walk to a spot / point on the ground
-    if (input.tap && started() && !paused) {
+    if (input.tap && started() && !g.paused) {
       const tx = input.tap.x, ty = input.tap.y;
       const screenDist = (p: THREE.Vector3) => { v.copy(p).project(camera); return v.z < 1 ? Math.hypot((v.x * 0.5 + 0.5) * innerWidth - tx, (-v.y * 0.5 + 0.5) * innerHeight - ty) : 1e9; };
       if (bf.active && !bf.demo) {
@@ -569,13 +453,13 @@ async function boot() {
       } else if (canMove) {
         let spot: Spot | null = null;
         for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
-        if (spot) auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
+        if (spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
         // A tap on the cat asks it to say its line again, not to walk to it. (In the butterflies task the cat is out of the frame.)
         else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) repeat();
         else {
           ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
           if (raycastGround(ray.ray.origin, ray.ray.direction, v)) {
-            auto = { x: v.x, z: v.z, stuck: 0, last: 1e9 };
+            g.auto = { x: v.x, z: v.z, stuck: 0, last: 1e9 };
             tapRing.position.set(v.x, v.y + 0.08, v.z);
             (tapRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
           }
@@ -589,19 +473,19 @@ async function boot() {
     if (canMove) {
       mag = Math.hypot(input.moveX, input.moveY);
       if (mag > 0.08) {
-        auto = null;
+        g.auto = null;
         const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
         mx = fx * input.moveY + -fz * input.moveX;
         mz = fz * input.moveY + fx * input.moveX;
-      } else if (auto) {
-        const dx = auto.x - hp.x, dz = auto.z - hp.z, d = Math.hypot(dx, dz);
-        const reach = auto.then ? 2.0 : 0.35;
-        auto.stuck = d > auto.last - 0.5 * dt ? auto.stuck + dt : 0;
-        auto.last = d;
-        if (d < reach || auto.stuck > 0.8) { const then = d < reach + 0.8 ? auto.then : undefined; auto = null; then?.(); }
+      } else if (g.auto) {
+        const dx = g.auto.x - hp.x, dz = g.auto.z - hp.z, d = Math.hypot(dx, dz);
+        const reach = g.auto.then ? 2.0 : 0.35;
+        g.auto.stuck = d > g.auto.last - 0.5 * dt ? g.auto.stuck + dt : 0;
+        g.auto.last = d;
+        if (d < reach || g.auto.stuck > 0.8) { const then = d < reach + 0.8 ? g.auto.then : undefined; g.auto = null; then?.(); }
         else { mx = dx / d; mz = dz / d; mag = Math.min(1, d / 1.5 + 0.35); }
       }
-    } else auto = null;
+    } else g.auto = null;
 
     const speed = tuning.speed * Math.min(1, mag);
     if (mag > 0.08) {
@@ -615,7 +499,7 @@ async function boot() {
     const ground = groundY(hp.x, hp.z);
     vy -= 17 * dt; hp.y += vy * dt;
     if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
-    if (!busy) {
+    if (!g.busy) {
       if (!grounded) hero.play('Jump', 0.12);
       else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, speed > tuning.runFrom ? speed / 4.2 : speed / 1.5);
       else hero.play('Idle', 0.25);
@@ -639,21 +523,21 @@ async function boot() {
       const cs = Math.min(7, cd * 3.2) * dt;
       cp.x += ((v.x - cp.x) / cd) * Math.min(cs, cd); cp.z += ((v.z - cp.z) / cd) * Math.min(cs, cd);
       cat.face(Math.atan2(v.x - cp.x, v.z - cp.z), dt);
-      if (!busy) cat.play('Walk', 0.15, clamp(cd * 1.2, 0.8, 2.2));
-    } else { if (!busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
+      if (!g.busy) cat.play('Walk', 0.15, clamp(cd * 1.2, 0.8, 2.2));
+    } else { if (!g.busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
     cp.y = groundY(cp.x, cp.z);
 
     // quest characters: turn to the heroine when she is close, otherwise live their own life
     for (const n of npcs) {
       const d = Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z);
       n.actor.face(d < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
-      if (!busy && (n.timer -= dt) < 0) {
+      if (!g.busy && (n.timer -= dt) < 0) {
         n.timer = 4 + Math.random() * 6;
         n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
         n.actor.play(n.idle, 0.4);
       }
       const open = (save.quests[n.def.id] ?? 0) < 3;
-      n.mark.visible = open && !busy && !(search.active && n.def.id === 'deer');
+      n.mark.visible = open && !g.busy && !(search.active && n.def.id === 'deer');
       n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
       n.actor.update(dt);
     }
@@ -694,13 +578,13 @@ async function boot() {
     }
 
     // shrine: collected shards circle the place where the crystal will stand
-    if (finale > 0) finale += dt;
-    const pull = finale > 0 ? Math.max(0, 1 - finale / 3.4) : 1;
+    if (g.finale > 0) g.finale += dt;
+    const pull = g.finale > 0 ? Math.max(0, 1 - g.finale / 3.4) : 1;
     QUESTS.forEach((q, i) => {
       const m = shards[i];
       m.visible = (save.quests[q.id] ?? 0) >= 3 && !save.final;
       if (!m.visible) return;
-      const a = time * (finale > 0 ? 1 + finale * 2.5 : 0.7) + (i / 5) * 6.28;
+      const a = time * (g.finale > 0 ? 1 + g.finale * 2.5 : 0.7) + (i / 5) * 6.28;
       m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);
       m.rotation.y = time * 1.5 + i;
     });
@@ -708,14 +592,14 @@ async function boot() {
     mat.opacity = lerp(mat.opacity, save.final ? 1 : 0.18, damp(2, dt));
     crystal.scale.setScalar(lerp(crystal.scale.x, save.final ? 1.25 : 0.8, damp(3, dt)));
     crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
-    crystalLight.intensity = save.final ? 5 + Math.sin(time * 3) * 1.2 : finale > 0 ? finale * 2 : 0;
+    crystalLight.intensity = save.final ? 5 + Math.sin(time * 3) * 1.2 : g.finale > 0 ? g.finale * 2 : 0;
     glow = lerp(glow, save.final ? 1 : 0, damp(0.6, dt));
     rainbowAlpha.value = glow;
-    (world.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
-    world.hemi.intensity = 1.25 + glow * 0.25;
+    (sky.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
+    sky.hemi.intensity = 1.25 + glow * 0.25;
 
     // guide: beacon + sparkle trail towards the next goal
-    const target = started() && !busy ? goal() : null;
+    const target = started() && !g.busy ? goal() : null;
     beacon.visible = trail.visible = !!target;
     if (target) {
       beacon.position.set(target.x, groundY(target.x, target.z) + 7, target.z);
@@ -746,7 +630,7 @@ async function boot() {
       if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
       else v.set(hp.x, hp.y + 1.5, hp.z);
       cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
-      cam.dist = lerp(cam.dist, camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camDistance(camera.aspect)), damp(3, dt));
+      cam.dist = lerp(cam.dist, g.camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camDistance(camera.aspect)), damp(3, dt));
       cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : userPitch, damp(cam.focus ? 3 : 10, dt));
     }
     camera.position.set(
@@ -756,50 +640,25 @@ async function boot() {
     camera.position.y = Math.max(camera.position.y, groundY(camera.position.x, camera.position.z) + 0.8);
     camera.lookAt(cam.target);
 
-    world.sun.position.copy(hp).add(world.sunOffset);
-    world.sun.target.position.copy(hp);
+    sky.sun.position.copy(hp).add(sky.sunOffset);
+    sky.sun.target.position.copy(hp);
     updateRanged(hp.x, hp.z);
     motes.uCenter.value.copy(hp);
     motes.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
 
-    renderer.info.reset();
-    if (composer) composer.render(dt); else renderer.render(scene, camera);
-
-    // fps meter + automatic quality fallback
-    fpsT += dt; fpsN++; warm += dt;
-    if (fpsT >= 1) {
-      const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
-      if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
-      if (warm > 4 && !byParam && save.pinTier === null && !document.hidden) {
-        slow = fps < 34 ? slow + 1 : 0;
-        // the lowered tier is saved at once: the next launch starts from it (TECH-04)
-        if (slow >= 3 && tier > 0) { tier = (tier - 1) as Tier; slow = 0; warm = 0; applyTier(); save.tier = tier; persist(); }
-      }
-    }
+    quality.render(dt);
+    quality.meter(dt, persist);
   }
   refreshHud();
   frame();
 
-  // Test/debug hook: only with ?debug or on the development server (ARCH-11).
-  if (debug) (window as unknown as Record<string, unknown>).__game = {
-    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs, search, bf, voice: voiceLog, dropped, tuning,
-    get busy() { return busy; },
-    /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
-    get inTask() { return inTask(); },
-    get line() { return shown?.key ?? null; },
-    get finale() { return finale; },
-    /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
-    get time() { return uTime.value; },
-    /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */
-    failNext() { failNext = true; },
-    teleport(x: number, z: number) { hero.root.position.set(x, groundY(x, z), z); },
-    closeup(d: number | null) { camOverride = d; },
-    talk(id: QuestDef['id']) { void talk(npc(id)); },
-    /** Does the right thing for whatever task is on screen; returns what it did. */
-    cheat() {
+  if (debug) exposeDebug(g, {
+    npcs, search, bf,
+    talk: (id) => { void talk(npc(id as QuestDef['id'])); },
+    cheatWorld: () => {
       if (bf.active && !bf.demo) { (el.answers.children[bf.n - 1] as HTMLElement).dispatchEvent(new PointerEvent('pointerdown')); return 'butterflies'; }
       if (search.active) { const it = search.items.find((s) => !s.found); if (it) hero.root.position.copy(it.mesh.position); return 'star'; }
-      return cheatTask() ? 'panel' : '';
+      return '';
     },
-  };
+  });
 }

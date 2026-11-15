@@ -4,8 +4,8 @@
  * and any task can be closed without consequences.
  *
  * Stars are read off the sources: the game keeps them in one save field, and the only code that may write it is
- * `addStars` in main.ts, which adds a positive amount. Spending stars in the shop (PLAY-04) does not exist yet;
- * when it comes, its one spending function is the second allowed writer and is added here by name.
+ * `addStars` in src/game/context.ts, which adds a positive amount. Spending stars in the shop (PLAY-04) does not exist
+ * yet; when it comes, its one spending function is the second allowed writer and is added here by name.
  * Timers are checked by behaviour: every task type at every level is left open for an hour of fake time.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,7 +44,7 @@ const STAR_WRITES = [
   /(?:\+\+|--)\s*[\w$.?\]\[()]*\.\s*stars\b/g,
   new RegExp(`(?:${CHAIN}|${AFTER_CALL})\\s*(?:\\+\\+|--)`, 'g'),
 ];
-/** The one allowed writer: addStars in main.ts adds its own parameter. */
+/** The one allowed writer: addStars in src/game/context.ts adds its own parameter. */
 const ADD_STARS = /const addStars = \(n: number\b[^)]*\) => \{ save\.stars \+= n;/;
 
 describe('stars are only ever added (LEARN-14, R13)', () => {
@@ -57,10 +57,10 @@ describe('stars are only ever added (LEARN-14, R13)', () => {
 
   it('the save field of the stars is written only by addStars, and addStars only adds', () => {
     const writes = STAR_WRITES.flatMap(find);
-    const others = writes.filter((w) => !(w.file === 'src/main.ts' && w.text === 'save.stars += n'));
+    const others = writes.filter((w) => !(w.file === 'src/game/context.ts' && w.text === 'save.stars += n'));
     expect(others, `stars are written outside addStars: ${where(others)}`).toEqual([]);
-    const main = SOURCES.find((s) => s.path === 'src/main.ts')!.text;
-    expect(ADD_STARS.test(main), 'addStars in src/main.ts does not add its amount to save.stars ("save.stars += n")').toBe(true);
+    const context = SOURCES.find((s) => s.path === 'src/game/context.ts')!.text;
+    expect(ADD_STARS.test(context), 'addStars in src/game/context.ts does not add its amount to save.stars ("save.stars += n")').toBe(true);
     expect(writes.length, `addStars must be the single writer of the stars, found: ${where(writes)}`).toBe(1);
   });
 

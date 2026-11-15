@@ -530,16 +530,23 @@ try {
     }
 
     // ---- stars never go down (LEARN-14): watched on every frame from here to the end of the world, read on every step ----
+    // A star that is won is also stored at once, in the same frame: the save on a timer would lose it if the page died.
     await g(() => {
-      const w = window.__stars = { last: __game.save.stars, drops: [], frames: 0 };
-      const look = () => { const n = __game.save.stars; if (n < w.last) w.drops.push(`${w.last} -> ${n}`); w.last = n; w.frames++; requestAnimationFrame(look); };
+      const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0 };
+      const look = () => {
+        const n = __game.save.stars;
+        if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
+        if (n > w.last) { const kept = JSON.parse(localStorage.getItem('amw-save') || '{}').stars; if (kept !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${kept}`); }
+        w.last = n; w.frames++; requestAnimationFrame(look);
+      };
       look();
     });
-    let starDrops = 0;
+    let starDrops = 0, starUnsaved = 0;
     const starsKept = async (where) => {
-      const w = await g(() => ({ drops: window.__stars.drops, frames: window.__stars.frames }));
+      const w = await g(() => ({ drops: window.__stars.drops, unsaved: window.__stars.unsaved, frames: window.__stars.frames }));
       for (const d of w.drops.slice(starDrops)) errors.push(`stars: ${mode}: the number of stars went down ${where}: ${d}`);
-      starDrops = w.drops.length;
+      for (const d of w.unsaved.slice(starUnsaved)) errors.push(`stars: ${mode}: stars won ${where} were not stored at once: ${d}`);
+      starDrops = w.drops.length; starUnsaved = w.unsaved.length;
       return w.frames;
     };
     const seen = new Set();
