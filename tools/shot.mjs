@@ -739,11 +739,18 @@ try {
       closed.set(type, { quest: q.id, step });
       console.log(`"${type}" closed with the cross (${q.id}, step ${step + 1}): nothing recorded, the heroine walks`);
     };
+    let crystalsWrong = false;
     for (const q of quests) {
       const t0 = Date.now();
       while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
         if (Date.now() - t0 > T(stuckMs)) throw new Error('quest stuck: ' + q.id);
         await starsKept(`in the quest "${q.id}"`);
+        // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
+        if (!crystalsWrong && !(await g(() => __game.busy))) {
+          const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, quests: { ...__game.save.quests },
+            done: Object.values(__game.save.quests).filter((v) => v >= 3).length }));
+          if (c.hud !== `${c.done}/5`) { crystalsWrong = true; errors.push(`crystals: ${mode}: the counter shows ${c.hud} with the quests ${JSON.stringify(c.quests)}`); }
+        }
         if (searchBefore && !searchAfter && !(await g(() => __game.search.active))) {
           // the search has just ended and no other task was opened since: whatever differs was written by the search
           searchAfter = await progress();
