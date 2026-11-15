@@ -30,7 +30,7 @@ export function createChestStars(g: Game, L: FairyLoads, starMat: THREE.Material
   chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z);
   chest.root.rotation.y = 0.9;
   scene.add(chest.root);
-  if (ws.chestOpen) chest.pose('Chest_Open');
+  if (ws.flags.chest) chest.pose('Chest_Open');
   const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [18, -4], [-17, -14], [7, -31], [-26, 11], [26, -30], [-2, -40]];
   const groundStars = starSpots.map(([x, z], id) => {
     const p = { x, z }; ground.resolve(p, 0.6);
@@ -42,7 +42,7 @@ export function createChestStars(g: Game, L: FairyLoads, starMat: THREE.Material
   });
 
   function openChest() {
-    ws.chestOpen = true;
+    ws.flags.chest = true;
     chest.once('Chest_Open', 'Chest_Open');
     sfx('good');
     g.addStars(5, above(chest.root.position, 1));

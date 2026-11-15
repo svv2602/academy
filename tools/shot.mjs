@@ -95,7 +95,7 @@ const worldId = process.env.E2E_WORLD || '';
 if (worldId && !/^[a-z][a-z0-9_-]*$/.test(worldId)) usage(`bad E2E_WORLD="${worldId}": expected the id of a world of src/worlds/index.ts`);
 if (worldId === 'fairy') usage('E2E_WORLD=fairy: the first world is played by the full scenario - leave E2E_WORLD unset');
 // E2E_WORLD: the progress of the first world the save starts with; the other world must leave it exactly as it is.
-const FAIRY_KEPT = { quests: { unicorn: 3, fox: 1 }, final: false, starsTaken: [0, 2], chestOpen: true, pos: [3.5, 9] };
+const FAIRY_KEPT = { quests: { unicorn: 3, fox: 1 }, final: false, starsTaken: [0, 2], flags: { chest: true }, pos: [3.5, 9] };
 const STARS_KEPT = 7;
 // The question(s) of every task type: what the bubble shows while the task waits for its answer.
 const QUESTIONS = {
@@ -587,7 +587,7 @@ try {
       const s1 = await stored(), w = s1.worlds?.[worldId], left = [];
       for (const q of npcs) if ((w?.quests?.[q.id] ?? 0) < q.steps) left.push(`the chain of "${q.id}" is at ${w?.quests?.[q.id] ?? 0} of ${q.steps} in worlds.${worldId}`);
       if (JSON.stringify(s1.worlds?.fairy) !== kept) left.push(`worlds.fairy changed: ${JSON.stringify(s1.worlds?.fairy)}, was ${kept}`);
-      for (const k of ['quests', 'final', 'starsTaken', 'chestOpen', 'pos']) if (k in s1) left.push(`"${k}" is on top of the save, not under worlds.<id>`);
+      for (const k of ['quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) if (k in s1) left.push(`"${k}" is on top of the save, not under worlds.<id>`);
       if (s1.stars !== before) left.push(`${s1.stars} stars stored, ${before} in the game`);
       if (left.length) errors.push(`reload: ${mode} ${worldId}: ${left.join('; ')}`);
       else console.log(`reload: worlds.${worldId} ${JSON.stringify(w.quests)}, worlds.fairy as it was, ${s1.stars} stars`);
@@ -605,7 +605,7 @@ try {
         if (w.final) left.push(`the final (${id})`);
         if (Object.keys(w.quests ?? {}).length) left.push(`quests ${JSON.stringify(w.quests)} (${id})`);
         if (w.starsTaken?.length) left.push(`stars taken ${JSON.stringify(w.starsTaken)} (${id})`);
-        if (w.chestOpen) left.push(`the open chest (${id})`);
+        if (Object.values(w.flags ?? {}).some(Boolean)) left.push(`flags ${JSON.stringify(w.flags)} (${id})`);
       }
       if (await visible('#restart')) left.push('the "start again" button of a returning player');
       if (left.length) fail(`start again: after the reload the old progress is back: ${left.join(', ')}`);
@@ -1382,7 +1382,7 @@ try {
         const b = await g(() => {
           const s = __game.save, w = s.worlds.fairy, shards = [...document.querySelectorAll('#shards .shard')];
           return { shards: shards.length, got: shards.filter((e) => e.classList.contains('got')).length, friends: __game.npcs.length,
-            done: Object.values(w.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!w.chestOpen,
+            done: Object.values(w.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!w.flags?.chest,
             stats: document.querySelector('#colStats')?.textContent ?? '' };
         });
         const left = [];
@@ -1470,6 +1470,14 @@ try {
       if (bfVisits < 3) errors.push(`the butterflies task was met ${bfVisits} times: closing it and coming back went unchecked`);
       else if (!cutOff) errors.push('no line was sounding when the butterflies task was closed: stopping the voice went unchecked');
       if (!searchAfter) errors.push('the skills were not compared around the star search');
+      // Every task solved in a talk is counted in its skill (recordTask, src/game/skills.ts): at least one task for
+      // each step of the chains done, but the star search's (it trains no skill).
+      {
+        const recorded = Object.values(s.skills).reduce((n, v) => n + v.tasks, 0);
+        const steps = Object.values(s.worlds.fairy.quests).reduce((n, v) => n + v, 0);
+        if (recorded < steps - 1) errors.push(`skills: ${recorded} tasks counted in the skills for ${steps} steps of the chains done`);
+        else console.log(`skills: ${recorded} tasks counted for ${steps} steps of the chains`);
+      }
       if (!catRepeated) errors.push('repeating a line by a tap on the cat went unchecked');
       if (!hurried) errors.push('the talk right after the fifth star went unchecked');
       if (!fifthHeard) errors.push('fifth star: the number of the fifth star in silence went unchecked');
@@ -1539,7 +1547,7 @@ try {
           if (w.final) left.push(`the restored crystal (${id})`);
           if (Object.keys(w.quests ?? {}).length) left.push(`quests ${JSON.stringify(w.quests)} (${id})`);
           if (w.starsTaken?.length) left.push(`stars taken ${JSON.stringify(w.starsTaken)} (${id})`);
-          if (w.chestOpen) left.push(`the open chest (${id})`);
+          if (w.chestOpen || w.flags?.chest) left.push(`the open chest (${id})`);
         }
         if (await visible('#restart')) left.push('the "start again" button of a returning player');
         if (left.length) fail(`after the reload the old progress is back: ${left.join(', ')}`);

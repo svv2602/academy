@@ -1,4 +1,5 @@
-import type { Save, SkillId } from '../core/save';
+import type { Save } from '../core/save';
+import { SKILLS } from '../game/skills';
 import type { BookInfo } from '../game/world';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
 import { lang, setChildName, setLang, t, tf, type Key } from './strings';
@@ -162,8 +163,7 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
 
   const gateA = $<HTMLInputElement>('gateA');
   const renderParents = () => {
-    const skills: SkillId[] = ['count', 'add', 'sub', 'compare', 'logic'];
-    const rows = skills.map((k) => { const s = save.skills[k]; return `<tr><td>${t(('sk_' + k) as Key)}</td><td>${save.difficulty || s.level}</td><td>${s.tasks}</td><td>${s.tasks ? Math.round((s.first / s.tasks) * 100) + '%' : '–'}</td><td>${s.errors}</td></tr>`; }).join('');
+    const rows = SKILLS.map((k) => { const s = save.skills[k]; return `<tr><td>${t(('sk_' + k) as Key)}</td><td>${save.difficulty || s.level}</td><td>${s.tasks}</td><td>${s.tasks ? Math.round((s.first / s.tasks) * 100) + '%' : '–'}</td><td>${s.errors}</td></tr>`; }).join('');
     $('pBody').innerHTML = `<table><tr><th>${t('p_skill')}</th><th>${t('p_level')}</th><th>${t('p_tasks')}</th><th>${t('p_first')}</th><th>${t('p_errors')}</th></tr>${rows}</table>
       <div class="prow"><span>${t('p_diff')}</span>${[0, 1, 2, 3].map((d) => `<button data-d="${d}" class="${save.difficulty === d ? 'sel' : ''}">${t(('d' + d) as Key)}</button>`).join('')}</div>
       <div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>

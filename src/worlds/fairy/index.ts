@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
-import { levelFor } from '../../core/save';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
+import { levelFor } from '../../game/skills';
 import { playScene } from '../../game/stage';
 import { generate as generateSort } from '../../game/tasks/sort';
 import { showSortInWorld, type WorldSort } from '../../game/worldtasks/sort';
@@ -76,7 +76,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
-    { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.chestOpen, run: () => chestStars.open() },
+    { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
   ];
 
   /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
@@ -135,7 +135,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: (ws.quests[q.id] ?? 0) >= 3 })),
     stats: () => [
       { icon: '⭐', label: 'col_stars', value: String(save.stars) },
-      { icon: '🎁', label: 'col_chest', value: ws.chestOpen ? '✔' : '?' },
+      { icon: '🎁', label: 'col_chest', value: ws.flags.chest ? '✔' : '?' },
     ],
   };
   return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}` };

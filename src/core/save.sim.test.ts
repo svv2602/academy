@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defaultSave, levelFor, recordTask } from './save';
-import type { SkillId } from './save';
+import { levelFor, recordTask } from '../game/skills';
+import type { SkillId } from '../game/skills';
+import { defaultSave } from './save';
 import { mulberry32 } from './util';
 
 /**
  * LEARN-17: what the level rule does to a child over a whole session, not over one step.
  * Five made-up children play 200 tasks each through the real recordTask and levelFor. The rule is never copied
- * here, so a change in save.ts changes the table and trips the corridors below.
+ * here, so a change in src/game/skills.ts changes the table and trips the corridors below.
  */
 
 /** Chances of a clean solve, of one wrong answer and of two wrong answers; they add up to 1. */

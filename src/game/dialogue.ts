@@ -1,9 +1,9 @@
 import { sfx } from '../core/audio';
-import { levelFor, recordTask } from '../core/save';
 import { pick } from '../core/util';
 import { fanfare } from '../ui/ui';
 import { tf } from '../ui/strings';
 import type { Game } from './context';
+import { levelFor, recordTask } from './skills';
 import { playScene, type Stage } from './stage';
 import { runTask, SKILL } from './taskviews/panel';
 import type { TaskType } from './tasks/types';

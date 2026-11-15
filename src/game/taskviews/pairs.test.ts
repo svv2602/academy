@@ -4,7 +4,8 @@
  * the opening peek shows every face and takes no taps; closing during the peek leaves nothing behind.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSave, levelFor, recordTask } from '../../core/save';
+import { defaultSave } from '../../core/save';
+import { levelFor, recordTask } from '../skills';
 import { mulberry32 } from '../../core/util';
 import type { Key } from '../../ui/strings';
 import type { Spoken } from '../../core/audio';
