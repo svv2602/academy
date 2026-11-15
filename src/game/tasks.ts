@@ -4,19 +4,24 @@
  * After a mistake the order is fixed: "try again" to its end, then the whole spoken hint, then the solution
  * is shown. The child may answer at any moment of that; nothing waits for the cat to finish.
  */
-import { shuffle, pick, randInt } from '../core/util';
 import { createRng, type Rng } from '../core/rng';
 import type { Spoken } from '../core/audio';
 import type { SpokenKey } from '../ui/strings';
-import { THINGS, type Hint, type HintStep, type TaskType } from './tasks/types';
+import type { Hint, HintStep, TaskType } from './tasks/types';
 import { count } from './tasks/count';
 import { add } from './tasks/add';
 import { sub } from './tasks/sub';
 import { compare } from './tasks/compare';
 import { pattern } from './tasks/pattern';
+import { odd } from './tasks/odd';
+import { pairs, PAIRS_PEEK_MS } from './tasks/pairs';
+import { order } from './tasks/order';
+import { sort } from './tasks/sort';
+import { simon } from './tasks/simon';
 import './hints.css';
 
 export type { TaskType };
+export { PAIRS_PEEK_MS };
 export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
 export const SKILL: Record<TaskType, Skill> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', pattern: 'logic', odd: 'logic', pairs: 'logic', order: 'logic', sort: 'logic', simon: 'logic',
@@ -49,19 +54,11 @@ interface Ctx {
 }
 type Builder = (c: Ctx) => SpokenKey;
 
-const CATS = [['🍎', '🍐', '🍊', '🍋', '🍓', '🍇'], ['🐱', '🐶', '🐰', '🦊', '🐻', '🐼'], ['🌸', '🌼', '🌷', '🌻', '🌹', '💐'], ['🚗', '🚌', '🚲', '🚀', '⛵', '🚂'], ['🍰', '🍭', '🍩', '🍪', '🍫', '🧁']];
 const el = (tag: string, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 const tap = (e: HTMLElement, fn: () => void) => e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); fn(); });
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** The shake of a wrong answer must be seen before the hint, even when "try again" is silent and ends at once. */
 const SHAKE_MS = 900;
-/**
- * Memory pairs open with every face shown for a moment (by level), before the first tap counts: the child sees that
- * the pictures come in twos and roughly where they lie. Six cards can be taken in at about half a second each; twelve
- * cannot be learnt in any short look, so the third level only gets a reminder and stays a memory game.
- * This is not a time limit: the game has not started yet, and nothing is lost when the cards turn face down.
- */
-export const PAIRS_PEEK_MS = [0, 3000, 2500, 2000];
 
 /** One button per thing, each with its tilt from the task's description (one tilt per thing). */
 function items(parent: HTMLElement, emoji: string, tilt: readonly number[], cls = '') {
@@ -87,13 +84,14 @@ function options<V extends number | string>(c: Ctx, values: readonly V[], right:
 }
 /**
  * The hint of a described task (ARCH-09): its line, and its steps carried out in their order once the line has ended.
- * `act` is what each step does on the panel; "pulse the answer" is the same for every task: `ok` pulses from that mistake on.
+ * `act` is what each step does on the panel; "pulse the answer" is the same for every task: `ok` pulses from that mistake on
+ * (a task answered step by step has no single answer and no such step: `ok` is null).
  */
-function hintOf(hint: Hint | null, ok: HTMLElement, act: Partial<Record<HintStep['do'], (step: HintStep) => void>>): Ctx['hint'] {
+function hintOf(hint: Hint | null, ok: HTMLElement | null, act: Partial<Record<HintStep['do'], (step: HintStep) => void>>): Ctx['hint'] {
   if (!hint) return null;
   return { key: hint.key, show: (w) => {
     for (const step of hint.steps) {
-      if (step.do === 'pulseAnswer') { if (w >= step.fromMistake) ok.classList.add('pulse'); } else act[step.do]?.(step);
+      if (step.do === 'pulseAnswer') { if (w >= step.fromMistake) ok?.classList.add('pulse'); } else act[step.do]?.(step);
     }
   } };
 }
@@ -104,8 +102,8 @@ async function countAloud(c: Ctx, list: HTMLElement[]) {
   for (let i = 0; i < list.length && c.alive && c.wrongs === round; i++) { badge(list[i], i + 1); list[i].classList.add('hit'); c.hooks.number(i + 1); await wait(750); }
 }
 
-// The first five types are described by their generator (`tasks/<type>.ts`, ARCH-09): the builder takes every random
-// choice from `generate(level, rng)` and only draws the description; none of them asks `c.rng` itself.
+// Every type is described by its generator (`tasks/<type>.ts`, ARCH-09): the builder takes every random choice from
+// `generate(level, rng)`, judges the inputs by the type's model and only draws; none of them asks `c.rng` itself.
 const builders: Record<TaskType, Builder> = {
   count(c) {
     const spec = count.generate(c.level, c.rng), st = count.start(spec), { n } = spec.body;
@@ -162,115 +160,110 @@ const builders: Record<TaskType, Builder> = {
     return spec.prompt;
   },
   odd(c) {
-    const [main, other] = shuffle(CATS, c.rng);
-    const base = c.level === 1 ? Array(3).fill(pick(main, c.rng)) : shuffle(main, c.rng).slice(0, c.level === 2 ? 3 : 4);
-    const odd = pick(other, c.rng), list = shuffle([...base, odd], c.rng);
-    let ok!: HTMLElement;
-    const alike: HTMLElement[] = [];
-    for (const s of list) {
+    const spec = odd.generate(c.level, c.rng), st = odd.start(spec), right = odd.solution(spec, st)[0];
+    const list = spec.body.things.map((s, i) => {
       const b = el('button', 'it big', s);
-      if (s === odd) ok = b; else alike.push(b);
-      tap(b, () => { if (s === odd) { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
-      c.stage.appendChild(b);
-    }
-    c.cheat = () => ok.dispatchEvent(new PointerEvent('pointerdown'));
+      tap(b, () => { if (odd.answer(spec, st, i) === 'right') { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
+      c.stage.appendChild(b); return b;
+    });
+    c.cheat = () => list[right].dispatchEvent(new PointerEvent('pointerdown'));
     // The alike things share one frame, the odd one is left without: who belongs together is seen, not read.
-    c.hint = { key: 'h_odd', show: (w) => { alike.forEach((b) => b.classList.add('alike')); if (w >= 2) ok.classList.add('pulse'); } };
-    return 't_odd';
+    c.hint = hintOf(spec.hint, list[right], { frameAlike: () => list.forEach((b, i) => { if (i !== right) b.classList.add('alike'); }) });
+    return spec.prompt;
   },
   pairs(c) {
-    const pairs = c.level === 1 ? 3 : c.level === 2 ? 4 : 6;
-    const deck = shuffle(shuffle(THINGS, c.rng).slice(0, pairs).flatMap((s) => [s, s]), c.rng);
-    c.stage.classList.add('cards'); c.stage.style.setProperty('--cols', String(pairs === 3 ? 3 : 4));
-    // Memory has no "wrong" move, so a non-matching pair is only counted, never scolded or hinted.
-    // Finding every pair takes about one miss per pair even with a perfect memory; more than that is
-    // guessing. The result is then shaky (1), not the miss count: two or more would drop the level at once.
-    let open: HTMLElement[] = [], lock = false, left = pairs, misses = 0, peeking = true;
-    const cards = deck.map((s) => {
+    const spec = pairs.generate(c.level, c.rng), st = pairs.start(spec), { deck, cols, peekMs } = spec.body;
+    c.stage.classList.add('cards'); c.stage.style.setProperty('--cols', String(cols));
+    // Memory has no "wrong" move: a miss is only counted by the model, never scolded or hinted (no `c.wrong`, `hint: null`).
+    let lock = false, peeking = true;
+    const cards = deck.map((s, i) => {
       const b = el('button', 'mcard'); b.appendChild(el('span', '', s)); b.dataset.s = s;
       tap(b, async () => {
-        if (peeking || lock || b.classList.contains('open')) return;
-        b.classList.add('open'); open.push(b);
-        if (open.length < 2) return;
-        const [x, y] = open; open = [];
-        if (x.dataset.s === y.dataset.s) { x.classList.add('done'); y.classList.add('done'); c.hooks.good(); if (--left === 0) { if (misses > pairs) c.wrongs = 1; c.right(); } }
-        else { misses++; lock = true; await wait(800); x.classList.remove('open'); y.classList.remove('open'); lock = false; }
+        if (peeking || lock) return;
+        const first = st.open[0], out = pairs.answer(spec, st, i);
+        if (out === 'ignored') return;
+        b.classList.add('open');
+        if (out === 'miss') { lock = true; await wait(800); cards[first].classList.remove('open'); b.classList.remove('open'); lock = false; }
+        else if (st.done[i]) {
+          cards[first].classList.add('done'); b.classList.add('done'); c.hooks.good();
+          if (out === 'right') { c.wrongs = pairs.result!(spec, st, c.wrongs); c.right(); }
+        }
       });
       c.stage.appendChild(b); return b;
     });
-    c.cheat = () => { cards.forEach((b) => b.classList.add('open', 'done')); c.right(); };
+    c.cheat = () => { cards.forEach((b) => b.classList.add('open', 'done')); st.open = []; st.done.fill(true); c.right(); };
     // The opening peek shows the faces through the stage, so the cards themselves stay as they are: taps meanwhile
     // open nothing and are not counted. A task that is over by then (solved or closed) is left alone.
     c.stage.classList.add('peek');
-    setTimeout(() => { if (!c.alive) return; peeking = false; c.stage.classList.remove('peek'); }, PAIRS_PEEK_MS[c.level]);
-    return 't_pairs';
+    setTimeout(() => { if (!c.alive) return; peeking = false; c.stage.classList.remove('peek'); }, peekMs);
+    return spec.prompt;
   },
   order(c) {
-    const n = c.level === 1 ? 4 : 5;
-    const start = randInt(1, c.level === 1 ? 3 : 5, c.rng);
-    const nums = c.level < 3 ? Array.from({ length: n }, (_, i) => start + i) : shuffle(Array.from({ length: 10 }, (_, i) => i + 1), c.rng).slice(0, n).sort((a, b) => a - b);
-    let next = 0;
+    const spec = order.generate(c.level, c.rng), st = order.start(spec);
     const btns = new Map<number, HTMLElement>();
-    for (const v of shuffle([...nums], c.rng)) {
+    for (const v of spec.body.shown) {
       const b = el('button', 'opt num', String(v)); btns.set(v, b);
       tap(b, () => {
-        if (b.classList.contains('yes')) return;
-        if (v === nums[next]) { b.classList.add('yes'); b.style.order = String(next - 100); c.hooks.number(v); if (++next === n) c.right(); else c.hooks.good(); }
-        else { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); }
+        const at = st.next, out = order.answer(spec, st, v);
+        if (out === 'ignored') return;
+        if (out === 'wrong') { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); return; }
+        b.classList.add('yes'); b.style.order = String(at - 100); c.hooks.number(v);
+        if (out === 'right') c.right(); else c.hooks.good();
       });
       c.stage.appendChild(b);
     }
-    c.cheat = () => { for (const v of nums.slice(next)) btns.get(v)!.dispatchEvent(new PointerEvent('pointerdown')); };
-    c.hint = { key: 'h_order', show: () => { btns.get(nums[next])?.classList.add('pulse'); } };
-    return 't_order';
+    c.cheat = () => { for (const v of order.solution(spec, st)) btns.get(v)!.dispatchEvent(new PointerEvent('pointerdown')); };
+    c.hint = hintOf(spec.hint, null, { pulseNext: () => { btns.get(order.solution(spec, st)[0])?.classList.add('pulse'); } });
+    return spec.prompt;
   },
   sort(c) {
-    const colors = shuffle(['red', 'blue', 'yellow', 'green'], c.rng).slice(0, c.level === 1 ? 2 : 3);
-    const queue = shuffle(Array.from({ length: c.level === 3 ? 9 : 6 }, (_, i) => colors[i % colors.length]), c.rng);
+    const spec = sort.generate(c.level, c.rng), st = sort.start(spec), { colors, queue } = spec.body;
     const cur = el('div', 'gem current'); c.stage.appendChild(cur);
     const baskets = new Map<string, HTMLElement>();
-    const show = () => { cur.className = 'gem current ' + queue[0]; cur.style.animation = 'none'; void cur.offsetWidth; cur.style.animation = ''; };
+    const show = () => { cur.className = 'gem current ' + queue[st.pos]; cur.style.animation = 'none'; void cur.offsetWidth; cur.style.animation = ''; };
     for (const col of colors) {
       const b = el('button', 'basket ' + col); baskets.set(col, b);
       tap(b, () => {
-        if (!queue.length) return;
-        if (col === queue[0]) {
-          b.appendChild(el('div', 'gem small ' + col)); queue.shift(); baskets.forEach((x) => x.classList.remove('pulse'));
-          if (queue.length) { c.hooks.good(); show(); } else { cur.remove(); c.right(); }
-        } else { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); }
+        const out = sort.answer(spec, st, col);
+        if (out === 'ignored') return;
+        if (out === 'wrong') { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); return; }
+        b.appendChild(el('div', 'gem small ' + col)); baskets.forEach((x) => x.classList.remove('pulse'));
+        if (out === 'step') { c.hooks.good(); show(); } else { cur.remove(); c.right(); }
       });
       c.opts.appendChild(b);
     }
     show();
-    c.cheat = () => { while (queue.length) baskets.get(queue[0])!.dispatchEvent(new PointerEvent('pointerdown')); };
-    c.hint = { key: 'h_sort', show: () => { baskets.get(queue[0])?.classList.add('pulse'); } };
-    return 't_sort';
+    c.cheat = () => { for (const col of sort.solution(spec, st)) baskets.get(col)!.dispatchEvent(new PointerEvent('pointerdown')); };
+    c.hint = hintOf(spec.hint, null, { pulseNext: () => { baskets.get(sort.solution(spec, st)[0])?.classList.add('pulse'); } });
+    return spec.prompt;
   },
   simon(c) {
-    const len = c.level + 2, sym = shuffle(['🌸', '⭐', '🍄', '🦋', '💎', '🍓'], c.rng).slice(0, c.level + 3);
-    const seq = Array.from({ length: len }, () => pick(sym, c.rng));
+    const spec = simon.generate(c.level, c.rng), { pads, seq, repeat } = spec.body;
     const btns = new Map<string, HTMLElement>();
-    let pos = 0, showing = true;
+    let st = simon.start(spec), showing = true;
+    // The show of the sequence; after it the child repeats from the start.
     const play = async () => {
-      showing = true; pos = 0; c.stage.classList.add('watch');
+      showing = true; st = simon.start(spec); c.stage.classList.add('watch');
       await wait(600);
       for (const s of seq) { if (!c.alive) return; const b = btns.get(s)!; b.classList.add('flash'); c.hooks.good(); await wait(620); b.classList.remove('flash'); await wait(180); }
       if (!c.alive) return;   // closed or solved during the last flash: say nothing, leave the stage alone
-      c.stage.classList.remove('watch'); showing = false; c.hooks.prompt('t_simon_repeat');
+      c.stage.classList.remove('watch'); showing = false; c.hooks.prompt(repeat);
     };
-    for (const s of sym) {
+    for (const s of pads) {
       const b = el('button', 'it big pad', s); btns.set(s, b);
       tap(b, () => {
         if (showing) return;
-        if (s === seq[pos]) { b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250); if (++pos === len) c.right(); else c.hooks.good(); }
-        else { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); }
+        const out = simon.answer(spec, st, s);
+        if (out === 'wrong') { b.classList.add('no'); setTimeout(() => b.classList.remove('no'), 400); c.wrong(); return; }
+        b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250);
+        if (out === 'right') c.right(); else c.hooks.good();
       });
       c.stage.appendChild(b);
     }
-    c.hint = { key: 'h_simon', show: () => { void play(); } };
-    c.cheat = () => { showing = false; for (const s of seq.slice(pos)) btns.get(s)!.dispatchEvent(new PointerEvent('pointerdown')); };
+    c.hint = hintOf(spec.hint, null, { replay: () => { void play(); } });
+    c.cheat = () => { showing = false; for (const s of simon.solution(spec, st)) btns.get(s)!.dispatchEvent(new PointerEvent('pointerdown')); };
     void play();
-    return 't_simon_watch';
+    return spec.prompt;
   },
 };
 
