@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/util';
-import { uTime } from '../world/scenery';
+import { uTime } from '../core/materials';
 
 interface Fly { home: THREE.Vector3; r: number; phase: number; speed: number; pos: THREE.Vector3; heading: number; scale: number; landed: boolean; }
 

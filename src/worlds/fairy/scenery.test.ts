@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
-import { propMaterial, uTime as shared } from '../core/materials';
-import { instanced, setDrawRange } from '../core/instancing';            // where renderer.ts takes the draw range
-import { buildMotes, buildWater, updateRanged, uTime } from './scenery';  // where the world updates its cells
+import { propMaterial, uTime as shared } from '../../core/materials';    // what the frame (src/game/loop.ts) advances
+import { instanced, setDrawRange, updateRanged } from '../../core/instancing';  // renderer.ts sets the range, the world updates its cells
+import { buildMotes, buildWater } from './sky';
 
 /** Every ShaderMaterial in the scene that has a uTime uniform. */
 function timed(scene: THREE.Scene) {
@@ -22,7 +22,6 @@ describe('one clock for the whole world', () => {
     const mats = timed(scene);
     expect(mats.length).toBeGreaterThanOrEqual(2);
     for (const m of mats) expect(m.uniforms.uTime).toBe(shared);
-    expect(uTime).toBe(shared);   // what main.ts advances is the same object
   });
 
   it('the wind of the trees and the grass runs on the same clock (bound when the shader is built)', () => {

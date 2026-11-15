@@ -1,14 +1,10 @@
 import * as THREE from 'three';
-import { staticGeo, texturedParts } from '../core/assets';
-import { fbm, mulberry32, vnoise } from '../core/util';
-import { QUESTS, SHRINE } from '../game/quests';
+import { staticGeo, texturedParts } from '../../core/assets';
+import { fbm, mulberry32, vnoise } from '../../core/util';
+import { QUESTS, SHRINE } from '../../game/quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
-import { instanced, instancedParts, type Placement } from '../core/instancing';
-import { propMaterial } from '../core/materials';
-
-export { uTime, propMaterial } from '../core/materials';
-export { setDrawRange, updateRanged } from '../core/instancing';
-export { buildSky, buildWater, buildRainbow, buildMotes, buildClouds } from './sky';
+import { instanced, instancedParts, type Placement } from '../../core/instancing';
+import { propMaterial } from '../../core/materials';
 
 /** True where nothing should grow: paths, the pond, quest spots, buildings. */
 function reserved(x: number, z: number, margin: number) {

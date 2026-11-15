@@ -2,9 +2,10 @@ import type * as THREE from 'three';
 import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { buildHero } from '../../game/hero';
-import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildWater } from '../../world/scenery';
-import { buildTerrain } from '../../world/terrain';
 import { showNotice } from '../../ui/ui';
+import { buildGrass, buildScenery } from './scenery';
+import { buildClouds, buildMotes, buildRainbow, buildWater } from './sky';
+import { buildTerrain } from './terrain';
 
 /**
  * The fairy world before anything moves in it (ARCH-05): the terrain, the water, the rainbow, the motes and the grass

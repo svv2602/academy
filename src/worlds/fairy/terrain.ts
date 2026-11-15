@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { fbm, lerp, smoothstep, vnoise } from '../core/util';
-import { CASTLE, POND, WORLD_R } from '../worlds/fairy/layout';
+import { fbm, lerp, smoothstep, vnoise } from '../../core/util';
+import { CASTLE, POND, WORLD_R } from './layout';
 
-/** The layout of the Fairy Kingdom lives in src/worlds/fairy/layout.ts; re-exported for the scenery and the sky. */
-export { CASTLE, CHEST, CRYSTAL, PATCH, POND, SPAWN, UNICORN, WORLD_R } from '../worlds/fairy/layout';
+/** The layout of the Fairy Kingdom lives in ./layout.ts; re-exported for the scenery and the sky. */
+export { CASTLE, CHEST, CRYSTAL, PATCH, POND, SPAWN, UNICORN, WORLD_R } from './layout';
 const POND_LEVEL = 0.2;
 export const WATER_Y = POND_LEVEL - 0.38;
 const PATH: [number, number][] = [[0, 16], [1, 5], [3.5, -5], [2, -13], [-4, -27], [-8, -42], [-8, -53]];

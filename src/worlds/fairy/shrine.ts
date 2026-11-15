@@ -5,7 +5,7 @@ import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
 import { QUESTS, SHRINE } from '../../game/quests';
 import { playScene, type Stage } from '../../game/stage';
-import type { buildSky } from '../../world/scenery';
+import type { buildSky } from './sky';
 import { fanfare } from '../../ui/ui';
 import { t } from '../../ui/strings';
 import type { Npc } from './characters';

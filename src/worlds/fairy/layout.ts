@@ -1,6 +1,6 @@
 /**
  * Layout of the Fairy Kingdom slice, in metres (ARCH-06/10). +Z is "towards the camera" at spawn. The world's files
- * take their places from here; src/world/terrain.ts builds the relief around them and re-exports them for now.
+ * take their places from here; ./terrain.ts builds the relief around them and re-exports them for now.
  */
 export const WORLD_R = 74;
 export const SPAWN = { x: 0, z: 14 };

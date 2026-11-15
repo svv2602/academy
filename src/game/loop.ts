@@ -17,9 +17,8 @@ export interface WorldFrame {
   /** A tap while a task of the world is on screen: true when the world takes it (even with nothing hit). */
   tap(dist: (p: THREE.Vector3) => number): boolean;
   afterMove(time: number, grounded: boolean): void;
-  npcs(dt: number, time: number): void;
-  collect(dt: number, time: number, canMove: boolean): void;
-  shrine(dt: number, time: number): void;
+  /** The world's own things (its characters, what lies about to collect, its finale), in the world's order. */
+  update(dt: number, time: number, canMove: boolean): void;
   goal(): THREE.Vector3 | null;
   animate(dt: number, time: number): void;
   focusDist(): number;
@@ -54,9 +53,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
     world.afterMove(time, player.grounded);
     player.prompt(canMove, world.spots);
     companion.update(dt);
-    world.npcs(dt, time);
-    world.collect(dt, time, canMove);
-    world.shrine(dt, time);
+    world.update(dt, time, canMove);
     guide.update(time, g.started() && !g.busy ? world.goal() : null);
     player.fadeRing(dt);
 

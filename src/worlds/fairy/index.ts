@@ -1,12 +1,11 @@
 import * as THREE from 'three';
+import { updateRanged } from '../../core/instancing';
 import { createStage, type Game } from '../../game/context';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
 import { QUESTS, type QuestDef } from '../../game/quests';
 import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines } from '../../game/world';
-import { buildSky, updateRanged } from '../../world/scenery';
-import { SPAWN, colliders, height, raycastGround, resolve } from '../../world/terrain';
 import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { createCharacters } from './characters';
@@ -14,8 +13,10 @@ import { createChestStars } from './chest-stars';
 import { createDialogue } from './dialogue';
 import { loadFairy, type FairyLoads } from './load';
 import { buildShrine, createFinale, shardCount } from './shrine';
+import { buildSky } from './sky';
 import { createStarSearch } from './star-search';
 import { strings } from './strings';
+import { SPAWN, colliders, height, raycastGround, resolve } from './terrain';
 
 /**
  * The first world, built (ARCH-05): its objects in the order they always joined the scene (and the colliders) in, its
@@ -64,13 +65,13 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
     tap: (screenDist) => butterflies.tap(screenDist),
     afterMove: (time, grounded) => characters.wings(time, grounded),
-    npcs: (dt, time) => characters.update(dt, time),
-    // collectibles
-    collect: (dt, time, canMove) => {
+    // The characters, then the collectibles, then the shrine: the order they were always updated in.
+    update: (dt, time, canMove) => {
+      characters.update(dt, time);
       chestStars.update(time, canMove);
       starSearch.update(dt, time);
+      shrine.update(dt, time);
     },
-    shrine: (dt, time) => shrine.update(dt, time),
     goal,
     animate: (dt, time) => {
       chestStars.animate(dt);
@@ -120,7 +121,7 @@ const MUSIC: MusicParams = {
   chords: [[130.8, 196, 329.6], [110, 164.8, 261.6], [87.3, 174.6, 261.6], [98, 196, 293.7]],
 };
 
-/** The relief and the colliders of the valley (src/world/terrain.ts): the shared code reaches them only through this. */
+/** The relief and the colliders of the valley (./terrain.ts): the shared code reaches them only through this. */
 const ground: WorldGround = {
   height,
   resolve,
