@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { dropped, inTask, voiceLog } from '../core/audio';
 import { tuning } from '../core/tuning';
-import { uTime } from '../world/scenery';
+import { uTime } from '../core/materials';
 import { cheatTask } from './tasks';
 import type { Game } from './context';
 

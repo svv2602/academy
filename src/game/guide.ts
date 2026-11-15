@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { uTime } from '../world/scenery';
+import { uTime } from '../core/materials';
 import type { Game } from './context';
 import { glowTex } from './fx';
 

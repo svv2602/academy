@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { staticGeo } from '../core/assets';
 import { mulberry32 } from '../core/util';
-import { uTime } from './materials';
+import { uTime } from '../core/materials';
 import { POND, WATER_Y, height } from './terrain';
 
 export function buildSky(scene: THREE.Scene) {

@@ -3,11 +3,11 @@ import { staticGeo, texturedParts } from '../core/assets';
 import { fbm, mulberry32, vnoise } from '../core/util';
 import { QUESTS, SHRINE } from '../game/quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
-import { instanced, instancedParts, type Placement } from './instancing';
-import { propMaterial } from './materials';
+import { instanced, instancedParts, type Placement } from '../core/instancing';
+import { propMaterial } from '../core/materials';
 
-export { uTime, propMaterial } from './materials';
-export { setDrawRange, updateRanged } from './instancing';
+export { uTime, propMaterial } from '../core/materials';
+export { setDrawRange, updateRanged } from '../core/instancing';
 export { buildSky, buildWater, buildRainbow, buildMotes, buildClouds } from './sky';
 
 /** True where nothing should grow: paths, the pond, quest spots, buildings. */
@@ -74,8 +74,8 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     nearItems[i % 5].push({ x, z, s: 0.95 + rnd() * 0.2, rot: rnd() * 6.28 });
     colliders.push({ x, z, r: 0.6 });
   }
-  nearTrees.forEach((parts, i) => instancedParts(scene, parts, nearItems[i], 0.0035, true));
-  farGeos.forEach((g, i) => instanced(scene, g, tree, farItems[i], false));
+  nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
+  farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
 
   const scatter = (n: number, margin: number, ok?: (x: number, z: number) => boolean, maxR = WORLD_R - 6) => {
     const out: Placement[] = [];
@@ -92,17 +92,17 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
 
   const rocks = scatter(40 * density, 1.5, undefined, 56);
   rocks.forEach((r) => { if (r.s > 1.05) colliders.push({ x: r.x, z: r.z, r: r.s * 0.45 }); });
-  split(rocks, 3).forEach((it, i) => instancedParts(scene, rocks3[i], it, 0, true));
-  split(scatter(60 * density, 1.2, undefined, 56), 2).forEach((it, i) => instancedParts(scene, bushes[i], it, 0.03, true));
-  instanced(scene, stumpGeo, solid, scatter(8, 2), true);
+  split(rocks, 3).forEach((it, i) => instancedParts(scene, height, rocks3[i], it, 0, true));
+  split(scatter(60 * density, 1.2, undefined, 56), 2).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
+  instanced(scene, height, stumpGeo, solid, scatter(8, 2), true);
 
   // Under-growth: ferns and big leaves hug the trees, clover carpets the open meadow.
   const nearTree = (x: number, z: number) => placed.some((p) => Math.hypot(p.x - x, p.z - z) < 4.5);
-  split(scatter(110 * density, 0.4, nearTree, 56), 2).forEach((it, i) => instancedParts(scene, smalls[i === 0 ? 0 : 3], it, 0.25, false, 46));
-  split(scatter(110 * density, 0.2, undefined, 50), 2).forEach((it, i) => instancedParts(scene, smalls[1 + i], it, 0, false, 40));
-  instancedParts(scene, smalls[4], scatter(60 * density, 0.4, undefined, 56), 0.25, false, 46);
-  split(scatter(160 * density, 0.5, (x, z) => vnoise(x * 0.2, z * 0.2) > 0.55, 56), 2).forEach((it, i) => instancedParts(scene, tallGrass[i], it, 0.6, false, 46));
-  instancedParts(scene, mushSmall, scatter(40 * density, 0.5, nearTree, 56), 0, false, 40);
+  split(scatter(110 * density, 0.4, nearTree, 56), 2).forEach((it, i) => instancedParts(scene, height, smalls[i === 0 ? 0 : 3], it, 0.25, false, 46));
+  split(scatter(110 * density, 0.2, undefined, 50), 2).forEach((it, i) => instancedParts(scene, height, smalls[1 + i], it, 0, false, 40));
+  instancedParts(scene, height, smalls[4], scatter(60 * density, 0.4, undefined, 56), 0.25, false, 46);
+  split(scatter(160 * density, 0.5, (x, z) => vnoise(x * 0.2, z * 0.2) > 0.55, 56), 2).forEach((it, i) => instancedParts(scene, height, tallGrass[i], it, 0.6, false, 46));
+  instancedParts(scene, height, mushSmall, scatter(40 * density, 0.5, nearTree, 56), 0, false, 40);
 
   // Flowers grow in drifts of one kind each, plus the dense bed where the task butterflies live.
   const drift = (x: number, z: number) => fbm(x * 0.09 + 5, z * 0.09 + 77, 2) > 0.5;
@@ -112,7 +112,7 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     const a = rnd() * 6.28, r = Math.sqrt(rnd()) * 2.6;
     flowers.push({ x: PATCH.x + Math.cos(a) * r, z: PATCH.z + Math.sin(a) * r, s: 1.1 + rnd() * 0.5, rot: rnd() * 6.28 });
   }
-  flowerKinds.forEach((parts, k) => instancedParts(scene, parts, flowers.filter((f) => kindOf(f) === k), 0.45, false, 55));
+  flowerKinds.forEach((parts, k) => instancedParts(scene, height, parts, flowers.filter((f) => kindOf(f) === k), 0.45, false, 55));
 
   // Stepping stones along the path and pebbles on the pond shore.
   const stones: Placement[] = [], shore: Placement[] = [];
@@ -124,8 +124,8 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     const a = rnd() * 6.28, r = POND.r + 0.4 + rnd() * 1.6;
     shore.push({ x: POND.x + Math.cos(a) * r, z: POND.z + Math.sin(a) * r, s: 0.8 + rnd() * 1.6, rot: rnd() * 6.28 });
   }
-  split(stones, 3).forEach((it, i) => instancedParts(scene, pathStones[i], it, 0, false, 60));
-  split(shore, 3).forEach((it, i) => instancedParts(scene, pebbles[i], it, 0, false, 50));
+  split(stones, 3).forEach((it, i) => instancedParts(scene, height, pathStones[i], it, 0, false, 60));
+  split(shore, 3).forEach((it, i) => instancedParts(scene, height, pebbles[i], it, 0, false, 50));
 
   // Giant fairy mushrooms in a few clusters.
   const mush: Placement[] = [];
@@ -138,7 +138,7 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
       if (s > 1.2) colliders.push({ x, z, r: 0.25 * s });
     }
   }
-  instanced(scene, mushGeo, propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 }), mush, true);
+  instanced(scene, height, mushGeo, propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 }), mush, true);
 
   // Lily pads float on the pond.
   const lily = new THREE.InstancedMesh(lilyGeo, solid, 9);
@@ -204,5 +204,5 @@ export function buildGrass(scene: THREE.Scene, count: number) {
     items.push({ x, z, s: 0.8 + rnd() * 0.9, rot: rnd() * 6.28 });
   }
   const tints = items.map((it) => new THREE.Color().setHSL(0.24 + fbm(it.x * 0.06, it.z * 0.06, 2) * 0.1, 0.2, 0.86 + rnd() * 0.14));
-  instanced(scene, geo, mat, items, false, tints, undefined, 38);
+  instanced(scene, height, geo, mat, items, false, tints, undefined, 38);
 }

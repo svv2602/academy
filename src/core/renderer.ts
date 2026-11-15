@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { startTier, type Tier } from './quality';
 import { storeSave, type Save } from './save';
-import { setDrawRange } from '../world/scenery';
+import { setDrawRange } from './instancing';
 import { el } from '../ui/ui';
 
 /**

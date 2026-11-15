@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pollInput } from '../core/input';
 import type { Quality } from '../core/renderer';
-import { uTime } from '../world/scenery';
+import { uTime } from '../core/materials';
 import { createCamera } from './camera';
 import { createCompanion } from './companion';
 import type { Game } from './context';
