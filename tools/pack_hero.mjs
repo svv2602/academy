@@ -5,6 +5,7 @@
 // textures (Universal Base Characters, Modular Character Outfits - Fantasy, Universal Animation Library).
 // Drops what the game does not use (ORM/roughness maps, hood and pauldrons, 30+ combat animations, the
 // mannequin mesh) so the whole character is a few MB instead of 20.
+// The child heroine of TECH-14 (one Meshy-generated mesh on the same UAL skeleton) is not built here: see tools/hero/.
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, prune, resample } from '@gltf-transform/functions';
