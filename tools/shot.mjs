@@ -563,6 +563,7 @@ try {
     const ambient = await g(() => __game.flies.flies.length);   // butterflies in the world before any task
     let bfVisits = 0;             // how many times the open butterflies task was met
     let onward = false;           // the cat's "go on" after a shard was seen with its subtitle
+    let onwardLate = false;       // ...and once more with the button pressed after the thanks
     let hurried = false;          // the talk right after the fifth star was played
     let starsCounted = false;     // the bubble was looked at after a star of the search was found
     let cutOff = 0;               // how many times closing the task had a spoken line to stop
@@ -777,6 +778,19 @@ try {
               .catch(() => fail('"go_next" was not said with its subtitle once the thanks were over'));
             console.log(`after the shard: "go_next" is said with its subtitle (the button was pressed ${during ? 'while the thanks sounded' : 'after the thanks'})`);
             onward = true;
+          } else if (!onwardLate) {
+            // After the second shard the button waits for the end of the thanks: "go on" must still come after the scene,
+            // with its subtitle - not inside the scene, whose end would clear its bubble.
+            const fail = (what) => { throw new Error(`after the second shard: ${what}`); };
+            const t0 = Date.now();
+            while (await sounding()) { if (Date.now() - t0 > T(15000)) fail('the thanks did not end'); await wait(200); }
+            const said = await g(() => window.__starts.go_next ?? 0);
+            await page.click('#fanfareOk');
+            await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
+              && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
+              .catch(() => fail('"go_next" was not said with its subtitle after the scene (the button was pressed after the thanks)'));
+            console.log('after the second shard: "go_next" is said with its subtitle (the button was pressed after the thanks)');
+            onwardLate = true;
           } else await page.click('#fanfareOk');
           await wait(500); continue;
         }
@@ -1117,6 +1131,7 @@ try {
     if (!fifthHeard) errors.push('fifth star: the number of the fifth star in silence went unchecked');
     if (!searchResumed) errors.push('star search after a closed task: went unchecked');
     if (!onward) errors.push('the cat\'s "go on" after a shard went unchecked');
+    if (!onwardLate) errors.push('the cat\'s "go on" after the thanks of a shard went unchecked');
     console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
     {
       const frames = await starsKept('by the end of the world');

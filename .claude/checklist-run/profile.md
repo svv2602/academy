@@ -117,7 +117,7 @@
 
 ## §5 Scope
 - Shared-writes (один исполнитель на волну):
-  - `src/main.ts` — почти любая игровая задача; до разбора монолита (ARCH-05) узкое место;
+  - `src/game/context.ts`, `src/game/loop.ts`, `src/worlds/fairy/index.ts` — после ARCH-05 их читает почти всё (раньше узким местом был `src/main.ts`);
   - `src/ui/strings.ts`, `src/core/save.ts`, `src/style.css`, `index.html`;
   - `package.json` + `package-lock.json`, `vite.config.ts`, `.github/workflows/ci.yml`, `.github/workflows/pages.yml`;
   - `src/core/clips.json` и `public/voice/` — пишутся только конвейером озвучки;
