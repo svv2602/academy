@@ -77,36 +77,91 @@ export function worldState(s: Save, id: string): WorldState {
   return w;
 }
 
+/*
+ * Backups (TECH-11), each the stored text as it was:
+ * - `amw-save-v<N>`: a save of version N before it is moved to this version; written once, never over an existing one;
+ * - `amw-save-prev`: the save read without an error at the last launch (copied by loadSave, before the game writes);
+ * - `amw-save-damaged`: a save that could not be read, before the game writes over it.
+ * A save that cannot be read is restored from `prev`, then from `v<N>`, the newest version first. No save at all is
+ * not an error: it is a new player, or "start again" (clearSave removes the backups too).
+ */
+const PREV = `${KEY}-prev`;
+const DAMAGED = `${KEY}-damaged`;
+const versionKey = (v: number) => `${KEY}-v${v}`;
+/** Where a save that cannot be read is restored from, in this order: prev, then v2, v1. */
+const RESTORE_FROM = [PREV, ...Array.from({ length: SAVE_VERSION - 1 }, (_, i) => versionKey(SAVE_VERSION - 1 - i))];
+
+/** Writes a backup; a full or refused storage must not keep the game from loading. */
+function keep(key: string, text: string) {
+  try { localStorage.setItem(key, text); } catch { /* storage unavailable */ }
+}
+
+/** A save as stored, of any version: its fields hold whatever the text holds. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Stored = { v: number; [field: string]: any };
+
+/** The stored save behind a text, or null when it cannot be read: no JSON, or not an object with a numeric version. */
+function parse(text: string): Stored | null {
+  try {
+    const s: unknown = JSON.parse(text);
+    return isObject(s) && typeof s.v === 'number' ? s as Stored : null;
+  } catch { return null; }
+}
+
 export function loadSave(): Save {
   cleared = false;
   const d = defaultSave();
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-    let out: Save | null = null;
-    if (typeof s?.v === 'number' && s.v >= SAVE_VERSION && isObject(s)) {
-      // v3 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
-      // (the ones of this version and any other) stay as they are; worldState fills a played world's gaps.
-      out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
-        worlds: isObject(s.worlds) ? s.worlds : {} } as Save;
-    } else if (s?.v === 2) {
-      // v2: the world's progress moves from the top into worlds.fairy, the rest (and any field this code does not know)
-      // stays on top.
-      const common = { ...s };
-      const world: Record<string, unknown> = {};
-      for (const k of WORLD_FIELDS) { if (k in common) world[k] = common[k]; delete common[k]; }
-      out = { ...d, ...common, v: SAVE_VERSION, skills: { ...d.skills, ...part(common.skills) }, vol: { ...d.vol, ...part(common.vol) },
-        worlds: { [FIRST_WORLD]: { ...defaultWorld(), ...world } } } as Save;
+    const text = localStorage.getItem(KEY);
+    if (text === null) return d;      // a new player, or "start again": the backups are not used
+    const s = parse(text);
+    if (s) {
+      const out = fromStored(s, d);
+      if (out) {
+        keep(PREV, text);
+        try {
+          if (s.v < SAVE_VERSION && localStorage.getItem(versionKey(s.v)) === null) keep(versionKey(s.v), text);
+        } catch { /* storage unavailable */ }
+      }
+      return out ?? d;
     }
-    if (out) {
-      // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
-      if (!isTier(out.tier)) out.tier = d.tier;
-      if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
-      return out;
+    keep(DAMAGED, text);
+    for (const key of RESTORE_FROM) {
+      const backup = localStorage.getItem(key);
+      const b = backup === null ? null : parse(backup);
+      const out = b && fromStored(b, d);
+      if (out) return out;
     }
-    // v1 (the one-quest slice): keep who the child is, restart the story.
-    if (s?.v === 1) return { ...d, name: s.name ?? '', dress: s.dress ?? d.dress, hair: s.hair ?? d.hair, hairStyle: s.hairStyle ?? d.hairStyle };
-  } catch { /* private mode or corrupted data: start fresh */ }
+  } catch { /* private mode: start fresh */ }
   return d;
+}
+
+/** The save of this version a stored save holds; null for a version this code does not read (the game starts fresh). */
+function fromStored(s: Stored, d: Save): Save | null {
+  let out: Save | null = null;
+  if (s.v >= SAVE_VERSION) {
+    // v3 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
+    // (the ones of this version and any other) stay as they are; worldState fills a played world's gaps.
+    out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
+      worlds: isObject(s.worlds) ? s.worlds : {} } as Save;
+  } else if (s.v === 2) {
+    // v2: the world's progress moves from the top into worlds.fairy, the rest (and any field this code does not know)
+    // stays on top.
+    const common = { ...s };
+    const world: Record<string, unknown> = {};
+    for (const k of WORLD_FIELDS) { if (k in common) world[k] = common[k]; delete common[k]; }
+    out = { ...d, ...common, v: SAVE_VERSION, skills: { ...d.skills, ...part(common.skills) }, vol: { ...d.vol, ...part(common.vol) },
+      worlds: { [FIRST_WORLD]: { ...defaultWorld(), ...world } } } as Save;
+  }
+  if (out) {
+    // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
+    if (!isTier(out.tier)) out.tier = d.tier;
+    if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
+    return out;
+  }
+  // v1 (the one-quest slice): keep who the child is, restart the story.
+  if (s.v === 1) return { ...d, name: s.name ?? '', dress: s.dress ?? d.dress, hair: s.hair ?? d.hair, hairStyle: s.hairStyle ?? d.hairStyle };
+  return null;
 }
 
 /**
@@ -119,10 +174,21 @@ export function storeSave(s: Save) {
   if (cleared) return;
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
 }
-/** Forgets the save; nothing is stored again until the game is loaded anew (the caller reloads the page). */
+/**
+ * Forgets the save and every backup of it ("amw-save*"), so that no later read error brings the old progress back;
+ * nothing is stored again until the game is loaded anew (the caller reloads the page).
+ */
 export function clearSave() {
   cleared = true;
   try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ }
+  try {
+    const backups: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k !== null && k.startsWith(`${KEY}-`)) backups.push(k);
+    }
+    for (const k of backups) localStorage.removeItem(k);
+  } catch { /* storage unavailable */ }
 }
 
 /** Difficulty for the next task of a skill: fixed by the parent, or the adaptive level. */

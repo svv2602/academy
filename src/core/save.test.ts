@@ -13,6 +13,8 @@ function memoryStorage() {
     getItem: (key: string) => data.get(key) ?? null,
     setItem: (key: string, value: string) => { data.set(key, value); },
     removeItem: (key: string) => { data.delete(key); },
+    get length() { return data.size; },
+    key: (i: number) => [...data.keys()][i] ?? null,
   };
 }
 
@@ -445,6 +447,148 @@ describe('version 3: read and write keep what this code does not know', () => {
       storage.setItem(KEY, JSON.stringify({ ...v2AsV3(), worlds }));
       expect(loadSave().worlds).toEqual({});
     }
+  });
+});
+
+describe('backups: a save that cannot be read is restored (TECH-11)', () => {
+  // The keys are part of the contract too: a later version restores from them.
+  const PREV = 'amw-save-prev';
+  const V1 = 'amw-save-v1';
+  const V2 = 'amw-save-v2';
+  const DAMAGED = 'amw-save-damaged';
+  /** Texts a save can no longer be read from: cut off, empty, not an object, no numeric version. */
+  const BROKEN = ['{"v":3,"played":true,"wor', '', 'null', '42', '"text"', '[]', '{}', '{"v":"3"}'];
+
+  /** A version 3 save of a child half way through the world, as the game stores it. */
+  function played(): Save {
+    const s = defaultSave();
+    s.played = true; s.name = 'Зоряна';
+    Object.assign(worldState(s, 'fairy'), { quests: { q1: 3, q2: 1 }, starsTaken: [2], pos: [1, 5] });
+    play(s, 'add', 0, 0);
+    return s;
+  }
+  /** One page load: loadSave, then the first write of the game (createQuality in renderer.ts). */
+  function launch(): Save {
+    const s = loadSave();
+    storeSave(s);
+    return s;
+  }
+  const backups = () => Object.fromEntries([...storage.data].filter(([k]) => k.startsWith('amw-save-')));
+
+  it('a damaged save is restored from the save read at the last launch', () => {
+    for (const text of BROKEN) {
+      storage.data.clear();
+      storeSave(played());
+      launch();                          // copies the save it read to amw-save-prev
+      storage.setItem(KEY, text);        // the save is damaged before the next launch
+      const restored = loadSave();
+      expect(restored, `damaged save ${JSON.stringify(text)}`).toEqual(played());
+      expect(storage.data.get(DAMAGED), 'the damaged text is kept before the game writes over it').toBe(text);
+      storeSave(restored);               // the first write of the game puts the restored save back
+      expect(loadSave()).toEqual(played());
+    }
+  });
+
+  it('a damaged version 2 save of the last launch is restored and moved to version 3 again', () => {
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    launch();
+    expect(storage.data.get(PREV)).toBe(JSON.stringify(v2Save()));
+    storage.setItem(KEY, '{"v":3,"sta');
+    expect(loadSave()).toEqual(v2AsV3());
+  });
+
+  it('restores from amw-save-v2 when amw-save-prev is missing or damaged as well', () => {
+    for (const prev of [null, '{"v":3,', '[]']) {
+      storage.data.clear();
+      storage.setItem(KEY, JSON.stringify(v2Save()));
+      launch();
+      if (prev === null) storage.removeItem(PREV); else storage.setItem(PREV, prev);
+      storage.setItem(KEY, '{"v":3,"played":tr');
+      expect(loadSave(), `amw-save-prev ${prev}`).toEqual(v2AsV3());
+    }
+  });
+
+  it('the save of the last launch wins over the older version: the progress since the move is not lost', () => {
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    const s = launch();                  // the move to version 3
+    worldState(s, 'fairy').quests.q6 = 1;
+    storeSave(s);
+    launch();                            // amw-save-prev is the version 3 save now, amw-save-v2 the version 2 one
+    storage.setItem(KEY, 'garbage');
+    expect(worldState(loadSave(), 'fairy').quests).toEqual({ ...v2AsV3().worlds.fairy.quests, q6: 1 });
+  });
+
+  it('the move from version 2 keeps the version 2 save in amw-save-v2 and never writes over it', () => {
+    const first = JSON.stringify(v2Save());
+    storage.setItem(KEY, first);
+    launch();
+    expect(storage.data.get(V2)).toBe(first);
+    launch(); launch();                  // launches of version 3 do not touch it
+    expect(storage.data.get(V2)).toBe(first);
+    // A version 2 save again (written by an older copy of the game): it is moved too, the first backup stays.
+    storage.setItem(KEY, JSON.stringify({ ...v2Save(), quests: {}, final: false }));
+    expect(loadSave().worlds.fairy.quests).toEqual({});
+    expect(storage.data.get(V2)).toBe(first);
+  });
+
+  it('the move from version 1 keeps the version 1 save in amw-save-v1; a save of this version or later gets no such backup', () => {
+    const v1 = JSON.stringify({ v: 1, name: 'Зоряна', played: true, quests: { fairy: 3 } });
+    storage.setItem(KEY, v1);
+    launch();
+    expect(storage.data.get(V1)).toBe(v1);
+    storage.data.clear();
+    storage.setItem(KEY, JSON.stringify({ ...played(), v: 4 }));
+    launch();
+    expect(Object.keys(backups())).toEqual([PREV]);
+  });
+
+  it('no save at all is a new player: nothing is restored and the backups are left as they are', () => {
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    launch();
+    storeSave(played());
+    launch();
+    storage.setItem(KEY, '{"v":');
+    loadSave();                          // amw-save-damaged too
+    const before = backups();
+    expect(Object.keys(before).sort()).toEqual([DAMAGED, PREV, V2]);
+
+    storage.removeItem(KEY);
+    expect(loadSave()).toEqual(defaultSave());
+    expect(backups()).toEqual(before);
+    expect(storage.data.has(KEY)).toBe(false);
+  });
+
+  it('"start again" removes the backups: after the reload a new player, and a damaged save later brings nothing back', () => {
+    storage.setItem('amw-lang', 'ru');
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    launch();
+    storeSave(played());
+    launch();
+    storage.setItem(KEY, '{"v":');
+    storeSave(launch());                 // restored, the damaged text kept
+    expect(Object.keys(backups()).sort()).toEqual([DAMAGED, PREV, V2]);
+
+    clearSave();                         // the button, then the page reloads
+    storeSave(played());                 // the save on the way out
+    expect([...storage.data.keys()]).toEqual(['amw-lang']);
+    const fresh = launch();
+    expect(fresh).toEqual(defaultSave());
+    // the new player plays a little, then the save is damaged before any further launch
+    fresh.played = true;
+    storeSave(fresh);
+    storage.setItem(KEY, 'garbage');
+    const after = loadSave();
+    expect(after.played).toBe(false);
+    expect(after).toEqual(defaultSave());
+  });
+
+  it('a storage that refuses the backups still loads the save', () => {
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    const refuse = { ...storage, setItem: (k: string, v: string) => { if (k !== KEY) throw new Error('quota'); storage.setItem(k, v); } };
+    vi.stubGlobal('localStorage', refuse);
+    expect(loadSave()).toEqual(v2AsV3());
+    storage.setItem(KEY, '{"v":');
+    expect(loadSave()).toEqual(defaultSave());   // nothing to restore from, and no throw
   });
 });
 
