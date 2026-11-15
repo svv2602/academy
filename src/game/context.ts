@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { tint, type Rig } from '../core/assets';
 import { beginTask, endTask, say, sfx } from '../core/audio';
 import { tuning } from '../core/tuning';
-import { storeSave, type Save } from '../core/save';
+import { storeSave, worldState, type Save, type WorldState } from '../core/save';
 import type { Rng } from '../core/rng';
 import { pick, randInt } from '../core/util';
 import { Actor } from './actor';
 import { Sparks } from './fx';
 import type { Stage } from './stage';
 import type { Speech } from './speech';
-import type { TaskHooks, TaskResult } from './tasks';
+import type { TaskHooks, TaskResult } from './taskviews/panel';
 import { Butterflies } from './butterflies';
 import type { WorldGround } from './world';
 import { el, setAct, setCounter } from '../ui/ui';
@@ -30,10 +30,11 @@ export interface Game {
   /** The ground of the world being played (its relief and colliders): the shared code never reaches a world directly. */
   readonly ground: WorldGround;
   /**
-   * The world's part of the save (ARCH-07 makes it a `WorldState` of its own); until then it is the save itself.
-   * Readers of a world's progress (quests, final, chest, stars taken, position) go through it.
+   * The world's part of the save (ARCH-07): `save.worlds[<id of the world played>]`, the same object for the whole session.
+   * Readers and writers of a world's progress (quests, final, chest, stars taken, position) go through it; the shared
+   * part (look, stars, skills, settings) stays on `save`.
    */
-  readonly ws: Save;
+  readonly ws: WorldState;
   /**
    * The randomness of the tasks (ARCH-08): which task, its numbers and pictures, where the stars and butterflies are.
    * Seeded by `?seed=`, else Math.random. Praise, "try again" and the scenery do not draw from it.
@@ -64,16 +65,17 @@ export interface Game {
 }
 
 /**
- * `crystals` is the text of the crystal counter: the world knows how many parts there are. `ground` and `spawn` are
- * the world's (WorldDef): where the heroine stands on a first launch and what she walks on.
+ * `crystals` is the text of the crystal counter: the world knows how many parts there are. `world`, `ground` and `spawn`
+ * are the world's (WorldDef): its id (the key of its progress in the save), where the heroine stands on a first launch
+ * and what she walks on.
  */
 export function createGame(o: {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; save: Save; touch: boolean;
   debug: boolean; speech: Speech; heroRig: Rig; catRig: Rig; crystals: () => string; rng: Rng;
-  ground: WorldGround; spawn: { x: number; z: number };
+  world: string; ground: WorldGround; spawn: { x: number; z: number };
 }): Game {
   const { scene, save, speech, ground, spawn } = o;
-  const ws = save;
+  const ws = worldState(save, o.world);
   const sparks = new Sparks(scene);
   const groundY = (x: number, z: number) => ground.height(x, z);
   const flies = new Butterflies(scene, 96, groundY);

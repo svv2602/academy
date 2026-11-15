@@ -277,7 +277,7 @@ try {
     const steps = lines.filter((s) => s.startsWith('- ')).slice(-3);
     return [lines[0], ...steps].join(' | ');
   };
-  const saved = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.quests, stars: __game.save.stars }));
+  const saved = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.worlds.fairy.quests, stars: __game.save.stars }));
   // The heroine walks: "forward" is held until she has moved half a step, however slow the frames are.
   const walks = async () => {
     const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
@@ -599,7 +599,7 @@ try {
     // to the unicorn again.
     const closeButterflies = async (q, when) => {
       const fail = (what) => { throw new Error(`closing the butterflies task (${when}): ${what}`); };
-      const record = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.quests, stars: __game.save.stars }));
+      const record = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.worlds.fairy.quests, stars: __game.save.stars }));
       const before = await record();
       if (await sounding()) cutOff++;
       await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) }))
@@ -627,7 +627,7 @@ try {
       console.log(`butterflies closed ${when}: ${ambient} butterflies in the world, nothing recorded, the heroine walks`);
     };
     // ---- star search: it is not a counting task, no skill may change while it runs (LEARN-02) ----
-    const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.quests.deer ?? 0, stars: __game.save.stars }));
+    const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.worlds.fairy.quests.deer ?? 0, stars: __game.save.stars }));
     let searchBefore = null, searchAfter = null;
     const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
     // The order of the friends is the order the guide leads to them and the order of the shards in the book.
@@ -639,7 +639,7 @@ try {
     // question anew only once it is over. The task is then closed with its button: nothing is recorded.
     const talkAfterLastStar = async (q) => {
       const fail = (what) => { throw new Error(`a talk right after the fifth star: ${what}`); };
-      const done = await g(() => ({ ...__game.save.quests }));
+      const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
       // Someone whose quest is finished: a greeting, then one of his games - none of them is the "watch and repeat" one,
       // whose second question cuts the first one off by design.
       const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
@@ -725,7 +725,7 @@ try {
     let searchResumed = false;
     const closedInSearch = async (q) => {
       const fail = (what) => { throw new Error(`star search after a closed task: ${what}`); };
-      const done = await g(() => ({ ...__game.save.quests }));
+      const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
       const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
       if (!other) fail('no character with a finished quest to talk to');
       const found = await g((id) => { __game.talk(id); return __game.search.found; }, other.id);
@@ -775,12 +775,12 @@ try {
     let shardSearched = false;
     const shardInSearch = async (q) => {
       const fail = (what) => { throw new Error(`a shard during the search: ${what}`); };
-      const done = await g(() => ({ ...__game.save.quests }));
+      const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
       const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
       if (!other) fail('no character with a finished quest to talk to');
       await silence().catch(() => fail('the voice did not fall silent before the talk'));
       const was = await g((id) => {
-        __game.save.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
+        __game.save.worlds.fairy.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
         return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found };
       }, other.id);
       await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the last task of "${other.id}" did not open`));
@@ -795,7 +795,7 @@ try {
       // "go on" would start the moment the thanks end; one second of game time is left for it, however slow the frames are
       const t0 = await g(() => __game.time);
       await page.waitForFunction((t) => __game.time - t >= 1, t0, { timeout: T(30000), polling: 'raf' });
-      const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.quests }));
+      const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.worlds.fairy.quests }));
       const b = await bubbleNow(), left = [];
       if ((now.quest[other.id] ?? 0) < 3) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
       if (now.said > was.said) left.push('"go_next" was said');
@@ -815,7 +815,7 @@ try {
     const closed = new Map();     // task type -> { quest, step } when it was closed
     const closeTask = async (q, type) => {
       const fail = (what) => { throw new Error(`closing the "${type}" task: ${what}`); };
-      const step = await g((id) => __game.save.quests[id] ?? 0, q.id);
+      const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
       const before = await saved();
       await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
       await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
@@ -835,13 +835,13 @@ try {
     let crystalsWrong = false;
     for (const q of quests) {
       const t0 = Date.now();
-      while ((await g((id) => __game.save.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
+      while ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
         if (Date.now() - t0 > T(stuckMs)) throw new Error('quest stuck: ' + q.id);
         await starsKept(`in the quest "${q.id}"`);
         // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
         if (!crystalsWrong && !(await g(() => __game.busy))) {
-          const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, quests: { ...__game.save.quests },
-            done: Object.values(__game.save.quests).filter((v) => v >= 3).length }));
+          const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, quests: { ...__game.save.worlds.fairy.quests },
+            done: Object.values(__game.save.worlds.fairy.quests).filter((v) => v >= 3).length }));
           if (c.hud !== `${c.done}/5`) { crystalsWrong = true; errors.push(`crystals: ${mode}: the counter shows ${c.hud} with the quests ${JSON.stringify(c.quests)}`); }
         }
         if (searchBefore && !searchAfter && !(await g(() => __game.search.active))) {
@@ -854,7 +854,7 @@ try {
           if (searchAfter.deer < 1) errors.push('the star search did not move the quest of the deer on');
           if (searchAfter.stars < searchBefore.stars + 3) errors.push(`the star search gave ${searchAfter.stars - searchBefore.stars} stars, not 3`);
           console.log('star search: "count" skill before', JSON.stringify(searchBefore.skills.count), 'after', JSON.stringify(searchAfter.skills.count));
-          if (hurried && !fifthHeard) await g(() => { __game.save.quests.deer = 0; });   // the second search, see fifthStar
+          if (hurried && !fifthHeard) await g(() => { __game.save.worlds.fairy.quests.deer = 0; });   // the second search, see fifthStar
         }
         if (await visible('#fanfare')) {
           await shot(`shard-${q.id}`);
@@ -958,11 +958,11 @@ try {
             }
           }
           // The right answer, and at once the close button (the panel stays on screen for a moment): the answer stands.
-          const step = await g((id) => __game.save.quests[id] ?? 0, q.id);
+          const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
           await g(() => __game.cheat());
           await page.locator('#answersClose').dispatchEvent('click');
           await wait(1500);
-          if ((await g((id) => __game.save.quests[id] ?? 0, q.id)) !== step + 1) errors.push('the close button undid the right answer of the butterflies task');
+          if ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) !== step + 1) errors.push('the close button undid the right answer of the butterflies task');
           continue;
         }
         if (await g(() => __game.search.active)) {
@@ -998,10 +998,16 @@ try {
         await wait(600);
       }
       console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
+      // "All the shards are found" is said after the last friend's shard, never earlier.
+      {
+        const a = await g(() => ({ said: window.__starts.all_shards ?? 0, done: Object.values(__game.save.worlds.fairy.quests).filter((v) => v >= 3).length, all: __game.npcs.length }));
+        if (a.done < a.all && a.said) errors.push(`all shards: ${mode}: "all_shards" was said with ${a.done} of ${a.all} friends done`);
+        if (a.done === a.all && !a.said) errors.push(`all shards: ${mode}: "all_shards" was not said after the last shard`);
+      }
     }
     {
       // Each kind closed at its first meeting was met again and played: its quest went past the step it was closed at.
-      const done = await g(() => ({ ...__game.save.quests }));
+      const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
       const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars');
       const unclosed = panel.filter((t) => !closed.has(t));
       if (unclosed.length) errors.push(`close: ${mode}: never closed with its button: ${unclosed.join(', ')}`);
@@ -1147,7 +1153,7 @@ try {
     // The heroine must walk again; then the finale is played for real.
     {
       const left = await breakScene('finale', act);
-      if (await g(() => __game.save.final)) left.push('the crystal is restored although the scene broke');
+      if (await g(() => __game.save.worlds.fairy.final)) left.push('the crystal is restored although the scene broke');
       if (left.length) throw new Error(`the broken finale: ${left.join('; ')}`);
       if (!(await walks())) throw new Error('the broken finale: the heroine does not walk');
       console.log('broken finale: reported, the controls are back, the heroine walks');
@@ -1169,9 +1175,9 @@ try {
     // and whether the chest was opened.
     {
       const b = await g(() => {
-        const s = __game.save, shards = [...document.querySelectorAll('#shards .shard')];
+        const s = __game.save, w = s.worlds.fairy, shards = [...document.querySelectorAll('#shards .shard')];
         return { shards: shards.length, got: shards.filter((e) => e.classList.contains('got')).length, friends: __game.npcs.length,
-          done: Object.values(s.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!s.chestOpen,
+          done: Object.values(w.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!w.chestOpen,
           stats: document.querySelector('#colStats')?.textContent ?? '' };
       });
       const left = [];
@@ -1265,7 +1271,7 @@ try {
     if (!searchResumed) errors.push('star search after a closed task: went unchecked');
     if (!onward) errors.push('the cat\'s "go on" after a shard went unchecked');
     if (!onwardLate) errors.push('the cat\'s "go on" after the thanks of a shard went unchecked');
-    console.log('final:', s.final, 'quests:', JSON.stringify(s.quests), 'stars:', s.stars);
+    console.log('final:', s.worlds.fairy.final, 'quests:', JSON.stringify(s.worlds.fairy.quests), 'stars:', s.stars);
     {
       const frames = await starsKept('by the end of the world');
       if (!frames) errors.push(`stars: ${mode}: the watch of the stars saw no frame`);
@@ -1296,10 +1302,11 @@ try {
     // the start screen of a returning player: the saved game adds the "start again" button
     // Leaving the page saves where she stands (pagehide): the save on a timer alone would lose up to ten seconds of walk.
     const leftAt = [2.5, 12.5];
-    const storedBefore = await g((p) => { __game.teleport(p[0], p[1]); return JSON.parse(localStorage.getItem('amw-save') || '{}').pos; }, leftAt);
+    // Save v3 (ARCH-07): the spot is the first world's progress, under worlds.fairy.
+    const storedBefore = await g((p) => { __game.teleport(p[0], p[1]); return JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.pos; }, leftAt);
     await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
     {
-      const pos = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').pos);
+      const pos = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.pos);
       const near = (p) => Array.isArray(p) && Math.hypot(p[0] - leftAt[0], p[1] - leftAt[1]) < 0.01;
       if (near(storedBefore)) console.log('leaving the page: the timer had already saved the spot - not put to the test');
       else if (!near(pos)) errors.push(`leaving the page: the save keeps ${JSON.stringify(pos)}, not the spot she left at ${JSON.stringify(leftAt)}`);
@@ -1311,18 +1318,27 @@ try {
     {
       const fail = (what) => { throw new Error(`start again: ${what}`); };
       const had = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+      // Save v3 (ARCH-07): a world's progress lies under worlds.<id>. The check has to see the progress it clears, or
+      // reading it from the wrong place would pass in silence: the walkthrough restored the crystal and did every quest.
+      const hadW = had.worlds?.fairy;
       if (!(had.stars > 0)) fail(`the walkthrough left no stars to clear: ${had.stars}`);
+      if (!hadW?.final || Object.keys(hadW.quests ?? {}).length === 0) fail(`the walkthrough left no world progress to clear under worlds.fairy: ${JSON.stringify(hadW)}`);
       await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`the button did not reload the game: ${why(e)}`));
       await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
       const now = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
       const left = [];
       if (now.stars) left.push(`${now.stars} stars`);
       if (now.played) left.push('"played"');
-      if (now.final) left.push('the restored crystal');
-      if (Object.keys(now.quests ?? {}).length) left.push(`quests ${JSON.stringify(now.quests)}`);
+      // every world of the save, and the top level where a version 2 save kept the progress
+      for (const [id, w = {}] of [['top', now], ...Object.entries(now.worlds ?? {})]) {
+        if (w.final) left.push(`the restored crystal (${id})`);
+        if (Object.keys(w.quests ?? {}).length) left.push(`quests ${JSON.stringify(w.quests)} (${id})`);
+        if (w.starsTaken?.length) left.push(`stars taken ${JSON.stringify(w.starsTaken)} (${id})`);
+        if (w.chestOpen) left.push(`the open chest (${id})`);
+      }
       if (await visible('#restart')) left.push('the "start again" button of a returning player');
       if (left.length) fail(`after the reload the old progress is back: ${left.join(', ')}`);
-      console.log(`start again: ${had.stars} stars and quests ${JSON.stringify(had.quests)} cleared, the start screen of a new player`);
+      console.log(`start again: ${had.stars} stars and quests ${JSON.stringify(hadW.quests)} cleared, the start screen of a new player`);
     }
   } catch (e) {
     // a stuck quest or a timed-out wait: report it with the rest and keep a picture of where it happened

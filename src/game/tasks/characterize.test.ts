@@ -8,8 +8,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRng } from '../../core/rng';
-import { SKILL, runTask } from '../tasks';
-import type { TaskHooks, TaskType } from '../tasks';
+import { SKILL, runTask } from '../taskviews/panel';
+import type { TaskHooks } from '../taskviews/panel';
+import type { TaskType } from './types';
 import type { Spoken } from '../../core/audio';
 
 const MARKUP = '<div id="task" class="hidden"><button id="taskClose"></button>'

@@ -66,7 +66,7 @@ async function boot() {
   let built: BuiltWorld | null = null;
   const g = createGame({
     scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => built?.hud() ?? '', rng,
-    ground: world.ground, spawn: world.spawn,
+    world: world.id, ground: world.ground, spawn: world.spawn,
   });
   applyLook = () => heroRig.setLook(save);
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
