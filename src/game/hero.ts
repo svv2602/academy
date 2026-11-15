@@ -32,7 +32,7 @@ export async function buildHero(look: Look, height = HEIGHT, headScale = HEAD_SC
   const [baseSrc, outfitSrc, anims, ...hairSrc] = await Promise.all([
     gltf('hero/base'), gltf('hero/ranger'), gltf('hero/anims'), ...HAIR_STYLES.map((h) => gltf('hero/hair_' + h)),
   ]);
-  // Every character gets its own copy of the parts and materials, so several can coexist (heroine, Fairy Queen).
+  // Every character gets its own copy of the parts and materials, so several can coexist (the heroine and any character of a world built from them).
   const mats = new Map<THREE.Material, THREE.Material>();
   const copy = (src: THREE.Object3D) => {
     const c = cloneSkinned(src);

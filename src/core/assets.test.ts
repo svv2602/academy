@@ -77,7 +77,7 @@ describe('loadCache (TECH-08)', () => {
   it('repeats a failing load before giving up', async () => {
     const load = vi.fn(async () => { throw new Error('blocked'); });
     const get = loadCache(load, RETRIES, noWait);
-    await expect(get('fox')).rejects.toThrow('blocked');
+    await expect(get('rock')).rejects.toThrow('blocked');
     expect(load).toHaveBeenCalledTimes(1 + RETRIES);
   });
 
@@ -85,12 +85,12 @@ describe('loadCache (TECH-08)', () => {
     let blocked = true;
     const load = vi.fn(async (k: string) => { if (blocked) throw new Error('blocked'); return `model ${k}`; });
     const get = loadCache(load, RETRIES, noWait);
-    const first = get('deer');
+    const first = get('tree');
     await expect(first).rejects.toThrow('blocked');
     blocked = false;
-    const second = get('deer');
+    const second = get('tree');
     expect(second).not.toBe(first);
-    await expect(second).resolves.toBe('model deer');
+    await expect(second).resolves.toBe('model tree');
     expect(load).toHaveBeenCalledTimes(1 + RETRIES + 1);
   });
 
