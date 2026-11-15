@@ -3,14 +3,14 @@ import { initInput } from '../core/input';
 import { clearSave } from '../core/save';
 import { el, initBook } from '../ui/ui';
 import type { Game } from './context';
-import type { WorldLines } from './world';
+import type { BookInfo, WorldLines } from './world';
 
 /**
  * The start screen, the menus and the page events (ARCH-05). Called once the world is built and before the first frame:
  * the listeners keep the order they always had - audio.ts registers its own visibilitychange at import, so it runs first.
- * `lines` are the world's: its welcome on a first launch.
+ * `lines` and `book` are the world's: its welcome on a first launch, what the collection book shows.
  */
-export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): void; lines: WorldLines }): void {
+export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): void; lines: WorldLines; book: BookInfo }): void {
   const { save, hero, cam, speech, persist, refreshHud } = g;
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
   el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
@@ -26,7 +26,7 @@ export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): v
     if (first) { if (o.lines.intro) await speech.line(o.lines.intro, 'story'); void speech.line('go_next', 'hint', 6000); }
     else await speech.line('welcome_back', 'hint', 5000);
   }, { once: true });
-  initBook(save, {
+  initBook(save, o.book, {
     change: () => { o.applyVolume(); o.applyPin(); persist(); },
     reset: () => { clearSave(); location.reload(); },
     open: (v) => { g.paused = v; },

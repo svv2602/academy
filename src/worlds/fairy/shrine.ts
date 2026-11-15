@@ -1,19 +1,18 @@
 import * as THREE from 'three';
 import { sfx } from '../../core/audio';
-import type { Save } from '../../core/save';
 import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
-import { QUESTS, SHRINE } from '../../game/quests';
 import { playScene, type Stage } from '../../game/stage';
 import type { buildSky } from './sky';
 import { fanfare } from '../../ui/ui';
 import { t } from '../../ui/strings';
 import type { Npc } from './characters';
 import type { FairyLoads } from './load';
+import { QUESTS, SHRINE } from './quests';
 
-/** How many shards the friends have given: a quest finished is a shard at the shrine. */
-export function shardCount(save: Save): number {
-  return QUESTS.filter((q) => (save.quests[q.id] ?? 0) >= 3).length;
+/** How many shards the friends have given: a quest finished is a shard at the shrine. Reads the world's part of the save. */
+export function shardCount(ws: Game['ws']): number {
+  return QUESTS.filter((q) => (ws.quests[q.id] ?? 0) >= 3).length;
 }
 
 export interface Shrine {

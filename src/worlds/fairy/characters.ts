@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { tint } from '../../core/assets';
 import { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
-import { QUESTS, type QuestDef } from '../../game/quests';
 import type { FairyLoads } from './load';
+import { QUESTS, type QuestDef } from './quests';
 
 export interface Npc { def: QuestDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number; }
 

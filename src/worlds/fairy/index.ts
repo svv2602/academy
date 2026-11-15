@@ -4,7 +4,6 @@ import { createStage, type Game } from '../../game/context';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
-import { QUESTS, type QuestDef } from '../../game/quests';
 import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines } from '../../game/world';
 import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
@@ -12,6 +11,7 @@ import { createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { createDialogue } from './dialogue';
 import { loadFairy, type FairyLoads } from './load';
+import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { buildSky } from './sky';
 import { createStarSearch } from './star-search';
@@ -99,7 +99,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       return '';
     },
   };
-  // What the book shows of this world (src/ui/ui.ts still draws its own until the book reads this).
+  // What the book shows of this world (src/ui/ui.ts draws it): a shard per friend, then the stars and the chest.
   const book: BookInfo = {
     parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: (ws.quests[q.id] ?? 0) >= 3 })),
     stats: () => [

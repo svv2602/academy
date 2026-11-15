@@ -1,5 +1,5 @@
 import type { Save, SkillId } from '../core/save';
-import { QUESTS } from '../game/quests';
+import type { BookInfo } from '../game/world';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
 import { lang, setChildName, setLang, t, tf, type Key } from './strings';
 
@@ -130,24 +130,27 @@ export function initStart(sel: { dress: string; hair: string; name: string; hair
 /** The order the quality button of the parents' section steps through: automatic (null), then high to plain. */
 const QUALITY_STEPS: Save['pinTier'][] = [null, 2, 1, 0];
 
-/** Collection book + the parents' section behind an "adult" gate. */
-export function initBook(save: Save, on: { change(): void; reset(): void; open(isOpen: boolean): void }) {
-  const book = $('book'), parents = $('parents');
+/**
+ * Collection book + the parents' section behind an "adult" gate. The book shows what the world gives (`book`): its parts,
+ * got or not, then its lines of figures.
+ */
+export function initBook(save: Save, book: BookInfo, on: { change(): void; reset(): void; open(isOpen: boolean): void }) {
+  const bookCard = $('book'), parents = $('parents');
   const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
   const renderBook = () => {
     $('colTitle').textContent = t('col_title'); $('bookClose').textContent = t('close'); $('btnParents').textContent = t('parents');
     $('shards').innerHTML = '';
-    for (const q of QUESTS) {
+    for (const p of book.parts()) {
       const d = document.createElement('div');
-      d.className = 'shard' + ((save.quests[q.id] ?? 0) >= 3 ? ' got' : '');
-      d.style.setProperty('--c', q.shard);
-      d.innerHTML = `<div class="gem"></div>${q.emoji}`;
+      d.className = 'shard' + (p.got ? ' got' : '');
+      d.style.setProperty('--c', p.color);
+      d.innerHTML = `<div class="gem"></div>${p.icon}`;
       $('shards').appendChild(d);
     }
-    $('colStats').innerHTML = `<div>⭐ ${t('col_stars')}: ${save.stars}</div><div>🎁 ${t('col_chest')}: ${save.chestOpen ? '✔' : '?'}</div>`;
+    $('colStats').innerHTML = book.stats().map((s) => `<div>${s.icon} ${t(s.label)}: ${s.value}</div>`).join('');
   };
-  $('btnBook').addEventListener('click', () => { renderBook(); show(book, true); });
-  $('bookClose').addEventListener('click', () => show(book, false));
+  $('btnBook').addEventListener('click', () => { renderBook(); show(bookCard, true); });
+  $('bookClose').addEventListener('click', () => show(bookCard, false));
 
   const gateA = $<HTMLInputElement>('gateA');
   const renderParents = () => {
@@ -169,7 +172,7 @@ export function initBook(save: Save, on: { change(): void; reset(): void; open(i
   // The gate (PLAY-14): every opening asks a new example, never the one asked last time.
   let gate: GateQuestion | null = null;
   $('btnParents').addEventListener('click', () => {
-    book.classList.add('hidden');
+    bookCard.classList.add('hidden');
     gate = gateQuestion(gate);
     $('pTitle').textContent = t('p_title'); $('gateQ').textContent = tf('gate_q', { a: gate.a, b: gate.b }); $('parentsClose').textContent = t('close');
     gateA.value = ''; $('gate').classList.remove('hidden'); $('pBody').classList.add('hidden');

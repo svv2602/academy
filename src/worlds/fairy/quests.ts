@@ -1,4 +1,4 @@
-import type { TaskType } from './tasks';
+import type { TaskType } from '../../game/tasks/types';
 
 /** A quest step is a panel mini-game or one of the two tasks played out in the 3D world. */
 export type Step = TaskType | 'butterflies' | 'stars';
@@ -12,7 +12,7 @@ export interface QuestDef {
 
 /**
  * World 1, the Fairy Kingdom: five characters, three tasks each, one shard of the Crystal of Light per character.
- * Other worlds plug in the same way: a list like this plus a scenery builder.
+ * The shared code sees them only as the world's `characters` (src/game/world.ts, CharacterDef).
  */
 export const QUESTS: QuestDef[] = [
   { id: 'unicorn', emoji: '🦄', x: 5.2, z: -11.5, heading: -2.2, steps: ['butterflies', 'add', 'compare'], shard: '#ffe066' },

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { staticGeo, texturedParts } from '../../core/assets';
 import { fbm, mulberry32, vnoise } from '../../core/util';
-import { QUESTS, SHRINE } from '../../game/quests';
+import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
 import { propMaterial } from '../../core/materials';

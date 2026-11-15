@@ -73,7 +73,7 @@ async function boot() {
   const w = built = world.build(g, L, sky);
 
   // ---------- start screen & menus ----------
-  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), lines: w.lines });
+  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), lines: w.lines, book: w.book });
 
   // ---------- loop ----------
   startLoop(g, quality, w.frame);

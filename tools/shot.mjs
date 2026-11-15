@@ -630,6 +630,9 @@ try {
     const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.quests.deer ?? 0, stars: __game.save.stars }));
     let searchBefore = null, searchAfter = null;
     const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
+    // The order of the friends is the order the guide leads to them and the order of the shards in the book.
+    const FAIRY_ORDER = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
+    if (quests.map((q) => q.id).join() !== FAIRY_ORDER.join()) errors.push(`friends: ${mode}: the order is ${quests.map((q) => q.id).join(', ')}, not ${FAIRY_ORDER.join(', ')}`);
     // ---- the fifth star, and at once a talk to another character (VOICE-03); then the bubble repeats the question (VOICE-08) ----
     // The praise and "back to the deer" of the search must not cut that conversation off: its greeting and the question
     // of its task are heard to the end, and the bubble shows no line that is not spoken. A tap on the bubble starts the
@@ -1162,6 +1165,23 @@ try {
     await shot('23-restored');
     // collection + parents
     await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
+    // The book shows what the world gives it: one shard per friend, lit for every friend done, the stars of the save
+    // and whether the chest was opened.
+    {
+      const b = await g(() => {
+        const s = __game.save, shards = [...document.querySelectorAll('#shards .shard')];
+        return { shards: shards.length, got: shards.filter((e) => e.classList.contains('got')).length, friends: __game.npcs.length,
+          done: Object.values(s.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!s.chestOpen,
+          stats: document.querySelector('#colStats')?.textContent ?? '' };
+      });
+      const left = [];
+      if (b.shards !== b.friends) left.push(`${b.shards} shards for ${b.friends} friends`);
+      if (b.got !== b.done) left.push(`${b.got} shards lit, ${b.done} friends done`);
+      if (!b.stats.includes(String(b.stars))) left.push(`the stars ${b.stars} are not in "${b.stats}"`);
+      if (!b.stats.includes(b.chest ? '✔' : '?')) left.push(`the chest (${b.chest ? 'open' : 'closed'}) is not in "${b.stats}"`);
+      if (left.length) errors.push(`book: ${mode}: ${left.join('; ')}`);
+      else console.log(`book: ${b.got} of ${b.shards} shards, ${b.stars} stars, the chest ${b.chest ? 'open' : 'closed'}`);
+    }
     // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
     // the second one different.
     await g(() => { window.__random = Math.random; Math.random = () => 0.42; });
