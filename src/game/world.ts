@@ -91,11 +91,13 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
 }
 
 /**
- * The world to play: `?world=<id>` is read only with debug on; otherwise, and for an id no world has, the first one
- * of the registry (src/worlds/index.ts). The published game never has debug on, so it always plays the first world.
+ * The world to play: `?world=<id>` is read only with debug on; otherwise, and for an id no world has, the world the
+ * registry names as the default (src/worlds/index.ts `DEFAULT_WORLD`), wherever it stands in the list. The published
+ * game never has debug on, so it always plays the default world. A default no world has is an error.
  */
-export function pickWorld(worlds: readonly WorldDef[], param: string | null, debug: boolean): WorldDef {
-  if (!worlds.length) throw new Error('no worlds in src/worlds/index.ts');
+export function pickWorld(worlds: readonly WorldDef[], byDefault: string, param: string | null, debug: boolean): WorldDef {
+  const main = worlds.find((w) => w.id === byDefault);
+  if (!main) throw new Error(`the default world "${byDefault}" is not in src/worlds/index.ts`);
   const asked = debug && param !== null ? worlds.find((w) => w.id === param) : undefined;
-  return asked ?? worlds[0];
+  return asked ?? main;
 }

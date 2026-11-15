@@ -14,7 +14,7 @@ const sameKeys = <const T extends Record<Lang, Record<string, string>>>(
 ): T => table;
 const S = sameKeys({
   uk: {
-    title: 'Академія чарівних світів', subtitle: 'Королівство фей', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
+    title: 'Академія чарівних світів', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
     dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', style: 'Зачіска', style_long: 'Каре', style_buns: 'Гульки', style_simpleparted: 'Коротка', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити',
     welcome_back: 'З поверненням{, name}! Продовжимо нашу пригоду?',
     found: 'Знайдено!', ok: 'Далі',
@@ -42,7 +42,7 @@ const S = sameKeys({
     load_failed: 'Не вдалося завантажити гру. Перевірте інтернет і спробуйте ще раз.', retry: 'Спробувати ще раз',
   },
   ru: {
-    title: 'Академия волшебных миров', subtitle: 'Королевство фей', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
+    title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
     dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', style: 'Причёска', style_long: 'Каре', style_buns: 'Пучки', style_simpleparted: 'Короткая', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть',
     welcome_back: 'С возвращением{, name}! Продолжим наше приключение?',
     found: 'Найдено!', ok: 'Дальше',
@@ -74,16 +74,26 @@ export const VOICE_STYLES = ['warm', 'joy', 'calm'] as const;
 export type VoiceStyle = (typeof VOICE_STYLES)[number];
 
 /**
- * The texts of one world (ARCH-12), in src/worlds/<id>/strings.ts: its table in both languages and its spoken lines.
+ * The keys every world's table has: the world's own text for a place of the shared screens (the start screen's
+ * subtitle is the name of the world). Each world has its own; only the world played adds them (`addStrings`), so
+ * they are not "one key in two tables". Never spoken.
+ */
+export const WORLD_OWN = ['subtitle'] as const;
+type WorldOwnKey = (typeof WORLD_OWN)[number];
+const own = (k: string) => (WORLD_OWN as readonly string[]).includes(k);
+type WorldTable = Record<string, string> & Record<WorldOwnKey, string>;
+/**
+ * The texts of one world (ARCH-12), in src/worlds/<id>/strings.ts: its table in both languages (with every key of
+ * `WORLD_OWN`) and its spoken lines.
  * Such a file holds only `import type` and `declare module` (tools/sync_phrases.mjs loads it in Node).
  */
-export interface WorldStrings { id: string; table: { uk: Record<string, string>; ru: Record<string, string> }; spoken: Record<string, VoiceStyle> }
+export interface WorldStrings { id: string; table: { uk: WorldTable; ru: WorldTable }; spoken: Record<string, VoiceStyle> }
 /** Each world's strings.ts adds itself: `declare module '../../ui/strings' { interface WorldTables { <id>: typeof strings } }`. */
 export interface WorldTables {}
 type WorldKey = { [W in keyof WorldTables]: keyof WorldTables[W]['table']['uk'] }[keyof WorldTables];
 type WorldSpokenKey = { [W in keyof WorldTables]: keyof WorldTables[W]['spoken'] }[keyof WorldTables];
 /** A key of the shared table or of any world's table. */
-export type Key = keyof typeof S.uk | WorldKey;
+export type Key = keyof typeof S.uk | WorldOwnKey | WorldKey;
 /**
  * Every shared line the game speaks, with the intonation of its recording: joy for praise and the finale, warm for
  * requests and questions, calm for "watch closely". Interface-only strings are not listed; a world lists its own
@@ -107,13 +117,15 @@ export { SPOKEN };
 const TABLE: Record<Lang, Record<string, string>> = { uk: { ...S.uk }, ru: { ...S.ru } };
 /**
  * Adds a world's texts (src/main.ts, for each world of the registry, before the start screen). A key that already
- * exists is an error: one key, one clip.
+ * exists is an error: one key, one clip. The keys of `WORLD_OWN` come only from the world `played`, and only one
+ * world is played.
  */
-export function addStrings(w: WorldStrings): void {
+export function addStrings(w: WorldStrings, played: boolean): void {
   const langs = Object.keys(TABLE) as Lang[];
-  const taken = langs.flatMap((l) => Object.keys(w.table[l])).filter((k) => Object.hasOwn(TABLE.uk, k) || Object.hasOwn(TABLE.ru, k));
+  const taken = langs.flatMap((l) => Object.keys(w.table[l]))
+    .filter((k) => (played || !own(k)) && (Object.hasOwn(TABLE.uk, k) || Object.hasOwn(TABLE.ru, k)));
   if (taken.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${[...new Set(taken)].join(', ')}`);
-  for (const l of langs) Object.assign(TABLE[l], w.table[l]);
+  for (const l of langs) Object.assign(TABLE[l], Object.fromEntries(Object.entries(w.table[l]).filter(([k]) => played || !own(k))));
 }
 /**
  * A line as it is recorded: the name placeholder is cut out, so neither a clip nor a request to the voice service
@@ -133,15 +145,16 @@ export function recordingList(worlds: readonly WorldStrings[]): Record<string, [
   const keys = new Set(Object.keys(S.uk));
   const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>) => {
     for (const [k, style] of Object.entries(spoken)) {
+      if (own(k)) throw new Error(`"${k}" of ${owner} is the world's own text of a shared screen (WORLD_OWN): never spoken`);
       if (typeof uk[k] !== 'string') throw new Error(`spoken line "${k}" of ${owner} has no Ukrainian text`);
       list[k] = [recordable(k, uk[k]), style];
     }
   };
   add('the shared strings', S.uk, SPOKEN);
   for (const w of worlds) {
-    const twice = Object.keys(w.table.uk).filter((k) => keys.has(k));
+    const twice = Object.keys(w.table.uk).filter((k) => !own(k) && keys.has(k));
     if (twice.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);
-    for (const k of Object.keys(w.table.uk)) keys.add(k);
+    for (const k of Object.keys(w.table.uk)) if (!own(k)) keys.add(k);
     add(`world "${w.id}"`, w.table.uk, w.spoken);
   }
   return list;

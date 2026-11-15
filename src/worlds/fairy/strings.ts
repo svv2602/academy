@@ -8,6 +8,8 @@
 import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
 const uk = {
+  // --- the start screen's subtitle: the name of this world (a key every world has, WORLD_OWN in src/ui/strings.ts)
+  subtitle: 'Королівство фей',
   intro: 'Привіт{, name}! Ми в Королівстві фей. Кристал світла розбився на пʼять уламків! Допоможеш їх зібрати?',
   count_hint: 'Торкайся кожного метелика, і ми порахуємо разом.',
   pick_number: 'Скільки метеликів? Обери число.',
@@ -29,6 +31,7 @@ const uk = {
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
 const ru: Record<keyof typeof uk, string> = {
+  subtitle: 'Королевство фей',
   intro: 'Привет{, name}! Мы в Королевстве фей. Кристалл света разбился на пять осколков! Поможешь их собрать?',
   count_hint: 'Касайся каждой бабочки, и мы посчитаем вместе.',
   pick_number: 'Сколько бабочек? Выбери число.',

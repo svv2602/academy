@@ -843,3 +843,24 @@ describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
     vi.restoreAllMocks();
   });
 });
+
+// The queue of spoken lines is its own module (docs/14-architecture.md "src/core/ … voice"); audio.ts re-exports it, so
+// whoever imports the voice from audio.ts gets the very same functions and state.
+const SRC = import.meta.glob(['./audio.ts', './voice.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+describe('the queue of spoken lines lives in src/core/voice.ts (R22)', () => {
+  const MOVED = ['CLIP_RETRIES', 'beginTask', 'dropped', 'endTask', 'inTask', 'mayStart', 'say', 'speaking', 'stopVoice', 'voiceLog', 'willSay'] as const;
+
+  it('audio.ts hands on the queue of voice.ts, not a copy', async () => {
+    const audio = await load(null);
+    const voice = await import('./voice');
+    for (const k of MOVED) expect(audio[k], k).toBe(voice[k]);
+  });
+
+  it('audio.ts holds no line of the queue: neither the planner nor the clips', () => {
+    const audio = SRC['./audio.ts'], voice = SRC['./voice.ts'];
+    for (const re of [/\bfunction (say|stopVoice|mayStart|speak|withVoice)\b/, /\bRANK\b/, /clips\.json/, /new Audio\(/, /SpeechSynthesisUtterance/]) {
+      expect(audio, `audio.ts still has ${re}`).not.toMatch(re);
+      expect(voice, `voice.ts lacks ${re}`).toMatch(re);
+    }
+  });
+});

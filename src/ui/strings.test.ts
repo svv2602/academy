@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import phrases from '../../voice/phrases.json';
 import {
-  SPOKEN, STRINGS, VOICE_STYLES, addStrings, lang, recordable, recordingList, setChildName, setLang, t, tf, voiceText,
+  SPOKEN, STRINGS, VOICE_STYLES, WORLD_OWN, addStrings, lang, recordable, recordingList, setChildName, setLang, t, tf, voiceText,
   type SpokenKey, type WorldStrings,
 } from './strings';
 
@@ -14,8 +14,10 @@ const ukKeys = Object.keys(tables.uk).sort();
 const files = import.meta.glob<{ strings: WorldStrings }>('../worlds/*/strings.ts', { eager: true });
 const folder = (path: string) => path.split('/')[2];
 const worlds = Object.keys(files).sort().map((p) => files[p].strings);
-// What src/main.ts does before the start screen: the game reads the worlds' texts through `t` and `voiceText`.
-for (const w of worlds) addStrings(w);
+// What src/main.ts does before the start screen: the game reads the worlds' texts through `t` and `voiceText`; the first
+// world (in the order of the folders) is the one played here.
+const played = worlds[0];
+for (const w of worlds) addStrings(w, w === played);
 /** The shared table and every world's, merged, as plain records. */
 const all: Record<string, Record<string, unknown>> = Object.fromEntries(
   langs.map((l) => [l, Object.assign({}, tables[l], ...worlds.map((w) => (w.table as Record<string, Record<string, string>>)[l]))]),
@@ -68,12 +70,39 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     }
   });
 
-  it('no key is in two tables: one key, one clip', () => {
+  it('no key is in two tables: one key, one clip (the keys each world has of its own aside)', () => {
     const owners = new Map<string, string[]>();
     const own = (who: string, keys: string[]) => { for (const k of keys) owners.set(k, [...(owners.get(k) ?? []), who]); };
     own('shared', Object.keys(STRINGS.uk));
-    for (const w of worlds) own(w.id, Object.keys(w.table.uk));
+    const ownKeys: readonly string[] = WORLD_OWN;
+    for (const w of worlds) own(w.id, Object.keys(w.table.uk).filter((k) => !ownKeys.includes(k)));
     expect([...owners].filter(([, o]) => o.length > 1)).toEqual([]);
+  });
+
+  it.each(worlds.map((w) => [w.id, w] as const))('%s: has its own subtitle of the start screen (R12, R22), never spoken', (_, w) => {
+    for (const k of WORLD_OWN) {
+      expect(Object.hasOwn(STRINGS.uk, k) || Object.hasOwn(STRINGS.ru, k), `"${k}" is still a shared string`).toBe(false);
+      for (const l of langs) expect({ world: w.id, lang: l, key: k, text: typeof (w.table as Record<string, Record<string, unknown>>)[l][k] }).toEqual({ world: w.id, lang: l, key: k, text: 'string' });
+      expect(Object.hasOwn(w.spoken, k), `"${k}" of ${w.id} is marked as spoken`).toBe(false);
+    }
+  });
+
+  it('the start screen shows the subtitle of the world played, and another world\'s does not clash with it', () => {
+    setLang('uk');
+    expect(t('subtitle')).toBe(played.table.uk.subtitle);
+    setLang('ru');
+    expect(t('subtitle')).toBe(played.table.ru.subtitle);
+    setLang('uk');
+    const other: WorldStrings = { id: 'other', table: { uk: { subtitle: 'Інший світ', other_x: 'х' }, ru: { subtitle: 'Другой мир', other_x: 'х' } }, spoken: {} };
+    expect(() => recordingList([...worlds, other])).not.toThrow();
+    addStrings(other, false);
+    expect(t('subtitle')).toBe(played.table.uk.subtitle);
+    // A second world played is an error: one subtitle on the start screen.
+    const third: WorldStrings = { id: 'third', table: { uk: { subtitle: 'Третій' }, ru: { subtitle: 'Третий' } }, spoken: {} };
+    expect(() => addStrings(third, true)).toThrow(/"third".*subtitle/);
+    expect(t('subtitle')).toBe(played.table.uk.subtitle);
+    // Never spoken: marking it for recording is an error.
+    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }])).toThrow(/subtitle/);
   });
 
   it.each(worlds.map((w) => [w.id, w] as const))('%s: each spoken line is in its table, with a known intonation', (_, w) => {
@@ -82,9 +111,9 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
   });
 
   it('refuses a key that already exists, in the game and in the list to record', () => {
-    const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { [key]: 'а' }, ru: { [key]: 'б' } }, spoken: {} });
-    expect(() => addStrings(clash('x', 'play'))).toThrow(/"x".*play/);
-    expect(() => addStrings(worlds[0])).toThrow(new RegExp(`"${worlds[0].id}"`));
+    const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: 'в', [key]: 'а' }, ru: { subtitle: 'г', [key]: 'б' } }, spoken: {} });
+    expect(() => addStrings(clash('x', 'play'), false)).toThrow(/"x".*play/);
+    expect(() => addStrings(worlds[0], false)).toThrow(new RegExp(`"${worlds[0].id}"`));
     expect(() => recordingList([clash('x', 'play')])).toThrow(/"x".*play/);
     expect(() => recordingList([...worlds, ...worlds])).toThrow(new RegExp(`"${worlds[0].id}"`));
     // A refused world adds nothing.
@@ -92,7 +121,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
   });
 
   it('refuses a spoken line without a Ukrainian text', () => {
-    const w: WorldStrings = { id: 'x', table: { uk: {}, ru: {} }, spoken: { nothing_here: 'warm' } };
+    const w: WorldStrings = { id: 'x', table: { uk: { subtitle: 'а' }, ru: { subtitle: 'б' } }, spoken: { nothing_here: 'warm' } };
     expect(() => recordingList([w])).toThrow(/nothing_here/);
   });
 });

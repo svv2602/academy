@@ -13,7 +13,7 @@ import { pickWorld, type BuiltWorld } from './game/world';
 import { addStrings } from './ui/strings';
 import { el, initStart, showNotice } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
-import * as worlds from './worlds';
+import { DEFAULT_WORLD, WORLDS } from './worlds';
 
 const params = new URLSearchParams(location.search);
 // Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
@@ -21,11 +21,12 @@ const params = new URLSearchParams(location.search);
 const debug = params.has('debug') || import.meta.env.DEV;
 // ARCH-08: ?seed=<text> makes the tasks repeat (the same tasks in the same order); without it they are random.
 const rng = createRng(params.get('seed'));
-// ARCH-06: the world to play, from the registry (src/worlds/index.ts); ?world=<id> only with debug.
-const world = pickWorld(Object.values(worlds), params.get('world'), debug);
+// ARCH-06: the world to play, from the registry (src/worlds/index.ts): its default world; ?world=<id> only with debug.
+const world = pickWorld(WORLDS, DEFAULT_WORLD, params.get('world'), debug);
 // ARCH-12: the texts of every world of the registry join the shared ones before anything is shown (a key two worlds
-// share is an error, one key per clip); ARCH-06: the music is the one of the world played.
-for (const w of Object.values(worlds)) addStrings(w.strings);
+// share is an error, one key per clip), and the start screen's subtitle is the one of the world played;
+// ARCH-06: the music is the one of the world played.
+for (const w of WORLDS) addStrings(w.strings, w === world);
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
