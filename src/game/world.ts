@@ -7,7 +7,8 @@ import type { Game } from './context';
 import type { DebugExtras } from './debug';
 import type { Look } from './hero';
 import type { WorldFrame } from './loop';
-import type { Skill, TaskResult, TaskType } from './tasks';
+import type { TaskType } from './tasks/types';
+import type { Skill, TaskResult } from './taskviews/panel';
 
 /**
  * The common shape of a world (ARCH-06). A world is one object in src/worlds/<id>/ listed in src/worlds/index.ts;
@@ -45,15 +46,21 @@ export interface Npc { def: CharacterDef; actor: Actor; pos: THREE.Vector3; mark
 /** The lines of the shared conversation that belong to a world. */
 export interface WorldLines { intro?: SpokenKey; partGiven: SpokenKey; allParts: SpokenKey; partTitle: Key; partText: Key }
 
-/** A task played out in the world rather than on the panel. */
+/**
+ * A task played out in the world rather than on the panel; a chain names it by its key in the world's tasks
+ * (src/game/dialogue.ts plays the chains). `skill` sets its level, and a foreground task records its result there.
+ */
 export interface WorldTask {
   skill: Skill;
   /** Foreground (like the butterflies): the conversation waits for it. */
   run?(n: Npc, level: number): Promise<TaskResult>;
-  /** Background (like the star search): `done` moves the chain on. */
+  /** Background (like the star search): the conversation ends, `done` moves the chain on (and gives its stars). */
   start?(n: Npc, done: () => void): void;
+  /** A background task is running. */
   active?(): boolean;
+  /** The id of the character whose chain started the running task, else null. */
   owner?(): string | null;
+  /** A talk to that character while the task runs: its question again, under the task's bubble. */
   reask?(n: Npc): Promise<void>;
 }
 

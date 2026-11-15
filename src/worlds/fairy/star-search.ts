@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { say, sfx, speaking, stopVoice } from '../../core/audio';
 import type { Game } from '../../game/context';
+import type { Npc, WorldTask } from '../../game/world';
 import { t } from '../../ui/strings';
-import type { Npc } from './characters';
 
 /**
  * The state of the search; window.__game reads this very object, so it is changed in place. `items` is replaced by
@@ -10,10 +10,16 @@ import type { Npc } from './characters';
  */
 export interface SearchState { active: boolean; found: number; idle: number; items: { mesh: THREE.Mesh; found: boolean }[] }
 
-export interface StarSearch {
+/** A background task of the world (src/game/world.ts): the deer's chain moves on through `done`, see finishSearch. */
+export interface StarSearch extends WorldTask {
   readonly search: SearchState;
-  /** The deer's task: five stars hidden around it. */
-  start(n: Npc): void;
+  /** The deer's task: five stars hidden around it; `done` is called once the fifth one is found. */
+  start(n: Npc, done: () => void): void;
+  active(): boolean;
+  /** The character who asked for the stars, while they are searched for. */
+  owner(): string | null;
+  /** The deer asks its question again, under the bubble of the search: the count (and the question without the voice). */
+  reask(n: Npc): Promise<void>;
   /** The bubble of the search: the count of the stars found, after its question when the voice is off (VOICE-09). */
   caption(): void;
   /** The stars of the search turn; one is found when the heroine walks into it. */
@@ -24,13 +30,16 @@ export interface StarSearch {
 
 /** The search for the stars hidden around the deer (ARCH-05). Creates nothing until a search starts. */
 export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat: THREE.Material): StarSearch {
-  const { scene, ws, ground, hero, sparks, groundY, addStars, above, praise, rng } = g;
+  const { scene, ground, hero, sparks, groundY, praise, rng } = g;
   const { caption, line, muted } = g.speech;
 
   const search: SearchState = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
+  let owner: string | null = null;          // who asked for the stars
+  let finished = () => {};                  // the conversation's `done`: moves the chain on and gives the stars
 
   // ----- task in the world: find the stars hidden around the deer -----
-  function startSearch(n: Npc) {
+  function startSearch(n: Npc, done: () => void) {
+    owner = n.def.id; finished = done;
     search.items.forEach((it) => scene.remove(it.mesh));
     search.items = Array.from({ length: 5 }, (_, i) => {
       const a = (i / 5) * 6.28 + rng() * 0.9, r = 5 + rng() * 7;
@@ -53,14 +62,17 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
    */
   function finishSearch(last: Promise<void>) {
     search.active = false;
-    ws.quests.deer = Math.max(ws.quests.deer ?? 0, 1);
-    addStars(3, above(hero.root.position, 1.2));
+    finished();
     void last.then(() => (speaking() ? undefined : praise())).then(() => line('t_stars_back', 'hint', 6000));
   }
 
   return {
     search,
+    skill: 'count',
     start: startSearch,
+    active: () => search.active,
+    owner: () => (search.active ? owner : null),
+    reask: async (n) => { const asked = line('t_stars', 'task', 0, n.def.emoji); searchCaption(); await asked; },
     caption: searchCaption,
     update: (dt, time) => {
       const hp = hero.root.position;

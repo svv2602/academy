@@ -2,10 +2,16 @@ import * as THREE from 'three';
 import { tint } from '../../core/assets';
 import { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
+import type { Npc as WorldNpc } from '../../game/world';
 import type { FairyLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
 
-export interface Npc { def: QuestDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number; }
+/** A friend of the first world: its quest and the greeting it says the first time (`<id>_hi`, src/worlds/fairy/strings.ts). */
+export type Friend = QuestDef & { hi: `${QuestDef['id']}_hi` };
+/** The world's characters (WorldDef.characters): the shared conversation reads them, the npcs below are made of them. */
+export const FRIENDS: readonly Friend[] = QUESTS.map((q) => ({ ...q, hi: `${q.id}_hi` as const }));
+
+export interface Npc extends WorldNpc { def: Friend }
 
 export interface Characters {
   /** The quest characters in the order of QUESTS; the same array for the whole game (window.__game reads it). */
@@ -46,7 +52,7 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
   tint(kingRig.model, { MushroomKing_Main: '#ff6f91', MushroomKing_Secondary: '#fff3e0', Orc_Main: '#ffe2c4', Eye_White: '#ffffff' });
   const rigs = { unicorn: uniRig, fox: foxRig, mushking: kingRig, deer: deerRig, queen: queenRig };
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
-  const npcs: Npc[] = QUESTS.map((def) => {
+  const npcs: Npc[] = FRIENDS.map((def) => {
     const actor = new Actor(rigs[def.id]);
     const pos = new THREE.Vector3(def.x, groundY(def.x, def.z), def.z);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;

@@ -3,7 +3,8 @@ import { say, sfx } from '../../core/audio';
 import { randInt } from '../../core/util';
 import type { Game } from '../../game/context';
 import { numberSprite } from '../../game/fx';
-import type { TaskResult } from '../../game/tasks';
+import type { TaskResult } from '../../game/taskviews/panel';
+import type { Npc, WorldTask } from '../../game/world';
 import { hideAnswers, showAnswers } from '../../ui/ui';
 import { PATCH } from './layout';
 
@@ -13,10 +14,11 @@ export interface ButterfliesState {
   sprites: THREE.Sprite[]; colors: string[]; done: (r: TaskResult) => void;
 }
 
-export interface ButterfliesTask {
+/** A foreground task of the world (src/game/world.ts): the unicorn's conversation waits for it. */
+export interface ButterfliesTask extends WorldTask {
   readonly bf: ButterfliesState;
   /** The task itself: count the butterflies over the flower bed. */
-  count(level: number): Promise<TaskResult>;
+  run(n: Npc, level: number): Promise<TaskResult>;
   /** A tap while the butterflies are counted: every tap is theirs, even one that hits none (true). */
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
   /** The numbers over the counted butterflies bob. */
@@ -113,7 +115,8 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
 
   return {
     bf,
-    count: countButterflies,
+    skill: 'count',
+    run: (_n, level) => countButterflies(level),
     tap: (screenDist) => {
       if (!(bf.active && !bf.demo)) return false;
       let best = -1, bd = g.touch ? 70 : 46;

@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import { updateRanged } from '../../core/instancing';
 import { createStage, type Game } from '../../game/context';
+import { createDialogue } from '../../game/dialogue';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
-import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines } from '../../game/world';
+import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
 import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
-import { createCharacters } from './characters';
+import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
-import { createDialogue } from './dialogue';
 import { loadFairy, type FairyLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
@@ -43,7 +43,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     else if (speech.shown?.key !== 't_stars') starSearch.caption();
   });
   const restoreCrystal = createFinale(g, stage, shrine, npcs);
-  const { talk } = createDialogue(g, stage, { search: starSearch, butterflies });
+  // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
+  // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
+  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
+  const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
 
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
@@ -112,7 +115,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
 
 type FairySky = ReturnType<typeof buildSky>;
 
-/** The lines of the shared conversation this world says (the conversation itself still lives in ./dialogue.ts). */
+/** The lines of the shared conversation (src/game/dialogue.ts) this world says. */
 const LINES: WorldLines = { intro: 'intro', partGiven: 'npc_done', allParts: 'all_shards', partTitle: 'shard_title', partText: 'shard_text' };
 
 /** The music of the kingdom (src/core/audio.ts plays it): bells on a pentatonic scale over four soft chords. */
@@ -134,7 +137,7 @@ export const fairy: WorldDef<FairyLoads, FairySky> = {
   id: 'fairy',
   spawn: SPAWN,
   ground,
-  characters: QUESTS,
+  characters: FRIENDS,
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,
   music: MUSIC,

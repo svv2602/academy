@@ -38,8 +38,8 @@ const breathe = () => new Promise<void>((resolve) => { realTimeout(resolve, 0); 
 
 // ---------- ARCH-08: the randomness of a task comes from its seed ----------
 
-/** The code of the panel tasks (the panel, the flow, the ten shows) and the three world files that open tasks. */
-const TASK_SOURCES = import.meta.glob(['./*.ts', '!./*.test.ts', '../../worlds/fairy/{dialogue,butterflies-task,star-search}.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+/** The code of the panel tasks (the panel, the flow, the ten shows), the shared conversation and the two world tasks. */
+const TASK_SOURCES = import.meta.glob(['./*.ts', '!./*.test.ts', '../dialogue.ts', '../../worlds/fairy/{butterflies-task,star-search}.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('createRng', () => {
   const draw = (rng: () => number, n = 200) => Array.from({ length: n }, () => rng());
@@ -120,7 +120,7 @@ describe('a seed makes the tasks repeat (ARCH-08)', () => {
 
   it('the task code asks no Math.random: the panel and its shows, and the world tasks take the game\'s rng', () => {
     const panel = ['flow', 'panel', 'count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon'].map((f) => `./${f}.ts`);
-    const world = ['dialogue', 'butterflies-task', 'star-search'].map((f) => `../../worlds/fairy/${f}.ts`);
+    const world = ['../dialogue.ts', ...['butterflies-task', 'star-search'].map((f) => `../../worlds/fairy/${f}.ts`)];
     expect(Object.keys(TASK_SOURCES).sort(), 'the glob did not reach the task files').toEqual([...panel, ...world].sort());
     for (const [path, text] of Object.entries(TASK_SOURCES)) expect(text, path).not.toMatch(/Math\.random/);
   });
