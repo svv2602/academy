@@ -8,10 +8,16 @@ import { shuffle, pick, randInt } from '../core/util';
 import { createRng, type Rng } from '../core/rng';
 import type { Spoken } from '../core/audio';
 import type { SpokenKey } from '../ui/strings';
+import { THINGS, type Hint, type HintStep, type TaskType } from './tasks/types';
+import { count } from './tasks/count';
+import { add } from './tasks/add';
+import { sub } from './tasks/sub';
+import { compare } from './tasks/compare';
+import { pattern } from './tasks/pattern';
 import './hints.css';
 
+export type { TaskType };
 export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
-export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon';
 export const SKILL: Record<TaskType, Skill> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', pattern: 'logic', odd: 'logic', pairs: 'logic', order: 'logic', sort: 'logic', simon: 'logic',
 };
@@ -43,7 +49,6 @@ interface Ctx {
 }
 type Builder = (c: Ctx) => SpokenKey;
 
-const THINGS = ['🌸', '🦋', '🍓', '⭐', '🍄', '🐞', '🍎', '🌼', '🐟', '🍒'];
 const CATS = [['🍎', '🍐', '🍊', '🍋', '🍓', '🍇'], ['🐱', '🐶', '🐰', '🦊', '🐻', '🐼'], ['🌸', '🌼', '🌷', '🌻', '🌹', '💐'], ['🚗', '🚌', '🚲', '🚀', '⛵', '🚂'], ['🍰', '🍭', '🍩', '🍪', '🍫', '🧁']];
 const el = (tag: string, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 const tap = (e: HTMLElement, fn: () => void) => e.addEventListener('pointerdown', (ev) => { ev.preventDefault(); fn(); });
@@ -58,33 +63,39 @@ const SHAKE_MS = 900;
  */
 export const PAIRS_PEEK_MS = [0, 3000, 2500, 2000];
 
-function items(rnd: Rng, parent: HTMLElement, emoji: string, n: number, cls = '') {
-  const out: HTMLElement[] = [];
-  for (let i = 0; i < n; i++) {
+/** One button per thing, each with its tilt from the task's description (one tilt per thing). */
+function items(parent: HTMLElement, emoji: string, tilt: readonly number[], cls = '') {
+  return tilt.map((r) => {
     const b = el('button', 'it ' + cls, emoji);
-    b.style.setProperty('--r', `${randInt(-12, 12, rnd)}deg`);
-    parent.appendChild(b); out.push(b);
-  }
-  return out;
+    b.style.setProperty('--r', `${r}deg`);
+    parent.appendChild(b); return b;
+  });
 }
 function badge(e: HTMLElement, n: number) { e.querySelector('i')?.remove(); const b = el('i', '', String(n)); e.appendChild(b); }
 
-/** Answer buttons; returns the correct one. */
-function options(c: Ctx, values: (number | string)[], correct: number | string) {
+/** Answer buttons, judged by the task's model; returns the correct one. */
+function options<V extends number | string>(c: Ctx, values: readonly V[], right: (v: V) => boolean) {
   let ok!: HTMLElement;
   for (const v of values) {
     const b = el('button', 'opt', String(v));
-    if (v === correct) ok = b;
-    tap(b, () => { if (v === correct) { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
+    if (right(v)) ok = b;
+    tap(b, () => { if (right(v)) { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
     c.opts.appendChild(b);
   }
   c.cheat = () => ok.dispatchEvent(new PointerEvent('pointerdown'));
   return ok;
 }
-function numberChoices(rnd: Rng, correct: number, max: number, n = 4) {
-  const set = new Set([correct]);
-  for (const d of shuffle([-1, 1, -2, 2, 3, -3], rnd)) { const v = correct + d; if (v >= 0 && v <= max && set.size < n) set.add(v); }
-  return [...set].sort((a, b) => a - b);
+/**
+ * The hint of a described task (ARCH-09): its line, and its steps carried out in their order once the line has ended.
+ * `act` is what each step does on the panel; "pulse the answer" is the same for every task: `ok` pulses from that mistake on.
+ */
+function hintOf(hint: Hint | null, ok: HTMLElement, act: Partial<Record<HintStep['do'], (step: HintStep) => void>>): Ctx['hint'] {
+  if (!hint) return null;
+  return { key: hint.key, show: (w) => {
+    for (const step of hint.steps) {
+      if (step.do === 'pulseAnswer') { if (w >= step.fromMistake) ok.classList.add('pulse'); } else act[step.do]?.(step);
+    }
+  } };
 }
 /** Numbers every element one by one, aloud: the "let's count together" hint. A newer mistake stops the count: its own round will count again. */
 async function countAloud(c: Ctx, list: HTMLElement[]) {
@@ -93,66 +104,62 @@ async function countAloud(c: Ctx, list: HTMLElement[]) {
   for (let i = 0; i < list.length && c.alive && c.wrongs === round; i++) { badge(list[i], i + 1); list[i].classList.add('hit'); c.hooks.number(i + 1); await wait(750); }
 }
 
+// The first five types are described by their generator (`tasks/<type>.ts`, ARCH-09): the builder takes every random
+// choice from `generate(level, rng)` and only draws the description; none of them asks `c.rng` itself.
 const builders: Record<TaskType, Builder> = {
   count(c) {
-    const n = c.level === 1 ? randInt(3, 6, c.rng) : c.level === 2 ? randInt(5, 9, c.rng) : randInt(7, 10, c.rng);
-    const list = items(c.rng, c.stage, pick(THINGS, c.rng), n);
+    const spec = count.generate(c.level, c.rng), st = count.start(spec), { n } = spec.body;
+    const list = items(c.stage, spec.body.thing, spec.body.tilt);
     let counted = 0;
     list.forEach((b) => tap(b, () => { if (!b.classList.contains('hit')) { b.classList.add('hit'); badge(b, ++counted); c.own = c.wrongs; c.hooks.number(counted); } }));
-    const ok = options(c, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], n);
-    c.hint = { key: 'h_count', show: (w) => { counted = n; void countAloud(c, list); if (w >= 2) ok.classList.add('pulse'); } };
-    return 't_count';
+    const ok = options(c, spec.body.options, (v) => count.answer(spec, st, v) === 'right');
+    c.hint = hintOf(spec.hint, ok, { countAloud: () => { counted = n; void countAloud(c, list); } });
+    return spec.prompt;
   },
   add(c) {
-    const max = c.level === 1 ? 5 : c.level === 2 ? 8 : 10;
-    const a = randInt(1, max - 1, c.rng), b = randInt(1, max - a, c.rng), e = pick(THINGS, c.rng);
+    const spec = add.generate(c.level, c.rng), st = add.start(spec), { a, thing, tilt } = spec.body;
     const ga = el('div', 'group'), gb = el('div', 'group');
     c.stage.append(ga, el('span', 'sign', '+'), gb, el('span', 'sign', '='), el('span', 'sign q', '?'));
-    const all = [...items(c.rng, ga, e, a), ...items(c.rng, gb, e, b)];
-    const ok = options(c, numberChoices(c.rng, a + b, 10), a + b);
-    c.hint = { key: 'h_count', show: (w) => { void countAloud(c, all); if (w >= 2) ok.classList.add('pulse'); } };
-    return 't_add';
+    const all = [...items(ga, thing, tilt.slice(0, a)), ...items(gb, thing, tilt.slice(a))];
+    const ok = options(c, spec.body.options, (v) => add.answer(spec, st, v) === 'right');
+    c.hint = hintOf(spec.hint, ok, { countAloud: () => { void countAloud(c, all); } });
+    return spec.prompt;
   },
   sub(c) {
-    const max = c.level === 1 ? 5 : c.level === 2 ? 8 : 10;
-    const a = randInt(3, max, c.rng), b = randInt(1, a - 1, c.rng), e = pick(THINGS, c.rng);
-    const list = items(c.rng, c.stage, e, a);
-    list.slice(a - b).forEach((x) => x.classList.add('gone'));
-    const ok = options(c, numberChoices(c.rng, a - b, 10), a - b);
-    c.hint = { key: 'h_left', show: (w) => { void countAloud(c, list.slice(0, a - b)); if (w >= 2) ok.classList.add('pulse'); } };
-    return 't_sub';
+    const spec = sub.generate(c.level, c.rng), st = sub.start(spec), { total, gone } = spec.body;
+    const list = items(c.stage, spec.body.thing, spec.body.tilt);
+    list.slice(total - gone).forEach((x) => x.classList.add('gone'));
+    const ok = options(c, spec.body.options, (v) => sub.answer(spec, st, v) === 'right');
+    c.hint = hintOf(spec.hint, ok, {
+      countAloud: (step) => { void countAloud(c, step.do === 'countAloud' && step.which === 'left' ? list.slice(0, total - gone) : list); },
+    });
+    return spec.prompt;
   },
   compare(c) {
-    const max = c.level === 1 ? 5 : c.level === 2 ? 8 : 10, gap = c.level === 1 ? 2 : 1;
-    let a = randInt(1, max, c.rng), b = randInt(1, max, c.rng);
-    while (Math.abs(a - b) < gap) b = randInt(1, max, c.rng);
-    const more = c.level === 1 || c.rng() < 0.6, e = pick(THINGS, c.rng);
-    const groups = [a, b].map((n) => { const g = el('button', 'group pickable'); items(c.rng, g, e, n, 'still'); c.stage.appendChild(g); return g; });
+    const spec = compare.generate(c.level, c.rng), st = compare.start(spec), { thing, groups: sizes, tilt, more } = spec.body;
+    const groups = sizes.map((_, i) => { const g = el('button', 'group pickable'); items(g, thing, tilt[i], 'still'); c.stage.appendChild(g); return g; });
     // The question without words, from the start: a dot that keeps growing ("more") or shrinking ("less").
     // It sits between the groups and depends on the question alone, so it never points at the right group.
     const ask = el('span', 'ask ' + (more ? 'more' : 'less')); ask.setAttribute('aria-hidden', 'true'); ask.appendChild(el('b'));
     c.stage.insertBefore(ask, groups[1]);
-    const right = (a > b) === more ? 0 : 1;
-    groups.forEach((g, i) => tap(g, () => { if (i === right) { g.classList.add('yes'); c.right(); } else { g.classList.add('no'); c.wrong(g); } }));
+    const right = compare.solution(spec, st)[0];
+    groups.forEach((g, i) => tap(g, () => { if (compare.answer(spec, st, i as 0 | 1) === 'right') { g.classList.add('yes'); c.right(); } else { g.classList.add('no'); c.wrong(g); } }));
     c.cheat = () => groups[right].dispatchEvent(new PointerEvent('pointerdown'));
     // With the numbers, the right group does what the dot of the question does: its things grow or shrink.
-    c.hint = { key: 'h_compare', show: (w) => {
-      groups.forEach((g, i) => { g.querySelector('em')?.remove(); g.appendChild(el('em', '', String(i ? b : a))); });
-      groups[right].classList.add(more ? 'grow' : 'shrink');
-      if (w >= 2) groups[right].classList.add('pulse');
-    } };
-    return more ? 't_compare_more' : 't_compare_less';
+    c.hint = hintOf(spec.hint, groups[right], {
+      showNumbers: () => groups.forEach((g, i) => { g.querySelector('em')?.remove(); g.appendChild(el('em', '', String(sizes[i]))); }),
+      grow: () => groups[right].classList.add('grow'),
+      shrink: () => groups[right].classList.add('shrink'),
+    });
+    return spec.prompt;
   },
   pattern(c) {
-    const unit = pick(c.level === 1 ? ['AB'] : c.level === 2 ? ['AAB', 'ABB', 'ABC'] : ['AABB', 'ABAC', 'ABCB', 'AABC'], c.rng);
-    const sym = shuffle(['🔴', '🔵', '🟡', '🟢', '🟣', '🟠'], c.rng).slice(0, 3);
-    const len = unit.length * 2 + randInt(1, unit.length - 1 || 1, c.rng);
-    const seq = Array.from({ length: len + 1 }, (_, i) => sym[unit.charCodeAt(i % unit.length) - 65]);
-    seq.slice(0, len).forEach((s, i) => { const x = el('span', 'it still', s); x.dataset.u = String(i % unit.length); c.stage.appendChild(x); });
+    const spec = pattern.generate(c.level, c.rng), st = pattern.start(spec), { unit, row } = spec.body;
+    row.forEach((s, i) => { const x = el('span', 'it still', s); x.dataset.u = String(i % unit.length); c.stage.appendChild(x); });
     c.stage.appendChild(el('span', 'it still q', '?'));
-    const ok = options(c, shuffle(sym, c.rng), seq[len]);
-    c.hint = { key: 'h_pattern', show: (w) => { c.stage.classList.add('units'); if (w >= 2) ok.classList.add('pulse'); } };
-    return 't_pattern';
+    const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right');
+    c.hint = hintOf(spec.hint, ok, { markUnits: () => { c.stage.classList.add('units'); } });
+    return spec.prompt;
   },
   odd(c) {
     const [main, other] = shuffle(CATS, c.rng);
