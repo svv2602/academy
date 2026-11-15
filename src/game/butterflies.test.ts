@@ -4,7 +4,7 @@ import { Butterflies } from './butterflies';
 
 /** The world as the game builds it: some butterflies over the flowers, the task ones are added after them. */
 function meadow(ambient: number, capacity = 96) {
-  const flies = new Butterflies(new THREE.Scene(), capacity);
+  const flies = new Butterflies(new THREE.Scene(), capacity, () => 0);
   for (let i = 0; i < ambient; i++) flies.add(i, -i, 2, '#ffffff');
   return flies;
 }

@@ -9,12 +9,10 @@ import { exposeDebug } from './game/debug';
 import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
 import { initStartScreen } from './game/start';
-import { buildSky } from './world/scenery';
+import { pickWorld, type BuiltWorld } from './game/world';
 import { el, initStart, showNotice } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
-import { buildFairy } from './worlds/fairy';
-import { loadFairy } from './worlds/fairy/load';
-import { shardCount } from './worlds/fairy/shrine';
+import * as worlds from './worlds';
 
 const params = new URLSearchParams(location.search);
 // Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
@@ -22,6 +20,8 @@ const params = new URLSearchParams(location.search);
 const debug = params.has('debug') || import.meta.env.DEV;
 // ARCH-08: ?seed=<text> makes the tasks repeat (the same tasks in the same order); without it they are random.
 const rng = createRng(params.get('seed'));
+// ARCH-06: the world to play, from the registry (src/worlds/index.ts); ?world=<id> only with debug.
+const world = pickWorld(Object.values(worlds), params.get('world'), debug);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
@@ -41,7 +41,7 @@ if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 // ---------- renderer & quality tiers ----------
 const { renderer, scene, camera } = createRenderer(el.canvas);
 const touch = matchMedia('(pointer: coarse)').matches;
-const sky = buildSky(scene);
+const sky = world.sky(scene);
 // The tier, the launch counter and the frame meter (core/renderer.ts): the tier is chosen and stored right here.
 const quality = createQuality({ renderer, scene, camera, sun: sky.sun, save, param: params.get('q'), touch, debug });
 addEventListener('resize', () => quality.apply());
@@ -53,20 +53,25 @@ quality.apply();
 void boot();
 
 async function boot() {
-  const L = await loadFairy(scene, save, touch);
+  const L = await world.load(scene, save, touch);
   if (!L) return;
   const { heroRig } = L;
   const speech = createSpeech();
-  const g = createGame({ scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => `${shardCount(save)}/5`, rng });
+  // The counter is read only once the world is built (the first frame, the start button, a reward).
+  let built: BuiltWorld | null = null;
+  const g = createGame({
+    scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => built?.hud() ?? '', rng,
+    ground: world.ground, spawn: world.spawn,
+  });
   applyLook = () => heroRig.setLook(save);
-  // The first world: its objects, tasks, conversations and parts of the frame (src/worlds/fairy/index.ts).
-  const fairy = buildFairy(g, L, sky);
+  // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
+  const w = built = world.build(g, L, sky);
 
   // ---------- start screen & menus ----------
-  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin() });
+  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), lines: w.lines });
 
   // ---------- loop ----------
-  startLoop(g, quality, fairy.frame);
+  startLoop(g, quality, w.frame);
 
-  if (debug) exposeDebug(g, fairy.debug);
+  if (debug) exposeDebug(g, w.debug);
 }

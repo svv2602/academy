@@ -10,8 +10,8 @@ import { Sparks } from './fx';
 import type { Stage } from './stage';
 import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './tasks';
-import { Butterflies } from '../world/butterflies';
-import { SPAWN, height } from '../world/terrain';
+import { Butterflies } from './butterflies';
+import type { WorldGround } from './world';
 import { el, setAct, setCounter } from '../ui/ui';
 
 /** A walk the heroine makes by herself (a tap on the ground or on a spot); `then` runs when she gets there. */
@@ -27,6 +27,13 @@ export interface Game {
   readonly scene: THREE.Scene; readonly camera: THREE.PerspectiveCamera; readonly renderer: THREE.WebGLRenderer;
   readonly save: Save; readonly touch: boolean; readonly debug: boolean; readonly speech: Speech;
   readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
+  /** The ground of the world being played (its relief and colliders): the shared code never reaches a world directly. */
+  readonly ground: WorldGround;
+  /**
+   * The world's part of the save (ARCH-07 makes it a `WorldState` of its own); until then it is the save itself.
+   * Readers of a world's progress (quests, final, chest, stars taken, position) go through it.
+   */
+  readonly ws: Save;
   /**
    * The randomness of the tasks (ARCH-08): which task, its numbers and pictures, where the stars and butterflies are.
    * Seeded by `?seed=`, else Math.random. Praise, "try again" and the scenery do not draw from it.
@@ -56,19 +63,24 @@ export interface Game {
   hooksFor(speaker: string): TaskHooks;
 }
 
-/** `crystals` is the text of the crystal counter: the world knows how many shards there are. */
+/**
+ * `crystals` is the text of the crystal counter: the world knows how many parts there are. `ground` and `spawn` are
+ * the world's (WorldDef): where the heroine stands on a first launch and what she walks on.
+ */
 export function createGame(o: {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; save: Save; touch: boolean;
   debug: boolean; speech: Speech; heroRig: Rig; catRig: Rig; crystals: () => string; rng: Rng;
+  ground: WorldGround; spawn: { x: number; z: number };
 }): Game {
-  const { scene, save, speech } = o;
+  const { scene, save, speech, ground, spawn } = o;
+  const ws = save;
   const sparks = new Sparks(scene);
-  const flies = new Butterflies(scene, 96);
-  const groundY = (x: number, z: number) => height(x, z);
+  const groundY = (x: number, z: number) => ground.height(x, z);
+  const flies = new Butterflies(scene, 96, groundY);
 
   // ----- hero -----
   const hero = new Actor(o.heroRig);
-  hero.root.position.set(save.pos?.[0] ?? SPAWN.x, 0, save.pos?.[1] ?? SPAWN.z);
+  hero.root.position.set(ws.pos?.[0] ?? spawn.x, 0, ws.pos?.[1] ?? spawn.z);
   hero.heading = Math.PI; hero.root.rotation.y = Math.PI;
   scene.add(hero.root);
   hero.play('Idle');
@@ -83,7 +95,7 @@ export function createGame(o: {
   const cam: Cam = { yaw: 0, pitch: 0.36, dist: tuning.camDist, target: new THREE.Vector3(), focus: null };
   cam.target.copy(hero.root.position);
 
-  const persist = () => { save.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
+  const persist = () => { ws.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
   const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
   const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', o.crystals()); };
   // The one writer of the stars (src/game/no-penalties.test.ts reads this line): it only ever adds.
@@ -107,7 +119,7 @@ export function createGame(o: {
 
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
-    hero, cat, sparks, flies, cam, rng: o.rng,
+    hero, cat, sparks, flies, cam, ground, ws, rng: o.rng,
     busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
     groundY,
     started: () => el.start.classList.contains('hidden'),

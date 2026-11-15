@@ -3,12 +3,14 @@ import { initInput } from '../core/input';
 import { clearSave } from '../core/save';
 import { el, initBook } from '../ui/ui';
 import type { Game } from './context';
+import type { WorldLines } from './world';
 
 /**
  * The start screen, the menus and the page events (ARCH-05). Called once the world is built and before the first frame:
  * the listeners keep the order they always had - audio.ts registers its own visibilitychange at import, so it runs first.
+ * `lines` are the world's: its welcome on a first launch.
  */
-export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): void }): void {
+export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): void; lines: WorldLines }): void {
   const { save, hero, cam, speech, persist, refreshHud } = g;
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
   el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
@@ -21,7 +23,7 @@ export function initStartScreen(g: Game, o: { applyVolume(): void; applyPin(): v
     save.played = true; persist();
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
-    if (first) { await speech.line('intro', 'story'); void speech.line('go_next', 'hint', 6000); }
+    if (first) { if (o.lines.intro) await speech.line(o.lines.intro, 'story'); void speech.line('go_next', 'hint', 6000); }
     else await speech.line('welcome_back', 'hint', 5000);
   }, { once: true });
   initBook(save, {

@@ -1114,6 +1114,28 @@ try {
       if (await visible('#tune')) fail('the button did not close the panel');
       await g(([x, z]) => __game.teleport(x, z), back); await wait(300);
     }
+    // ---- the heroine does not walk through a character (the world's ground and its colliders, ARCH-06) ----
+    // She stands 2.5 m in front of the first character (south of it: with the camera turn 0 "forward" is -z) and walks
+    // at it for 1.5 s of game time. A character is a circle of 0.8 m and she one of 0.4 m: she stays 1.2 m from its middle.
+    {
+      const fail = (what) => { throw new Error(`collisions: ${what}`); };
+      const at = await g(() => { const n = __game.npcs[0]; return { id: n.def.id, x: n.pos.x, z: n.pos.z }; });
+      await g((p) => { __game.teleport(p.x, p.z + 2.5); __game.cam.yaw = 0; window.__near = 99;
+        const look = () => { if (window.__near === undefined) return;
+          window.__near = Math.min(window.__near, Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z)); requestAnimationFrame(look); };
+        look(); }, at);
+      await wait(300);
+      const t0 = await g(() => __game.time);
+      await page.keyboard.down('KeyW');
+      try {
+        await page.waitForFunction((t) => __game.time - t >= 1.5, t0, { timeout: T(60000) }).catch(() => fail('1.5 s of game time did not pass'));
+      } finally { await page.keyboard.up('KeyW'); }
+      const near = await g(() => { const n = window.__near; window.__near = undefined; return n; });
+      const moved = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), at);
+      if (!(near > 1.1)) fail(`she walked into "${at.id}": ${near.toFixed(2)} m from its middle`);
+      if (!(moved < 2.2)) fail(`she did not walk towards "${at.id}" (still ${moved.toFixed(2)} m away)`);
+      console.log(`collisions: she stopped ${near.toFixed(2)} m from the middle of "${at.id}"`);
+    }
     // replay one finished quest
     await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
     // finale

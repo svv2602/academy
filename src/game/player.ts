@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { sfx } from '../core/audio';
 import { input } from '../core/input';
 import { tuning } from '../core/tuning';
-import { raycastGround, resolve } from '../world/terrain';
 import { el, setAct } from '../ui/ui';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
@@ -49,7 +48,7 @@ export function createPlayer(g: Game): Player {
           else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) speech.repeat();
           else {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
-            if (raycastGround(ray.ray.origin, ray.ray.direction, v)) {
+            if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {
               g.auto = { x: v.x, z: v.z, stuck: 0, last: 1e9 };
               tapRing.position.set(v.x, v.y + 0.08, v.z);
               (tapRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
@@ -84,7 +83,7 @@ export function createPlayer(g: Game): Player {
         const l = Math.hypot(mx, mz) || 1;
         hp.x += (mx / l) * speed * dt; hp.z += (mz / l) * speed * dt;
         hero.face(Math.atan2(mx, mz), dt);
-        resolve(hp, 0.4);
+        g.ground.resolve(hp, 0.4);
       } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
       if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
       input.jump = false;

@@ -3,14 +3,16 @@ import { createStage, type Game } from '../../game/context';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
-import type { QuestDef } from '../../game/quests';
-import { type buildSky, updateRanged } from '../../world/scenery';
+import { QUESTS, type QuestDef } from '../../game/quests';
+import type { BookInfo, BuiltWorld, WorldDef, WorldGround, WorldLines } from '../../game/world';
+import { buildSky, updateRanged } from '../../world/scenery';
+import { SPAWN, colliders, height, raycastGround, resolve } from '../../world/terrain';
 import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { createDialogue } from './dialogue';
-import type { FairyLoads } from './load';
+import { loadFairy, type FairyLoads } from './load';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { createStarSearch } from './star-search';
 
@@ -18,8 +20,8 @@ import { createStarSearch } from './star-search';
  * The first world, built (ARCH-05): its objects in the order they always joined the scene (and the colliders) in, its
  * tasks and conversations, and its parts of the frame. `debug` is what window.__game reads of it.
  */
-export function buildFairy(g: Game, L: FairyLoads, sky: ReturnType<typeof buildSky>): { frame: WorldFrame; debug: DebugExtras } {
-  const { camera, renderer, save, hero, flies, speech } = g;
+export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
+  const { camera, renderer, save, ws, hero, flies, speech } = g;
   const { motes, updateClouds, starGeo } = L;
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
@@ -43,16 +45,16 @@ export function buildFairy(g: Game, L: FairyLoads, sky: ReturnType<typeof buildS
 
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
-    { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(save) === 5 && !save.final, run: () => { void restoreCrystal(); } },
-    { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !save.chestOpen, run: () => chestStars.open() },
+    { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
+    { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.chestOpen, run: () => chestStars.open() },
   ];
 
   /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
   function goal(): THREE.Vector3 | null {
     if (search.active) return starSearch.goal();
-    const next = npcs.find((n) => (save.quests[n.def.id] ?? 0) < 3);
+    const next = npcs.find((n) => (ws.quests[n.def.id] ?? 0) < 3);
     if (next) return next.pos;
-    return save.final ? null : shrine.pos;
+    return ws.final ? null : shrine.pos;
   }
 
   // ---------- the world's parts of the frame (src/game/loop.ts calls them in its order) ----------
@@ -95,5 +97,40 @@ export function buildFairy(g: Game, L: FairyLoads, sky: ReturnType<typeof buildS
       return '';
     },
   };
-  return { frame, debug };
+  // What the book shows of this world (src/ui/ui.ts still draws its own until the book reads this).
+  const book: BookInfo = {
+    parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: (ws.quests[q.id] ?? 0) >= 3 })),
+    stats: () => [
+      { icon: '⭐', label: 'col_stars', value: String(save.stars) },
+      { icon: '🎁', label: 'col_chest', value: ws.chestOpen ? '✔' : '?' },
+    ],
+  };
+  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}` };
 }
+
+type FairySky = ReturnType<typeof buildSky>;
+
+/** The lines of the shared conversation this world says (the conversation itself still lives in ./dialogue.ts). */
+const LINES: WorldLines = { intro: 'intro', partGiven: 'npc_done', allParts: 'all_shards', partTitle: 'shard_title', partText: 'shard_text' };
+
+/** The relief and the colliders of the valley (src/world/terrain.ts): the shared code reaches them only through this. */
+const ground: WorldGround = {
+  height,
+  resolve,
+  raycast: raycastGround,
+  block: (x, z, r) => { colliders.push({ x, z, r }); },
+};
+
+/** The first world, the Fairy Kingdom (ARCH-06): listed in src/worlds/index.ts. */
+export const fairy: WorldDef<FairyLoads, FairySky> = {
+  id: 'fairy',
+  spawn: SPAWN,
+  ground,
+  characters: QUESTS,
+  // Its texts are still in src/ui/strings.ts: they move here with ARCH-12.
+  strings: { id: 'fairy', table: { uk: {}, ru: {} }, spoken: {} },
+  // No music of its own yet: src/core/audio.ts plays its constants (ARCH-06 gives a world its own later).
+  sky: buildSky,
+  load: loadFairy,
+  build: buildFairy,
+};

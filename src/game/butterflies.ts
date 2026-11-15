@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/util';
-import { height } from './terrain';
-import { uTime } from './scenery';
+import { uTime } from '../world/scenery';
 
 interface Fly { home: THREE.Vector3; r: number; phase: number; speed: number; pos: THREE.Vector3; heading: number; scale: number; landed: boolean; }
 
-/** All butterflies in one InstancedMesh; wings flap in the vertex shader. */
+/** All butterflies in one InstancedMesh; wings flap in the vertex shader. `height` is the ground of the world they fly over. */
 export class Butterflies {
   readonly mesh: THREE.InstancedMesh;
   readonly flies: Fly[] = [];
@@ -14,7 +13,7 @@ export class Butterflies {
   private e = new THREE.Euler();
   private rnd = mulberry32(31);
 
-  constructor(scene: THREE.Scene, capacity: number) {
+  constructor(scene: THREE.Scene, capacity: number, private readonly height: (x: number, z: number) => number) {
     // Two wings in the XZ plane, body along Z.
     const wing = [0, 0, -0.05, 0.22, 0, -0.2, 0.3, 0, 0.02, 0, 0, -0.05, 0.3, 0, 0.02, 0.18, 0, 0.2, 0, 0, -0.05, 0.18, 0, 0.2, 0, 0, 0.1];
     const v: number[] = [];
@@ -37,7 +36,7 @@ export class Butterflies {
 
   add(x: number, z: number, roam: number, color: THREE.ColorRepresentation, scale = 1) {
     const i = this.flies.length;
-    const home = new THREE.Vector3(x, height(x, z) + 0.9 + this.rnd() * 0.9, z);
+    const home = new THREE.Vector3(x, this.height(x, z) + 0.9 + this.rnd() * 0.9, z);
     this.flies.push({ home, r: roam, phase: this.rnd() * 100, speed: 0.5 + this.rnd() * 0.5, pos: home.clone(), heading: 0, scale, landed: false });
     this.mesh.setColorAt(i, new THREE.Color(color));
     this.mesh.count = i + 1;
