@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { say, sfx, speaking, stopVoice } from '../../core/audio';
 import type { Game } from '../../game/context';
-import { resolve } from '../../world/terrain';
 import { t } from '../../ui/strings';
 import type { Npc } from './characters';
 
@@ -25,7 +24,7 @@ export interface StarSearch {
 
 /** The search for the stars hidden around the deer (ARCH-05). Creates nothing until a search starts. */
 export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat: THREE.Material): StarSearch {
-  const { scene, save, hero, sparks, groundY, addStars, above, praise, rng } = g;
+  const { scene, ws, ground, hero, sparks, groundY, addStars, above, praise, rng } = g;
   const { caption, line, muted } = g.speech;
 
   const search: SearchState = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
@@ -36,7 +35,7 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
     search.items = Array.from({ length: 5 }, (_, i) => {
       const a = (i / 5) * 6.28 + rng() * 0.9, r = 5 + rng() * 7;
       const p = { x: n.pos.x + Math.cos(a) * r, z: n.pos.z + Math.sin(a) * r };
-      resolve(p, 0.7);
+      ground.resolve(p, 0.7);
       const mesh = new THREE.Mesh(starGeo, starMat);
       mesh.scale.setScalar(0.75); mesh.position.set(p.x, groundY(p.x, p.z) + 0.55, p.z);
       scene.add(mesh);
@@ -54,7 +53,7 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
    */
   function finishSearch(last: Promise<void>) {
     search.active = false;
-    save.quests.deer = Math.max(save.quests.deer ?? 0, 1);
+    ws.quests.deer = Math.max(ws.quests.deer ?? 0, 1);
     addStars(3, above(hero.root.position, 1.2));
     void last.then(() => (speaking() ? undefined : praise())).then(() => line('t_stars_back', 'hint', 6000));
   }

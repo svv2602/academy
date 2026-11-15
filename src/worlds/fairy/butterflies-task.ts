@@ -4,8 +4,8 @@ import { randInt } from '../../core/util';
 import type { Game } from '../../game/context';
 import { numberSprite } from '../../game/fx';
 import type { TaskResult } from '../../game/tasks';
-import { PATCH } from '../../world/terrain';
 import { hideAnswers, showAnswers } from '../../ui/ui';
+import { PATCH } from './layout';
 
 /** The state of the task; window.__game reads this very object, so it is changed in place, never replaced. */
 export interface ButterfliesState {

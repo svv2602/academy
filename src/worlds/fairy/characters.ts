@@ -3,7 +3,6 @@ import { tint } from '../../core/assets';
 import { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
 import { QUESTS, type QuestDef } from '../../game/quests';
-import { colliders } from '../../world/terrain';
 import type { FairyLoads } from './load';
 
 export interface Npc { def: QuestDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number; }
@@ -25,7 +24,7 @@ export interface Characters {
  * searched for, the deer's mark is hidden.
  */
 export function createCharacters(g: Game, L: FairyLoads, searching: () => boolean): Characters {
-  const { scene, hero, save, groundY } = g;
+  const { scene, hero, ws, ground, groundY } = g;
   const { uniRig, foxRig, kingRig, deerRig, queenRig, starGeo } = L;
   // Fairy wings: two translucent petals behind the shoulders.
   const wingShape = new THREE.Shape();
@@ -53,7 +52,7 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     scene.add(actor.root);
     actor.play('Idle');
-    colliders.push({ x: def.x, z: def.z, r: 0.8 });
+    ground.block(def.x, def.z, 0.8);
     const mark = new THREE.Mesh(starGeo, starMat);
     scene.add(mark);
     return { def, actor, pos, mark, idle: 'Idle', timer: 3 + Math.random() * 5 };
@@ -87,7 +86,7 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
           n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
           n.actor.play(n.idle, 0.4);
         }
-        const open = (save.quests[n.def.id] ?? 0) < 3;
+        const open = (ws.quests[n.def.id] ?? 0) < 3;
         n.mark.visible = open && !g.busy && !(searching() && n.def.id === 'deer');
         n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
         n.actor.update(dt);

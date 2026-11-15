@@ -1,15 +1,9 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, vnoise } from '../core/util';
+import { CASTLE, POND, WORLD_R } from '../worlds/fairy/layout';
 
-/** Layout of the Fairy Kingdom slice, in metres. +Z is "towards the camera" at spawn. */
-export const WORLD_R = 74;
-export const SPAWN = { x: 0, z: 14 };
-export const POND = { x: 15, z: -19, r: 9.5 };
-export const CASTLE = { x: -8, z: -60 };
-export const UNICORN = { x: 5.2, z: -11.5 };
-export const PATCH = { x: -1.5, z: -15.5 };   // flower patch where the task butterflies fly
-export const CRYSTAL = { x: 2.2, z: -9.2 };
-export const CHEST = { x: -31, z: 6 };        // optional secret behind the birches
+/** The layout of the Fairy Kingdom lives in src/worlds/fairy/layout.ts; re-exported for the scenery and the sky. */
+export { CASTLE, CHEST, CRYSTAL, PATCH, POND, SPAWN, UNICORN, WORLD_R } from '../worlds/fairy/layout';
 const POND_LEVEL = 0.2;
 export const WATER_Y = POND_LEVEL - 0.38;
 const PATH: [number, number][] = [[0, 16], [1, 5], [3.5, -5], [2, -13], [-4, -27], [-8, -42], [-8, -53]];
