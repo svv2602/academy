@@ -1,3 +1,5 @@
+import type { Rng } from './rng';   // a type only: no runtime cycle with rng.ts, which takes mulberry32 from here
+
 export function mulberry32(seed: number) {
   let a = seed | 0;
   return () => {
@@ -47,10 +49,12 @@ export function angleDiff(a: number, b: number) {
   return d;
 }
 
-export const randInt = (lo: number, hi: number) => lo + Math.floor(Math.random() * (hi - lo + 1));
-export const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
-export function shuffle<T>(a: T[]): T[] {
+// `rnd` is `Math.random`-like (see core/rng.ts). The default is read at each call, so a test that replaces
+// Math.random still steers the callers that pass nothing.
+export const randInt = (lo: number, hi: number, rnd: Rng = Math.random) => lo + Math.floor(rnd() * (hi - lo + 1));
+export const pick = <T>(a: readonly T[], rnd: Rng = Math.random): T => a[Math.floor(rnd() * a.length)];
+export function shuffle<T>(a: T[], rnd: Rng = Math.random): T[] {
   const b = [...a];
-  for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+  for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
   return b;
 }

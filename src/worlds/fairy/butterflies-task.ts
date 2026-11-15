@@ -28,7 +28,7 @@ export interface ButterfliesTask {
  * task, so the task's butterflies are always the last ones - and the task of counting them over the flower bed.
  */
 export function createButterfliesTask(g: Game): ButterfliesTask {
-  const { scene, cam, sparks, flies, groundY } = g;
+  const { scene, cam, sparks, flies, groundY, rng } = g;
   const { caption, line, hintLine } = g.speech;
 
   // Ambient butterflies over flower drifts.
@@ -43,9 +43,9 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
   // ----- task in the world: count the butterflies over the flower bed -----
   function countButterflies(level: number): Promise<TaskResult> {
     return new Promise((done) => {
-      Object.assign(bf, { active: true, counted: 0, wrong: 0, own: -1, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5) : level === 2 ? randInt(5, 7) : randInt(7, 9) });
+      Object.assign(bf, { active: true, counted: 0, wrong: 0, own: -1, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5, rng) : level === 2 ? randInt(5, 7, rng) : randInt(7, 9, rng) });
       for (let i = 0; i < bf.n; i++) {
-        const a = (i / bf.n) * 6.28 + Math.random() * 0.5, r = 0.5 + Math.random() * 1.6;
+        const a = (i / bf.n) * 6.28 + rng() * 0.5, r = 0.5 + rng() * 1.6;
         const id = flies.add(PATCH.x + Math.cos(a) * r, PATCH.z + Math.sin(a) * r, 0.45, bf.colors[i % 4], 1.5);
         flies.flies[id].home.y = groundY(PATCH.x, PATCH.z) + 1.0 + (i % 3) * 0.45;
       }

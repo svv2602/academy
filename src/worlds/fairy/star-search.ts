@@ -25,7 +25,7 @@ export interface StarSearch {
 
 /** The search for the stars hidden around the deer (ARCH-05). Creates nothing until a search starts. */
 export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat: THREE.Material): StarSearch {
-  const { scene, save, hero, sparks, groundY, addStars, above, praise } = g;
+  const { scene, save, hero, sparks, groundY, addStars, above, praise, rng } = g;
   const { caption, line, muted } = g.speech;
 
   const search: SearchState = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
@@ -34,7 +34,7 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
   function startSearch(n: Npc) {
     search.items.forEach((it) => scene.remove(it.mesh));
     search.items = Array.from({ length: 5 }, (_, i) => {
-      const a = (i / 5) * 6.28 + Math.random() * 0.9, r = 5 + Math.random() * 7;
+      const a = (i / 5) * 6.28 + rng() * 0.9, r = 5 + rng() * 7;
       const p = { x: n.pos.x + Math.cos(a) * r, z: n.pos.z + Math.sin(a) * r };
       resolve(p, 0.7);
       const mesh = new THREE.Mesh(starGeo, starMat);

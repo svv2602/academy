@@ -38,8 +38,8 @@ export function createDialogue(g: Game, stage: Stage, tasks: { search: StarSearc
       if (search.search.active && q.id === 'deer') { const asked = line('t_stars', 'task', 0, q.emoji); search.caption(); await asked; return; }
       if (done >= 3) {           // the quest is finished: replay one of its games for stars
         await line('npc_again', 'story', 0, q.emoji);
-        const type = pick(q.steps.filter((s): s is TaskType => s !== 'butterflies' && s !== 'stars'));
-        const res = await task(() => runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji)));
+        const type = pick(q.steps.filter((s): s is TaskType => s !== 'butterflies' && s !== 'stars'), g.rng);
+        const res = await task(() => runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji), g.rng));
         if (res.solved) { recordTask(save, SKILL[type], res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
         return;
       }
@@ -48,7 +48,7 @@ export function createDialogue(g: Game, stage: Stage, tasks: { search: StarSearc
         const step = q.steps[k];
         if (step === 'stars') { search.start(n); return; }
         const skill = step === 'butterflies' ? 'count' : SKILL[step];
-        const res = await task(() => step === 'butterflies' ? butterflies.count(levelFor(save, 'count')) : runTask(step, levelFor(save, skill), hooksFor(q.emoji)));
+        const res = await task(() => step === 'butterflies' ? butterflies.count(levelFor(save, 'count')) : runTask(step, levelFor(save, skill), hooksFor(q.emoji), g.rng));
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         save.quests[q.id] = k + 1;

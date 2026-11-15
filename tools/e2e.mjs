@@ -71,6 +71,8 @@ Environment (passed on to tools/shot.mjs unchanged):
   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
   E2E_LEVEL=<1|2|3>       task difficulty for every size (default: mobile 3, desktop adaptive, desktop-tall 2,
                           mobile-portrait 3)
+  E2E_SEED=<text>         ?seed= of the game (ARCH-08): the tasks are drawn from that seed; every walkthrough prints
+                          "task sequence (seed …): N tasks, <fingerprint>" and writes shots-e2e/<size>-tasks.txt
   E2E_MUTE=<0|1>          1: every size is played without the voice, 0: every size with it (default: desktop-tall
                           without the voice, the other sizes with it)
 Environment (this script):

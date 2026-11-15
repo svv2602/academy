@@ -3,6 +3,7 @@ import { tint, type Rig } from '../core/assets';
 import { beginTask, endTask, say, sfx } from '../core/audio';
 import { tuning } from '../core/tuning';
 import { storeSave, type Save } from '../core/save';
+import type { Rng } from '../core/rng';
 import { pick, randInt } from '../core/util';
 import { Actor } from './actor';
 import { Sparks } from './fx';
@@ -26,6 +27,11 @@ export interface Game {
   readonly scene: THREE.Scene; readonly camera: THREE.PerspectiveCamera; readonly renderer: THREE.WebGLRenderer;
   readonly save: Save; readonly touch: boolean; readonly debug: boolean; readonly speech: Speech;
   readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
+  /**
+   * The randomness of the tasks (ARCH-08): which task, its numbers and pictures, where the stars and butterflies are.
+   * Seeded by `?seed=`, else Math.random. Praise, "try again" and the scenery do not draw from it.
+   */
+  readonly rng: Rng;
   /** A conversation, task or cut-scene is running: the heroine stands still. */
   busy: boolean;
   /** A menu is open. */
@@ -53,7 +59,7 @@ export interface Game {
 /** `crystals` is the text of the crystal counter: the world knows how many shards there are. */
 export function createGame(o: {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; save: Save; touch: boolean;
-  debug: boolean; speech: Speech; heroRig: Rig; catRig: Rig; crystals: () => string;
+  debug: boolean; speech: Speech; heroRig: Rig; catRig: Rig; crystals: () => string; rng: Rng;
 }): Game {
   const { scene, save, speech } = o;
   const sparks = new Sparks(scene);
@@ -101,7 +107,7 @@ export function createGame(o: {
 
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
-    hero, cat, sparks, flies, cam,
+    hero, cat, sparks, flies, cam, rng: o.rng,
     busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
     groundY,
     started: () => el.start.classList.contains('hidden'),

@@ -47,6 +47,7 @@
 //   E2E_COMMIT=<text>       the commit number the parents' section must show (tools/e2e.mjs: git rev-parse --short HEAD,
 //                           or "no-git"); default: only the form of the version line is checked
 import { chromium } from 'playwright-core';
+import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
 
 const [url = 'http://localhost:5173/', out = 'shots', mode = 'desktop'] = process.argv.slice(2);
@@ -58,6 +59,7 @@ const gl = process.env.E2E_GL || 'gl';
 const slow = Number(process.env.E2E_SLOW || 1);
 const stuckMs = Number(process.env.E2E_STUCK_MS || 240000);
 const level = process.env.E2E_LEVEL || '';
+const seed = process.env.E2E_SEED || '';   // ?seed= of the game (ARCH-08): the same tasks in the same order
 if (!['', '1', '2', '3'].includes(level)) { console.error(`bad E2E_LEVEL="${level}": expected 1, 2 or 3`); process.exit(2); }
 const usage = (msg) => { console.error(msg); process.exit(2); };
 // The size of the window and the way of control are separate things: a new size only says which group it is in.
@@ -115,6 +117,7 @@ const origins = new Set();
 const models = new Set();   // model files requested by the page, as paths under the site root: models/…
 let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
 let voiceUsed = null;       // { clips, loud }: voice clips started in the walkthrough, and those of them with a volume
+const taskLog = [];        // the tasks met, in order (see __logTask below)
 try {
   const viewport = { width: size.width, height: size.height };
   const ctxOptions = touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport };
@@ -159,6 +162,25 @@ try {
       if (this.volume > 0 && !this.muted) window.__loud.push(id);
       return play.call(this);
     };
+  });
+  // The tasks of the walkthrough, in the order they open (ARCH-08): the kind and what is on the panel, read in the frame
+  // after the panel shows. With E2E_SEED the game draws its tasks from that seed, and two walkthroughs with one seed must
+  // print the same fingerprint. The list lives in node: the reloads of the scenario do not lose it.
+  await page.exposeFunction('__logTask', (t) => { taskLog.push(t); });
+  await page.addInitScript(() => {
+    addEventListener('DOMContentLoaded', () => {
+      const root = document.getElementById('task');
+      if (!root) return;
+      let open = false;
+      new MutationObserver(() => {
+        const now = !root.classList.contains('hidden');
+        if (now && !open) requestAnimationFrame(() => {
+          const stage = document.getElementById('taskStage'), opts = document.getElementById('taskOpts');
+          window.__logTask(`${stage?.className ?? ''} | ${stage?.textContent ?? ''} | ${opts?.textContent ?? ''}`);
+        });
+        open = now;
+      }).observe(root, { attributes: true, attributeFilter: ['class'] });
+    });
   });
   // Without the voice: the game starts from a save that holds nothing but the voice volume 0 - what the slider of the
   // parents' section writes. Only when there is no save yet: the reloads of this scenario keep the game's own save.
@@ -467,7 +489,7 @@ try {
       } finally { await plain.close().catch(() => {}); }
     }
     // Everything below plays with ?debug: the reloads keep the address.
-    await page.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : ''));
+    await page.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : '') + (seed ? `&seed=${encodeURIComponent(seed)}` : ''));
     await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
     if (offline) {
       cachedFiles = await waitForOfflineCache();
@@ -1268,6 +1290,9 @@ try {
 } finally {
   await browser.close().catch(() => {});
 }
+// The fingerprint of the tasks met (ARCH-08): two walkthroughs of one size with one E2E_SEED print the same one.
+writeFileSync(`${out}/${mode}-tasks.txt`, taskLog.join('\n') + '\n');
+console.log(`task sequence${seed ? ` (seed ${seed})` : ''}: ${taskLog.length} tasks, ${createHash('sha256').update(taskLog.join('\n')).digest('hex').slice(0, 16)}`);
 if (modelsOut) writeFileSync(modelsOut, JSON.stringify([...models].sort(), null, 2) + '\n');
 // Written only by a walkthrough that reached its end with the voice checked: tools/e2e.mjs reads who played in silence.
 if (voiceOut && voiceUsed) writeFileSync(voiceOut, JSON.stringify({ mute, clips: voiceUsed.clips, loud: voiceUsed.loud }) + '\n');

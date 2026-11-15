@@ -1,6 +1,7 @@
 import './style.css';
 import { setProgressHandler } from './core/assets';
 import { setVolumes, volume } from './core/audio';
+import { createRng } from './core/rng';
 import { loadSave } from './core/save';
 import { createQuality, createRenderer } from './core/renderer';
 import { createGame } from './game/context';
@@ -19,6 +20,8 @@ const params = new URLSearchParams(location.search);
 // Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
 // address or on the development server. The frames are measured either way: the quality fallback needs them.
 const debug = params.has('debug') || import.meta.env.DEV;
+// ARCH-08: ?seed=<text> makes the tasks repeat (the same tasks in the same order); without it they are random.
+const rng = createRng(params.get('seed'));
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
@@ -54,7 +57,7 @@ async function boot() {
   if (!L) return;
   const { heroRig } = L;
   const speech = createSpeech();
-  const g = createGame({ scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => `${shardCount(save)}/5` });
+  const g = createGame({ scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => `${shardCount(save)}/5`, rng });
   applyLook = () => heroRig.setLook(save);
   // The first world: its objects, tasks, conversations and parts of the frame (src/worlds/fairy/index.ts).
   const fairy = buildFairy(g, L, sky);
