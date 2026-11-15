@@ -1137,7 +1137,18 @@ try {
     console.log('fps:', counter);
     if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     // the start screen of a returning player: the saved game adds the "start again" button
-    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); await wait(1500); await shot('40-start-again');
+    // Leaving the page saves where she stands (pagehide): the save on a timer alone would lose up to ten seconds of walk.
+    const leftAt = [2.5, 12.5];
+    const storedBefore = await g((p) => { __game.teleport(p[0], p[1]); return JSON.parse(localStorage.getItem('amw-save') || '{}').pos; }, leftAt);
+    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+    {
+      const pos = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').pos);
+      const near = (p) => Array.isArray(p) && Math.hypot(p[0] - leftAt[0], p[1] - leftAt[1]) < 0.01;
+      if (near(storedBefore)) console.log('leaving the page: the timer had already saved the spot - not put to the test');
+      else if (!near(pos)) errors.push(`leaving the page: the save keeps ${JSON.stringify(pos)}, not the spot she left at ${JSON.stringify(leftAt)}`);
+      else console.log('leaving the page: the spot she stood on is saved');
+    }
+    await wait(1500); await shot('40-start-again');
     // "Start again" really starts again: after the reload the save is the one of a new player. The game saves itself
     // on the way out (pagehide), and that once wrote the whole progress straight back.
     {

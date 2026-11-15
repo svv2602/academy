@@ -1,25 +1,26 @@
 import * as THREE from 'three';
 import './style.css';
 import { rig, setProgressHandler, staticGeo, tint } from './core/assets';
-import { say, setVolumes, sfx, speaking, stopVoice, unlockAudio, volume } from './core/audio';
-import { initInput, input, pollInput } from './core/input';
-import { camDistance, tuning } from './core/tuning';
-import { clearSave, levelFor, loadSave, recordTask } from './core/save';
+import { say, setVolumes, sfx, speaking, stopVoice, volume } from './core/audio';
+import { levelFor, loadSave, recordTask } from './core/save';
 import { createQuality, createRenderer } from './core/renderer';
-import { angleDiff, clamp, damp, lerp, pick, randInt } from './core/util';
+import { damp, lerp, pick, randInt } from './core/util';
 import { Actor } from './game/actor';
 import { createGame, createStage } from './game/context';
 import { exposeDebug } from './game/debug';
-import { glowTex, numberSprite } from './game/fx';
+import { numberSprite } from './game/fx';
 import { buildHero } from './game/hero';
 import { QUESTS, SHRINE, type QuestDef } from './game/quests';
+import { startLoop, type WorldFrame } from './game/loop';
+import type { Spot } from './game/player';
 import { createSpeech } from './game/speech';
 import { playScene } from './game/stage';
+import { initStartScreen } from './game/start';
 import { runTask, SKILL, type TaskResult, type TaskType } from './game/tasks';
-import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, updateRanged, uTime } from './world/scenery';
-import { CHEST, PATCH, buildTerrain, colliders, raycastGround, resolve } from './world/terrain';
-import { el, fanfare, hideAnswers, initBook, initStart, setAct, showAnswers, showNotice } from './ui/ui';
-import { t, tf, type Key } from './ui/strings';
+import { buildClouds, buildGrass, buildMotes, buildRainbow, buildScenery, buildSky, buildWater, updateRanged } from './world/scenery';
+import { CHEST, PATCH, buildTerrain, colliders, resolve } from './world/terrain';
+import { el, fanfare, hideAnswers, initStart, showAnswers, showNotice } from './ui/ui';
+import { t, tf } from './ui/strings';
 import { initTuningPanel } from './ui/tuning';
 
 const params = new URLSearchParams(location.search);
@@ -84,8 +85,8 @@ async function boot() {
   const speech = createSpeech();
   const g = createGame({ scene, camera, renderer, save, touch, debug, speech, heroRig, catRig, crystals: () => `${shardCount()}/5` });
   // Objects and functions only: the flags (busy, paused, auto, ...) are read as g.busy and so on, never copied.
-  const { hero, cat, cam, sparks, flies, groundY, started, persist, refreshHud, addStars, above, fault, praise, task, hooksFor } = g;
-  const { caption, line, muted, hintLine, repeat } = speech;
+  const { hero, cat, cam, sparks, flies, groundY, persist, refreshHud, addStars, above, fault, praise, task, hooksFor } = g;
+  const { caption, line, muted, hintLine } = speech;
   applyLook = () => heroRig.setLook(save);
   // Fairy wings: two translucent petals behind the shoulders.
   const wingShape = new THREE.Shape();
@@ -161,20 +162,6 @@ async function boot() {
     scene.add(mesh);
     return { id, mesh };
   });
-  const beacon = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.7, 14, 20, 1, true),
-    new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false, uniforms: { uTime },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform float uTime; varying vec2 vUv; void main(){ float a = pow(1.0 - vUv.y, 2.0) * (0.2 + 0.07 * sin(uTime * 3.0 + vUv.y * 20.0)); gl_FragColor = vec4(vec3(1.0, 0.9, 0.55) * a, 1.0); }',
-    }));
-  scene.add(beacon);
-  const trailN = 12, trailPos = new Float32Array(trailN * 3);
-  const trailGeo = new THREE.BufferGeometry(); trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
-  const trail = new THREE.Points(trailGeo, new THREE.PointsMaterial({ map: glowTex, size: 0.55, color: '#ffe89a', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  trail.frustumCulled = false; scene.add(trail);
-  const tapRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.5, 28), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, depthWrite: false }));
-  tapRing.rotation.x = -Math.PI / 2; scene.add(tapRing);
 
   // Ambient butterflies over flower drifts.
   const palette = ['#ff8fc4', '#ffd54f', '#8fd3ff', '#c9a6ff', '#ffffff', '#ff9a6b'];
@@ -184,8 +171,6 @@ async function boot() {
   }
 
   // ---------- game state ----------
-  let vy = 0, grounded = true;
-  let userPitch = 0.36;             // set by dragging up/down
   let glow = save.final ? 1 : 0;
   const bf = { active: false, n: 0, first: 0, counted: 0, wrong: 0, own: -1, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
   const search = { active: false, found: 0, idle: 0, items: [] as { mesh: THREE.Mesh; found: boolean }[] };
@@ -380,7 +365,6 @@ async function boot() {
     void line('chest', 'hint', 4000);
   }
 
-  interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
     { pos: shrine, r: 2.6, label: 'place', on: () => shardCount() === 5 && !save.final, run: () => { void restoreCrystal(); } },
@@ -401,256 +385,119 @@ async function boot() {
   }
 
   // ---------- start screen & menus ----------
-  el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
-  el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
-  el.play.addEventListener('click', async () => {
-    unlockAudio(); applyVolume();
-    el.start.classList.add('hidden');
-    el.hud.classList.remove('hidden'); el.btnJump.classList.remove('hidden');
-    refreshHud();
-    const first = !save.played;
-    save.played = true; persist();
-    cam.yaw = 0; cam.target.copy(hero.root.position);
-    hero.once('Wave', 'Idle');
-    if (first) { await line('intro', 'story'); void line('go_next', 'hint', 6000); }
-    else await line('welcome_back', 'hint', 5000);
-  }, { once: true });
-  initBook(save, {
-    change: () => { applyVolume(); quality.applyPin(); persist(); },
-    reset: () => { clearSave(); location.reload(); },
-    open: (v) => { g.paused = v; },
-  });
-  initInput(el.canvas, el.joy, el.knob, el.btnJump, el.btnAct);
-  el.bubble.addEventListener('click', repeat);
-  setInterval(persist, 10000);
-  addEventListener('pagehide', persist);
-  // The voice, the music and the effects pause and resume by themselves (audio.ts, TECH-05): a hidden page only saves.
-  document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin() });
 
-  // ---------- loop ----------
-  const clock = new THREE.Clock();
-  const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
-
-  function frame() {
-    requestAnimationFrame(frame);
-    const dt = Math.min(clock.getDelta(), 0.05);
-    const time = (uTime.value += dt);
-    pollInput();
-    const hp = hero.root.position;
-    const canMove = started() && !g.busy && !g.paused;
-
-    cam.yaw -= input.lookDX * tuning.lookX; input.lookDX = 0;
-    userPitch = clamp(userPitch + input.lookDY * tuning.lookY, 0.06, 1.15); input.lookDY = 0;
-
-    // taps: count a butterfly, or walk to a spot / point on the ground
-    if (input.tap && started() && !g.paused) {
-      const tx = input.tap.x, ty = input.tap.y;
-      const screenDist = (p: THREE.Vector3) => { v.copy(p).project(camera); return v.z < 1 ? Math.hypot((v.x * 0.5 + 0.5) * innerWidth - tx, (-v.y * 0.5 + 0.5) * innerHeight - ty) : 1e9; };
-      if (bf.active && !bf.demo) {
-        let best = -1, bd = touch ? 70 : 46;
-        for (let i = bf.first; i < bf.first + bf.n; i++) { const d = screenDist(flies.flies[i].pos); if (d < bd && !flies.flies[i].landed) { bd = d; best = i; } }
-        if (best >= 0) { bf.own = bf.wrong; countFly(best); }   // her own count: the cat will not count over it (see demoCount)
-      } else if (canMove) {
-        let spot: Spot | null = null;
-        for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
-        if (spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
-        // A tap on the cat asks it to say its line again, not to walk to it. (In the butterflies task the cat is out of the frame.)
-        else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) repeat();
-        else {
-          ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
-          if (raycastGround(ray.ray.origin, ray.ray.direction, v)) {
-            g.auto = { x: v.x, z: v.z, stuck: 0, last: 1e9 };
-            tapRing.position.set(v.x, v.y + 0.08, v.z);
-            (tapRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
+  // ---------- the world's parts of the frame (src/game/loop.ts calls them in its order) ----------
+  const world: WorldFrame = {
+    spots,
+    // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
+    tap: (screenDist) => {
+      if (!(bf.active && !bf.demo)) return false;
+      let best = -1, bd = touch ? 70 : 46;
+      for (let i = bf.first; i < bf.first + bf.n; i++) { const d = screenDist(flies.flies[i].pos); if (d < bd && !flies.flies[i].landed) { bd = d; best = i; } }
+      if (best >= 0) { bf.own = bf.wrong; countFly(best); }   // her own count: the cat will not count over it (see demoCount)
+      return true;
+    },
+    afterMove: (time, grounded) => {
+      wings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * (grounded ? 5 : 22)) * 0.35); });
+      queenWings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * 4 + 1) * 0.3); });
+    },
+    // quest characters: turn to the heroine when she is close, otherwise live their own life
+    npcs: (dt, time) => {
+      const hp = hero.root.position;
+      for (const n of npcs) {
+        const d = Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z);
+        n.actor.face(d < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
+        if (!g.busy && (n.timer -= dt) < 0) {
+          n.timer = 4 + Math.random() * 6;
+          n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
+          n.actor.play(n.idle, 0.4);
+        }
+        const open = (save.quests[n.def.id] ?? 0) < 3;
+        n.mark.visible = open && !g.busy && !(search.active && n.def.id === 'deer');
+        n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
+        n.actor.update(dt);
+      }
+      if (uniHead) {
+        // The head bone points along the muzzle; the horn sits on the forehead and leans back a little.
+        const hb = uniHead as THREE.Object3D;
+        hb.getWorldPosition(horn.position); hb.getWorldQuaternion(hornQ);
+        hornDir.set(0, 1, 0).applyQuaternion(hornQ);
+        horn.position.addScaledVector(hornDir, 0.16).y += 0.2;
+        hornDir.multiplyScalar(-0.3).y += 0.9;
+        horn.quaternion.setFromUnitVectors(yAxis, hornDir.normalize());
+      }
+      queenRig.headBone.getWorldPosition(crown.position); crown.position.y += 0.27;
+      crown.rotation.y = npc('queen').actor.heading;
+    },
+    // collectibles
+    collect: (dt, time, canMove) => {
+      const hp = hero.root.position;
+      for (const s of stars) {
+        if (!s.mesh.visible) continue;
+        s.mesh.rotation.y = time * 1.6; s.mesh.position.y = groundY(s.mesh.position.x, s.mesh.position.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
+        if (canMove && Math.hypot(s.mesh.position.x - hp.x, s.mesh.position.z - hp.z) < 1.2) { s.mesh.visible = false; save.starsTaken.push(s.id); addStars(1, s.mesh.position); }
+      }
+      if (search.active) {
+        search.idle += dt;
+        for (const it of search.items) {
+          if (it.found) continue;
+          it.mesh.rotation.y = time * 2.2;
+          if (Math.hypot(it.mesh.position.x - hp.x, it.mesh.position.z - hp.z) < 1.3) {
+            it.found = true; it.mesh.visible = false; search.idle = 0;
+            sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
+            const n = ++search.found;
+            if (n < 5) void say(`tap_${n}`, String(n), 'task');
+            searchCaption();
+            // The last number is heard to the end before the praise (see finishSearch). It cuts off whatever sounds, as
+            // every number does, but has the story's rank: a conversation started at this moment is not turned away.
+            if (n === 5) { stopVoice(); finishSearch(say(`tap_${n}`, String(n), 'story')); }
           }
         }
       }
-    }
-    input.tap = null;
-
-    // movement
-    let mx = 0, mz = 0, mag = 0;
-    if (canMove) {
-      mag = Math.hypot(input.moveX, input.moveY);
-      if (mag > 0.08) {
-        g.auto = null;
-        const fx = -Math.sin(cam.yaw), fz = -Math.cos(cam.yaw);
-        mx = fx * input.moveY + -fz * input.moveX;
-        mz = fz * input.moveY + fx * input.moveX;
-      } else if (g.auto) {
-        const dx = g.auto.x - hp.x, dz = g.auto.z - hp.z, d = Math.hypot(dx, dz);
-        const reach = g.auto.then ? 2.0 : 0.35;
-        g.auto.stuck = d > g.auto.last - 0.5 * dt ? g.auto.stuck + dt : 0;
-        g.auto.last = d;
-        if (d < reach || g.auto.stuck > 0.8) { const then = d < reach + 0.8 ? g.auto.then : undefined; g.auto = null; then?.(); }
-        else { mx = dx / d; mz = dz / d; mag = Math.min(1, d / 1.5 + 0.35); }
-      }
-    } else g.auto = null;
-
-    const speed = tuning.speed * Math.min(1, mag);
-    if (mag > 0.08) {
-      const l = Math.hypot(mx, mz) || 1;
-      hp.x += (mx / l) * speed * dt; hp.z += (mz / l) * speed * dt;
-      hero.face(Math.atan2(mx, mz), dt);
-      resolve(hp, 0.4);
-    } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
-    if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
-    input.jump = false;
-    const ground = groundY(hp.x, hp.z);
-    vy -= 17 * dt; hp.y += vy * dt;
-    if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
-    if (!g.busy) {
-      if (!grounded) hero.play('Jump', 0.12);
-      else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, speed > tuning.runFrom ? speed / 4.2 : speed / 1.5);
-      else hero.play('Idle', 0.25);
-    }
-    wings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * (grounded ? 5 : 22)) * 0.35); });
-    queenWings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * 4 + 1) * 0.3); });
-
-    // interaction prompt
-    let near: Spot | null = null;
-    if (canMove) for (const s of spots) if (s.on() && Math.hypot(s.pos.x - hp.x, s.pos.z - hp.z) < s.r) near = s;
-    setAct(near ? near.label : null);
-    el.btnJump.classList.toggle('hidden', !canMove);
-    if (input.act && near) near.run();
-    input.act = false;
-
-    // cat follows at the hero's side
-    const cp = cat.root.position;
-    v.set(hp.x + Math.cos(hero.heading) * 0.9 - Math.sin(hero.heading) * 0.6, 0, hp.z - Math.sin(hero.heading) * 0.9 - Math.cos(hero.heading) * 0.6);
-    const cd = Math.hypot(v.x - cp.x, v.z - cp.z);
-    if (cd > 0.45) {
-      const cs = Math.min(7, cd * 3.2) * dt;
-      cp.x += ((v.x - cp.x) / cd) * Math.min(cs, cd); cp.z += ((v.z - cp.z) / cd) * Math.min(cs, cd);
-      cat.face(Math.atan2(v.x - cp.x, v.z - cp.z), dt);
-      if (!g.busy) cat.play('Walk', 0.15, clamp(cd * 1.2, 0.8, 2.2));
-    } else { if (!g.busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
-    cp.y = groundY(cp.x, cp.z);
-
-    // quest characters: turn to the heroine when she is close, otherwise live their own life
-    for (const n of npcs) {
-      const d = Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z);
-      n.actor.face(d < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
-      if (!g.busy && (n.timer -= dt) < 0) {
-        n.timer = 4 + Math.random() * 6;
-        n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
-        n.actor.play(n.idle, 0.4);
-      }
-      const open = (save.quests[n.def.id] ?? 0) < 3;
-      n.mark.visible = open && !g.busy && !(search.active && n.def.id === 'deer');
-      n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
-      n.actor.update(dt);
-    }
-    if (uniHead) {
-      // The head bone points along the muzzle; the horn sits on the forehead and leans back a little.
-      const hb = uniHead as THREE.Object3D;
-      hb.getWorldPosition(horn.position); hb.getWorldQuaternion(hornQ);
-      hornDir.set(0, 1, 0).applyQuaternion(hornQ);
-      horn.position.addScaledVector(hornDir, 0.16).y += 0.2;
-      hornDir.multiplyScalar(-0.3).y += 0.9;
-      horn.quaternion.setFromUnitVectors(yAxis, hornDir.normalize());
-    }
-    queenRig.headBone.getWorldPosition(crown.position); crown.position.y += 0.27;
-    crown.rotation.y = npc('queen').actor.heading;
-
-    // collectibles
-    for (const s of stars) {
-      if (!s.mesh.visible) continue;
-      s.mesh.rotation.y = time * 1.6; s.mesh.position.y = groundY(s.mesh.position.x, s.mesh.position.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
-      if (canMove && Math.hypot(s.mesh.position.x - hp.x, s.mesh.position.z - hp.z) < 1.2) { s.mesh.visible = false; save.starsTaken.push(s.id); addStars(1, s.mesh.position); }
-    }
-    if (search.active) {
-      search.idle += dt;
-      for (const it of search.items) {
-        if (it.found) continue;
-        it.mesh.rotation.y = time * 2.2;
-        if (Math.hypot(it.mesh.position.x - hp.x, it.mesh.position.z - hp.z) < 1.3) {
-          it.found = true; it.mesh.visible = false; search.idle = 0;
-          sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
-          const n = ++search.found;
-          if (n < 5) void say(`tap_${n}`, String(n), 'task');
-          searchCaption();
-          // The last number is heard to the end before the praise (see finishSearch). It cuts off whatever sounds, as
-          // every number does, but has the story's rank: a conversation started at this moment is not turned away.
-          if (n === 5) { stopVoice(); finishSearch(say(`tap_${n}`, String(n), 'story')); }
-        }
-      }
-    }
-
+    },
     // shrine: collected shards circle the place where the crystal will stand
-    if (g.finale > 0) g.finale += dt;
-    const pull = g.finale > 0 ? Math.max(0, 1 - g.finale / 3.4) : 1;
-    QUESTS.forEach((q, i) => {
-      const m = shards[i];
-      m.visible = (save.quests[q.id] ?? 0) >= 3 && !save.final;
-      if (!m.visible) return;
-      const a = time * (g.finale > 0 ? 1 + g.finale * 2.5 : 0.7) + (i / 5) * 6.28;
-      m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);
-      m.rotation.y = time * 1.5 + i;
-    });
-    const mat = crystal.material as THREE.MeshStandardMaterial;
-    mat.opacity = lerp(mat.opacity, save.final ? 1 : 0.18, damp(2, dt));
-    crystal.scale.setScalar(lerp(crystal.scale.x, save.final ? 1.25 : 0.8, damp(3, dt)));
-    crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
-    crystalLight.intensity = save.final ? 5 + Math.sin(time * 3) * 1.2 : g.finale > 0 ? g.finale * 2 : 0;
-    glow = lerp(glow, save.final ? 1 : 0, damp(0.6, dt));
-    rainbowAlpha.value = glow;
-    (sky.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
-    sky.hemi.intensity = 1.25 + glow * 0.25;
+    shrine: (dt, time) => {
+      if (g.finale > 0) g.finale += dt;
+      const pull = g.finale > 0 ? Math.max(0, 1 - g.finale / 3.4) : 1;
+      QUESTS.forEach((q, i) => {
+        const m = shards[i];
+        m.visible = (save.quests[q.id] ?? 0) >= 3 && !save.final;
+        if (!m.visible) return;
+        const a = time * (g.finale > 0 ? 1 + g.finale * 2.5 : 0.7) + (i / 5) * 6.28;
+        m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);
+        m.rotation.y = time * 1.5 + i;
+      });
+      const mat = crystal.material as THREE.MeshStandardMaterial;
+      mat.opacity = lerp(mat.opacity, save.final ? 1 : 0.18, damp(2, dt));
+      crystal.scale.setScalar(lerp(crystal.scale.x, save.final ? 1.25 : 0.8, damp(3, dt)));
+      crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
+      crystalLight.intensity = save.final ? 5 + Math.sin(time * 3) * 1.2 : g.finale > 0 ? g.finale * 2 : 0;
+      glow = lerp(glow, save.final ? 1 : 0, damp(0.6, dt));
+      rainbowAlpha.value = glow;
+      (sky.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
+      sky.hemi.intensity = 1.25 + glow * 0.25;
+    },
+    goal,
+    animate: (dt, time) => {
+      chest.update(dt);
+      flies.update(time);
+      for (let i = 0; i < bf.sprites.length; i++) bf.sprites[i].position.y += Math.sin(time * 3 + i) * 0.002;
+      updateClouds(dt);
+    },
+    // A task in the world (the butterflies) is framed from further away than a conversation.
+    focusDist: () => bf.active ? 7.5 : 6.5,
+    beforeRender: (hp) => {
+      sky.sun.position.copy(hp).add(sky.sunOffset);
+      sky.sun.target.position.copy(hp);
+      updateRanged(hp.x, hp.z);
+      motes.uCenter.value.copy(hp);
+      motes.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+    },
+  };
 
-    // guide: beacon + sparkle trail towards the next goal
-    const target = started() && !g.busy ? goal() : null;
-    beacon.visible = trail.visible = !!target;
-    if (target) {
-      beacon.position.set(target.x, groundY(target.x, target.z) + 7, target.z);
-      const dx = target.x - hp.x, dz = target.z - hp.z, d = Math.hypot(dx, dz) || 1, len = Math.min(d, 14);
-      for (let i = 0; i < trailN; i++) {
-        const f = ((i / trailN + time * 0.35) % 1) * len, x = hp.x + (dx / d) * f, z = hp.z + (dz / d) * f;
-        trailPos.set([x, groundY(x, z) + 0.6 + Math.sin(time * 4 + i) * 0.2, z], i * 3);
-      }
-      trailGeo.attributes.position.needsUpdate = true;
-    }
-    const ring = tapRing.material as THREE.MeshBasicMaterial;
-    ring.opacity = Math.max(0, ring.opacity - dt * 1.4); tapRing.scale.setScalar(1 + (0.9 - ring.opacity));
-
-    hero.update(dt); cat.update(dt); chest.update(dt);
-    flies.update(time);
-    for (let i = 0; i < bf.sprites.length; i++) bf.sprites[i].position.y += Math.sin(time * 3 + i) * 0.002;
-    updateClouds(dt);
-    sparks.update(dt);
-
-    // camera: dressing room on the start screen, a conversation/task framing, or orbit behind the heroine
-    if (!cam.focus && mag > 0.3 && !input.touch) cam.yaw += clamp(angleDiff(hero.heading + Math.PI, cam.yaw), -1, 1) * 0.5 * dt * (Math.abs(angleDiff(hero.heading + Math.PI, cam.yaw)) < 2.3 ? 1 : 0);
-    if (!started()) {
-      const wide = camera.aspect > 1.25;
-      cam.yaw = Math.PI + 0.3 + Math.sin(time * 0.4) * 0.12;
-      v.set(hp.x - Math.cos(cam.yaw) * (wide ? 1.0 : 0), hp.y + (wide ? 0.95 : 1.9), hp.z + Math.sin(cam.yaw) * (wide ? 1.0 : 0));
-      cam.target.copy(v); cam.dist = wide ? 3.6 : 5.2; cam.pitch = 0.12;
-    } else {
-      if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
-      else v.set(hp.x, hp.y + 1.5, hp.z);
-      cam.target.lerp(v, damp(cam.focus ? 3 : 9, dt));
-      cam.dist = lerp(cam.dist, g.camOverride ?? (cam.focus ? (bf.active ? 7.5 : 6.5) : camDistance(camera.aspect)), damp(3, dt));
-      cam.pitch = lerp(cam.pitch, cam.focus ? 0.3 : userPitch, damp(cam.focus ? 3 : 10, dt));
-    }
-    camera.position.set(
-      cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,
-      cam.target.y + Math.sin(cam.pitch) * cam.dist,
-      cam.target.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
-    camera.position.y = Math.max(camera.position.y, groundY(camera.position.x, camera.position.z) + 0.8);
-    camera.lookAt(cam.target);
-
-    sky.sun.position.copy(hp).add(sky.sunOffset);
-    sky.sun.target.position.copy(hp);
-    updateRanged(hp.x, hp.z);
-    motes.uCenter.value.copy(hp);
-    motes.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
-
-    quality.render(dt);
-    quality.meter(dt, persist);
-  }
-  refreshHud();
-  frame();
+  // ---------- loop ----------
+  startLoop(g, quality, world);
 
   if (debug) exposeDebug(g, {
     npcs, search, bf,
