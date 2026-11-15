@@ -65,6 +65,14 @@ export function showAnswers(max: number, onPick: (n: number, btn: HTMLButtonElem
   el.answers.classList.remove('hidden'); el.answersClose.classList.remove('hidden');
 }
 export const hideAnswers = () => { el.answers.classList.add('hidden'); el.answersClose.classList.add('hidden'); };
+/**
+ * The close button alone, for a task in the world that is answered by taps on the world itself (PLAY-02: every task
+ * can be closed). `hideAnswers` hides it again.
+ */
+export function showClose(onClose: () => void) {
+  el.answersClose.onclick = onClose;
+  el.answersClose.classList.remove('hidden');
+}
 
 export function setAct(label: Key | null) {
   el.btnAct.classList.toggle('hidden', !label);

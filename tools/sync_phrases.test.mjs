@@ -23,12 +23,15 @@ describe('npm run voice:sync -- --check', () => {
     const ids = readdirSync(join(root, 'src/worlds'), { withFileTypes: true })
       .filter((d) => d.isDirectory() && existsSync(join(root, 'src/worlds', d.name, 'strings.ts'))).map((d) => d.name);
     expect(ids.length).toBeGreaterThan(0);
+    // A world may have no lines of its own (it can speak only the shared ones): the glob is checked by the sum.
+    let all = 0;
     for (const id of ids) {
       const { strings } = await import(`../src/worlds/${id}/strings.ts`);
       const spoken = Object.keys(strings.spoken);
-      expect(spoken.length).toBeGreaterThan(0);
+      all += spoken.length;
       expect({ world: id, notInFile: spoken.filter((k) => !Object.hasOwn(file, k)) }).toEqual({ world: id, notInFile: [] });
     }
+    expect(all, 'no world folder gave a spoken line: the folders were not read').toBeGreaterThan(0);
   });
 
   it('refuses an unknown argument', () => {

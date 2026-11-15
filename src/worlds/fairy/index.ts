@@ -1,12 +1,17 @@
 import * as THREE from 'three';
 import { updateRanged } from '../../core/instancing';
+import { createRng } from '../../core/rng';
+import { levelFor } from '../../core/save';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
+import { playScene } from '../../game/stage';
+import { generate as generateSort } from '../../game/tasks/sort';
+import { showSortInWorld, type WorldSort } from '../../game/worldtasks/sort';
 import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
-import { el } from '../../ui/ui';
+import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
@@ -23,7 +28,7 @@ import { SPAWN, colliders, height, raycastGround, resolve } from './terrain';
  * tasks and conversations, and its parts of the frame. `debug` is what window.__game reads of it.
  */
 export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
-  const { camera, renderer, save, ws, hero, flies, speech } = g;
+  const { scene, camera, renderer, save, ws, hero, flies, speech } = g;
   const { motes, updateClouds, starGeo } = L;
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
@@ -48,6 +53,26 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
 
+  // ---------- "sort" in the world (ARCH-09): a debug show only, opened by __game.worldSort() ----------
+  // The deer's chain keeps its "sort" on the panel (moving it into the world is PLAY-01). The show records nothing:
+  // no skill, no stars, no step of a chain. Its task comes from a randomness of its own, so the seeded tasks of the
+  // game (?seed=) stay the same with or without it.
+  const sorting = { active: false, colors: [] as string[] };     // window.__game reads this very object
+  let sortShow: WorldSort | null = null;
+  const worldSort = () => playScene(stage, 'world sort', async () => {
+    const deer = npc('deer'), h = deer.def.heading;
+    const at = { x: deer.pos.x + Math.sin(h) * SORT_ARC, z: deer.pos.z + Math.cos(h) * SORT_ARC, facing: h };
+    // The heroine stands in front of the arc, facing the deer.
+    const hx = at.x + Math.sin(h) * 3, hz = at.z + Math.cos(h) * 3;
+    hero.root.position.set(hx, g.groundY(hx, hz), hz); hero.heading = h + Math.PI; hero.root.rotation.y = hero.heading;
+    const spec = generateSort(levelFor(save, 'logic'), createRng(null));
+    const show = sortShow = showSortInWorld(scene, spec, at, g.hooksFor(deer.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60 });
+    Object.assign(sorting, { active: true, colors: show.pedestals.map((p) => p.userData.color as string) });
+    g.cam.focus = g.above(show.center, 1);
+    showClose(() => show.close());
+    try { await g.task(() => show.done); } finally { hideAnswers(); sorting.active = false; sortShow = null; }
+  });
+
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
@@ -66,7 +91,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   const frame: WorldFrame = {
     spots,
     // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
-    tap: (screenDist) => butterflies.tap(screenDist),
+    tap: (screenDist) => butterflies.tap(screenDist) || (sortShow?.tap(screenDist) ?? false),
     afterMove: (time, grounded) => characters.wings(time, grounded),
     // The characters, then the collectibles, then the shrine: the order they were always updated in.
     update: (dt, time, canMove) => {
@@ -80,10 +105,11 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       chestStars.animate(dt);
       flies.update(time);
       butterflies.bob(time);
+      sortShow?.update(time);
       updateClouds(dt);
     },
-    // A task in the world (the butterflies) is framed from further away than a conversation.
-    focusDist: () => bf.active ? 7.5 : 6.5,
+    // A task in the world (the butterflies, the debug "sort") is framed from further away than a conversation.
+    focusDist: () => bf.active || sorting.active ? 7.5 : 6.5,
     beforeRender: (hp) => {
       sky.sun.position.copy(hp).add(sky.sunOffset);
       sky.sun.target.position.copy(hp);
@@ -94,9 +120,11 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   };
 
   const debug: DebugExtras = {
-    npcs, search, bf,
+    npcs,
+    more: { search, bf, sorting, worldSort: () => { void worldSort(); } },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
+      if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }
       if (bf.active && !bf.demo) { (el.answers.children[bf.n - 1] as HTMLElement).dispatchEvent(new PointerEvent('pointerdown')); return 'butterflies'; }
       if (search.active) { const it = search.items.find((s) => !s.found); if (it) hero.root.position.copy(it.mesh.position); return 'star'; }
       return '';
@@ -114,6 +142,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
 }
 
 type FairySky = ReturnType<typeof buildSky>;
+
+/** m: the middle of the arc of the debug "sort" in front of the deer. */
+const SORT_ARC = 2.5;
 
 /** The lines of the shared conversation (src/game/dialogue.ts) this world says. */
 const LINES: WorldLines = { intro: 'intro', partGiven: 'npc_done', allParts: 'all_shards', partTitle: 'shard_title', partText: 'shard_text' };

@@ -7,7 +7,13 @@ import type { Game } from './context';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
-  npcs: unknown; search: unknown; bf: unknown;
+  npcs: unknown;
+  /**
+   * The world's own objects and commands, laid into window.__game as they are, under their own names (the first
+   * world: the state of its star search and of its butterflies, the debug show of "sort" in the world). The members
+   * of __game below win over a name of the same.
+   */
+  more: Record<string, unknown>;
   talk(id: string): void;
   /** Does the right thing for a task of the world on screen; returns what it did, or '' when there is none. */
   cheatWorld(): string;
@@ -21,7 +27,8 @@ export interface DebugExtras {
 export function exposeDebug(g: Game, extras: DebugExtras) {
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   (window as unknown as Record<string, unknown>).__game = {
-    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: extras.npcs, search: extras.search, bf: extras.bf, voice: voiceLog, dropped, tuning,
+    ...extras.more,
+    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: extras.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
     /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
     get inTask() { return inTask(); },
