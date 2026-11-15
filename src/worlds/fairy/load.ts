@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
-import { buildHero } from '../../game/hero';
+import { buildAdult, buildHero } from '../../game/hero';
 import { showNotice } from '../../ui/ui';
 import { buildGrass, buildScenery } from './scenery';
 import { buildClouds, buildMotes, buildRainbow, buildWater } from './sky';
@@ -24,7 +24,7 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
     buildHero(save), rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
     rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
-    rig('animals_pack/Deer', 1.55, true), buildHero({ dress: '#ffd54f', hair: '#f5d16b', hairStyle: 'buns' }, 1.72, 1.1),
+    rig('animals_pack/Deer', 1.55, true), buildAdult({ dress: '#ffd54f', hair: '#f5d16b' }, 1.72, 1.1),
   ]).catch((e: unknown) => {
     // TECH-08: a model failed even after its repeats (src/core/assets.ts). "Try again" reloads the page rather than
     // building again here: the terrain, the water, the grass and part of the props are in the scene already, and a

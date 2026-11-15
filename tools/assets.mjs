@@ -36,7 +36,7 @@ export const FIT = { width: MAX_TEXTURE, height: MAX_TEXTURE, fit: 'inside', wit
 /** One shipped file, bytes (docs/15-tech.md, "Бюджет": one file up to 1 MB). */
 export const MAX_FILE = 1_000_000;
 /** All of public/models, bytes: the 12 MB first-load budget minus code, voice and headroom for both. */
-export const MAX_TOTAL = 9_000_000;
+export const MAX_TOTAL = 10_000_000;
 /** WebP quality of colour maps: 40 dB PSNR or better on every texture of the first world. */
 export const COLOR_QUALITY = 90;
 

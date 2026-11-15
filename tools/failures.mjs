@@ -36,7 +36,7 @@ const MIN_BUTTON = 44;
 const BLOCKED = 'models/animals_pack/Fox.glb';
 // A texture of a model (models keep their textures in separate files): GLTFLoader itself only logs a texture it could
 // not fetch and goes on without it; the game counts that as a failed load too.
-const BLOCKED_TEXTURE = 'models/hero/tex/T_Hair_1_BaseColor.webp';
+const BLOCKED_TEXTURE = 'models/hero/tex/T_Child_BaseColor.webp';
 const REPEATS = 3;   // src/core/assets.ts RETRIES: the first attempt and three repeats
 // What the messages must say (src/ui/strings.ts); a part of each text is enough.
 const TEXT = {

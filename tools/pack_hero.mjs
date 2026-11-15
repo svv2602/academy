@@ -1,4 +1,5 @@
-// Packs the heroine from Quaternius CC0 sources into compact GLBs under models-src/hero/ (the sources of
+// Packs the queen's body parts (the heroine's before TECH-14) and the clips of both from Quaternius CC0 sources
+// into compact GLBs under models-src/hero/ (the sources of
 // `npm run assets`, which compresses them into public/models/hero/).
 //   node tools/pack_hero.mjs <src_dir>
 // <src_dir> holds the original glTF files: Superhero_Female_FullBody, Female_Ranger, Hair_*, UAL1.glb and their
@@ -28,7 +29,8 @@ async function mesh(name, outName, drop = /$^/, keepNormal = true) {
 
 await mesh('Superhero_Female_FullBody', 'base');
 await mesh('Female_Ranger', 'ranger', /Hood|Pauldron/);
-for (const h of ['Long', 'Buns', 'SimpleParted']) await mesh(`Hair_${h}`, `hair_${h.toLowerCase()}`, /$^/, false);
+// Only the queen's buns: the heroine's hair is part of her model since TECH-14 (the other two styles are in models-unused/hero/).
+for (const h of ['Buns']) await mesh(`Hair_${h}`, `hair_${h.toLowerCase()}`, /$^/, false);
 
 const anim = await io.read(`${src}/UAL1.glb`);
 for (const a of anim.getRoot().listAnimations()) {

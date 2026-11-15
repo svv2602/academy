@@ -43,7 +43,8 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
     to.add(mesh);
     return { mesh, side };
   });
-  const wings = addWings(hero.root, '#d8f6ff', 1.08, 0.8);
+  // The heroine's wings hang a little below her shoulders (as they did on the adult body: 1.08 under 1.17).
+  const wings = addWings(hero.root, '#d8f6ff', L.heroRig.shoulder - 0.09, 0.8);
 
   // ----- quest characters -----
   tint(uniRig.model, { Main: '#ffffff', Main_Light: '#fff4fb', Hair: '#ff9ed2', Hooves: '#ffd76a', Muzzle: '#ffd0e0', Eye_White: '#ffffff' });

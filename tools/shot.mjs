@@ -720,6 +720,78 @@ try {
         catRepeated = true;
       }
 
+      // ---- the heroine (TECH-14): one child model on the game skeleton. In every clip of hers the lowest foot bone
+      // stays within 3 cm of the ground (the pelvis of the clips is scaled to her legs); the look re-paints the dress
+      // but no skin texel of her texture; pictures of her standing, walking and in a jump ----
+      {
+        const fail = (what) => { throw new Error(`the heroine: ${what}`); };
+        const FEET = 0.03;
+        const body = await g(async (feet) => {
+          const THREE = __game.THREE, { model, root } = __game.hero, meshes = [], bones = {};
+          model.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); if (o.isBone) bones[o.name] = o; });
+          const out = { meshes: meshes.length, bones: Object.keys(bones).length, feet: [], skin: 0, skinPainted: 0, dressPainted: 0 };
+          if (meshes.length !== 1) return out;
+          // Every clip of hers, sampled 13 times on a mixer of its own; the game's mixer poses her again in the next frame.
+          const mixer = new THREE.AnimationMixer(model), v = new THREE.Vector3();
+          for (const [name, action] of __game.hero.actions) {
+            const clip = action.getClip(), a = mixer.clipAction(clip);
+            a.play();
+            let low = Infinity;
+            for (let k = 0; k <= 12; k++) {
+              mixer.setTime(clip.duration * k / 12); root.updateMatrixWorld(true);
+              for (const b of ['foot_l', 'foot_r', 'ball_l', 'ball_r']) low = Math.min(low, bones[b].getWorldPosition(v).y - root.position.y);
+            }
+            a.stop(); mixer.uncacheAction(clip);
+            if (Math.abs(low) > feet) out.feet.push(`${name} ${low.toFixed(3)} m`);
+          }
+          mixer.uncacheRoot(model);
+          // The painted texture against the file it was painted from: skin texels (orange hues, mid to light) unchanged.
+          const map = meshes[0].material.map, img = await createImageBitmap(await (await fetch(new URL('models/hero/tex/T_Child_BaseColor.webp', document.baseURI))).blob());
+          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+          const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+          const was = ctx.getImageData(0, 0, c.width, c.height).data;
+          if (!map?.image?.getContext || map.image.width !== c.width) { out.noCanvas = true; return out; }
+          const now = map.image.getContext('2d').getImageData(0, 0, c.width, c.height).data, col = new THREE.Color(), hsl = { h: 0, s: 0, l: 0 };
+          for (let i = 0; i < was.length; i += 4) {
+            col.setRGB(was[i] / 255, was[i + 1] / 255, was[i + 2] / 255, THREE.SRGBColorSpace).getHSL(hsl, THREE.SRGBColorSpace);
+            const changed = Math.abs(was[i] - now[i]) + Math.abs(was[i + 1] - now[i + 1]) + Math.abs(was[i + 2] - now[i + 2]) > 6;
+            if (hsl.h > 0.02 && hsl.h < 0.12 && hsl.s > 0.25 && hsl.l > 0.45 && hsl.l < 0.85) { out.skin++; if (changed) out.skinPainted++; }
+            if (hsl.h > 0.2 && hsl.h < 0.4 && hsl.s > 0.3 && hsl.l > 0.4 && changed) out.dressPainted++;
+          }
+          return out;
+        }, FEET);
+        if (body.meshes !== 1) fail(`${body.meshes} skinned meshes instead of the one child model`);
+        if (body.bones !== 65) fail(`${body.bones} bones instead of the 65 of the game skeleton`);
+        if (body.feet.length) fail(`the feet leave the ground by more than ${FEET * 100} cm: ${body.feet.join(', ')}`);
+        if (body.noCanvas) fail('her texture is not the painted canvas of T_Child_BaseColor');
+        if (!body.skin || body.skinPainted) fail(`the look re-painted ${body.skinPainted} of ${body.skin} skin texels`);
+        if (!body.dressPainted) fail('the look did not re-paint the dress');
+        // Pictures on open ground at the spawn, the camera close; waits in game time (__game.time).
+        const gameWait = async (s) => {
+          const t0 = await g(() => __game.time);
+          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(s * 30000 + 5000) })
+            .catch(() => fail(`${s} s of game time did not pass`));
+        };
+        const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; __game.closeup(3.2); });
+        await gameWait(1.2); await shot('hero-idle');
+        await page.keyboard.down('KeyW');
+        try {
+          await page.waitForFunction(() => ['Walk', 'Run'].includes(__game.hero.current), null, { timeout: T(5000) }).catch(() => fail('she does not walk'));
+          await gameWait(0.6); await shot('hero-walk');
+        } finally { await page.keyboard.up('KeyW'); }
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
+        await gameWait(0.8);
+        const floor = await g(() => __game.hero.root.position.y);
+        await page.keyboard.press('Space');
+        await page.waitForFunction((y) => __game.hero.current === 'Jump' && __game.hero.root.position.y - y > 0.3, floor, { timeout: T(5000), polling: 'raf' })
+          .catch(() => fail('she does not jump'));
+        await shot('hero-jump');
+        await g(() => __game.closeup(null));
+        await g(([x, z]) => __game.teleport(x, z), back); await gameWait(1);
+        console.log(`the heroine: one model, feet on the ground in ${(await g(() => __game.hero.actions.size))} clips, ${body.skin} skin texels kept, ${body.dressPainted} dress texels painted`);
+      }
+
       // ---- stars never go down (LEARN-14): watched on every frame from here to the end of the world, read on every step ----
       // A star that is won is also stored at once, in the same frame: the save on a timer would lose it if the page died.
       await g(() => {
