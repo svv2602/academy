@@ -23,8 +23,8 @@ import { checkDistSize } from './dist-size.mjs';
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
 Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
-desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> [with the mobile size: failure screens]
--> models used -> dist links -> dist size -> stop server.
+desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> [with the mobile size: failure screens
+-> update] -> models used -> dist links -> dist size -> stop server.
 The exit code is non-zero if any step fails.
 Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
 mobile-portrait 390x844 (touch).
@@ -42,6 +42,10 @@ the commit number shown there with "git rev-parse --short HEAD" of the sources (
 Chrome with WebGL switched off shows the message with the advice to update the browser and has nothing in the console;
 with one model blocked the game asks for it 1 + 3 times, then shows the message and "try again"; the block lifted and
 the button pressed, the start screen with "Play" appears. Both screens are measured in 844x390 and 390x844.
+"update" (tools/update.mjs; once per run, with the mobile size, like "failure screens"; a server of its own): a new
+build is published while the game is played - the new service worker installs and waits, the page keeps its worker
+(no controllerchange), is not navigated, and a task is still solved; once every page of the game is closed, a new page
+opens the new build with the stars of the old one.
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
 "dist size" holds the build to the budget of docs/15-tech.md: all of dist/ at most 12 MB, one file at most 1 MB
 (tools/dist-size.mjs).
@@ -269,6 +273,13 @@ async function failureScreens(url) {
   if (code !== 0) throw new Error(`tools/failures.mjs exited with ${signal ?? `code ${code}`} — see "failures:" above`);
   return 'no WebGL: message, clean console; blocked model: repeats, message and button, the game starts after "try again"';
 }
+// A new build published in the middle of a game (TECH-13): tools/update.mjs serves dist/ and a marked copy of it itself.
+async function update() {
+  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/update.mjs'), join(root, 'dist')], 600000);
+  if (timedOut) throw new Error('killed after 600000 ms');
+  if (code !== 0) throw new Error(`tools/update.mjs exited with ${signal ?? `code ${code}`} — see "update:" above`);
+  return 'the new version waited through a solved task, no controllerchange, no reload; the next launch: new version, same stars';
+}
 // With all four sizes (the way CI runs) one walkthrough must have been played in silence, by its own report.
 function checkSilent() {
   const silent = opts.modes.filter((m) => { const v = voiceReport(m); return v?.mute && v.loud === 0 && v.clips > 0; });
@@ -384,6 +395,8 @@ if (ready) {
       if (!url) skip('failure screens', 'no server');
       else if (opts.bail && failed()) skip('failure screens', '--bail');
       else await step('failure screens', () => failureScreens(url));
+      if (opts.bail && failed()) skip('update', '--bail');
+      else await step('update', update);
     }
     const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
     if (opts.allSizes) {

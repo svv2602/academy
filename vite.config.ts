@@ -19,7 +19,11 @@ export default defineConfig({
   build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // A new version is taken at the next launch, never in the middle of a game (TECH-13): the new worker installs and
+      // waits until every page of the game is closed (registerType 'prompt', skipWaiting: false; the game never asks
+      // it to skip). clientsClaim: true lets the very first worker take the page that installed it, without that the
+      // offline walkthrough would wait for a controller. tools/update.mjs (the step "update" of npm run e2e) checks it.
+      registerType: 'prompt',
       includeAssets: ['icon.svg'],
       // Every file type the game page requests must be listed here, or the installed game breaks without network.
       // The set is measured, not guessed: it is the types requested during the walkthroughs of `npm run e2e`
@@ -27,7 +31,8 @@ export default defineConfig({
       // desktop walkthrough of that command is played offline, so a missing type fails it. The largest file is
       // under 1 MB (tools/assets.test.mjs holds the models to that); a file above the limit here would be left out
       // of the cache with only a build warning.
-      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], maximumFileSizeToCacheInBytes: 4_000_000 },
+      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], maximumFileSizeToCacheInBytes: 4_000_000,
+        clientsClaim: true, skipWaiting: false },
       manifest: {
         name: 'Академія чарівних світів',
         short_name: 'Академія',
