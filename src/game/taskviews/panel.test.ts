@@ -173,8 +173,9 @@ describe('the shows draw no random numbers', () => {
   const SOURCES = Object.entries(import.meta.glob(['./*.ts', '!./*.test.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>);
   const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-  it('the glob reached the panel, the flow and the five shows', () => {
-    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './flow.ts', './panel.ts', './pattern.ts', './sub.ts']);
+  it('the glob reached the panel, the flow and the ten shows', () => {
+    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './flow.ts', './odd.ts', './order.ts', './pairs.ts',
+      './panel.ts', './pattern.ts', './simon.ts', './sort.ts', './sub.ts']);
   });
 
   it('no Math.random anywhere; no rng in a show or the flow; the panel only hands its rng to generate()', () => {
@@ -184,5 +185,26 @@ describe('the shows draw no random numbers', () => {
       if (path !== './panel.ts') expect(lines, path).toEqual([]);
       else for (const l of lines) expect(l).toMatch(/^import \{ createRng, type Rng \}|^export function runTask\(|^ {2}return showTask\(generate\(type, level, rng\), hooks\);$/);
     }
+  });
+});
+
+// Moved from `src/game/tasks.test.ts`: what a child sees without the voice (VOICE-09) needs the style sheet of the shows.
+describe('the shows are drawn', () => {
+  it('the shows are drawn: panel.ts imports hints.css, and it styles every class the shows put on screen', async () => {
+    // happy-dom applies no style sheet, so the tests of the shows only see classes; without these rules they would draw nothing.
+    // Vitest hands CSS to a test as an empty module (also with ?raw), so the files are read from the disk.
+    // The module name is a variable: the game's type check knows no Node modules.
+    const fsModule = 'node:fs';
+    const { readFileSync } = await import(/* @vite-ignore */ fsModule) as { readFileSync(path: URL, encoding: 'utf8'): string };
+    const source = (name: string) => readFileSync(new URL(name, import.meta.url), 'utf8');
+    expect(source('./panel.ts')).toMatch(/^import '\.\/hints\.css';$/m);
+    const rules = source('./hints.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const rule of [
+      /\.it\.big\.alike \{[^}]*inset/,                                   // the frame of the alike things
+      /\.ask\.more b[^{]*\{[^}]*animation: grow/, /\.ask\.less b[^{]*\{[^}]*animation: shrink/,
+      /\.grow > \.it \{[^}]*animation: grow/, /\.shrink > \.it \{[^}]*animation: shrink/,
+      /@keyframes grow \{/, /@keyframes shrink \{/,
+      /\.t-stage\.peek \.mcard span \{ visibility: visible; \}/,           // the faces during the peek
+    ]) expect(rules).toMatch(rule);
   });
 });

@@ -1,4 +1,4 @@
-/* What to do, shown without the voice and without reading (VOICE-09), for the tasks of src/game/tasks.ts.
+/* What to do, shown without the voice and without reading (VOICE-09), for the panel shows of src/game/taskviews.
    Only `scale` and `opacity` move, so nothing is laid out again, and nothing grows past its own size:
    no frame or animation leaves its group or the task panel. Frames are drawn inside (inset shadows). */
 

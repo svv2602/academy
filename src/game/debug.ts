@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { dropped, inTask, voiceLog } from '../core/audio';
 import { tuning } from '../core/tuning';
 import { uTime } from '../core/materials';
-import { cheatTask } from './tasks';
+import { cheatTask } from './taskviews/panel';
 import type { Game } from './context';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */

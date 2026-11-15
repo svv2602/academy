@@ -4,6 +4,7 @@
  *
  * The show of each type is its own module (`taskviews/<type>.ts`); it only draws and wires the taps, and draws no
  * random numbers: every choice of the task is in the description. `runTask` makes the description from the task's rng.
+ * The shows of the ten types are drawn by `hints.css`.
  */
 import { createRng, type Rng } from '../../core/rng';
 import type { Spoken } from '../../core/audio';
@@ -16,6 +17,18 @@ import { addView } from './add';
 import { subView } from './sub';
 import { compareView } from './compare';
 import { patternView } from './pattern';
+import { oddView } from './odd';
+import { pairsView } from './pairs';
+import { orderView } from './order';
+import { sortView } from './sort';
+import { simonView } from './simon';
+import './hints.css';
+
+/** The skill a task of each type trains: the save keeps a level per skill (adaptive difficulty). */
+export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
+export const SKILL: Record<TaskType, Skill> = {
+  count: 'count', add: 'add', sub: 'sub', compare: 'compare', pattern: 'logic', odd: 'logic', pairs: 'logic', order: 'logic', sort: 'logic', simon: 'logic',
+};
 
 export interface TaskResult { solved: boolean; wrong: number; }
 /**
@@ -86,12 +99,12 @@ export async function countAloud(c: PanelCtx, list: HTMLElement[]) {
 
 // ---------- the shows ----------
 
-/** The shows of the other types, until they move here as well (`tasks.ts` adds them). */
-const more: Views = {};
-export function addPanelViews(views: Views) { Object.assign(more, views); }
-// A function, not a constant: the shows import the helpers above, so a show may be loaded before this module is done.
-const viewOf = <T extends TaskType>(type: T) =>
-  ({ count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView, ...more } as Views)[type] as PanelView<T> | undefined;
+// The shows import the helpers above and this module imports the shows: a cycle, which holds because nothing of a show
+// is used while the modules load. The list is built at a call, so a show loaded first never meets an unready binding.
+const viewOf = <T extends TaskType>(type: T) => ({
+  count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
+  odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView,
+} satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 let current: PanelCtx | null = null;
 /** Test hook: solves the task on screen the way a child would (through the same handlers). */

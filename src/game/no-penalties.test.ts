@@ -9,8 +9,9 @@
  * Timers are checked by behaviour: every task type at every level is left open for an hour of fake time.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SKILL, cheatTask, runTask } from './tasks';
-import type { TaskHooks, TaskResult, TaskType } from './tasks';
+import { SKILL, cheatTask, runTask } from './taskviews/panel';
+import type { TaskHooks, TaskResult } from './taskviews/panel';
+import type { TaskType } from './tasks/types';
 import type { Spoken } from '../core/audio';
 
 // ---------- stars: only ever added ----------
@@ -52,7 +53,9 @@ describe('stars are only ever added (LEARN-14, R13)', () => {
     const names = SOURCES.map((s) => s.path);
     expect(names, 'the glob did not reach the game sources').toContain('src/main.ts');
     expect(names).toContain('src/core/save.ts');
-    expect(names).toContain('src/game/tasks.ts');
+    expect(names).toContain('src/game/taskviews/panel.ts');
+    expect(names).toContain('src/game/taskviews/sort.ts');
+    expect(names).toContain('src/game/tasks/sort.ts');
   });
 
   it('the save field of the stars is written only by addStars, and addStars only adds', () => {
