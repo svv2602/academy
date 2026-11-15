@@ -16,34 +16,21 @@ const S = sameKeys({
   uk: {
     title: 'Академія чарівних світів', subtitle: 'Королівство фей', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
     dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', style: 'Зачіска', style_long: 'Каре', style_buns: 'Гульки', style_simpleparted: 'Коротка', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити',
-    intro: 'Привіт{, name}! Ми в Королівстві фей. Кристал світла розбився на пʼять уламків! Допоможеш їх зібрати?',
-    count_hint: 'Торкайся кожного метелика, і ми порахуємо разом.',
-    pick_number: 'Скільки метеликів? Обери число.',
     welcome_back: 'З поверненням{, name}! Продовжимо нашу пригоду?',
-    chest: 'Ого, таємна скриня! У ній зірочки!', crystal_name: 'Кристал світла', found: 'Знайдено!', ok: 'Далі',
-    free: 'Гуляй королівством! Тут ще багато таємниць.',
-
-    // --- world 1 story
-    unicorn_hi: 'Мої метелики розлетілися! Допоможи їх порахувати.',
-    fox_hi: 'Привіт! Я лисичка. Розгадаєш мої хитрі загадки?',
-    mushking_hi: 'Я Грибний Король. Допоможи навести лад у моєму лісі!',
-    deer_hi: 'Мої зірочки сховалися в траві. Знайдеш їх?',
-    queen_hi: 'Вітаю, Хранителько! Останній уламок у мене. Пройди три випробування.',
+    found: 'Знайдено!', ok: 'Далі',
+    // --- the shared conversation (a world's own lines are in src/worlds/<id>/strings.ts)
     npc_next: 'Чудово! А ось іще одне завдання.',
-    npc_done: 'Дякую тобі! Тримай уламок Кристала світла!',
     npc_again: 'Пограємо ще разок?',
     go_next: 'Біжи за іскорками до нового друга!',
     t_count: 'Скільки їх тут? Торкайся і рахуй.', t_add: 'Скільки буде разом?', t_sub: 'Дехто втік. Скільки залишилось?',
     t_compare_more: 'Де більше?', t_compare_less: 'Де менше?', t_pattern: 'Що буде далі?', t_odd: 'Що тут зайве?',
     t_pairs: 'Знайди однакові картки.', t_order: 'Натискай числа від найменшого.', t_sort: 'Поклади кристал у кошик такого ж кольору.',
     t_simon_watch: 'Дивись і запамʼятовуй!', t_simon_repeat: 'Тепер повтори!',
-    t_stars: 'Знайди пʼять зірочок, що сховалися поруч!', t_stars_back: 'Усі зірочки знайдено! Повертаймося до оленя.',
     h_count: 'Порахуймо разом!', h_left: 'Порахуймо тих, хто залишився.', h_compare: 'Порахуй тут і тут.', h_pattern: 'Подивись, що повторюється.',
     h_odd: 'Хто не схожий на інших?', h_order: 'Яке число найменше?', h_sort: 'Якого кольору кристал?', h_simon: 'Подивись іще раз.',
-    shard_title: 'Уламок кристала!', shard_text: '{n} з 5', all_shards: 'Усі уламки в нас! Віднесімо їх до альтанки біля ставка.',
-    place: 'Скласти', final_title: 'Кристал світла сяє!', final_text: 'Ти повернула магію Королівству фей!',
+    place: 'Скласти',
     // --- collection & parents
-    col_title: 'Мої скарби', col_shards: 'Уламки кристала', col_stars: 'Зірочки', col_chest: 'Таємна скриня', parents: 'Для батьків', close: 'Закрити',
+    col_title: 'Мої скарби', col_stars: 'Зірочки', parents: 'Для батьків', close: 'Закрити',
     gate_q: 'Розділ для дорослих. Скільки буде {a} × {b}?', p_title: 'Батьківський розділ', p_version: 'Версія',
     sk_count: 'Лічба', sk_add: 'Додавання', sk_sub: 'Віднімання', sk_compare: 'Порівняння', sk_logic: 'Логіка',
     p_skill: 'Навичка', p_level: 'Рівень', p_tasks: 'Завдань', p_first: 'З першої спроби', p_errors: 'Помилок',
@@ -57,32 +44,19 @@ const S = sameKeys({
   ru: {
     title: 'Академия волшебных миров', subtitle: 'Королевство фей', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
     dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', style: 'Причёска', style_long: 'Каре', style_buns: 'Пучки', style_simpleparted: 'Короткая', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть',
-    intro: 'Привет{, name}! Мы в Королевстве фей. Кристалл света разбился на пять осколков! Поможешь их собрать?',
-    count_hint: 'Касайся каждой бабочки, и мы посчитаем вместе.',
-    pick_number: 'Сколько бабочек? Выбери число.',
     welcome_back: 'С возвращением{, name}! Продолжим наше приключение?',
-    chest: 'Ого, тайный сундук! В нём звёздочки!', crystal_name: 'Кристалл света', found: 'Найдено!', ok: 'Дальше',
-    free: 'Гуляй по королевству! Здесь ещё много тайн.',
-
-    unicorn_hi: 'Мои бабочки разлетелись! Помоги их посчитать.',
-    fox_hi: 'Привет! Я лисичка. Разгадаешь мои хитрые загадки?',
-    mushking_hi: 'Я Грибной Король. Помоги навести порядок в моём лесу!',
-    deer_hi: 'Мои звёздочки спрятались в траве. Найдёшь их?',
-    queen_hi: 'Здравствуй, Хранительница! Последний осколок у меня. Пройди три испытания.',
+    found: 'Найдено!', ok: 'Дальше',
     npc_next: 'Отлично! А вот ещё одно задание.',
-    npc_done: 'Спасибо тебе! Держи осколок Кристалла света!',
     npc_again: 'Сыграем ещё разок?',
     go_next: 'Беги за искорками к новому другу!',
     t_count: 'Сколько их здесь? Касайся и считай.', t_add: 'Сколько будет вместе?', t_sub: 'Кое-кто убежал. Сколько осталось?',
     t_compare_more: 'Где больше?', t_compare_less: 'Где меньше?', t_pattern: 'Что будет дальше?', t_odd: 'Что здесь лишнее?',
     t_pairs: 'Найди одинаковые карточки.', t_order: 'Нажимай числа от самого маленького.', t_sort: 'Положи кристалл в корзину такого же цвета.',
     t_simon_watch: 'Смотри и запоминай!', t_simon_repeat: 'Теперь повтори!',
-    t_stars: 'Найди пять звёздочек, которые спрятались рядом!', t_stars_back: 'Все звёздочки найдены! Возвращаемся к оленю.',
     h_count: 'Посчитаем вместе!', h_left: 'Посчитаем тех, кто остался.', h_compare: 'Посчитай здесь и здесь.', h_pattern: 'Посмотри, что повторяется.',
     h_odd: 'Кто не похож на остальных?', h_order: 'Какое число самое маленькое?', h_sort: 'Какого цвета кристалл?', h_simon: 'Посмотри ещё раз.',
-    shard_title: 'Осколок кристалла!', shard_text: '{n} из 5', all_shards: 'Все осколки у нас! Отнесём их в беседку у пруда.',
-    place: 'Собрать', final_title: 'Кристалл света сияет!', final_text: 'Ты вернула магию Королевству фей!',
-    col_title: 'Мои сокровища', col_shards: 'Осколки кристалла', col_stars: 'Звёздочки', col_chest: 'Тайный сундук', parents: 'Для родителей', close: 'Закрыть',
+    place: 'Собрать',
+    col_title: 'Мои сокровища', col_stars: 'Звёздочки', parents: 'Для родителей', close: 'Закрыть',
     gate_q: 'Раздел для взрослых. Сколько будет {a} × {b}?', p_title: 'Родительский раздел', p_version: 'Версия',
     sk_count: 'Счёт', sk_add: 'Сложение', sk_sub: 'Вычитание', sk_compare: 'Сравнение', sk_logic: 'Логика',
     p_skill: 'Навык', p_level: 'Уровень', p_tasks: 'Заданий', p_first: 'С первой попытки', p_errors: 'Ошибок',
@@ -93,31 +67,54 @@ const S = sameKeys({
     load_failed: 'Не удалось загрузить игру. Проверьте интернет и попробуйте ещё раз.', retry: 'Попробовать ещё раз',
   },
 });
-export type Key = keyof typeof S.uk;
-/** The whole table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
+/** The shared table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
 export { S as STRINGS };
 /** Intonations the recording pipeline knows; tools/gen_voice.py passes the name on as it is. */
 export const VOICE_STYLES = ['warm', 'joy', 'calm'] as const;
 export type VoiceStyle = (typeof VOICE_STYLES)[number];
+
 /**
- * Every line the game speaks, with the intonation of its recording: joy for praise and the finale, warm for
- * requests and questions, calm for "watch closely". Interface-only strings are not listed.
- * This table is the only source of voice/phrases.json (`npm run voice:sync`), and `SpokenKey` is the only key type
+ * The texts of one world (ARCH-12), in src/worlds/<id>/strings.ts: its table in both languages and its spoken lines.
+ * Such a file holds only `import type` and `declare module` (tools/sync_phrases.mjs loads it in Node).
+ */
+export interface WorldStrings { id: string; table: { uk: Record<string, string>; ru: Record<string, string> }; spoken: Record<string, VoiceStyle> }
+/** Each world's strings.ts adds itself: `declare module '../../ui/strings' { interface WorldTables { <id>: typeof strings } }`. */
+export interface WorldTables {}
+type WorldKey = { [W in keyof WorldTables]: keyof WorldTables[W]['table']['uk'] }[keyof WorldTables];
+type WorldSpokenKey = { [W in keyof WorldTables]: keyof WorldTables[W]['spoken'] }[keyof WorldTables];
+/** A key of the shared table or of any world's table. */
+export type Key = keyof typeof S.uk | WorldKey;
+/**
+ * Every shared line the game speaks, with the intonation of its recording: joy for praise and the finale, warm for
+ * requests and questions, calm for "watch closely". Interface-only strings are not listed; a world lists its own
+ * lines in the `spoken` of its strings.ts.
+ * These tables are the only source of voice/phrases.json (`npm run voice:sync`), and `SpokenKey` is the only key type
  * `voiceText` and the speaking code accept, so a line cannot be spoken without being listed for recording.
- * To make a string spoken, add `key: 'style'` here and run `npm run voice:sync`.
+ * To make a string spoken, add `key: 'style'` here (or to the world's `spoken`) and run `npm run voice:sync`.
  */
 const SPOKEN = {
-  intro: 'joy', welcome_back: 'joy', chest: 'joy', free: 'warm',
-  unicorn_hi: 'warm', fox_hi: 'warm', mushking_hi: 'warm', deer_hi: 'warm', queen_hi: 'warm',
-  npc_next: 'joy', npc_done: 'joy', npc_again: 'warm', go_next: 'warm',
+  welcome_back: 'joy',
+  npc_next: 'joy', npc_again: 'warm', go_next: 'warm',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
-  t_stars: 'warm', t_stars_back: 'joy',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
-  all_shards: 'joy', final_text: 'joy',
-} as const satisfies Partial<Record<Key, VoiceStyle>>;
-export type SpokenKey = keyof typeof SPOKEN;
+} as const satisfies Partial<Record<keyof typeof S.uk, VoiceStyle>>;
+/** A spoken line of the shared table or of any world. */
+export type SpokenKey = keyof typeof SPOKEN | WorldSpokenKey;
 export { SPOKEN };
+
+/** The shared table with every world's table added (`addStrings`): what `t`, `tf` and `voiceText` read. */
+const TABLE: Record<Lang, Record<string, string>> = { uk: { ...S.uk }, ru: { ...S.ru } };
+/**
+ * Adds a world's texts (src/main.ts, for each world of the registry, before the start screen). A key that already
+ * exists is an error: one key, one clip.
+ */
+export function addStrings(w: WorldStrings): void {
+  const langs = Object.keys(TABLE) as Lang[];
+  const taken = langs.flatMap((l) => Object.keys(w.table[l])).filter((k) => Object.hasOwn(TABLE.uk, k) || Object.hasOwn(TABLE.ru, k));
+  if (taken.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${[...new Set(taken)].join(', ')}`);
+  for (const l of langs) Object.assign(TABLE[l], w.table[l]);
+}
 /**
  * A line as it is recorded: the name placeholder is cut out, so neither a clip nor a request to the voice service
  * ever carries a name. Any other placeholder cannot be recorded as one fixed clip and is an error.
@@ -127,10 +124,26 @@ export function recordable(key: string, text: string): string {
   if (/[{}]/.test(out)) throw new Error(`spoken line "${key}" still has a placeholder after the name is cut out: ${out}`);
   return out;
 }
-/** What is sent for recording: every spoken line in Ukrainian with its intonation, in the order of `SPOKEN`. */
-export function recordingList(): Record<SpokenKey, [text: string, style: VoiceStyle]> {
-  const list = {} as Record<SpokenKey, [text: string, style: VoiceStyle]>;
-  for (const k of Object.keys(SPOKEN) as SpokenKey[]) list[k] = [recordable(k, S.uk[k]), SPOKEN[k]];
+/**
+ * What is sent for recording: every spoken line in Ukrainian with its intonation, the shared ones in the order of
+ * `SPOKEN`, then each world's in the order given and of its `spoken`. A key two tables share is an error.
+ */
+export function recordingList(worlds: readonly WorldStrings[]): Record<string, [text: string, style: VoiceStyle]> {
+  const list: Record<string, [text: string, style: VoiceStyle]> = {};
+  const keys = new Set(Object.keys(S.uk));
+  const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>) => {
+    for (const [k, style] of Object.entries(spoken)) {
+      if (typeof uk[k] !== 'string') throw new Error(`spoken line "${k}" of ${owner} has no Ukrainian text`);
+      list[k] = [recordable(k, uk[k]), style];
+    }
+  };
+  add('the shared strings', S.uk, SPOKEN);
+  for (const w of worlds) {
+    const twice = Object.keys(w.table.uk).filter((k) => keys.has(k));
+    if (twice.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);
+    for (const k of Object.keys(w.table.uk)) keys.add(k);
+    add(`world "${w.id}"`, w.table.uk, w.spoken);
+  }
   return list;
 }
 /** Saved language; falls back to Ukrainian when storage is missing, blocked or holds an unknown value. */
@@ -146,8 +159,8 @@ export function setLang(l: Lang) { lang = l; try { localStorage.setItem('amw-lan
 let childName = '';
 export function setChildName(n: string) { childName = n.trim().slice(0, 20); }
 const fill = (s: string) => s.replace(/\{, name\}/g, childName ? `, ${childName}` : '');
-export const t = (k: Key) => fill(S[lang][k]);
-/** Voice lines are always spoken in Ukrainian. Only lines marked in `SPOKEN` can be spoken. */
-export const voiceText = (k: SpokenKey) => fill(S.uk[k]);
+export const t = (k: Key) => fill(TABLE[lang][k]);
+/** Voice lines are always spoken in Ukrainian. Only lines marked in `SPOKEN` (or a world's `spoken`) can be spoken. */
+export const voiceText = (k: SpokenKey) => fill(TABLE.uk[k]);
 /** Text with {n}-style variables. */
 export const tf = (k: Key, vars: Record<string, string | number>) => t(k).replace(/\{(\w+)\}/g, (_, v) => String(vars[v] ?? ''));

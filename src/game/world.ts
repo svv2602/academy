@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { Rig } from '../core/assets';
 import type { Save } from '../core/save';
-import type { Key, SpokenKey, VoiceStyle } from '../ui/strings';
+import type { Key, SpokenKey, WorldStrings } from '../ui/strings';
 import type { Actor } from './actor';
 import type { Game } from './context';
 import type { DebugExtras } from './debug';
@@ -63,12 +63,8 @@ export interface BookInfo {
   stats(): readonly { icon: string; label: Key; value: string }[];
 }
 
-/** A world's texts. Placeholder until ARCH-12 (the type then lives in src/ui/strings.ts). */
-export interface WorldStrings {
-  id: string;
-  table: { uk: Record<string, string>; ru: Record<string, string> };
-  spoken: Record<string, VoiceStyle>;
-}
+/** A world's texts (ARCH-12): declared with the shared strings, in src/ui/strings.ts. */
+export type { WorldStrings } from '../ui/strings';
 
 /** A world once built: its parts of the frame, what window.__game reads of it, the book, its lines and the HUD counter. */
 export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string }

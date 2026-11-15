@@ -4,7 +4,7 @@ import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
 import { QUESTS, type QuestDef } from '../../game/quests';
-import type { BookInfo, BuiltWorld, WorldDef, WorldGround, WorldLines } from '../../game/world';
+import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines } from '../../game/world';
 import { buildSky, updateRanged } from '../../world/scenery';
 import { SPAWN, colliders, height, raycastGround, resolve } from '../../world/terrain';
 import { el } from '../../ui/ui';
@@ -15,6 +15,7 @@ import { createDialogue } from './dialogue';
 import { loadFairy, type FairyLoads } from './load';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { createStarSearch } from './star-search';
+import { strings } from './strings';
 
 /**
  * The first world, built (ARCH-05): its objects in the order they always joined the scene (and the colliders) in, its
@@ -113,6 +114,12 @@ type FairySky = ReturnType<typeof buildSky>;
 /** The lines of the shared conversation this world says (the conversation itself still lives in ./dialogue.ts). */
 const LINES: WorldLines = { intro: 'intro', partGiven: 'npc_done', allParts: 'all_shards', partTitle: 'shard_title', partText: 'shard_text' };
 
+/** The music of the kingdom (src/core/audio.ts plays it): bells on a pentatonic scale over four soft chords. */
+const MUSIC: MusicParams = {
+  scale: [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3, 784],
+  chords: [[130.8, 196, 329.6], [110, 164.8, 261.6], [87.3, 174.6, 261.6], [98, 196, 293.7]],
+};
+
 /** The relief and the colliders of the valley (src/world/terrain.ts): the shared code reaches them only through this. */
 const ground: WorldGround = {
   height,
@@ -127,9 +134,9 @@ export const fairy: WorldDef<FairyLoads, FairySky> = {
   spawn: SPAWN,
   ground,
   characters: QUESTS,
-  // Its texts are still in src/ui/strings.ts: they move here with ARCH-12.
-  strings: { id: 'fairy', table: { uk: {}, ru: {} }, spoken: {} },
-  // No music of its own yet: src/core/audio.ts plays its constants (ARCH-06 gives a world its own later).
+  // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
+  strings,
+  music: MUSIC,
   sky: buildSky,
   load: loadFairy,
   build: buildFairy,

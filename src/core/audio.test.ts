@@ -821,7 +821,8 @@ describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
 
   it('the music does not play the notes it missed: a suspended clock schedules nothing, a late timer goes on from now', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.1);   // a bell on every step
-    const { page, unlockAudio } = await loadPage(fakeSynth([UK]));
+    const { page, unlockAudio, setMusic } = await loadPage(fakeSynth([UK]));
+    setMusic({ scale: [261.6, 293.7, 329.6, 392, 440], chords: [[130.8, 196, 329.6]] });   // the notes come from the world (ARCH-06)
     unlockAudio();
     const ctx = FakeCtx.made[0];
     expect(ctx.starts.length).toBeGreaterThan(0);

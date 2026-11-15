@@ -31,3 +31,12 @@ describe('pickWorld', () => {
     expect(() => pickWorld([], null, false)).toThrow();
   });
 });
+
+// main.ts plays the chosen world's tune: without this call the game is silent (the notes belong to the world, ARCH-06).
+const MAIN = Object.values(import.meta.glob('../main.ts', { query: '?raw', import: 'default', eager: true }))[0] as string;
+describe('the world reaches the audio', () => {
+  it('main.ts hands the chosen world\'s music to setMusic', () => {
+    expect(MAIN).toMatch(/^setMusic\(world\.music\b/m);
+  });
+});
+

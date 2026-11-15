@@ -1,6 +1,6 @@
 import './style.css';
 import { setProgressHandler } from './core/assets';
-import { setVolumes, volume } from './core/audio';
+import { setMusic, setVolumes, volume } from './core/audio';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
 import { createQuality, createRenderer } from './core/renderer';
@@ -10,6 +10,7 @@ import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
 import { initStartScreen } from './game/start';
 import { pickWorld, type BuiltWorld } from './game/world';
+import { addStrings } from './ui/strings';
 import { el, initStart, showNotice } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
 import * as worlds from './worlds';
@@ -22,6 +23,10 @@ const debug = params.has('debug') || import.meta.env.DEV;
 const rng = createRng(params.get('seed'));
 // ARCH-06: the world to play, from the registry (src/worlds/index.ts); ?world=<id> only with debug.
 const world = pickWorld(Object.values(worlds), params.get('world'), debug);
+// ARCH-12: the texts of every world of the registry join the shared ones before anything is shown (a key two worlds
+// share is an error, one key per clip); ARCH-06: the music is the one of the world played.
+for (const w of Object.values(worlds)) addStrings(w.strings);
+setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };

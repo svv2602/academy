@@ -1,18 +1,20 @@
 /**
  * Rebuild voice/phrases.json — the list of lines to record — from the game's own texts.
  *
- * The list is built by `recordingList()` in src/ui/strings.ts: one entry per key marked as spoken, Ukrainian text
+ * The list is built by `recordingList()` in src/ui/strings.ts from the shared strings and the strings of every world
+ * (src/worlds/<id>/strings.ts, in the order of the folder names): one entry per key marked as spoken, Ukrainian text
  * with the name placeholder cut out, plus the intonation. Nothing is typed into the JSON by hand.
  *
  *   npm run voice:sync              rewrite voice/phrases.json
  *   npm run voice:sync -- --check   change nothing; exit 1 and list the differences if the file is out of date
  *
- * Needs Node 22.18+ : src/ui/strings.ts is imported as it is, Node strips the types.
+ * Needs Node 22.18+ : the strings files are imported as they are, Node strips the types.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const OUT = fileURLToPath(new URL('../voice/phrases.json', import.meta.url));
+const WORLDS = fileURLToPath(new URL('../src/worlds/', import.meta.url));
 const SHOWN = 'voice/phrases.json';
 
 const args = process.argv.slice(2);
@@ -30,10 +32,29 @@ function fail(message) {
   process.exit(1);
 }
 
+/** The strings of every world: each folder of src/worlds that has a strings.ts, by name. */
+async function worldStrings() {
+  const ids = readdirSync(WORLDS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+  const out = [];
+  for (const id of ids) {
+    const file = `${WORLDS}${id}/strings.ts`;
+    if (!existsSync(file)) {
+      // A world keeps its texts in its strings.ts: a world without one would speak lines nobody recorded.
+      if (existsSync(`${WORLDS}${id}/index.ts`)) throw new Error(`src/worlds/${id} is a world without strings.ts`);
+      continue;
+    }
+    const { strings } = await import(pathToFileURL(file).href);
+    if (!strings || typeof strings !== 'object') throw new Error(`src/worlds/${id}/strings.ts exports no \`strings\``);
+    if (strings.id !== id) throw new Error(`src/worlds/${id}/strings.ts is of world "${strings.id}", not "${id}"`);
+    out.push(strings);
+  }
+  return out;
+}
+
 let list;
 try {
   const { recordingList } = await import('../src/ui/strings.ts');
-  list = recordingList();
+  list = recordingList(await worldStrings());
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
 }
