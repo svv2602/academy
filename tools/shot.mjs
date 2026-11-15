@@ -223,7 +223,10 @@ try {
   const ENTRANCES = new Set(['rise', 'pop', 'pop2', 'fade']);
   const entered = () => page.waitForFunction((names) => document.getAnimations()
     .every((a) => !(names.includes(a.animationName) && a.playState === 'running')), [...ENTRANCES], { timeout: T(10000) }).catch(() => {});
-  const shot = async (n) => { await entered(); await picture(n); await checkLayout(n); };
+  // The picture is taken again when a panel started to fly in between it and the measure; the third try measures anyway.
+  const shot = async (n) => {
+    for (let i = 0; i < 3; i++) { await entered(); await picture(n); if (await checkLayout(n, i === 2)) return; }
+  };
   const wait = (ms) => page.waitForTimeout(T(ms));
   const g = (fn, ...a) => page.evaluate(fn, ...a);
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
@@ -305,8 +308,12 @@ try {
   // box) but with its layout size, so the tilt of the task items and the "bump" / "pulse" animations do not change
   // the result. Only what the player can reach counts as a button of the screen: elements behind a full-window layer
   // (the game controls behind a task, the book or the parents section) are left out. Reports once per screen.
-  const checkLayout = async (screen) => {
-    const found = await g((min) => {
+  // Returns false, measuring nothing, while a panel is still flying in (unless `force`): the measure and that test run
+  // in one go, so a panel that shows up right after the picture (the finale's card, timed in game time) is not caught
+  // in its first frame of "pop2" and reported as cut off by its own frame.
+  const checkLayout = async (screen, force = false) => {
+    const found = await g(([min, names, force]) => {
+      if (!force && document.getAnimations().some((a) => names.includes(a.animationName) && a.playState === 'running')) return null;
       const vw = innerWidth, vh = innerHeight, out = [];
       const px = (n) => Math.round(n * 10) / 10;
       const label = (e) => {
@@ -382,8 +389,10 @@ try {
         if (!bubble.contains(e) && !above(top(e), bubble) && cross(boxes.get(bubble) ?? box(bubble), boxes.get(e))) out.push(`#bubble covers ${label(e)}: ${at(box(bubble))} and ${at(boxes.get(e))}`);
       }
       return out;
-    }, MIN_BUTTON);
+    }, [MIN_BUTTON, [...ENTRANCES], force]);
+    if (found === null) return false;
     for (const f of found) errors.push(`layout: ${mode} ${screen}: ${f}`);
+    return true;
   };
   // ---- offline: the network may be switched off only when the service worker can serve the whole game ----
   // Ready means: the worker is activated and controls this page, nothing newer is installing or waiting, and every
