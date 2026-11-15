@@ -716,6 +716,73 @@ try {
       console.log(`a closed task of "${other.id}" during the search: the bubble shows "${b.text}" (${b.key})`);
       searchResumed = true;
     };
+    // ---- a talk to the deer during the search: its question again, and the bubble of the search with the count ----
+    // While the question sounds and after the scene: the line of the search, its count of the stars found, and (without
+    // the voice) its question - not the question alone, which would hide the count until the next star.
+    let deerAsked = false;
+    const deerInSearch = async () => {
+      const fail = (what) => { throw new Error(`talk to the deer during the search: ${what}`); };
+      await silence().catch(() => fail('the voice did not fall silent before the talk'));
+      const was = await g(() => ({ n: window.__starts.t_stars ?? 0, found: __game.search.found }));
+      await g(() => __game.talk('deer'));
+      const count = `⭐ ${was.found} / 5`;
+      const check = (b, when) => {
+        const left = [];
+        if (!b.shown) left.push('the bubble is hidden');
+        if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search`);
+        if (!b.text.includes(count)) left.push(`the bubble shows "${b.text}", not the count ${count}`);
+        if (mute && !b.text.startsWith(asked.stars?.text ?? '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
+        if (left.length) fail(`${when}: ${left.join('; ')}`);
+      };
+      await page.waitForFunction((n) => __game.busy && (window.__starts.t_stars ?? 0) > n, was.n, { timeout: T(10000) })
+        .catch(() => fail('the question of the search was not said'));
+      check(await bubbleNow(), 'while the question sounds');
+      await page.waitForFunction(() => !__game.busy, null, { timeout: T(20000) }).catch(() => fail('the scene did not end'));
+      const b = await bubbleNow();
+      check(b, 'after the scene');
+      console.log(`a talk to the deer during the search: the question was said, the bubble shows "${b.text}" (${b.key})`);
+      deerAsked = true;
+    };
+    // ---- the last task of another chain solved during the search: its shard, and no "go on" (go_next) after it ----
+    // The walkthrough closes the chains in order, so one finished chain is put back (in memory) to its last step right
+    // before the talk; solving it gives the same shard back. The sparkles lead to the stars, so the bubble stays the
+    // search's: the line of the search with the count, and "go_next" is neither started nor turned away.
+    let shardSearched = false;
+    const shardInSearch = async (q) => {
+      const fail = (what) => { throw new Error(`a shard during the search: ${what}`); };
+      const done = await g(() => ({ ...__game.save.quests }));
+      const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+      if (!other) fail('no character with a finished quest to talk to');
+      await silence().catch(() => fail('the voice did not fall silent before the talk'));
+      const was = await g((id) => {
+        __game.save.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
+        return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found };
+      }, other.id);
+      await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the last task of "${other.id}" did not open`));
+      // __game.cheat() walks onto a star while the search is on: the panel task is solved with the search put aside for
+      // that one synchronous call (no frame runs in between)
+      const how = await g(() => { const s = __game.search; s.active = false; try { return __game.cheat(); } finally { s.active = true; } });
+      if (how !== 'panel') fail(`the last task of "${other.id}" was not solved (${how || 'nothing done'})`);
+      await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(30000) }).catch(() => fail(`no shard of "${other.id}" after its last task`));
+      await tapOn('#fanfareOk').catch((e) => fail(`the button of the shard cannot be pressed: ${why(e)}`));
+      await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene of the shard did not end'));
+      await silence().catch(() => fail('the thanks did not end'));
+      // "go on" would start the moment the thanks end; one second of game time is left for it, however slow the frames are
+      const t0 = await g(() => __game.time);
+      await page.waitForFunction((t) => __game.time - t >= 1, t0, { timeout: T(30000), polling: 'raf' });
+      const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.quests }));
+      const b = await bubbleNow(), left = [];
+      if ((now.quest[other.id] ?? 0) < 3) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
+      if (now.said > was.said) left.push('"go_next" was said');
+      if (now.dropped > was.dropped) left.push('"go_next" was asked for (the planner turned it away)');
+      if (!b.shown) left.push('the bubble is hidden');
+      if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search: a tap on the cat would say it`);
+      if (!b.text.includes(`⭐ ${was.found} / 5`)) left.push(`the bubble shows "${b.text}", not the count ⭐ ${was.found} / 5`);
+      if (left.length) fail(`${left.join('; ')} (${other.id})`);
+      console.log(`the last task of "${other.id}" solved during the search: its shard, no "go_next", the bubble shows "${b.text}" (${b.key})`);
+      searchBefore = await progress();   // the task recorded its skill and stars: the search is measured from here on
+      shardSearched = true;
+    };
     // ---- every panel task can be closed with its button (LEARN-14): the first meeting of each kind closes it at once ----
     // A real tap or click on the cross, then: the controls are back, nothing of the task is left (panel, planner, voice,
     // bubble), the save is the same (skills, quests, stars), and the heroine walks. The loop below talks to the same
@@ -892,6 +959,8 @@ try {
           searchBefore ??= await progress();
           const found = await g(() => __game.search.found);
           if (!searchResumed && !hurried && found >= 1 && found <= 3) { await closedInSearch(q); continue; }
+          if (!deerAsked && !hurried && found >= 1 && found <= 3) { await deerInSearch(); continue; }
+          if (!shardSearched && !hurried && found >= 1 && found <= 3) { await shardInSearch(q); continue; }
           if (!hurried && found === 4) { await talkAfterLastStar(q); continue; }
           if (!fifthHeard && found === 4) { await fifthStar(); continue; }
           await g(() => __game.cheat()); await wait(700); continue;
@@ -1145,6 +1214,8 @@ try {
     voiceUsed = await checkVoice('at the end');
     console.log(`voice volume: ${mute ? 'off' : 'on'} - ${voiceUsed.clips} clips started, ${voiceUsed.loud} of them with a volume above zero`);
     if (!starsCounted) errors.push('the bubble of the star search was not looked at after a star was found');
+    if (!deerAsked) errors.push('talk to the deer during the search: it was never played');
+    if (!shardSearched) errors.push('a shard during the search: it was never played');
     // The planner of spoken lines turns away only what this scenario provokes: "back to the deer" in the talk right
     // after the fifth star, and the cat's "go on" after a shard when the next conversation has already begun.
     const turned = {};

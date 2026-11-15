@@ -34,7 +34,8 @@ export function createDialogue(g: Game, stage: Stage, tasks: { search: StarSearc
       hero.play('Talk');
       fault();
       const done = save.quests[q.id] ?? 0;
-      if (search.search.active && q.id === 'deer') { await line('t_stars', 'task', 0, q.emoji); return; }
+      // The deer asks its question again, under the bubble of the search: the count (and the question without the voice).
+      if (search.search.active && q.id === 'deer') { const asked = line('t_stars', 'task', 0, q.emoji); search.caption(); await asked; return; }
       if (done >= 3) {           // the quest is finished: replay one of its games for stars
         await line('npc_again', 'story', 0, q.emoji);
         const type = pick(q.steps.filter((s): s is TaskType => s !== 'butterflies' && s !== 'stars'));
@@ -64,7 +65,7 @@ export function createDialogue(g: Game, stage: Stage, tasks: { search: StarSearc
 
   /**
    * Returns what is left for after the scene: its end clears the bubble, so the cat's "go on" comes after it, and after
-   * the character's thanks - a hint does not cut the story off.
+   * the character's thanks - a hint does not cut the story off. During the search nothing is said (see `goal`).
    */
   async function giveShard(n: Npc): Promise<() => void> {
     const count = shardCount(save);
@@ -76,7 +77,8 @@ export function createDialogue(g: Game, stage: Stage, tasks: { search: StarSearc
     await fanfare('shard_title', tf('shard_text', { n: count }), n.def.shard);
     cat.play('Idle');
     if (count === 5) { await line('all_shards', 'story'); return () => {}; }
-    return () => { void thanks.then(() => line('go_next', 'hint', 5000)); };
+    // While the stars are searched for they are where the sparkles lead: no "go on", the bubble stays the search's.
+    return () => { void thanks.then(() => (search.search.active ? undefined : line('go_next', 'hint', 5000))); };
   }
 
   return { talk };
