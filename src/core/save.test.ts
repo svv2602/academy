@@ -32,6 +32,7 @@ let storage: ReturnType<typeof memoryStorage>;
 beforeEach(() => {
   storage = memoryStorage();
   vi.stubGlobal('localStorage', storage);
+  loadSave();   // a fresh page: a clearSave of an earlier test no longer holds the writes back
 });
 
 afterEach(() => {
@@ -332,6 +333,22 @@ describe('storeSave and clearSave', () => {
     clearSave();
     expect(storage.data.has(KEY)).toBe(false);
     expect(loadSave()).toEqual(defaultSave());
+  });
+
+  it('after clearSave the save on the way out does not bring the progress back; the next load stores again', () => {
+    const s = defaultSave();
+    s.played = true; s.stars = 46; s.quests = { fairy: 3, deer: 3 };
+    storeSave(s);
+
+    clearSave();          // "start again": the page is about to reload
+    storeSave(s);         // what pagehide and a hidden page do with the progress still in memory
+    expect(storage.data.has(KEY)).toBe(false);
+
+    const fresh = loadSave();   // the reloaded page
+    expect(fresh).toEqual(defaultSave());
+    fresh.stars = 1;
+    storeSave(fresh);
+    expect(loadSave().stars).toBe(1);
   });
 
   it('does not throw when storage is unavailable', () => {

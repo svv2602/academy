@@ -36,6 +36,7 @@ export function defaultSave(): Save {
 }
 
 export function loadSave(): Save {
+  cleared = false;
   const d = defaultSave();
   try {
     const s = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -52,10 +53,19 @@ export function loadSave(): Save {
   return d;
 }
 
+/**
+ * Set by clearSave, until the next loadSave. "Start again" clears the save and reloads the page, and the game saves
+ * itself on the way out (pagehide, a hidden page): without this the reload wrote the old progress straight back.
+ */
+let cleared = false;
+
 export function storeSave(s: Save) {
+  if (cleared) return;
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
 }
+/** Forgets the save; nothing is stored again until the game is loaded anew (the caller reloads the page). */
 export function clearSave() {
+  cleared = true;
   try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ }
 }
 

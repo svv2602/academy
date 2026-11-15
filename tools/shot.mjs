@@ -1131,6 +1131,24 @@ try {
     if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     // the start screen of a returning player: the saved game adds the "start again" button
     await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); await wait(1500); await shot('40-start-again');
+    // "Start again" really starts again: after the reload the save is the one of a new player. The game saves itself
+    // on the way out (pagehide), and that once wrote the whole progress straight back.
+    {
+      const fail = (what) => { throw new Error(`start again: ${what}`); };
+      const had = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+      if (!(had.stars > 0)) fail(`the walkthrough left no stars to clear: ${had.stars}`);
+      await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`the button did not reload the game: ${why(e)}`));
+      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+      const now = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+      const left = [];
+      if (now.stars) left.push(`${now.stars} stars`);
+      if (now.played) left.push('"played"');
+      if (now.final) left.push('the restored crystal');
+      if (Object.keys(now.quests ?? {}).length) left.push(`quests ${JSON.stringify(now.quests)}`);
+      if (await visible('#restart')) left.push('the "start again" button of a returning player');
+      if (left.length) fail(`after the reload the old progress is back: ${left.join(', ')}`);
+      console.log(`start again: ${had.stars} stars and quests ${JSON.stringify(had.quests)} cleared, the start screen of a new player`);
+    }
   } catch (e) {
     // a stuck quest or a timed-out wait: report it with the rest and keep a picture of where it happened
     errors.push('scenario failed: ' + e.message);
