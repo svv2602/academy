@@ -96,8 +96,8 @@ Environment (passed on to tools/shot.mjs unchanged):
   E2E_GL=gl|swiftshader   gl (default): real GPU; swiftshader: software rendering, for machines without a GPU
   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
-  E2E_LEVEL=<1|2|3>       task difficulty for every size (default: mobile 3, desktop adaptive, desktop-tall 2,
-                          mobile-portrait 3)
+  E2E_LEVEL=<1..5>        the level fixed for every skill, in every size, each within its own levels (default:
+                          mobile 3, desktop adaptive, desktop-tall 2, mobile-portrait 3)
   E2E_SEED=<text>         ?seed= of the game (ARCH-08): the tasks are drawn from that seed; every walkthrough prints
                           "task sequence (seed …): N tasks, <fingerprint>" and writes shots-e2e/<size>-tasks.txt
   E2E_MUTE=<0|1>          1: every size is played without the voice, 0: every size with it (default: desktop-tall
@@ -115,7 +115,8 @@ const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: fal
 // Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
 const OFFLINE_MODES = ['desktop'];
 // The scenario fails every task type once on purpose, so the adaptive difficulty never leaves level 1. To play and
-// measure the fuller screens of the higher levels as well, most sizes get a fixed level (the parents' setting);
+// measure the fuller screens of the higher levels as well, most sizes get a fixed level (the parents' setting, given
+// to every skill: save.fixed);
 // the desktop size keeps the adaptive one. E2E_LEVEL in the environment overrides this for every size.
 const LEVELS = { mobile: '3', 'desktop-tall': '2', 'mobile-portrait': '3' };
 // Sizes played with the voice turned off (VOICE-09). One of the four existing walkthroughs, not a fifth one; it is a

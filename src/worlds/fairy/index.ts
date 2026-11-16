@@ -68,7 +68,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     // The heroine stands in front of the arc, facing the deer.
     const hx = at.x + Math.sin(h) * 3, hz = at.z + Math.cos(h) * 3;
     hero.root.position.set(hx, g.groundY(hx, hz), hz); hero.heading = h + Math.PI; hero.root.rotation.y = hero.heading;
-    const spec = generateSort(levelFor(save, 'logic'), createRng(null));
+    const spec = generateSort(levelFor(save, 'classify'), createRng(null));
     const show = sortShow = showSortInWorld(scene, spec, at, g.hooksFor(deer.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60 });
     Object.assign(sorting, { active: true, colors: show.pedestals.map((p) => p.userData.color as string) });
     g.cam.focus = g.above(show.center, 1);

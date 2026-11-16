@@ -106,29 +106,29 @@ describe('pairs: extra openings make the result shaky, never "wrong"', () => {
 
   it('6 pairs with 20 extra openings, twice in a row: the level does not go up', async () => {
     const save = defaultSave();
-    save.difficulty = 3;                           // the parent fixed the hardest games: six pairs at skill level 1
+    save.fixed.memory = 3;                         // the parent fixed the hardest games: six pairs at skill level 1
     await playAndRecord(save, 20);
-    expect(save.skills.logic.level).toBe(1);
+    expect(save.skills.memory.level).toBe(1);
     await playAndRecord(save, 20);
-    expect(save.skills.logic).toMatchObject({ level: 1, tasks: 2, first: 0 });
+    expect(save.skills.memory).toMatchObject({ level: 1, tasks: 2, first: 0 });
   });
 
   it('6 pairs with no extra openings, twice in a row: the level goes up', async () => {
     const save = defaultSave();
-    save.difficulty = 3;
+    save.fixed.memory = 3;
     await playAndRecord(save, 0);
     await playAndRecord(save, 0);
-    expect(save.skills.logic).toMatchObject({ level: 2, tasks: 2, first: 2 });
+    expect(save.skills.memory).toMatchObject({ level: 2, tasks: 2, first: 2 });
   });
 
   it('adaptive difficulty: brute-forced pairs never count as a clean solve', async () => {
     const save = defaultSave();                    // level 1: three pairs
     await playAndRecord(save, 0);
     await playAndRecord(save, 20);                 // breaks the streak instead of completing it
-    expect(save.skills.logic.level).toBe(1);
+    expect(save.skills.memory.level).toBe(1);
     await playAndRecord(save, 3);                  // within the allowance: clean
     await playAndRecord(save, 3);
-    expect(save.skills.logic.level).toBe(2);
+    expect(save.skills.memory.level).toBe(2);
   });
 });
 

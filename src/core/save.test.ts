@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SKILLS, levelFor, recordTask } from '../game/skills';
+import { LEVELS, SKILLS, recordTask } from '../game/skills';
 import type { SkillId } from '../game/skills';
 import { SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
 import type { Save, WorldState } from './save';
@@ -50,11 +50,24 @@ function v2Save(): Record<string, any> {
   };
 }
 
-/** What v2Save() is in version 3: the same values, the world's progress under worlds.fairy, the open chest its flag. */
-function v2AsV3(): Save {
-  const { quests, final, starsTaken, chestOpen, pos, ...common } = v2Save();
-  expect(chestOpen).toBe(true);
-  return { ...defaultSave(), ...common, v: 3, worlds: { fairy: { quests, final, starsTaken, flags: { chest: true }, pos } } } as Save;
+/**
+ * What v2Save() is in version 4: the same values, the world's progress under worlds.fairy, the open chest its flag;
+ * the counters of "logic" in each of the four skills it is split into, the difficulty 2 fixed for every skill (the
+ * composition of a number, which starts at 3, at 3). Written out by hand.
+ */
+function v2AsV4(): Save {
+  const { quests, final, starsTaken, chestOpen, pos, difficulty, skills: { logic, ...skills }, ...common } = v2Save();
+  expect([chestOpen, difficulty]).toEqual([true, 2]);
+  expect(logic).toEqual({ level: 1, streak: 0, tasks: 5, first: 3, errors: 2 });
+  return {
+    ...defaultSave(), ...common, v: 4,
+    skills: { ...skills,
+      series: { level: 1, streak: 0, tasks: 5, first: 3, errors: 2 }, pattern: { level: 1, streak: 0, tasks: 5, first: 3, errors: 2 },
+      memory: { level: 1, streak: 0, tasks: 5, first: 3, errors: 2 }, classify: { level: 1, streak: 0, tasks: 5, first: 3, errors: 2 },
+      compose: { level: 3, streak: 0, tasks: 0, first: 0, errors: 0 } },
+    fixed: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 2, classify: 2, compose: 3 },
+    worlds: { fairy: { quests, final, starsTaken, flags: { chest: true }, pos } },
+  } as Save;
 }
 
 /**
@@ -68,11 +81,11 @@ function v1Save(): Record<string, any> {
   };
 }
 
-/** What v1Save() is in version 3: all of it but the stage of its quest (the story starts again). */
-function v1AsV3(): Save {
+/** What v1Save() is in version 4: all of it but the stage of its quest (the story starts again). */
+function v1AsV4(): Save {
   const { stage, starsTaken, chestOpen, pos, ...common } = v1Save();
   expect([stage, chestOpen]).toEqual([4, true]);
-  return { ...defaultSave(), ...common, v: 3, worlds: { fairy: { ...defaultWorld(), starsTaken, flags: { chest: true }, pos } } } as Save;
+  return { ...defaultSave(), ...common, v: 4, worlds: { fairy: { ...defaultWorld(), starsTaken, flags: { chest: true }, pos } } } as Save;
 }
 
 let storage: ReturnType<typeof memoryStorage>;
@@ -88,15 +101,17 @@ afterEach(() => {
 });
 
 describe('defaultSave', () => {
-  it('starts every skill at level 1 with empty counters and adaptive difficulty', () => {
+  it('starts every skill at its first level with empty counters, nothing fixed, no minutes played (version 4)', () => {
     const s = defaultSave();
-    expect(s.v).toBe(3);
-    expect(SAVE_VERSION).toBe(3);
-    expect(s.difficulty).toBe(0);
-    expect(Object.keys(s.skills).sort()).toEqual(['add', 'compare', 'count', 'logic', 'sub']);
-    for (const stat of Object.values(s.skills)) {
-      expect(stat).toEqual({ level: 1, streak: 0, tasks: 0, first: 0, errors: 0 });
+    expect(s.v).toBe(4);
+    expect(SAVE_VERSION).toBe(4);
+    expect(s).not.toHaveProperty('difficulty');
+    expect(Object.keys(s.skills).sort()).toEqual(['add', 'classify', 'compare', 'compose', 'count', 'memory', 'pattern', 'series', 'sub']);
+    for (const [k, stat] of Object.entries(s.skills)) {
+      expect(stat).toEqual({ level: k === 'compose' ? 3 : 1, streak: 0, tasks: 0, first: 0, errors: 0 });
     }
+    expect(s.fixed).toEqual({ count: 0, add: 0, sub: 0, compare: 0, series: 0, pattern: 0, memory: 0, classify: 0, compose: 0 });
+    expect(s.playMinutes).toEqual({});
   });
 
   it('has no world progress yet, no purchases and no achievements (version 3)', () => {
@@ -107,8 +122,10 @@ describe('defaultSave', () => {
     for (const field of ['quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) expect(s).not.toHaveProperty(field);
   });
 
-  it('counts every skill of src/game/skills.ts, and no other', () => {
+  it('counts every skill of src/game/skills.ts, and no other, each from the first level of its own', () => {
     expect(Object.keys(defaultSave().skills)).toEqual([...SKILLS]);
+    expect(Object.keys(defaultSave().fixed)).toEqual([...SKILLS]);
+    for (const k of SKILLS) expect(defaultSave().skills[k].level, k).toBe(LEVELS[k][0]);
   });
 
   it('returns independent objects, so one save never leaks into another', () => {
@@ -123,140 +140,19 @@ describe('defaultSave', () => {
   });
 });
 
-describe('recordTask', () => {
-  it('steps the level up after two clean solves in a row and resets the streak', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    expect(s.skills.add.level).toBe(2);
-    expect(s.skills.add.streak).toBe(0);
-  });
-
-  it('keeps the level after a single clean solve and remembers a streak of 1', () => {
-    const s = defaultSave();
-    play(s, 'add', 0);
-    expect(s.skills.add.level).toBe(1);
-    expect(s.skills.add.streak).toBe(1);
-  });
-
-  it('never raises the level above 3', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0, 0, 0);
-    expect(s.skills.add.level).toBe(3);
-    play(s, 'add', 0, 0);
-    expect(s.skills.add.level).toBe(3);
-    play(s, 'add', 0, 0, 0, 0);
-    expect(s.skills.add.level).toBe(3);
-  });
-
-  it('steps the level down after a task with two wrong answers and resets the streak', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    expect(s.skills.add.level).toBe(2);
-    play(s, 'add', 2);
-    expect(s.skills.add.level).toBe(1);
-    expect(s.skills.add.streak).toBe(0);
-  });
-
-  it('keeps the level after one shaky task and steps down after the second in a row', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    play(s, 'add', 1);
-    expect(s.skills.add.level).toBe(2);
-    expect(s.skills.add.streak).toBe(-1);
-    play(s, 'add', 1);
-    expect(s.skills.add.level).toBe(1);
-    expect(s.skills.add.streak).toBe(0);
-  });
-
-  it('never lowers the level below 1', () => {
-    const s = defaultSave();
-    play(s, 'add', 2);
-    expect(s.skills.add.level).toBe(1);
-    play(s, 'add', 3, 1, 1, 5);
-    expect(s.skills.add.level).toBe(1);
-  });
-
-  it('restarts the streak at 1 when a clean solve follows a shaky one', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    play(s, 'add', 1);
-    expect(s.skills.add.streak).toBe(-1);
-    play(s, 'add', 0);
-    expect(s.skills.add.streak).toBe(1);
-    expect(s.skills.add.level).toBe(2);
-  });
-
-  it('restarts the streak at -1 when a shaky task follows a clean one', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    play(s, 'add', 0);
-    expect(s.skills.add.streak).toBe(1);
-    play(s, 'add', 1);
-    expect(s.skills.add.streak).toBe(-1);
-    expect(s.skills.add.level).toBe(2);
-  });
-
-  it('does not step up on clean solves separated by a shaky task', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 1, 0);
-    expect(s.skills.add.level).toBe(1);
-    expect(s.skills.add.streak).toBe(1);
-  });
-
-  it('counts every task, first-try solves only when clean, and all wrong answers', () => {
-    const s = defaultSave();
-    play(s, 'count', 0);
-    expect(s.skills.count).toMatchObject({ tasks: 1, first: 1, errors: 0 });
-    play(s, 'count', 1);
-    expect(s.skills.count).toMatchObject({ tasks: 2, first: 1, errors: 1 });
-    play(s, 'count', 3);
-    expect(s.skills.count).toMatchObject({ tasks: 3, first: 1, errors: 4 });
-  });
-
-  it('tracks each skill on its own', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0, 1);
-    expect(s.skills.add).toEqual({ level: 2, streak: -1, tasks: 3, first: 2, errors: 1 });
-    expect(s.skills.sub).toEqual(defaultSave().skills.sub);
-    expect(s.skills.count).toEqual(defaultSave().skills.count);
-    expect(s.skills.compare).toEqual(defaultSave().skills.compare);
-    expect(s.skills.logic).toEqual(defaultSave().skills.logic);
-  });
-});
-
-describe('levelFor', () => {
-  it('uses the adaptive skill level when the parent has not fixed the difficulty', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    expect(s.difficulty).toBe(0);
-    expect(levelFor(s, 'add')).toBe(2);
-    expect(levelFor(s, 'sub')).toBe(1);
-  });
-
-  it('lets a difficulty fixed by the parent override the skill level', () => {
-    const s = defaultSave();
-    play(s, 'add', 0, 0);
-    s.difficulty = 1;
-    expect(levelFor(s, 'add')).toBe(1);
-    s.difficulty = 2;
-    expect(levelFor(s, 'sub')).toBe(2);
-    s.difficulty = 3;
-    expect(levelFor(s, 'add')).toBe(3);
-    expect(levelFor(s, 'sub')).toBe(3);
-  });
-});
+// recordTask and levelFor: src/game/skills.test.ts (the table of LEARN-15).
 
 describe('loadSave', () => {
   it('returns the default save when nothing is stored', () => {
     expect(loadSave()).toEqual(defaultSave());
   });
 
-  it('opens a version 2 save in version 3 with all its progress: the shared part on top, the world in worlds.fairy', () => {
+  it('opens a version 2 save in version 4 with all its progress: the shared part on top, the world in worlds.fairy', () => {
     const raw = v2Save();
     storage.setItem(KEY, JSON.stringify(raw));
 
     const loaded = loadSave();
-    expect(loaded).toEqual(v2AsV3());
+    expect(loaded).toEqual(v2AsV4());
     expect(loaded.v).toBe(SAVE_VERSION);
     for (const field of ['quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) expect(loaded).not.toHaveProperty(field);
     // what the game reads: the stars and the skills on top, the world's progress through worldState (g.ws)
@@ -267,7 +163,7 @@ describe('loadSave', () => {
     expect(ws).toBe(loaded.worlds.fairy);
   });
 
-  it('keeps a version 2 save through version 3, a store and a load: nothing is lost', () => {
+  it('keeps a version 2 save through version 4, a store and a load: nothing is lost', () => {
     storage.setItem(KEY, JSON.stringify(v2Save()));
     const loaded = loadSave();
     worldState(loaded, 'fairy');      // what createGame does
@@ -275,8 +171,8 @@ describe('loadSave', () => {
 
     const stored = JSON.parse(storage.data.get(KEY)!);
     expect(stored.v).toBe(SAVE_VERSION);
-    expect(stored).toEqual(v2AsV3());
-    expect(loadSave()).toEqual(v2AsV3());
+    expect(stored).toEqual(v2AsV4());
+    expect(loadSave()).toEqual(v2AsV4());
   });
 
   it('keeps a version 2 save in progress: a quest begun, no crystal, a closed chest', () => {
@@ -308,11 +204,12 @@ describe('loadSave', () => {
     const loaded = loadSave();
     expect(loaded.skills.add).toEqual(v2Save().skills.add);
     expect(loaded.skills.sub).toEqual(defaultSave().skills.sub);
-    expect(loaded.skills.logic).toEqual(defaultSave().skills.logic);
+    expect(loaded.skills).not.toHaveProperty('logic');
+    for (const k of ['series', 'pattern', 'memory', 'classify']) expect(loaded.skills[k], k).toEqual(defaultSave().skills[k]);
     expect(loaded.vol).toEqual({ music: 0.2, sfx: 0.7, voice: 1 });
     expect(loaded.stars).toBe(46);
     expect(loaded.wings).toBe(true);
-    expect(loaded.worlds.fairy).toEqual({ ...v2AsV3().worlds.fairy, flags: {}, final: false });
+    expect(loaded.worlds.fairy).toEqual({ ...v2AsV4().worlds.fairy, flags: {}, final: false });
   });
 
   it('accepts a version 2 save that has no skills, no volume and no world progress at all', () => {
@@ -338,13 +235,13 @@ describe('loadSave', () => {
     storage.setItem(KEY, JSON.stringify(raw));
 
     const loaded = loadSave();
-    expect(loaded).toEqual({ ...v2AsV3(), tier: 2, launches: 0, pinTier: null });   // every bit of progress is kept
+    expect(loaded).toEqual({ ...v2AsV4(), tier: 2, launches: 0, pinTier: null });   // every bit of progress is kept
     expect(loaded.v).toBe(SAVE_VERSION);
   });
 
   it('keeps a field of a version 2 save this code does not know on top', () => {
     storage.setItem(KEY, JSON.stringify({ ...v2Save(), later: { a: 1 } }));
-    expect(loadSave()).toEqual({ ...v2AsV3(), later: { a: 1 } });
+    expect(loadSave()).toEqual({ ...v2AsV4(), later: { a: 1 } });
   });
 
   it('keeps the quality fields through storeSave and loadSave', () => {
@@ -374,7 +271,7 @@ describe('loadSave', () => {
     storage.setItem(KEY, JSON.stringify(v1Save()));
 
     const loaded = loadSave();
-    expect(loaded).toEqual(v1AsV3());
+    expect(loaded).toEqual(v1AsV4());
     expect(loaded.v).toBe(SAVE_VERSION);
     expect(loaded.stars).toBe(12);                       // the stars of the slice are the child's
     expect([loaded.name, loaded.dress, loaded.hair, loaded.wings, loaded.played]).toEqual(['Зоряна', '#00ff00', '#112233', false, true]);
@@ -383,16 +280,16 @@ describe('loadSave', () => {
     // The stage of the one quest of the slice maps onto none of the five: the story starts again, nothing of it on top.
     for (const field of ['stage', 'quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) expect(loaded).not.toHaveProperty(field);
     // what version 1 did not have: the defaults
-    expect([loaded.skills, loaded.vol, loaded.difficulty]).toEqual([defaultSave().skills, defaultSave().vol, 0]);
+    expect([loaded.skills, loaded.vol, loaded.fixed]).toEqual([defaultSave().skills, defaultSave().vol, defaultSave().fixed]);
   });
 
-  it('keeps a version 1 save through version 3, a store and a load: nothing is lost', () => {
+  it('keeps a version 1 save through version 4, a store and a load: nothing is lost', () => {
     storage.setItem(KEY, JSON.stringify(v1Save()));
     const loaded = loadSave();
     worldState(loaded, 'fairy');
     storeSave(loaded);
-    expect(JSON.parse(storage.data.get(KEY)!)).toEqual(v1AsV3());
-    expect(loadSave()).toEqual(v1AsV3());
+    expect(JSON.parse(storage.data.get(KEY)!)).toEqual(v1AsV4());
+    expect(loadSave()).toEqual(v1AsV4());
   });
 
   it('a version 1 save with only stars keeps them and takes the default look', () => {
@@ -402,7 +299,7 @@ describe('loadSave', () => {
 
   it('keeps a field of a version 1 save this code does not know on top, and a damaged quality field is dropped', () => {
     storage.setItem(KEY, JSON.stringify({ ...v1Save(), later: { a: 1 }, tier: 9, pinTier: 'x' }));
-    expect(loadSave()).toEqual({ ...v1AsV3(), later: { a: 1 } });
+    expect(loadSave()).toEqual({ ...v1AsV4(), later: { a: 1 } });
   });
 
   it('returns the default save for corrupted JSON without throwing', () => {
@@ -411,7 +308,7 @@ describe('loadSave', () => {
   });
 
   it('returns the default save for JSON that is not a save object, or of a version this code does not know (no backups)', () => {
-    for (const text of ['42', '"text"', '[]', '{}', 'null', '{"v":"3"}', '{"v":0}', '{"v":2.5}', '{"v":-1,"stars":5}']) {
+    for (const text of ['42', '"text"', '[]', '{}', 'null', '{"v":"3"}', '{"v":0}', '{"v":2.5}', '{"v":3.5}', '{"v":-1,"stars":5}']) {
       storage.setItem(KEY, text);
       expect(loadSave()).toEqual(defaultSave());
     }
@@ -423,10 +320,10 @@ describe('loadSave', () => {
   });
 });
 
-describe('version 3: read and write keep what this code does not know', () => {
-  /** A version 3 save with a field unknown to this code on every level. */
-  function v3WithUnknowns() {
-    const raw = JSON.parse(JSON.stringify(v2AsV3()));
+describe('version 4: read and write keep what this code does not know', () => {
+  /** A version 4 save with a field unknown to this code on every level. */
+  function v4WithUnknowns() {
+    const raw = JSON.parse(JSON.stringify(v2AsV4()));
     raw.later = { pets: ['owl'] };                            // on top
     raw.worlds.fairy.lantern = 2;                             // in this world
     raw.worlds.forest = { quests: { q9: 1 }, gems: 4 };       // another world, of its own shape
@@ -435,16 +332,18 @@ describe('version 3: read and write keep what this code does not know', () => {
     raw.vol.ambient = 0.3;
     raw.achievements = { first_star: 1 };
     raw.owned = ['hat'];
+    raw.fixed.geometry = 2;                                   // a fixed level of a skill this code does not know
+    raw.playMinutes = { '2026-11-15': 12, '2026-11-16': 3 };
     return raw;
   }
 
-  it('reads a version 3 save as it is', () => {
-    storage.setItem(KEY, JSON.stringify(v3WithUnknowns()));
-    expect(loadSave()).toEqual(v3WithUnknowns());
+  it('reads a version 4 save as it is', () => {
+    storage.setItem(KEY, JSON.stringify(v4WithUnknowns()));
+    expect(loadSave()).toEqual(v4WithUnknowns());
   });
 
   it('a field unknown on top, in worlds.fairy, in another world and in skills.add is written back', () => {
-    storage.setItem(KEY, JSON.stringify(v3WithUnknowns()));
+    storage.setItem(KEY, JSON.stringify(v4WithUnknowns()));
     const s = loadSave();
     const ws = worldState(s, 'fairy');      // the game plays the first world and saves on the way
     ws.pos = [9, 9];
@@ -457,20 +356,20 @@ describe('version 3: read and write keep what this code does not know', () => {
     expect(stored.skills.add.speed).toBe(0.5);
     expect(stored.skills.geometry).toEqual({ level: 2 });
     expect(stored.vol.ambient).toBe(0.3);
-    const want = v3WithUnknowns();
+    const want = v4WithUnknowns();
     want.worlds.fairy.pos = [9, 9];
     expect(stored).toEqual(want);
   });
 
   it('a save of a later version keeps its number and its fields through a load and a store', () => {
-    storage.setItem(KEY, JSON.stringify({ ...v3WithUnknowns(), v: 4, pets: { owl: true } }));
+    storage.setItem(KEY, JSON.stringify({ ...v4WithUnknowns(), v: 5, pets: { owl: true } }));
     const s = loadSave();
-    expect(s.v).toBe(4);
+    expect(s.v).toBe(5);
     worldState(s, 'fairy');
     storeSave(s);
     const stored = JSON.parse(storage.data.get(KEY)!);
-    expect(stored.v).toBe(4);
-    expect(stored).toEqual({ ...v3WithUnknowns(), v: 4, pets: { owl: true } });
+    expect(stored.v).toBe(5);
+    expect(stored).toEqual({ ...v4WithUnknowns(), v: 5, pets: { owl: true } });
   });
 
   it('a save of a much later version is not thrown away (the old rule gave the default save and wrote it over)', () => {
@@ -481,24 +380,24 @@ describe('version 3: read and write keep what this code does not know', () => {
     expect(worldState(s, 'fairy').quests).toEqual({ q1: 3 });
   });
 
-  it('fills the shared fields a version 3 save lacks from the defaults', () => {
-    storage.setItem(KEY, JSON.stringify({ v: 3, name: 'Зоряна', skills: { add: { level: 3, streak: 0, tasks: 9, first: 9, errors: 0 } } }));
+  it('fills the shared fields a version 4 save lacks from the defaults', () => {
+    storage.setItem(KEY, JSON.stringify({ v: 4, name: 'Зоряна', skills: { add: { level: 3, streak: 0, tasks: 9, first: 9, errors: 0 } } }));
     expect(loadSave()).toEqual({ ...defaultSave(), name: 'Зоряна',
       skills: { ...defaultSave().skills, add: { level: 3, streak: 0, tasks: 9, first: 9, errors: 0 } } });
   });
 
-  it('an early version 3 save with chestOpen in worlds.fairy (a test device) gets the flag "chest" instead, and keeps the rest', () => {
-    const early = JSON.parse(JSON.stringify(v3WithUnknowns()));
+  it('an early version 3 chest (chestOpen in worlds.fairy, a test device) in a later save gets the flag "chest" instead, and keeps the rest', () => {
+    const early = JSON.parse(JSON.stringify(v4WithUnknowns()));
     delete early.worlds.fairy.flags;
     early.worlds.fairy.chestOpen = true;
     storage.setItem(KEY, JSON.stringify(early));
     const s = loadSave();
-    expect(s).toEqual(v3WithUnknowns());                 // the flag in place of the field, the unknown fields as they were
+    expect(s).toEqual(v4WithUnknowns());                 // the flag in place of the field, the unknown fields as they were
     expect(worldState(s, 'fairy').flags).toEqual({ chest: true });
     storeSave(s);
     const stored = JSON.parse(storage.data.get(KEY)!);
     expect(stored.worlds.fairy).not.toHaveProperty('chestOpen');
-    expect(stored).toEqual(v3WithUnknowns());
+    expect(stored).toEqual(v4WithUnknowns());
   });
 
   it('an early version 3 chest: a closed one sets no flag, other flags stay, other worlds are left alone', () => {
@@ -515,8 +414,163 @@ describe('version 3: read and write keep what this code does not know', () => {
 
   it('a damaged worlds field becomes no worlds', () => {
     for (const worlds of [[1, 2], 'fairy', null, 7]) {
-      storage.setItem(KEY, JSON.stringify({ ...v2AsV3(), worlds }));
+      storage.setItem(KEY, JSON.stringify({ ...v2AsV4(), worlds }));
       expect(loadSave().worlds).toEqual({});
+    }
+  });
+});
+
+describe('version 3 moves to version 4: "logic" split, a level fixed per skill, the minutes played (LEARN-03, LEARN-15, R33)', () => {
+  /**
+   * A version 3 save as the published game writes it, with the things the shop added without a new version (gear, the
+   * wing colour, purchases) and a field unknown to this code on every level. Written out by hand.
+   */
+  function v3Save(): Record<string, any> {
+    return {
+      v: 3, played: true, name: 'Зоряна', dress: '#00ff00', hair: '#112233', wings: false, stars: 40,
+      skills: {
+        count: { level: 3, streak: 1, tasks: 12, first: 10, errors: 2 }, add: { level: 2, streak: 0, tasks: 8, first: 6, errors: 3, speed: 0.5 },
+        sub: { level: 1, streak: -1, tasks: 5, first: 2, errors: 4 }, compare: { level: 2, streak: 0, tasks: 4, first: 4, errors: 0 },
+        logic: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 },
+        geometry: { level: 2 },
+      },
+      owned: ['crown'], gear: { head: 'crown', wand: null, wings: 'wings_petals', trail: null, cape: 'moss' }, wingColor: '#ffd1ec',
+      achievements: { first_star: 1 }, difficulty: 0, vol: { music: 0.2, sfx: 0.7, voice: 0.4, ambient: 0.3 },
+      tier: 1, launches: 23, pinTier: null, later: { pets: ['owl'] },
+      worlds: { fairy: { quests: { unicorn: 3, fox: 1 }, final: false, starsTaken: [1], flags: { chest: true }, pos: [4, -7], lantern: 2 },
+        forest: { quests: { q9: 1 }, gems: 4 } },
+    };
+  }
+  /** What v3Save() is in version 4. Written out by hand. */
+  function v3AsV4(): Record<string, any> {
+    const { difficulty, skills: { logic, ...skills }, ...rest } = v3Save();
+    expect([difficulty, logic.tasks]).toEqual([0, 17]);
+    return {
+      ...rest, v: 4,
+      skills: { ...skills,
+        series: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 }, pattern: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 },
+        memory: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 }, classify: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 },
+        compose: { level: 3, streak: 0, tasks: 0, first: 0, errors: 0 } },
+      fixed: { count: 0, add: 0, sub: 0, compare: 0, series: 0, pattern: 0, memory: 0, classify: 0, compose: 0 },
+      playMinutes: {},
+    };
+  }
+
+  it('opens with all its progress: the counters of "logic" in each of the four skills, nothing lost (R01)', () => {
+    storage.setItem(KEY, JSON.stringify(v3Save()));
+    const s = loadSave();
+    expect(storage.data.has('amw-save-damaged')).toBe(false);
+    expect(s).toEqual(v3AsV4());
+    expect(s.skills).not.toHaveProperty('logic');
+    expect(s).not.toHaveProperty('difficulty');
+    // what the game reads: every skill of the ladder has its counters
+    for (const k of SKILLS) expect(s.skills[k], k).toMatchObject({ level: expect.any(Number), tasks: expect.any(Number) });
+  });
+
+  it('each of the four gets a copy of its own: a task of one does not move the others', () => {
+    storage.setItem(KEY, JSON.stringify(v3Save()));
+    const s = loadSave();
+    play(s, 'memory', 0);
+    expect(s.skills.memory.tasks).toBe(18);
+    for (const k of ['series', 'pattern', 'classify']) expect(s.skills[k].tasks, k).toBe(17);
+  });
+
+  it('read and write keep what this code does not know, and the move is made once (version 4 after the store)', () => {
+    storage.setItem(KEY, JSON.stringify(v3Save()));
+    const s = loadSave();
+    worldState(s, 'fairy');
+    storeSave(s);
+    const stored = JSON.parse(storage.data.get(KEY)!);
+    expect(stored).toEqual(v3AsV4());
+    expect(stored.later).toEqual({ pets: ['owl'] });
+    expect(stored.skills.add.speed).toBe(0.5);
+    expect(stored.skills.geometry).toEqual({ level: 2 });
+    expect(stored.gear.cape).toBe('moss');
+    expect(stored.vol.ambient).toBe(0.3);
+    expect(stored.worlds.fairy.lantern).toBe(2);
+    expect(stored.worlds.forest).toEqual({ quests: { q9: 1 }, gems: 4 });
+    expect([stored.gear.head, stored.wingColor, stored.owned]).toEqual(['crown', '#ffd1ec', ['crown']]);
+    expect(loadSave()).toEqual(v3AsV4());
+  });
+
+  it('the one difficulty becomes the level fixed for every skill, each within its own; a damaged one is adaptive', () => {
+    const cases: [unknown, number, number][] = [[0, 0, 0], [1, 1, 3], [2, 2, 3], [3, 3, 3], [7, 0, 0], ['2', 0, 0], [null, 0, 0], [undefined, 0, 0]];
+    for (const [difficulty, level, compose] of cases) {
+      storage.setItem(KEY, JSON.stringify({ ...v3Save(), difficulty }));
+      const s = loadSave();
+      expect(s.fixed, `difficulty ${difficulty}`).toEqual({ count: level, add: level, sub: level, compare: level, series: level,
+        pattern: level, memory: level, classify: level, compose });
+      expect(s).not.toHaveProperty('difficulty');
+    }
+  });
+
+  it('a version 3 save without "logic" gives the four their first level; a damaged level of "logic" too', () => {
+    const raw = v3Save();
+    delete raw.skills.logic;
+    storage.setItem(KEY, JSON.stringify(raw));
+    for (const k of ['series', 'pattern', 'memory', 'classify']) expect(loadSave().skills[k], k).toEqual(defaultSave().skills[k]);
+    storage.setItem(KEY, JSON.stringify({ ...v3Save(), skills: { logic: { level: 'x', streak: 0, tasks: 3, first: 1, errors: 2 } } }));
+    expect(loadSave().skills.pattern).toEqual({ level: 1, streak: 0, tasks: 3, first: 1, errors: 2 });
+    storage.setItem(KEY, JSON.stringify({ v: 3 }));
+    expect(loadSave()).toEqual(defaultSave());
+  });
+
+  it('the move keeps the version 3 text in amw-save-v3, written once and never over (TECH-11)', () => {
+    const text = JSON.stringify(v3Save());
+    storage.setItem(KEY, text);
+    const s = loadSave();
+    expect(storage.data.get('amw-save-v3')).toBe(text);
+    storeSave(s); loadSave(); storeSave(s); loadSave();     // launches of version 4 do not touch it
+    expect(storage.data.get('amw-save-v3')).toBe(text);
+    storage.setItem(KEY, JSON.stringify({ ...v3Save(), stars: 1 }));
+    loadSave();                                              // another version 3 save (a restored one) does not write over it
+    expect(storage.data.get('amw-save-v3')).toBe(text);
+  });
+
+  it('a damaged save after the move is restored from amw-save-v3 when amw-save-prev is gone, and moved again', () => {
+    storage.setItem(KEY, JSON.stringify(v3Save()));
+    storeSave(loadSave());
+    storage.removeItem('amw-save-prev');
+    storage.setItem(KEY, '{"v":4,"skills":');
+    expect(loadSave()).toEqual(v3AsV4());
+    expect(storage.data.get('amw-save-damaged')).toBe('{"v":4,"skills":');
+  });
+
+  it('a version 2 and a version 1 save move up through version 3 (one backup: that of their own version)', () => {
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    expect(loadSave()).toEqual(v2AsV4());
+    expect([...storage.data.keys()].sort()).toEqual([KEY, 'amw-save-prev', 'amw-save-v2']);
+    storage.data.clear();
+    storage.setItem(KEY, JSON.stringify(v1Save()));
+    expect(loadSave()).toEqual(v1AsV4());
+    expect([...storage.data.keys()].sort()).toEqual([KEY, 'amw-save-prev', 'amw-save-v1']);
+  });
+});
+
+describe('version 4: the fixed levels and the minutes played as stored', () => {
+  it('a damaged fixed level of a skill is adaptive again; a sound one and one of an unknown skill are kept', () => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), fixed: { count: 'x', add: 9, sub: -1, compare: 2.5, series: null, pattern: 4, compose: 5, geometry: 2 } }));
+    expect(loadSave().fixed).toEqual({ count: 0, add: 0, sub: 0, compare: 0, series: 0, pattern: 4, memory: 0, classify: 0, compose: 5, geometry: 2 });
+    for (const fixed of [null, 'x', [3], 7]) {
+      storage.setItem(KEY, JSON.stringify({ ...defaultSave(), fixed }));
+      expect(loadSave().fixed, `fixed ${JSON.stringify(fixed)}`).toEqual(defaultSave().fixed);
+    }
+  });
+
+  it('a level fixed per skill and the minutes played survive a store and a load', () => {
+    const s = defaultSave();
+    s.fixed.sub = 5; s.fixed.compose = 4;
+    s.playMinutes = { '2026-11-10': 20, '2026-11-16': 7 };
+    storeSave(s);
+    const again = loadSave();
+    expect(again.fixed).toEqual({ ...defaultSave().fixed, sub: 5, compose: 4 });
+    expect(again.playMinutes).toEqual({ '2026-11-10': 20, '2026-11-16': 7 });
+  });
+
+  it('damaged minutes played are none', () => {
+    for (const playMinutes of [null, 'x', [3], 7]) {
+      storage.setItem(KEY, JSON.stringify({ ...defaultSave(), playMinutes }));
+      expect(loadSave().playMinutes).toEqual({});
     }
   });
 });
@@ -535,7 +589,7 @@ describe('the shop: worn things and purchases (PLAY-04, PLAY-05), no new version
     const s = loadSave();
     expect(storage.data.has('amw-save-damaged')).toBe(false);
     expect(s.gear).toEqual(GEAR);
-    expect([s.v, s.stars, s.name, s.wings]).toEqual([3, 31, 'Зоряна', false]);
+    expect([s.v, s.stars, s.name, s.wings]).toEqual([SAVE_VERSION, 31, 'Зоряна', false]);
     expect(s.owned).toEqual([]);
     expect(worldState(s, 'fairy')).toEqual(beforeShop().worlds.fairy);
   });
@@ -572,7 +626,7 @@ describe('the shop: worn things and purchases (PLAY-04, PLAY-05), no new version
     }
     storage.setItem(KEY, JSON.stringify({ ...beforeShop(), wingColor: '#ffd1ec' }));
     const s = loadSave();
-    expect([s.wingColor, s.v]).toEqual(['#ffd1ec', 3]);
+    expect([s.wingColor, s.v]).toEqual(['#ffd1ec', SAVE_VERSION]);
     expect(defaultSave().wingColor).toBe(WING_COLOR);
   });
 
@@ -600,7 +654,7 @@ describe('the shop: worn things and purchases (PLAY-04, PLAY-05), no new version
     expect(again.gear).toEqual({ ...GEAR, head: 'crown', wings: null });
     expect(again.stars).toBe(1);
     expect(again.wings).toBe(false);         // the old field is written back as it was, unread
-    expect(JSON.parse(storage.data.get(KEY)!).v).toBe(3);
+    expect(JSON.parse(storage.data.get(KEY)!).v).toBe(SAVE_VERSION);
   });
 });
 
@@ -613,10 +667,10 @@ describe('a hairstyle chosen in an older save (TECH-14): ignored, the colours ke
   });
   const olderSaves: [string, string][] = [['3', v3Text], ['2', JSON.stringify(v2Save())], ['1', JSON.stringify(v1Save())]];
 
-  it('a fresh save has no hairstyle, and the version stays 3', () => {
+  it('a fresh save has no hairstyle (version 4 has none either)', () => {
     expect(defaultSave()).not.toHaveProperty('hairStyle');
     expect(loadSave()).not.toHaveProperty('hairStyle');
-    expect(SAVE_VERSION).toBe(3);
+    expect(SAVE_VERSION).toBe(4);
   });
 
   for (const [v, text] of olderSaves) {
@@ -624,7 +678,7 @@ describe('a hairstyle chosen in an older save (TECH-14): ignored, the colours ke
       storage.setItem(KEY, text);
       const loaded = loadSave();
       expect(storage.data.has('amw-save-damaged')).toBe(false);   // read, not restored from a backup
-      expect([loaded.v, loaded.name, loaded.dress, loaded.hair, loaded.wings]).toEqual([3, 'Зоряна', '#00ff00', '#112233', false]);
+      expect([loaded.v, loaded.name, loaded.dress, loaded.hair, loaded.wings]).toEqual([SAVE_VERSION, 'Зоряна', '#00ff00', '#112233', false]);
       expect(loaded.stars).toBe(JSON.parse(text).stars);
       expect(worldState(loaded, 'fairy').starsTaken).toEqual(v === '3' ? [2] : JSON.parse(text).starsTaken);
     });
@@ -636,7 +690,7 @@ describe('a hairstyle chosen in an older save (TECH-14): ignored, the colours ke
       storeSave(s);
       const stored = JSON.parse(storage.data.get(KEY)!);
       expect(stored.hairStyle).toBe('buns');
-      expect([stored.v, stored.dress, stored.hair]).toEqual([3, '#5cc8ff', '#112233']);
+      expect([stored.v, stored.dress, stored.hair]).toEqual([SAVE_VERSION, '#5cc8ff', '#112233']);
     });
   }
 });
@@ -650,7 +704,7 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
   /** Texts a save can no longer be read from: cut off, empty, not an object, no numeric version. */
   const BROKEN = ['{"v":3,"played":true,"wor', '', 'null', '42', '"text"', '[]', '{}', '{"v":"3"}'];
 
-  /** A version 3 save of a child half way through the world, as the game stores it. */
+  /** A version 4 save of a child half way through the world, as the game stores it. */
   function played(): Save {
     const s = defaultSave();
     s.played = true; s.name = 'Зоряна';
@@ -680,12 +734,12 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
     }
   });
 
-  it('a damaged version 2 save of the last launch is restored and moved to version 3 again', () => {
+  it('a damaged version 2 save of the last launch is restored and moved to version 4 again', () => {
     storage.setItem(KEY, JSON.stringify(v2Save()));
     launch();
     expect(storage.data.get(PREV)).toBe(JSON.stringify(v2Save()));
     storage.setItem(KEY, '{"v":3,"sta');
-    expect(loadSave()).toEqual(v2AsV3());
+    expect(loadSave()).toEqual(v2AsV4());
   });
 
   it('restores from amw-save-v2 when amw-save-prev is missing or damaged as well', () => {
@@ -695,7 +749,7 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
       launch();
       if (prev === null) storage.removeItem(PREV); else storage.setItem(PREV, prev);
       storage.setItem(KEY, '{"v":3,"played":tr');
-      expect(loadSave(), `amw-save-prev ${prev}`).toEqual(v2AsV3());
+      expect(loadSave(), `amw-save-prev ${prev}`).toEqual(v2AsV4());
     }
   });
 
@@ -704,9 +758,9 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
     const s = launch();                  // the move to version 3
     worldState(s, 'fairy').quests.q6 = 1;
     storeSave(s);
-    launch();                            // amw-save-prev is the version 3 save now, amw-save-v2 the version 2 one
+    launch();                            // amw-save-prev is the version 4 save now, amw-save-v2 the version 2 one
     storage.setItem(KEY, 'garbage');
-    expect(worldState(loadSave(), 'fairy').quests).toEqual({ ...v2AsV3().worlds.fairy.quests, q6: 1 });
+    expect(worldState(loadSave(), 'fairy').quests).toEqual({ ...v2AsV4().worlds.fairy.quests, q6: 1 });
   });
 
   it('the move from version 2 keeps the version 2 save in amw-save-v2 and never writes over it', () => {
@@ -761,7 +815,7 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
     launch();
     storage.removeItem(PREV);
     storage.setItem(KEY, '{"v":0}');
-    expect(loadSave()).toEqual(v2AsV3());
+    expect(loadSave()).toEqual(v2AsV4());
     expect(storage.data.get(DAMAGED)).toBe('{"v":0}');
   });
 
@@ -771,7 +825,7 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
     launch();
     expect(storage.data.get(V1)).toBe(v1);
     storage.data.clear();
-    storage.setItem(KEY, JSON.stringify({ ...played(), v: 4 }));
+    storage.setItem(KEY, JSON.stringify({ ...played(), v: 5 }));
     launch();
     expect(Object.keys(backups())).toEqual([PREV]);
   });
@@ -820,7 +874,7 @@ describe('backups: a save that cannot be read is restored (TECH-11)', () => {
     storage.setItem(KEY, JSON.stringify(v2Save()));
     const refuse = { ...storage, setItem: (k: string, v: string) => { if (k !== KEY) throw new Error('quota'); storage.setItem(k, v); } };
     vi.stubGlobal('localStorage', refuse);
-    expect(loadSave()).toEqual(v2AsV3());
+    expect(loadSave()).toEqual(v2AsV4());
     storage.setItem(KEY, '{"v":');
     expect(loadSave()).toEqual(defaultSave());   // nothing to restore from, and no throw
   });

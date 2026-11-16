@@ -34,7 +34,8 @@
 //   E2E_GL=gl|swiftshader   gl (default): real GPU; swiftshader: software rendering, for machines without a GPU
 //   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
 //   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
-//   E2E_LEVEL=<1|2|3>       fix the task difficulty (the parents' setting) for the whole run; default: adaptive, which
+//   E2E_LEVEL=<1..5>        fix the level of every skill (the parents' setting, save.fixed) for the whole run, each
+//                           within its own levels (the composition of a number starts at 3); default: adaptive, which
 //                           stays on level 1 here because the scenario fails every task type once on purpose
 //   E2E_OFFLINE=1           play without network: after the first load wait until the service worker is active and
 //                           its whole precache list is in the cache, switch the network off, reload and play as
@@ -74,7 +75,7 @@ const slow = Number(process.env.E2E_SLOW || 1);
 const stuckMs = Number(process.env.E2E_STUCK_MS || 240000);
 const level = process.env.E2E_LEVEL || '';
 const seed = process.env.E2E_SEED || '';   // ?seed= of the game (ARCH-08): the same tasks in the same order
-if (!['', '1', '2', '3'].includes(level)) { console.error(`bad E2E_LEVEL="${level}": expected 1, 2 or 3`); process.exit(2); }
+if (!['', '1', '2', '3', '4', '5'].includes(level)) { console.error(`bad E2E_LEVEL="${level}": expected 1, 2, 3, 4 or 5`); process.exit(2); }
 const usage = (msg) => { console.error(msg); process.exit(2); };
 // The size of the window and the way of control are separate things: a new size only says which group it is in.
 const SIZES = {
@@ -516,7 +517,7 @@ try {
     const kept = JSON.stringify(FAIRY_KEPT);
     await wait(1500); await shot('00-start'); await checkLinks('start screen');
     await page.click('#play');
-    if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
+    if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
     await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) })
       .catch(() => fail('no line after "play"'));
     // "play" stores the save: the world played has its part in it - the proof that ?world= picked this world
@@ -709,7 +710,7 @@ try {
       await wait(1500); await shot('00-start'); await checkLinks('start screen');
       let catRepeated = false;      // a tap on the cat repeated a line
       await page.click('#play');
-      if (level) await page.evaluate((d) => { __game.save.difficulty = d; }, Number(level));
+      if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
       await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
       // E2E_ONLY: the game plays from the group's save - or the group would pass playing something else.
       if (group) {

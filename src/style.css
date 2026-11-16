@@ -196,6 +196,8 @@ button.it { min-width: 44px; min-height: 44px; }
 #gate p { font-size: 20px; font-weight: 600; } #gateA { font: 800 28px system-ui; width: 110px; text-align: center; border: 3px solid #e6d5f2; border-radius: 16px; padding: 6px; color: #7a4fd0; user-select: text; -webkit-user-select: text; }
 #pBody table { width: 100%; border-collapse: collapse; font-size: 15px; margin-bottom: 12px; } #pBody th, #pBody td { padding: 5px 6px; border-bottom: 1px solid #eadff3; text-align: center; }
 #pBody td:first-child, #pBody th:first-child { text-align: left; }
+/* Nine skills of the ladder (LEARN-03): tighter rows so the section fits 1280x720 without scrolling. G redoes the section. */
+#pBody th, #pBody td { padding-top: 1px; padding-bottom: 1px; line-height: 1.25; } #pBody table { margin-bottom: 8px; }
 .prow { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 8px 0; font-weight: 600; flex-wrap: wrap; }
 .prow button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .prow button.sel { background: #a56bff; color: #fff; }
 .prow input[type=range] { width: 150px; accent-color: #a56bff; }
@@ -213,9 +215,13 @@ button.it { min-width: 44px; min-height: 44px; }
   #pBody table { grid-column: 1; grid-row: 1 / span 4; margin: 0; } #pBody .prow { grid-column: 2; margin: 2px 0; gap: 6px 8px; font-size: 15px; }
   #pBody .prow:last-child { grid-column: 1; grid-row: 5; }
   #parents .big.small { margin-top: 6px; }
+  /* Nine skills of the ladder (LEARN-03): tighter rows so the table fits the phone held sideways. G redoes the section. */
+  #pBody table { font-size: 12px; } #pBody th, #pBody td { padding: 1px 4px; line-height: 1.2; }
 }
 @media (max-aspect-ratio: 5/4) {
   .sheet { padding-left: 12px; padding-right: 12px; } #pBody table { font-size: 13px; } #pBody th, #pBody td { padding: 5px 3px; }
+  /* Nine skills of the ladder (LEARN-03): tighter rows so the section fits the phone held upright. G redoes the section. */
+  #pBody th, #pBody td { padding: 2px 3px; }
 }
 /* ---------- the shop and the fitting room (PLAY-04, PLAY-05) ----------
    A layer over the paused game: the card on the right (at the bottom when the screen stands upright), the heroine in

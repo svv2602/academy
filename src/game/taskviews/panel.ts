@@ -11,6 +11,7 @@ import type { Spoken } from '../../core/audio';
 import type { SpokenKey } from '../../ui/strings';
 import { generate, type SpecOf, type TaskSpec } from '../tasks/index';
 import type { TaskType } from '../tasks/types';
+import type { SkillId } from '../skills';
 import { afterMistake, type ShownHint } from './flow';
 import { countView } from './count';
 import { addView } from './add';
@@ -24,10 +25,10 @@ import { sortView } from './sort';
 import { simonView } from './simon';
 import './hints.css';
 
-/** The skill a task of each type trains: the save keeps a level per skill (adaptive difficulty). */
-export type Skill = 'count' | 'add' | 'sub' | 'compare' | 'logic';
-export const SKILL: Record<TaskType, Skill> = {
-  count: 'count', add: 'add', sub: 'sub', compare: 'compare', pattern: 'logic', odd: 'logic', pairs: 'logic', order: 'logic', sort: 'logic', simon: 'logic',
+/** The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). */
+export const SKILL: Record<TaskType, SkillId> = {
+  count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
+  pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify',
 };
 
 export interface TaskResult { solved: boolean; wrong: number; }

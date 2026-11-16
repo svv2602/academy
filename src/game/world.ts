@@ -9,7 +9,8 @@ import type { Gear } from './gear';
 import type { Look } from './hero';
 import type { WorldFrame } from './loop';
 import type { TaskType } from './tasks/types';
-import type { Skill, TaskResult } from './taskviews/panel';
+import type { SkillId } from './skills';
+import type { TaskResult } from './taskviews/panel';
 
 /**
  * The common shape of a world (ARCH-06). A world is one object in src/worlds/<id>/ listed in src/worlds/index.ts;
@@ -52,7 +53,7 @@ export interface WorldLines { intro?: SpokenKey; partGiven: SpokenKey; allParts:
  * (src/game/dialogue.ts plays the chains). `skill` sets its level, and a foreground task records its result there.
  */
 export interface WorldTask {
-  skill: Skill;
+  skill: SkillId;
   /** Foreground (like the butterflies): the conversation waits for it. */
   run?(n: Npc, level: number): Promise<TaskResult>;
   /** Background (like the star search): the conversation ends, `done` moves the chain on (and gives its stars). */

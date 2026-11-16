@@ -2,6 +2,8 @@
  * Versioned local save (ARCH-07). Bump SAVE_VERSION and migrate in loadSave() when the shape changes.
  * Version 3: the part every world shares lies flat on top (the look, stars, skills, purchases, achievements,
  * settings); the progress of each world is a WorldState of its own under `worlds[<world id>]`.
+ * Version 4 (LEARN-03, LEARN-15, R33): the skills of the ladder ("logic" split into four), a level the parent may fix
+ * for each skill (`fixed`, in place of the one `difficulty`), the minutes played by day (`playMinutes`).
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -26,13 +28,19 @@ export interface Save {
   stars: number;
   /** The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts. */
   skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number }>;
+  /** The level the parent fixed for each skill, by its id (LEARN-15): 0 = adaptive, else 1 to 5 (levelFor keeps it within the skill's). */
+  fixed: Record<string, number>;
+  /**
+   * The minutes played on each day (R33), by the local date `YYYY-MM-DD`; only the last 7 days are kept. Written by
+   * src/game/playtime.ts (G), read by the parents' section; no reminder of a break is made of it.
+   */
+  playMinutes: Record<string, number>;
   owned: string[];                  // the things bought in the shop (PLAY-04): kept for ever, never removed
   /** What the heroine wears, by slot (PLAY-04, PLAY-05): a thing's id of src/game/shop.ts, null = nothing there. */
   gear: Gear;
   /** The colour of her wings (PLAY-05), free like the dress and the hair: the petals take it, the butterfly a tint of it. */
   wingColor: string;
   achievements: Record<string, number>;   // PLAY-08: none yet
-  difficulty: 0 | 1 | 2 | 3;        // 0 = adaptive, otherwise fixed by the parent
   vol: { music: number; sfx: number; voice: number };
   // Graphics quality (TECH-04); a save without them gets the defaults.
   tier: Tier;                       // the tier the session runs on now, the next launch starts from it
@@ -48,12 +56,19 @@ export interface Save {
  */
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 /** The colour the petals always had: a save written before the colour could be chosen gets it. No new version. */
 export const WING_COLOR = '#d8f6ff';
 const KEY = 'amw-save';
 /** The skills a fresh save counts: the ids of src/game/skills.ts (save.test.ts checks that the two lists agree). */
-const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'logic'];
+const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
+/** The lowest level of a skill whose ladder does not start at 1 (LEVELS of src/game/skills.ts; save.test.ts compares). */
+const FIRST_LEVEL: Record<string, number> = { compose: 3 };
+/** The highest level of every skill. */
+const TOP_LEVEL = 5;
+const firstLevel = (id: string) => FIRST_LEVEL[id] ?? 1;
+/** The skills version 3 counted together as "logic": a version 3 save gives each of them a copy of its counters (R01). */
+const LOGIC_SPLIT = ['series', 'pattern', 'memory', 'classify'];
 /** Saves of versions 1 and 2 knew one world: their progress belongs to it. */
 const FIRST_WORLD = 'fairy';
 /** The fields of a world's progress (worldState fills the ones a stored world lacks). */
@@ -70,9 +85,10 @@ export function defaultSave(): Save {
   return {
     v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
-    skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 1, streak: 0, tasks: 0, first: 0, errors: 0 }])),
+    skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: firstLevel(s), streak: 0, tasks: 0, first: 0, errors: 0 }])),
+    fixed: Object.fromEntries(SKILL_IDS.map((s) => [s, 0])), playMinutes: {},
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: WING_COLOR, achievements: {},
-    difficulty: 0, vol: { music: 0.5, sfx: 0.8, voice: 1 },
+    vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},
   };
@@ -113,7 +129,7 @@ export function worldState(s: Save, id: string): WorldState {
 const PREV = `${KEY}-prev`;
 const DAMAGED = `${KEY}-damaged`;
 const versionKey = (v: number) => `${KEY}-v${v}`;
-/** Where a save that cannot be read is restored from, in this order: prev, then v2, v1. */
+/** Where a save that cannot be read is restored from, in this order: prev, then v3, v2, v1. */
 const RESTORE_FROM = [PREV, ...Array.from({ length: SAVE_VERSION - 1 }, (_, i) => versionKey(SAVE_VERSION - 1 - i))];
 
 /** Writes a backup; a full or refused storage must not keep the game from loading. */
@@ -171,40 +187,71 @@ function chestToFlag(w: Record<string, unknown>): Record<string, unknown> {
   return { ...rest, flags: chestOpen === true ? { ...flags, [CHEST_FLAG]: true } : flags };
 }
 
+/**
+ * A version 1 or 2 save in the shape of version 3: the world's progress moves from the top into worlds.fairy (the chest
+ * as its flag), the rest (and any field this code does not know) stays on top: the look, the stars, the skills, the
+ * settings. Version 1 (the one-quest slice) has no skills, volume or difficulty - the defaults; its `stage`, the stage
+ * of its single quest, maps onto none of the quests that followed: the story starts again, all else is kept (the text
+ * stays in amw-save-v1).
+ */
+function fromV2(s: Stored): Stored {
+  const common = { ...s };
+  const world: Record<string, unknown> = {};
+  for (const k of OLD_WORLD_FIELDS) { if (k in common) world[k] = common[k]; delete common[k]; }
+  if (s.v === 1) delete common.stage;
+  return { ...common, v: 3, worlds: { [FIRST_WORLD]: { ...defaultWorld(), ...chestToFlag(world) } } };
+}
+
+/** A level within the levels of skill `id`; anything but a number gives its first level. */
+function levelOf(id: string, x: unknown) {
+  return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : firstLevel(id);
+}
+
+/**
+ * A version 3 save in the shape of version 4 (its text stays in amw-save-v3). "logic" is split (R01): each of the four
+ * skills it counted gets a copy of its counters, the level within that skill's own; the field itself is not kept.
+ * The one difficulty for all becomes the level fixed for each skill, within its own levels (0, adaptive, stays 0).
+ * The skills and the fields this code does not know stay as they are.
+ */
+function fromV3(s: Stored): Stored {
+  const { difficulty, ...rest } = s;
+  const skills = { ...part(s.skills) };
+  const logic = skills.logic;
+  delete skills.logic;
+  if (isObject(logic)) {
+    for (const id of LOGIC_SPLIT) if (!isObject(skills[id])) skills[id] = { ...logic, level: levelOf(id, logic.level) };
+  }
+  const fix = [1, 2, 3].includes(difficulty) ? difficulty as number : 0;
+  return { ...rest, v: SAVE_VERSION, skills, fixed: Object.fromEntries(SKILL_IDS.map((id) => [id, fix && levelOf(id, fix)])) };
+}
+
 /** The save of this version a stored save holds; null for a version this code does not read (a save not to be read). */
 function fromStored(s: Stored, d: Save): Save | null {
-  let out: Save | null = null;
-  if (s.v >= SAVE_VERSION) {
-    // v3 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
-    // (the ones of this version and any other) stay as they are; worldState fills a played world's gaps.
-    const worlds = isObject(s.worlds) ? s.worlds : {};
-    // Version 3 kept the first world's chest as `chestOpen` before it had flags (never published: a test device).
-    const first = worlds[FIRST_WORLD];
-    if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
-    out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
-      gear: { ...d.gear, ...part(s.gear) }, worlds } as Save;
-  } else if (s.v === 2 || s.v === 1) {
-    // v2 and v1: the world's progress moves from the top into worlds.fairy (the chest as its flag), the rest (and any
-    // field this code does not know) stays on top: the look, the stars, the skills, the settings. Version 1 (the
-    // one-quest slice) has no skills, volume or difficulty - the defaults; its `stage`, the stage of its single quest,
-    // maps onto none of the quests that followed: the story starts again, all else is kept (the text stays in amw-save-v1).
-    const common = { ...s };
-    const world: Record<string, unknown> = {};
-    for (const k of OLD_WORLD_FIELDS) { if (k in common) world[k] = common[k]; delete common[k]; }
-    if (s.v === 1) delete common.stage;
-    out = { ...d, ...common, v: SAVE_VERSION, skills: { ...d.skills, ...part(common.skills) }, vol: { ...d.vol, ...part(common.vol) },
-      worlds: { [FIRST_WORLD]: { ...defaultWorld(), ...chestToFlag(world) } } } as Save;
+  // Each older version is moved one version up, the oldest first: 1 and 2 to 3, then 3 to 4.
+  if (s.v === 2 || s.v === 1) s = fromV2(s);
+  if (s.v === 3) s = fromV3(s);
+  else if (!(s.v >= SAVE_VERSION)) return null;
+  // v4 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
+  // (the ones of this version and any other) stay as they are; worldState fills a played world's gaps.
+  const worlds = isObject(s.worlds) ? s.worlds : {};
+  // Version 3 kept the first world's chest as `chestOpen` before it had flags (never published: a test device).
+  const first = worlds[FIRST_WORLD];
+  if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
+  const out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
+    gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), worlds } as Save;
+  // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
+  if (!isTier(out.tier)) out.tier = d.tier;
+  if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
+  // A damaged fixed level of a skill is adaptive again.
+  for (const id of SKILL_IDS) {
+    const f = out.fixed[id];
+    if (!Number.isInteger(f) || f < 0 || f > TOP_LEVEL) out.fixed[id] = 0;
   }
-  if (out) {
-    // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
-    if (!isTier(out.tier)) out.tier = d.tier;
-    if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
-    // A damaged list of purchases must not break the shop: only the ids it holds are kept.
-    // A damaged wing colour gives the petals their old one.
-    if (typeof out.wingColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(out.wingColor)) out.wingColor = d.wingColor;
-    if (!Array.isArray(out.owned)) out.owned = [];
-    else out.owned = out.owned.filter((id) => typeof id === 'string');
-  }
+  // A damaged list of purchases must not break the shop: only the ids it holds are kept.
+  // A damaged wing colour gives the petals their old one.
+  if (typeof out.wingColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(out.wingColor)) out.wingColor = d.wingColor;
+  if (!Array.isArray(out.owned)) out.owned = [];
+  else out.owned = out.owned.filter((id) => typeof id === 'string');
   return out;
 }
 

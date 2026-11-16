@@ -42,6 +42,7 @@ describe('tools/e2e-saves.mjs: the saves the groups of the walkthrough start fro
       expect(keys(stored)).toEqual(keys(defaultSave()));
       expect(keys(stored.skills)).toEqual(keys(defaultSave().skills));
       expect(keys(stored.vol)).toEqual(keys(defaultSave().vol));
+      expect(keys(stored.fixed)).toEqual(keys(defaultSave().fixed));
       expect(keys(stored.gear)).toEqual(keys(defaultSave().gear));
       expect(keys(stored.worlds)).toEqual(['fairy']);
       expect(keys(stored.worlds.fairy)).toEqual(keys(defaultWorld()));

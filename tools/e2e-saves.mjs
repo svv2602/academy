@@ -1,5 +1,5 @@
 // The groups of the walkthrough (npm run e2e -- --only <group>, tools/shot.mjs: E2E_ONLY=<group>) and the saves they
-// start from. A group skips the game up to its place: the page starts with the group's save (version 3, written once
+// start from. A group skips the game up to its place: the page starts with the group's save (version 4, written once
 // in the tab before the game loads), "play" is pressed and only the blocks of the group are played; the checks at the
 // end count only what the group played. Without a group the whole world is played from no save, as it always was.
 //
@@ -35,17 +35,23 @@ export const BLOCKS = [
 /** The friends of the first world in the order the walkthrough plays them (src/worlds/fairy/quests.ts). */
 export const FRIENDS = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
 
-/** A skill as the save counts it after `tasks` tasks, one of them failed on purpose (the walkthrough does that). */
-const skill = (tasks) => ({ level: 1, streak: tasks ? -1 : 0, tasks, first: Math.max(0, tasks - 1), errors: tasks ? 1 : 0 });
+/**
+ * A skill as the save counts it after `tasks` tasks, one of them failed on purpose (the walkthrough does that; a single
+ * wrong answer ends the run of clean solves). `level`: the skill's first one (the composition of a number starts at 3).
+ */
+const skill = (tasks, level = 1) => ({ level, streak: 0, tasks, first: Math.max(0, tasks - 1), errors: tasks ? 1 : 0 });
+/** The skills of src/game/skills.ts in its order. */
+const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
 
 /** defaultSave() of src/core/save.ts, written out (this file runs under plain node); the unit test compares the two. */
 export function baseSave() {
   return {
-    v: 3, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
+    v: 4, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
-    skills: { count: skill(0), add: skill(0), sub: skill(0), compare: skill(0), logic: skill(0) },
+    skills: Object.fromEntries(SKILL_IDS.map((k) => [k, skill(0, k === 'compose' ? 3 : 1)])),
+    fixed: Object.fromEntries(SKILL_IDS.map((k) => [k, 0])), playMinutes: {},
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: '#d8f6ff', achievements: {},
-    difficulty: 0, vol: { music: 0.5, sfx: 0.8, voice: 1 },
+    vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},
   };
@@ -58,7 +64,7 @@ export function baseSave() {
 function played({ done, stars, tasks, final = false }) {
   const s = baseSave();
   s.played = true; s.stars = stars; s.launches = 1;
-  for (const [k, n] of Object.entries(tasks)) s.skills[k] = skill(n);
+  for (const [k, n] of Object.entries(tasks)) s.skills[k] = skill(n, s.skills[k].level);
   s.worlds.fairy = { quests: Object.fromEntries(done.map((id) => [id, 3])), final, starsTaken: [], flags: {}, pos: null };
   return s;
 }
@@ -73,19 +79,19 @@ export const GROUPS = {
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions - none of them needs the finished world
   world2: {
-    save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, logic: 3 } }),
+    save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
     friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions'],
   },
   // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
   finale: {
-    save: () => played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, logic: 5 } }),
+    save: () => played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
     friends: ['deer'], blocks: ['finale', 'book', 'parents', 'leave', 'start-again'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the
   // pieces take about the same time.
   shop: {
-    save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, logic: 6 }, final: true }),
+    save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
     friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'leave'],
   },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
