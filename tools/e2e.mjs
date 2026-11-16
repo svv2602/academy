@@ -1,5 +1,5 @@
-// The pre-publish gate: npm run e2e [-- --skip-build] [--all-sizes] [--mode <size>] [--bail] [--update-models]
-//                       npm run e2e -- --combine <folder>
+// The pre-publish gate: npm run e2e [-- --skip-build] [--all-sizes] [--mode <size>] [--only <groups>] [--bail] [--update-models]
+//                       npm run e2e -- --combine <folder> [--only <groups> | --jobs <list>]
 // Builds the game, serves the build on localhost, plays the whole world in phone and desktop sizes
 // (tools/shot.mjs, one process per size), checks that no .html in dist/ links to another site, stops the server
 // and prints a summary table. With --all-sizes two more sizes are played after the two main ones: desktop-tall
@@ -9,6 +9,8 @@
 // be playable in silence). The model files the page requested in the walkthroughs must be exactly
 // tools/models-used.json. Every walkthrough compares the commit number shown in the parents' section with
 // `git rev-parse --short HEAD` of the sources. Every walkthrough leaves its summary in shots-e2e/summary-<size>.json.
+// --only: each size plays the given groups of tools/e2e-saves.mjs instead of the whole world, one walkthrough per
+// size and group, each from the group's save; their files are named <size>-<group> (summary-mobile-world1.json).
 // --combine: CI plays each size in a job of its own; this mode only reads their results and runs the checks that need
 // every size at once (see the help text).
 // Exit code: 0 — every step passed; 1 — at least one step failed; 2 — bad arguments;
@@ -19,6 +21,7 @@ import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize } from './dist-size.mjs';
+import { GROUPS, PIECES } from './e2e-saves.mjs';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
@@ -52,20 +55,40 @@ opens the new build with the stars of the old one.
 Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and
 whether the whole run passed.
 
+--only <group>[,<group>...]: instead of the whole world each size plays these groups (tools/e2e-saves.mjs), one
+walkthrough per size and group: the page starts from the group's save, "play" is pressed, and only the group's part of
+the world is played; the checks at the end count what it played. Groups: world1 (friends 1-2 from no save, the game
+without ?debug, a hidden page, the introduction, the cat), world2 (the mushroom king and the queen, "sort" in the
+world, a broken talk, the tuning panel, collisions), finale (the deer and its star search, the finale, the book, the
+parents' section, leaving the page, "start again"), shop (the heroine and her items, the shop, its signboard, what she
+wears after a reload), tasks (every friend from no save: every kind of task). world1, world2, finale and shop together
+are the whole world.
+Files of a group: summary-, models-requested-, voice-<size>-<group>.json, pictures <size>-<group>-<screen>.png.
+"failure screens" and "update" go with the mobile size of shop; "models used" needs both main sizes and the four
+pieces. Without --only: the whole world, as always.
+
 --combine <folder>: build nothing, play nothing. The folder holds what walkthroughs of all four sizes left behind
 (summary-, models-requested- and voice-<size>.json; CI plays each size in a job of its own and collects them there).
 Steps: walkthroughs (all four summaries are there, of the commit of these sources, and passed) -> silent walkthrough
 -> models used. Any missing or red size fails it.
+  --only <groups>  the walkthroughs to expect are these groups in each of the four sizes (files <size>-<group>)
+  --jobs <list>    the walkthroughs to expect, listed: <size> (the whole world) or <size>:<group>, separated by commas
+                   or spaces, e.g. "mobile:world1,mobile:world2,..."
+  With either, every size must still be played whole (one walkthrough of the whole world, or each of the pieces
+  world1, world2, finale, shop), "failure screens" must have passed in the mobile walkthrough of the whole world or of
+  shop, "silent walkthrough" needs a size whose every walkthrough was silent, and the models of all of them add up.
 
 Flags:
   --skip-build            reuse the existing dist/ (fails if dist/index.html is missing)
   --all-sizes             play all four sizes (default: the two main ones, mobile and desktop)
   --mode <size>           play one size only: mobile, desktop, desktop-tall or mobile-portrait;
                           "models used" is skipped then
+  --only <groups>         play these groups instead of the whole world (see above): ${Object.keys(GROUPS).join(', ')}
   --bail                  stop at the first failed step (default: run every step to show everything broken)
   --update-models         rewrite tools/models-used.json from this run instead of comparing (needs both main sizes);
                           use it after adding or removing a model, then commit the file
   --combine <folder>      check the results of the four walkthroughs played elsewhere (see above); takes no other flag
+                          but --only or --jobs
   --help                  this text
 
 Environment (passed on to tools/shot.mjs unchanged):
@@ -88,7 +111,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAIN_MODES = ['mobile', 'desktop'];
 const EXTRA_MODES = ['desktop-tall', 'mobile-portrait'];   // added by --all-sizes, played after the main ones
 const ALL_MODES = [...MAIN_MODES, ...EXTRA_MODES];
-const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, combine: '', modes: [...MAIN_MODES] };
+const opts = { skipBuild: false, bail: false, updateModels: false, allSizes: false, oneMode: false, combine: '', modes: [...MAIN_MODES], only: [], jobs: '' };
 // Sizes played without network after the first load. One of the two existing walkthroughs, not a third one.
 const OFFLINE_MODES = ['desktop'];
 // The scenario fails every task type once on purpose, so the adaptive difficulty never leaves level 1. To play and
@@ -102,6 +125,8 @@ const MUTE_MODES = ['desktop-tall'];
 // The failure screens (TECH-07, TECH-08) are played once per run, with this size: CI plays each size in a job of its
 // own, so only that job plays them.
 const FAILURE_MODE = 'mobile';
+// With --only, the failure screens go with this group (in the walkthrough of FAILURE_MODE): the shortest piece.
+const FAILURE_GROUP = 'shop';
 if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) { console.error(`[e2e] bad E2E_MUTE "${process.env.E2E_MUTE}": expected 0 or 1`); process.exit(2); }
 const muted = (mode) => (process.env.E2E_MUTE ? process.env.E2E_MUTE === '1' : MUTE_MODES.includes(mode));
 // The commit the sources are at: what the build had to put into the parents' section (TECH-10). Worked out at the
@@ -136,7 +161,18 @@ for (let i = 0; i < argv.length; i++) {
     const d = a === '--combine' ? argv[++i] : a.slice('--combine='.length);
     if (!d || d.startsWith('--')) usage('--combine needs the folder with the results of the walkthroughs');
     opts.combine = resolve(d);
-  }  else if (a === '--mode' || a.startsWith('--mode=')) {
+  } else if (a === '--only' || a.startsWith('--only=')) {
+    const list = a === '--only' ? argv[++i] : a.slice('--only='.length);
+    if (!list || list.startsWith('--')) usage('--only needs the groups to play, e.g. --only shop or --only world1,world2');
+    for (const g of list.split(',').map((x) => x.trim()).filter(Boolean)) {
+      if (!Object.hasOwn(GROUPS, g)) usage(`bad --only group "${g}": expected ${Object.keys(GROUPS).join(', ')}`);
+      if (!opts.only.includes(g)) opts.only.push(g);
+    }
+    if (!opts.only.length) usage('--only needs at least one group');
+  } else if (a === '--jobs' || a.startsWith('--jobs=')) {
+    opts.jobs = a === '--jobs' ? argv[++i] : a.slice('--jobs='.length);
+    if (!opts.jobs || opts.jobs.startsWith('--')) usage('--jobs needs the list of walkthroughs, e.g. --jobs mobile:world1,desktop');
+  } else if (a === '--mode' || a.startsWith('--mode=')) {
     const m = a === '--mode' ? argv[++i] : a.slice('--mode='.length);
     if (![...MAIN_MODES, ...EXTRA_MODES].includes(m)) usage(`bad --mode "${m}": expected ${[...MAIN_MODES, ...EXTRA_MODES].join(', ')}`);
     opts.modes = [m]; opts.oneMode = true;
@@ -145,12 +181,30 @@ for (let i = 0; i < argv.length; i++) {
 if (opts.allSizes && opts.oneMode) usage('--all-sizes and --mode exclude each other');
 if (opts.allSizes) opts.modes = [...ALL_MODES];
 if (opts.combine && (opts.oneMode || opts.allSizes || opts.skipBuild || opts.updateModels || opts.bail)) {
-  usage('--combine takes no other flag: it only reads the results of walkthroughs played elsewhere');
+  usage('--combine takes no other flag but --only or --jobs: it only reads the results of walkthroughs played elsewhere');
 }
+if (opts.jobs && !opts.combine) usage('--jobs goes with --combine only (to play groups: --only)');
+if (opts.jobs && opts.only.length) usage('--jobs and --only exclude each other');
 if (opts.combine) opts.modes = [...ALL_MODES];
+// The walkthroughs of this run (or, with --combine, the ones to expect): a size and a group ('' = the whole world).
+let jobs = opts.modes.flatMap((mode) => (opts.only.length ? opts.only : ['']).map((group) => ({ mode, group })));
+if (opts.jobs) {
+  jobs = [];
+  for (const item of opts.jobs.split(/[\s,]+/).filter(Boolean)) {
+    const [mode, group = '', more] = item.split(':');
+    if (more !== undefined || !ALL_MODES.includes(mode) || (group && !Object.hasOwn(GROUPS, group))) {
+      usage(`bad --jobs item "${item}": expected <size> or <size>:<group>, sizes ${ALL_MODES.join(', ')}, groups ${Object.keys(GROUPS).join(', ')}`);
+    }
+    if (!jobs.some((j) => j.mode === mode && j.group === group)) jobs.push({ mode, group });
+  }
+  if (!jobs.length) usage('--jobs lists no walkthrough');
+}
+// Do the walkthroughs play the whole world in a size: one of the whole world, or every piece?
+const wholeWorld = (mode) => jobs.some((j) => j.mode === mode && !j.group) || PIECES.every((p) => jobs.some((j) => j.mode === mode && j.group === p));
 // "models used" needs both main sizes: one size alone does not request every model.
 const bothMain = MAIN_MODES.every((m) => opts.modes.includes(m));
 if (opts.updateModels && !bothMain) usage('--update-models needs both sizes: do not combine it with --mode');
+if (opts.updateModels && !opts.modes.every(wholeWorld)) usage(`--update-models needs the whole world: with --only, every piece (${PIECES.join(', ')})`);
 const firstPort = Number(process.env.E2E_PORT || 4183);
 const runTimeoutMs = Number(process.env.E2E_RUN_TIMEOUT_MS || 1200000);
 if (!Number.isInteger(firstPort) || firstPort < 1 || firstPort > 65000) usage(`bad E2E_PORT "${process.env.E2E_PORT}"`);
@@ -240,29 +294,36 @@ async function stopServer() {
   return `pid ${pid} stopped`;
 }
 
-const walkthroughName = (mode) => `walkthrough ${mode}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
+// A walkthrough is a size and a group of it ('' = the whole world); its files are named after both.
+const jobId = ({ mode, group }) => (group ? `${mode}-${group}` : mode);
+const jobLabel = ({ mode, group }) => (group ? `${mode} ${group}` : mode);
+const walkthroughName = ({ mode, group }) => `walkthrough ${mode}${group ? ` ${group}` : ''}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
+// The walkthrough that plays the failure screens with it: the mobile size, of the whole world or of FAILURE_GROUP.
+const playsFailures = ({ mode, group }) => mode === FAILURE_MODE && (!group || group === FAILURE_GROUP);
 // Where the walkthroughs leave their results: shots-e2e/ here, or the folder of --combine.
 const resultsDir = opts.combine || join(root, 'shots-e2e');
-const modelsOut = (mode) => join(resultsDir, `models-requested-${mode}.json`);
-const voiceOut = (mode) => join(resultsDir, `voice-${mode}.json`);
-const summaryOut = (mode) => join(resultsDir, `summary-${mode}.json`);
+const modelsOut = (job) => join(resultsDir, `models-requested-${jobId(job)}.json`);
+const voiceOut = (job) => join(resultsDir, `voice-${jobId(job)}.json`);
+const summaryOut = (job) => join(resultsDir, `summary-${jobId(job)}.json`);
 // What the walkthrough itself reports about its voice: { mute, clips, loud }, or null if it did not get that far.
-const voiceReport = (mode) => { try { return JSON.parse(readFileSync(voiceOut(mode), 'utf8')); } catch { return null; } };
-async function walkthrough(url, mode) {
-  rmSync(modelsOut(mode), { force: true });   // never compare against the list of an earlier run
-  rmSync(voiceOut(mode), { force: true });
-  rmSync(summaryOut(mode), { force: true });
-  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(mode),
-    E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(mode), E2E_COMMIT: sourceCommit() };
+const voiceReport = (job) => { try { return JSON.parse(readFileSync(voiceOut(job), 'utf8')); } catch { return null; } };
+async function walkthrough(url, job) {
+  const { mode, group } = job;
+  rmSync(modelsOut(job), { force: true });   // never compare against the list of an earlier run
+  rmSync(voiceOut(job), { force: true });
+  rmSync(summaryOut(job), { force: true });
+  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(job),
+    E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(job), E2E_COMMIT: sourceCommit(), E2E_ONLY: group };
   if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);
   if (timedOut) throw new Error(`killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
   if (code !== 0) throw new Error(`tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
   // The walkthrough says for itself how it was played: asked to be silent, it must have started every clip in silence.
-  const voice = voiceReport(mode);
-  if (!voice) throw new Error(`no report about the voice from the ${mode} walkthrough`);
+  const voice = voiceReport(job);
+  if (!voice) throw new Error(`no report about the voice from the ${jobLabel(job)} walkthrough`);
+  if ((voice.group ?? '') !== group) throw new Error(`the ${jobLabel(job)} walkthrough played ${voice.group ? `the group "${voice.group}"` : 'the whole world'}`);
   if (voice.mute !== muted(mode) || (voice.loud > 0) === muted(mode)) {
-    throw new Error(`the ${mode} walkthrough had to be played ${muted(mode) ? 'without' : 'with'} the voice, but it reports: voice ${voice.mute ? 'off' : 'on'}, ${voice.loud} of ${voice.clips} clips started with a volume`);
+    throw new Error(`the ${jobLabel(job)} walkthrough had to be played ${muted(mode) ? 'without' : 'with'} the voice, but it reports: voice ${voice.mute ? 'off' : 'on'}, ${voice.loud} of ${voice.clips} clips started with a volume`);
   }
   return `voice ${voice.mute ? 'off' : 'on'}: ${voice.loud} of ${voice.clips} clips with a volume`;
 }
@@ -280,38 +341,49 @@ async function update() {
   if (code !== 0) throw new Error(`tools/update.mjs exited with ${signal ?? `code ${code}`} — see "update:" above`);
   return 'the new version waited through a solved task, no controllerchange, no reload; the next launch: new version, same stars';
 }
-// With all four sizes (the way CI runs) one walkthrough must have been played in silence, by its own report.
+// With all four sizes (the way CI runs) one size must have been played in silence, by the report of each of its
+// walkthroughs (with --only: of every group of it; checkPlayed makes sure the groups of a size are the whole world).
 function checkSilent() {
-  const silent = opts.modes.filter((m) => { const v = voiceReport(m); return v?.mute && v.loud === 0 && v.clips > 0; });
+  const silent = opts.modes.filter((m) => {
+    const own = jobs.filter((j) => j.mode === m);
+    return own.length && own.every((j) => { const v = voiceReport(j); return v?.mute && v.loud === 0 && v.clips > 0; });
+  });
   if (!silent.length) throw new Error(`none of the ${opts.modes.length} walkthroughs was played without the voice: the game in silence went unchecked`);
   return `without the voice: ${silent.join(', ')}`;
 }
 
 // --combine: the walkthroughs were played elsewhere, each left its summary. All of them must be there, of the commit
 // of these sources (results of an older run must not stand in for this one) and passed - or nothing else is believed.
+// With --only or --jobs each size must still be played whole, and one walkthrough must have played the failure screens.
 function checkPlayed() {
   const commit = sourceCommit(), bad = [];
-  for (const mode of opts.modes) {
+  for (const job of jobs) {
+    const { mode, group } = job, name = jobLabel(job);
     let s;
-    try { s = JSON.parse(readFileSync(summaryOut(mode), 'utf8')); } catch { bad.push(`${mode}: no summary of its walkthrough (${summaryOut(mode)})`); continue; }
-    if (s.mode !== mode) bad.push(`${mode}: the summary is of "${s.mode}"`);
-    else if (s.commit !== commit) bad.push(`${mode}: played on commit ${s.commit}, the sources are at ${commit}`);
-    else if (s.walkthrough !== 'ok') bad.push(`${mode}: the walkthrough ${s.walkthrough}${s.note ? ` — ${s.note}` : ''}`);
-    else if (s.passed !== true) bad.push(`${mode}: the walkthrough passed, but another step of that run failed`);
+    try { s = JSON.parse(readFileSync(summaryOut(job), 'utf8')); } catch { bad.push(`${name}: no summary of its walkthrough (${summaryOut(job)})`); continue; }
+    if (s.mode !== mode) bad.push(`${name}: the summary is of "${s.mode}"`);
+    else if ((s.group ?? '') !== group) bad.push(`${name}: the summary is of ${s.group ? `the group "${s.group}"` : 'the whole world'}`);
+    else if (s.commit !== commit) bad.push(`${name}: played on commit ${s.commit}, the sources are at ${commit}`);
+    else if (s.walkthrough !== 'ok') bad.push(`${name}: the walkthrough ${s.walkthrough}${s.note ? ` — ${s.note}` : ''}`);
+    else if (s.passed !== true) bad.push(`${name}: the walkthrough passed, but another step of that run failed`);
     // The failure screens are played in one job only (FAILURE_MODE): its run must have played them, and passed.
-    else if (mode === FAILURE_MODE && s.failureScreens !== 'ok') bad.push(`${mode}: the failure screens were ${s.failureScreens ? `${s.failureScreens} in` : 'not played by'} its run`);
+    else if (playsFailures(job) && s.failureScreens !== 'ok') bad.push(`${name}: the failure screens were ${s.failureScreens ? `${s.failureScreens} in` : 'not played by'} its run`);
   }
-  if (bad.length) throw new Error(`${bad.length} of ${opts.modes.length} walkthroughs did not pass:\n  ${bad.join('\n  ')}`);
-  return `${opts.modes.join(', ')}: passed on ${commit}`;
+  for (const mode of opts.modes) {
+    if (!wholeWorld(mode)) bad.push(`${mode}: the walkthroughs listed do not play the whole world (it, or every piece of it: ${PIECES.join(', ')}); listed: ${jobs.filter((j) => j.mode === mode).map((j) => j.group || 'the whole world').join(', ') || 'none'}`);
+  }
+  if (!jobs.some(playsFailures)) bad.push(`no walkthrough listed plays the failure screens: ${FAILURE_MODE} (the whole world) or ${FAILURE_MODE}:${FAILURE_GROUP} is needed`);
+  if (bad.length) throw new Error(`${bad.length} of ${jobs.length} walkthroughs did not pass:\n  ${bad.join('\n  ')}`);
+  return `${jobs.map(jobLabel).join(', ')}: passed on ${commit}`;
 }
 
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
 // compared with public/models by a unit test (tools/models-used.test.mjs), so a model nobody loads cannot be shipped.
 function checkModels() {
   const requested = new Set();
-  for (const mode of opts.modes) {
+  for (const job of jobs) {
     let list;
-    try { list = JSON.parse(readFileSync(modelsOut(mode), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${mode} walkthrough (${e.message})`); }
+    try { list = JSON.parse(readFileSync(modelsOut(job), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${jobLabel(job)} walkthrough (${e.message})`); }
     for (const p of list) requested.add(p);
   }
   const actual = [...requested].sort();
@@ -385,26 +457,27 @@ if (ready) {
   let url = null;
   try {
     await step('preview server', async () => { url = await startServer(); return url; });
-    for (const mode of opts.modes) {
-      const name = walkthroughName(mode);
+    for (const job of jobs) {
+      const name = walkthroughName(job);
       if (!url) skip(name, 'no server');
       else if (opts.bail && failed()) skip(name, '--bail');
-      else await step(name, () => walkthrough(url, mode));
+      else await step(name, () => walkthrough(url, job));
     }
-    if (opts.modes.includes(FAILURE_MODE)) {
+    if (jobs.some(playsFailures)) {
       if (!url) skip('failure screens', 'no server');
       else if (opts.bail && failed()) skip('failure screens', '--bail');
       else await step('failure screens', () => failureScreens(url));
       if (opts.bail && failed()) skip('update', '--bail');
       else await step('update', update);
     }
-    const played = opts.modes.map((m) => results.find((r) => r.name === walkthroughName(m))?.result);
+    const played = jobs.map((j) => results.find((r) => r.name === walkthroughName(j))?.result);
     if (opts.allSizes) {
       if (process.env.E2E_MUTE) skip('silent walkthrough', 'E2E_MUTE is set: the voice of every size was chosen by hand');
       else if (!played.every((r) => r === 'ok')) skip('silent walkthrough', 'a walkthrough did not pass');
       else await step('silent walkthrough', checkSilent);
     }
     if (!bothMain) skip('models used', '--mode: one size does not request every model');
+    else if (!opts.modes.every(wholeWorld)) skip('models used', `--only: the groups are not the whole world (${PIECES.join(', ')})`);
     else if (!played.every((r) => r === 'ok')) skip('models used', 'a walkthrough did not pass: its list of requests is incomplete');
     else await step('models used', checkModels);
     if (opts.bail && failed()) skip('dist links', '--bail');
@@ -420,11 +493,12 @@ if (ready) {
 if (!opts.combine) {
   mkdirSync(resultsDir, { recursive: true });
   const commit = sourceCommit();
-  for (const mode of opts.modes) {
-    const r = results.find((x) => x.name === walkthroughName(mode));
+  for (const job of jobs) {
+    const { mode, group } = job;
+    const r = results.find((x) => x.name === walkthroughName(job));
     const fs = results.find((x) => x.name === 'failure screens');
-    writeFileSync(summaryOut(mode), JSON.stringify({ mode, commit, walkthrough: r?.result ?? 'not played', note: r?.note.split('\n')[0] ?? '', passed: !failed(),
-      ...(mode === FAILURE_MODE ? { failureScreens: fs?.result ?? 'not played' } : {}) }, null, 2) + '\n');
+    writeFileSync(summaryOut(job), JSON.stringify({ mode, ...(group ? { group } : {}), commit, walkthrough: r?.result ?? 'not played', note: r?.note.split('\n')[0] ?? '', passed: !failed(),
+      ...(playsFailures(job) ? { failureScreens: fs?.result ?? 'not played' } : {}) }, null, 2) + '\n');
   }
 }
 
