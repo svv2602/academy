@@ -50,7 +50,7 @@ build is published while the game is played - the new service worker installs an
 (no controllerchange), is not navigated, and a task is still solved; once every page of the game is closed, a new page
 opens the new build with the stars of the old one.
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
-"dist size" holds the build to the budget of docs/15-tech.md: all of dist/ at most 12 MB, one file at most 1 MB
+"dist size" holds the build to the budget of docs/15-tech.md: dist/ without voice/ at most 12 MB, voice/ at most 4 MB, one file at most 1 MB
 (tools/dist-size.mjs).
 Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and
 whether the whole run passed.
@@ -437,7 +437,7 @@ function checkDist() {
 function checkSize() {
   const r = checkDistSize(join(root, 'dist'));
   if (r.problems.length) throw new Error(`the build is over its budget:\n  ${r.problems.join('\n  ')}`);
-  return `${(r.total / 1e6).toFixed(2)} MB in ${r.files} files; the heaviest: ${r.heaviest.path}, ${(r.heaviest.size / 1e6).toFixed(2)} MB`;
+  return `${(r.total / 1e6).toFixed(2)} MB of the game and ${(r.voice / 1e6).toFixed(2)} MB of voice in ${r.files} files; the heaviest: ${r.heaviest.path}, ${(r.heaviest.size / 1e6).toFixed(2)} MB`;
 }
 
 // ---- run ----

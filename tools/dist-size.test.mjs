@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { MAX_DIST, MAX_DIST_FILE, checkDistSize } from './dist-size.mjs';
+import { MAX_DIST, MAX_DIST_FILE, MAX_VOICE, checkDistSize } from './dist-size.mjs';
 
 const dirs = [];
 afterAll(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
@@ -20,8 +20,18 @@ function folder(files) {
 }
 
 describe('the size budget of the build', () => {
-  it('is the one of docs/15-tech.md: 12 MB in all, 1 MB per file', () => {
-    expect([MAX_DIST, MAX_DIST_FILE]).toEqual([12_000_000, 1_000_000]);
+  it('is the one of docs/15-tech.md: 12 MB for the game, 4 MB for the voice, 1 MB per file', () => {
+    expect([MAX_DIST, MAX_VOICE, MAX_DIST_FILE]).toEqual([12_000_000, 4_000_000, 1_000_000]);
+  });
+
+  it('counts the voice apart: clips do not use up the game\'s 12 MB, and the voice has its own limit', () => {
+    const r = checkDistSize(folder({ 'a.glb': 900, 'voice/x.mp3': 900, 'voice/y.mp3': 900 }), 1000, 1000, 2000);
+    expect(r.problems).toEqual([]);
+    expect([r.total, r.voice, r.files]).toEqual([900, 1800, 3]);
+    const over = checkDistSize(folder({ 'a.glb': 900, 'voice/x.mp3': 900, 'voice/y.mp3': 900, 'voice/z.mp3': 300 }), 1000, 1000, 2000);
+    expect(over.problems).toEqual(['dist/voice/: 2100 bytes in 3 files, the limit is 2000']);
+    // A file that only has "voice" in its name is the game's.
+    expect(checkDistSize(folder({ 'assets/voice.js': 900, 'b': 200 }), 1000, 1000, 2000).problems.join()).toContain('without voice/');
   });
 
   it('passes a build within both limits and names its heaviest file', () => {
@@ -40,7 +50,7 @@ describe('the size budget of the build', () => {
 
   it('fails a build above the total, even when every file is within its limit', () => {
     const r = checkDistSize(folder({ 'a': 900, 'b': 900, 'c/d': 900 }), 2000, 1000);
-    expect(r.problems).toEqual(['dist/: 2700 bytes in 3 files, the limit is 2000']);
+    expect(r.problems).toEqual(['dist/ without voice/: 2700 bytes in 3 files, the limit is 2000']);
   });
 
   it('fails an empty or missing folder: there is nothing to measure', () => {
