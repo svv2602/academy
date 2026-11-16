@@ -15,12 +15,17 @@ export interface OrderState { next: number }
 
 /** How many numbers a level shows. */
 export const COUNT = (level: number) => (level === 1 ? 4 : 5);
+/**
+ * The largest number a level draws from when the numbers are scattered: 10 on level 3, 20 on level 5 (LEARN-05).
+ * Level 4 (the neighbours of a number, LEARN-08) is not made yet and is level 3 until then.
+ */
+export const TOP = (level: number) => (level >= 5 ? 20 : 10);
 
 export function generate(level: number, rng: Rng): OrderSpec {
   const n = COUNT(level);
-  // The start is drawn on every level, the third too, where the numbers are drawn from 1..10 instead.
+  // The start is drawn on every level, from the third too, where the numbers are drawn from 1..TOP instead.
   const start = randInt(1, level === 1 ? 3 : 5, rng);
-  const sorted = level < 3 ? Array.from({ length: n }, (_, i) => start + i) : shuffle(Array.from({ length: 10 }, (_, i) => i + 1), rng).slice(0, n).sort((a, b) => a - b);
+  const sorted = level < 3 ? Array.from({ length: n }, (_, i) => start + i) : shuffle(Array.from({ length: TOP(level) }, (_, i) => i + 1), rng).slice(0, n).sort((a, b) => a - b);
   return {
     type: 'order', level, prompt: 't_order',
     hint: { key: 'h_order', steps: [{ do: 'pulseNext' }] },

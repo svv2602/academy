@@ -2,6 +2,7 @@
 import { order, type OrderSpec } from '../tasks/order';
 import { el, tap, type PanelCtx } from './panel';
 import { hintOf } from './flow';
+import './twenty.css';   // two-digit numbers on the buttons of level 5
 
 export function orderView(spec: OrderSpec, c: PanelCtx) {
   const st = order.start(spec);

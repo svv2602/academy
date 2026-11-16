@@ -1,0 +1,15 @@
+/* Numbers up to 20 on the panel (LEARN-05): "compare" from level 4 writes its two numbers as digits, and "order"
+   on level 5 has two-digit numbers on its buttons. Like hints.css, only `scale` and `opacity` move. */
+
+/* "More / less" with digits: the number fills its group, which keeps the size of a group of things (>= 44x44).
+   The hint shows each number as dots in rows of ten, under the digits, inside the group. */
+.group.pickable.digits { flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; }
+.group.digits > .n { font-size: clamp(44px, min(11vw, 16vh), 88px); font-weight: 800; line-height: 1; color: #7a4fd0;
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.group.pickable.grow > .n { animation: grow 1.6s ease-out infinite; --low: .6; }
+.group.pickable.shrink > .n { animation: shrink 1.6s ease-in infinite; --low: .6; }
+.group.digits > .dots { --d: clamp(5px, 1.5vw, 12px); display: grid; grid-template-columns: repeat(10, var(--d)); gap: 2px; }
+.group.digits > .dots > span { width: var(--d); height: var(--d); border-radius: 50%; background: #ff7eb6; }
+
+/* "Order": a two-digit number stays on one line of its button. */
+.t-stage.t-order .opt.num { white-space: nowrap; font-variant-numeric: tabular-nums; }

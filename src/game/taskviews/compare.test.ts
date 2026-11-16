@@ -42,7 +42,8 @@ describe('compare: shown without the voice', () => {
     document.body.innerHTML = MARKUP;
     const { hooks, heard } = listen();
     const done = runTask('compare', level, hooks);
-    const groups = all(stage(), '.group.pickable'), sizes = groups.map((g) => all(g, '.it').length);
+    // A group of things is as big as its things; from level 4 a group is its number in digits.
+    const groups = all(stage(), '.group.pickable'), sizes = groups.map((g) => (g.querySelector('.n') ? Number(g.querySelector('.n')!.textContent) : all(g, '.it').length));
     const more = heard.prompts[0] === 't_compare_more';
     const right = sizes.indexOf(more ? Math.max(...sizes) : Math.min(...sizes));
     return { done, heard, groups, right, more, marks: all(stage(), '.ask') };
@@ -69,7 +70,7 @@ describe('compare: shown without the voice', () => {
       expect(looks.get(more)!.size).toBe(1);                         // ... and the mark looked the same every time
     }
     expect([...looks.get(true)!][0]).not.toBe([...looks.get(false)!][0]);
-  });
+  }, 20_000);   // 900 shows: about 2 s alone, past the default 5 s on a loaded machine (seen under parallel runs)
 
   it.each([1, 2, 3])('compare, level %i: after the first mistake the right group grows for "more" and shrinks for "less"', async (level) => {
     const asked = new Set<boolean>();
@@ -89,5 +90,63 @@ describe('compare: shown without the voice', () => {
       vi.clearAllTimers();
     }
     expect(asked).toEqual(new Set(level === 1 ? [true] : [true, false]));
+  });
+
+  it.each([1, 2, 3])('compare, level %i: the groups are things, never digits', (level) => {
+    for (let i = 0; i < 30; i++) {
+      const { groups } = compareTask(level, 34_000 + level * 100 + i);
+      for (const g of groups) { expect(g.classList.contains('digits')).toBe(false); expect(g.querySelector('.n')).toBeNull(); expect(all(g, '.it').length).toBeGreaterThan(0); }
+      vi.clearAllTimers();
+    }
+  });
+
+  it.each([4, 5])('compare, level %i: two different numbers up to 20 in digits, without things, the mark between them', (level) => {
+    const asked = new Set<boolean>();
+    let big = 0;
+    for (let i = 0; i < 200; i++) {
+      const { groups, more, marks } = compareTask(level, 35_000 + level * 1000 + i);
+      asked.add(more);
+      expect(groups).toHaveLength(2);
+      expect(all(stage(), '.it'), 'no things are drawn for numbers in digits').toEqual([]);
+      const nums = groups.map((g) => {
+        expect(g.classList.contains('digits')).toBe(true);
+        expect(g.children).toHaveLength(1);
+        expect(g.firstElementChild!.matches('b.n')).toBe(true);
+        return g.querySelector('.n')!.textContent!;
+      });
+      expect(nums.every((t) => /^(?:[1-9]|1\d|20)$/.test(t)), nums.join(' ')).toBe(true);
+      expect(nums[0]).not.toBe(nums[1]);
+      if (nums.some((t) => t.length === 2)) big++;
+      expect(marks).toHaveLength(1);
+      expect([...stage().children].indexOf(marks[0])).toBe(1);
+      expect(all(root(), '.grow, .shrink, .pulse, .dots, .group > em')).toEqual([]);
+      vi.clearAllTimers();
+    }
+    expect(asked).toEqual(new Set([true, false]));
+    expect(big).toBeGreaterThan(100);
+  });
+
+  it.each([4, 5])('compare, level %i: after the first mistake each number is shown as dots, and the right number grows or shrinks', async (level) => {
+    for (let i = 0; i < 20; i++) {
+      const { done, groups, right, more } = compareTask(level, 36_000 + level * 100 + i);
+      const nums = groups.map((g) => Number(g.querySelector('.n')!.textContent));
+      tap(groups[1 - right]);
+      await vi.advanceTimersByTimeAsync(899);
+      expect(all(root(), '.grow, .shrink, .dots')).toEqual([]);
+      await afterMistake();
+      // "Count here and here": the dots of each group, as many as its number, under its digits; no badge over it.
+      expect(groups.map((g) => g.querySelectorAll(':scope > .dots > span').length)).toEqual(nums);
+      expect(groups.map((g) => g.lastElementChild!.matches('.dots'))).toEqual([true, true]);
+      expect(all(root(), '.group > em')).toEqual([]);
+      expect(all(root(), more ? '.grow' : '.shrink')).toEqual([groups[right]]);
+      expect(all(root(), more ? '.shrink' : '.grow')).toEqual([]);
+      tap(groups[1 - right]);                                        // a second mistake: the dots are not doubled
+      await afterMistake();
+      expect(groups.map((g) => g.querySelectorAll('.dots').length)).toEqual([1, 1]);
+      tap(groups[right]);
+      await vi.advanceTimersByTimeAsync(1100);
+      expect(await done).toEqual({ solved: true, wrong: 2 });
+      vi.clearAllTimers();
+    }
   });
 });
