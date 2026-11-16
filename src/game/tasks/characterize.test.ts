@@ -94,6 +94,10 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
     '70233ce5 3ec8d238 faf6dd0b 3094877f e1e57026 fcc7d7cb d9d8fc13 f30c275a 57f9120c a33cc5db',
     '0673ce2b ba1ac4ed 5a5250a1 756bc84d aaab1b3f 1d9cfde1 8b836369 a916ea8b cc482f73 b4573141',
   ],
+  // The composition of a number came after the split (LEARN-06, LEARN-07): recorded when it was made. It has no levels
+  // 1-2 of its own and plays levels 1-3 alike (the missing addend up to 10; the house is the same on every level).
+  missing: ['c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf', 'c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf', 'c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf'],
+  house: ['20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3', '20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3', '20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3'],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

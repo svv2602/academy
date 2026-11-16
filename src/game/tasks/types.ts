@@ -10,18 +10,20 @@ import { randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
 import type { SpokenKey } from '../../ui/strings';
 
-export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon';
+export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house';
 
 /**
  * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.
  * `countOn`: "10" over the full frame, then 11, 12, ... (ten frames); `fillTen`: the second group fills the first frame
  * up to ten, then the rest is counted on; `takeToTen`: the things over ten go, then the rest of the gone ones, then the
- * things left are counted; `track`: the cat walks a number track from 1; `tryBaskets`: the gem tries each basket in turn.
+ * things left are counted; `track`: the cat walks a number track from 1; `tryBaskets`: the gem tries each basket in turn;
+ * `countUp` (the composition of a number): from the known number, dots come one by one with the numbers up to the sum,
+ * then the dots are counted 1, 2, 3 - how many were missing.
  */
 export type HintStep =
   | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
   | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
-  | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' };
+  | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' } | { do: 'countUp' };
 /** One rung of the hint: the line the cat says, and what is shown on screen once it has ended. */
 export interface HintRung { key: SpokenKey; steps: readonly HintStep[] }
 /**

@@ -241,6 +241,33 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(shown.length === level + 2, `${shown.length} steps, declared ${level + 2}`);
     shown.forEach(tap);
   },
+  // The composition of a number (levels 1-3 play its lowest, the missing addend up to 10; the house is the same on every level).
+  missing() {
+    const a = all(stage(), '.group .it').length, sum = Number(text(stage().querySelector<HTMLElement>('.sign.sum')!));
+    const { buttons, values } = numberOptions(`${a} + ? = ${sum}`, 4, 0);
+    must(all(stage(), '.q').length === 1, 'there must be one question mark');
+    between(sum, 3, 10, 'the sum');
+    between(a, 1, sum - 1, 'the known addend');
+    once(values, sum - a, 'the right answer');
+    must(Number(text(accepted(buttons))) === sum - a, 'the accepted answer is not what is missing');
+  },
+  house() {
+    const roof = Number(text(stage().querySelector<HTMLElement>('.roof')!)), floors = all(stage(), '.floor');
+    const { buttons, values } = numberOptions(`roof ${roof}`, 4, 0);
+    must(floors.length === 3, `${floors.length} floors, declared 3`);
+    must(all(stage(), '.win.empty').length === 1, 'there must be one empty window');
+    between(roof, 4, 10, 'the roof');
+    let answer = -1;
+    for (const f of floors) {
+      const wins = all(f, '.win');
+      must(wins.length === 2, 'a floor has two windows');
+      const empty = wins.findIndex((w) => w.classList.contains('empty'));
+      if (empty < 0) must(Number(text(wins[0])) + Number(text(wins[1])) === roof, 'a floor does not make the roof');
+      else answer = roof - Number(text(wins[1 - empty]));
+    }
+    once(values, answer, 'the right answer');
+    must(Number(text(accepted(buttons))) === answer, 'the accepted answer is not the number of the empty window');
+  },
 };
 
 const TYPES = Object.keys(PLAY) as TaskType[];

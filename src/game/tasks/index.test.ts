@@ -5,12 +5,12 @@ import { createRng } from '../../core/rng';
 import { MODELS, generate } from './index';
 import type { TaskType } from './types';
 
-const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon'];
+const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'missing', 'house'];
 
 describe('tasks/index', () => {
   it('runs without a page', () => { expect(typeof document).toBe('undefined'); });
 
-  it('has a model for each of the ten types', () => {
+  it('has a model for each of the twelve types', () => {
     expect(Object.keys(MODELS).sort()).toEqual([...TYPES].sort());
   });
 

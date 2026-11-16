@@ -35,7 +35,8 @@
 //   E2E_SLOW=<n>            multiplier for the scenario timeouts and pauses (default 1)
 //   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
 //   E2E_LEVEL=<1..5>        fix the level of every skill (the parents' setting, save.fixed) for the whole run, each
-//                           within its own levels (the composition of a number starts at 3); default: adaptive, which
+//                           within its own levels (the composition of a number starts at 3; with 1 or 2 it plays its
+//                           level 4, the number house - see the start of the first world); default: adaptive, which
 //                           stays on level 1 here because the scenario fails every task type once on purpose
 //   E2E_OFFLINE=1           play without network: after the first load wait until the service worker is active and
 //                           its whole precache list is in the cache, switch the network off, reload and play as
@@ -125,20 +126,27 @@ const STARS_KEPT = 7;
 // The question(s) of every task type: what the bubble shows while the task waits for its answer.
 const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
-  pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
+  pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
+  missing: ['t_missing'], house: ['t_house'],
 };
+// The composition of a number is one step of a chain (the deer's "compose", R34) whose kind follows its level:
+// the missing addend on levels 3 and 5, the number house on level 4. A run meets the kind of its level.
+const COMPOSE = ['missing', 'house'];
 // The solution a task shows after its second mistake (rung 2 of the hint, HINTS.md), once "try again" and the line have
 // ended - what a child sees without the voice and without reading: numbers on the things counted, numbers (or dots)
 // over the groups, the repeating links of the row, the number track walked from 1, the gem trying the baskets until
-// its own keeps a frame, the sequence played again, the frame shared by the alike pictures of "what is odd".
+// its own keeps a frame, the sequence played again, the frame shared by the alike pictures of "what is odd", the dots
+// counted up from the known number to the sum (the composition of a number).
 // Memory pairs have no hint: they open with every face shown.
 const SHOWS = {
   count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
+  missing: '#taskStage .up', house: '#taskStage .up',
 };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
-  '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit'].join(', ');
+  '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
+  '#taskStage .up', '#taskStage .dots-up'].join(', ');
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -715,6 +723,9 @@ try {
       let catRepeated = false;      // a tap on the cat repeated a line
       await page.click('#play');
       if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
+      // The composition of a number has no levels 1-2: it would play them as its 3, the missing addend, which the phone
+      // sizes play already. A run that fixes 1 or 2 (the tall desktop, tools/e2e.mjs) plays its house (level 4) instead.
+      if (level && Number(level) < 3) await page.evaluate(() => { __game.save.fixed.compose = 4; });
       await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
       // E2E_ONLY: the game plays from the group's save - or the group would pass playing something else.
       if (group) {
@@ -1460,8 +1471,17 @@ try {
         // Each kind closed at its first meeting was met again and played: its quest went past the step it was closed at.
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
         // E2E_ONLY: the kinds of the chains the group played
-        const kinds = new Set((await g(() => __game.npcs.map((n) => [n.def.id, n.def.steps]))).filter(([id]) => plays(id)).flatMap(([, st]) => st));
-        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && (!group || kinds.has(t)));
+        const steps = new Set((await g(() => __game.npcs.map((n) => [n.def.id, n.def.steps]))).filter(([id]) => plays(id)).flatMap(([, st]) => st));
+        // "compose" is the kind its level played: the one met (closed and played) - and the house where the level is 4
+        const fixedCompose = await g(() => __game.save.fixed.compose);
+        const composed = COMPOSE.filter((t) => seen.has(t) || closed.has(t));
+        if (steps.has('compose')) {
+          if (!composed.length) errors.push(`compose: ${mode}: the step "compose" played neither ${COMPOSE.join(' nor ')}`);
+          const want = fixedCompose === 4 ? 'house' : fixedCompose > 0 ? 'missing' : '';
+          if (want && composed.join() !== want) errors.push(`compose: ${mode}: level ${fixedCompose} of the composition played ${composed.join(', ') || 'nothing'}, not ${want}`);
+        }
+        const kinds = new Set([...steps].flatMap((t) => (t === 'compose' ? composed : [t])));
+        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && (!COMPOSE.includes(t) || composed.includes(t)) && (!group || kinds.has(t)));
         const unclosed = panel.filter((t) => !closed.has(t));
         if (unclosed.length) errors.push(`close: ${mode}: never closed with its button: ${unclosed.join(', ')}`);
         for (const [t, c] of closed) {

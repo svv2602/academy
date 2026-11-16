@@ -29,6 +29,20 @@ describe('simon generator', () => {
     }
   });
 
+  // Levels 4 and 5 (docs/11-learning.md): "6 steps" and "7 steps", on the six pads there are.
+  it.each([[4, 6], [5, 7]])(`level %i: ${TASKS} sequences of %i steps on six pads`, (level, steps) => {
+    for (let i = 0; i < TASKS; i++) {
+      const s = simon.generate(level, mulberry32(level * 100_000 + i)), { pads, seq } = s.body, why = `seed #${i}: ${JSON.stringify(s.body)}`;
+      expect(s.level, why).toBe(level); expect(s.prompt, why).toBe('t_simon_watch');
+      expect(seq.length, why).toBe(steps);
+      expect(pads.length, why).toBe(SYMBOLS.length);
+      expect(new Set(pads).size, why).toBe(pads.length);
+      expect(seq.every((p) => pads.includes(p)), why).toBe(true);
+      const st = simon.start(s);
+      expect(seq.map((p) => simon.answer(s, st, p)), why).toEqual([...seq.slice(1).map(() => 'step'), 'right']);
+    }
+  });
+
   it('a wrong pad does not start over; a new show does', () => {
     const s = simon.generate(3, mulberry32(11)), { pads, seq } = s.body;
     const st = simon.start(s);

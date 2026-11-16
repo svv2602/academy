@@ -1,0 +1,30 @@
+/* The composition of a number on the panel (missing.ts, house.ts; LEARN-06, LEARN-07). Like hints.css, only `scale`
+   and `opacity` move, and nothing grows past its own box. Nothing here is a button: the answers are the usual `.opt`. */
+
+/* "3 + ? = 7": the sum is a number, the empty place holds "?" and, at rung 2, the dots counted up. */
+.t-stage .sign.sum { color: #7a4fd0; font-variant-numeric: tabular-nums; }
+.t-stage .gap { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; max-width: 176px; min-width: 40px; }
+
+/* Rung 2 (h2_missing, h2_house): a dot with the number it counts up to, then the number of the recount. */
+.t-stage .up { position: relative; width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 3px dashed #ff9f1c; background: #fff7e8;
+  display: grid; place-items: center; }
+.t-stage .up i { font: 800 14px/1 system-ui, sans-serif; font-style: normal; color: #a35f00; }
+.t-stage .up.on { background: #ffd95e; border-style: solid; }
+.tf > .up { width: 44px; height: 44px; border-radius: 10px; }
+
+/* The number house: a roof with its number, three floors of two windows. One floor at a time is 44 px high, so the
+   house with the dots of rung 2 stays within the stage of a phone held either way. */
+.t-stage .house { display: flex; flex-direction: column; align-items: center; gap: 0; width: 236px; }
+.house .roof { width: 100%; height: 54px; box-sizing: border-box; padding-bottom: 5px; clip-path: polygon(50% 0, 100% 100%, 0 100%); background: #b07ad6;
+  display: grid; place-items: end center; color: #fff; font: 800 26px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.house .floor { display: flex; flex-wrap: wrap; justify-content: center; gap: 0; width: 100%; box-sizing: border-box; border: 3px solid #d9c4ee; border-top: none;
+  background: #fff; padding: 2px 0; }
+.house .floor:nth-child(2) { border-top: 3px solid #d9c4ee; }
+.house .win { flex: 1 1 50%; height: 40px; box-sizing: border-box; font: 800 26px/40px system-ui, sans-serif; color: #7a4fd0; text-align: center;
+  font-variant-numeric: tabular-nums; }
+.house .win + .win { border-left: 3px solid #d9c4ee; }
+.house .win.empty { color: #b07ad6; background: #f6eefc; }
+.house .dots-up { flex: 0 0 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px; padding: 3px 4px; box-sizing: border-box; }
+.house .dots-up .have { width: 14px; height: 14px; border-radius: 50%; background: #7a4fd0; }
+.house .dots-up .up { width: 24px; height: 24px; border-width: 2px; }
+.house .dots-up .up i { font-size: 12px; }

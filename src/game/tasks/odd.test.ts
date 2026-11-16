@@ -2,7 +2,7 @@
 /** The odd-one-out generator without a page (ARCH-09, R10): one group plus one stranger, one right answer. */
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
-import { GROUPS, odd } from './odd';
+import { FIG_COLORS, FIG_SHAPES, GROUPS, figureOf, odd, type Figure } from './odd';
 
 /** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
 const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
@@ -29,6 +29,48 @@ describe('odd generator', () => {
       expect(things.map((_, k) => k).filter((k) => odd.answer(s, odd.start(s), k) === 'right'), why).toEqual([answer]);
       expect(odd.solution(s, odd.start(s)), why).toEqual([answer]);
     }
+  });
+
+  // Level 4 (docs/11-learning.md): "odd by a feature (shape, size)" - one colour for all, exactly one figure differs,
+  // and it differs in that one feature only.
+  it(`level 4: ${TASKS} tasks - one colour, four figures the same, the fifth differs in the shape alone or the size alone`, () => {
+    const features = new Set<string>();
+    for (let i = 0; i < TASKS; i++) {
+      const s = odd.generate(4, mulberry32(400_000 + i)), { things, answer } = s.body, why = `seed #${i}: ${JSON.stringify(s.body)}`;
+      expect(s.type, why).toBe('odd'); expect(s.level, why).toBe(4); expect(s.prompt, why).toBe('t_odd');
+      expect(things.length, why).toBe(5);
+      const figs = things.map(figureOf), stranger = figs[answer], rest = things.filter((_, k) => k !== answer);
+      expect(figs.every((f) => FIG_COLORS.includes(f.color) && FIG_SHAPES.includes(f.shape)), why).toBe(true);
+      expect(new Set(figs.map((f) => f.color)).size, why).toBe(1);
+      expect(new Set(rest).size, why).toBe(1);                                    // the four others are one and the same
+      const like = figureOf(rest[0]), differs = (['shape', 'small'] as const).filter((k) => stranger[k] !== like[k]);
+      expect(differs.length, why).toBe(1);                                       // exactly one feature differs
+      features.add(differs[0]);
+      expect(things.map((_, k) => k).filter((k) => odd.answer(s, odd.start(s), k) === 'right'), why).toEqual([answer]);
+    }
+    expect([...features].sort()).toEqual(['shape', 'small']);
+  });
+
+  // Level 5: "two features" - no colour and no shape is alone; the odd one is the only figure without a twin in both.
+  it(`level 5: ${TASKS} tasks - two pairs and one figure that shares its colour with one pair and its shape with the other`, () => {
+    const key = (f: Figure) => `${f.color} ${f.shape}`;
+    for (let i = 0; i < TASKS; i++) {
+      const s = odd.generate(5, mulberry32(500_000 + i)), { things, answer } = s.body, why = `seed #${i}: ${JSON.stringify(s.body)}`;
+      expect(s.level, why).toBe(5); expect(s.prompt, why).toBe('t_odd');
+      expect(things.length, why).toBe(5);
+      const figs = things.map(figureOf), times = (f: (x: Figure) => string, v: string) => figs.filter((x) => f(x) === v).length;
+      expect(figs.every((f) => !f.small), why).toBe(true);
+      expect(figs.map((_, k) => k).filter((k) => times(key, key(figs[k])) === 1), why).toEqual([answer]);
+      expect(figs.every((f) => times((x) => x.color, f.color) >= 2 && times((x) => x.shape, f.shape) >= 2), why).toBe(true);
+      expect(new Set(figs.map((f) => f.color)).size, why).toBe(2);
+      expect(new Set(figs.map((f) => f.shape)).size, why).toBe(2);
+      expect(things.map((_, k) => k).filter((k) => odd.answer(s, odd.start(s), k) === 'right'), why).toEqual([answer]);
+    }
+  });
+
+  it('the hint of levels 4 and 5: the way of the feature (said only), then the alike framed, then the stranger pulses', () => {
+    expect(odd.generate(4, mulberry32(1)).hint).toEqual(LADDER('h1_odd_shape', 'h2_odd', [{ do: 'frameAlike' }]));
+    expect(odd.generate(5, mulberry32(1)).hint).toEqual(LADDER('h1_odd_two', 'h2_odd', [{ do: 'frameAlike' }]));
   });
 
   it('the stranger stands anywhere in the row', () => {

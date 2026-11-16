@@ -48,12 +48,12 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
   /** The line of rung 1 (the way, said only) of each type on level 1, as HINTS.md has it. */
   const HINT: Record<Hinted, Key> = {
     count: 'h1_count', add: 'h1_add', sub: 'h1_sub', compare: 'h_compare', pattern: 'h_pattern',
-    odd: 'h_odd', order: 'h_order', sort: 'h_sort', simon: 'h1_simon',
+    odd: 'h_odd', order: 'h_order', sort: 'h_sort', simon: 'h1_simon', missing: 'h1_missing', house: 'h1_house',
   };
   /** The line of rung 2 (solved together on screen). Rung 3 is the same line for every type. */
   const HINT2: Record<Hinted, Key> = {
     count: 'h_count', add: 'h_count', sub: 'h_left', compare: 'h2_compare', pattern: 'h2_pattern',
-    odd: 'h2_odd', order: 'h2_order', sort: 'h2_sort', simon: 'h_simon',
+    odd: 'h2_odd', order: 'h2_order', sort: 'h2_sort', simon: 'h_simon', missing: 'h2_missing', house: 'h2_house',
   };
   const H3: Key = 'h3_show';
   /** The line said after mistake `k`. */
@@ -62,7 +62,7 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
   const CHOICES: Record<Hinted, string> = {
     count: '#taskOpts .opt', add: '#taskOpts .opt', sub: '#taskOpts .opt', pattern: '#taskOpts .opt',
     compare: '#taskStage .group.pickable', odd: '#taskStage .it.big', order: '#taskStage .opt.num',
-    sort: '#taskOpts .basket', simon: '#taskStage .pad',
+    sort: '#taskOpts .basket', simon: '#taskStage .pad', missing: '#taskOpts .opt', house: '#taskOpts .opt',
   };
   const HINTED = Object.keys(HINT) as Hinted[];
   const COUNTING: Hinted[] = ['count', 'add', 'sub'];        // the solution is counted aloud
@@ -105,7 +105,7 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
    * number, a group that grows or shrinks, the frame of the alike, the number track, a basket the gem tried or kept,
    * the glowing gem, things that left, the counted glow, a pulsing answer, the repeating unit, the replayed show.
    */
-  const REVEAL = '.it > i, .group > em, .dots, .grow, .shrink, .alike, .track, .try, .own, .glow, .away, .it.hit, .pulse';
+  const REVEAL = '.it > i, .group > em, .dots, .up, .dots-up, .grow, .shrink, .alike, .track, .try, .own, .glow, .away, .it.hit, .pulse';
   const revealed = () => all(root(), REVEAL).length > 0
     || stage().classList.contains('units') || stage().classList.contains('watch');
   const pulsing = () => all(root(), '.pulse');

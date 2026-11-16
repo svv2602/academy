@@ -3,10 +3,11 @@ import { pick } from '../core/util';
 import { fanfare } from '../ui/ui';
 import { tf } from '../ui/strings';
 import type { Game } from './context';
-import { levelFor, recordTask } from './skills';
+import { levelFor, recordTask, type SkillId } from './skills';
 import { playScene, type Stage } from './stage';
 import { runTask, SKILL } from './taskviews/panel';
 import type { TaskType } from './tasks/types';
+import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
 import type { CharacterDef, Npc, WorldLines, WorldTask } from './world';
 
 export interface Dialogue {
@@ -34,7 +35,10 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   const background = Object.values(tasks).filter((t) => t.start);
 
   const finished = (c: CharacterDef) => (ws.quests[c.id] ?? 0) >= c.steps.length;
-  const isPanel = (s: string): s is TaskType => s in SKILL;
+  // A panel step names a task type, or a skill whose type follows the level (R34: "compose", the composition of a number).
+  type PanelStep = TaskType | SkillStep;
+  const isPanel = (s: string): s is PanelStep => s in SKILL || isSkillStep(s);
+  const skillOf = (s: PanelStep): SkillId => (isSkillStep(s) ? s : SKILL[s]);
 
   // ----- conversations -----
   async function talk(n: Npc) {
@@ -50,9 +54,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       if (own) { await own.reask?.(n); return; }
       if (done >= q.steps.length) {           // the chain is finished: replay one of its games for stars
         await line('npc_again', 'story', 0, q.emoji);
-        const type = pick(q.steps.filter(isPanel), g.rng);
-        const res = await task(() => runTask(type, levelFor(save, SKILL[type]), hooksFor(q.emoji), g.rng));
-        if (res.solved) { recordTask(save, SKILL[type], res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
+        const step = pick(q.steps.filter(isPanel), g.rng), skill = skillOf(step), level = levelFor(save, skill);
+        const res = await task(() => runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
+        if (res.solved) { recordTask(save, skill, res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
         return;
       }
       if (done === 0 && q.hi) await line(q.hi, 'story', 0, q.emoji);
@@ -67,8 +71,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
           });
           return;
         }
-        const skill = wt ? wt.skill : SKILL[step as TaskType];
-        const res = await task(() => wt?.run ? wt.run(n, levelFor(save, skill)) : runTask(step as TaskType, levelFor(save, skill), hooksFor(q.emoji), g.rng));
+        const skill = wt ? wt.skill : skillOf(step as PanelStep), level = levelFor(save, skill);
+        const res = await task(() => wt?.run ? wt.run(n, level) : runTask(typeOf(step as PanelStep, level), level, hooksFor(q.emoji), g.rng));
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         ws.quests[q.id] = k + 1;

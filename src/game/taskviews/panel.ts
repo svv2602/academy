@@ -4,7 +4,7 @@
  *
  * The show of each type is its own module (`taskviews/<type>.ts`); it only draws and wires the taps, and draws no
  * random numbers: every choice of the task is in the description. `runTask` makes the description from the task's rng.
- * The shows of the ten types are drawn by `hints.css`.
+ * The shows are drawn by `hints.css` (the composition of a number by its own `compose.css`).
  */
 import { createRng, type Rng } from '../../core/rng';
 import type { Spoken } from '../../core/audio';
@@ -23,12 +23,14 @@ import { pairsView } from './pairs';
 import { orderView } from './order';
 import { sortView } from './sort';
 import { simonView } from './simon';
+import { missingView } from './missing';
+import { houseView } from './house';
 import './hints.css';
 
 /** The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). */
 export const SKILL: Record<TaskType, SkillId> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
-  pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify',
+  pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
 };
 
 export interface TaskResult { solved: boolean; wrong: number; }
@@ -104,7 +106,7 @@ export async function countAloud(c: PanelCtx, list: HTMLElement[]) {
 // is used while the modules load. The list is built at a call, so a show loaded first never meets an unready binding.
 const viewOf = <T extends TaskType>(type: T) => ({
   count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
-  odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView,
+  odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView, missing: missingView, house: houseView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 let current: PanelCtx | null = null;

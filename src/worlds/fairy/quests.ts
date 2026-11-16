@@ -1,7 +1,11 @@
 import type { TaskType } from '../../game/tasks/types';
+import type { SkillStep } from '../../game/tasks/index';
 
-/** A quest step is a panel mini-game or one of the two tasks played out in the 3D world. */
-export type Step = TaskType | 'butterflies' | 'stars';
+/**
+ * A quest step is a panel mini-game, a skill whose mini-game follows its level (`compose`: the missing addend or the
+ * number house, src/game/tasks/index.ts) or one of the two tasks played out in the 3D world.
+ */
+export type Step = TaskType | SkillStep | 'butterflies' | 'stars';
 export interface QuestDef {
   id: 'unicorn' | 'fox' | 'mushking' | 'deer' | 'queen';
   emoji: string;
@@ -18,7 +22,7 @@ export const QUESTS: QuestDef[] = [
   { id: 'unicorn', emoji: '🦄', x: 5.2, z: -11.5, heading: -2.2, steps: ['butterflies', 'add', 'compare'], shard: '#ffe066' },
   { id: 'fox', emoji: '🦊', x: -13.5, z: 9.5, heading: 1.2, steps: ['pattern', 'odd', 'pairs'], shard: '#ff9a5c' },
   { id: 'mushking', emoji: '🍄', x: -17.5, z: -22, heading: 0.9, steps: ['count', 'sub', 'order'], shard: '#7be08a' },
-  { id: 'deer', emoji: '🦌', x: 29, z: 7, heading: -1.9, steps: ['stars', 'sort', 'add'], shard: '#6fc8ff' },
+  { id: 'deer', emoji: '🦌', x: 29, z: 7, heading: -1.9, steps: ['stars', 'sort', 'compose'], shard: '#6fc8ff' },
   { id: 'queen', emoji: '👑', x: -7.2, z: -46.5, heading: 0.1, steps: ['simon', 'compare', 'sub'], shard: '#c79bff' },
 ];
 export const SHRINE = { x: 22.5, z: -8 };
