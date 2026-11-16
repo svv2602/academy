@@ -325,7 +325,9 @@ try {
   }, sel, { timeout: T(20000) }).catch(() => {});
   const tapOn = async (sel) => {
     await settled(sel);
-    return touch ? page.tap(sel, { timeout: T(5000) }) : page.click(sel, { timeout: T(5000) });
+    // Playwright waits for two still frames before a click; on the CI runner (2-20 frames a second, slower in the desktop
+    // sizes) 5 s was not always enough for the tuning button.
+    return touch ? page.tap(sel, { timeout: T(15000) }) : page.click(sel, { timeout: T(15000) });
   };
   // Why a tap failed: the first line of the error and the last steps of Playwright's call log (what covered the element,
   // or that it never stood still) - the first line alone says only "Timeout exceeded".
