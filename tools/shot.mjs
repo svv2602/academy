@@ -1710,8 +1710,10 @@ try {
         const want = (await page.textContent('#btnShop')).replace('🛍️', '').trim();   // the word of the book's button
         if (label !== want) fail(`the action button beside the signboard says "${label}", not "${want}"`);
         await shot('shop-sign');
-        await act(); await wait(600);
-        if (!(await visible('#shop'))) fail('the action button beside the signboard does not open the shop');
+        // The action button is read on the next frame of the game (a slow runner draws 2-20 a second): wait for the screen.
+        await act();
+        await page.waitForFunction(() => { const e = document.querySelector('#shop'); return !!e && !e.classList.contains('hidden'); }, null, { timeout: T(10000) })
+          .catch(() => fail('the action button beside the signboard does not open the shop'));
         if (await visible('#book')) fail('the action button opened the book over the shop');
         await tapOn('#shopDone').catch((e) => fail(`"done" cannot be pressed: ${why(e)}`)); await wait(400);
         if (await visible('#shop')) fail('"done" does not close the shop opened from the signboard');
