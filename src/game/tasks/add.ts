@@ -14,18 +14,33 @@ export interface AddBody {
 }
 export type AddSpec = Spec<'add', AddBody>;
 
-/** The largest sum of a level (a level above 3 is asked as the third). */
-export const MAX = (level: number) => (level === 1 ? 5 : level === 2 ? 8 : 10);
+/** The largest sum of a level: 5, 8, 10, then 20 (a level above 5 is asked as the fifth, decision Q5). */
+export const MAX = (level: number) => (level === 1 ? 5 : level === 2 ? 8 : level === 3 ? 10 : 20);
+
+/**
+ * The two numbers of a level (the ladder of docs/11-learning.md). Levels 1-3: a + b up to 5, 8, 10; from level 2 never
+ * 1 + 1 (LEARN-13: such a pair is drawn again, so every other pair keeps the draws of before). Level 4: up to 20 without
+ * crossing the ten - a ten and some (10..18) plus a one-digit number whose ones still fit (12 + 5). Level 5 and up: two
+ * one-digit numbers that cross the ten (8 + 5), the sum 11..18.
+ */
+function numbers(level: number, rng: Rng): [number, number] {
+  if (level === 4) { const a = randInt(10, 18, rng); return [a, randInt(1, 19 - a, rng)]; }
+  if (level >= 5) { const a = randInt(2, 9, rng); return [a, randInt(11 - a, 9, rng)]; }
+  const max = MAX(level);
+  for (;;) {
+    const a = randInt(1, max - 1, rng), b = randInt(1, max - a, rng);
+    if (level < 2 || a !== 1 || b !== 1) return [a, b];
+  }
+}
 
 export function generate(level: number, rng: Rng): AddSpec {
-  const max = MAX(level);
-  const a = randInt(1, max - 1, rng), b = randInt(1, max - a, rng), thing = pick(THINGS, rng);
+  const [a, b] = numbers(level, rng), thing = pick(THINGS, rng);
   const tilt = tilts(a + b, rng);
   const answer = a + b;
   return {
     type: 'add', level, prompt: 't_add',
     hint: { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }, { do: 'pulseAnswer', fromMistake: 2 }] },
-    body: { thing, a, b, tilt, options: numberChoices(rng, answer, 10), answer },
+    body: { thing, a, b, tilt, options: numberChoices(rng, answer, level <= 3 ? 10 : 20), answer },
   };
 }
 

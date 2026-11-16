@@ -23,3 +23,17 @@
 /* Memory pairs: the opening peek shows every face through the stage; the cards keep their own state. */
 .t-stage.peek .mcard:not(.done) { background: #fff; box-shadow: 0 5px 0 #e2d2f1; }
 .t-stage.peek .mcard span { visibility: visible; }
+
+/* Ten frames (tenframe.ts, LEARN-04): every ten is a frame of two rows of five cells, the empty cells are shown, so the
+   child sees how much of the ten is full. A cell is the smallest button (44 x 44); the gaps leave room for the 1.12
+   growth of a counted thing and the small tilt, so no two things touch. One frame is 5 * 44 + 4 * 6 + 2 * 5 + 2 * 3 = 260
+   px wide: two frames side by side, or a sum of two stacked frames and one more, fit a phone held either way. */
+.tens { display: flex; flex-wrap: wrap; gap: 8px 10px; justify-content: center; }
+.tens.stack { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.tf { display: grid; grid-template-columns: repeat(5, 44px); grid-auto-rows: 44px; gap: 6px; padding: 5px; border: 3px solid #d9c4ee;
+  border-radius: 14px; background: #fff; }
+.tf > .it, .tf > .tf-e { width: 44px; height: 44px; border-radius: 10px; background: #f6eefc; }
+.tf > .it { font-size: 30px; line-height: 44px; transform: rotate(calc(var(--r, 0deg) / 3)); }
+.tf > .it.hit { transform: scale(1.12); }
+.tf > .tf-e { box-sizing: border-box; border: 2px dashed #e2d2f1; background: none; }
+.group.framed { max-width: none; padding: 6px; }

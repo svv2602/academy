@@ -1,16 +1,22 @@
 // @vitest-environment node
-/** The sub generator without a page (ARCH-09, R10): bounds, one right answer, `answer` and `solution`. */
+/**
+ * The sub generator without a page (ARCH-09, R10): bounds, one right answer, `answer` and `solution`; the ladder of
+ * levels 4-5 (LEARN-04: up to 20, without and with crossing the ten) and no 1 - 1 from level 2 (LEARN-13).
+ */
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
 import { MAX, sub } from './sub';
 
 const TASKS = 1000;
+/** Taking away more than the ones of `total` crosses the ten (13 - 6). */
+const crosses = (total: number, gone: number) => gone % 10 > total % 10;
+const tasks = (level: number) => Array.from({ length: TASKS }, (_, i) => sub.generate(level, mulberry32(level * 100_000 + i)));
 
 describe('sub generator', () => {
   it('runs without a page', () => { expect(typeof document).toBe('undefined'); });
 
-  it.each([1, 2, 3])(`level %i: ${TASKS} tasks stay within bounds and have one right answer`, (level) => {
+  it.each([1, 2, 3, 4, 5, 6])(`level %i: ${TASKS} tasks stay within bounds and have one right answer`, (level) => {
     const max = MAX(level);
     for (let i = 0; i < TASKS; i++) {
       const s = sub.generate(level, mulberry32(level * 100_000 + i)), { total, gone, thing, tilt, options, answer } = s.body, why = `seed #${i}: ${JSON.stringify(s.body)}`;
@@ -23,10 +29,43 @@ describe('sub generator', () => {
       expect(answer, why).toBe(total - gone);
       expect(options.length, why).toBe(4);
       expect(new Set(options).size, why).toBe(4);
-      expect(options.every((v) => Number.isInteger(v) && v >= 0 && v <= 10), why).toBe(true);
+      expect(options.every((v) => Number.isInteger(v) && v >= 0 && v <= (level <= 3 ? 10 : 20)), why).toBe(true);
+      expect(answer >= 0 && answer <= 20, why).toBe(true);
+      expect([...options].sort((x, y) => x - y), 'options are in ascending order').toEqual(options);
       expect(options.filter((v) => sub.answer(s, sub.start(s), v) === 'right'), why).toEqual([total - gone]);
       expect(sub.solution(s, sub.start(s)), why).toEqual([total - gone]);
     }
+  });
+
+  it('the largest number of things of each level: 5, 8, 10, then 20 (a level above 5 is the fifth)', () => {
+    expect([1, 2, 3, 4, 5, 6, 9].map(MAX)).toEqual([5, 8, 10, 20, 20, 20, 20]);
+  });
+
+  it(`level 4: ${TASKS} examples from 11..19, none crosses the ten (17 - 4)`, () => {
+    const all = tasks(4);
+    for (const { body: { total, gone } } of all) {
+      const why = `${total} - ${gone}`;
+      expect(total >= 11 && total <= 19 && gone >= 1 && gone <= 9, why).toBe(true);
+      expect(total - gone >= 10, why).toBe(true);
+      expect(crosses(total, gone), why).toBe(false);
+    }
+    expect(new Set(all.map((s) => s.body.total)).size).toBe(9);
+    expect(new Set(all.map((s) => s.body.gone)).size).toBe(9);
+  });
+
+  it.each([5, 6])(`level %i: each of ${TASKS} examples crosses the ten (13 - 6), from 11..18`, (level) => {
+    const all = tasks(level);
+    for (const { body: { total, gone } } of all) {
+      const why = `${total} - ${gone}`;
+      expect(total >= 11 && total <= 18 && gone >= 2 && gone <= 9, why).toBe(true);
+      expect(total - gone >= 2 && total - gone <= 9, why).toBe(true);
+      expect(crosses(total, gone), why).toBe(true);
+    }
+    expect(new Set(all.map((s) => s.body.total))).toEqual(new Set([11, 12, 13, 14, 15, 16, 17, 18]));
+  });
+
+  it.each([2, 3, 4, 5, 6])(`level %i: none of ${TASKS} examples is 1 - 1 (LEARN-13)`, (level) => {
+    for (const { body: { total, gone } } of tasks(level)) expect(total === 1 && gone === 1, `${total} - ${gone}`).toBe(false);
   });
 
   it('the hint counts the things that are left, then pulses the answer from the second mistake', () => {
