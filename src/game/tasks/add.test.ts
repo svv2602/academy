@@ -8,6 +8,10 @@ import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
 import { MAX, add } from './add';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 /** The ones of the two numbers make a ten or more: the sum crosses the ten (8 + 5) or ends on it (13 + 7). */
 const crosses = (a: number, b: number) => (a % 10) + (b % 10) >= 10;
@@ -73,7 +77,9 @@ describe('add generator', () => {
     expect(tasks(1).some((s) => s.body.a === 1 && s.body.b === 1)).toBe(true);
   });
 
-  it('the hint counts all the things aloud, then pulses the answer from the second mistake', () => {
-    expect(add.generate(2, mulberry32(1)).hint).toEqual({ key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+  it('the hint: the way (said only), then solved together, then the answer pulses; past ten from ten, across ten by filling it', () => {
+    for (const level of [1, 2, 3]) expect(add.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_add', 'h_count', [{ do: 'countAloud', which: 'all' }]));
+    expect(add.generate(4, mulberry32(1)).hint).toEqual(LADDER('h1_ten', 'h2_ten', [{ do: 'countOn', which: 'all' }]));
+    for (const level of [5, 6]) expect(add.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_add_cross', 'h2_add_cross', [{ do: 'fillTen' }]));
   });
 });

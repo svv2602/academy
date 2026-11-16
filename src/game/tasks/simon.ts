@@ -5,7 +5,7 @@
 import { pick, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
 import type { SpokenKey } from '../../ui/strings';
-import type { Spec, TaskModel } from './types';
+import { ladder, type Spec, type TaskModel } from './types';
 
 export interface SimonBody {
   /** The symbols of the pads, in their order. */
@@ -26,8 +26,9 @@ export function generate(level: number, rng: Rng): SimonSpec {
   const seq = Array.from({ length: len }, () => pick(pads, rng));
   return {
     type: 'simon', level, prompt: 't_simon_watch',
-    // The hint is the show once more, after which the child repeats from the start.
-    hint: { key: 'h_simon', steps: [{ do: 'replay' }] },
+    // Rung 1 says the way and the child goes on where she missed; rung 2 is the show once more (from 6 steps on with
+    // a pause after each pair), after which she repeats from the start; rung 3 lights the pad to tap next.
+    hint: ladder(len >= 6 ? 'h1_simon_long' : 'h1_simon', { key: 'h_simon', steps: [{ do: 'replay' }] }, [{ do: 'pulseNext' }]),
     body: { pads, seq, repeat: 't_simon_repeat' },
   };
 }

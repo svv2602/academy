@@ -3,7 +3,8 @@
  * One description, two shows (ARCH-09): the same "sort" description is shown on the panel (happy-dom) and in the world
  * (the pedestals' userData), with the same colours in the same order and the same crystal first, and both are solved by
  * answering with `sort.solution()`. The world show draws no random numbers, and a mistake there goes the way of every
- * task: "try again", the hint, then the pedestal of the crystal pulses.
+ * task: "try again", then the rung of that mistake - the way said only, then the pedestals tried in turn with the
+ * crystal's own one left lit, then its pedestal pulses.
  */
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,24 +111,46 @@ describe('"sort" in the world and on the panel, from one description', () => {
     await breathe();
   });
 
-  it('a mistake: "try again", the hint, then the pedestal of the crystal pulses; the answer still counts', async () => {
+  it('three mistakes: the way said only, then the pedestals tried in turn and its own left lit, then its pedestal pulses; the answer still counts', async () => {
     const spec = generate(2, createRng('world-sort-mistake'));
     const { hooks, heard } = listen();
     const w = openWorld(spec, hooks);
     const wrong = spec.body.colors.find((c) => c !== spec.body.queue[0])!;
+    const glow = () => w.pedestals.map((p) => (p.material as THREE.MeshStandardMaterial).emissiveIntensity);
+    const scales = () => w.pedestals.map((p) => p.scale.x);
+    const mine = w.pedestals.findIndex((p) => p.userData.color === spec.body.queue[0]);
     tapPedestal(w, wrong);
     expect(heard.wrong).toBe(1);
     await vi.advanceTimersByTimeAsync(1000);
     expect(heard.hints).toEqual(['h_sort']);
-    w.update(1);
-    const scales = w.pedestals.map((p) => [p.userData.color, p.scale.x] as const);
-    for (const [colour, s] of scales) {
-      if (colour === spec.body.queue[0]) expect(s, 'the right pedestal does not pulse').toBeGreaterThan(1);
-      else expect(s, `the pedestal "${colour}" pulses`).toBe(1);
+    w.update(1); w.update(5);
+    expect(scales(), 'rung 1: nothing pulses').toEqual(w.pedestals.map(() => 1));
+    expect(glow(), 'rung 1: nothing lights up').toEqual(w.pedestals.map(() => 0.15));
+
+    tapPedestal(w, wrong);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(heard.hints).toEqual(['h_sort', 'h2_sort']);
+    expect((w.crystal.material as THREE.MeshStandardMaterial).emissiveIntensity).toBe(1);   // the crystal glows its colour
+    w.update(10);                                              // the try starts at this frame ...
+    for (let i = 0; i < w.pedestals.length; i++) {
+      w.update(10 + i * 0.6 + 0.3);                            // ... and lights the pedestals one by one
+      expect(glow(), `pedestal ${i} is tried`).toEqual(w.pedestals.map((_, k) => (k === i ? 0.8 : 0.15)));
+    }
+    w.update(20);
+    expect(glow(), 'its own pedestal stays lit').toEqual(w.pedestals.map((_, k) => (k === mine ? 0.6 : 0.15)));
+    expect(scales(), 'rung 2: nothing pulses').toEqual(w.pedestals.map(() => 1));
+
+    tapPedestal(w, wrong);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(heard.hints).toEqual(['h_sort', 'h2_sort', 'h3_show']);
+    w.update(21);
+    for (const [k, s] of scales().entries()) {
+      if (k === mine) expect(s, 'the right pedestal pulses').toBeGreaterThan(1);
+      else expect(s, `the pedestal "${w.pedestals[k].userData.color}" does not pulse`).toBe(1);
     }
     w.cheat();
     vi.advanceTimersByTime(700);
-    expect(await w.done).toEqual({ solved: true, wrong: 1 });
+    expect(await w.done).toEqual({ solved: true, wrong: 3 });
   });
 
   it('the close button ends it unsolved and leaves nothing in the scene', async () => {

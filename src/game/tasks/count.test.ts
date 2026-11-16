@@ -8,6 +8,10 @@ import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
 import { OPTIONS, RANGE, TOP, count } from './count';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 
 describe('count generator', () => {
@@ -57,7 +61,8 @@ describe('count generator', () => {
     for (let i = 0; i < 50; i++) expect(count.generate(level, mulberry32(i))).toEqual(count.generate(level, mulberry32(i)));
   });
 
-  it('the hint counts all the things aloud, then pulses the answer from the second mistake', () => {
-    expect(count.generate(1, mulberry32(1)).hint).toEqual({ key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+  it('the hint: the way (said only), then counted together, then the answer pulses; from 11 things counted on from ten', () => {
+    for (const level of [1, 2, 3]) expect(count.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_count', 'h_count', [{ do: 'countAloud', which: 'all' }]));
+    for (const level of [4, 5]) expect(count.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_ten', 'h2_ten', [{ do: 'countOn', which: 'all' }]));
   });
 });

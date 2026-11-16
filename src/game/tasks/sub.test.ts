@@ -8,6 +8,10 @@ import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
 import { MAX, sub } from './sub';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 /** Taking away more than the ones of `total` crosses the ten (13 - 6). */
 const crosses = (total: number, gone: number) => gone % 10 > total % 10;
@@ -68,7 +72,9 @@ describe('sub generator', () => {
     for (const { body: { total, gone } } of tasks(level)) expect(total === 1 && gone === 1, `${total} - ${gone}`).toBe(false);
   });
 
-  it('the hint counts the things that are left, then pulses the answer from the second mistake', () => {
-    expect(sub.generate(3, mulberry32(1)).hint).toEqual({ key: 'h_left', steps: [{ do: 'countAloud', which: 'left' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+  it('the hint: the way (said only), then the things left counted together, then the answer pulses; past ten from ten, across ten down to it', () => {
+    for (const level of [1, 2, 3]) expect(sub.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_sub', 'h_left', [{ do: 'countAloud', which: 'left' }]));
+    expect(sub.generate(4, mulberry32(1)).hint).toEqual(LADDER('h1_sub', 'h2_ten', [{ do: 'countOn', which: 'left' }]));
+    for (const level of [5, 6]) expect(sub.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_sub_cross', 'h2_sub_cross', [{ do: 'takeToTen' }]));
   });
 });

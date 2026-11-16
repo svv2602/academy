@@ -5,7 +5,7 @@
  */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import { THINGS, numberChoices, tilts, type Spec, type TaskModel } from './types';
+import { THINGS, ladder, numberChoices, tilts, type Spec, type TaskModel } from './types';
 
 export interface CountBody {
   thing: string;
@@ -32,7 +32,8 @@ export function generate(level: number, rng: Rng): CountSpec {
   const options = level <= 3 ? [...OPTIONS] : numberChoices(rng, n, TOP);
   return {
     type: 'count', level, prompt: 't_count',
-    hint: { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    hint: level <= 3 ? ladder('h1_count', { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }] })
+      : ladder('h1_ten', { key: 'h2_ten', steps: [{ do: 'countOn', which: 'all' }] }),
     body: { thing, n, tilt, options, answer: n },
   };
 }

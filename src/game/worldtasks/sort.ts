@@ -2,7 +2,8 @@
  * The show of "sort" in the world (ARCH-09): the same description as on the panel (`tasks/sort.ts`), drawn as coloured
  * pedestals on an arc, with the crystal to sort floating over the middle of the arc. A tap on a pedestal (by its
  * distance on the screen, as the butterflies are tapped) answers with its colour; `sort.answer` judges it, and a mistake
- * goes the way of every task (`taskviews/flow.ts`): "try again", the spoken hint, then the pedestal of the crystal pulses.
+ * goes the way of every task (`taskviews/flow.ts`): "try again", then the rung of that mistake (HINTS.md): the way said only,
+ * then the crystal glowing while the pedestals light up in turn and its own one stays lit, then its pedestal pulses.
  *
  * Like the panel shows it draws no random numbers: everything it shows is in the description. It is the world's to
  * open it, to wire the close button (`showClose` in src/ui/ui.ts) and to call `update` in its frame.
@@ -58,6 +59,8 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
   const gemGeo = new THREE.OctahedronGeometry(0.22);
   const shake = new Map<THREE.Mesh, number>();
   let pulse: THREE.Mesh | null = null;
+  // Rung 2: the pedestals light up one by one from `from` (-1: from the next frame); the crystal's own one then stays lit.
+  let trying: { from: number } | null = null, own: THREE.Mesh | null = null;
 
   const pedestals = colors.map((color, i) => {
     const a = at.facing + (i - (colors.length - 1) / 2) * STEP;
@@ -87,12 +90,13 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
   let finish!: (r: TaskResult) => void;
   const done = new Promise<TaskResult>((res) => { finish = res; });
   const hint: ShownHint | null = hintOf(spec.hint, null, {
+    tryBaskets: () => { trying = { from: -1 }; own = null; crystalMat.emissiveIntensity = 1; },
     pulseNext: () => { pulse = pedestals.find((p) => p.userData.color === sort.solution(spec, st)[0]) ?? null; },
   });
   const task: FlowTask & { alive: boolean; wrongs: number } = { alive: true, wrongs: 0, own: -1, hint };
 
   const end = (solved: boolean) => {
-    task.alive = false; pulse = null;
+    task.alive = false; pulse = null; trying = null; own = null;
     scene.remove(group);
     geo.dispose(); gemGeo.dispose(); crystal.geometry.dispose();
     finish({ solved, wrong: task.wrongs });
@@ -111,7 +115,7 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
     const gem = new THREE.Mesh(gemGeo, crystalMat.clone());
     gem.position.set(0, TOP + 0.2 + 0.3 * (p.userData.sorted as number)++, 0);
     p.add(gem);
-    pulse = null;
+    pulse = null; trying = null; own = null; crystalMat.emissiveIntensity = 0.5;
     hooks.good();
     showCrystal();
     if (out === 'right') { task.alive = false; setTimeout(() => end(true), 700); }
@@ -132,6 +136,10 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
     update: (time) => {
       crystal.position.y = center.y + 1.5 + Math.sin(time * 2.4) * 0.08;
       crystal.rotation.y = time * 1.5;
+      if (trying?.from === -1) trying.from = time;
+      const at = trying ? Math.floor((time - trying.from) / 0.6) : -1;
+      if (trying && at >= pedestals.length) { trying = null; own = pedestals.find((p) => p.userData.color === queue[st.pos]) ?? null; }
+      pedestals.forEach((p, i) => { (p.material as THREE.MeshStandardMaterial).emissiveIntensity = i === at ? 0.8 : p === own ? 0.6 : 0.15; });
       for (const p of pedestals) {
         let s = shake.get(p);
         if (s === -1) { shake.set(p, time); s = time; }

@@ -2,11 +2,11 @@
    Only `scale` and `opacity` move, so nothing is laid out again, and nothing grows past its own size:
    no frame or animation leaves its group or the task panel. Frames are drawn inside (inset shadows). */
 
-/* "What is odd": after the first mistake the alike things share one blue frame; the odd one keeps the plain look. */
+/* "What is odd": after the second mistake (rung 2) the alike things share one blue frame; the odd one keeps the plain look. */
 .it.big.alike { background: #e4f3ff; box-shadow: inset 0 0 0 5px #5cb8ff, 0 5px 0 #b9dcf7; }
 
 /* "More / less": the mark of the question between the two groups, from the start - a dot that keeps growing
-   ("more") or shrinking ("less") inside a dashed ring. After a mistake the right group gets the ring's colour
+   ("more") or shrinking ("less") inside a dashed ring. From the third mistake (rung 3) the right group gets the ring's colour
    and its things do what the dot does. The groups give up the room of the mark: the row is no wider than before,
    and the close button in the corner of the panel stays clear of the right group. */
 .t-stage.t-compare .group.pickable { max-width: calc(44% - 32px); }
@@ -37,3 +37,20 @@
 .tf > .it.hit { transform: scale(1.12); }
 .tf > .tf-e { box-sizing: border-box; border: 2px dashed #e2d2f1; background: none; }
 .group.framed { max-width: none; padding: 6px; }
+
+/* Taking away across ten (rung 2 of "sub", level 5): a gone thing that has left keeps its cell, so the frame keeps its shape. */
+.tf > .it.away { opacity: 0; }
+
+/* Numbers in order, rung 2 (h2_order): a number track on its own row under the buttons. The cat walks it from 1, the
+   number being said is lit, the numbers that are on the buttons stay marked. Small and quiet: nothing on it is a button. */
+.t-stage .track { flex: 0 0 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding-top: 6px; }
+.t-stage .track span { min-width: 26px; height: 26px; border-radius: 8px; background: #f6eefc; color: #9a7bb8; font: 800 16px/26px sans-serif;
+  text-align: center; }
+.t-stage .track span.mark { background: #e4f3ff; color: #2f86c9; box-shadow: inset 0 0 0 2px #5cb8ff; }
+.t-stage .track span.on { background: #ffd95e; color: #6b4a00; scale: 1.15; }
+
+/* Sorting, rung 2 (h2_sort): the gem glows in its own colour and tries the baskets in turn; the basket of its colour
+   keeps a dashed frame of that colour, drawn inside. It does not pulse: that is rung 3. */
+.gem.current.glow { filter: drop-shadow(0 0 14px var(--c)); }
+.basket.try { scale: 1.06; }
+.basket.own { box-shadow: inset 0 0 0 5px #fff, inset 0 0 0 9px var(--c); }

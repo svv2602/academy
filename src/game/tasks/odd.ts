@@ -1,7 +1,7 @@
 /** The odd one out: things of one group and one thing of another, which does not belong? The answer is its index. */
 import { pick, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import type { Spec, TaskModel } from './types';
+import { ladder, type Spec, type TaskModel } from './types';
 
 export interface OddBody {
   /** The things in the order shown. */
@@ -22,7 +22,7 @@ export function generate(level: number, rng: Rng): OddSpec {
   return {
     type: 'odd', level, prompt: 't_odd',
     // The alike things share one frame, the odd one is left without: who belongs together is seen, not read.
-    hint: { key: 'h_odd', steps: [{ do: 'frameAlike' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    hint: ladder('h_odd', { key: 'h2_odd', steps: [{ do: 'frameAlike' }] }),
     body: { things, answer: things.indexOf(odd) },
   };
 }

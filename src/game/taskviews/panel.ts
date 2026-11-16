@@ -117,7 +117,7 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
   if (!view) throw new Error(`no panel show for the task type "${spec.type}"`);
   const root = document.getElementById('task')!, stage = document.getElementById('taskStage')!, opts = document.getElementById('taskOpts')!;
   const close = document.getElementById('taskClose')!;
-  stage.className = 't-stage t-' + spec.type; stage.innerHTML = ''; opts.innerHTML = ''; stage.removeAttribute('style');
+  stage.className = 't-stage t-' + spec.type; stage.innerHTML = ''; opts.innerHTML = ''; stage.removeAttribute('style'); delete stage.dataset.shown;
   root.classList.remove('hidden', 'won');
   return new Promise((resolve) => {
     const finish = (solved: boolean) => { c.alive = false; current = null; root.classList.add('hidden'); resolve({ solved, wrong: c.wrongs }); };
@@ -134,6 +134,10 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     current = c;
     close.onclick = () => { if (c.alive) finish(false); };
     (view as PanelView<TaskType>)(spec, c);
+    // The rung whose line has ended and whose show has run is marked on the stage (no style): the walkthrough waits
+    // for it instead of a pause, and then checks what that rung put on screen (tools/shot.mjs, R16).
+    const shown = c.hint;
+    if (shown) c.hint = { key: shown.key, show: (round) => { stage.dataset.shown = String(round); shown.show(round); } };
     hooks.prompt(spec.prompt);
   });
 }

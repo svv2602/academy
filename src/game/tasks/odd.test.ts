@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { GROUPS, odd } from './odd';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 const groupOf = (s: string) => GROUPS.findIndex((g) => g.includes(s));
 
@@ -32,7 +36,7 @@ describe('odd generator', () => {
     expect([...places].sort()).toEqual([0, 1, 2, 3]);
   });
 
-  it('the hint frames the alike things, then pulses the stranger from the second mistake', () => {
-    expect(odd.generate(1, mulberry32(1)).hint).toEqual({ key: 'h_odd', steps: [{ do: 'frameAlike' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+  it('the hint: the way (said only), then the alike things framed together, then the stranger pulses', () => {
+    expect(odd.generate(1, mulberry32(1)).hint).toEqual(LADDER('h_odd', 'h2_odd', [{ do: 'frameAlike' }]));
   });
 });

@@ -5,6 +5,10 @@ import { mulberry32 } from '../../core/util';
 import { createRng } from '../../core/rng';
 import { COUNT, TOP, order } from './order';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 const BOUNDS = [[0, 0], [1, 6], [1, 9], [1, 10], [1, 10], [1, 20]];   // lowest, highest number by level
 
@@ -46,7 +50,7 @@ describe('order generator', () => {
       const st = order.start(s);
       expect(order.solution(s, st), why).toEqual(sorted);
       expect(sorted.map((v) => order.answer(s, st, v)), why).toEqual(['step', 'step', 'step', 'step', 'right']);
-      expect(s.hint, why).toEqual({ key: 'h_order', steps: [{ do: 'pulseNext' }] });
+      expect(s.hint, why).toEqual(LADDER('h_order', 'h2_order', [{ do: 'track' }], [{ do: 'pulseNext' }]));
       shown.forEach((v) => seen.add(v));
       if (sorted[4] > 10) big++;
       if (sorted[4] - sorted[0] > 4) gaps++;
@@ -87,7 +91,7 @@ describe('order generator', () => {
     expect(st.next).toBe(2);
   });
 
-  it('the hint pulses the next number', () => {
-    expect(order.generate(1, mulberry32(1)).hint).toEqual({ key: 'h_order', steps: [{ do: 'pulseNext' }] });
+  it('the hint: the way (said only), then the number track walked together, then the next number pulses', () => {
+    expect(order.generate(1, mulberry32(1)).hint).toEqual(LADDER('h_order', 'h2_order', [{ do: 'track' }], [{ do: 'pulseNext' }]));
   });
 });

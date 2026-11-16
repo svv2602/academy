@@ -1,7 +1,7 @@
 /** Take away: of `total` things the last `gone` fade out, how many are left? Up to four numbers around the rest. */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import { THINGS, numberChoices, tilts, type Spec, type TaskModel } from './types';
+import { THINGS, ladder, numberChoices, tilts, type Spec, type TaskModel } from './types';
 
 export interface SubBody {
   thing: string;
@@ -36,7 +36,9 @@ export function generate(level: number, rng: Rng): SubSpec {
   const answer = total - gone;
   return {
     type: 'sub', level, prompt: 't_sub',
-    hint: { key: 'h_left', steps: [{ do: 'countAloud', which: 'left' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    hint: level <= 3 ? ladder('h1_sub', { key: 'h_left', steps: [{ do: 'countAloud', which: 'left' }] })
+      : level === 4 ? ladder('h1_sub', { key: 'h2_ten', steps: [{ do: 'countOn', which: 'left' }] })
+      : ladder('h1_sub_cross', { key: 'h2_sub_cross', steps: [{ do: 'takeToTen' }] }),
     body: { thing, total, gone, tilt, options: numberChoices(rng, answer, level <= 3 ? 10 : 20), answer },
   };
 }

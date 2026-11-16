@@ -41,7 +41,7 @@ describe('odd: shown without the voice', () => {
   /** The first mistake has run its course: the shake, "try again" and the hint, all heard to the end at once. */
   const afterMistake = () => vi.advanceTimersByTimeAsync(1000);
 
-  it.each([1, 2, 3])('odd, level %i: after the first mistake the alike things share one frame, the odd one has none', async (level) => {
+  it.each([1, 2, 3])('odd, level %i: the first mistake frames nothing, the second frames the alike things together, the third lights the odd one', async (level) => {
     for (let i = 0; i < 20; i++) {
       Math.random = mulberry32(31_000 + level * 100 + i);
       document.body.innerHTML = MARKUP;
@@ -56,17 +56,23 @@ describe('odd: shown without the voice', () => {
       await vi.advanceTimersByTimeAsync(899);
       expect(framed()).toEqual([]);                                  // the shake and the lines come first
       await afterMistake();
-      expect(heard.hints).toEqual(['h_odd']);
+      expect(heard.hints).toEqual(['h_odd']);                        // rung 1: the way, said only
+      expect(framed()).toEqual([]);
+      expect(all(root(), '.pulse')).toEqual([]);
+      tap(alike[1]);
+      await afterMistake();
+      expect(heard.hints).toEqual(['h_odd', 'h2_odd']);
       expect(framed()).toEqual(alike);                               // one frame for all the alike ones ...
       expect(odd.classList.contains('alike')).toBe(false);           // ... and none for the odd one
       expect(all(root(), '.pulse')).toEqual([]);
-      tap(alike[1]);                                                 // the second mistake lights the answer, as before
+      tap(alike[2]);                                                 // the third mistake lights the answer
       await afterMistake();
+      expect(heard.hints).toEqual(['h_odd', 'h2_odd', 'h3_show']);
       expect(all(root(), '.pulse')).toEqual([odd]);
       expect(framed()).toEqual(alike);
       tap(odd);
       await vi.advanceTimersByTimeAsync(1100);
-      expect(await done).toEqual({ solved: true, wrong: 2 });
+      expect(await done).toEqual({ solved: true, wrong: 3 });
       vi.clearAllTimers();
     }
   });

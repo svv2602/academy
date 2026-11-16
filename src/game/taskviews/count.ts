@@ -4,7 +4,7 @@
  */
 import { count, type CountSpec } from '../tasks/count';
 import { badge, countAloud, items, options, pulseOf, tap, type PanelCtx } from './panel';
-import { FRAMES_FROM, tenFrames } from './tenframe';
+import { FRAMES_FROM, countOn, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 
 export function countView(spec: CountSpec, c: PanelCtx) {
@@ -14,5 +14,8 @@ export function countView(spec: CountSpec, c: PanelCtx) {
   let counted = 0;
   list.forEach((b) => tap(b, () => { if (!b.classList.contains('hit')) { b.classList.add('hit'); badge(b, ++counted); c.own = c.wrongs; c.hooks.number(counted); } }));
   const ok = options(c, spec.body.options, (v) => count.answer(spec, st, v) === 'right');
-  c.hint = hintOf(spec.hint, pulseOf(ok), { countAloud: () => { counted = n; void countAloud(c, list); } });
+  c.hint = hintOf(spec.hint, pulseOf(ok), {
+    countAloud: () => { counted = n; void countAloud(c, list); },
+    countOn: () => { counted = n; void countOn(c, list); },
+  });
 }

@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { COLORS, sort } from './sort';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 const SIZES = [[0, 0], [2, 6], [3, 6], [3, 9]];     // colours, gems by level
 
@@ -45,7 +49,7 @@ describe('sort generator', () => {
     expect(s).toEqual(copy);
   });
 
-  it('the hint pulses the basket of the current gem', () => {
-    expect(sort.generate(1, mulberry32(1)).hint).toEqual({ key: 'h_sort', steps: [{ do: 'pulseNext' }] });
+  it('the hint: the way (said only), then the gem tries the baskets together, then the basket of the current gem pulses', () => {
+    expect(sort.generate(1, mulberry32(1)).hint).toEqual(LADDER('h_sort', 'h2_sort', [{ do: 'tryBaskets' }], [{ do: 'pulseNext' }]));
   });
 });

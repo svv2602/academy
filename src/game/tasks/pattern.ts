@@ -1,7 +1,7 @@
 /** Continue the row: a unit of colours (AB, AAB, ABAC, ...) repeats, which colour comes next? */
 import { pick, randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import type { Spec, TaskModel } from './types';
+import { ladder, type Spec, type TaskModel } from './types';
 
 export interface PatternBody {
   /** The repeating unit, letters A, B, C for three different colours. */
@@ -25,7 +25,7 @@ export function generate(level: number, rng: Rng): PatternSpec {
   const seq = Array.from({ length: len + 1 }, (_, i) => colors[unit.charCodeAt(i % unit.length) - 65]);
   return {
     type: 'pattern', level, prompt: 't_pattern',
-    hint: { key: 'h_pattern', steps: [{ do: 'markUnits' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    hint: ladder('h_pattern', { key: 'h2_pattern', steps: [{ do: 'markUnits' }] }),
     body: { unit, row: seq.slice(0, len), options: shuffle(colors, rng), answer: seq[len] },
   };
 }

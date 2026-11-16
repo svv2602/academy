@@ -4,7 +4,7 @@
  */
 import { sub, type SubSpec } from '../tasks/sub';
 import { countAloud, items, options, pulseOf, type PanelCtx } from './panel';
-import { FRAMES_FROM, tenFrames } from './tenframe';
+import { FRAMES_FROM, countOn, takeToTen, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 
 export function subView(spec: SubSpec, c: PanelCtx) {
@@ -15,5 +15,7 @@ export function subView(spec: SubSpec, c: PanelCtx) {
   const ok = options(c, spec.body.options, (v) => sub.answer(spec, st, v) === 'right');
   c.hint = hintOf(spec.hint, pulseOf(ok), {
     countAloud: (step) => { void countAloud(c, step.do === 'countAloud' && step.which === 'left' ? list.slice(0, total - gone) : list); },
+    countOn: (step) => { void countOn(c, step.do === 'countOn' && step.which === 'left' ? list.slice(0, total - gone) : list); },
+    takeToTen: () => { void takeToTen(c, list, total - gone); },
   });
 }

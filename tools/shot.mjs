@@ -1,6 +1,6 @@
 // Full play-through smoke test: node tools/shot.mjs <url> <outDir> [desktop|mobile|desktop-tall|mobile-portrait]
 // Plays the whole first world through the real UI handlers (talk to every character, solve all 15 tasks,
-// make one deliberate mistake per task type to exercise the hints, restore the crystal), saves screenshots
+// make three deliberate mistakes per task type to exercise the three rungs of the hints, restore the crystal), saves screenshots
 // and fails on anything suspicious. Every screenshot is also a layout check of the screen it shows.
 // On the way it closes the butterflies task twice with its own button and comes back to it, compares the skills
 // before and after the star search, and breaks a conversation and the finale once each on purpose to see that the
@@ -127,14 +127,18 @@ const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
 };
-// The solution a task shows after a mistake, once "try again" and the hint have ended - what a child sees without the
-// voice and without reading: numbers on the things counted, numbers over the groups, the repeating links of the row,
-// the pulsing next number or basket, the sequence played again, the frame shared by the alike pictures of "what is odd",
-// the right group of "more / less" growing or shrinking. Memory pairs have no hint: they open with every face shown.
+// The solution a task shows after its second mistake (rung 2 of the hint, HINTS.md), once "try again" and the line have
+// ended - what a child sees without the voice and without reading: numbers on the things counted, numbers (or dots)
+// over the groups, the repeating links of the row, the number track walked from 1, the gem trying the baskets until
+// its own keeps a frame, the sequence played again, the frame shared by the alike pictures of "what is odd".
+// Memory pairs have no hint: they open with every face shown.
 const SHOWS = {
-  count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group.grow, #taskStage .group.shrink', pattern: '#taskStage.units',
-  odd: '#taskStage .it.alike', order: '#taskStage .opt.pulse', sort: '#taskOpts .basket.pulse', simon: '#taskStage.watch',
+  count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
+  odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
 };
+// What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
+const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
+  '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit'].join(', ');
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -274,7 +278,7 @@ try {
     if (mute) {
       if (!question) errors.push(`question: ${name}: without the voice the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
       else if (was && b.key === was.key && b.text !== was.text) errors.push(`question: ${name}: the text of the question changed: "${was.text}" -> "${b.text}"`);
-    } else if (question ? type !== 'simon' && type !== 'butterflies' : !b.key?.startsWith('h_')) {
+    } else if (question ? type !== 'simon' && type !== 'butterflies' : !/^h\d?_/.test(b.key ?? '')) {
       errors.push(`question: ${name}: with the voice the bubble shows "${b.key}" (${b.text}), not the hint of the task`);
     }
   };
@@ -974,7 +978,7 @@ try {
         return w.frames;
       };
       const seen = new Set();
-      const mistakes = new Set();   // task types in which the deliberate mistake was made
+      const mistakes = new Set();   // task types in which all three deliberate mistakes were made
       // An open task is known to the planner of spoken lines (VOICE-03): asked in one go, a task may close in between.
       // And once nothing holds the heroine, no task is open for it either.
       const unplanned = () => g(() => {
@@ -1294,40 +1298,67 @@ try {
             if (!closed.has(type)) { await closeTask(q, type); continue; }
             if (!seen.has(type)) {
               seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); await checkQuestion(type);
-              // One deliberate mistake per task type, to hear "try again", the spoken hint and to see the solution shown.
+              // Three deliberate mistakes per task type (LEARN-10, R16): after each the scenario waits until "try again" and
+              // the line of that rung have ended and the rung's show has run (the stage's `data-shown`), then checks the
+              // screen: rung 1 gives nothing away (`hint step 1:`), rung 2 shows the solution without lighting the answer
+              // (`hint:`), rung 3 lights the right answer and nothing else (`hint step 3:`).
               // The right element is learnt from the game itself: the task's own "solve" is run with its taps swallowed
               // on the way down, so nothing is answered, and then any other element of the same kind is tapped.
               // Sorting solves in a loop that needs its taps to land, so there the wrong basket is told by its colour.
               // Memory pairs have no wrong move and no hint.
               if (type !== 'pairs') {
-                const wrong = await g((kind) => {
-                  const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
-                  if (kind === 'sort') {
-                    const colour = [...document.querySelector('.gem.current').classList].find((c) => c !== 'gem' && c !== 'current');
-                    const basket = [...document.querySelectorAll('#taskOpts .basket')].find((b) => !b.classList.contains(colour));
-                    if (!basket) return 'no basket of another colour';
-                    tap(basket); return '';
+                let rungs = 0;
+                for (let k = 1; k <= 3; k++) {
+                  // a replay of "watch and repeat" locks its pads: the next mistake waits for the end of the show
+                  await page.waitForFunction(() => !document.querySelector('#taskStage').classList.contains('watch'), null, { timeout: T(20000) }).catch(() => {});
+                  const wrong = await g((kind) => {
+                    const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
+                    if (kind === 'sort') {
+                      const colour = [...document.querySelector('.gem.current').classList].find((c) => !['gem', 'current', 'glow'].includes(c));
+                      const basket = [...document.querySelectorAll('#taskOpts .basket')].find((b) => !b.classList.contains(colour));
+                      if (!basket) return 'no basket of another colour';
+                      tap(basket); return '';
+                    }
+                    let right = null;
+                    const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+                    document.addEventListener('pointerdown', swallow, true);
+                    try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+                    if (!right) return 'the game did not show which element is right';
+                    const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
+                      .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('yes') && !e.classList.contains('q'));
+                    if (!same.length) return `no other element like the right one (${right.className})`;
+                    tap(same[0]); return '';
+                  }, type);
+                  if (wrong) { errors.push(`no deliberate mistake ${k} in the "${type}" task: ${wrong}`); break; }
+                  const ran = await page.waitForSelector(`#taskStage[data-shown="${k}"]`, { state: 'attached', timeout: T(20000) }).then(() => true, () => false);
+                  if (!ran) { errors.push(`hint: ${mode} ${type}: the hint of mistake ${k} did not run its course`); break; }
+                  if (k === 1) {
+                    const away = await g((sel) => [...document.querySelectorAll(sel)].map((e) => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')}`), GIVEAWAY);
+                    if (away.length) errors.push(`hint step 1: ${mode} ${type}: after the first mistake the screen gives the answer away: ${[...new Set(away)].join(', ')}`);
+                    await shot(`hint1-${type}`); await checkHint(type);
+                  } else if (k === 2) {
+                    // The picture is taken once the solution is on screen: a broken "show the solution" step fails the run.
+                    const drawn = await page.waitForSelector(SHOWS[type], { state: 'attached', timeout: T(15000) }).then(() => true, () => false);
+                    if (!drawn) errors.push(`hint: ${mode} hint-${type}: the solution was not shown after the second mistake (no ${SHOWS[type]})`);
+                    const lit = await g(() => document.querySelectorAll('#task .pulse').length);
+                    if (lit) errors.push(`hint: ${mode} hint-${type}: the second mistake already lights the answer (.pulse)`);
+                    await shot(`hint-${type}`); await checkHint(type);
+                  } else {
+                    // What pulses is what the game itself would tap first, and nothing else pulses.
+                    const lit = await g(() => {
+                      let right = null;
+                      const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+                      document.addEventListener('pointerdown', swallow, true);
+                      try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+                      const p = [...document.querySelectorAll('#task .pulse')];
+                      return { n: p.length, right: !!right && p.length === 1 && (p[0] === right || p[0].contains(right)) };
+                    });
+                    if (!lit.right) errors.push(`hint step 3: ${mode} ${type}: after the third mistake ${lit.n} element(s) pulse, not the right answer alone`);
+                    await shot(`hint3-${type}`);
                   }
-                  let right = null;
-                  const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
-                  document.addEventListener('pointerdown', swallow, true);
-                  try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
-                  if (!right) return 'the game did not show which element is right';
-                  const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
-                    .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('yes') && !e.classList.contains('q'));
-                  if (!same.length) return `no other element like the right one (${right.className})`;
-                  tap(same[0]); return '';
-                }, type);
-                if (wrong) errors.push(`no deliberate mistake in the "${type}" task: ${wrong}`);
-                // The picture is taken once "try again" and the whole spoken hint have ended and the solution is on
-                // screen: a broken "show the solution" step fails the run. Where nothing is drawn - long enough for both lines.
-                else {
-                  mistakes.add(type);
-                  if (!SHOWS[type]) await wait(7000);
-                  else await page.waitForSelector(SHOWS[type], { state: 'attached', timeout: T(15000) })
-                    .catch(() => errors.push(`hint: ${mode} hint-${type}: the solution was not shown after the mistake (no ${SHOWS[type]})`));
-                  await wait(300); await shot(`hint-${type}`); await checkHint(type);
+                  rungs = k;
                 }
+                if (rungs === 3) mistakes.add(type);
               }
             }
             await g(() => __game.cheat()); await wait(1500); continue;
@@ -1342,22 +1373,40 @@ try {
             if (bfVisits === 2) {
               // second meeting: a wrong number, and the task is closed while the cat counts the butterflies aloud
               await wait(1500); await shot('task-butterflies'); await checkQuestion('butterflies');
+              // the cat counts after the second mistake (rung 2): the first one only says the way
               if (!(await wrongNumber())) throw new Error('closing the butterflies task: no wrong number to tap');
+              await page.waitForFunction(() => __game.bf.shown === 1, null, { timeout: T(20000) });
+              if (!(await wrongNumber())) throw new Error('closing the butterflies task: no second wrong number to tap');
               await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 2, null, { timeout: T(30000) });
               await closeButterflies(q, 'while the cat counts'); continue;
             }
             if (bfVisits === 3) {
               await wait(1500);
-              // a deliberate wrong number: the cat says the hint, then counts every butterfly aloud
-              const wrong = await wrongNumber();
-              if (!wrong) errors.push('no deliberate mistake in the "butterflies" task: no other number to tap');
-              else {
-                mistakes.add('butterflies');
-                await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 1, null, { timeout: T(15000) })
-                  .catch(() => errors.push(`hint: ${mode} hint-butterflies: the cat did not start counting the butterflies after the mistake`));
-                await wait(300); await shot('hint-butterflies'); await checkHint('butterflies');
-                await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
+              // Three deliberate wrong numbers (R16): 1 - the way is said, no butterfly is touched or numbered and no
+              // answer pulses; 2 - the cat counts every butterfly aloud; 3 - the button of the right number pulses, alone.
+              const giveaway = () => g(() => ({ sprites: __game.bf.sprites.length, landed: __game.flies.flies.slice(__game.bf.first, __game.bf.first + __game.bf.n).filter((f) => f.landed).length,
+                pulse: [...document.querySelectorAll('#answers button.pulse')].map((b) => b.textContent), n: __game.bf.n }));
+              let rungs = 0;
+              for (let k = 1; k <= 3; k++) {
+                if (!(await wrongNumber())) { errors.push(`no deliberate mistake ${k} in the "butterflies" task: no other number to tap`); break; }
+                if (k === 2) {
+                  const counting = await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 1, null, { timeout: T(20000) }).then(() => true, () => false);
+                  if (!counting) { errors.push(`hint: ${mode} hint-butterflies: the cat did not start counting the butterflies after the second mistake`); break; }
+                  if ((await giveaway()).pulse.length) errors.push(`hint: ${mode} hint-butterflies: the second mistake already lights the answer`);
+                  await shot('hint-butterflies'); await checkHint('butterflies');
+                  await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
+                } else {
+                  const ran = await page.waitForFunction((r) => __game.bf.shown === r, k, { timeout: T(20000) }).then(() => true, () => false);
+                  if (!ran) { errors.push(`hint: ${mode} butterflies: the hint of mistake ${k} did not run its course`); break; }
+                  const v = await giveaway();
+                  if (k === 1 && (v.sprites || v.landed || v.pulse.length)) errors.push(`hint step 1: ${mode} butterflies: after the first mistake the screen gives the answer away: ${JSON.stringify(v)}`);
+                  if (k === 3 && (v.pulse.length !== 1 || v.pulse[0] !== String(v.n))) errors.push(`hint step 3: ${mode} butterflies: after the third mistake the buttons ${JSON.stringify(v.pulse)} pulse, not ${v.n} alone`);
+                  await shot(k === 1 ? 'hint1-butterflies' : 'hint3-butterflies');
+                  if (k === 1) await checkHint('butterflies');
+                }
+                rungs = k;
               }
+              if (rungs === 3) mistakes.add('butterflies');
             }
             // The right answer, and at once the close button (the panel stays on screen for a moment): the answer stands.
             const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
@@ -1853,7 +1902,7 @@ try {
       const s = await g(() => __game.save);
       console.log('task types seen:', [...seen].join(' '));
       console.log('deliberate mistakes:', [...mistakes].join(' '));
-      // Every task type that has a hint must have been failed once, or the hints went unchecked in this run.
+      // Every task type that has a hint must have been failed three times (one check per rung), or the hints went unchecked.
       const unchecked = [...seen].filter((t) => !mistakes.has(t) && t !== 'pairs' && t !== 'stars');
       if (unchecked.length) errors.push(`no deliberate mistake was made in: ${unchecked.join(', ')}`);
       if (plays('unicorn')) {       // the butterflies are the unicorn's

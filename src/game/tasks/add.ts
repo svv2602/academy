@@ -1,7 +1,7 @@
 /** Add two groups of the same thing: a + b = ? The answer is picked from up to four numbers around the sum. */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import { THINGS, numberChoices, tilts, type Spec, type TaskModel } from './types';
+import { THINGS, ladder, numberChoices, tilts, type Spec, type TaskModel } from './types';
 
 export interface AddBody {
   thing: string;
@@ -39,7 +39,9 @@ export function generate(level: number, rng: Rng): AddSpec {
   const answer = a + b;
   return {
     type: 'add', level, prompt: 't_add',
-    hint: { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    hint: level <= 3 ? ladder('h1_add', { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }] })
+      : level === 4 ? ladder('h1_ten', { key: 'h2_ten', steps: [{ do: 'countOn', which: 'all' }] })
+      : ladder('h1_add_cross', { key: 'h2_add_cross', steps: [{ do: 'fillTen' }] }),
     body: { thing, a, b, tilt, options: numberChoices(rng, answer, level <= 3 ? 10 : 20), answer },
   };
 }

@@ -5,7 +5,7 @@
  */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import { THINGS, tilts, type Spec, type TaskModel } from './types';
+import { THINGS, ladder, tilts, type Spec, type TaskModel } from './types';
 
 export interface CompareBody {
   thing: string;
@@ -38,7 +38,9 @@ export function generate(level: number, rng: Rng): CompareSpec {
   const answer = (a > b) === more ? 0 : 1;
   return {
     type: 'compare', level, prompt: more ? 't_compare_more' : 't_compare_less',
-    hint: { key: 'h_compare', steps: [{ do: 'showNumbers' }, { do: more ? 'grow' : 'shrink' }, { do: 'pulseAnswer', fromMistake: 2 }] },
+    // Rung 2 counts each group (digits: shows each number as dots); only rung 3 makes the right group grow or shrink.
+    hint: ladder(digits ? 'h1_compare_num' : 'h_compare', { key: digits ? 'h2_compare_num' : 'h2_compare', steps: [{ do: 'showNumbers' }] },
+      [{ do: more ? 'grow' : 'shrink' }, { do: 'pulseAnswer' }]),
     body: { thing, groups: [a, b], tilt, digits, more, answer },
   };
 }

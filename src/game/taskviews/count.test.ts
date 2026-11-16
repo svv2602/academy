@@ -91,14 +91,21 @@ describe('count to 20 in ten frames (LEARN-05)', () => {
     await breathe();
   });
 
-  it.each([4, 5])('level %i: after a mistake the hint counts all the things frame by frame', async (level) => {
+  it.each([4, 5])('level %i: the first mistake counts nothing; the second counts on from the full frame: 10, 11, 12 ...', async (level) => {
     for (const seed of [3, 7]) {
       const { spec, numbers } = open(level, seed);
-      down(all(opts(), '.opt').find((o) => Number(o.textContent) !== spec.body.answer)!);
+      const wrong = all(opts(), '.opt').find((o) => Number(o.textContent) !== spec.body.answer)!;
+      down(wrong);
       await vi.advanceTimersByTimeAsync(LONG);
-      const counted = Array.from({ length: spec.body.n }, (_, i) => i + 1);
+      expect(numbers, `seed ${seed}`).toEqual([]);
+      expect(all(stage(), '.it > i, .it.hit, .pulse')).toEqual([]);
+      down(wrong);
+      await vi.advanceTimersByTimeAsync(LONG);
+      const counted = Array.from({ length: spec.body.n - 9 }, (_, i) => i + 10);
       expect(numbers, `seed ${seed}`).toEqual(counted);
       expect(all(stage(), '.tf > .it > i').map((i) => Number(i.textContent))).toEqual(counted);
+      expect(all(stage(), '.tf:first-child > .it.hit')).toHaveLength(10);   // the whole first frame is the ten
+      expect(all(document.body, '.pulse')).toEqual([]);
       vi.clearAllTimers();
       await breathe();
     }

@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { SYMBOLS, simon } from './simon';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 
 describe('simon generator', () => {
@@ -35,7 +39,8 @@ describe('simon generator', () => {
     expect(simon.start(s)).toEqual({ pos: 0 });
   });
 
-  it('the hint is the show once more', () => {
-    expect(simon.generate(1, mulberry32(1)).hint).toEqual({ key: 'h_simon', steps: [{ do: 'replay' }] });
+  it('the hint: the way (said only), then the show once more, then the next pad pulses; 6 and 7 steps get the way of pairs', () => {
+    for (const level of [1, 2, 3]) expect(simon.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_simon', 'h_simon', [{ do: 'replay' }], [{ do: 'pulseNext' }]));
+    for (const level of [4, 5]) expect(simon.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_simon_long', 'h_simon', [{ do: 'replay' }], [{ do: 'pulseNext' }]));
   });
 });

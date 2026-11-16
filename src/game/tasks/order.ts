@@ -1,7 +1,7 @@
 /** Numbers in order: tap them from the smallest to the largest. The input is a number. */
 import { randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import type { Spec, TaskModel } from './types';
+import { ladder, type Spec, type TaskModel } from './types';
 
 export interface OrderBody {
   /** The numbers in the order of the buttons. */
@@ -28,7 +28,7 @@ export function generate(level: number, rng: Rng): OrderSpec {
   const sorted = level < 3 ? Array.from({ length: n }, (_, i) => start + i) : shuffle(Array.from({ length: TOP(level) }, (_, i) => i + 1), rng).slice(0, n).sort((a, b) => a - b);
   return {
     type: 'order', level, prompt: 't_order',
-    hint: { key: 'h_order', steps: [{ do: 'pulseNext' }] },
+    hint: ladder('h_order', { key: 'h2_order', steps: [{ do: 'track' }] }, [{ do: 'pulseNext' }]),
     body: { shown: shuffle([...sorted], rng), sorted },
   };
 }

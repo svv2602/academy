@@ -123,7 +123,8 @@ describe('add and sub show ten frames from level 4 (LEARN-04)', () => {
     }
   });
 
-  it.each([['add', 4], ['add', 5], ['sub', 4], ['sub', 5]] as const)('%s, level %i: after a mistake the hint counts the things frame by frame, row by row', async (type, level) => {
+  const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
+  it.each([['add', 4], ['add', 5], ['sub', 4], ['sub', 5]] as const)('%s, level %i: the first mistake shows nothing, the second solves it in the frames (HINTS.md)', async (type, level) => {
     for (const seed of [3, 7, 11]) {
       document.body.innerHTML = MARKUP;
       const spec = type === 'add' ? add.generate(level, mulberry32(seed)) : sub.generate(level, mulberry32(seed));
@@ -133,11 +134,29 @@ describe('add and sub show ten frames from level 4 (LEARN-04)', () => {
       const wrong = all(document.getElementById('taskOpts')!, '.opt').find((o) => Number(o.textContent) !== spec.body.answer)!;
       wrong.dispatchEvent(new PointerEvent('pointerdown'));
       await vi.advanceTimersByTimeAsync(LONG);
-      const counted = Array.from({ length: left }, (_, i) => i + 1);
-      expect(numbers, `${type} seed ${seed}`).toEqual(counted);
-      // the badges read 1, 2, 3 ... in the order of the frames on screen
-      const badges = all(stage(), '.tf > .it > i').map((i) => Number(i.textContent));
-      expect(badges, `${type} seed ${seed}`).toEqual(counted);
+      expect(numbers, `${type} seed ${seed}: rung 1 counts nothing`).toEqual([]);
+      expect(all(stage(), '.it > i, .it.hit, .it.away')).toEqual([]);
+      wrong.dispatchEvent(new PointerEvent('pointerdown'));
+      await vi.advanceTimersByTimeAsync(LONG);
+      const badges = all(stage(), '.tf > .it > i').map((i) => Number(i.textContent)), why = `${type} ${level} seed ${seed}`;
+      if (spec.type === 'add' && level === 5) {
+        // 8 + 5: the second group fills the first frame (9, 10), then the rest is counted on (11, 12, 13)
+        const { a } = spec.body, first = stage().querySelector('.group .tf')!;
+        expect(numbers, why).toEqual(range(a + 1, left));
+        expect(badges, why).toEqual(range(a + 1, left));
+        expect(all(first as HTMLElement, ':scope > .it')).toHaveLength(10);
+        expect(all(first as HTMLElement, ':scope > .tf-e')).toEqual([]);
+      } else if (spec.type === 'sub' && level === 5) {
+        // 13 - 6: the gone things leave, the things over ten first ("10" stays), then the ones left are counted
+        expect(numbers, why).toEqual([10, ...range(1, left)]);
+        expect(all(stage(), '.it.away')).toEqual(all(stage(), '.it.gone'));
+        expect(all(stage(), '.it:not(.gone) > i').map((i) => Number(i.textContent))).toEqual(range(1, left));
+      } else {
+        // past ten without crossing: the full frame is "10", then 11, 12 ... in the order of the frames on screen
+        expect(numbers, why).toEqual(range(10, left));
+        expect(badges, why).toEqual(range(10, left));
+      }
+      expect(all(document.body, '.pulse')).toEqual([]);
       vi.clearAllTimers();
     }
     await breathe();

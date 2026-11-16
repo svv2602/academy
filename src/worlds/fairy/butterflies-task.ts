@@ -12,6 +12,8 @@ import { PATCH } from './layout';
 /** The state of the task; window.__game reads this very object, so it is changed in place, never replaced. */
 export interface ButterfliesState {
   active: boolean; n: number; first: number; counted: number; wrong: number; own: number; demo: boolean;
+  /** The mistake whose hint has run its course (its line ended, its show started); 0 - none yet. For the walkthrough. */
+  shown: number;
   sprites: THREE.Sprite[]; colors: string[]; done: (r: TaskResult) => void;
 }
 
@@ -41,12 +43,12 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
     flies.add(Math.cos(a) * r, Math.sin(a) * r - 6, 2 + (i % 3), palette[i % palette.length]);
   }
 
-  const bf: ButterfliesState = { active: false, n: 0, first: 0, counted: 0, wrong: 0, own: -1, demo: false, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
+  const bf: ButterfliesState = { active: false, n: 0, first: 0, counted: 0, wrong: 0, own: -1, demo: false, shown: 0, sprites: [] as THREE.Sprite[], colors: ['#ff4fa3', '#7a5cff', '#2aa8ff', '#ff5a4f'], done: (_: TaskResult) => {} };
 
   // ----- task in the world: count the butterflies over the flower bed -----
   function countButterflies(level: number): Promise<TaskResult> {
     return new Promise((done) => {
-      Object.assign(bf, { active: true, counted: 0, wrong: 0, own: -1, demo: false, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5, rng) : level === 2 ? randInt(5, 7, rng) : randInt(7, 9, rng) });
+      Object.assign(bf, { active: true, counted: 0, wrong: 0, own: -1, demo: false, shown: 0, done, first: flies.flies.length, n: level === 1 ? randInt(3, 5, rng) : level === 2 ? randInt(5, 7, rng) : randInt(7, 9, rng) });
       for (let i = 0; i < bf.n; i++) {
         const a = (i / bf.n) * 6.28 + rng() * 0.5, r = 0.5 + rng() * 1.6;
         const id = flies.add(PATCH.x + Math.cos(a) * r, PATCH.z + Math.sin(a) * r, 0.45, bf.colors[i % 4], 1.5);
@@ -67,8 +69,8 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
         } else {
           btn.classList.add('no'); sfx('soft');
           const round = ++bf.wrong;            // a newer mistake cuts "try again" off and starts its own round
-          const k = TRY[randInt(0, TRY.length - 1)];
-          void say(k, voiceText(k), 'task').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
+          const k = TRY[randInt(0, TRY.length - 1)], box = btn.parentElement;
+          void say(k, voiceText(k), 'task').then(() => { if (bf.active && bf.wrong === round) void hint(round, box); });
         }
       }, closeButterflies);
     });
@@ -100,7 +102,20 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
     if (k) void say(k, voiceText(k), 'task');
   }
   /**
-   * Hint after a miss: the cat says "let's count together" to the end, then counts every butterfly aloud, one by one.
+   * The hint of mistake `round` in three rungs (HINTS.md): 1 - the way, said only (the butterflies are not touched);
+   * 2 - "let's count together" and the cat's count (`demoCount`); 3 and later - "look what glows", and the right answer
+   * button pulses. After a line of rung 1 or 3 the bubble gets the question back, as after the count.
+   */
+  async function hint(round: number, box: HTMLElement | null) {
+    if (round === 2) { void demoCount(); return; }
+    await hintLine(round === 1 ? 'h1_count' : 'h3_show');
+    if (!bf.active || bf.wrong !== round) return;
+    if (round >= 3) [...(box?.children ?? [])].find((b) => b.textContent === String(bf.n))?.classList.add('pulse');
+    bf.shown = round;
+    caption({ key: 't_count', pri: 'task', hold: 0, speaker: '🦄' });
+  }
+  /**
+   * Rung 2 after a miss: the cat says "let's count together" to the end, then counts every butterfly aloud, one by one.
    * Answers are open while the hint is spoken; a line that was cut off settles at once too, so the count starts
    * only if the task is still open, the mistake is still the latest one and no count is running.
    */
@@ -108,7 +123,7 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
     const round = bf.wrong;
     await hintLine('h_count');
     if (!bf.active || bf.demo || bf.wrong !== round || bf.own === round) return;
-    bf.demo = true;
+    bf.demo = true; bf.shown = round;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
     for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await new Promise((r) => setTimeout(r, 850)); }

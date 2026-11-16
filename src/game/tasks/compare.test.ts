@@ -6,6 +6,10 @@ import { createRng } from '../../core/rng';
 import { THINGS } from './types';
 import { DIGITS, GAP, MAX, compare } from './compare';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 
 describe('compare generator', () => {
@@ -56,7 +60,7 @@ describe('compare generator', () => {
       expect(groups[answer], why).toBe(best);
       expect(([0, 1] as const).filter((g) => compare.answer(s, compare.start(s), g) === 'right'), why).toEqual([answer]);
       expect(compare.solution(s, compare.start(s)), why).toEqual([answer]);
-      expect(s.hint, why).toEqual({ key: 'h_compare', steps: [{ do: 'showNumbers' }, { do: more ? 'grow' : 'shrink' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+      expect(s.hint, why).toEqual(LADDER('h1_compare_num', 'h2_compare_num', [{ do: 'showNumbers' }], [{ do: more ? 'grow' : 'shrink' }, { do: 'pulseAnswer' }]));
       asked.add(more); groups.forEach((n) => seen.add(n));
       if (Math.max(...groups) > 10) big++;
       if (Math.min(...groups) > 10) bothBig++;
@@ -87,10 +91,10 @@ describe('compare generator', () => {
     });
   });
 
-  it('the hint shows the numbers, then the right group grows or shrinks, then pulses from the second mistake', () => {
+  it('the hint: the way (said only), then each group counted together, then the right group grows or shrinks and pulses', () => {
     const more = compare.generate(1, mulberry32(1));
-    expect(more.hint).toEqual({ key: 'h_compare', steps: [{ do: 'showNumbers' }, { do: 'grow' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+    expect(more.hint).toEqual(LADDER('h_compare', 'h2_compare', [{ do: 'showNumbers' }], [{ do: 'grow' }, { do: 'pulseAnswer' }]));
     const less = Array.from({ length: 50 }, (_, i) => compare.generate(2, mulberry32(i))).find((s) => !s.body.more)!;
-    expect(less.hint!.steps[1]).toEqual({ do: 'shrink' });
+    expect(less.hint).toEqual(LADDER('h_compare', 'h2_compare', [{ do: 'showNumbers' }], [{ do: 'shrink' }, { do: 'pulseAnswer' }]));
   });
 });

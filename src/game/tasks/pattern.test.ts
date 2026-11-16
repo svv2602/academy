@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { COLORS, UNITS, pattern } from './pattern';
 
+/** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
+const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
+  ({ rungs: [{ key: way, steps: [] }, { key, steps }, { key: 'h3_show', steps: lit }] });
+
 const TASKS = 1000;
 
 describe('pattern generator', () => {
@@ -31,7 +35,7 @@ describe('pattern generator', () => {
     }
   });
 
-  it('the hint marks the units, then pulses the answer from the second mistake', () => {
-    expect(pattern.generate(2, mulberry32(1)).hint).toEqual({ key: 'h_pattern', steps: [{ do: 'markUnits' }, { do: 'pulseAnswer', fromMistake: 2 }] });
+  it('the hint: the way (said only), then the units marked together, then the answer pulses', () => {
+    expect(pattern.generate(2, mulberry32(1)).hint).toEqual(LADDER('h_pattern', 'h2_pattern', [{ do: 'markUnits' }]));
   });
 });

@@ -123,7 +123,7 @@ describe.each(TYPES)('the panel shows %s from its description', (type) => {
     }
   });
 
-  it.each([1, 2, 3])('level %i: a mistake brings the hint of the description, the second one lights its answer', async (level) => {
+  it.each([1, 2, 3])('level %i: the first mistake says the way and shows nothing, the second shows the solution, the third lights the answer', async (level) => {
     for (let i = 0; i < 10; i++) {
       document.body.innerHTML = MARKUP;
       const spec = generate(type, level, createRng(`hint-${type}-${level}-${i}`));
@@ -132,21 +132,30 @@ describe.each(TYPES)('the panel shows %s from its description', (type) => {
       const choices = (READ[type] as (s: typeof spec) => HTMLElement[])(spec);
       const right = choices.find((c) => valueOf(type, choices, c) === spec.body.answer)!;
       const wrong = choices.find((c) => c !== right)!;
+      const [way, together, lit] = spec.hint!.rungs.map((r) => r.key);
       tap(wrong);
       expect(wrong.classList.contains('no')).toBe(true);
       await vi.advanceTimersByTimeAsync(1000);
       expect(heard.wrong).toBe(1);
-      expect(heard.hints).toEqual([spec.hint!.key]);
-      expect(all(root(), '.pulse')).toEqual([]);
+      expect(heard.hints).toEqual([way]);
+      // R16: after the first mistake nothing is numbered or lit as the answer
+      expect(all(root(), '.it > i, .group > em, .dots, .grow, .shrink, .it.hit, .pulse')).toEqual([]);
+      expect(stage().classList.contains('units')).toBe(false);
+      tap(wrong);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(heard.hints).toEqual([way, together]);
+      expect(all(root(), '.pulse, .grow, .shrink')).toEqual([]);
       if (type === 'pattern') expect(stage().classList.contains('units')).toBe(true);
       else if (spec.type === 'compare') expect(all(stage(), '.group > em').map(text)).toEqual(spec.body.groups.map(String));
       else expect(all(stage(), '.it > i').length).toBeGreaterThan(0);
       tap(wrong);
       await vi.advanceTimersByTimeAsync(1000);
+      expect(heard.hints).toEqual([way, together, lit]);
+      expect(lit).toBe('h3_show');
       expect(all(root(), '.pulse')).toEqual([right]);
       tap(right);
       await vi.advanceTimersByTimeAsync(20_000);
-      expect(await done).toEqual({ solved: true, wrong: 2 });
+      expect(await done).toEqual({ solved: true, wrong: 3 });
       vi.clearAllTimers();
     }
     await breathe();

@@ -12,11 +12,28 @@ import type { SpokenKey } from '../../ui/strings';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon';
 
-/** One step of a hint, carried out by the view in the order of the list once the cat has said the hint. */
+/**
+ * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.
+ * `countOn`: "10" over the full frame, then 11, 12, ... (ten frames); `fillTen`: the second group fills the first frame
+ * up to ten, then the rest is counted on; `takeToTen`: the things over ten go, then the rest of the gone ones, then the
+ * things left are counted; `track`: the cat walks a number track from 1; `tryBaskets`: the gem tries each basket in turn.
+ */
 export type HintStep =
-  | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'showNumbers' } | { do: 'grow' | 'shrink' }
-  | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer'; fromMistake: 2 };
-export interface Hint { key: SpokenKey; steps: readonly HintStep[] }
+  | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
+  | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
+  | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' };
+/** One rung of the hint: the line the cat says, and what is shown on screen once it has ended. */
+export interface HintRung { key: SpokenKey; steps: readonly HintStep[] }
+/**
+ * The hint in three rungs (LEARN-10, HINTS.md): the first mistake says the way and shows nothing, the second solves it
+ * together step by step, the third and every later one lights the right answer. What the second showed stays on screen.
+ */
+export interface Hint { rungs: readonly [HintRung, HintRung, HintRung] }
+/** The hint of a type: its way (said only), its solution shown together, and the lit answer with the one line of rung 3. */
+export const ladder = (way: SpokenKey, together: HintRung, lit: readonly HintStep[] = [{ do: 'pulseAnswer' }]): Hint =>
+  ({ rungs: [{ key: way, steps: [] }, together, { key: 'h3_show', steps: lit }] });
+/** The rung of mistake `round`: 1, 2, then 3 for the third and every later one. */
+export const rungOf = (hint: Hint, round: number): HintRung => hint.rungs[Math.min(Math.max(round, 1), 3) - 1];
 export interface Spec<T extends TaskType, B> { type: T; level: number; prompt: SpokenKey; hint: Hint | null; body: B }
 /**
  * How the task takes one input: the answer is right, wrong, a right step of a longer answer, a miss that is no
