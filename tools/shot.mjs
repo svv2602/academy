@@ -790,6 +790,108 @@ try {
         await g(() => __game.closeup(null));
         await g(([x, z]) => __game.teleport(x, z), back); await gameWait(1);
         console.log(`the heroine: one model, feet on the ground in ${(await g(() => __game.hero.actions.size))} clips, ${body.skin} skin texels kept, ${body.dressPainted} dress texels painted`);
+
+        // ---- her items (PLAY-04, PLAY-05, src/game/gear.ts): all seven modelled items hang on her, none but the petals
+        // shown by default; each modelled item, in every clip sampled 13 times, rides on its bone (the distance from a point
+        // of the item to the bone stays the same within 1 cm and within the reach of its slot); in Walk, Run, Jump and
+        // Interact the wand, beyond the grip, keeps out
+        // of her head (a ball as big as the nearest head vertex to the middle of the head) and off her spine (8 cm from the
+        // pelvis-neck line); the wings slot shows the petals, the butterfly or nothing; pictures ----
+        const gearFail = (what) => { throw new Error(`her items: ${what}`); };
+        const REACH = { head: 0.85, wand: 0.45, wings: 0.45 }, RIGID = 0.01, SPINE = 0.08;
+        const gear = await g(async ([reach, rigid, spineR]) => {
+          const THREE = __game.THREE, { model, root } = __game.hero, gear = __game.gear, out = { errors: [], near: {} };
+          if (!gear) return { errors: ['no __game.gear'] };
+          for (const [slot, id] of Object.entries({ head: null, wand: null, wings: 'wings_petals', trail: null })) {
+            if (gear.get(slot) !== id) out.errors.push(`by default the slot "${slot}" wears ${gear.get(slot)}, not ${id}`);
+          }
+          for (const [id, part] of Object.entries(gear.parts)) if (part.object.visible) out.errors.push(`${id} is worn by default`);
+          const want = ['crown', 'earrings_star', 'wand_crystal', 'wand_star', 'wings_butterfly', 'wizard_hat', 'wreath'];
+          if (Object.keys(gear.parts).sort().join() !== want.join()) out.errors.push(`the items on her: ${Object.keys(gear.parts).sort().join(', ')}, not ${want.join(', ')}`);
+          let mesh; const B = {};
+          model.traverse((o) => { if (o.isSkinnedMesh) mesh = o; if (o.isBone) B[o.name] = o; });
+          const geo = mesh.geometry, si = geo.getAttribute('skinIndex'), sw = geo.getAttribute('skinWeight');
+          const headId = mesh.skeleton.bones.findIndex((b) => b.name === 'Head'), head = [];
+          for (let i = 0; i < si.count; i += 2) { let w = 0; for (let k = 0; k < 4; k++) if (si.getComponent(i, k) === headId) w += sw.getComponent(i, k); if (w > 0.9) head.push(i); }
+          const v = new THREE.Vector3(), c = new THREE.Vector3(), box = new THREE.Box3(), mid = new THREE.Vector3(), seg = new THREE.Line3();
+          const mixer = new THREE.AnimationMixer(model);
+          for (const [id, part] of Object.entries(gear.parts)) {
+            const slot = id.startsWith('wand') ? 'wand' : id.startsWith('wings') ? 'wings' : 'head';
+            part.object.visible = true;
+            root.updateMatrixWorld(true);
+            const centre = part.object.worldToLocal(box.setFromObject(part.object).getCenter(new THREE.Vector3()));   // a point fixed in the item
+            let lo = Infinity, hi = 0;
+            for (const [name, action] of __game.hero.actions) {
+              const clip = action.getClip(), a = mixer.clipAction(clip), wand = slot === 'wand' && ['Walk', 'Run', 'Jump', 'Interact'].includes(name);
+              a.play();
+              let inHead = Infinity, toSpine = Infinity;
+              for (let k = 0; k <= 12; k++) {
+                mixer.setTime(clip.duration * k / 12); root.updateMatrixWorld(true);
+                const d = part.object.localToWorld(c.copy(centre)).distanceTo(part.bone.getWorldPosition(v));
+                lo = Math.min(lo, d); hi = Math.max(hi, d);
+                if (!wand) continue;
+                const skinned = (vi) => { mesh.getVertexPosition(vi, v); mesh.applyBoneTransform(vi, v); return v.applyMatrix4(mesh.matrixWorld); };
+                mid.set(0, 0, 0); for (const vi of head) mid.add(skinned(vi)); mid.divideScalar(head.length);
+                let r = Infinity; for (const vi of head) r = Math.min(r, skinned(vi).distanceTo(mid));
+                seg.set(B.pelvis.getWorldPosition(new THREE.Vector3()), B.neck_01.getWorldPosition(new THREE.Vector3()));
+                const grip = part.bone.getWorldPosition(new THREE.Vector3());
+                part.object.traverse((o) => {
+                  if (!o.isMesh) return;
+                  const pos = o.geometry.attributes.position;
+                  for (let i = 0; i < pos.count; i++) {
+                    v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+                    if (v.distanceTo(grip) < 0.1) continue;      // the grip is in her hand
+                    inHead = Math.min(inHead, v.distanceTo(mid) - r);
+                    toSpine = Math.min(toSpine, v.distanceTo(seg.closestPointToPoint(v, true, c)));
+                  }
+                });
+              }
+              a.stop(); mixer.uncacheAction(clip);
+              if (wand) {
+                out.near[`${id} ${name}`] = `head +${inHead.toFixed(3)}, spine ${toSpine.toFixed(3)}`;
+                if (inHead < 0) out.errors.push(`${id} goes into her head in ${name}: ${(-inHead).toFixed(3)} m deep`);
+                if (toSpine < spineR) out.errors.push(`${id} goes into her body in ${name}: ${toSpine.toFixed(3)} m from her spine`);
+              }
+            }
+            part.object.visible = false;
+            if (hi - lo > rigid) out.errors.push(`${id} slides on its bone ${part.bone.name}: ${lo.toFixed(3)}…${hi.toFixed(3)} m from it`);
+            if (hi > reach[slot]) out.errors.push(`${id} is ${hi.toFixed(3)} m from its bone ${part.bone.name}, farther than ${reach[slot]} m`);
+            out[id] = hi.toFixed(3);
+          }
+          mixer.uncacheRoot(model);
+          // The wings slot: the petals, the butterfly, nothing.
+          const petals = () => { let n = 0; __game.hero.root.children.forEach((o) => { if (o.isMesh && o.visible && o.material.transparent) n++; }); return n; };
+          gear.set('wings', null);
+          if (petals() || gear.parts.wings_butterfly.object.visible) out.errors.push('no wings: some wings are still shown');
+          gear.set('wings', 'wings_butterfly');
+          if (petals() || !gear.parts.wings_butterfly.object.visible) out.errors.push('the butterfly wings: not shown alone');
+          gear.set('wings', 'wings_petals');
+          if (petals() !== 2 || gear.parts.wings_butterfly.object.visible) out.errors.push(`the petals: ${petals()} shown, the butterfly ${gear.parts.wings_butterfly.object.visible ? 'too' : 'not'}`);
+          try { gear.set('head', 'wand_star'); out.errors.push('a wand was worn on the head'); } catch { /* refused, as it should */ }
+          return out;
+        }, [REACH, RIGID, SPINE]);
+        if (gear.errors.length) gearFail(gear.errors.join('; '));
+        // Pictures: the crown, the star wand, the butterfly wings and the trail while she walks; the hat and the crystal
+        // wand without wings; the wreath with the petals; the earrings. Then she wears what she did by default.
+        const wear = (items) => g((it) => { for (const [slot, id] of Object.entries(it)) __game.gear.set(slot, id); }, items);
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; __game.closeup(3.2); });
+        await wear({ head: 'crown', wand: 'wand_star', wings: 'wings_butterfly', trail: 'trail_sparkle' });
+        await page.keyboard.down('KeyW');
+        try {
+          await page.waitForFunction(() => ['Walk', 'Run'].includes(__game.hero.current), null, { timeout: T(5000) }).catch(() => gearFail('she does not walk'));
+          await gameWait(0.6); await shot('gear-crown-walk');
+        } finally { await page.keyboard.up('KeyW'); }
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
+        await wear({ head: 'wizard_hat', wand: 'wand_crystal', wings: null, trail: null });
+        await gameWait(1); await shot('gear-hat');
+        await wear({ head: 'wreath', wand: null, wings: 'wings_petals' });
+        await gameWait(0.5); await shot('gear-wreath');
+        await wear({ head: 'earrings_star' });
+        await gameWait(0.5); await shot('gear-earrings');
+        await wear({ head: null, wand: null, wings: 'wings_petals', trail: null });
+        await g(() => __game.closeup(null));
+        await g(([x, z]) => __game.teleport(x, z), back); await gameWait(1);
+        console.log(`her items: ${Object.keys(gear).filter((k) => !['errors', 'near'].includes(k)).map((k) => `${k} ${gear[k]} m`).join(', ')} from their bones; the wand off her head and spine: ${Object.entries(gear.near).map(([k, n]) => `${k} ${n}`).join('; ')}`);
       }
 
       // ---- stars never go down (LEARN-14): watched on every frame from here to the end of the world, read on every step ----

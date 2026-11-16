@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
+import { loadGear } from '../../game/gear';
 import { buildAdult, buildHero } from '../../game/hero';
 import { showNotice } from '../../ui/ui';
 import { buildGrass, buildScenery } from './scenery';
@@ -21,7 +22,9 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
   buildGrass(scene, touch ? 9000 : 16000);
   const loads = await Promise.all([
     buildScenery(scene, density), buildClouds(scene),
-    buildHero(save), rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
+    // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
+    buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
+    rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
     rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
     rig('animals_pack/Deer', 1.55, true), buildAdult({ dress: '#ffd54f', hair: '#f5d16b' }, 1.72, 1.1),

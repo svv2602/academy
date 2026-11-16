@@ -121,7 +121,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
 
   const debug: DebugExtras = {
     npcs,
-    more: { search, bf, sorting, worldSort: () => { void worldSort(); } },
+    // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop.
+    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); } },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }

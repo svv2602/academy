@@ -16,4 +16,8 @@ were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2
 paid plans the model belongs to the customer (not CC0). Skeleton and animations: Quaternius "Universal Animation
 Library" — CC0 1.0. The queen keeps the heroine models above.
 
+Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wands, butterfly wings; `models-src/items/`,
+and the items of the looks in `models-unused/items/`): our own simple shapes made in Blender for this game with
+`tools/items/items.py` — not taken from any pack or service.
+
 Code: Three.js (MIT).

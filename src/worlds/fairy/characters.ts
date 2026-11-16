@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { tint } from '../../core/assets';
 import { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
+import { createGear, type Gear } from '../../game/gear';
 import type { Npc as WorldNpc } from '../../game/world';
 import type { FairyLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
@@ -19,14 +20,16 @@ export interface Characters {
   npc(id: QuestDef['id']): Npc;
   /** The gold of the marks over the characters, shared by every star of the world. */
   readonly starMat: THREE.MeshStandardMaterial;
-  /** After the heroine has moved: her wings beat fast in the air, the queen's slowly. */
+  /** The heroine's items (src/game/gear.ts): head, wand, wings (the petals below, the butterfly or none) and the trail. */
+  readonly gear: Gear;
+  /** After the heroine has moved: her wings beat fast in the air (and her trail sparkles), the queen's slowly. */
   wings(time: number, grounded: boolean): void;
   /** The characters, their marks, the unicorn's horn and the queen's crown. */
   update(dt: number, time: number): void;
 }
 
 /**
- * The heroine's wings and the quest characters (ARCH-05). `searching` is read in every frame: while the stars are
+ * The heroine's wings and items, and the quest characters (ARCH-05). `searching` is read in every frame: while the stars are
  * searched for, the deer's mark is hidden.
  */
 export function createCharacters(g: Game, L: FairyLoads, searching: () => boolean): Characters {
@@ -45,6 +48,8 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
   });
   // The heroine's wings hang a little below her shoulders (as they did on the adult body: 1.08 under 1.17).
   const wings = addWings(hero.root, '#d8f6ff', L.heroRig.shoulder - 0.09, 0.8);
+  // The petals are the item wings_petals, worn by default; the other items hang under her bones (./load.ts).
+  const gear = createGear(L.heroRig, L.heroRig.gear, wings.map((w) => w.mesh), g.sparks);
 
   // ----- quest characters -----
   tint(uniRig.model, { Main: '#ffffff', Main_Light: '#fff4fb', Hair: '#ff9ed2', Hooves: '#ffd76a', Muzzle: '#ffd0e0', Eye_White: '#ffffff' });
@@ -77,8 +82,9 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
   const hornQ = new THREE.Quaternion(), hornDir = new THREE.Vector3(), yAxis = new THREE.Vector3(0, 1, 0);
 
   return {
-    npcs, npc, starMat,
+    npcs, npc, starMat, gear,
     wings: (time, grounded) => {
+      gear.update(time, grounded);
       wings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * (grounded ? 5 : 22)) * 0.35); });
       queenWings.forEach((w) => { w.mesh.rotation.y = w.side * (0.55 + Math.sin(time * 4 + 1) * 0.3); });
     },
