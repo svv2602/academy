@@ -182,10 +182,15 @@ for i in range(9):
 export('wreath', 'Head', 'Венок из цветов', 'head', wreath)
 
 hat_m = mat(PURPLE, 0, 0.6)
-hat = [cyl(0.32, 0.02, (0, 0.02, 1.1), m=hat_m, verts=32),
-       cone(0.2, 0.42, (0, 0.04, 1.32), (math.radians(8), 0, 0), m=hat_m, verts=24)]
-for (x, y, z) in ((0.08, -0.13, 1.22), (-0.07, -0.1, 1.33), (0.02, -0.06, 1.43)):
-    hat.append(star(0.03, 0.01, (x, y, z), m=mat(YELLOW, 0.3, 0.3, emit=0.5)))
+# The cone is as wide as the hair at the brim (hair x ±0.31 at z 1.10-1.20), so the hair top stays inside it and the hat
+# sits on the head; the brim is a little wider and tips down at the front, as a hat worn on a child's head does.
+HAT_Z, HAT_R, HAT_H, HAT_TILT = 1.08, 0.3, 0.5, math.radians(7)
+hat = [cyl(0.37, 0.02, (0, 0.02, HAT_Z), (HAT_TILT, 0, 0), m=hat_m, verts=40),
+       cone(HAT_R, HAT_H, (0, 0.02 - math.sin(HAT_TILT) * HAT_H / 2, HAT_Z + HAT_H / 2), (HAT_TILT, 0, 0), m=hat_m, verts=32)]
+for (x, h) in ((0.09, 0.08), (-0.07, 0.2), (0.02, 0.32)):
+    r = HAT_R * (1 - h / HAT_H)                                  # the cone's radius at that height
+    y = 0.02 - math.sin(HAT_TILT) * h - math.sqrt(max(r * r - x * x, 0)) - 0.012
+    hat.append(star(0.03, 0.01, (x, y, HAT_Z + h * math.cos(HAT_TILT)), m=mat(YELLOW, 0.3, 0.3, emit=0.5)))
 export('wizard_hat', 'Head', 'Колпак волшебницы', 'head', hat)
 
 cap = [cone(0.12, 0.24, (0.05, 0.02, 1.24), (0, math.radians(-14), 0), m=mat(LILAC, 0, 0.6), verts=20),
