@@ -5,7 +5,7 @@
  */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import { THINGS, ladder, numberChoices, tilts, type Spec, type TaskModel } from './types';
+import { THINGS, inBank, ladder, numberChoices, tilts, type Spec, type TaskModel } from './types';
 
 export interface CountBody {
   thing: string;
@@ -21,17 +21,21 @@ export const OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 /** The fewest and the most things of a level (a level above 5 is asked as the fifth, decision Q5). */
 export const RANGE = (level: number): [number, number] =>
   (level === 1 ? [3, 6] : level === 2 ? [5, 9] : level === 3 ? [7, 10] : level === 4 ? [11, 15] : [16, 20]);
+/** The things the bank asks to count by name ("Скільки тут яблук?", R37): the mushroom and the cherry have no clip. */
+export const ITEM: Record<string, string | undefined> = {
+  '🌸': 'flower', '🦋': 'butterfly', '🍓': 'strawberry', '⭐': 'star', '🐞': 'ladybug', '🍎': 'apple', '🌼': 'flower', '🐟': 'fish',
+};
 /** The largest answer of the ladder. */
 export const TOP = 20;
 
 export function generate(level: number, rng: Rng): CountSpec {
   const n = randInt(...RANGE(level), rng);
-  const thing = pick(THINGS, rng);
+  const thing = pick(THINGS, rng), item = ITEM[thing];
   const tilt = tilts(n, rng);
   // levels 1-3 keep their ten buttons and draw nothing more, so one seed still gives the tasks of before
   const options = level <= 3 ? [...OPTIONS] : numberChoices(rng, n, TOP);
   return {
-    type: 'count', level, prompt: 't_count',
+    type: 'count', level, prompt: 't_count', ask: item ? inBank(`q_count_${item}`) : undefined,
     hint: level <= 3 ? ladder('h1_count', { key: 'h_count', steps: [{ do: 'countAloud', which: 'all' }] })
       : ladder('h1_ten', { key: 'h2_ten', steps: [{ do: 'countOn', which: 'all' }] }),
     body: { thing, n, tilt, options, answer: n },

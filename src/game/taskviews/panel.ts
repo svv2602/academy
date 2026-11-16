@@ -8,6 +8,7 @@
  */
 import { createRng, type Rng } from '../../core/rng';
 import type { Spoken } from '../../core/audio';
+import type { BankKey } from '../../core/voice';
 import type { SpokenKey } from '../../ui/strings';
 import { generate, type SpecOf, type TaskSpec } from '../tasks/index';
 import type { TaskType } from '../tasks/types';
@@ -40,7 +41,8 @@ export interface TaskResult { solved: boolean; wrong: number; }
  * and whoever waits must check for itself that its step is still wanted.
  */
 export interface TaskHooks {
-  prompt(key: SpokenKey): void;    // show + speak the question
+  /** Show + speak the question; `ask`: the clip of the bank that asks this very example (R37), `key` without it. */
+  prompt(key: SpokenKey, ask?: BankKey): void;
   number(n: number): void;         // say a number aloud while counting
   wrong(): Spoken;                 // gentle "try again"
   hint(key: SpokenKey): Spoken;    // the cat says the hint aloud, with its subtitle
@@ -140,7 +142,7 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     // for it instead of a pause, and then checks what that rung put on screen (tools/shot.mjs, R16).
     const shown = c.hint;
     if (shown) c.hint = { key: shown.key, show: (round) => { stage.dataset.shown = String(round); shown.show(round); } };
-    hooks.prompt(spec.prompt);
+    hooks.prompt(spec.prompt, spec.ask);
   });
 }
 

@@ -32,9 +32,16 @@ export default defineConfig({
       // under 1 MB (tools/assets.test.mjs holds the models to that); a file above the limit here would be left out
       // of the cache with only a build warning.
       // The bank of the old game's clips (public/bank/, tools/import_old_voice.py) is not part of the first load (R37):
-      // a clip of it is fetched when first played, never with the installation.
+      // a clip of it is fetched when first played, never with the installation, and kept from then on (the cache
+      // "bank": the first answer in full is kept, later plays and plays without network are served from it, the byte
+      // ranges the player asks for cut from it). src/core/voice.ts `sayBank` downloads it in full before it plays and,
+      // without network, asks this cache first: a clip not kept yet gives way to the general question, no request leaves.
       workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**'], maximumFileSizeToCacheInBytes: 4_000_000,
-        clientsClaim: true, skipWaiting: false },
+        clientsClaim: true, skipWaiting: false,
+        runtimeCaching: [{
+          urlPattern: /\/bank\/[^/]+\.mp3$/, handler: 'CacheFirst',
+          options: { cacheName: 'bank', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 400 } },
+        }] },
       manifest: {
         name: 'Академія чарівних світів',
         short_name: 'Академія',

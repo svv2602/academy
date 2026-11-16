@@ -102,6 +102,59 @@ export const inTask = () => taskOpen;
  */
 export function say(id: SpokenKey, text: string, priority: Priority): Spoken {
   if (!willSay(priority)) { dropped.push(id); return Promise.resolve() as Spoken; }
+  return begin(priority, (finish, live) => { sound(id, text, finish, live); });
+}
+
+/**
+ * A question of the bank of the old game's clips (VOICE-07, R37): `bank/<key>.mp3`, the keys and texts of
+ * src/ui/strings-bank.ts. The bank is not part of the first load: a clip is fetched when first asked for and the
+ * service worker keeps it (vite.config.ts, `runtimeCaching`).
+ */
+export type BankKey = `q_add_${number}_${number}` | `q_sub_${number}_${number}` | `q_count_${string}`;
+/** How long the first download of a clip of the bank may take before the general question is said instead. */
+const BANK_WAIT_MS = 4000;
+const bankUrl = (key: BankKey) => new URL(`${base}bank/${key}.mp3`, location.href).href;
+
+/**
+ * Is the clip there to play? Online it is downloaded first with a plain request, answered in full, which the service
+ * worker keeps (the player itself asks for byte ranges, and a partial answer is not kept). Without network only a clip
+ * kept before counts, and nothing is asked for: no request leaves a device that has no network.
+ */
+async function bankReady(url: string, online: boolean): Promise<boolean> {
+  try {
+    if (!online) return 'caches' in window && (await caches.match(url)) !== undefined;
+    const late = new Promise<null>((resolve) => { setTimeout(() => resolve(null), BANK_WAIT_MS); });
+    const r = await Promise.race([fetch(url), late]);
+    return r !== null && r.ok;
+  } catch { return false; }
+}
+
+/**
+ * Asks the very example with its clip of the bank (R37). A clip that is not there - not kept yet and no network, or
+ * failed to load - gives way to the recorded general question `general` ("Скільки буде разом?"), never to the
+ * synthesizer. `shown(bank)` tells which of the two is said, before it sounds, so that the subtitle follows the voice:
+ * online the clip is expected (true at once, false if it fails), offline the answer of the cache decides.
+ * The planner treats it as any line of `priority`.
+ */
+export function sayBank(key: BankKey, general: SpokenKey, text: string, priority: Priority, shown: (bank: boolean) => void): Spoken {
+  if (!willSay(priority)) { dropped.push(key); return Promise.resolve() as Spoken; }
+  const online = navigator.onLine !== false;
+  if (online) shown(true);
+  return begin(priority, (finish, live) => {
+    const url = bankUrl(key);
+    const instead = () => { if (!live()) return; shown(false); sound(general, text, finish, live); };
+    lineTimer(finish, 15000);
+    void bankReady(url, online).then((ok) => {
+      if (!live()) return;
+      if (!ok) { instead(); return; }
+      if (!online) shown(true);
+      playClip(url, 0, finish, live, instead);
+    });
+  });
+}
+
+/** Starts a line of `priority`: `body` makes it sound, on a shown page; the line ends with `finish`, `live` says it still may. */
+function begin(priority: Priority, body: (finish: () => void, live: () => boolean) => void): Spoken {
   stopVoice();
   sounding = priority;
   return new Promise<void>((resolve) => {
@@ -113,28 +166,28 @@ export function say(id: SpokenKey, text: string, priority: Priority): Spoken {
     const live = () => !done;
     endLine = finish;
     // A line asked for while the page is hidden starts when it is shown again (unless it is stopped before).
-    whenShown(() => {
-      if (done) return;
-      if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
-      // A clip that failed to load is asked for once more before the device's synthesizer takes the line (TECH-08).
-      let retries = CLIP_RETRIES;
-      const play = () => {
-        const a = new Audio(`${base}voice/${id}.mp3`);
-        a.volume = level();
-        current = a;
-        a.onplaying = () => { voiceLog.clips++; };
-        a.onended = finish;
-        a.onerror = () => {
-          if (retries-- > 0) { play(); return; }
-          voiceLog.synth.push(id); speak(text, finish, live);
-        };
-        // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown.
-        a.play().catch(() => { if (!done && (a.error || hidden)) return; finish(); });
-      };
-      play();
-      lineTimer(finish, 15000);
-    });
+    whenShown(() => { if (!done) body(finish, live); });
   }) as Spoken;
+}
+
+/** A line of the list: its recorded clip, or the device's synthesizer when there is none or it fails to load. */
+function sound(id: SpokenKey, text: string, finish: () => void, live: () => boolean) {
+  if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
+  // A clip that failed to load is asked for once more before the device's synthesizer takes the line (TECH-08).
+  playClip(`${base}voice/${id}.mp3`, CLIP_RETRIES, finish, live, () => { voiceLog.synth.push(id); speak(text, finish, live); });
+  lineTimer(finish, 15000);
+}
+
+/** Plays the clip at `src`; one that fails to load is asked for `retries` more times, then `failed` takes the line. */
+function playClip(src: string, retries: number, finish: () => void, live: () => boolean, failed: () => void) {
+  const a = new Audio(src);
+  a.volume = level();
+  current = a;
+  a.onplaying = () => { voiceLog.clips++; };
+  a.onended = finish;
+  a.onerror = () => { if (retries > 0) playClip(src, retries - 1, finish, live, failed); else failed(); };
+  // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown.
+  a.play().catch(() => { if (live() && (a.error || hidden)) return; finish(); });
 }
 
 /** Device speech synthesis; without a Ukrainian voice (or with the voice muted) the line is a silent pause long enough to read the subtitle. */

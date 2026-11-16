@@ -129,6 +129,10 @@ const QUESTIONS = {
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
   missing: ['t_missing'], house: ['t_house'],
 };
+// Addition, take away and counting ask the very example with its clip of the bank of the old game's clips (R37,
+// src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
+// way to the general question above: there the bank's key is an error, and so is any request for a clip of the bank.
+const BANK = { add: /^q_add_\d+_\d+$/, sub: /^q_sub_\d+_\d+$/, count: /^q_count_[a-z]+$/ };
 // The composition of a number is one step of a chain (the deer's "compose", R34) whose kind follows its level:
 // the missing addend on levels 3 and 5, the number house on level 4. A run meets the kind of its level.
 const COMPOSE = ['missing', 'house'];
@@ -166,6 +170,7 @@ let nRequests = 0;
 const cancelled = [];
 const origins = new Set();
 const models = new Set();   // model files requested by the page, as paths under the site root: models/…
+let networkOff = false;   // the offline walkthrough has switched the network off
 let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
 let voiceUsed = null;       // { clips, loud }: voice clips started in the walkthrough, and those of them with a volume
 const taskLog = [];        // the tasks met, in order (see __logTask below)
@@ -183,6 +188,8 @@ try {
     const u = r.url();
     if (!/^(data|blob):/.test(u)) { try { origins.add(new URL(u).origin); } catch { origins.add(u); } }
     if (!own(u)) errors.push(`external request: ${r.method()} ${u} (${r.resourceType()})`);
+    // Without network the game asks its cache first (R37): a clip of the bank is never requested then.
+    if (networkOff && !r.serviceWorker() && /\/bank\/[^/]+\.mp3/.test(u)) errors.push(`without network the game asked for a clip of the bank: ${u}`);
     // Model files the PAGE asked for. The service worker downloads its whole precache list when it installs, needed
     // or not, so its own requests say nothing about what the game uses and are left out.
     if (!r.serviceWorker() && u.startsWith(origin + basePath + 'models/')) models.add(decodeURIComponent(new URL(u).pathname.slice(basePath.length)));
@@ -206,7 +213,7 @@ try {
     const play = HTMLMediaElement.prototype.play, started = window.__started = [], starts = window.__starts = {};
     window.__plays = 0;
     window.__loud = [];         // clips started with a volume above zero: none of them in a walkthrough without the voice
-    window.__clip = (a) => (a.src.match(/voice\/(.+)\.mp3/) ?? [])[1] ?? '';
+    window.__clip = (a) => (a.src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? '';
     HTMLMediaElement.prototype.play = function () {
       started.push(this); if (started.length > 8) started.shift();
       const id = window.__clip(this); starts[id] = (starts[id] ?? 0) + 1; this.__n = ++window.__plays;
@@ -270,11 +277,43 @@ try {
   // The one exception: with the voice the question of the star search is shown for six seconds only (the heroine
   // walks, the bubble must not hang over the world), and a slow machine takes the picture later than that. The game
   // still remembers the question then - that is what is checked; without the voice no timer hides it (see below).
+  /** The bubble holds a question of the type: its general question, or online its example's clip of the bank. */
+  const isQuestion = (type, key) => QUESTIONS[type].includes(key) || (!offline && !!BANK[type]?.test(key ?? ''));
   const checkQuestion = async (type) => {
     const b = asked[type] = await bubbleNow();
     const timed = type === 'stars' && !mute;
     if (!timed && (!b.shown || !b.text)) errors.push(`question: ${mode} task-${type}: the bubble with the question is not shown`);
-    else if (!QUESTIONS[type].includes(b.key)) errors.push(`question: ${mode} task-${type}: the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
+    else if (offline && BANK[type]?.test(b.key ?? '')) errors.push(`question: ${mode} task-${type}: without network the bubble shows the bank's "${b.key}" (${b.text}), not the general question (${QUESTIONS[type].join(' / ')})`);
+    else if (!isQuestion(type, b.key)) errors.push(`question: ${mode} task-${type}: the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
+    // Without network the general question is said by its recorded clip, not by the synthesizer (R37).
+    else if (offline && BANK[type] && !(await page.evaluate((k) => (window.__starts[k] ?? 0) > 0, b.key))) {
+      errors.push(`question: ${mode} task-${type}: without network the clip of the general question "${b.key}" was never started`);
+    }
+  };
+  /**
+   * At the end: online, a walkthrough that met addition, take away or counting heard at least one example asked by its
+   * clip of the bank (the question of the example reached the bubble and the voice); offline, none.
+   */
+  const checkBank = async () => {
+    const met = Object.keys(BANK).filter((t) => asked[t]);
+    if (!met.length) return;
+    const byBank = met.filter((t) => BANK[t].test(asked[t].key ?? ''));
+    const clips = await page.evaluate(() => Object.keys(window.__starts).filter((k) => /^q_(add|sub|count)_/.test(k)));
+    console.log(`bank: ${byBank.length ? byBank.map((t) => `${t} ${asked[t].key}`).join(', ') : 'no example asked by the bank'}; clips of the bank started: ${clips.length}`);
+    if (offline) { if (clips.length) errors.push(`bank: ${mode}: without network clips of the bank sounded: ${clips.join(' ')}`); return; }
+    if (!byBank.length) errors.push(`bank: ${mode}: ${met.join(', ')} met, but no example was asked by its clip of the bank (only ${met.map((t) => asked[t].key).join(' ')})`);
+    else if (!clips.length) errors.push(`bank: ${mode}: the bubble showed ${byBank.map((t) => asked[t].key).join(' ')}, but no clip of the bank was started`);
+    else {
+      // R37: a clip is kept when first played (the service worker's cache "bank", vite.config.ts). A clip asked for
+      // before the worker took the page is not; one of the clips played must be.
+      const kept = await page.evaluate(async (keys) => {
+        const out = [];
+        for (const k of keys) if (await caches.match(new URL(`bank/${k}.mp3`, location.href).href)) out.push(k);
+        return out;
+      }, clips);
+      console.log(`bank: clips kept in the cache: ${kept.length} of ${clips.length}`);
+      if (!kept.length) errors.push(`bank: ${mode}: ${clips.length} clips of the bank were played, but none of them is kept in the cache`);
+    }
   };
   // On the picture of a hint: with the voice the bubble shows the hint the cat says; without the voice it still shows
   // the question, with the same text as before the mistake. "Watch and repeat" has two questions and replays its
@@ -282,7 +321,7 @@ try {
   const checkHint = async (type) => {
     const b = await bubbleNow(), was = asked[type], name = `${mode} hint-${type}`;
     if (!b.shown || !b.text) { errors.push(`question: ${name}: the bubble is not shown`); return; }
-    const question = QUESTIONS[type].includes(b.key);
+    const question = isQuestion(type, b.key);
     if (mute) {
       if (!question) errors.push(`question: ${name}: without the voice the bubble shows "${b.key}" (${b.text}), not the question of the task (${QUESTIONS[type].join(' / ')})`);
       else if (was && b.key === was.key && b.text !== was.text) errors.push(`question: ${name}: the text of the question changed: "${was.text}" -> "${b.text}"`);
@@ -626,6 +665,7 @@ try {
       console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
       if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
       voiceUsed = await checkVoice('at the end');
+      await checkBank();
       const lost = [...new Set(voice.dropped)].filter((id) => id !== 'go_next');
       console.log(`lines turned away by the planner: ${voice.dropped.join(' ') || 'none'}`);
       if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
@@ -714,6 +754,7 @@ try {
     if (offline) {
       cachedFiles = await waitForOfflineCache();
       await ctx.setOffline(true);
+      networkOff = true;
       await page.reload();
       await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
     }
@@ -1960,6 +2001,7 @@ try {
       const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
       console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
       voiceUsed = await checkVoice('at the end');
+      await checkBank();
       console.log(`voice volume: ${mute ? 'off' : 'on'} - ${voiceUsed.clips} clips started, ${voiceUsed.loud} of them with a volume above zero`);
       if (plays('deer') && !starsCounted) errors.push('the bubble of the star search was not looked at after a star was found');
       if (plays('deer') && !deerAsked) errors.push('talk to the deer during the search: it was never played');

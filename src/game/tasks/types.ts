@@ -9,6 +9,8 @@
 import { randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
 import type { SpokenKey } from '../../ui/strings';
+import type { BankKey } from '../../core/voice';
+import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house';
 
@@ -36,7 +38,13 @@ export const ladder = (way: SpokenKey, together: HintRung, lit: readonly HintSte
   ({ rungs: [{ key: way, steps: [] }, together, { key: 'h3_show', steps: lit }] });
 /** The rung of mistake `round`: 1, 2, then 3 for the third and every later one. */
 export const rungOf = (hint: Hint, round: number): HintRung => hint.rungs[Math.min(Math.max(round, 1), 3) - 1];
-export interface Spec<T extends TaskType, B> { type: T; level: number; prompt: SpokenKey; hint: Hint | null; body: B }
+/**
+ * `prompt`: the general question of the type (always recorded); `ask`: the clip of the bank of the old game's clips
+ * that asks this very example ("Скільки буде вісім плюс п'ять?", R37), when the old game recorded one.
+ */
+export interface Spec<T extends TaskType, B> { type: T; level: number; prompt: SpokenKey; ask?: BankKey; hint: Hint | null; body: B }
+/** `key` if the bank has its clip (the bank lists every clip of public/bank/, src/ui/strings-bank.ts), else nothing. */
+export const inBank = (key: BankKey): BankKey | undefined => (Object.hasOwn(bank.table.uk, key) ? key : undefined);
 /**
  * How the task takes one input: the answer is right, wrong, a right step of a longer answer, a miss that is no
  * mistake (memory pairs), or nothing at all (the input does not count now).

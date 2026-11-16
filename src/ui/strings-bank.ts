@@ -3,8 +3,9 @@
  * The old game built these lines from templates, so they are built here the same way, from the key and its numbers,
  * in both languages from one table of numerals. The Ukrainian text is what the clip says: it must equal, letter for
  * letter, the text of its check record in voice/qa.json (src/ui/strings.test.ts) - the old game's spelling is kept,
- * the plain apostrophe included. The game asks for no clip of the bank yet: these lines go to voice/phrases.json
- * (`npm run voice:sync`), not to the table of `t` / `voiceText`.
+ * the plain apostrophe included. These lines go to voice/phrases.json (`npm run voice:sync`), not to the table of
+ * `t` / `voiceText`: the game plays a clip of the bank only through `sayBank` (src/core/voice.ts) - addition, take away
+ * and counting ask their own example by it - and falls back to the task's common question without it.
  * Plain data and functions only (tools/sync_phrases.mjs loads this file in Node): nothing but `import type`.
  */
 import type { Lang, SpokenTable, VoiceStyle } from './strings';

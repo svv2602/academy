@@ -114,7 +114,7 @@ export function createGame(o: {
 
   // ----- panel tasks -----
   const hooksFor = (speaker: string): TaskHooks => ({
-    prompt: (key) => { void speech.line(key, 'task', 0, speaker); },
+    prompt: (key, ask) => { void (ask ? speech.ask(ask, key, 'task', speaker) : speech.line(key, 'task', 0, speaker)); },
     number: (n) => { const k = tapKey(n); if (k) void say(k, voiceText(k), 'task'); },
     wrong: () => { sfx('soft'); const k = TRY[randInt(0, TRY.length - 1)]; return say(k, voiceText(k), 'task'); },
     hint: speech.hintLine,
