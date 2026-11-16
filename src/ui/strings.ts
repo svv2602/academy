@@ -37,6 +37,12 @@ const S = sameKeys({
     p_diff: 'Складність', d0: 'Авто', d1: 'Легко', d2: 'Середньо', d3: 'Складно',
     p_quality: 'Якість графіки', q0: 'Проста', q1: 'Середня', q2: 'Висока',
     p_music: 'Музика', p_sfx: 'Звуки', p_voice: 'Голос', p_reset: 'Скинути прогрес', p_reset_sure: 'Точно скинути? Натисни ще раз.',
+    // --- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book
+    shop: 'Лавка', shop_done: 'Готово', shop_buy: 'Купити за {n} ⭐', shop_short: 'ще {n} ⭐',
+    shop_find: 'Знайдеш, коли відновиш Кристал Світла', shop_achieve: 'за досягнення',
+    shop_hi: 'Це чарівна лавка{, name}! Торкнись речі, і вона одразу на тобі.',
+    shop_more: 'Ще трішки зірочок, і ця річ буде твоя!',
+    shop_bought: 'Тепер це твоє назавжди!',
     // --- the device cannot run the game / the game could not load (TECH-07, TECH-08): for the grown-ups, text only
     no_webgl: 'Цей браузер не вміє показувати тривимірний світ гри. Оновіть браузер до нової версії або відкрийте гру в іншому браузері.',
     load_failed: 'Не вдалося завантажити гру. Перевірте інтернет і спробуйте ще раз.', retry: 'Спробувати ще раз',
@@ -63,6 +69,11 @@ const S = sameKeys({
     p_diff: 'Сложность', d0: 'Авто', d1: 'Легко', d2: 'Средне', d3: 'Сложно',
     p_quality: 'Качество графики', q0: 'Простое', q1: 'Среднее', q2: 'Высокое',
     p_music: 'Музыка', p_sfx: 'Звуки', p_voice: 'Голос', p_reset: 'Сбросить прогресс', p_reset_sure: 'Точно сбросить? Нажми ещё раз.',
+    shop: 'Лавка', shop_done: 'Готово', shop_buy: 'Купить за {n} ⭐', shop_short: 'ещё {n} ⭐',
+    shop_find: 'Найдёшь, когда восстановишь Кристалл Света', shop_achieve: 'за достижение',
+    shop_hi: 'Это волшебная лавка{, name}! Коснись вещи, и она сразу на тебе.',
+    shop_more: 'Ещё чуть-чуть звёздочек, и эта вещь будет твоей!',
+    shop_bought: 'Теперь это твоё навсегда!',
     no_webgl: 'Этот браузер не умеет показывать трёхмерный мир игры. Обновите браузер до новой версии или откройте игру в другом браузере.',
     load_failed: 'Не удалось загрузить игру. Проверьте интернет и попробуйте ещё раз.', retry: 'Попробовать ещё раз',
   },
@@ -108,6 +119,7 @@ const SPOKEN = {
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
+  shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy',
 } as const satisfies Partial<Record<keyof typeof S.uk, VoiceStyle>>;
 /** A spoken line of the shared table or of any world. */
 export type SpokenKey = keyof typeof SPOKEN | WorldSpokenKey;

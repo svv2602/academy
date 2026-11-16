@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SKILLS, levelFor, recordTask } from '../game/skills';
 import type { SkillId } from '../game/skills';
-import { SAVE_VERSION, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
+import { SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
 import type { Save, WorldState } from './save';
 
 // The key is part of the contract: renaming it silently drops the save already on the child's device.
@@ -559,6 +559,21 @@ describe('the shop: worn things and purchases (PLAY-04, PLAY-05), no new version
       storage.setItem(KEY, JSON.stringify({ ...beforeShop(), gear }));
       expect(loadSave().gear).toEqual(GEAR);
     }
+  });
+
+  it('a save without a wing colour, of any version, gets the colour the petals always had; a damaged one too', () => {
+    for (const text of [JSON.stringify(beforeShop()), JSON.stringify(v2Save()), JSON.stringify(v1Save())]) {
+      storage.setItem(KEY, text);
+      expect(loadSave().wingColor).toBe(WING_COLOR);
+    }
+    for (const wingColor of [null, 7, 'pink', '#12345', ['#ffffff']]) {
+      storage.setItem(KEY, JSON.stringify({ ...beforeShop(), wingColor }));
+      expect(loadSave().wingColor).toBe(WING_COLOR);
+    }
+    storage.setItem(KEY, JSON.stringify({ ...beforeShop(), wingColor: '#ffd1ec' }));
+    const s = loadSave();
+    expect([s.wingColor, s.v]).toEqual(['#ffd1ec', 3]);
+    expect(defaultSave().wingColor).toBe(WING_COLOR);
   });
 
   it('a damaged list of purchases gives no purchases, and keeps the ids of a list with junk in it', () => {

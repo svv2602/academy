@@ -217,3 +217,41 @@ button.it { min-width: 44px; min-height: 44px; }
 @media (max-aspect-ratio: 5/4) {
   .sheet { padding-left: 12px; padding-right: 12px; } #pBody table { font-size: 13px; } #pBody th, #pBody td { padding: 5px 3px; }
 }
+/* ---------- the shop and the fitting room (PLAY-04, PLAY-05) ----------
+   A layer over the paused game: the card on the right (at the bottom when the screen stands upright), the heroine in
+   view on the free side, the cat's line above her. No red anywhere: a thing she cannot buy yet is soft lilac. */
+.sheet-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+#shop { position: fixed; inset: 0; z-index: 6; }
+.shop-card { position: absolute; top: max(8px, env(safe-area-inset-top)); bottom: max(8px, env(safe-area-inset-bottom)); right: max(10px, env(safe-area-inset-right));
+  width: min(50vw, 460px); display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 10px 12px; border-radius: 28px; background: rgba(255,255,255,.95); overflow: hidden;
+  box-shadow: 0 8px 0 rgba(160,110,200,.25), 0 24px 60px rgba(90,60,130,.3); animation: pop2 .35s; }
+.shop-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.shop-tabs button { width: 48px; height: 48px; border-radius: 16px; font-size: 26px; line-height: 1; background: #f3ecfa; }
+.shop-tabs button.sel { background: #a56bff; box-shadow: 0 0 0 3px #e3d1ff; }
+.shop-items { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.shop-items .tiles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.tile { width: 72px; height: 72px; border-radius: 18px; background: #f6eefc; box-shadow: 0 4px 0 #e2d2f1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; padding: 2px; }
+.tile .ic { font-size: 32px; line-height: 1.05; }
+.tile .cap { font-size: 12px; font-weight: 800; color: #8a6bb0; line-height: 1.1; }
+.tile.sel { background: #fff7d6; box-shadow: 0 0 0 4px #a56bff; }
+.tile.sil .ic { filter: brightness(0); opacity: .3; } .tile.sil { width: 100px; }
+.shop-items .swatches { flex-wrap: wrap; justify-content: center; }
+.shop-act { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: #8a6bb0; font-size: 18px; }
+.shop-act .big, #shopDone { margin-top: 0; }
+#shopBuy.short { background: #efe4fb; color: #8a6bb0; box-shadow: 0 5px 0 #dccbf0; }
+#shopSay { position: absolute; left: max(12px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 54px);
+  width: min(calc(50vw - 40px), 420px); display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 22px;
+  background: rgba(255,255,255,.92); box-shadow: 0 6px 18px rgba(90,60,130,.2); }
+#shopSay:empty, #shopSay.quiet { display: none; }
+#shopSay .cat { font-size: 30px; line-height: 1; }
+#shopSay p { margin: 0; font-size: clamp(15px, min(2.2vw, 4.6vh), 21px); font-weight: 600; line-height: 1.25; }
+@media (max-height: 480px) {
+  .shop-card { gap: 4px; padding: 8px 10px; }
+  .tile { width: 64px; height: 64px; } .tile .ic { font-size: 28px; }
+}
+@media (max-aspect-ratio: 5/4) {
+  .shop-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
+  #shopSay { width: auto; right: max(12px, env(safe-area-inset-right)); }
+}

@@ -69,6 +69,10 @@ export interface Gear {
   /** Wears `id` in `slot` (null takes the slot's item off). An id of another slot throws. */
   set(slot: GearSlot, id: GearId | null): void;
   get(slot: GearSlot): GearId | null;
+  /** The colour of her wings (PLAY-05): the petals take it as it is, the butterfly keeps its pattern under a tint of it. */
+  tint(color: string): void;
+  /** The colour last given to tint (the walkthrough reads it). */
+  readonly color: string;
   /** The modelled items as they hang on the heroine (window.__game reads them in the walkthrough). */
   readonly parts: GearModels;
   /** After the heroine has moved: the butterfly wings beat (fast in the air), the trail sparkles while she walks. */
@@ -91,10 +95,27 @@ export function createGear(rig: Rig, parts: GearModels, petals: readonly THREE.O
   const butterfly = ['wing_l', 'wing_r'].map((n, i) => ({ node: parts.wings_butterfly.object.getObjectByName(n)!, side: i ? -1 : 1 }));
   const last = new THREE.Vector3().copy(rig.root.position), at = new THREE.Vector3();
   let lastTime = -1, sinceSpark = 0, sparkN = 0;
+  // The butterfly's own materials, each with its colour as modelled: a tint mixes the chosen colour into that one.
+  const own: { mat: THREE.MeshStandardMaterial; base: THREE.Color }[] = [];
+  parts.wings_butterfly.object.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const mat = (m.material as THREE.MeshStandardMaterial).clone();
+    m.material = mat;
+    own.push({ mat, base: mat.color.clone() });
+  });
+  let color = '';
 
   return {
     parts,
     get: (slot) => worn[slot],
+    get color() { return color; },
+    tint(c) {
+      color = c;
+      const to = new THREE.Color(c);
+      for (const p of petals) ((p as THREE.Mesh).material as THREE.MeshBasicMaterial).color.copy(to);
+      for (const o of own) o.mat.color.copy(o.base).lerp(to, 0.5);
+    },
     set(slot, id) {
       if (id !== null && GEAR[id]?.slot !== slot) throw new Error(`gear: ${id} is not worn in the slot "${slot}"`);
       show(worn[slot], false);

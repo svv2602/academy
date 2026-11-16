@@ -5,6 +5,7 @@ import type { Key, SpokenKey, WorldStrings } from '../ui/strings';
 import type { Actor } from './actor';
 import type { Game } from './context';
 import type { DebugExtras } from './debug';
+import type { Gear } from './gear';
 import type { Look } from './hero';
 import type { WorldFrame } from './loop';
 import type { TaskType } from './tasks/types';
@@ -73,8 +74,11 @@ export interface BookInfo {
 /** A world's texts (ARCH-12): declared with the shared strings, in src/ui/strings.ts. */
 export type { WorldStrings } from '../ui/strings';
 
-/** A world once built: its parts of the frame, what window.__game reads of it, the book, its lines and the HUD counter. */
-export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string }
+/**
+ * A world once built: its parts of the frame, what window.__game reads of it, the book, its lines, the HUD counter and
+ * the heroine's items (src/game/gear.ts: the shop screen puts on what the save holds and what she tries on).
+ */
+export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear }
 
 export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly id: string;

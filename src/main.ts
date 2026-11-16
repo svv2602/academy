@@ -74,7 +74,7 @@ async function boot() {
   const w = built = world.build(g, L, sky);
 
   // ---------- start screen & menus ----------
-  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), lines: w.lines, book: w.book });
+  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, book: w.book, gear: w.gear });
 
   // ---------- loop ----------
   startLoop(g, quality, w.frame);

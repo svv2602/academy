@@ -89,8 +89,9 @@ export function fanfare(title: Key, text: string, gemColor = '#7fe3ff'): Promise
   return new Promise((res) => { el.fanfareOk.onclick = () => { el.fanfare.classList.add('hidden'); res(); }; });
 }
 
-const DRESS = ['#ff7eb6', '#b388ff', '#5cc8ff', '#ffd54f', '#6ee7a8'];
-const HAIR = ['#8a5a3a', '#f5d16b', '#3b2a3a', '#ff8a5c', '#ff9ed2'];
+/** The free colours of the dress and the hair (R15): the start screen and the shop's fitting room (src/ui/shop.ts) show them. */
+export const DRESS = ['#ff7eb6', '#b388ff', '#5cc8ff', '#ffd54f', '#6ee7a8'];
+export const HAIR = ['#8a5a3a', '#f5d16b', '#3b2a3a', '#ff8a5c', '#ff9ed2'];
 
 export function initStart(sel: { dress: string; hair: string; name: string }, hasSave: boolean, onChange: () => void) {
   const applyText = () => {
@@ -131,11 +132,12 @@ const QUALITY_STEPS: Save['pinTier'][] = [null, 2, 1, 0];
  * Collection book + the parents' section behind an "adult" gate. The book shows what the world gives (`book`): its parts,
  * got or not, then its lines of figures.
  */
-export function initBook(save: Save, book: BookInfo, on: { change(): void; reset(): void; open(isOpen: boolean): void }) {
+export function initBook(save: Save, book: BookInfo, on: { change(): void; reset(): void; open(isOpen: boolean): void; shop(): void }) {
   const bookCard = $('book'), parents = $('parents');
   const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
   const renderBook = () => {
     $('colTitle').textContent = t('col_title'); $('bookClose').textContent = t('close'); $('btnParents').textContent = t('parents');
+    $('btnShop').textContent = `🛍️ ${t('shop')}`;
     $('shards').innerHTML = '';
     for (const p of book.parts()) {
       const d = document.createElement('div');
@@ -148,6 +150,8 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
   };
   $('btnBook').addEventListener('click', () => { renderBook(); show(bookCard, true); });
   $('bookClose').addEventListener('click', () => show(bookCard, false));
+  // The shop and the fitting room (PLAY-04, PLAY-05): a screen of its own over the game, which stays paused.
+  $('btnShop').addEventListener('click', () => { bookCard.classList.add('hidden'); on.shop(); });
 
   const gateA = $<HTMLInputElement>('gateA');
   const renderParents = () => {

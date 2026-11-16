@@ -139,7 +139,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       { icon: '🎁', label: 'col_chest', value: ws.flags.chest ? '✔' : '?' },
     ],
   };
-  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}` };
+  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}`, gear: characters.gear };
 }
 
 type FairySky = ReturnType<typeof buildSky>;

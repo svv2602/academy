@@ -390,7 +390,7 @@ try {
       if (scrollX || scrollY) out.push(`the window is scrolled to ${px(scrollX)},${px(scrollY)}`);
 
       // 2. panels: inside the window, no scrolling inside
-      const panels = [...document.querySelectorAll('#start .panel, #task .t-card, #book .card, #parents .card, #fanfare .card, #bubble, #hud, #answers')].filter(shown);
+      const panels = [...document.querySelectorAll('#start .panel, #task .t-card, #book .card, #parents .card, #fanfare .card, #shop .shop-card, #shopSay, #bubble, #hud, #answers')].filter(shown);
       for (const p of panels) {
         const b = box(p), cs = getComputedStyle(p);
         if (outside(b, win)) out.push(`${label(p)} is outside the ${vw}x${vh} window: ${at(b)}`);
@@ -493,11 +493,15 @@ try {
     await wait(3000); await shot('01-spawn');
     // the stars never go down, and a star won is stored in the same frame (as in the first world)
     await g(() => {
-      const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0 };
+      const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0, buy: null, bought: [] };
       const look = () => {
         const n = __game.save.stars;
-        if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
-        if (n > w.last) { const st = JSON.parse(localStorage.getItem('amw-save') || '{}').stars; if (st !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${st}`); }
+        // The one way down: a purchase the walkthrough announced (window.__stars.buy), exactly its price, the thing in
+        // the save's purchases, stored at once. Any other drop is an error.
+        const b = w.buy, st = n !== w.last ? JSON.parse(localStorage.getItem('amw-save') || '{}') : null;
+        if (n < w.last && b && w.last - n === b.price && __game.save.owned.includes(b.id) && st.stars === n && st.owned?.includes(b.id)) { w.bought.push(`${b.id} ${w.last} -> ${n}`); w.buy = null; }
+        else if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
+        if (n > w.last) { if (st.stars !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${st.stars}`); }
         w.last = n; w.frames++; requestAnimationFrame(look);
       };
       look();
@@ -897,11 +901,15 @@ try {
       // ---- stars never go down (LEARN-14): watched on every frame from here to the end of the world, read on every step ----
       // A star that is won is also stored at once, in the same frame: the save on a timer would lose it if the page died.
       await g(() => {
-        const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0 };
+        const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0, buy: null, bought: [] };
         const look = () => {
           const n = __game.save.stars;
-          if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
-          if (n > w.last) { const kept = JSON.parse(localStorage.getItem('amw-save') || '{}').stars; if (kept !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${kept}`); }
+          // The one way down: a purchase the walkthrough announced (window.__stars.buy), exactly its price, the thing in
+          // the save's purchases, stored at once (PLAY-04). Any other drop is an error.
+          const b = w.buy, kept = n !== w.last ? JSON.parse(localStorage.getItem('amw-save') || '{}') : null;
+          if (n < w.last && b && w.last - n === b.price && __game.save.owned.includes(b.id) && kept.stars === n && kept.owned?.includes(b.id)) { w.bought.push(`${b.id} ${w.last} -> ${n}`); w.buy = null; }
+          else if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
+          if (n > w.last) { if (kept.stars !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${kept.stars}`); }
           w.last = n; w.frames++; requestAnimationFrame(look);
         };
         look();
@@ -1567,6 +1575,119 @@ try {
         if (left.length) errors.push(`book: ${mode}: ${left.join('; ')}`);
         else console.log(`book: ${b.got} of ${b.shards} shards, ${b.stars} stars, the chest ${b.chest ? 'open' : 'closed'}`);
       }
+      // ---- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book, opened in the middle of the game ----
+      // A tap on a thing puts it on at once; one tried on and not bought comes off when the screen closes; a thing she
+      // cannot afford has "N ⭐ more" (no red) and buys nothing; a purchase takes exactly the price (the watch of the
+      // stars is told of it beforehand) and is stored at once with every other choice; after the reload below she wears
+      // what was bought and chosen.
+      let shopped = null;
+      {
+        const fail = (what) => { throw new Error(`shop: ${what}`); };
+        const stored = () => g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const tab = async (id) => { await tap(`#shopTabs [data-tab=${id}]`); await wait(250); };
+        const state = () => g(() => ({ stars: __game.save.stars, owned: [...__game.save.owned], gear: { ...__game.save.gear },
+          worn: Object.fromEntries(['head', 'wand', 'wings', 'trail'].map((k) => [k, __game.gear.get(k)])),
+          hair: __game.save.hair, wingColor: __game.save.wingColor, tint: __game.gear.color, hud: document.querySelector('#stars').textContent }));
+        const reddish = () => g(() => {
+          const e = document.querySelector('#shopBuy'), cs = getComputedStyle(e);
+          return [cs.color, cs.backgroundColor, cs.backgroundImage].join(' ').match(/rgba?\([^)]*\)/g)?.map((c) => c.match(/[\d.]+/g).map(Number))
+            .filter(([r, gr, b, a = 1]) => a > 0.1 && r > 180 && gr < 120 && b < 120).length ?? 0;
+        });
+        await tap('#btnShop'); await wait(600);
+        if (!(await visible('#shop'))) fail('the button of the book does not open it');
+        if (await visible('#book')) fail('the book is still open over the heroine');
+        await page.waitForFunction(() => __game.cam.dist < 4, null, { timeout: T(20000) }).catch(() => fail('the camera does not come close to the heroine'));
+        const start = await state();
+        if (start.stars < 10) fail(`the walkthrough reaches the shop with ${start.stars} stars: nothing to buy`);
+        if (!touch) {
+          // the game stands while the screen is open
+          const p0 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+          await page.keyboard.down('KeyW'); await wait(700); await page.keyboard.up('KeyW');
+          const p1 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+          if (Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) > 0.05) fail('the heroine walks while the shop is open');
+        }
+        await shot('shop-dress'); await checkLinks('shop');
+        // 1. tried on, closed without buying: it comes off, nothing is spent or stored
+        await tab('head');
+        const tryId = await g(() => ['wreath', 'crown', 'wizard_hat'].find((id) => !__game.save.owned.includes(id)));
+        if (!tryId) fail('every hat is bought already');
+        await tap(`#shopItems [data-id=${tryId}]`); await wait(300);
+        let s1 = await state();
+        if (s1.worn.head !== tryId) fail(`a tap on ${tryId} did not put it on (she wears ${s1.worn.head})`);
+        if (s1.gear.head !== start.gear.head || (await stored()).gear?.head !== start.gear.head) fail(`trying ${tryId} on reached the save`);
+        await shot('shop-try');
+        await tap('#shopDone'); await wait(400);
+        if (await visible('#shop')) fail('"done" does not close it');
+        s1 = await state();
+        if (s1.worn.head !== start.gear.head) fail(`closed without buying, she still wears ${s1.worn.head} (the save holds ${start.gear.head})`);
+        if (s1.stars !== start.stars || s1.owned.length !== start.owned.length) fail('trying on spent stars or bought something');
+        await page.click('#btnBook'); await wait(400); await tap('#btnShop'); await wait(600);
+        // 2. bought: exactly the price, worn, stored at once, the counter of the HUD follows; the watch of the stars is
+        // told of the purchase just before the tap, so that any other drop stays an error
+        const buyOne = async (slot, id, price) => {
+          await tab(slot);
+          await tap(`#shopItems [data-id=${id}]`); await wait(300);
+          const before = await state();
+          const label = await page.textContent('#shopBuy').catch(() => '');
+          if (!label.includes(`${price} ⭐`) || (await g(() => document.querySelector('#shopBuy').classList.contains('short')))) fail(`the button under ${id} (${price} ⭐) with ${before.stars} stars: "${label}"`);
+          await g((it) => { window.__stars.buy = it; }, { id, price });
+          await tap('#shopBuy'); await wait(500);
+          const s = await state(), st = await stored();
+          if (s.stars !== before.stars - price || !s.owned.includes(id)) fail(`buying ${id}: ${before.stars} -> ${s.stars} stars, purchases ${s.owned.join(', ')}`);
+          if (s.gear[slot] !== id || s.worn[slot] !== id) fail(`${id} is bought but not worn (save ${s.gear[slot]}, on her ${s.worn[slot]})`);
+          if (st.stars !== s.stars || st.gear?.[slot] !== id || !st.owned?.includes(id)) fail(`the purchase of ${id} was not stored at once`);
+          if (s.hud !== String(s.stars)) fail(`the counter shows ${s.hud} after the purchase, the save ${s.stars}`);
+          if (await g(() => window.__stars.buy)) fail(`the watch of the stars did not see the purchase of ${id}`);
+          return s;
+        };
+        const s3 = await buyOne('wand', 'wand_star', 10);
+        await shot('shop-bought');
+        // the hat as well while the sparkles (40) are still affordable: a thing she cannot buy yet must be met below
+        let head = start.gear.head;
+        if (s3.stars >= 40 && !s3.owned.includes('wizard_hat')) { await buyOne('head', 'wizard_hat', 30); head = 'wizard_hat'; }
+        // 3. a thing she cannot buy yet: seen, tried on, "N ⭐ more", no red, a tap on it buys nothing
+        let shortChecked = false;
+        await tab('trail');
+        const s2a = await state();
+        if (s2a.stars < 40) {
+          await tap('#shopItems [data-id=trail_sparkle]'); await wait(300);
+          const b = await g(() => { const e = document.querySelector('#shopBuy'); return e && { text: e.textContent, short: e.classList.contains('short') }; });
+          const need = 40 - s2a.stars;
+          if (!b) fail('no button under a thing she cannot buy yet');
+          if (!b.short || !b.text.includes(`${need} ⭐`) || b.text.includes('40')) fail(`the button of the sparkles with ${s2a.stars} of 40 stars: "${b.text}" (short ${b.short}), not "${need} ⭐ more"`);
+          if (await reddish()) fail(`the button "${b.text}" is red`);
+          if ((await state()).worn.trail !== 'trail_sparkle') fail('a thing she cannot buy yet is not tried on');
+          await shot('shop-short');
+          await tap('#shopBuy'); await wait(400);
+          const s2 = await state();
+          if (s2.stars !== s2a.stars || s2.owned.includes('trail_sparkle')) fail(`the button "${b.text}" bought the sparkles: ${s2a.stars} -> ${s2.stars} stars`);
+          shortChecked = true;
+        } else errors.push(`shop: ${mode}: ${s2a.stars} stars after the purchases, the sparkles (40) are affordable: "N ⭐ more" went unchecked`);
+        // 4. free: another hair colour, another colour of the wings, then no wings - each stored at once
+        await tab('hair');
+        const hair = await g(() => [...document.querySelectorAll('#shopItems .swatches button')].map((b) => b.dataset.color).find((c) => c !== __game.save.hair));
+        await tap(`#shopItems .swatches button[data-color="${hair}"]`); await wait(300);
+        if ((await stored()).hair !== hair) fail(`the hair ${hair} was not stored at once`);
+        await tab('wings');
+        const wingColor = await g(() => [...document.querySelectorAll('#shopItems .swatches button')].map((b) => b.dataset.color).find((c) => c !== __game.save.wingColor));
+        await tap(`#shopItems .swatches button[data-color="${wingColor}"]`); await wait(300);
+        {
+          const w = await g(() => ({ tint: __game.gear.color, petal: __game.hero.root.children.find((o) => o.isMesh && o.material.transparent)?.material.color.getHexString(__game.THREE.SRGBColorSpace) }));
+          if (w.tint !== wingColor || `#${w.petal}` !== wingColor) fail(`the wings ${wingColor}: the gear has ${w.tint}, the petals #${w.petal}`);
+        }
+        await shot('shop-wings');
+        await tap('#shopItems [data-id=none]'); await wait(300);
+        const s4 = await state(), st4 = await stored();
+        if (s4.hair !== hair || s4.wingColor !== wingColor || s4.gear.wings !== null || s4.worn.wings !== null) fail(`the choice: hair ${s4.hair}, wings ${s4.gear.wings} (on her ${s4.worn.wings}) of colour ${s4.wingColor}`);
+        if (st4.hair !== hair || st4.wingColor !== wingColor || st4.gear?.wings !== null) fail('the choice of the wings was not stored at once');
+        await tap('#shopDone'); await wait(400);
+        const s5 = await state();
+        if (s5.worn.wand !== 'wand_star' || s5.worn.wings !== null || s5.worn.trail !== start.gear.trail || s5.worn.head !== head) fail(`after "done" she wears wand ${s5.worn.wand}, wings ${s5.worn.wings}, trail ${s5.worn.trail}, head ${s5.worn.head}`);
+        shopped = { wand: 'wand_star', head, wings: null, hair, wingColor };
+        console.log(`shop: tried ${tryId} on and took it off, ${shortChecked ? 'the sparkles showed "N ⭐ more" and bought nothing, ' : ''}bought the star wand ${start.stars} -> ${s3.stars} stars${head === 'wizard_hat' ? ' and the hat' : ''}, hair ${hair}, wings ${wingColor} then none`);
+      }
+      await page.click('#btnBook'); await wait(500);
       // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
       // the second one different.
       await g(() => { window.__random = Math.random; Math.random = () => 0.42; });
@@ -1699,6 +1820,21 @@ try {
         else if (!near(pos)) errors.push(`leaving the page: the save keeps ${JSON.stringify(pos)}, not the spot she left at ${JSON.stringify(leftAt)}`);
         else console.log('leaving the page: the spot she stood on is saved');
       }
+      // The shop's choices after the reload (R05, R09): the bought wand, no wings, the hair and the colour of the wings.
+      if (shopped) {
+        await page.waitForFunction(() => window.__game?.gear, null, { timeout: T(30000) }).catch(() => { throw new Error('shop: no __game.gear after the reload'); });
+        const a = await g(() => ({ wand: __game.gear.get('wand'), head: __game.gear.get('head'), wings: __game.gear.get('wings'), hair: __game.save.hair, wingColor: __game.save.wingColor,
+          tint: __game.gear.color, owned: __game.save.owned, petals: __game.hero.root.children.filter((o) => o.isMesh && o.visible && o.material.transparent).length }));
+        const left = [];
+        if (a.wand !== shopped.wand) left.push(`she holds ${a.wand}, not the bought ${shopped.wand}`);
+        if (a.head !== shopped.head) left.push(`she wears ${a.head} on her head, not ${shopped.head}`);
+        if (!a.owned.includes(shopped.wand)) left.push(`${shopped.wand} is not among the purchases`);
+        if (a.wings !== shopped.wings || a.petals) left.push(`wings ${a.wings} (${a.petals} petals shown), chosen none`);
+        if (a.hair !== shopped.hair) left.push(`hair ${a.hair}, chosen ${shopped.hair}`);
+        if (a.wingColor !== shopped.wingColor || a.tint !== shopped.wingColor) left.push(`wings of colour ${a.wingColor} (worn ${a.tint}), chosen ${shopped.wingColor}`);
+        if (left.length) errors.push(`shop: ${mode}: after the reload ${left.join('; ')}`);
+        else console.log(`shop: after the reload she holds ${a.wand}, has no wings, hair ${a.hair}, wing colour ${a.wingColor}`);
+      } else errors.push(`shop: ${mode}: the shop was not played`);
       await wait(1500); await shot('40-start-again');
       // "Start again" really starts again: after the reload the save is the one of a new player. The game saves itself
       // on the way out (pagehide), and that once wrote the whole progress straight back.

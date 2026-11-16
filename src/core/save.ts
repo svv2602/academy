@@ -29,6 +29,8 @@ export interface Save {
   owned: string[];                  // the things bought in the shop (PLAY-04): kept for ever, never removed
   /** What the heroine wears, by slot (PLAY-04, PLAY-05): a thing's id of src/game/shop.ts, null = nothing there. */
   gear: Gear;
+  /** The colour of her wings (PLAY-05), free like the dress and the hair: the petals take it, the butterfly a tint of it. */
+  wingColor: string;
   achievements: Record<string, number>;   // PLAY-08: none yet
   difficulty: 0 | 1 | 2 | 3;        // 0 = adaptive, otherwise fixed by the parent
   vol: { music: number; sfx: number; voice: number };
@@ -47,6 +49,8 @@ export interface Save {
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
 export const SAVE_VERSION = 3;
+/** The colour the petals always had: a save written before the colour could be chosen gets it. No new version. */
+export const WING_COLOR = '#d8f6ff';
 const KEY = 'amw-save';
 /** The skills a fresh save counts: the ids of src/game/skills.ts (save.test.ts checks that the two lists agree). */
 const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'logic'];
@@ -67,7 +71,7 @@ export function defaultSave(): Save {
     v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
     skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 1, streak: 0, tasks: 0, first: 0, errors: 0 }])),
-    owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, achievements: {},
+    owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: WING_COLOR, achievements: {},
     difficulty: 0, vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},
@@ -196,6 +200,8 @@ function fromStored(s: Stored, d: Save): Save | null {
     if (!isTier(out.tier)) out.tier = d.tier;
     if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
     // A damaged list of purchases must not break the shop: only the ids it holds are kept.
+    // A damaged wing colour gives the petals their old one.
+    if (typeof out.wingColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(out.wingColor)) out.wingColor = d.wingColor;
     if (!Array.isArray(out.owned)) out.owned = [];
     else out.owned = out.owned.filter((id) => typeof id === 'string');
   }
