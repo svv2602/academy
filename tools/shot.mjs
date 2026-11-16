@@ -1638,7 +1638,10 @@ try {
           if (s.gear[slot] !== id || s.worn[slot] !== id) fail(`${id} is bought but not worn (save ${s.gear[slot]}, on her ${s.worn[slot]})`);
           if (st.stars !== s.stars || st.gear?.[slot] !== id || !st.owned?.includes(id)) fail(`the purchase of ${id} was not stored at once`);
           if (s.hud !== String(s.stars)) fail(`the counter shows ${s.hud} after the purchase, the save ${s.stars}`);
-          if (await g(() => window.__stars.buy)) fail(`the watch of the stars did not see the purchase of ${id}`);
+          // The watch reads the stars on animation frames; a slow runner (CI: 2-20 frames a second) may not have drawn one
+          // since the tap, so wait for it to take the announced purchase instead of reading it at once.
+          await page.waitForFunction(() => !window.__stars.buy, null, { timeout: T(10000) })
+            .catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
           return s;
         };
         const s3 = await buyOne('wand', 'wand_star', 10);
