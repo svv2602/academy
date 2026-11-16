@@ -521,6 +521,74 @@ describe('version 3: read and write keep what this code does not know', () => {
   });
 });
 
+describe('the shop: worn things and purchases (PLAY-04, PLAY-05), no new version', () => {
+  const GEAR = { head: null, wand: null, wings: 'wings_petals', trail: null };
+  /** A version 3 save written before the shop: no gear at all. Written out by hand. */
+  const beforeShop = () => ({
+    v: 3, played: true, name: 'Зоряна', dress: '#00ff00', hair: '#112233', wings: false, stars: 31,
+    skills: { add: { level: 3, streak: 0, tasks: 9, first: 9, errors: 0 } }, owned: [], achievements: {},
+    worlds: { fairy: { quests: { q1: 3, q2: 3 }, final: true, starsTaken: [2, 5], flags: { chest: true }, pos: [1, 2] } },
+  });
+
+  it('a version 3 save without gear opens with the default things and all its progress', () => {
+    storage.setItem(KEY, JSON.stringify(beforeShop()));
+    const s = loadSave();
+    expect(storage.data.has('amw-save-damaged')).toBe(false);
+    expect(s.gear).toEqual(GEAR);
+    expect([s.v, s.stars, s.name, s.wings]).toEqual([3, 31, 'Зоряна', false]);
+    expect(s.owned).toEqual([]);
+    expect(worldState(s, 'fairy')).toEqual(beforeShop().worlds.fairy);
+  });
+
+  it('a version 2 and a version 1 save open with the default things', () => {
+    for (const text of [JSON.stringify(v2Save()), JSON.stringify(v1Save())]) {
+      storage.setItem(KEY, text);
+      const s = loadSave();
+      expect(s.gear).toEqual(GEAR);
+      expect(s.owned).toEqual([]);
+    }
+  });
+
+  it('a stored gear missing a slot gets that slot\'s default, and keeps the rest and a slot this code does not know', () => {
+    storage.setItem(KEY, JSON.stringify({ ...beforeShop(), gear: { head: 'crown', wings: null, cape: 'moss' } }));
+    expect(loadSave().gear).toEqual({ ...GEAR, head: 'crown', wings: null, cape: 'moss' });
+  });
+
+  it('a damaged gear field gives the default things', () => {
+    for (const gear of [null, 'crown', [1], 7]) {
+      storage.setItem(KEY, JSON.stringify({ ...beforeShop(), gear }));
+      expect(loadSave().gear).toEqual(GEAR);
+    }
+  });
+
+  it('a damaged list of purchases gives no purchases, and keeps the ids of a list with junk in it', () => {
+    for (const owned of [null, 'crown', { crown: true }, 7]) {
+      storage.setItem(KEY, JSON.stringify({ ...beforeShop(), owned }));
+      const s = loadSave();
+      expect(s.owned).toEqual([]);
+      expect([s.stars, s.name, worldState(s, 'fairy').final]).toEqual([31, 'Зоряна', true]);   // the rest is kept
+    }
+    storage.setItem(KEY, JSON.stringify({ ...beforeShop(), owned: ['crown', 3, null, 'wreath'] }));
+    expect(loadSave().owned).toEqual(['crown', 'wreath']);
+  });
+
+  it('what is bought and worn survives a store and a load (R02)', () => {
+    storage.setItem(KEY, JSON.stringify(beforeShop()));
+    const s = loadSave();
+    s.stars -= 30;                           // the shop's buy, by hand: save.ts knows no shop
+    s.owned.push('crown', 'wand_star');
+    s.gear.head = 'crown';
+    s.gear.wings = null;
+    storeSave(s);
+    const again = loadSave();
+    expect(again.owned).toEqual(['crown', 'wand_star']);
+    expect(again.gear).toEqual({ ...GEAR, head: 'crown', wings: null });
+    expect(again.stars).toBe(1);
+    expect(again.wings).toBe(false);         // the old field is written back as it was, unread
+    expect(JSON.parse(storage.data.get(KEY)!).v).toBe(3);
+  });
+});
+
 describe('a hairstyle chosen in an older save (TECH-14): ignored, the colours kept, no new version', () => {
   /** A version 3 save as the game before TECH-14 wrote it: the hairstyle picked on the start screen. Written out by hand. */
   const v3Text = JSON.stringify({

@@ -4,8 +4,8 @@
  * and any task can be closed without consequences.
  *
  * Stars are read off the sources: the game keeps them in one save field, and the only code that may write it is
- * `addStars` in src/game/context.ts, which adds a positive amount. Spending stars in the shop (PLAY-04) does not exist
- * yet; when it comes, its one spending function is the second allowed writer and is added here by name.
+ * `addStars` in src/game/context.ts, which adds a positive amount, and `buy` in src/game/shop.ts, the one spending
+ * function (PLAY-04), which takes the price of a thing only after canBuy has said yes.
  * Timers are checked by behaviour: every task type at every level is left open for an hour of fake time.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -45,8 +45,14 @@ const STAR_WRITES = [
   /(?:\+\+|--)\s*[\w$.?\]\[()]*\.\s*stars\b/g,
   new RegExp(`(?:${CHAIN}|${AFTER_CALL})\\s*(?:\\+\\+|--)`, 'g'),
 ];
-/** The one allowed writer: addStars in src/game/context.ts adds its own parameter. */
+/** The first allowed writer: addStars in src/game/context.ts adds its own parameter. */
 const ADD_STARS = /const addStars = \(n: number\b[^)]*\) => \{ save\.stars \+= n;/;
+/** The second allowed writer: buy in src/game/shop.ts, which refuses first unless canBuy says yes, then takes the price. */
+const BUY = /export function buy\(s: Save, id: string\): boolean \{\n\s*if \(!canBuy\(s, id\)\) return false;\n\s*const it = item\(id\)!;\n\s*s\.stars -= it\.price!;\n/;
+const ALLOWED = [
+  { file: 'src/game/context.ts', text: 'save.stars += n' },
+  { file: 'src/game/shop.ts', text: 's.stars -= it.price!' },
+];
 
 describe('stars are only ever added (LEARN-14, R13)', () => {
   it('the sources were found', () => {
@@ -56,15 +62,18 @@ describe('stars are only ever added (LEARN-14, R13)', () => {
     expect(names).toContain('src/game/taskviews/panel.ts');
     expect(names).toContain('src/game/taskviews/sort.ts');
     expect(names).toContain('src/game/tasks/sort.ts');
+    expect(names).toContain('src/game/shop.ts');
   });
 
-  it('the save field of the stars is written only by addStars, and addStars only adds', () => {
+  it('the save field of the stars is written only by addStars, which only adds, and by the shop\'s buy (PLAY-04)', () => {
     const writes = STAR_WRITES.flatMap(find);
-    const others = writes.filter((w) => !(w.file === 'src/game/context.ts' && w.text === 'save.stars += n'));
-    expect(others, `stars are written outside addStars: ${where(others)}`).toEqual([]);
+    const others = writes.filter((w) => !ALLOWED.some((a) => a.file === w.file && a.text === w.text));
+    expect(others, `stars are written outside addStars and buy: ${where(others)}`).toEqual([]);
     const context = SOURCES.find((s) => s.path === 'src/game/context.ts')!.text;
     expect(ADD_STARS.test(context), 'addStars in src/game/context.ts does not add its amount to save.stars ("save.stars += n")').toBe(true);
-    expect(writes.length, `addStars must be the single writer of the stars, found: ${where(writes)}`).toBe(1);
+    const shop = SOURCES.find((s) => s.path === 'src/game/shop.ts')?.text ?? '';
+    expect(BUY.test(shop), 'buy in src/game/shop.ts does not take the price right after canBuy ("s.stars -= it.price!")').toBe(true);
+    expect(writes.length, `addStars and buy must be the only writers of the stars, found: ${where(writes)}`).toBe(2);
   });
 
   it('a "stars" field is set in an object only by the fresh save', () => {

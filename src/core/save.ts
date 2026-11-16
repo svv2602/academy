@@ -20,11 +20,15 @@ export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)
   played: boolean;
   name: string;                 // how the cat addresses the child; never leaves the device
-  dress: string; hair: string; wings: boolean;   // a hairstyle of an older save stays in it, unread (TECH-14)
+  // A hairstyle of an older save stays in it, unread (TECH-14). `wings` (version 1 to 3) is unread too and written back
+  // as it is: whether she wears wings, and which, is `gear.wings`.
+  dress: string; hair: string; wings: boolean;
   stars: number;
   /** The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts. */
   skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number }>;
-  owned: string[];                  // purchases (PLAY-04): none yet
+  owned: string[];                  // the things bought in the shop (PLAY-04): kept for ever, never removed
+  /** What the heroine wears, by slot (PLAY-04, PLAY-05): a thing's id of src/game/shop.ts, null = nothing there. */
+  gear: Gear;
   achievements: Record<string, number>;   // PLAY-08: none yet
   difficulty: 0 | 1 | 2 | 3;        // 0 = adaptive, otherwise fixed by the parent
   vol: { music: number; sfx: number; voice: number };
@@ -35,6 +39,12 @@ export interface Save {
   /** The progress of every world played, by world id; a world gets its state on first use (worldState). */
   worlds: Record<string, WorldState>;
 }
+
+/**
+ * The worn things. A version 3 save written before the shop has none: it gets the defaults (the petal wings she has
+ * always had), and a stored one missing a slot gets that slot's default. No new version: the fields are added.
+ */
+export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
 export const SAVE_VERSION = 3;
 const KEY = 'amw-save';
@@ -57,7 +67,7 @@ export function defaultSave(): Save {
     v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
     skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 1, streak: 0, tasks: 0, first: 0, errors: 0 }])),
-    owned: [], achievements: {},
+    owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, achievements: {},
     difficulty: 0, vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},
@@ -167,7 +177,8 @@ function fromStored(s: Stored, d: Save): Save | null {
     // Version 3 kept the first world's chest as `chestOpen` before it had flags (never published: a test device).
     const first = worlds[FIRST_WORLD];
     if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
-    out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) }, worlds } as Save;
+    out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
+      gear: { ...d.gear, ...part(s.gear) }, worlds } as Save;
   } else if (s.v === 2 || s.v === 1) {
     // v2 and v1: the world's progress moves from the top into worlds.fairy (the chest as its flag), the rest (and any
     // field this code does not know) stays on top: the look, the stars, the skills, the settings. Version 1 (the
@@ -184,6 +195,9 @@ function fromStored(s: Stored, d: Save): Save | null {
     // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
     if (!isTier(out.tier)) out.tier = d.tier;
     if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
+    // A damaged list of purchases must not break the shop: only the ids it holds are kept.
+    if (!Array.isArray(out.owned)) out.owned = [];
+    else out.owned = out.owned.filter((id) => typeof id === 'string');
   }
   return out;
 }
