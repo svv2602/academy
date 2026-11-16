@@ -10,3 +10,4 @@ export const UNICORN = { x: 5.2, z: -11.5 };
 export const PATCH = { x: -1.5, z: -15.5 };   // flower patch where the task butterflies fly
 export const CRYSTAL = { x: 2.2, z: -9.2 };
 export const CHEST = { x: -31, z: 6 };        // optional secret behind the birches
+export const SHOP_SIGN = { x: 4, z: 9.6 };   // the shop's signboard at the spawn meadow, right of the path (R10, R19)

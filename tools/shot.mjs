@@ -1687,6 +1687,34 @@ try {
         shopped = { wand: 'wand_star', head, wings: null, hair, wingColor };
         console.log(`shop: tried ${tryId} on and took it off, ${shortChecked ? 'the sparkles showed "N ⭐ more" and bought nothing, ' : ''}bought the star wand ${start.stars} -> ${s3.stars} stars${head === 'wizard_hat' ? ' and the hat' : ''}, hair ${hair}, wings ${wingColor} then none`);
       }
+      // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
+      // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.
+      {
+        const fail = (what) => { throw new Error(`shop sign: ${what}`); };
+        const at = await g(() => ({ x: __game.shopSign.x, z: __game.shopSign.z }));
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
+        // where she starts the sign is not in reach: no "Shop" on the action button there
+        {
+          const t0 = await g(() => __game.time);
+          await page.waitForFunction((t) => __game.time - t >= 0.5, t0, { timeout: T(30000) }).catch(() => fail('0.5 s of game time did not pass'));
+        }
+        if (await visible('#btnAct')) fail(`the action button is shown at the spawn: "${await page.textContent('#btnAct')}"`);
+        // 2.3 m from it, south-west (with the camera turn 0 "forward" is -z): the signboard stands beside her in the frame
+        await g((p) => { __game.teleport(p.x - 1.7, p.z + 1.5); __game.cam.yaw = 0; }, at);
+        await page.waitForFunction(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, { timeout: T(20000) })
+          .catch(() => fail('no action button beside the signboard'));
+        const label = await page.textContent('#btnAct');
+        const want = (await page.textContent('#btnShop')).replace('🛍️', '').trim();   // the word of the book's button
+        if (label !== want) fail(`the action button beside the signboard says "${label}", not "${want}"`);
+        await shot('shop-sign');
+        await act(); await wait(600);
+        if (!(await visible('#shop'))) fail('the action button beside the signboard does not open the shop');
+        if (await visible('#book')) fail('the action button opened the book over the shop');
+        await tapOn('#shopDone').catch((e) => fail(`"done" cannot be pressed: ${why(e)}`)); await wait(400);
+        if (await visible('#shop')) fail('"done" does not close the shop opened from the signboard');
+        if (!(await walks())) fail('the heroine does not walk after the shop of the signboard');
+        console.log(`shop sign: "${label}" beside the signboard at ${at.x}, ${at.z} opened the shop, "done" closed it`);
+      }
       await page.click('#btnBook'); await wait(500);
       // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
       // the second one different.

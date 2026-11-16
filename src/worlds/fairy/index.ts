@@ -11,13 +11,16 @@ import { playScene } from '../../game/stage';
 import { generate as generateSort } from '../../game/tasks/sort';
 import { showSortInWorld, type WorldSort } from '../../game/worldtasks/sort';
 import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
+import { openShop } from '../../ui/shop';
 import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
+import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
+import { SIGN_H } from './scenery';
 import { buildSky } from './sky';
 import { createStarSearch } from './star-search';
 import { strings } from './strings';
@@ -73,10 +76,18 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     try { await g.task(() => show.done); } finally { hideAnswers(); sorting.active = false; sortShow = null; }
   });
 
+  // ---------- the shop's signboard (R10, R19): the mushroom is in the scenery, its badge floats over the cap ----------
+  // Walking up to it shows the action button "Shop"; a tap opens the same screen as the button of the book.
+  const sign = new THREE.Vector3(SHOP_SIGN.x, g.groundY(SHOP_SIGN.x, SHOP_SIGN.z), SHOP_SIGN.z);
+  const badge = shopBadge();
+  badge.position.set(sign.x, sign.y + SIGN_H + 0.7, sign.z);
+  scene.add(badge);
+
   const spots: Spot[] = [
     ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
+    { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
   ];
 
   /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
@@ -106,6 +117,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       flies.update(time);
       butterflies.bob(time);
       sortShow?.update(time);
+      badge.position.y = sign.y + SIGN_H + 0.7 + Math.sin(time * 2) * 0.08;
       updateClouds(dt);
     },
     // A task in the world (the butterflies, the debug "sort") is framed from further away than a conversation.
@@ -121,8 +133,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
 
   const debug: DebugExtras = {
     npcs,
-    // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop.
-    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); } },
+    // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop; shopSign: where
+    // the walkthrough walks up to the shop's signboard.
+    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }
@@ -143,6 +156,34 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
 }
 
 type FairySky = ReturnType<typeof buildSky>;
+
+/**
+ * The badge over the shop's signboard: a bag drawn on a small canvas (no file, no font), always facing the camera -
+ * the same bag as on the button of the book, a lilac circle, not a star (a star over a head means a friend to talk to).
+ */
+function shopBadge(): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#fff6fb'; x.strokeStyle = '#c79bff'; x.lineWidth = 8;
+  x.beginPath(); x.arc(64, 64, 58, 0, Math.PI * 2); x.fill(); x.stroke();
+  x.strokeStyle = '#a05fd6'; x.lineWidth = 7;
+  x.beginPath(); x.arc(64, 50, 15, Math.PI, 0); x.stroke();                     // the handle
+  x.fillStyle = '#ff7fb5';
+  x.beginPath(); x.roundRect(36, 48, 56, 46, 10); x.fill();                      // the bag
+  x.fillStyle = '#ffe066';
+  x.beginPath();
+  for (let i = 0; i < 10; i++) {                                                // a little star on it
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 6 : 14;
+    x.lineTo(64 + Math.cos(a) * r, 72 + Math.sin(a) * r);
+  }
+  x.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
+  s.scale.setScalar(0.85);
+  return s;
+}
 
 /** m: the middle of the arc of the debug "sort" in front of the deer. */
 const SORT_ARC = 2.5;

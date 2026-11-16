@@ -1,17 +1,22 @@
 import * as THREE from 'three';
 import { staticGeo, texturedParts } from '../../core/assets';
 import { fbm, mulberry32, vnoise } from '../../core/util';
+import { SHOP_SIGN } from './layout';
 import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
 import { propMaterial } from '../../core/materials';
+
+/** m: the height of the shop's signboard (its cap top) and the radius of its stem. */
+export const SIGN_H = 2.1;
+const SIGN_STEM = 0.25 * SIGN_H;
 
 /** True where nothing should grow: paths, the pond, quest spots, buildings. */
 function reserved(x: number, z: number, margin: number) {
   if (pathDist(x, z) < 1.6 + margin) return true;
   if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 1 + margin) return true;
   if (Math.hypot(x - CASTLE.x, z - CASTLE.z) < 15 + margin) return true;
-  for (const p of [SPAWN, PATCH, CHEST, SHRINE, ...QUESTS]) if (Math.hypot(x - p.x, z - p.z) < 2.2 + margin) return true;
+  for (const p of [SPAWN, PATCH, CHEST, SHRINE, SHOP_SIGN, ...QUESTS]) if (Math.hypot(x - p.x, z - p.z) < 2.2 + margin) return true;
   return false;
 }
 
@@ -134,7 +139,8 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
       if (s > 1.2) colliders.push({ x, z, r: 0.25 * s });
     }
   }
-  instanced(scene, height, mushGeo, propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 }), mush, true);
+  const mushMat = propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 });
+  instanced(scene, height, mushGeo, mushMat, mush, true);
 
   // Lily pads float on the pond.
   const lily = new THREE.InstancedMesh(lilyGeo, solid, 9);
@@ -165,6 +171,10 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   place(houseGeo, -9.5, 2.5, 1.2, 3.2);
   place(wellGeo, -5, 7.5, 0.4, 1.2);
   place(gazeboGeo, 22.5, -8, 0, 0);
+  // The shop's signboard (R10, R19): a giant fairy mushroom of the clusters, already loaded, at the spawn meadow; the
+  // world (./index.ts) hangs the shop's badge over its cap and puts the action spot beside it.
+  const sign = place(mushGeo, SHOP_SIGN.x, SHOP_SIGN.z, 0.6, SIGN_STEM);
+  sign.scale.setScalar(SIGN_H); sign.material = mushMat;
   for (let i = 0; i < 6; i++) { // gazebo posts only: the child can walk in
     const a = (i / 6) * 6.28 + 0.52;
     colliders.push({ x: 22.5 + Math.cos(a) * 1.9, z: -8 + Math.sin(a) * 1.9, r: 0.2 });
