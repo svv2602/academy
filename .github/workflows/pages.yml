@@ -38,7 +38,7 @@ jobs:
     name: walkthrough ${{ matrix.size }}
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +64,8 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
+          # One walkthrough may take up to 26 minutes here: desktop-tall ran past the default 20 after the shop (PLAY-04/05).
+          E2E_RUN_TIMEOUT_MS: '1560000'
         run: |
           set -o pipefail
           npm run e2e -- --skip-build --mode ${{ matrix.size }} 2>&1 | tee e2e.log

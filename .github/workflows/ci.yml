@@ -49,7 +49,7 @@ jobs:
     name: walkthrough ${{ matrix.size }}
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false        # every size reports, not only the first that failed
       matrix:
@@ -69,13 +69,15 @@ jobs:
       # tools/shot.mjs starts Chrome from this exact path; fail here with a clear reason if the runner has none.
       - name: Check Chrome
         run: /usr/bin/google-chrome --version
-      # The runner has no GPU: software rendering and the lowest fixed graphics tier. One size takes 7-8.5 minutes.
+      # The runner has no GPU: software rendering and the lowest fixed graphics tier. One size takes 13-21 minutes (2026-11-16).
       # The size decides the rest itself (tools/e2e.mjs): desktop is played offline, desktop-tall without the voice.
       - name: Walkthrough
         shell: bash
         env:
           E2E_GL: swiftshader
           Q: '0'
+          # One walkthrough may take up to 26 minutes here: desktop-tall ran past the default 20 after the shop (PLAY-04/05).
+          E2E_RUN_TIMEOUT_MS: '1560000'
           # workflow_dispatch "break": every quest of this size counts as stuck at once, so its walkthrough fails.
           E2E_STUCK_MS: ${{ inputs.break == matrix.size && '1' || '' }}
         run: |
