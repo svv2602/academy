@@ -3,6 +3,7 @@ import { sfx } from '../core/audio';
 import { input } from '../core/input';
 import { tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
+import { createRipple } from './ripple';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
 import type { WorldFrame } from './loop';
@@ -28,8 +29,7 @@ export function createPlayer(g: Game): Player {
   const { hero, cat, cam, camera, touch, groundY, started, speech } = g;
   let vy = 0, grounded = true;
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
-  const tapRing = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.5, 28), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, depthWrite: false }));
-  tapRing.rotation.x = -Math.PI / 2; g.scene.add(tapRing);
+  const ripple = createRipple(g.scene);
 
   return {
     get grounded() { return grounded; },
@@ -50,8 +50,7 @@ export function createPlayer(g: Game): Player {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
             if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {
               g.auto = { x: v.x, z: v.z, stuck: 0, last: 1e9 };
-              tapRing.position.set(v.x, v.y + 0.08, v.z);
-              (tapRing.material as THREE.MeshBasicMaterial).opacity = 0.9;
+              ripple.play(v);
             }
           }
         }
@@ -107,9 +106,6 @@ export function createPlayer(g: Game): Player {
       if (input.act && near) near.run();
       input.act = false;
     },
-    fadeRing: (dt) => {
-      const ring = tapRing.material as THREE.MeshBasicMaterial;
-      ring.opacity = Math.max(0, ring.opacity - dt * 1.4); tapRing.scale.setScalar(1 + (0.9 - ring.opacity));
-    },
+    fadeRing: (dt) => ripple.update(dt),
   };
 }
