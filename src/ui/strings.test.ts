@@ -344,3 +344,50 @@ describe('messages of a device that cannot run the game and of a failed load (TE
     }
   });
 });
+
+describe('texts of the run "learning" (LEARN-03, 06…10, 15, PLAY-15; HINTS.md)', () => {
+  /** The lines of the three-step hint and of the new kinds: spoken, in the order of HINTS.md. */
+  const NEW_SPOKEN = [
+    't_missing', 't_house', 't_before', 't_after', 't_signs', 't_sort_two',
+    'h1_count', 'h1_ten', 'h2_ten', 'h1_add', 'h1_add_cross', 'h2_add_cross', 'h1_sub', 'h1_sub_cross', 'h2_sub_cross',
+    'h2_compare', 'h1_compare_num', 'h2_compare_num', 'h1_signs', 'h2_signs', 'h2_order', 'h1_neighbors', 'h2_neighbors',
+    'h1_missing', 'h1_missing_ten', 'h2_missing', 'h1_house', 'h2_house', 'h2_pattern', 'h1_pattern_grow', 'h2_pattern_grow',
+    'h1_pattern_two', 'h2_pattern_two', 'h1_simon', 'h1_simon_long', 'h1_odd_shape', 'h1_odd_two', 'h2_odd', 'h2_sort',
+    'h1_sort_two', 'h2_sort_two', 'h3_show',
+  ] as const;
+  /** The hint lines recorded before the run: their clips are named by these keys, so the keys stay. */
+  const OLD_HINTS = ['h_count', 'h_left', 'h_compare', 'h_pattern', 'h_odd', 'h_order', 'h_sort', 'h_simon'] as const;
+  /** Interface only: the parents' section. */
+  const PARENTS = [
+    'sk_series', 'sk_pattern', 'sk_memory', 'sk_classify', 'sk_compose', 'sk_logic', 'p_fix', 'p_fix_note', 'p_time', 'p_total', 'p_min',
+    'p_time_none', 'p_hard', 'p_hard_none', 'p_wd0', 'p_wd1', 'p_wd2', 'p_wd3', 'p_wd4', 'p_wd5', 'p_wd6',
+  ] as const;
+  const spoken: Record<string, string> = SPOKEN;
+  const uk: Record<string, string> = STRINGS.uk, ru: Record<string, string> = STRINGS.ru;
+
+  it('every new line and every older hint line is spoken, warmly, in both languages', () => {
+    const bad = [...NEW_SPOKEN, ...OLD_HINTS].filter((k) => spoken[k] !== 'warm' || !uk[k] || !ru[k] || uk[k] === ru[k]);
+    expect(bad).toEqual([]);
+  });
+
+  it('no spoken line of the shared table is one word: the voice model gives silence on it', () => {
+    expect(Object.keys(SPOKEN).filter((k) => recordable(k, uk[k]).trim().split(/\s+/).length < 2)).toEqual([]);
+  });
+
+  it('a hint names no level and no verdict', () => {
+    const hints = Object.keys(SPOKEN).filter((k) => /^h\d?_/.test(k));
+    // At the start of a word only: "порівняємо" (we compare) is no "рівень".
+    const word = (stems: string) => new RegExp(`(^|[^а-яёіїєґʼ'])(${stems})`, 'i');
+    const UK = word('рівен|рівн[яію]|неправильн|помил'), RU = word('уров[ен]|неправильн|ошиб');
+    expect(hints.filter((k) => UK.test(uk[k]) || RU.test(ru[k]))).toEqual([]);
+  });
+
+  it('the parents\' section has its texts, never spoken; the minutes are filled in', () => {
+    expect(PARENTS.filter((k) => !uk[k] || !ru[k] || Object.hasOwn(SPOKEN, k))).toEqual([]);
+    setLang('uk');
+    expect(tf('p_min', { n: 12 })).toBe('12 хв');
+    setLang('ru');
+    expect(tf('p_min', { n: 12 })).toBe('12 мин');
+    setLang('uk');
+  });
+});
