@@ -2,7 +2,8 @@
  * Rebuild voice/phrases.json — the list of lines to record — from the game's own texts.
  *
  * The list is built by `recordingList()` in src/ui/strings.ts from the shared strings and the strings of every world
- * (src/worlds/<id>/strings.ts, in the order of the folder names): one entry per key marked as spoken, Ukrainian text
+ * (src/worlds/<id>/strings.ts, in the order of the folder names), then the bank of the old game's clips
+ * (src/ui/strings-bank.ts): one entry per key marked as spoken, Ukrainian text
  * with the name placeholder cut out, plus the intonation. Nothing is typed into the JSON by hand.
  *
  *   npm run voice:sync              rewrite voice/phrases.json
@@ -54,7 +55,8 @@ async function worldStrings() {
 let list;
 try {
   const { recordingList } = await import('../src/ui/strings.ts');
-  list = recordingList(await worldStrings());
+  const { bank } = await import('../src/ui/strings-bank.ts');
+  list = recordingList(await worldStrings(), bank);
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
 }

@@ -25,10 +25,15 @@ def gemini_key(path):
     sys.exit(f'gen_voice: nothing was sent. No GEMINI_API_KEY in {path}.')
 
 
-def stale(cid, text, style, qa, audio):
-    """A clip is kept only if it was recorded from exactly this text with this intonation."""
+def stale(cid, text, style, qa, audio, bank=None):
+    """A clip is kept only if it was recorded from exactly this text with this intonation.
+
+    A clip of the bank of the old game (public/bank/, tools/import_old_voice.py, VOICE-07) lies in `bank`, not in
+    `audio`; it is found there and never sent to the paid service while its text and intonation stay the same.
+    """
     done = qa.get(cid)
-    return not ((audio / f'{cid}.mp3').exists() and done and done.get('text') == text and done.get('style') == style)
+    here = (audio / f'{cid}.mp3').exists() or (bank is not None and (bank / f'{cid}.mp3').exists())
+    return not (here and done and done.get('text') == text and done.get('style') == style)
 
 
 def check_no_placeholders(phrases):
@@ -70,7 +75,7 @@ def record(g, item, qa):
 
 
 def main():
-    audio = ROOT / 'public' / 'voice'
+    audio, bank = ROOT / 'public' / 'voice', ROOT / 'public' / 'bank'
     phrases = json.loads((ROOT / 'voice' / 'phrases.json').read_text())
     check_no_placeholders(phrases)
     qa_path = ROOT / 'voice' / 'qa.json'
@@ -79,7 +84,7 @@ def main():
     if only and set(only) - set(phrases):
         sys.exit('gen_voice: nothing was sent. Not in voice/phrases.json: ' + ' '.join(sorted(set(only) - set(phrases))))
     todo = [(cid, (text, style)) for cid, (text, style) in phrases.items()
-            if (cid in only if only else '--force' in sys.argv or stale(cid, text, style, qa, audio))]
+            if (cid in only if only else '--force' in sys.argv or stale(cid, text, style, qa, audio, bank))]
     print(f'{len(todo)} of {len(phrases)} lines to record: ' + ' '.join(cid for cid, _ in todo), flush=True)
     if '--dry-run' in sys.argv:
         return

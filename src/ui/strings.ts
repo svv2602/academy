@@ -81,6 +81,11 @@ const S = sameKeys({
     // --- the device cannot run the game / the game could not load (TECH-07, TECH-08): for the grown-ups, text only
     no_webgl: 'Цей браузер не вміє показувати тривимірний світ гри. Оновіть браузер до нової версії або відкрийте гру в іншому браузері.',
     load_failed: 'Не вдалося завантажити гру. Перевірте інтернет і спробуйте ще раз.', retry: 'Спробувати ще раз',
+    // --- the clips of the old game (VOICE-07, tools/import_old_voice.py): its text letter for letter, the plain apostrophe kept
+    praise_0: 'Молодець!', praise_1: 'Чудово!', praise_3: 'Супер!', praise_4: 'Правильно!', praise_5: 'Ура! Вірно!', praise_6: 'Ти розумниця!',
+    praise_7: 'Клас! Ти молодчинка!', try_0: 'Майже! Спробуй ще раз.', try_1: 'Ой, не зовсім. Ще раз!', try_2: 'Подумай ще трішки.',
+    tap_1: 'Один', tap_2: 'Два', tap_3: 'Три', tap_4: 'Чотири', tap_5: "П'ять", tap_6: 'Шість', tap_7: 'Сім', tap_8: 'Вісім', tap_9: "Дев'ять", tap_10: 'Десять',
+    tap_11: 'Одинадцять', tap_12: 'Дванадцять', tap_13: 'Тринадцять', tap_14: 'Чотирнадцять', tap_15: "П'ятнадцять", tap_16: 'Шістнадцять', tap_17: 'Сімнадцять', tap_18: 'Вісімнадцять', tap_19: "Дев'ятнадцять", tap_20: 'Двадцять',
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
@@ -142,6 +147,10 @@ const S = sameKeys({
     shop_bought: 'Теперь это твоё навсегда!',
     no_webgl: 'Этот браузер не умеет показывать трёхмерный мир игры. Обновите браузер до новой версии или откройте игру в другом браузере.',
     load_failed: 'Не удалось загрузить игру. Проверьте интернет и попробуйте ещё раз.', retry: 'Попробовать ещё раз',
+    praise_0: 'Молодец!', praise_1: 'Отлично!', praise_3: 'Супер!', praise_4: 'Правильно!', praise_5: 'Ура! Верно!', praise_6: 'Ты умница!',
+    praise_7: 'Класс! Ты молодчинка!', try_0: 'Почти! Попробуй ещё раз.', try_1: 'Ой, не совсем. Ещё раз!', try_2: 'Подумай ещё немножко.',
+    tap_1: 'Один', tap_2: 'Два', tap_3: 'Три', tap_4: 'Четыре', tap_5: 'Пять', tap_6: 'Шесть', tap_7: 'Семь', tap_8: 'Восемь', tap_9: 'Девять', tap_10: 'Десять',
+    tap_11: 'Одиннадцать', tap_12: 'Двенадцать', tap_13: 'Тринадцать', tap_14: 'Четырнадцать', tap_15: 'Пятнадцать', tap_16: 'Шестнадцать', tap_17: 'Семнадцать', tap_18: 'Восемнадцать', tap_19: 'Девятнадцать', tap_20: 'Двадцать',
   },
 });
 /** The shared table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
@@ -165,6 +174,8 @@ type WorldTable = Record<string, string> & Record<WorldOwnKey, string>;
  * Such a file holds only `import type` and `declare module` (tools/sync_phrases.mjs loads it in Node).
  */
 export interface WorldStrings { id: string; table: { uk: WorldTable; ru: WorldTable }; spoken: Record<string, VoiceStyle> }
+/** Spoken lines kept apart from the game's table: the bank of the old game's clips (src/ui/strings-bank.ts, VOICE-07). */
+export interface SpokenTable { table: Record<Lang, Record<string, string>>; spoken: Record<string, VoiceStyle> }
 /** Each world's strings.ts adds itself: `declare module '../../ui/strings' { interface WorldTables { <id>: typeof strings } }`. */
 export interface WorldTables {}
 type WorldKey = { [W in keyof WorldTables]: keyof WorldTables[W]['table']['uk'] }[keyof WorldTables];
@@ -193,10 +204,22 @@ const SPOKEN = {
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
   h2_odd: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
   shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy',
+  // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists
+  praise_0: 'joy', praise_1: 'joy', praise_3: 'joy', praise_4: 'joy', praise_5: 'joy', praise_6: 'joy', praise_7: 'joy',
+  try_0: 'warm', try_1: 'warm', try_2: 'warm', tap_1: 'warm', tap_2: 'warm', tap_3: 'warm', tap_4: 'warm', tap_5: 'warm', tap_6: 'warm',
+  tap_7: 'warm', tap_8: 'warm', tap_9: 'warm', tap_10: 'warm', tap_11: 'warm', tap_12: 'warm', tap_13: 'warm', tap_14: 'warm', tap_15: 'warm',
+  tap_16: 'warm', tap_17: 'warm', tap_18: 'warm', tap_19: 'warm', tap_20: 'warm',
 } as const satisfies Partial<Record<keyof typeof S.uk, VoiceStyle>>;
 /** A spoken line of the shared table or of any world. */
 export type SpokenKey = keyof typeof SPOKEN | WorldSpokenKey;
 export { SPOKEN };
+/** The praise, "try again" and the numbers 1-20 as keys of the list: the game picks one of these, never builds a key of its own. */
+export const PRAISE = ['praise_0', 'praise_1', 'praise_3', 'praise_4', 'praise_5', 'praise_6', 'praise_7'] as const satisfies readonly SpokenKey[];
+export const TRY = ['try_0', 'try_1', 'try_2'] as const satisfies readonly SpokenKey[];
+const TAPS = ['tap_1', 'tap_2', 'tap_3', 'tap_4', 'tap_5', 'tap_6', 'tap_7', 'tap_8', 'tap_9', 'tap_10', 'tap_11', 'tap_12', 'tap_13', 'tap_14', 'tap_15',
+  'tap_16', 'tap_17', 'tap_18', 'tap_19', 'tap_20'] as const satisfies readonly SpokenKey[];
+/** The recorded number `n` (1-20); null for any other: no clip, and the synthesizer must not take it. */
+export const tapKey = (n: number): SpokenKey | null => (Number.isInteger(n) ? TAPS[n - 1] ?? null : null);
 
 /** The shared table with every world's table added (`addStrings`): what `t`, `tf` and `voiceText` read. */
 const TABLE: Record<Lang, Record<string, string>> = { uk: { ...S.uk }, ru: { ...S.ru } };
@@ -223,9 +246,10 @@ export function recordable(key: string, text: string): string {
 }
 /**
  * What is sent for recording: every spoken line in Ukrainian with its intonation, the shared ones in the order of
- * `SPOKEN`, then each world's in the order given and of its `spoken`. A key two tables share is an error.
+ * `SPOKEN`, then each world's in the order given and of its `spoken`, then the bank's (src/ui/strings-bank.ts).
+ * A key two tables share is an error.
  */
-export function recordingList(worlds: readonly WorldStrings[]): Record<string, [text: string, style: VoiceStyle]> {
+export function recordingList(worlds: readonly WorldStrings[], bank: SpokenTable): Record<string, [text: string, style: VoiceStyle]> {
   const list: Record<string, [text: string, style: VoiceStyle]> = {};
   const keys = new Set(Object.keys(S.uk));
   const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>) => {
@@ -242,6 +266,9 @@ export function recordingList(worlds: readonly WorldStrings[]): Record<string, [
     for (const k of Object.keys(w.table.uk)) if (!own(k)) keys.add(k);
     add(`world "${w.id}"`, w.table.uk, w.spoken);
   }
+  const twice = Object.keys(bank.table.uk).filter((k) => keys.has(k));
+  if (twice.length) throw new Error(`the bank: these strings already exist (one key, one clip): ${twice.join(', ')}`);
+  add('the bank', bank.table.uk, bank.spoken);
   return list;
 }
 /** Saved language; falls back to Ukrainian when storage is missing, blocked or holds an unknown value. */

@@ -5,6 +5,7 @@ import type { Game } from '../../game/context';
 import { numberSprite } from '../../game/fx';
 import type { TaskResult } from '../../game/taskviews/panel';
 import type { Npc, WorldTask } from '../../game/world';
+import { TRY, tapKey, voiceText } from '../../ui/strings';
 import { hideAnswers, showAnswers } from '../../ui/ui';
 import { PATCH } from './layout';
 
@@ -66,7 +67,8 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
         } else {
           btn.classList.add('no'); sfx('soft');
           const round = ++bf.wrong;            // a newer mistake cuts "try again" off and starts its own round
-          void say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
+          const k = TRY[randInt(0, TRY.length - 1)];
+          void say(k, voiceText(k), 'task').then(() => { if (bf.active && bf.wrong === round) void demoCount(); });
         }
       }, closeButterflies);
     });
@@ -94,7 +96,8 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
     scene.add(s); bf.sprites.push(s);
     sparks.burst(f.pos, '#fff2a8', 10, 2);
     sfx('pop');
-    void say(`tap_${bf.counted}`, String(bf.counted), 'task');
+    const k = tapKey(bf.counted);
+    if (k) void say(k, voiceText(k), 'task');
   }
   /**
    * Hint after a miss: the cat says "let's count together" to the end, then counts every butterfly aloud, one by one.

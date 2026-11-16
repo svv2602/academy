@@ -34,6 +34,22 @@ describe('the size budget of the build', () => {
     expect(checkDistSize(folder({ 'assets/voice.js': 900, 'b': 200 }), 1000, 1000, 2000).problems.join()).toContain('without voice/');
   });
 
+  it('leaves the bank of the old game out of both limits (R37), but holds each of its files to the limit for one', () => {
+    const r = checkDistSize(folder({ 'a.glb': 900, 'voice/x.mp3': 900, 'bank/q_add_1_2.mp3': 900, 'bank/cross_2_9.mp3': 900 }), 1000, 1000, 1000);
+    expect(r.problems).toEqual([]);
+    expect([r.total, r.voice, r.bank, r.files]).toEqual([900, 900, 1800, 4]);
+    const big = checkDistSize(folder({ 'a.glb': 900, 'bank/cross_2_9.mp3': 1001 }), 1000, 1000, 1000);
+    expect(big.problems).toEqual(['bank/cross_2_9.mp3: 1001 bytes, the limit for one file is 1000']);
+    // The bank is out of the limits only as long as the service worker does not download it with the installation.
+    const sw = 'define(["./workbox-1"],(function(e){e.precacheAndRoute([{url:"voice/x.mp3",revision:"1"},{url:"bank/q_add_1_2.mp3",revision:"2"}])}));';
+    const cached = checkDistSize(folder({ 'a.glb': 900, 'bank/q_add_1_2.mp3': 900 }), 1000, 1000, 1000);
+    expect(cached.problems).toEqual([]);
+    writeFileSync(join(dirs.at(-1), 'sw.js'), sw);
+    expect(checkDistSize(dirs.at(-1), 2000, 1000, 1000).problems).toEqual(['sw.js precaches 1 files of bank/: the bank is not part of the first load (vite.config.ts globIgnores)']);
+    // Only the folder bank/ is the bank: a file of the game named so is the game's.
+    expect(checkDistSize(folder({ 'assets/bank.js': 900, 'b': 200 }), 1000, 1000, 1000).problems.join()).toContain('without voice/ and bank/');
+  });
+
   it('passes a build within both limits and names its heaviest file', () => {
     const r = checkDistSize(folder({ 'index.html': 900, 'assets/index.js': 800_000, 'models/hero/a.glb': 600_000 }));
     expect(r.problems).toEqual([]);
@@ -50,7 +66,7 @@ describe('the size budget of the build', () => {
 
   it('fails a build above the total, even when every file is within its limit', () => {
     const r = checkDistSize(folder({ 'a': 900, 'b': 900, 'c/d': 900 }), 2000, 1000);
-    expect(r.problems).toEqual(['dist/ without voice/: 2700 bytes in 3 files, the limit is 2000']);
+    expect(r.problems).toEqual(['dist/ without voice/ and bank/: 2700 bytes in 3 files, the limit is 2000']);
   });
 
   it('fails an empty or missing folder: there is nothing to measure', () => {

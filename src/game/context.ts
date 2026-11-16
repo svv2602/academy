@@ -5,6 +5,7 @@ import { tuning } from '../core/tuning';
 import { storeSave, worldState, type Save, type WorldState } from '../core/save';
 import type { Rng } from '../core/rng';
 import { pick, randInt } from '../core/util';
+import { PRAISE, TRY, tapKey, voiceText } from '../ui/strings';
 import { Actor } from './actor';
 import { Sparks } from './fx';
 import type { Stage } from './stage';
@@ -107,14 +108,15 @@ export function createGame(o: {
     sfx('good'); cat.once('Yes', 'Idle');
     sparks.burst(above(hero.root.position, 1.2), '#ff9ed2', 30, 4);
     speech.caption(null);
-    await say(`praise_${pick([0, 1, 3, 4, 5, 6, 7])}`, 'Молодець!', 'story');
+    const k = pick(PRAISE);
+    await say(k, voiceText(k), 'story');
   }
 
   // ----- panel tasks -----
   const hooksFor = (speaker: string): TaskHooks => ({
     prompt: (key) => { void speech.line(key, 'task', 0, speaker); },
-    number: (n) => { void say(`tap_${n}`, String(n), 'task'); },
-    wrong: () => { sfx('soft'); return say(`try_${randInt(0, 2)}`, 'Спробуй ще раз', 'task'); },
+    number: (n) => { const k = tapKey(n); if (k) void say(k, voiceText(k), 'task'); },
+    wrong: () => { sfx('soft'); const k = TRY[randInt(0, TRY.length - 1)]; return say(k, voiceText(k), 'task'); },
     hint: speech.hintLine,
     good: () => sfx('pop'),
   });

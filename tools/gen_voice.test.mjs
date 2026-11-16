@@ -5,7 +5,7 @@
 //    this text with this intonation and was heard back correctly. A changed line fails here until it is re-recorded.
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +38,20 @@ print(json.dumps([v.stale('kept', 'Привіт!', 'warm', qa, audio), v.stale('
     expect(JSON.parse(r.out)).toEqual([false, true, true, true, true]);
   });
 
+  it('a clip of the bank of the old game (public/bank/) is found there and not recorded again', () => {
+    const bank = join(tmp, 'bank');
+    mkdirSync(bank, { recursive: true });
+    writeFileSync(join(bank, 'q_add_1_2.mp3'), 'x');
+    const qa = { q_add_1_2: { text: 'Скільки буде один плюс два?', style: 'warm', score: 1, from: 'old game' } };
+    const r = py(`
+audio, bank, qa = pathlib.Path(${JSON.stringify(join(tmp, 'voice-none'))}), pathlib.Path(${JSON.stringify(bank)}), json.loads(${JSON.stringify(JSON.stringify(qa))})
+print(json.dumps([v.stale('q_add_1_2', 'Скільки буде один плюс два?', 'warm', qa, audio, bank),
+                  v.stale('q_add_1_2', 'Скільки буде один плюс два?', 'warm', qa, audio),
+                  v.stale('q_add_1_2', 'Скільки буде два плюс два?', 'warm', qa, audio, bank)]))`);
+    expect(r.code, r.err).toBe(0);
+    expect(JSON.parse(r.out)).toEqual([false, true, true]);
+  });
+
   it('without a key nothing is sent and the script says so', () => {
     const missing = py(`v.gemini_key(pathlib.Path(${JSON.stringify(join(tmp, 'no-such.env'))}))`);
     expect(missing.code).not.toBe(0);
@@ -68,10 +82,16 @@ describe('recorded clips', () => {
   const clips = JSON.parse(readFileSync(join(root, 'src/core/clips.json'), 'utf8'));
   const HOW = 'Record it: python3 tools/gen_voice.py (paid service, the key is in ~/.config/academy/gemini.env).';
 
+  // A line's clip is in public/voice (the first load, listed in clips.json) or in public/bank (the bank of the old game,
+  // VOICE-07: imported, marked `from` in voice/qa.json, never listed in clips.json - the game does not ask for it yet).
+  const inBank = (key) => existsSync(join(root, 'public/bank', `${key}.mp3`));
+  const hasClip = (key) => (inBank(key) ? !clips.includes(key) && !!qa[key]?.from : existsSync(join(root, 'public/voice', `${key}.mp3`)) && clips.includes(key));
+
   it('every line of voice/phrases.json has a clip recorded from exactly its text and intonation', () => {
     const wrong = Object.entries(phrases).filter(([key, [text, style]]) =>
-      !existsSync(join(root, 'public/voice', `${key}.mp3`)) || !clips.includes(key) || qa[key]?.text !== text || qa[key]?.style !== style)
+      !hasClip(key) || qa[key]?.text !== text || qa[key]?.style !== style)
       .map(([key]) => key);
+    expect(Object.keys(phrases).filter(inBank).length, 'the bank is checked too').toBeGreaterThan(300);
     expect(wrong, `lines without an up-to-date clip: ${wrong.join(' ')}. ${HOW}`).toEqual([]);
   });
 

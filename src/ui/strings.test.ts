@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import phrases from '../../voice/phrases.json';
+import qa from '../../voice/qa.json';
+import { bank } from './strings-bank';
 import {
   SPOKEN, STRINGS, VOICE_STYLES, WORLD_OWN, addStrings, lang, recordable, recordingList, setChildName, setLang, t, tf, voiceText,
-  type SpokenKey, type WorldStrings,
+  PRAISE, TRY, tapKey, type SpokenKey, type WorldStrings,
 } from './strings';
 
 /** Language blocks as plain records, so the test keeps working even when the key sets differ. */
@@ -94,7 +96,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(t('subtitle')).toBe(played.table.ru.subtitle);
     setLang('uk');
     const other: WorldStrings = { id: 'other', table: { uk: { subtitle: 'Інший світ', other_x: 'х' }, ru: { subtitle: 'Другой мир', other_x: 'х' } }, spoken: {} };
-    expect(() => recordingList([...worlds, other])).not.toThrow();
+    expect(() => recordingList([...worlds, other], bank)).not.toThrow();
     addStrings(other, false);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // A second world played is an error: one subtitle on the start screen.
@@ -102,7 +104,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(() => addStrings(third, true)).toThrow(/"third".*subtitle/);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // Never spoken: marking it for recording is an error.
-    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }])).toThrow(/subtitle/);
+    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }], bank)).toThrow(/subtitle/);
   });
 
   it.each(worlds.map((w) => [w.id, w] as const))('%s: each spoken line is in its table, with a known intonation', (_, w) => {
@@ -114,15 +116,15 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: 'в', [key]: 'а' }, ru: { subtitle: 'г', [key]: 'б' } }, spoken: {} });
     expect(() => addStrings(clash('x', 'play'), false)).toThrow(/"x".*play/);
     expect(() => addStrings(worlds[0], false)).toThrow(new RegExp(`"${worlds[0].id}"`));
-    expect(() => recordingList([clash('x', 'play')])).toThrow(/"x".*play/);
-    expect(() => recordingList([...worlds, ...worlds])).toThrow(new RegExp(`"${worlds[0].id}"`));
+    expect(() => recordingList([clash('x', 'play')], bank)).toThrow(/"x".*play/);
+    expect(() => recordingList([...worlds, ...worlds], bank)).toThrow(new RegExp(`"${worlds[0].id}"`));
     // A refused world adds nothing.
     expect(t('play')).toBe('Грати');
   });
 
   it('refuses a spoken line without a Ukrainian text', () => {
     const w: WorldStrings = { id: 'x', table: { uk: { subtitle: 'а' }, ru: { subtitle: 'б' } }, spoken: { nothing_here: 'warm' } };
-    expect(() => recordingList([w])).toThrow(/nothing_here/);
+    expect(() => recordingList([w], bank)).toThrow(/nothing_here/);
   });
 });
 
@@ -230,7 +232,7 @@ describe('lines to record (voice/phrases.json)', () => {
 
   /** The committed file as plain data, so a stale or hand-edited file is reported instead of breaking the test itself. */
   const file: Record<string, unknown> = phrases;
-  const spoken = [...Object.keys(SPOKEN), ...worlds.flatMap((w) => Object.keys(w.spoken))] as SpokenKey[];
+  const spoken = [...Object.keys(SPOKEN), ...worlds.flatMap((w) => Object.keys(w.spoken)), ...Object.keys(bank.spoken)] as SpokenKey[];
   const texts = () => Object.entries(file).map(([k, v]) => ({ key: k, text: Array.isArray(v) ? String(v[0]) : String(v) }));
 
   it('lists exactly the lines marked as spoken (shared, then each world), in the order of the marks', () => {
@@ -245,14 +247,15 @@ describe('lines to record (voice/phrases.json)', () => {
   });
 
   it('is what `npm run voice:sync` builds from the game texts', () => {
-    expect(file).toEqual(recordingList(worlds));
+    expect(file).toEqual(recordingList(worlds, bank));
     // The order too: the file is written in the order of the list.
-    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds)));
+    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank)));
   });
 
   it('has a subtitle in every language for each spoken line', () => {
     for (const l of langs) {
-      expect({ lang: l, noText: spoken.filter((k) => typeof all[l][k] !== 'string') }).toEqual({ lang: l, noText: [] });
+      const text = (k: string) => all[l][k] ?? bank.table[l as 'uk'][k];
+      expect({ lang: l, noText: spoken.filter((k) => typeof text(k) !== 'string') }).toEqual({ lang: l, noText: [] });
     }
   });
 
@@ -283,7 +286,9 @@ describe('lines to record (voice/phrases.json)', () => {
 
   it('records each line as the game speaks it when no name is set', () => {
     setChildName('');
-    expect(texts().filter(({ key, text }) => text !== voiceText(key as SpokenKey)).map(({ key }) => key)).toEqual([]);
+    // The bank is not in the game's table yet (the game asks for none of its clips): its line is its own table's text.
+    const said = (key: string) => (Object.hasOwn(bank.spoken, key) ? bank.table.uk[key] : voiceText(key as SpokenKey));
+    expect(texts().filter(({ key, text }) => text !== said(key)).map(({ key }) => key)).toEqual([]);
   });
 
   it('never carries the name, whatever name and language are set', () => {
@@ -293,8 +298,8 @@ describe('lines to record (voice/phrases.json)', () => {
     expect(t('intro')).toContain('Зоряна');
     expect(voiceText('intro')).toContain('Зоряна');
     // …the list for recording is built the same and matches the committed file.
-    expect(JSON.stringify(recordingList(worlds))).not.toContain('Зоряна');
-    expect(recordingList(worlds)).toEqual(file);
+    expect(JSON.stringify(recordingList(worlds, bank))).not.toContain('Зоряна');
+    expect(recordingList(worlds, bank)).toEqual(file);
     expect(JSON.stringify(file)).not.toContain('Зоряна');
   });
 
@@ -371,7 +376,11 @@ describe('texts of the run "learning" (LEARN-03, 06…10, 15, PLAY-15; HINTS.md)
   });
 
   it('no spoken line of the shared table is one word: the voice model gives silence on it', () => {
-    expect(Object.keys(SPOKEN).filter((k) => recordable(k, uk[k]).trim().split(/\s+/).length < 2)).toEqual([]);
+    // Only lines still to be recorded: a clip imported from the old game (`from` in voice/qa.json) exists already.
+    const records = qa as unknown as Record<string, { from?: string }>;
+    const imported = (k: string) => typeof records[k]?.from === 'string';
+    expect(Object.keys(SPOKEN).filter((k) => imported(k)).length, 'the old clips are exempt by their mark').toBe(30);
+    expect(Object.keys(SPOKEN).filter((k) => !imported(k) && recordable(k, uk[k]).trim().split(/\s+/).length < 2)).toEqual([]);
   });
 
   it('a hint names no level and no verdict', () => {
@@ -389,5 +398,25 @@ describe('texts of the run "learning" (LEARN-03, 06…10, 15, PLAY-15; HINTS.md)
     setLang('ru');
     expect(tf('p_min', { n: 12 })).toBe('12 мин');
     setLang('uk');
+  });
+});
+
+describe('the clips of the old game (VOICE-07)', () => {
+  const records = qa as unknown as Record<string, { text: string; style: string; from?: string }>;
+  it('the bank\'s Ukrainian text, built from the key, is letter for letter the text its clip was recorded from', () => {
+    const keys = Object.keys(bank.table.uk);
+    expect(keys.length).toBe(363);
+    expect(keys.filter((k) => records[k]?.text !== bank.table.uk[k] || !records[k]?.from)).toEqual([]);
+    expect(Object.keys(bank.table.ru).sort()).toEqual([...keys].sort());
+    expect(keys.filter((k) => !bank.table.ru[k] || bank.table.ru[k] === bank.table.uk[k])).toEqual([]);
+    expect(bank.table.ru.cross_2_9).toBe('Давай посчитаем вместе! Два плюс девять. Переставим: девять плюс два. Девять плюс один — десять, и ещё один — одиннадцать.');
+  });
+
+  it('the praise, "try again" and the numbers 1-20 are keys of the list, with the text of their clip', () => {
+    const uk: Record<string, string> = STRINGS.uk;
+    const keys = [...PRAISE, ...TRY, ...Array.from({ length: 20 }, (_, i) => tapKey(i + 1))];
+    expect(keys.filter((k) => !k || !Object.hasOwn(SPOKEN, k) || records[k]?.text !== uk[k] || !records[k]?.from)).toEqual([]);
+    expect([tapKey(0), tapKey(21), tapKey(2.5), tapKey(-1)]).toEqual([null, null, null, null]);
+    expect(tapKey(20)).toBe('tap_20');
   });
 });

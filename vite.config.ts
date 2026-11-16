@@ -31,7 +31,9 @@ export default defineConfig({
       // desktop walkthrough of that command is played offline, so a missing type fails it. The largest file is
       // under 1 MB (tools/assets.test.mjs holds the models to that); a file above the limit here would be left out
       // of the cache with only a build warning.
-      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], maximumFileSizeToCacheInBytes: 4_000_000,
+      // The bank of the old game's clips (public/bank/, tools/import_old_voice.py) is not part of the first load (R37):
+      // a clip of it is fetched when first played, never with the installation.
+      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**'], maximumFileSizeToCacheInBytes: 4_000_000,
         clientsClaim: true, skipWaiting: false },
       manifest: {
         name: 'Академія чарівних світів',

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { say, sfx, speaking, stopVoice } from '../../core/audio';
 import type { Game } from '../../game/context';
 import type { Npc, WorldTask } from '../../game/world';
-import { t } from '../../ui/strings';
+import { t, tapKey, voiceText } from '../../ui/strings';
 
 /**
  * The state of the search; window.__game reads this very object, so it is changed in place. `items` is replaced by
@@ -85,11 +85,12 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
             it.found = true; it.mesh.visible = false; search.idle = 0;
             sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
             const n = ++search.found;
-            if (n < 5) void say(`tap_${n}`, String(n), 'task');
+            const k = tapKey(n)!;   // at most 5 stars
+            if (n < 5) void say(k, voiceText(k), 'task');
             searchCaption();
             // The last number is heard to the end before the praise (see finishSearch). It cuts off whatever sounds, as
             // every number does, but has the story's rank: a conversation started at this moment is not turned away.
-            if (n === 5) { stopVoice(); finishSearch(say(`tap_${n}`, String(n), 'story')); }
+            if (n === 5) { stopVoice(); finishSearch(say(k, voiceText(k), 'story')); }
           }
         }
       }
