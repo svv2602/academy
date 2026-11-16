@@ -1251,9 +1251,14 @@ try {
       };
       let crystalsWrong = false;
       for (const q of quests.filter((x) => plays(x.id))) {
-        const t0 = Date.now();
+        // "Stuck" is no progress, not a long chain: the clock starts again at every step of the chain. A chain whose tasks are
+        // met for the first time (closed with the cross, then three deliberate mistakes each) outlasts one limit on the slow
+        // CI runner while every step of it moves on (the deer's chain of a new kind, 2026-11-16).
+        let t0 = Date.now(), at = -1;
         while ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
-          if (Date.now() - t0 > T(stuckMs)) throw new Error('quest stuck: ' + q.id);
+          const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
+          if (step !== at) { at = step; t0 = Date.now(); }
+          if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (no step for ${Math.round(T(stuckMs) / 1000)} s at step ${step + 1})`);
           await starsKept(`in the quest "${q.id}"`);
           // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
           if (!crystalsWrong && !(await g(() => __game.busy))) {
