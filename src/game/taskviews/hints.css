@@ -37,6 +37,14 @@
 .tf > .it.hit { transform: scale(1.12); }
 .tf > .tf-e { box-sizing: border-box; border: 2px dashed #e2d2f1; background: none; }
 .group.framed { max-width: none; padding: 6px; }
+/* The phone held sideways: a sum of 10-18 (level 4) stacks two frames in its first group, and the panel grew under the
+   cat's bubble. Only the padding around frames and groups gives way; a thing stays 44 x 44 and the 6px between things
+   stays, so a counted thing grown to 1.12 still touches no other. */
+@media (max-height: 430px) {
+  .group.framed { padding: 1px; }
+  .tens.stack { gap: 3px; }
+  .tens.stack .tf { padding: 1px; border-width: 2px; }
+}
 
 /* Taking away across ten (rung 2 of "sub", level 5): a gone thing that has left keeps its cell, so the frame keeps its shape. */
 .tf > .it.away { opacity: 0; }
