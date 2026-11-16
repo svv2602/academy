@@ -82,9 +82,6 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 .swatches { display: flex; gap: 10px; }
 .swatches button { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 2px #e6d5f2; }
 .swatches button.sel { box-shadow: 0 0 0 4px #a56bff; transform: scale(1.12); }
-.styles { display: flex; gap: 8px; }
-.styles button { min-height: 44px; padding: 6px 14px; border-radius: 999px; background: #f1e6fa; font-size: 17px; font-weight: 700; color: #a07ac0; }
-.styles button.sel { background: #a56bff; color: #fff; }
 .big { margin-top: 14px; min-height: 44px; padding: 12px 54px; font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #fff; border-radius: 999px;
   background: linear-gradient(#ff9bd0, #ff5fa8); box-shadow: 0 7px 0 #d43f86; }
 .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #d43f86; }
@@ -122,7 +119,6 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
   #start .row > span { min-width: 62px; }
   #name { padding: 4px 10px; width: 150px; border-width: 2px; }
   .swatches { gap: 6px; } .swatches button { width: 44px; height: 44px; border-width: 3px; }
-  .styles { gap: 4px; } .styles button { padding: 4px 12px; font-size: 14px; }
   #start .big { margin-top: 6px; min-height: 44px; padding: 6px 36px; font-size: 22px; }
   .link { margin-top: 5px; font-size: 12px; }
   #langs { top: 6px; right: 10px; } #langs button { font-size: 12px; padding: 2px 6px; }

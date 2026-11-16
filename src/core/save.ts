@@ -20,7 +20,7 @@ export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)
   played: boolean;
   name: string;                 // how the cat addresses the child; never leaves the device
-  dress: string; hair: string; hairStyle: 'long' | 'buns' | 'simpleparted'; wings: boolean;
+  dress: string; hair: string; wings: boolean;   // a hairstyle of an older save stays in it, unread (TECH-14)
   stars: number;
   /** The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts. */
   skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number }>;
@@ -54,7 +54,7 @@ const CHEST_FLAG = 'chest';
 
 export function defaultSave(): Save {
   return {
-    v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', hairStyle: 'long', wings: true,
+    v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
     skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 1, streak: 0, tasks: 0, first: 0, errors: 0 }])),
     owned: [], achievements: {},

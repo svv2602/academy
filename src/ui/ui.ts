@@ -92,11 +92,11 @@ export function fanfare(title: Key, text: string, gemColor = '#7fe3ff'): Promise
 const DRESS = ['#ff7eb6', '#b388ff', '#5cc8ff', '#ffd54f', '#6ee7a8'];
 const HAIR = ['#8a5a3a', '#f5d16b', '#3b2a3a', '#ff8a5c', '#ff9ed2'];
 
-export function initStart(sel: { dress: string; hair: string; name: string; hairStyle: string }, hasSave: boolean, onChange: () => void) {
+export function initStart(sel: { dress: string; hair: string; name: string }, hasSave: boolean, onChange: () => void) {
   const applyText = () => {
     $('title').textContent = t('title'); $('subtitle').textContent = t('subtitle');
-    $('loadingText').textContent = t('loading'); $('lblDress').textContent = t('dress'); $('lblStyle').textContent = t('style');
-    document.querySelectorAll<HTMLElement>('#style button').forEach((b) => { b.textContent = t(('style_' + b.dataset.style) as Key); }); $('lblName').textContent = t('name'); $<HTMLInputElement>('name').placeholder = t('namePh'); $('lblHair').textContent = t('hair');
+    $('loadingText').textContent = t('loading'); $('lblDress').textContent = t('dress');
+    $('lblName').textContent = t('name'); $<HTMLInputElement>('name').placeholder = t('namePh'); $('lblHair').textContent = t('hair');
     el.play.textContent = hasSave ? t('cont') : t('play'); el.restart.textContent = t('again');
     document.querySelectorAll<HTMLElement>('#langs button').forEach((b) => b.classList.toggle('sel', b.dataset.lang === lang));
     renderNotice();
@@ -121,18 +121,6 @@ export function initStart(sel: { dress: string; hair: string; name: string; hair
     }
   };
   fill('dress', DRESS, 'dress'); fill('hair', HAIR, 'hair');
-  const styles = $('style');
-  for (const st of ['long', 'buns', 'simpleparted']) {
-    const b = document.createElement('button');
-    b.dataset.style = st; b.textContent = t(('style_' + st) as Key);
-    b.classList.toggle('sel', sel.hairStyle === st);
-    b.addEventListener('click', () => {
-      sel.hairStyle = st;
-      styles.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', x === b));
-      onChange();
-    });
-    styles.appendChild(b);
-  }
   el.restart.classList.toggle('hidden', !hasSave);
 }
 

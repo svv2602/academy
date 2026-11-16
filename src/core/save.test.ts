@@ -377,8 +377,8 @@ describe('loadSave', () => {
     expect(loaded).toEqual(v1AsV3());
     expect(loaded.v).toBe(SAVE_VERSION);
     expect(loaded.stars).toBe(12);                       // the stars of the slice are the child's
-    expect([loaded.name, loaded.dress, loaded.hair, loaded.hairStyle, loaded.wings, loaded.played])
-      .toEqual(['Зоряна', '#00ff00', '#112233', 'buns', false, true]);
+    expect([loaded.name, loaded.dress, loaded.hair, loaded.wings, loaded.played]).toEqual(['Зоряна', '#00ff00', '#112233', false, true]);
+    expect(loaded).toHaveProperty('hairStyle', 'buns');   // not read any more (TECH-14), kept as a field this code does not know
     expect(worldState(loaded, 'fairy')).toEqual({ quests: {}, final: false, starsTaken: [0, 5], flags: { chest: true }, pos: [-3, 8] });
     // The stage of the one quest of the slice maps onto none of the five: the story starts again, nothing of it on top.
     for (const field of ['stage', 'quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) expect(loaded).not.toHaveProperty(field);
@@ -519,6 +519,43 @@ describe('version 3: read and write keep what this code does not know', () => {
       expect(loadSave().worlds).toEqual({});
     }
   });
+});
+
+describe('a hairstyle chosen in an older save (TECH-14): ignored, the colours kept, no new version', () => {
+  /** A version 3 save as the game before TECH-14 wrote it: the hairstyle picked on the start screen. Written out by hand. */
+  const v3Text = JSON.stringify({
+    v: 3, played: true, name: 'Зоряна', dress: '#00ff00', hair: '#112233', hairStyle: 'buns', wings: false, stars: 7,
+    skills: { add: { level: 3, streak: 0, tasks: 9, first: 9, errors: 0 } },
+    worlds: { fairy: { quests: { q1: 3 }, final: false, starsTaken: [2], flags: {}, pos: [1, 2] } },
+  });
+  const olderSaves: [string, string][] = [['3', v3Text], ['2', JSON.stringify(v2Save())], ['1', JSON.stringify(v1Save())]];
+
+  it('a fresh save has no hairstyle, and the version stays 3', () => {
+    expect(defaultSave()).not.toHaveProperty('hairStyle');
+    expect(loadSave()).not.toHaveProperty('hairStyle');
+    expect(SAVE_VERSION).toBe(3);
+  });
+
+  for (const [v, text] of olderSaves) {
+    it(`a version ${v} save with a hairstyle opens without an error, with its colours and its progress`, () => {
+      storage.setItem(KEY, text);
+      const loaded = loadSave();
+      expect(storage.data.has('amw-save-damaged')).toBe(false);   // read, not restored from a backup
+      expect([loaded.v, loaded.name, loaded.dress, loaded.hair, loaded.wings]).toEqual([3, 'Зоряна', '#00ff00', '#112233', false]);
+      expect(loaded.stars).toBe(JSON.parse(text).stars);
+      expect(worldState(loaded, 'fairy').starsTaken).toEqual(v === '3' ? [2] : JSON.parse(text).starsTaken);
+    });
+
+    it(`the hairstyle of a version ${v} save is written back as it was, a field this code does not know`, () => {
+      storage.setItem(KEY, text);
+      const s = loadSave();
+      s.dress = '#5cc8ff';                    // the child picks another dress on the start screen
+      storeSave(s);
+      const stored = JSON.parse(storage.data.get(KEY)!);
+      expect(stored.hairStyle).toBe('buns');
+      expect([stored.v, stored.dress, stored.hair]).toEqual([3, '#5cc8ff', '#112233']);
+    });
+  }
 });
 
 describe('backups: a save that cannot be read is restored (TECH-11)', () => {

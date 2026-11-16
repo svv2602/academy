@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { gltf, type Rig } from '../core/assets';
 
-/** The look the start screen picks. A hairstyle of an older save is ignored: the heroine has the one of her model (TECH-14). */
-export interface Look { dress: string; hair: string; hairStyle?: string; }
+/** The look the start screen picks. The heroine has the hairstyle of her model (TECH-14); an older save's one is not read. */
+export interface Look { dress: string; hair: string; }
 
 /** Game animation names -> clips of the Universal Animation Library. */
 const CLIPS: Record<string, string> = {
