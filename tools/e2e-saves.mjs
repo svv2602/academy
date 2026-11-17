@@ -30,6 +30,7 @@ export const BLOCKS = [
   'shop-sign',      // the signboard of the shop
   'parents',        // the gate, the version, the voice slider, the quality button
   'leave',          // leaving the page saves the spot; after the reload she wears what the shop sold
+  'looks',          // the four looks of the start screen, then the hair alone in the fitting room (PLAY-06)
   'start-again',    // "start again" clears the save
 ];
 
@@ -97,7 +98,7 @@ export const GROUPS = {
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'leave'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'leave', 'looks'],
   },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },

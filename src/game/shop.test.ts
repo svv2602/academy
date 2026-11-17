@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultSave, defaultWorld } from '../core/save';
 import type { Save } from '../core/save';
 import { CATALOG, buy, canBuy, equip, has, item, itemState, unlocked } from './shop';
+import { GEAR } from './gear';
 import type { Slot } from './shop';
 
 /** A fresh save with some stars and, when asked, the first world finished. */
@@ -25,6 +26,8 @@ describe('the catalog of the first shop (PLAY-04, decisions of 2026-11-15)', () 
       wand_star: ['wand', 10], wings_butterfly: ['wings', 15], wreath: ['head', 15], crown: ['head', 30],
       wizard_hat: ['head', 30], trail_sparkle: ['trail', 40],
       wand_crystal: ['wand', 'crystal'], earrings_star: ['head', 'three_secrets'], wings_petals: ['wings', 'free'],
+      tiara: ['head', 'free'], wizard_cap: ['head', 'free'], elf_ears: ['head', 'free'],
+      wand_flower: ['wand', 'free'], wand_moon: ['wand', 'free'], wand_leaf: ['wand', 'free'],
     });
   });
 
@@ -196,5 +199,55 @@ describe('wearing (PLAY-05)', () => {
     equip(s, 'trail', null);
     expect(has(s, 'trail_sparkle')).toBe(true);
     expect(s.owned).toEqual(['trail_sparkle']);
+  });
+});
+
+describe('the things of the looks (PLAY-06, R27: simple free versions, the full ones stay in the shop)', () => {
+  const LOOK_THINGS = ['tiara', 'wizard_cap', 'elf_ears', 'wand_flower', 'wand_moon', 'wand_leaf'];
+
+  it('are free, marked as things of a look, have no price and no reward, and hang on a bone', () => {
+    expect(CATALOG.filter((i) => i.look).map((i) => i.id).sort()).toEqual([...LOOK_THINGS].sort());
+    for (const id of LOOK_THINGS) {
+      const it = item(id)!;
+      expect(it.free, id).toBe(true);
+      expect(it.price, id).toBeUndefined();
+      expect(it.reward, id).toBeUndefined();
+      expect(GEAR[id as keyof typeof GEAR].slot, id).toBe(it.slot);
+      expect(GEAR[id as keyof typeof GEAR].bone, id).not.toBeNull();
+    }
+  });
+
+  it('are hers from the start, shown as hers (no price), and cannot be bought for any stars', () => {
+    const s = save(1000);
+    for (const id of LOOK_THINGS) {
+      expect(has(s, id), id).toBe(true);
+      expect(itemState(s, id), id).toEqual({ kind: 'owned', worn: false });
+      expect(canBuy(s, id), id).toBe(false);
+      expect(buy(s, id), id).toBe(false);
+    }
+    expect(s.stars).toBe(1000);
+    expect(s.owned).toEqual([]);
+  });
+
+  it('are put on and taken off in the fitting room like any other thing, and stay hers', () => {
+    const s = save(0);
+    for (const id of LOOK_THINGS) {
+      const slot = item(id)!.slot;
+      expect(equip(s, slot, id), id).toBe(true);
+      expect(s.gear[slot]).toBe(id);
+      expect(itemState(s, id)).toEqual({ kind: 'owned', worn: true });
+      expect(equip(s, slot, null)).toBe(true);
+      expect(s.gear[slot]).toBeNull();
+      expect(has(s, id)).toBe(true);
+    }
+    expect(equip(s, 'wand', 'tiara')).toBe(false);
+  });
+
+  it('the full things are still sold or given as they were: the crown, the hat, the star and crystal wands, the earrings', () => {
+    expect(item('crown')!.price).toBe(30);
+    expect(item('wizard_hat')!.price).toBe(30);
+    expect(item('wand_star')!.price).toBe(10);
+    expect(item('wand_crystal')!.reward).toBe('crystal');
+    expect(item('earrings_star')!.reward).toBe('three_secrets');
   });
 });

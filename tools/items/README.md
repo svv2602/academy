@@ -3,19 +3,19 @@
 `items.py` строит вещи из простых фигур Blender (цилиндры, конусы, сферы, торы, звёзды) — собственные модели игры,
 не CC0-наборы и не платный сервис (`CREDITS.md`). Запуск бесплатный и локальный, из корня репозитория:
 
-    blender -b --factory-startup --python tools/items/items.py -- models-src/items models-unused/items
+    blender -b --factory-startup --python tools/items/items.py -- models-src/items models-src/items
     npm run assets                          # models-src/items -> public/models/items (сжатие)
     npm run e2e -- --update-models          # если менялся список вещей: переписать tools/models-used.json
 
-Первый каталог получает вещи первой лавки (их грузит игра), второй — вещи образов PLAY-06, которые игра пока не грузит.
+Первый каталог получает вещи лавки, второй — вещи образов PLAY-06; с PLAY-06 игра грузит и те и другие, поэтому оба — `models-src/items`.
 
 | id | кость | где |
 |---|---|---|
 | `wand_star`, `wand_crystal` | `hand_r` | `models-src/items/` |
 | `wreath`, `crown`, `wizard_hat`, `earrings_star` | `Head` | `models-src/items/` |
 | `wings_butterfly` (два узла `wing_l`, `wing_r` с шарниром у позвоночника — машут) | `spine_03` | `models-src/items/` |
-| `tiara`, `wizard_cap`, `elf_ears` | `Head` | `models-unused/items/` |
-| `wand_flower`, `wand_moon`, `wand_leaf` | `hand_r` | `models-unused/items/` |
+| `tiara`, `wizard_cap`, `elf_ears` (образы, PLAY-06) | `Head` | `models-src/items/` |
+| `wand_flower`, `wand_moon`, `wand_leaf` (образы, PLAY-06) | `hand_r` | `models-src/items/` |
 
 ## Как вещь держится на героине
 

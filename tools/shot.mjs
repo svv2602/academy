@@ -1044,7 +1044,7 @@ try {
         await g(([x, z]) => __game.teleport(x, z), back); await gameWait(1);
         console.log(`the heroine: one model, feet on the ground in ${(await g(() => __game.hero.actions.size))} clips, ${body.skin} skin texels kept, ${body.dressPainted} dress texels painted`);
 
-        // ---- her items (PLAY-04, PLAY-05, src/game/gear.ts): all seven modelled items hang on her, none but the petals
+        // ---- her items (PLAY-04, PLAY-05, PLAY-06, src/game/gear.ts): all thirteen modelled items hang on her, none but the petals
         // shown by default; each modelled item, in every clip sampled 13 times, rides on its bone (the distance from a point
         // of the item to the bone stays the same within 1 cm and within the reach of its slot); in Walk, Run, Jump and
         // Interact the wand, beyond the grip, keeps out
@@ -1059,7 +1059,8 @@ try {
             if (gear.get(slot) !== id) out.errors.push(`by default the slot "${slot}" wears ${gear.get(slot)}, not ${id}`);
           }
           for (const [id, part] of Object.entries(gear.parts)) if (part.object.visible) out.errors.push(`${id} is worn by default`);
-          const want = ['crown', 'earrings_star', 'wand_crystal', 'wand_star', 'wings_butterfly', 'wizard_hat', 'wreath'];
+          // the seven of the shop and the six of the looks (PLAY-06, src/game/looks.ts)
+          const want = ['crown', 'earrings_star', 'elf_ears', 'tiara', 'wand_crystal', 'wand_flower', 'wand_leaf', 'wand_moon', 'wand_star', 'wings_butterfly', 'wizard_cap', 'wizard_hat', 'wreath'];
           if (Object.keys(gear.parts).sort().join() !== want.join()) out.errors.push(`the items on her: ${Object.keys(gear.parts).sort().join(', ')}, not ${want.join(', ')}`);
           let mesh; const B = {};
           model.traverse((o) => { if (o.isSkinnedMesh) mesh = o; if (o.isBone) B[o.name] = o; });
@@ -2222,6 +2223,101 @@ try {
           if (left.length) errors.push(`shop: ${mode}: after the reload ${left.join('; ')}`);
           else console.log(`shop: after the reload she holds ${a.wand}, has no wings, hair ${a.hair}, wing colour ${a.wingColor}`);
         } else if (listed('shop')) errors.push(`shop: ${mode}: the shop was not played`);
+      }
+      // ---- the four looks of the start screen (PLAY-06, R24-R26): played on the start screen of the reload above.
+      // Each button puts its whole look on the save and on her at once, stored, the trail and the purchases kept; its
+      // picture; every two looks differ in two parameters or more. Then "play", the fitting room changes the hair alone
+      // (R25), and a reload brings the start screen back for what follows.
+      if (has('looks')) {
+        const fail = (what) => { throw new Error(`looks: ${what}`); };
+        // What the customer chose (shop-and-looks.md §5, in the colours of the palettes): written here, not read from the game.
+        const LOOK = {
+          fairy: { dress: '#5cc8ff', hair: '#f5d16b', wings: 'wings_petals', wingColor: '#ffd1ec', head: null, wand: 'wand_flower' },
+          princess: { dress: '#ff7eb6', hair: '#f5d16b', wings: null, wingColor: '#fff3b8', head: 'tiara', wand: null },
+          elf: { dress: '#6ee7a8', hair: '#ff8a5c', wings: null, wingColor: '#c9ffe0', head: 'elf_ears', wand: 'wand_leaf' },
+          witch: { dress: '#b388ff', hair: '#3b2a3a', wings: null, wingColor: '#e6d4ff', head: 'wizard_cap', wand: 'wand_moon' },
+        };
+        const KEYS = ['dress', 'hair', 'wings', 'wingColor', 'head', 'wand'];
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const until = (fn, arg, what, ms = 10000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what));
+        if (!(await visible('#setup')) || !(await visible('#start'))) fail('the start screen is not shown');
+        await until(() => window.__game?.gear && document.querySelectorAll('#looks button[data-look]').length === 4, null, 'no row of four looks on the start screen', 30000);
+        const look = () => g(() => {
+          const s = __game.save, gear = __game.gear, st = JSON.parse(localStorage.getItem('amw-save') || '{}');
+          const lit = (id) => [...document.querySelectorAll(`#${id} button`)].findIndex((b) => b.classList.contains('sel'));
+          return {
+            save: { dress: s.dress, hair: s.hair, wings: s.gear.wings, wingColor: s.wingColor, head: s.gear.head, wand: s.gear.wand },
+            stored: st.gear && { dress: st.dress, hair: st.hair, wings: st.gear.wings, wingColor: st.wingColor, head: st.gear.head, wand: st.gear.wand },
+            worn: { head: gear.get('head'), wand: gear.get('wand'), wings: gear.get('wings'), tint: gear.color },
+            shown: Object.entries(gear.parts).filter(([, p]) => p.object.visible).map(([id]) => id).sort(),
+            petals: __game.hero.root.children.filter((o) => o.isMesh && o.visible && o.material.transparent).length,
+            trail: s.gear.trail, owned: [...s.owned], stars: s.stars,
+            lit: [...document.querySelectorAll('#looks button.sel')].map((b) => b.dataset.look),
+            swatch: { dress: lit('dress'), hair: lit('hair') },
+          };
+        });
+        const before = await look();
+        const seen = {};
+        for (const id of Object.keys(LOOK)) {
+          const sel = `#looks [data-look=${id}]`, want = LOOK[id];
+          // the button lies inside the window and is big enough for a finger
+          const box = await g((q) => { const r = document.querySelector(q).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight }; }, sel);
+          if (box.x < 0 || box.y < 0 || box.x + box.w > box.vw || box.y + box.h > box.vh) fail(`the button of ${id} is outside the window: ${JSON.stringify(box)}`);
+          if (box.w < 44 || box.h < 44) fail(`the button of ${id} is ${box.w}x${box.h}, smaller than 44x44`);
+          await tap(sel);
+          // Waited for by what the tap does (the save holds the look), not by the clock; a wrong look is reported below.
+          await page.waitForFunction((w) => Object.entries(w).every(([k, v]) => (k in __game.save.gear ? __game.save.gear[k] : __game.save[k]) === v), want, { timeout: T(5000) }).catch(() => {});
+          const a = await look(), wrong = [];
+          for (const k of KEYS) {
+            if (a.save[k] !== want[k]) wrong.push(`the save's ${k} ${a.save[k]}, not ${want[k]}`);
+            if (a.stored?.[k] !== want[k]) wrong.push(`the stored ${k} ${a.stored?.[k]}, not ${want[k]}`);
+          }
+          for (const k of ['head', 'wand', 'wings']) if (a.worn[k] !== want[k]) wrong.push(`she wears ${a.worn[k]} as ${k}, not ${want[k]}`);
+          if (a.worn.tint !== want.wingColor) wrong.push(`her wings are tinted ${a.worn.tint}, not ${want.wingColor}`);
+          const models = [want.head, want.wand].filter(Boolean).sort();
+          if (a.shown.join() !== models.join()) wrong.push(`the items shown on her: ${a.shown.join(', ') || 'none'}, not ${models.join(', ') || 'none'}`);
+          if ((a.petals > 0) !== (want.wings === 'wings_petals')) wrong.push(`${a.petals} petals shown with the wings ${want.wings}`);
+          if (a.trail !== before.trail || a.owned.join() !== before.owned.join() || a.stars !== before.stars) wrong.push(`the trail, the purchases or the stars changed: ${JSON.stringify([a.trail, a.owned, a.stars])}`);
+          if (a.lit.join() !== id) wrong.push(`the lit look is ${a.lit.join(', ') || 'none'}`);
+          if (a.swatch.dress < 0 || a.swatch.hair < 0) wrong.push('the swatches of the start screen do not show the colours of the look');
+          if (wrong.length) fail(`${id}: ${wrong.join('; ')}`);
+          seen[id] = a.save;
+          await shot(`look-${id}`);
+        }
+        // R26: every two looks differ in two parameters or more, as they were seen
+        const ids = Object.keys(seen);
+        for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+          const n = KEYS.filter((k) => seen[ids[i]][k] !== seen[ids[j]][k]).length;
+          if (n < 2) fail(`${ids[i]} and ${ids[j]} differ in ${n} parameter(s)`);
+        }
+        // R25: in the fitting room the hair changes on its own, the rest of the look (the witch's, the last one) stays
+        const witch = seen.witch;
+        await page.click('#play');
+        await until(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden'), null, 'the game did not start after "play"', 60000);
+        await tap('#btnBook');
+        await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open');
+        await tap('#btnShop');
+        await until(() => !document.querySelector('#shop').classList.contains('hidden'), null, 'the fitting room did not open');
+        await tap('#shopTabs [data-tab=hair]');
+        const hair = await g((h) => [...document.querySelectorAll('#shopItems .swatches button')].map((b) => b.dataset.color).find((c) => c !== h), witch.hair);
+        if (!hair) fail('the fitting room shows no other hair colour');
+        await tap(`#shopItems .swatches button[data-color="${hair}"]`);
+        await until((h) => __game.save.hair === h, hair, `a tap on the hair ${hair} did not change it`);
+        {
+          const a = await look(), wrong = [];
+          for (const k of KEYS) {
+            const want = k === 'hair' ? hair : witch[k];
+            if (a.save[k] !== want) wrong.push(`${k} ${a.save[k]}, not ${want}`);
+            if (a.stored?.[k] !== want) wrong.push(`stored ${k} ${a.stored?.[k]}, not ${want}`);
+          }
+          if (a.worn.head !== witch.head || a.worn.wand !== witch.wand) wrong.push(`she wears ${a.worn.head} and ${a.worn.wand}`);
+          if (wrong.length) fail(`after the look of the witch the hair was changed in the fitting room: ${wrong.join('; ')}`);
+        }
+        await shot('look-witch-hair');
+        await tap('#shopDone');
+        console.log(`looks: ${ids.join(', ')} put on from the start screen and stored, the trail and ${before.owned.length} purchases kept; then the hair ${hair} alone in the fitting room`);
+        // back to the start screen for the blocks after this one
+        await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
       }
       if (has('start-again')) {
         await wait(1500); await shot('40-start-again');

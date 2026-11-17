@@ -12,8 +12,9 @@
 import { sfx, say } from '../core/audio';
 import type { Save } from '../core/save';
 import { GEAR, type Gear, type GearId } from '../game/gear';
+import { LOOKS, applyLook as putOnLook, lookOf } from '../game/looks';
 import { CATALOG, buy, equip, has, itemState, type Slot } from '../game/shop';
-import { t, tf, voiceText, type SpokenKey } from './strings';
+import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
 import { DRESS, HAIR } from './ui';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -30,6 +31,7 @@ const TABS: readonly { id: Tab; icon: string }[] = [
 const ICON: Record<string, string> = {
   none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
+  tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
 /** The camera distance while the screen is open: the heroine is seen close up beside the card. */
 const CLOSEUP = 3.2;
@@ -187,7 +189,45 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   };
   $('shopDone').addEventListener('click', close);
 
+  initLooks(save, gear, hooks);
   wearSaved(save, gear);
   opener = open;
   return open;
+}
+
+/**
+ * The row of the four looks on the start screen (PLAY-06, src/game/looks.ts): a tap puts the look on the save, on the
+ * heroine at once (her colours through applyLook, her things through wearSaved) and stores it. The look she wears is
+ * lit, and so are its colours among the start screen's own swatches; a colour changed there unlights the look. After
+ * "play" the start screen is gone: every choice is changed on its own in the fitting room (R25).
+ */
+function initLooks(save: Save, gear: Gear, hooks: ShopHooks): void {
+  const row = document.getElementById('looks');
+  if (!row) return;
+  const swatchRows = [['dress', DRESS], ['hair', HAIR]] as const;
+  const mark = () => {
+    const now = lookOf(save);
+    row.querySelectorAll<HTMLElement>('button').forEach((b) => b.classList.toggle('sel', b.dataset.look === now));
+    for (const [key, colors] of swatchRows) {
+      [...$(key).children].forEach((b, i) => b.classList.toggle('sel', colors[i] === save[key]));
+    }
+  };
+  row.innerHTML = '';
+  for (const l of LOOKS) {
+    const b = document.createElement('button');
+    b.dataset.look = l.id;
+    // A picture of the look over its colours, named by its caption (aria-label, title) - no reading needed.
+    b.innerHTML = `<span class="ic">${l.icon}</span>`;
+    b.setAttribute('aria-label', t(`look_${l.id}` as Key)); b.title = t(`look_${l.id}` as Key);
+    b.style.setProperty('--dress', l.dress); b.style.setProperty('--hair', l.hair);
+    b.addEventListener('click', () => {
+      if (!putOnLook(save, l.id)) return;
+      wearSaved(save, gear); hooks.applyLook(); hooks.persist();
+      mark();
+    });
+    row.appendChild(b);
+  }
+  // The start screen's own swatches (src/ui/ui.ts initStart) change a colour first; the look is then lit or not.
+  for (const [key] of swatchRows) $(key).addEventListener('click', mark);
+  mark();
 }

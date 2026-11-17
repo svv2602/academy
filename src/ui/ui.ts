@@ -99,7 +99,7 @@ export function initStart(sel: { dress: string; hair: string; name: string }, ha
   const applyText = () => {
     $('title').textContent = t('title'); $('subtitle').textContent = t('subtitle');
     $('loadingText').textContent = t('loading'); $('lblDress').textContent = t('dress');
-    $('lblName').textContent = t('name'); $<HTMLInputElement>('name').placeholder = t('namePh'); $('lblHair').textContent = t('hair');
+    $('lblName').textContent = t('name'); $<HTMLInputElement>('name').placeholder = t('namePh'); $('lblHair').textContent = t('hair'); $('lblLooks').textContent = t('looks');
     el.play.textContent = hasSave ? t('cont') : t('play'); el.restart.textContent = t('again');
     document.querySelectorAll<HTMLElement>('#langs button').forEach((b) => b.classList.toggle('sel', b.dataset.lang === lang));
     renderNotice();

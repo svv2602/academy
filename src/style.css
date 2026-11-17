@@ -82,6 +82,11 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
 .swatches { display: flex; gap: 10px; }
 .swatches button { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 2px #e6d5f2; }
 .swatches button.sel { box-shadow: 0 0 0 4px #a56bff; transform: scale(1.12); }
+/* The four looks of the start screen (PLAY-06): a picture over the colours of the look, hair above, dress below. */
+#looks { display: flex; gap: 10px; }
+#looks button { width: 52px; height: 52px; border-radius: 16px; border: 4px solid #fff; box-shadow: 0 0 0 2px #e6d5f2; padding: 0;
+  background: linear-gradient(var(--hair) 0 34%, var(--dress) 34%); font-size: 28px; line-height: 1; }
+#looks button.sel { box-shadow: 0 0 0 4px #a56bff; transform: scale(1.08); }
 .big { margin-top: 14px; min-height: 44px; padding: 12px 54px; font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #fff; border-radius: 999px;
   background: linear-gradient(#ff9bd0, #ff5fa8); box-shadow: 0 7px 0 #d43f86; }
 .big:active { transform: translateY(5px); box-shadow: 0 2px 0 #d43f86; }
@@ -119,6 +124,7 @@ h3 { margin: 2px 0 14px; font-size: clamp(16px, 2.6vw, 24px); color: #b07ad6; fo
   #start .row > span { min-width: 62px; }
   #name { padding: 4px 10px; width: 150px; border-width: 2px; }
   .swatches { gap: 6px; } .swatches button { width: 44px; height: 44px; border-width: 3px; }
+  #looks { gap: 6px; } #looks button { width: 48px; height: 44px; border-width: 3px; font-size: 24px; }
   #start .big { margin-top: 6px; min-height: 44px; padding: 6px 36px; font-size: 22px; }
   .link { margin-top: 5px; font-size: 12px; }
   #langs { top: 6px; right: 10px; } #langs button { font-size: 12px; padding: 2px 6px; }
