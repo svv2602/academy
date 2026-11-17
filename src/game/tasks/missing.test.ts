@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
-import { MAX, missing } from './missing';
+import { MAX, example, missing } from './missing';
 
 const LADDER = (way: string) => ({ rungs: [{ key: way, steps: [] }, { key: 'h2_missing', steps: [{ do: 'countUp' }] }, { key: 'h3_show', steps: [{ do: 'pulseAnswer' }] }] });
 const TASKS = 1000;
@@ -58,5 +58,18 @@ describe('missing addend generator', () => {
   it('the hint: the way (count on from the known number; across the ten - first to ten), counting up together, the answer lit', () => {
     for (const level of [3, 4]) for (const s of tasks(level).slice(0, 50)) expect(s.hint).toEqual(LADDER('h1_missing'));
     for (const level of [5, 6]) for (const s of tasks(level).slice(0, 50)) expect(s.hint).toEqual(LADDER('h1_missing_ten'));
+  });
+
+  it.each([3, 4, 5])('level %i: the task of chosen numbers (an example brought back, LEARN-11) is the one the generator builds of them', (level) => {
+    for (const s of tasks(level).slice(0, 200)) {
+      const { a, sum } = s.body, e = example(level, a, sum, mulberry32(a * 31 + sum));
+      expect([e.type, e.level, e.prompt, e.ask, e.hint], `${a} + ? = ${sum}`).toEqual([s.type, s.level, s.prompt, s.ask, s.hint]);
+      expect([e.body.a, e.body.sum, e.body.answer, e.body.tilt.length]).toEqual([a, sum, sum - a, a]);
+      expect(e.body.options).toContain(sum - a);
+    }
+  });
+
+  it.each([3, 4, 5, 6])('level %i: no example has a one in both addends (1 + ? = 2, LEARN-13)', (level) => {
+    for (const { body: { a, answer } } of tasks(level)) expect(a === 1 && answer === 1, `${a} + ${answer}`).toBe(false);
   });
 });

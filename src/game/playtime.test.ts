@@ -117,7 +117,7 @@ describe('the parents\' section (PLAY-15, LEARN-15)', () => {
     expect(save.fixed.compose).toBe(4);
   });
 
-  it('shows the minutes of the last seven days, today last, and keeps a hidden place for the hardest examples', async () => {
+  it('shows the minutes of the last seven days, today last, and that there are no hardest examples yet', async () => {
     const save = defaultSave();
     save.playMinutes[dayKey(new Date())] = 7.4;
     const { body } = await open(save);
@@ -126,6 +126,8 @@ describe('the parents\' section (PLAY-15, LEARN-15)', () => {
     expect(days[6].textContent).toMatch(/7 (хв|мин)$/);
     expect(days.slice(0, 6).every((d) => /^\D+0 (хв|мин)$/.test(d.textContent!))).toBe(true);
     expect(body.querySelector('.phead')!.textContent).toMatch(/7 (хв|мин)/);
-    expect((body.querySelector('#pHard') as HTMLElement).hidden).toBe(true);
+    // The hardest examples themselves (LEARN-11): src/game/planner.test.ts.
+    expect((body.querySelector('#pHard') as HTMLElement).hidden).toBe(false);
+    expect(body.querySelector('#pHard')!.textContent).toMatch(/немає прикладів|нет примеров/);
   });
 });

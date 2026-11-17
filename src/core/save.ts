@@ -3,7 +3,8 @@
  * Version 3: the part every world shares lies flat on top (the look, stars, skills, purchases, achievements,
  * settings); the progress of each world is a WorldState of its own under `worlds[<world id>]`.
  * Version 4 (LEARN-03, LEARN-15, R33): the skills of the ladder ("logic" split into four), a level the parent may fix
- * for each skill (`fixed`, in place of the one `difficulty`), the minutes played by day (`playMinutes`).
+ * for each skill (`fixed`, in place of the one `difficulty`), the minutes played by day (`playMinutes`). The examples
+ * with mistakes (`hard`, LEARN-11) came later without a new version: a save without them gets an empty list.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -35,6 +36,12 @@ export interface Save {
    * src/game/playtime.ts (G), read by the parents' section; no reminder of a break is made of it.
    */
   playMinutes: Record<string, number>;
+  /**
+   * The examples of addition, take away and the composition of a number that had mistakes (LEARN-11), and the number
+   * of tasks the planner gave so far (`n`): when each example comes back is counted in it. Written by
+   * src/game/planner.ts, read by the parents' section; at most HARD_MAX examples.
+   */
+  hard: Hard;
   owned: string[];                  // the things bought in the shop (PLAY-04): kept for ever, never removed
   /** What the heroine wears, by slot (PLAY-04, PLAY-05): a thing's id of src/game/shop.ts, null = nothing there. */
   gear: Gear;
@@ -55,6 +62,16 @@ export interface Save {
  * always had), and a stored one missing a slot gets that slot's default. No new version: the fields are added.
  */
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
+
+/**
+ * One example with mistakes: `k` the example (`add:8+5`, `sub:13-6`, `missing:3+?=7`), `l` the level it was given on,
+ * `e` the wrong answers in it so far, `c` the clean solves since its last mistake, `at` the number of the task it was
+ * last given as (of `Hard.n`).
+ */
+export interface HardExample { k: string; l: number; e: number; c: number; at: number }
+export interface Hard { n: number; list: HardExample[] }
+/** The most examples with mistakes a save keeps (LEARN-11: the whole save stays under 20 KB after 500 tasks). */
+export const HARD_MAX = 20;
 
 export const SAVE_VERSION = 4;
 /** The colour the petals always had: a save written before the colour could be chosen gets it. No new version. */
@@ -86,7 +103,7 @@ export function defaultSave(): Save {
     v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
     skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: firstLevel(s), streak: 0, tasks: 0, first: 0, errors: 0 }])),
-    fixed: Object.fromEntries(SKILL_IDS.map((s) => [s, 0])), playMinutes: {},
+    fixed: Object.fromEntries(SKILL_IDS.map((s) => [s, 0])), playMinutes: {}, hard: { n: 0, list: [] },
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: WING_COLOR, achievements: {},
     vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
@@ -202,6 +219,21 @@ function fromV2(s: Stored): Stored {
   return { ...common, v: 3, worlds: { [FIRST_WORLD]: { ...defaultWorld(), ...chestToFlag(world) } } };
 }
 
+const count = (x: unknown): x is number => Number.isInteger(x) && (x as number) >= 0;
+/**
+ * The examples with mistakes as stored, or an empty list: a damaged entry is dropped, the others are kept as they are
+ * (at most HARD_MAX of them, with any field this code does not know), a damaged count starts again from the last task
+ * an example names.
+ */
+function hardOf(x: unknown): Hard {
+  const h = part(x);
+  const list = (Array.isArray(h.list) ? h.list as unknown[] : []).filter((e): e is HardExample => isObject(e)
+    && typeof e.k === 'string' && e.k.length > 0 && e.k.length <= 24 && count(e.l) && count(e.e) && count(e.c) && count(e.at))
+    .slice(0, HARD_MAX);
+  const last = Math.max(0, ...list.map((e) => e.at + 1));
+  return { ...h, n: count(h.n) && h.n >= last ? h.n : last, list };
+}
+
 /** A level within the levels of skill `id`; anything but a number gives its first level. */
 function levelOf(id: string, x: unknown) {
   return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : firstLevel(id);
@@ -238,7 +270,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   const first = worlds[FIRST_WORLD];
   if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
   const out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
-    gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), worlds } as Save;
+    gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), hard: hardOf(s.hard), worlds } as Save;
   // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
   if (!isTier(out.tier)) out.tier = d.tier;
   if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;
