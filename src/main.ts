@@ -7,6 +7,7 @@ import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
 import { loadShared } from './game/boot';
 import { createGame } from './game/context';
+import { createWorldScope } from './game/scope';
 import { exposeDebug } from './game/debug';
 import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
@@ -49,7 +50,10 @@ if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 // ---------- renderer & quality tiers ----------
 const { renderer, scene, camera } = createRenderer(el.canvas);
 const touch = matchMedia('(pointer: coarse)').matches;
-const sky = world.sky(scene);
+// TECH-15: the scope of the world played owns what the world adds to the scene and subscribes to. It is made before
+// the world's sky, so the sky and the sun are the world's too; what the game adds itself is marked with shared().
+const scope = createWorldScope(scene);
+const sky = world.sky(scene, scope);
 // The tier, the launch counter and the frame meter (core/renderer.ts): the tier is chosen and stored right here.
 const quality = createQuality({ renderer, scene, camera, sun: sky.sun, save, param: params.get('q'), touch, debug });
 addEventListener('resize', () => quality.apply());
@@ -63,24 +67,26 @@ void boot();
 async function boot() {
   // TECH-15: the shared load (the heroine with her items, the cat) and the load of the world run together under the one
   // loading bar. Either may fail (TECH-08): the notice with "try again" is on screen then, once, and nothing is built.
-  const [shared, L] = await Promise.all([loadShared(save), world.load(scene, save, touch)]);
+  const [shared, L] = await Promise.all([loadShared(save), world.load(scene, save, touch, scope)]);
   if (!shared || !L) return;
   const speech = createSpeech();
   // The counter is read only once the world is built (the first frame, the start button, a reward).
   let built: BuiltWorld | null = null;
-  const g = createGame({
+  // shared(): the heroine, the cat, the sparks and the butterflies - and the guide and the tap ring of the loop below -
+  // join the scene after the world's sky and load, and are not the world's.
+  const g = scope.shared(() => createGame({
     scene, camera, renderer, save, touch, debug, speech, rng, shared,
     world: { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => built?.hud() ?? '' },
-  });
+  }));
   applyLook = () => shared.heroRig.setLook(save);
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
-  const w = built = world.build(g, L, sky);
+  const w = built = world.build(g, L, sky, scope);
 
   // ---------- start screen & menus ----------
   initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, book: w.book, gear: w.gear });
 
   // ---------- loop ----------
-  startLoop(g, quality, w.frame);
+  scope.shared(() => startLoop(g, quality, w.frame));
 
   // ---------- TECH-09: the next world is downloaded while this one is played ----------
   // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of

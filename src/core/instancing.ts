@@ -76,3 +76,18 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
   }
 }
 const partMats = new Map<string, THREE.MeshStandardMaterial>();
+
+/**
+ * TECH-15: a world that leaves the scene takes its cells out of the distance list: `updateRanged` would go on
+ * switching meshes nobody draws, and the list would hold them for good. `gone` tells which meshes left.
+ */
+export function forgetRanged(gone: (mesh: THREE.Object3D) => boolean): void {
+  let kept = 0;
+  for (const r of ranged) if (!gone(r.mesh)) ranged[kept++] = r;
+  ranged.length = kept;
+}
+
+/** TECH-15: and its part materials out of the cache above, so a freed material is never handed out again. */
+export function forgetPartMaterials(gone: (mat: THREE.Material) => boolean): void {
+  for (const [key, mat] of partMats) if (gone(mat)) partMats.delete(key);
+}

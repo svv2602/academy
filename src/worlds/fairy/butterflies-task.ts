@@ -3,6 +3,7 @@ import { say, sfx } from '../../core/audio';
 import { randInt } from '../../core/util';
 import type { Game } from '../../game/context';
 import { numberSprite } from '../../game/fx';
+import type { WorldScope } from '../../game/scope';
 import type { TaskResult } from '../../game/taskviews/panel';
 import type { Npc, WorldTask } from '../../game/world';
 import { TRY, tapKey, voiceText } from '../../ui/strings';
@@ -32,7 +33,7 @@ export interface ButterfliesTask extends WorldTask {
  * The butterflies of the first world (ARCH-05): the ambient ones over the flower drifts, added right here - before any
  * task, so the task's butterflies are always the last ones - and the task of counting them over the flower bed.
  */
-export function createButterfliesTask(g: Game): ButterfliesTask {
+export function createButterfliesTask(g: Game, scope: WorldScope): ButterfliesTask {
   const { scene, cam, sparks, flies, groundY, rng } = g;
   const { caption, line, hintLine } = g.speech;
 
@@ -60,7 +61,7 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
         if (!bf.active || bf.demo) return;
         if (n === bf.n) {
           btn.classList.add('yes'); bf.active = false;
-          setTimeout(() => {
+          scope.timeout(() => {
             hideAnswers();
             for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.2; f.r = 2.2; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
             bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0;
@@ -126,7 +127,7 @@ export function createButterfliesTask(g: Game): ButterfliesTask {
     bf.demo = true; bf.shown = round;
     for (let i = bf.first; i < bf.first + bf.n; i++) { const f = flies.flies[i]; f.landed = false; f.scale = 1.5; flies.setColor(i, bf.colors[(i - bf.first) % 4]); }
     bf.sprites.forEach((s) => scene.remove(s)); bf.sprites.length = 0; bf.counted = 0;
-    for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await new Promise((r) => setTimeout(r, 850)); }
+    for (let i = bf.first; i < bf.first + bf.n && bf.active; i++) { countFly(i); await scope.wait(850); }
     bf.demo = false;
     if (bf.active) caption({ key: 't_count', pri: 'task', hold: 0, speaker: '🦄' });
   }

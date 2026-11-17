@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { sfx } from '../../core/audio';
 import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
+import type { WorldScope } from '../../game/scope';
 import { playScene, type Stage } from '../../game/stage';
 import type { buildSky } from './sky';
 import { fanfare } from '../../ui/ui';
@@ -72,7 +73,7 @@ export function buildShrine(g: Game, L: FairyLoads, sky: ReturnType<typeof build
  * The finale (ARCH-05): the five shards merge into the crystal. Returns the scene to start from the shrine's spot;
  * what the cat says after it is said once the scene is over (its end clears the bubble), never inside it.
  */
-export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readonly Npc[]): () => Promise<void> {
+export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readonly Npc[], scope: WorldScope): () => Promise<void> {
   const { ws, cam, hero, cat, sparks, persist, fault } = g;
   const { line } = g.speech;
   const pos = shrine.pos;
@@ -84,7 +85,7 @@ export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readon
       g.finale = 0.001;
       fault();
       sfx('chime');
-      await new Promise((r) => setTimeout(r, 3600));
+      await scope.wait(3600);
       ws.final = true; g.finale = 0; persist();
       sfx('fanfare');
       for (const c of ['#8fe8ff', '#fff2a8', '#ff9ed2', '#c79bff']) sparks.burst(pos, c, 50, 7);

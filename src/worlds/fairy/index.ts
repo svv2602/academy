@@ -8,6 +8,7 @@ import { setTour, tour } from '../../game/flyover';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
+import type { WorldScope } from '../../game/scope';
 import { levelFor } from '../../game/skills';
 import { playScene } from '../../game/stage';
 import { generate as generateSort } from '../../game/tasks/sort';
@@ -34,7 +35,7 @@ import { voices } from './voices';
  * The first world, built (ARCH-05): its objects in the order they always joined the scene (and the colliders) in, its
  * tasks and conversations, and its parts of the frame. `debug` is what window.__game reads of it.
  */
-export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
+export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldScope): BuiltWorld {
   const { scene, camera, renderer, save, ws, hero, flies, speech } = g;
   const { motes, updateClouds, starGeo } = L;
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
@@ -43,7 +44,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   const { npcs, npc, starMat } = characters;
   const shrine = buildShrine(g, L, sky);
   const chestStars = createChestStars(g, L, starMat);
-  const butterflies = createButterfliesTask(g);
+  const butterflies = createButterfliesTask(g, scope);
   const { bf } = butterflies;
 
   // ---------- game state ----------
@@ -54,7 +55,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     if (!search.active) speech.caption(null);
     else if (speech.shown?.key !== 't_stars') starSearch.caption();
   });
-  const restoreCrystal = createFinale(g, stage, shrine, npcs);
+  const restoreCrystal = createFinale(g, stage, shrine, npcs, scope);
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
   const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
@@ -235,5 +236,5 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   sky: buildSky,
   load: loadFairy,
   // The heroine's model is the game's (src/game/boot.ts): the parts of the world read it next to the world's own loads.
-  build: (g, L, sky) => buildFairy(g, { ...L, heroRig: g.heroRig }, sky),
+  build: (g, L, sky, scope) => buildFairy(g, { ...L, heroRig: g.heroRig }, sky, scope),
 };

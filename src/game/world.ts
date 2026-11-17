@@ -6,6 +6,7 @@ import type { Game } from './context';
 import type { DebugExtras } from './debug';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
+import type { WorldScope } from './scope';
 import type { TaskType } from './tasks/types';
 import type { SkillId } from './skills';
 import type { TaskResult } from './taskviews/panel';
@@ -83,15 +84,18 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly characters: readonly CharacterDef[];
   readonly strings: WorldStrings;
   readonly music?: MusicParams;
-  /** Before the quality tier is made: it needs the sun. */
-  sky(scene: THREE.Scene): S;
+  /**
+   * Before the quality tier is made: it needs the sun. `scope` (TECH-15, src/game/scope.ts), here and below, is the
+   * owner of what the world adds to the scene and subscribes to: the world's handlers and timers go through it.
+   */
+  sky(scene: THREE.Scene, scope: WorldScope): S;
   /**
    * The world's own models, pictures and scenery: the heroine and the cat are not a world's, the shared load brings them
    * once (src/game/boot.ts) and the built world reads her model from the game (`g.heroRig`). It runs next to the shared
    * load. Null = failed for good: the failure went to `loadFailed` (src/game/boot.ts), the notice is shown.
    */
-  load(scene: THREE.Scene, save: Save, touch: boolean): Promise<L | null>;
-  build(g: Game, loads: L, sky: S): BuiltWorld;
+  load(scene: THREE.Scene, save: Save, touch: boolean, scope: WorldScope): Promise<L | null>;
+  build(g: Game, loads: L, sky: S, scope: WorldScope): BuiltWorld;
 }
 
 /**
