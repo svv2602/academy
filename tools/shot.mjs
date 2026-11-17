@@ -163,6 +163,9 @@ const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots'
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
+// The shown magic follows its target smoothly in game time: it is waited for by the game's clock (up to MAGIC_SETTLE s of
+// game time), never by the wall clock - on the slow CI runner a second of game time takes many of the clock.
+const MAGIC_SETTLE = 20;
 // The magic of the world (WORLD-09, src/worlds/fairy/magic.ts): what a shard given back adds (SHARD_MAGIC), the point of
 // the tour its two pictures are taken from (0-based) and how much they must differ (mean colour difference, 0..1).
 const MAGIC_SHARD = 0.16, MAGIC_POINT = 2, MAGIC_DIFF = { all: 0.02, sky: 0.02 };
@@ -354,6 +357,13 @@ try {
     return false;
   };
   const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
+  // The shown magic comes to `want` (within 0.001): true, or false once MAGIC_SETTLE s of game time have passed without.
+  const magicSettles = async (want) => {
+    const t0 = await page.evaluate(() => __game.time);
+    const h = await page.waitForFunction(([w, t, lim]) => (Math.abs(__game.magic.value - w) <= 0.001 ? 'yes' : __game.time - t > lim ? 'no' : false),
+      [want, t0, MAGIC_SETTLE], { timeout: T(600000) });
+    return (await h.jsonValue()) === 'yes';
+  };
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
   // finale once - to see that the heroine is not left standing. Excused is the text of that very scene only, only
   // while the scenario waits for it, and only once.
@@ -1872,8 +1882,8 @@ try {
         const shards = await g(() => Object.values(__game.save.worlds.fairy.quests).filter((n) => n >= 3).length);
         const want = Math.min(1, shards * MAGIC_SHARD);
         // the shown magic follows the save: given shards raise it while the world is played, no reload needed
-        await page.waitForFunction((w) => Math.abs(__game.magic.target - w) < 1e-9 && Math.abs(__game.magic.value - w) < 0.005, want, { timeout: T(30000) })
-          .catch(async () => fail(`${shards} shards given back: magic ${JSON.stringify(await g(() => ({ value: __game.magic.value, target: __game.magic.target })))}, expected ${want}`));
+        if (Math.abs((await g(() => __game.magic.target)) - want) > 1e-9) fail(`${shards} shards given back: the magic heads for ${await g(() => __game.magic.target)}, expected ${want}`);
+        if (!(await magicSettles(want))) fail(`${shards} shards given back: magic ${JSON.stringify(await g(() => ({ value: __game.magic.value, target: __game.magic.target })))} after ${MAGIC_SETTLE} s of game time, expected ${want}`);
         // the pictures: the camera held on a point of the tour, the magic set by the debug command
         const pts = await g(() => __game.flyoverPoints.map((p) => p.t));
         await g(() => __game.flyover());
@@ -1957,8 +1967,12 @@ try {
       }
       // ---- the crystal restored brings the magic to 1 (WORLD-09), the rainbow with it ----
       if (has('magic-crystal')) {
-        await page.waitForFunction(() => __game.magic.target === 1 && __game.magic.value > 0.99, null, { timeout: T(60000) })
-          .catch(async () => { throw new Error(`the magic: the crystal is restored, the magic is ${JSON.stringify(await g(() => ({ value: __game.magic.value, target: __game.magic.target, final: __game.save.worlds.fairy.final })))}, not 1`); });
+        const state = () => g(() => ({ value: __game.magic.value, target: __game.magic.target, final: __game.save.worlds.fairy.final }));
+        // the target at once (the save says the crystal is whole), the shown value by the game's clock
+        await page.waitForFunction(() => __game.save.worlds.fairy.final === true, null, { timeout: T(60000) })
+          .catch(async () => { throw new Error(`the magic: the crystal is not restored in the save: ${JSON.stringify(await state())}`); });
+        if ((await g(() => __game.magic.target)) !== 1) throw new Error(`the magic: the crystal is restored, the magic heads for ${JSON.stringify(await state())}, not 1`);
+        if (!(await magicSettles(1))) throw new Error(`the magic: the crystal is restored, the magic is ${JSON.stringify(await state())} after ${MAGIC_SETTLE} s of game time, not 1`);
         console.log('the magic: the crystal restored brings it to 1');
       }
       // collection + parents
