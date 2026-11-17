@@ -170,7 +170,7 @@ def encode(pcm, out):
     trim = ('silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,'
             'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,areverse')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', '-',
-                    '-af', trim, '-ac', '1', '-ar', '24000', '-b:a', '48k', str(out)], input=pcm, check=True)
+                    '-af', trim, '-ac', '1', '-ar', '24000', '-b:a', '32k', str(out)], input=pcm, check=True)
 
 
 def norm(s):
