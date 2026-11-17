@@ -4,6 +4,7 @@ import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
 import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
 import type { BookInfo } from '../game/world';
+import { bookView } from './book';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
 import { lang, setChildName, setLang, t, tf, type Key } from './strings';
 
@@ -145,7 +146,7 @@ const QUALITY_STEPS: Save['pinTier'][] = [null, 2, 1, 0];
 
 /**
  * Collection book + the parents' section behind an "adult" gate. The book shows what the world gives (`book`): its parts,
- * got or not, then its lines of figures.
+ * got or not, then its lines of figures; the profile around them (the shelf, secrets, pets, achievements) is src/ui/book.ts.
  */
 export function initBook(save: Save, book: BookInfo, on: { change(): void; reset(): void; open(isOpen: boolean): void; shop(): void }) {
   const bookCard = $('book'), parents = $('parents');
@@ -163,10 +164,11 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     }
     $('colStats').innerHTML = book.stats().map((s) => `<div>${s.icon} ${t(s.label)}: ${s.value}</div>`).join('');
   };
-  $('btnBook').addEventListener('click', () => { renderBook(); show(bookCard, true); });
-  $('bookClose').addEventListener('click', () => { show(bookCard, false); void stopPoint('book'); });
+  // The profile (PLAY-07, PLAY-09, src/ui/book.ts): the heroine close up, the shelf, the secrets, the pets, the achievements.
+  $('btnBook').addEventListener('click', () => { renderBook(); bookView(true, save); show(bookCard, true); });
+  $('bookClose').addEventListener('click', () => { bookView(false, save); show(bookCard, false); void stopPoint('book'); });
   // The shop and the fitting room (PLAY-04, PLAY-05): a screen of its own over the game, which stays paused.
-  $('btnShop').addEventListener('click', () => { bookCard.classList.add('hidden'); on.shop(); });
+  $('btnShop').addEventListener('click', () => { bookView(false, save); bookCard.classList.add('hidden'); on.shop(); });
 
   const gateA = $<HTMLInputElement>('gateA');
   // A skill's row (PLAY-15): its level - the fixed one, or "auto" and the adaptive one -, its tasks, the share of clean
@@ -211,7 +213,7 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
   // The gate (PLAY-14): every opening asks a new example, never the one asked last time.
   let gate: GateQuestion | null = null;
   $('btnParents').addEventListener('click', () => {
-    bookCard.classList.add('hidden');
+    bookView(false, save); bookCard.classList.add('hidden');
     gate = gateQuestion(gate);
     $('pTitle').textContent = t('p_title'); $('gateQ').textContent = tf('gate_q', { a: gate.a, b: gate.b }); $('parentsClose').textContent = t('close');
     gateA.value = ''; $('gate').classList.remove('hidden'); $('pBody').classList.add('hidden');

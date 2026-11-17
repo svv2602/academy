@@ -1039,6 +1039,13 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
     return loadSave();
   };
 
+  it('the first opening of the shelf (PLAY-07) is the save\'s: absent in a fresh save, kept as true, a damaged one is false', () => {
+    expect(defaultSave().shelfSeen).toBeUndefined();
+    expect(load({ shelfSeen: true }).shelfSeen).toBe(true);
+    expect(load({ shelfSeen: 'yes' }).shelfSeen).toBe(false);
+    expect('shelfSeen' in load({})).toBe(false);
+  });
+
   it('a fresh save has none of them yet: no achievement, no run, no day', () => {
     const s = defaultSave();
     expect(s.achievements).toEqual({});

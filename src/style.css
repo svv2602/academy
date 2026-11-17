@@ -279,17 +279,63 @@ button.it { min-width: 44px; min-height: 44px; }
 .shop-act { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: 700; color: #8a6bb0; font-size: 18px; }
 .shop-act .big, #shopDone { margin-top: 0; }
 #shopBuy.short { background: #efe4fb; color: #8a6bb0; box-shadow: 0 5px 0 #dccbf0; }
-#shopSay { position: absolute; left: max(12px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 54px);
+#shopSay, #bookSay { position: absolute; left: max(12px, env(safe-area-inset-left)); top: calc(max(10px, env(safe-area-inset-top)) + 54px);
   width: min(calc(50vw - 40px), 420px); display: flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 22px;
   background: rgba(255,255,255,.92); box-shadow: 0 6px 18px rgba(90,60,130,.2); }
-#shopSay:empty, #shopSay.quiet { display: none; }
-#shopSay .cat { font-size: 30px; line-height: 1; }
-#shopSay p { margin: 0; font-size: clamp(15px, min(2.2vw, 4.6vh), 21px); font-weight: 600; line-height: 1.25; }
+#shopSay:empty, #shopSay.quiet, #bookSay.quiet { display: none; }
+#shopSay .cat, #bookSay .cat { font-size: 30px; line-height: 1; }
+#shopSay p, #bookSay p { margin: 0; font-size: clamp(15px, min(2.2vw, 4.6vh), 21px); font-weight: 600; line-height: 1.25; }
 @media (max-height: 480px) {
   .shop-card { gap: 4px; padding: 8px 10px; }
   .tile { width: 64px; height: 64px; } .tile .ic { font-size: 28px; }
 }
 @media (max-aspect-ratio: 5/4) {
   .shop-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
-  #shopSay { width: auto; right: max(12px, env(safe-area-inset-right)); }
+  #shopSay, #bookSay { width: auto; right: max(12px, env(safe-area-inset-right)); }
+}
+
+/* ---------- the profile in the book of treasures (PLAY-07, PLAY-09; src/ui/book.ts) ----------
+   Laid out like the shop: the heroine close up on the free side (left, or above when the screen stands upright), the
+   card on the right (at the bottom upright) with tabs by pictures. Nothing scrolls; every button is 44 px or more.
+   What is not found yet is a silhouette. */
+#book { display: block; place-items: unset; background: linear-gradient(90deg, rgba(120,90,180,0) 35%, rgba(120,90,180,.28)); }
+/* The cat's line on the free side, never under the card. */
+#bookSay { width: min(calc(42vw - 44px), 420px); }
+#book .book-card { position: absolute; top: max(8px, env(safe-area-inset-top)); bottom: max(8px, env(safe-area-inset-bottom)); right: max(10px, env(safe-area-inset-right));
+  width: min(58vw, 520px); display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 6px;
+  padding: 10px 12px; border-radius: 28px; background: rgba(255,255,255,.96); overflow: hidden; animation: pop2 .35s; }
+.book-head { display: flex; align-items: center; justify-content: center; gap: 6px 12px; flex-wrap: wrap; }
+#book .book-head h2 { margin: 0; font-size: clamp(20px, min(3.4vw, 6vh), 30px); }
+#book .book-head .stats { font-size: 16px; gap: 6px; } #book .book-head .stats div { padding: 3px 10px; }
+.book-pane { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; flex: 1 1 auto; min-height: 0; }
+.book-line { margin: 0 !important; min-height: 1.3em; font-size: 15px !important; font-weight: 700; color: #7a5aa8; line-height: 1.25; }
+.shelf { display: flex; gap: 6px; justify-content: center; }
+.place { width: clamp(60px, 16vw, 84px); min-height: 72px; border-radius: 18px; background: linear-gradient(#f6eefc, #eadcf7);
+  box-shadow: 0 5px 0 #d9c6ee; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 2px; }
+.place .ic { font-size: 32px; line-height: 1.1; } .place .cap { min-height: 14px; font-size: 12px; font-weight: 800; color: #8a6bb0; line-height: 1.1; }
+.place.found { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e, 0 5px 0 #f0d77a; } .place.found .ic { filter: drop-shadow(0 0 8px #7fe3ff); }
+.place.parts .ic { opacity: .65; }
+.place.sel { outline: 3px solid #a56bff; outline-offset: 2px; }
+.place.sil .ic, .ach.sil .ic, .tile.secret.sil .ic, .tile.pet.sil .ic { filter: brightness(0); opacity: .28; }
+#book .shards { margin: 0; gap: 6px; }
+#book .shard { width: 52px; padding: 2px 0; border-radius: 14px; font-size: 20px; }
+#book .shard .gem { width: 20px; height: 20px; margin: 4px auto; }
+#book .tiles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#book .tile.pet, #book .tile.secret { width: 84px; }
+#book .tile.got { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e; }
+.ach-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; width: 100%; }
+.ach { min-height: 62px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 2px; overflow: hidden; }
+.ach .ic { font-size: 24px; line-height: 1.1; } .ach .cap { font-size: 10px; font-weight: 800; color: #8a6bb0; line-height: 1.1; overflow-wrap: anywhere; }
+.ach.got { background: #fff7d6; box-shadow: 0 0 0 2px #ffd95e; } .ach.sel { outline: 3px solid #a56bff; }
+#book .sheet-row { gap: 8px; align-items: center; flex-wrap: nowrap; }
+#book .big.small { margin-top: 0; padding: 6px 20px; font-size: 20px; }
+#book .link { margin: 0; padding: 0 6px; }
+@media (max-aspect-ratio: 5/4) {
+  #book { background: linear-gradient(180deg, rgba(120,90,180,0) 30%, rgba(120,90,180,.28)); }
+  #book .book-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
+  #bookSay { width: auto; }
+  .ach-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ach { min-height: 58px; }
+  #book .big.small { padding: 6px 14px; font-size: 18px; }
 }

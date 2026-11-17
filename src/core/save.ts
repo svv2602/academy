@@ -60,6 +60,8 @@ export interface Save {
   achievements: Record<string, number>;
   /** The achievements whose scene has been shown (PLAY-08): the others received wait for theirs. */
   achShown?: string[];
+  /** The shelf of the book has been shown once (PLAY-07): the cat introduces it at the first opening only. */
+  shelfSeen?: boolean;
   /**
    * The tasks solved in a row at the first try, of every skill (PLAY-08): `run` the current run, `best` the longest
    * so far. Moved by recordTask (src/game/skills.ts); a mistake ends `run` only, `best` never goes down.
@@ -359,6 +361,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);
+  if (s.shelfSeen !== undefined) out.shelfSeen = s.shelfSeen === true;
   if (s.achShown !== undefined) out.achShown = Array.isArray(s.achShown) ? (s.achShown as unknown[]).filter((id): id is string => typeof id === 'string') : [];
   // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
   if (!isTier(out.tier)) out.tier = d.tier;

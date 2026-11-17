@@ -1,0 +1,207 @@
+/**
+ * The profile in the book of treasures (PLAY-07, the choice of a pet PLAY-09): the heroine close up on the free side of
+ * the screen (R58, the same close-up as the shop's), the card with tabs by pictures - the magic shelf (R15, R59: five
+ * places, one per world, which are also the "open lands"; no map), the secrets of the world played (R12), the pets with
+ * their choice (R20) and the twelve achievements (R13). What is not found yet is a silhouette (R14).
+ *
+ * Everything is read from the save and from the world being played at every opening: the game `g` is the one the
+ * achievements are bound to (src/ui/achieve.ts), its `g.world` and `g.ws` are never kept here (the rule of the lead and
+ * of P3). The shelf reads `save.worlds[<id>]` - the artifact restored (`final`) and the chains finished - and stores
+ * nothing of its own (R16): a home of the worlds (PLAY-13) can show the same list.
+ */
+import type { Save, WorldState } from '../core/save';
+import { ACHIEVEMENTS } from '../game/achievements';
+import type { WorldEntry } from '../game/context';
+import { PETS, choosePet, foundPets } from '../game/pets';
+import { achGame } from './achieve';
+import { heroCloseup } from './shop';
+import { t, tf, type Key } from './strings';
+
+const $ = (id: string) => document.getElementById(id) as HTMLElement;
+
+/**
+ * A place of the shelf: the world whose artifact stands there (null: the world is not made yet), its picture, the name
+ * of the artifact, the word of its parts (R41: only where the world's design names them) and the caption of its
+ * silhouette.
+ */
+export interface ShelfPlace { world: string | null; icon: string; art: Key; parts: Key | null; wait: Key }
+export const SHELF: readonly ShelfPlace[] = [
+  { world: 'fairy', icon: '💎', art: 'art_1', parts: 'parts_1', wait: 'shelf_wait_1' },
+  { world: null, icon: '💚', art: 'art_2', parts: null, wait: 'shelf_wait_2' },
+  { world: null, icon: '🦪', art: 'art_3', parts: null, wait: 'shelf_wait_3' },
+  { world: null, icon: '♦️', art: 'art_4', parts: null, wait: 'shelf_wait_4' },
+  { world: null, icon: '🌟', art: 'art_5', parts: null, wait: 'shelf_wait_5' },
+];
+
+/** A place as the save has it: the artifact back (`found`), some of its parts (the world played only) or still waiting. */
+export type PlaceState = { kind: 'found' } | { kind: 'parts'; n: number; of: number } | { kind: 'wait' };
+
+/** The stored progress of a world, read without creating it (opening the book changes nothing). */
+const stored = (save: Save, id: string): Partial<WorldState> => {
+  const w = save.worlds[id] as unknown;
+  return typeof w === 'object' && w !== null ? w as Partial<WorldState> : {};
+};
+
+/**
+ * The state of each place of the shelf, from the save alone: `final` of its world, else - for the world played - the
+ * number of its characters whose chain is finished, out of all of them.
+ */
+export function shelfState(save: Save, world: Pick<WorldEntry, 'id' | 'characters'> | null): PlaceState[] {
+  return SHELF.map((p) => {
+    if (!p.world) return { kind: 'wait' };
+    const w = stored(save, p.world);
+    if (w.final === true) return { kind: 'found' };
+    const chars = world && world.id === p.world ? world.characters ?? [] : [];
+    const n = chars.filter((c) => (w.quests?.[c.id] ?? 0) >= c.steps.length).length;
+    return n > 0 ? { kind: 'parts', n, of: chars.length } : { kind: 'wait' };
+  });
+}
+
+/** The pictures of the pets (PETS, src/game/pets.ts) and of "no pet". */
+const PET_ICON: Record<string, string> = { fawn: '🦌', none: '🚫' };
+/** The pictures of a world's secrets: the chest has its own. */
+const SECRET_ICON = '✨', CHEST_ICON = '🎁';
+
+type Tab = 'shelf' | 'secrets' | 'pets' | 'ach';
+const TABS: readonly { id: Tab; icon: string; label: Key }[] = [
+  { id: 'shelf', icon: '🏆', label: 'shelf_title' }, { id: 'secrets', icon: '🗝️', label: 'book_secrets_t' },
+  { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
+];
+
+/** What window.__game reads of the book (src/game/debug.ts does not: the walkthrough reads the DOM and this). */
+export const bookState = { opened: 0, firstSaid: false, tab: 'shelf' as Tab };
+
+
+const button = (cls: string, html: string, on: (() => void) | null) => {
+  const b = document.createElement('button');
+  b.className = cls; b.innerHTML = html;
+  if (on) b.addEventListener('click', on); else b.disabled = true;
+  return b;
+};
+
+let tab: Tab = 'shelf';
+let pickedPlace = -1;
+let pickedAch: string | null = null;
+
+/** The line of the cat on the free side, over the heroine: a subtitle only (`shelf_first` is not recorded yet). */
+function sayLine(key: Key | null) {
+  const box = $('bookSay');
+  $('bookSayText').textContent = key ? t(key) : '';
+  box.classList.toggle('quiet', !key);
+}
+
+function renderTabs(save: Save) {
+  const box = $('bookTabs');
+  box.innerHTML = '';
+  for (const tb of TABS) {
+    const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; renderProfile(save); });
+    b.dataset.tab = tb.id; b.setAttribute('aria-label', t(tb.label)); b.title = t(tb.label);
+    box.appendChild(b);
+  }
+  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
+    $(pane).classList.toggle('hidden', id !== tab);
+  }
+  bookState.tab = tab;
+}
+
+function renderShelf(save: Save, world: WorldEntry | null) {
+  const states = shelfState(save, world), box = $('shelf');
+  if (pickedPlace < 0) pickedPlace = Math.max(0, SHELF.findIndex((p) => p.world === world?.id));
+  const text = (p: ShelfPlace, s: PlaceState) => (s.kind === 'found' ? t('shelf_found')
+    : s.kind === 'parts' && p.parts ? tf('shelf_parts', { n: s.n, of: s.of, parts: t(p.parts) }) : t(p.wait));
+  box.innerHTML = '';
+  SHELF.forEach((p, i) => {
+    const s = states[i];
+    const cap = s.kind === 'found' ? '✨' : s.kind === 'parts' ? `${s.n}/${s.of}` : '';
+    const cls = 'place' + (s.kind === 'found' ? ' found' : s.kind === 'parts' ? ' parts' : ' sil') + (i === pickedPlace ? ' sel' : '');
+    const b = button(cls, `<span class="ic">${p.icon}</span><span class="cap">${cap}</span>`, () => { pickedPlace = i; renderShelf(save, world); });
+    b.dataset.place = String(i); b.dataset.state = s.kind; if (p.world) b.dataset.world = p.world;
+    b.setAttribute('aria-label', t(p.art));
+    box.appendChild(b);
+  });
+  const p = SHELF[pickedPlace];
+  $('shelfSay').innerHTML = `<b>${t(p.art)}</b> · ${text(p, states[pickedPlace])}`;
+}
+
+function renderSecrets(world: WorldEntry | null, ws: { flags: Record<string, boolean> } | null) {
+  const list = world?.secrets ?? [], box = $('secrets');
+  box.innerHTML = '';
+  let n = 0;
+  for (const k of list) {
+    const got = ws?.flags[k] === true;
+    if (got) n++;
+    const d = document.createElement('div');
+    d.className = 'tile secret' + (got ? ' got' : ' sil');
+    d.dataset.flag = k;
+    d.innerHTML = `<span class="ic">${k === world?.chest ? CHEST_ICON : SECRET_ICON}</span>${got ? `<span class="cap">${t('found')}</span>` : ''}`;
+    box.appendChild(d);
+  }
+  $('secretsSay').textContent = tf('book_secrets', { n, of: list.length });
+}
+
+function renderPets(save: Save, persist: () => void) {
+  const found = foundPets(save), box = $('pets');
+  box.innerHTML = '';
+  const pick = (id: string | null) => { if (choosePet(save, id)) persist(); renderPets(save, persist); };
+  for (const p of PETS) {
+    const got = found.includes(p.id);
+    const b = button('tile pet' + (got ? '' : ' sil') + (got && save.pet === p.id ? ' sel' : ''),
+      `<span class="ic">${PET_ICON[p.id] ?? '❔'}</span><span class="cap">${got ? t(`pet_${p.id}` as Key) : t('ach_locked')}</span>`,
+      got ? () => pick(p.id) : null);
+    b.dataset.pet = p.id;
+    box.appendChild(b);
+  }
+  // "No pet": only when there is one to leave at home.
+  if (found.length) {
+    const b = button('tile pet' + (save.pet == null ? ' sel' : ''), `<span class="ic">${PET_ICON.none}</span>`, () => pick(null));
+    b.dataset.pet = 'none'; b.setAttribute('aria-label', t('book_no_pet'));
+    box.appendChild(b);
+  }
+  $('petsSay').textContent = found.length ? t('book_pet_pick') : t('book_pet_none');
+}
+
+function renderAch(save: Save) {
+  const box = $('achs');
+  box.innerHTML = '';
+  for (const a of ACHIEVEMENTS) {
+    const got = a.id in save.achievements;
+    const b = button('ach' + (got ? ' got' : ' sil') + (pickedAch === a.id ? ' sel' : ''),
+      `<span class="ic">${a.icon}</span><span class="cap">${got ? t(`ach_${a.id}_t` as Key) : t('ach_locked')}</span>`,
+      () => { pickedAch = a.id; renderAch(save); });
+    b.dataset.id = a.id; b.dataset.state = got ? 'got' : 'sil';
+    box.appendChild(b);
+  }
+  const a = ACHIEVEMENTS.find((x) => x.id === pickedAch);
+  $('achSay').innerHTML = a
+    ? `<b>${a.id in save.achievements ? t(`ach_${a.id}_t` as Key) : t('ach_locked')}</b> · ${t(`ach_${a.id}_d` as Key)}`
+    : `${t('ach_book')}: ${tf('book_count', { n: ACHIEVEMENTS.filter((x) => x.id in save.achievements).length, of: ACHIEVEMENTS.length })}`;
+}
+
+/**
+ * Draws every section of the profile from `save` and the world played now (`achGame`, read at this call); `persist`
+ * stores the save after the choice of a pet.
+ */
+export function renderProfile(save: Save, persist: () => void = () => achGame?.persist()) {
+  const g = achGame, world = g?.world ?? null, ws = g?.ws ?? null;
+  renderTabs(save);
+  renderShelf(save, world);
+  renderSecrets(world, ws);
+  renderPets(save, persist);
+  renderAch(save);
+}
+
+/**
+ * The book opens (true) or closes (false): the heroine close up on the free side, the shelf first; on the very first
+ * opening the cat introduces the shelf (subtitle only).
+ */
+export function bookView(open: boolean, save: Save) {
+  heroCloseup(open);
+  // A page without the profile's markup (a unit test of the parents' section builds only its own ids): nothing to draw.
+  if (!document.getElementById('bookTabs')) return;
+  if (!open) { sayLine(null); return; }
+  tab = 'shelf'; pickedPlace = -1; pickedAch = null;
+  bookState.opened++;
+  renderProfile(save);
+  // The first opening is the save's (`shelfSeen`): "start again" clears it with everything else.
+  if (!save.shelfSeen) { save.shelfSeen = true; bookState.firstSaid = true; sayLine('shelf_first'); } else sayLine(null);
+}

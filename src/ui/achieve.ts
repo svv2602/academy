@@ -67,9 +67,11 @@ async function scene(g: Game, id: AchievementId) {
 }
 
 let bound = false;
+/** The game the scenes are bound to: the book of treasures reads `g.world` and `g.ws` of it at every opening (src/ui/book.ts). */
+export let achGame: Game | null = null;
 /** Joins the achievements to the stop points of the game `g` (once; the conversation of a world calls it). */
 export function bindAchievements(g: Game) {
-  bindStops(g);
+  bindStops(g); achGame = g;
   if (bound) return;
   bound = true;
   setScreen({ taskOpen: () => inTask(), cardOpen: () => !el.fanfare.classList.contains('hidden') });

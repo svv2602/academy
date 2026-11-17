@@ -57,6 +57,13 @@ let opener: (() => void) | null = null;
  */
 export function openShop(): void { opener?.(); }
 
+let closeupHook: ShopHooks['closeup'] | null = null;
+/**
+ * The book of treasures shows the heroine close up as the shop does (R58): the same close-up, the same free side of the
+ * screen; false brings the camera back. Does nothing before initShop.
+ */
+export function heroCloseup(on: boolean): void { closeupHook?.(on ? CLOSEUP : null); }
+
 /**
  * Puts what the save holds onto the heroine: each slot's thing if she has it (bought, opened or free), and the colour
  * of her wings. A thing of a later version or one she does not have leaves the slot as it is; the save is not changed.
@@ -189,6 +196,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   };
   $('shopDone').addEventListener('click', close);
 
+  closeupHook = hooks.closeup;
   initLooks(save, gear, hooks);
   wearSaved(save, gear);
   opener = open;

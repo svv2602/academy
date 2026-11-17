@@ -2109,9 +2109,71 @@ try {
         if (!(await magicSettles(1))) throw new Error(`the magic: the crystal is restored, the magic is ${JSON.stringify(await state())} after ${MAGIC_SETTLE} s of game time, not 1`);
         console.log('the magic: the crystal restored brings it to 1');
       }
+      // ---- the profile in the book (PLAY-07, PLAY-09, R08-R17, R20): the heroine close up, the magic shelf of five places
+      // against the save (the artifact of a world is on it exactly when worlds.<id>.final; the rest are silhouettes), the
+      // secrets of the world, the twelve achievements (a silhouette exactly when not in save.achievements), the pets and
+      // their choice (save.pet, stored at once). Every tab is pictured: the layout check measures the buttons (44 px) and
+      // that nothing scrolls. `want`: how many places of the shelf must stand lit. Waits are by event only (R49).
+      const checkProfile = async (when, want) => {
+        const fail = (what) => { throw new Error(`profile (${when}): ${what}`); };
+        const until = (fn, arg, what, ms = 15000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what));
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        await until(() => !document.querySelector('#book').classList.contains('hidden') && document.querySelectorAll('#shelf .place').length === 5, null, 'the book shows no shelf of five places');
+        await until(() => __game.cam.dist < 4, null, 'the camera does not come close to the heroine', 20000);
+        // every button of the book inside the window (a point off screen cannot be tapped)
+        const out = await g(() => [...document.querySelectorAll('#book button')].filter((b) => b.offsetParent !== null).map((b) => {
+          const r = b.getBoundingClientRect();
+          return r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight ? `${b.id || b.dataset.tab || b.dataset.place || b.className} ${Math.round(r.left)},${Math.round(r.top)}` : null;
+        }).filter(Boolean));
+        if (out.length) fail(`outside the window: ${out.join('; ')}`);
+        const read = () => g(() => {
+          const s = __game.save, places = [...document.querySelectorAll('#shelf .place')];
+          return {
+            places: places.map((e) => ({ world: e.dataset.world ?? null, state: e.dataset.state, sil: e.classList.contains('sil') })),
+            finals: Object.fromEntries(Object.entries(s.worlds).map(([id, w]) => [id, w?.final === true])),
+            ach: [...document.querySelectorAll('#achs .ach')].map((e) => ({ id: e.dataset.id, got: e.classList.contains('got'), sil: e.classList.contains('sil') })),
+            earned: Object.keys(s.achievements),
+            secrets: [...document.querySelectorAll('#secrets .secret')].map((e) => ({ k: e.dataset.flag, got: e.classList.contains('got') })),
+            flags: { ...(s.worlds.fairy?.flags ?? {}) },
+          };
+        });
+        const b = await read(), left = [];
+        b.places.forEach((p, i) => {
+          const back = p.world !== null && b.finals[p.world] === true;
+          if (back !== (p.state === 'found') || back === p.sil) left.push(`place ${i + 1} (${p.world ?? 'no world yet'}): ${p.state}, the save says ${back ? 'restored' : 'not restored'}`);
+        });
+        const lit = b.places.filter((p) => p.state === 'found').length;
+        if (lit !== want) left.push(`${lit} places lit, not ${want}`);
+        if (b.ach.length !== 12) left.push(`${b.ach.length} achievements, not 12`);
+        for (const a of b.ach) if (a.got !== b.earned.includes(a.id) || a.got === a.sil) left.push(`the achievement ${a.id}: ${a.got ? 'shown received' : 'a silhouette'}, the save ${b.earned.includes(a.id) ? 'has' : 'has not'} it`);
+        for (const x of b.secrets) if (x.got !== (b.flags[x.k] === true)) left.push(`the secret ${x.k}: ${x.got ? 'found' : 'a silhouette'}, the flag is ${b.flags[x.k]}`);
+        if (left.length) fail(left.join('; '));
+        await shot(`30-book-${when}`);
+        for (const tb of ['secrets', 'pets', 'ach']) {
+          await tap(`#bookTabs [data-tab=${tb}]`);
+          await until((id) => !document.querySelector(`#book${{ secrets: 'Secrets', pets: 'Pets', ach: 'Ach' }[id]}`).classList.contains('hidden'), tb, `the tab ${tb} does not open`);
+          await shot(`30-book-${when}-${tb}`);
+        }
+        // the choice of a pet (R20): a pet is marked found for the check (no world places one yet), chosen by a tap -
+        // save.pet and the stored save -, then left at home again and the mark taken back
+        await g(() => { __game.save.worlds.fairy.flags.pet = true; });
+        await tap('#bookTabs [data-tab=pets]');
+        await until(() => !!document.querySelector('#pets [data-pet=fawn]:not(.sil)'), null, 'a found pet is still a silhouette');
+        await tap('#pets [data-pet=fawn]');
+        await until(() => __game.save.pet === 'fawn' && JSON.parse(localStorage.getItem('amw-save') || '{}').pet === 'fawn'
+          && document.querySelector('#pets [data-pet=fawn]').classList.contains('sel'), null, `a tap on the pet did not choose it: save.pet ${await g(() => __game.save.pet)}`);
+        await tap('#pets [data-pet=none]');
+        await until(() => __game.save.pet === null && JSON.parse(localStorage.getItem('amw-save') || '{}').pet === null, null, '"no pet" did not leave it at home');
+        await g(() => { delete __game.save.worlds.fairy.flags.pet; });
+        await tap('#bookTabs [data-tab=shelf]');
+        console.log(`profile (${when}): ${lit} of 5 places lit, ${b.ach.filter((a) => a.got).length} of 12 achievements, ${b.secrets.filter((x) => x.got).length} of ${b.secrets.length} secrets, the pet chosen and left home`);
+      };
       // collection + parents
       if (has('book')) {
+        const firstBook = await g(() => !__game.save.shelfSeen);
         await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
+        // the first opening of the shelf: the cat's line, a subtitle only (shelf_first is not recorded yet)
+        if (firstBook && !(await g(() => !document.querySelector('#bookSay').classList.contains('quiet') && document.querySelector('#bookSayText').textContent.length > 0))) errors.push(`book: ${mode}: no line of the cat at the first opening of the shelf`);
         // The book shows what the world gives it: one shard per friend, lit for every friend done, the stars of the save
         // and whether the chest was opened.
         {
@@ -2129,6 +2191,8 @@ try {
           if (left.length) errors.push(`book: ${mode}: ${left.join('; ')}`);
           else console.log(`book: ${b.got} of ${b.shards} shards, ${b.stars} stars, the chest ${b.chest ? 'open' : 'closed'}`);
         }
+        // after the first world (R17): its artifact on the shelf, the four other places silhouettes
+        await checkProfile('world1', 1).catch((e) => errors.push(`book: ${mode}: ${e.message}`));
         // without the shop (which opens from the book) the book is closed again
         if (!listed('shop')) await closeBook().catch((e) => { throw new Error(`book: it cannot be closed: ${why(e)}`); });
       }
@@ -2632,6 +2696,14 @@ try {
           if (left.length) fail(`after the reload the old progress is back: ${left.join(', ')}`);
           console.log(`start again: ${had.stars} stars and quests ${JSON.stringify(hadW.quests)} cleared, the start screen of a new player`);
         }
+      }
+      // ---- the book at the start of the game (R17): a new player's shelf is five silhouettes. Played after "start again" ----
+      if (listed('book') && listed('start-again')) {
+        await tapOn('#play').catch((e) => errors.push(`book: ${mode}: "play" of a new player cannot be pressed: ${why(e)}`));
+        await page.waitForFunction(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden') && !!window.__game,
+          null, { timeout: T(90000) }).catch(() => errors.push(`book: ${mode}: the game of a new player did not start`));
+        await tapOn('#btnBook').then(() => checkProfile('start', 0)).then(() => closeBook())
+          .catch((e) => errors.push(`book: ${mode}: ${e.message}`));
       }
       // The end of the walk (R06, R43): the scenes the blocks after "achievements" closed (a reload's "Play" is a stop
       // point too) were waiting in its queue - every scene of the walk is of the piece's set, and each came once.
