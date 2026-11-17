@@ -17,7 +17,8 @@ export interface OrderState { next: number }
 export const COUNT = (level: number) => (level === 1 ? 4 : 5);
 /**
  * The largest number a level draws from when the numbers are scattered: 10 on level 3, 20 on level 5 (LEARN-05).
- * Level 4 (the neighbours of a number, LEARN-08) is not made yet and is level 3 until then.
+ * Level 4 of the series is the neighbours of a number (LEARN-08, `tasks/neighbors.ts`, played there by `BY_LEVEL` of
+ * `tasks/index.ts`); this type itself plays its level 4 as its 3.
  */
 export const TOP = (level: number) => (level >= 5 ? 20 : 10);
 

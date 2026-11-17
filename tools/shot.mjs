@@ -36,7 +36,8 @@
 //   E2E_STUCK_MS=<ms>       how long one quest may take before it is reported as stuck (default 240000)
 //   E2E_LEVEL=<1..5>        fix the level of every skill (the parents' setting, save.fixed) for the whole run, each
 //                           within its own levels (the composition of a number starts at 3; with 1 or 2 it plays its
-//                           level 4, the number house - see the start of the first world); default: adaptive, which
+//                           level 4, the number house - see the start of the first world; 4 plays the neighbours of
+//                           a number for the series, 5 the signs for comparing); default: adaptive, which
 //                           stays on level 1 here because the scenario fails every task type once on purpose
 //   E2E_OFFLINE=1           play without network: after the first load wait until the service worker is active and
 //                           its whole precache list is in the cache, switch the network off, reload and play as
@@ -127,30 +128,38 @@ const STARS_KEPT = 7;
 const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
-  missing: ['t_missing'], house: ['t_house'],
+  missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'],
 };
-// Addition, take away and counting ask the very example with its clip of the bank of the old game's clips (R37,
+// Addition, take away, counting and the neighbours of a number ask the very example with its clip of the bank of the old game's clips (R37,
 // src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
 // way to the general question above: there the bank's key is an error, and so is any request for a clip of the bank.
-const BANK = { add: /^q_add_\d+_\d+$/, sub: /^q_sub_\d+_\d+$/, count: /^q_count_[a-z]+$/ };
-// The composition of a number is one step of a chain (the deer's "compose", R34) whose kind follows its level:
-// the missing addend on levels 3 and 5, the number house on level 4. A run meets the kind of its level.
-const COMPOSE = ['missing', 'house'];
+const BANK = { add: /^q_add_\d+_\d+$/, sub: /^q_sub_\d+_\d+$/, count: /^q_count_[a-z]+$/, neighbors: /^q_(before|after)_\d+$/ };
+// A step of a chain whose kind follows the level of its skill (R34): the composition of a number (the deer's
+// "compose") is the missing addend on levels 3 and 5 and the number house on 4; the number series (the mushroom king's
+// "order") is the neighbours of a number on 4 and the numbers in order otherwise; comparing (the unicorn's and the
+// queen's "compare") is the signs on 5 and the groups or digits otherwise. A run meets the kind of its level.
+const BY_STEP = {
+  compose: { skill: 'compose', kinds: ['missing', 'house'], want: (level) => (level === 4 ? 'house' : 'missing') },
+  order: { skill: 'series', kinds: ['order', 'neighbors'], want: (level) => (level === 4 ? 'neighbors' : 'order') },
+  compare: { skill: 'compare', kinds: ['compare', 'signs'], want: (level) => (level === 5 ? 'signs' : 'compare') },
+};
+const BY_LEVEL_KINDS = Object.values(BY_STEP).flatMap((b) => b.kinds);
 // The solution a task shows after its second mistake (rung 2 of the hint, HINTS.md), once "try again" and the line have
 // ended - what a child sees without the voice and without reading: numbers on the things counted, numbers (or dots)
 // over the groups, the repeating links of the row, the number track walked from 1, the gem trying the baskets until
 // its own keeps a frame, the sequence played again, the frame shared by the alike pictures of "what is odd", the dots
-// counted up from the known number to the sum (the composition of a number).
+// counted up from the known number to the sum (the composition of a number), the cells of the track counted up to the
+// empty one (the neighbours of a number), both numbers laid out as things in ten frames (the signs).
 // Memory pairs have no hint: they open with every face shown.
 const SHOWS = {
   count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
-  missing: '#taskStage .up', house: '#taskStage .up',
+  missing: '#taskStage .up', house: '#taskStage .up', neighbors: '#taskStage .road .cell.said', signs: '#taskStage .side .tf > .pt',
 };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
   '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
-  '#taskStage .up', '#taskStage .dots-up'].join(', ');
+  '#taskStage .up', '#taskStage .dots-up', '#taskStage .cell.said', '#taskStage .side .tens'].join(', ');
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -298,7 +307,7 @@ try {
     const met = Object.keys(BANK).filter((t) => asked[t]);
     if (!met.length) return;
     const byBank = met.filter((t) => BANK[t].test(asked[t].key ?? ''));
-    const clips = await page.evaluate(() => Object.keys(window.__starts).filter((k) => /^q_(add|sub|count)_/.test(k)));
+    const clips = await page.evaluate(() => Object.keys(window.__starts).filter((k) => /^q_(add|sub|count|before|after)_/.test(k)));
     console.log(`bank: ${byBank.length ? byBank.map((t) => `${t} ${asked[t].key}`).join(', ') : 'no example asked by the bank'}; clips of the bank started: ${clips.length}`);
     if (offline) { if (clips.length) errors.push(`bank: ${mode}: without network clips of the bank sounded: ${clips.join(' ')}`); return; }
     if (!byBank.length) errors.push(`bank: ${mode}: ${met.join(', ')} met, but no example was asked by its clip of the bank (only ${met.map((t) => asked[t].key).join(' ')})`);
@@ -1518,16 +1527,20 @@ try {
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
         // E2E_ONLY: the kinds of the chains the group played
         const steps = new Set((await g(() => __game.npcs.map((n) => [n.def.id, n.def.steps]))).filter(([id]) => plays(id)).flatMap(([, st]) => st));
-        // "compose" is the kind its level played: the one met (closed and played) - and the house where the level is 4
-        const fixedCompose = await g(() => __game.save.fixed.compose);
-        const composed = COMPOSE.filter((t) => seen.has(t) || closed.has(t));
-        if (steps.has('compose')) {
-          if (!composed.length) errors.push(`compose: ${mode}: the step "compose" played neither ${COMPOSE.join(' nor ')}`);
-          const want = fixedCompose === 4 ? 'house' : fixedCompose > 0 ? 'missing' : '';
-          if (want && composed.join() !== want) errors.push(`compose: ${mode}: level ${fixedCompose} of the composition played ${composed.join(', ') || 'nothing'}, not ${want}`);
+        // A step whose kind follows its level (BY_STEP) is the kind its level played: the one met (closed and played) -
+        // and, with a fixed level, the kind of that level (the house on 4, the neighbours on 4, the signs on 5).
+        const fixed = await g(() => ({ ...__game.save.fixed }));
+        const played = {};          // step -> the kinds it played
+        for (const [step, by] of Object.entries(BY_STEP)) {
+          played[step] = by.kinds.filter((t) => seen.has(t) || closed.has(t));
+          if (!steps.has(step)) continue;
+          if (!played[step].length) errors.push(`${step}: ${mode}: the step "${step}" played neither ${by.kinds.join(' nor ')}`);
+          const level = fixed[by.skill], want = level > 0 ? by.want(level) : '';
+          if (want && played[step].join() !== want) errors.push(`${step}: ${mode}: level ${level} of "${by.skill}" played ${played[step].join(', ') || 'nothing'}, not ${want}`);
         }
-        const kinds = new Set([...steps].flatMap((t) => (t === 'compose' ? composed : [t])));
-        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && (!COMPOSE.includes(t) || composed.includes(t)) && (!group || kinds.has(t)));
+        const playedKinds = new Set(Object.entries(played).filter(([step]) => steps.has(step)).flatMap(([, k]) => k));
+        const kinds = new Set([...steps].flatMap((t) => (BY_STEP[t] ? played[t] : [t])));
+        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && (!BY_LEVEL_KINDS.includes(t) || playedKinds.has(t)) && (!group || kinds.has(t)));
         const unclosed = panel.filter((t) => !closed.has(t));
         if (unclosed.length) errors.push(`close: ${mode}: never closed with its button: ${unclosed.join(', ')}`);
         for (const [t, c] of closed) {
@@ -1933,6 +1946,20 @@ try {
           if (!/^([0-9a-f]{4,40}|no-git)$/.test(ver.commit ?? '')) errors.push(`version: the commit number is "${ver.commit}"`);
           if (commit && ver.commit !== commit) errors.push(`version: the parents' section shows commit "${ver.commit}", but the sources are at "${commit}" (git rev-parse --short HEAD): the build is not of this commit`);
           console.log(`version: "${ver.text}"${commit ? `, the commit is that of the sources (${commit})` : ', E2E_COMMIT is not set: the commit was not compared'}`);
+          // the five hardest examples (PLAY-15, LEARN-11): those of the save, the most mistakes first (of two alike the one given
+          // last), written in numbers; none - the line that says so
+          {
+            const { list, text } = await g(() => ({ list: __game.save.hard.list.map((h) => ({ ...h })),
+              text: document.querySelector('#pHard')?.textContent ?? null }));
+            const inNumbers = (k) => k.replace(/^\w+:/, '').replace(/([+=-])/g, ' $1 ').replace(/-/g, '−').replace(/\s+/g, ' ').trim();
+            const want = [...list].sort((x, y) => y.e - x.e || y.at - x.at).slice(0, 5).map((h) => inNumbers(h.k));
+            const shown = text === null ? null : text.split('·').slice(1).map((s) => s.trim()).filter(Boolean);
+            if (shown === null) errors.push('hard examples: the parents\' section has no #pHard');
+            // none yet: one line of words (p_hard_none), no example in numbers
+            else if (!want.length ? shown.length !== 1 || /\d/.test(shown[0]) : shown.join(' | ') !== want.join(' | '))
+              errors.push(`hard examples: the parents' section shows "${shown.join(' | ')}", the save's five hardest are "${want.join(' | ') || 'none'}"`);
+            else console.log(`hard examples: ${want.length ? want.join(' · ') : 'none yet'} (of ${list.length} kept)`);
+          }
           // the voice slider shows what this walkthrough plays with
           const slider = await g(() => Number(document.querySelector('#pBody [data-v=voice]')?.value));
           if (mute ? slider !== 0 : !(slider > 0)) errors.push(`the voice slider of the parents' section is at ${slider} in a walkthrough ${mute ? 'without' : 'with'} the voice`);

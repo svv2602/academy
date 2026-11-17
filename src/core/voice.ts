@@ -110,7 +110,8 @@ export function say(id: SpokenKey, text: string, priority: Priority): Spoken {
  * src/ui/strings-bank.ts. The bank is not part of the first load: a clip is fetched when first asked for and the
  * service worker keeps it (vite.config.ts, `runtimeCaching`).
  */
-export type BankKey = `q_add_${number}_${number}` | `q_sub_${number}_${number}` | `q_count_${string}`;
+export type BankKey = `q_add_${number}_${number}` | `q_sub_${number}_${number}` | `q_count_${string}`
+  | `q_before_${number}` | `q_after_${number}`;
 /** How long the first download of a clip of the bank may take before the general question is said instead. */
 const BANK_WAIT_MS = 4000;
 const bankUrl = (key: BankKey) => new URL(`${base}bank/${key}.mp3`, location.href).href;

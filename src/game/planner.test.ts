@@ -94,14 +94,17 @@ describe('examples with mistakes come back (LEARN-11, R17, R18)', () => {
     expect(save.hard.list[0]).toMatchObject({ k, c: 1 });
   });
 
-  it('the composition of a number keeps the missing addend, and brings it back on its house level too', () => {
+  it('the composition of a number keeps the missing addend; the house of level 4 stays a house, the addend waits for its own type', () => {
     const { p, save, rng } = planner(9);
     const s = p.next('missing', 3, rng);
     expect(s.type).toBe('missing');
     p.done(s, mistakes(1));
     expect(save.hard.list.map((h) => h.k)).toEqual([sameness(s)]);
     p.done(p.next('count', 1, rng), clean); p.done(p.next('count', 1, rng), clean);
-    const back = p.next('house', 4, rng);           // a compose step on level 4 plays the house: the example comes first
+    const house = p.next('house', 4, rng);          // a compose step on level 4 plays the house (R34), never the kept addend
+    expect(house.type).toBe('house');
+    p.done(house, clean);
+    const back = p.next('missing', 3, rng);         // the next missing addend is the example kept
     expect([back.type, sameness(back), back.level]).toEqual(['missing', sameness(s), 3]);
   });
 

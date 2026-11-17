@@ -1,0 +1,19 @@
+/* The signs (level 5 of comparing, LEARN-09): number, the empty place of the sign, number; the three sign buttons are
+   the usual `.opt`. Rung 2 lays both numbers out as things in small ten frames under them (nothing there is a button),
+   matched in pairs; the things left over of the larger number glow. Two frames of a number stand side by side, and
+   under one another where the stage is narrow (a phone held upright). */
+.t-stage.t-signs { flex-wrap: nowrap; align-items: flex-start; }
+.t-signs .side { flex: 0 1 auto; min-width: 0; max-width: calc(50% - 40px); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.t-signs .side > .n { font-size: clamp(44px, min(11vw, 16vh), 88px); font-weight: 800; line-height: 1; color: #7a4fd0;
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.t-signs .slot { flex: none; align-self: flex-start; width: clamp(48px, 9vw, 72px); height: clamp(44px, min(11vw, 16vh), 88px); box-sizing: border-box;
+  border-radius: 16px; border: 3px dashed #ffa62b; background: #fff7e8; display: grid; place-items: center; color: #b07ad6;
+  font: 800 clamp(28px, 5vw, 44px)/1 system-ui, sans-serif; }
+.t-signs .slot.set { border-style: solid; color: #2f9b4a; background: #e8f9e4; border-color: #7fd08c; }
+.t-signs .tens { gap: 4px; }
+.t-signs .tf { grid-template-columns: repeat(5, var(--p)); grid-auto-rows: var(--p); gap: 2px; padding: 2px; border-width: 2px; border-radius: 8px;
+  --p: clamp(14px, min(2.4vw, 4.2vh), 22px); }
+.t-signs .tf > .pt, .t-signs .tf > .tf-e { width: var(--p); height: var(--p); border-radius: 5px; }
+.t-signs .tf > .pt { font-size: calc(var(--p) * .72); line-height: var(--p); text-align: center; background: #f6eefc; opacity: .75; }
+.t-signs .tf > .pt.pair { opacity: 1; background: #dff1ff; box-shadow: inset 0 0 0 2px #5cb8ff; }
+.t-signs .tf > .pt.extra { opacity: 1; background: #fff3c4; box-shadow: inset 0 0 0 2px #ffa62b; }

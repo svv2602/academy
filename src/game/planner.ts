@@ -16,7 +16,7 @@ import type { TaskType } from './tasks/types';
 import { example as addExample } from './tasks/add';
 import { example as subExample } from './tasks/sub';
 import { example as missingExample } from './tasks/missing';
-import { SKILL, showTask, type TaskHooks, type TaskResult } from './taskviews/panel';
+import { showTask, type TaskHooks, type TaskResult } from './taskviews/panel';
 
 /** How many other tasks come between an example with a mistake and its return (LEARN-11). */
 export const GAP = 2;
@@ -40,6 +40,8 @@ export function sameness(s: TaskSpec): string {
     case 'missing': return `missing:${s.body.a}+?=${s.body.sum}`;
     case 'count': return `count:${s.body.n}`;
     case 'compare': return `compare:${s.body.groups.join(',')}:${s.body.more ? 'more' : 'fewer'}`;
+    case 'signs': return `signs:${s.body.a},${s.body.b}`;
+    case 'neighbors': return `neighbors:${s.body.n}:${s.body.before ? 'before' : 'after'}`;
     case 'order': return `order:${[...s.body.sorted].join(',')}`;
     case 'house': return `house:${s.body.roof}:${s.body.floors.map((f) => f.join('+')).join(',')}:${s.body.gap.floor}${s.body.gap.side}`;
     case 'odd': return `odd:${[...s.body.things].sort().join(',')}:${s.body.things[s.body.answer]}`;
@@ -104,9 +106,13 @@ export function createPlanner(save: Save): Planner {
   let last: string | null = null;                      // the task given just before (LEARN-13), for this session
   const given = new WeakMap<TaskSpec, number>();      // the number of the task each spec was given as
 
-  /** The kept example of the skill of `type` that waited longest, once two other tasks have come since it was given. */
+  /**
+   * The kept example of `type` that waited longest, once two other tasks have come since it was given. Only of the
+   * very type: the composition of a number plays the number house on level 4 (R34), and a kept missing addend must not
+   * take its place there.
+   */
   const due = (type: TaskType, n: number) => save.hard.list
-    .filter((h) => SKILL[typeOfKey(h.k)] === SKILL[type] && n - h.at > GAP && h.k !== last)
+    .filter((h) => typeOfKey(h.k) === type && n - h.at > GAP && h.k !== last)
     .sort((x, y) => x.at - y.at)[0];
   /** A kept example given too early: it waits for its turn. */
   const early = (k: string, n: number) => save.hard.list.some((h) => h.k === k && n - h.at <= GAP);

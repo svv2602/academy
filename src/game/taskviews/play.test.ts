@@ -268,6 +268,35 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     once(values, answer, 'the right answer');
     must(Number(text(accepted(buttons))) === answer, 'the accepted answer is not the number of the empty window');
   },
+  // The neighbours of a number (LEARN-08): five cells in a row up to 20, one empty right before or after the marked one.
+  neighbors(_level, heard) {
+    const cells = all(stage(), '.road .cell'), empty = cells.findIndex((c) => c.classList.contains('empty'));
+    const here = cells.findIndex((c) => c.classList.contains('here')), before = heard.prompts[0] === 't_before';
+    seen = `${cells.map(text).join(' ')}; asked ${heard.prompts.join(' ')}`;
+    must(cells.length === 5, `${cells.length} cells, declared 5`);
+    must(heard.prompts.length === 1 && ['t_before', 't_after'].includes(heard.prompts[0]), 'the question is not "before" / "after"');
+    must(all(stage(), '.cell.empty').length === 1 && text(cells[empty]) === '?', 'there must be one empty cell with "?"');
+    must(here === empty + (before ? 1 : -1), 'the empty cell is not right before / after the marked number');
+    const known = cells.map((c, i) => (i === empty ? NaN : Number(text(c))));
+    const first = Number.isNaN(known[0]) ? known[1] - 1 : known[0];
+    known.forEach((v, i) => { if (i !== empty) must(v === first + i, 'the numbers of the track are not in a row'); });
+    between(first, 1, 16, 'the first cell');
+    const answer = first + empty, buttons = all(opts(), '.opt'), values = buttons.map((b) => Number(text(b)));
+    seen += `; options ${values.join(' ')}`;
+    values.forEach((v) => between(v, 1, 20, 'an option'));
+    distinct(values, 'options');
+    once(values, answer, 'the right answer');
+    must(Number(text(accepted(buttons))) === answer, 'the accepted answer is not the number of the empty cell');
+  },
+  // The signs (LEARN-09): two numbers up to 20, the empty place of the sign, the buttons ">", "<", "=".
+  signs() {
+    const [a, b] = all(stage(), '.side > .n').map((e) => Number(text(e))), buttons = all(opts(), '.opt');
+    seen = `${a} ? ${b}; options ${buttons.map(text).join(' ')}`;
+    between(a, 1, 20, 'the first number'); between(b, 1, 20, 'the second number');
+    must(buttons.map(text).join(' ') === '> < =', 'the sign buttons are not ">", "<", "="');
+    must(text(stage().querySelector<HTMLElement>('.slot')!) === '?', 'the place of the sign is not empty');
+    must(text(accepted(buttons)) === (a > b ? '>' : a < b ? '<' : '='), 'the accepted sign does not open towards the larger number');
+  },
 };
 
 const TYPES = Object.keys(PLAY) as TaskType[];
