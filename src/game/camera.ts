@@ -3,15 +3,17 @@ import { input } from '../core/input';
 import { camDistance, tuning } from '../core/tuning';
 import { angleDiff, clamp, damp, lerp } from '../core/util';
 import type { Game } from './context';
+import { flyoverOf } from './flyover';
 
 /**
  * The camera (ARCH-05): turned by a drag, then the dressing room on the start screen, a conversation/task framing or the
  * orbit behind the heroine. `focusDist` is the world's distance for a framed scene (a task in the world wants more room).
+ * The tour of the world (src/game/flyover.ts) takes the camera over while it runs and hands it back smoothly after.
  */
 export function createCamera(g: Game, focusDist: () => number): { look(): void; update(dt: number, time: number, mag: number): void } {
   const { hero, cam, camera, groundY, started } = g;
   let userPitch = 0.36;             // set by dragging up/down
-  const v = new THREE.Vector3(), v2 = new THREE.Vector3();
+  const v = new THREE.Vector3(), v2 = new THREE.Vector3(), fp = new THREE.Vector3(), fl = new THREE.Vector3();
   return {
     look: () => {
       cam.yaw -= input.lookDX * tuning.lookX; input.lookDX = 0;
@@ -37,7 +39,16 @@ export function createCamera(g: Game, focusDist: () => number): { look(): void; 
         cam.target.y + Math.sin(cam.pitch) * cam.dist,
         cam.target.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
       camera.position.y = Math.max(camera.position.y, groundY(camera.position.x, camera.position.z) + 0.8);
-      camera.lookAt(cam.target);
+      // The tour: its camera wins while it runs, then gives way to the one behind the heroine within a second.
+      const fly = flyoverOf(g);
+      fly?.update(dt);
+      const w = fly ? fly.weight() : 0;
+      if (fly && w > 0) {
+        fly.pose(fp, fl);
+        camera.position.lerp(fp, w);
+        camera.position.y = Math.max(camera.position.y, groundY(camera.position.x, camera.position.z) + 0.8);
+        camera.lookAt(fl.lerp(cam.target, 1 - w));
+      } else camera.lookAt(cam.target);
     },
   };
 }
