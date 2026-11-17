@@ -3,3243 +3,4945 @@
   "text": "Привіт! Ми в Королівстві фей. Кристал світла розбився на пʼять уламків! Допоможеш їх зібрати?",
   "heard": "Привіт! Ми в Королівстві фей. Кристал Світла розбився на п'ять уламків. Допоможеш їх зібрати?",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "welcome_back": {
   "text": "З поверненням! Продовжимо нашу пригоду?",
   "heard": "З поверненням! Продовжимо нашу пригоду?",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "chest": {
   "text": "Ого, таємна скриня! У ній зірочки!",
   "heard": "Ого, таємна скриня! У ній зірочки!",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "free": {
   "text": "Гуляй королівством! Тут ще багато таємниць.",
   "heard": "Гуляй королівством, тут ще багато таємниць!",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "unicorn_hi": {
   "text": "Мої метелики розлетілися! Допоможи їх порахувати.",
   "heard": "Мої метелики розлетілися, допоможи їх порахувати.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "fox_hi": {
   "text": "Привіт! Я лисичка. Розгадаєш мої хитрі загадки?",
   "heard": "Привіт, я Лисичка. Розгадаєш мої хитрі загадки?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "mushking_hi": {
   "text": "Я Грибний Король. Допоможи навести лад у моєму лісі!",
   "heard": "Я грибний король, допоможи навести лад у моєму лісі.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "deer_hi": {
   "text": "Мої зірочки сховалися в траві. Знайдеш їх?",
   "heard": "Мої зірочки сховалися в траві. Знайдеш їх?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "queen_hi": {
   "text": "Вітаю, Хранителько! Останній уламок у мене. Пройди три випробування.",
   "heard": "Вітаю, хранителько! Останній уламок у мене. Пройди три випробування.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "npc_next": {
   "text": "Чудово! А ось іще одне завдання.",
   "heard": "Чудово! А ось іще одне завдання.",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "npc_done": {
   "text": "Дякую тобі! Тримай уламок Кристала світла!",
   "heard": "Дякую тобі. Тримай уламок кристала світла.",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "npc_again": {
   "text": "Пограємо ще разок?",
   "heard": "Пограємо ще разок?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "go_next": {
   "text": "Біжи за іскорками до нового друга!",
   "heard": "Біжи за іскорками до нового друга.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_count": {
   "text": "Скільки їх тут? Торкайся і рахуй.",
   "heard": "Скільки їх тут, торкайся і рахуй.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_add": {
   "text": "Скільки буде разом?",
   "heard": "Скільки буде разом?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_sub": {
   "text": "Дехто втік. Скільки залишилось?",
   "heard": "Дехто втік. Скільки залишилось?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_compare_more": {
   "text": "Де більше?",
   "heard": "Де більше?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_compare_less": {
   "text": "Де менше?",
   "heard": "Де менше.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_pattern": {
   "text": "Що буде далі?",
   "heard": "Що буде далі?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_odd": {
   "text": "Що тут зайве?",
   "heard": "Що тут зайве?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_pairs": {
   "text": "Знайди однакові картки.",
   "heard": "Знайди однакові картки.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_order": {
   "text": "Натискай числа від найменшого.",
   "heard": "Натискай числа від найменшого.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_sort": {
   "text": "Поклади кристал у кошик такого ж кольору.",
   "heard": "Поклади кристал у кошик такого ж кольору.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_simon_watch": {
   "text": "Дивись і запамʼятовуй!",
   "heard": "Дивись і запам'ятовуй.",
   "score": 1.0,
-  "style": "calm"
+  "style": "calm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_simon_repeat": {
   "text": "Тепер повтори!",
   "heard": "Тепер повтори.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_stars": {
   "text": "Знайди пʼять зірочок, що сховалися поруч!",
   "heard": "Знайди п'ять зірочок, що сховалися поруч.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_stars_back": {
   "text": "Усі зірочки знайдено! Повертаймося до оленя.",
   "heard": "Усі зірочки знайдено! Повертаємося до оленя!",
   "score": 0.976,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_count": {
   "text": "Порахуймо разом!",
   "heard": "Порахуймо разом.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_left": {
   "text": "Порахуймо тих, хто залишився.",
   "heard": "Порахуймо тих, хто залишився.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_compare": {
   "text": "Порахуй тут і тут.",
   "heard": "Порахуй тут і тут.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_pattern": {
   "text": "Подивись, що повторюється.",
   "heard": "Подивись, що повторюється.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_odd": {
   "text": "Хто не схожий на інших?",
   "heard": "Хто не схожий на інших?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_order": {
   "text": "Яке число найменше?",
   "heard": "Яке число найменше?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_sort": {
   "text": "Якого кольору кристал?",
   "heard": "Якого кольору кристал?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h_simon": {
   "text": "Подивись іще раз.",
   "heard": "Подивись іще раз.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "all_shards": {
   "text": "Усі уламки в нас! Віднесімо їх до альтанки біля ставка.",
   "heard": "Усі уламки – в нас, віднесімо їх до альтанки біля ставка.",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "final_text": {
   "text": "Ти повернула магію Королівству фей!",
   "heard": "Ти повернула магію королівству фей!",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "shop_hi": {
   "text": "Це чарівна лавка! Торкнись речі, і вона одразу на тобі.",
   "heard": "Це чарівна лавка. Торкнись речі, і вона одразу на тобі.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "shop_more": {
   "text": "Ще трішки зірочок, і ця річ буде твоя!",
   "heard": "Ще трішки, зірочок, і ця річ буде твоя.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "shop_bought": {
   "text": "Тепер це твоє назавжди!",
   "heard": "Тепер це твоє назавжди!",
   "score": 1.0,
-  "style": "joy"
+  "style": "joy",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_missing": {
   "text": "Скільки не вистачає до потрібного числа?",
   "heard": "Скільки не вистачає до потрібного числа?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_house": {
   "text": "Яке число сховалося в будиночку?",
   "heard": "Яке число сховалося в будиночку?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_before": {
   "text": "Яке число стоїть перед цим числом?",
   "heard": "Яке число стоїть перед цим числом?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_after": {
   "text": "Яке число стоїть після цього числа?",
   "heard": "Яке число стоїть після цього числа?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_signs": {
   "text": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
   "heard": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "t_sort_two": {
   "text": "Поклади кожну фігурку в кошик за кольором і формою.",
   "heard": "Поклади кожну фігурку в кошик за кольором і формою.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_count": {
   "text": "Торкайся кожного по одному, щоб нікого не пропустити.",
   "heard": "Торкайся кожного по одному, щоб нікого не пропустити.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_ten": {
   "text": "Повна рамка — це десять. Далі рахуй від десяти.",
   "heard": "Повна рамка — це десять. Далі рахуй від десяти.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_ten": {
   "text": "Тут уже десять. Рахуймо далі разом!",
   "heard": "Тут уже десять. Рахуймо далі разом.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_add": {
   "text": "Запамʼятай, скільки в першій групі, і рахуй далі по одному.",
   "heard": "Запам'ятай, скільки в першій групі, і рахуй далі по одному.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_add_cross": {
   "text": "Спочатку доповни до десяти, а потім додай те, що залишилось.",
   "heard": "Спочатку доповни до десяти, а потім додай те, що залишилось.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_add_cross": {
   "text": "Рахуймо разом: спершу до десяти, а потім ще трохи.",
   "heard": "Рахуймо разом: спершу до десяти, а потім ще трохи.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_sub": {
   "text": "Тих, хто втік, не рахуй. Рахуй тільки тих, хто залишився.",
   "heard": "Тих, хто втік, не рахуй, рахуй тільки тих, хто залишився.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_sub_cross": {
   "text": "Спочатку забери стільки, щоб лишилося десять, а потім забери решту.",
   "heard": "Спочатку забери стільки, щоб лишилося десять, а потім забери решту.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_sub_cross": {
   "text": "Рахуймо разом: спершу забираємо до десяти, а потім ще.",
   "heard": "Порахуємо разом. Спершу забираємо до десяти, а потім ще.",
   "score": 0.962,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_compare": {
   "text": "Порахуймо разом кожну групу.",
   "heard": "Порахуймо разом кожну групу.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_compare_num": {
   "text": "Коли рахуєш, більше число звучить пізніше.",
   "heard": "Коли рахуєш, більше число звучить пізніше.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_compare_num": {
   "text": "Покладемо обидва числа предметами і порівняємо разом.",
   "heard": "Покладемо обидва числа предметами і порівняємо разом.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_signs": {
   "text": "Знак відкриває ротик до більшого числа. Для однакових чисел — знак дорівнює.",
   "heard": "Знак відкриває ротик до більшого числа. Для однакових чисел знак дорівнює.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_signs": {
   "text": "Покладемо обидва числа предметами. Складемо їх парами і подивимось, де більше.",
   "heard": "Покладемо обидва числа предметами, складемо їх парами і подивимось, де більше.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_order": {
   "text": "Рахуймо разом від одного. Яке число зустрінемо першим?",
   "heard": "Рахуймо разом від одного. Яке число зустрінемо першим?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_neighbors": {
   "text": "Порахуй по доріжці від початку і дійди до пропуску.",
   "heard": "Порахуй, подоришці, від початку ідійди до пропуску.",
   "score": 0.939,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_neighbors": {
   "text": "Рахуймо разом по доріжці, клітинка за клітинкою.",
   "heard": "Рахуймо разом подорожці, клітинка за клітинкою.",
   "score": 0.967,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_missing": {
   "text": "Почни з числа, яке вже є, і рахуй далі до потрібного.",
   "heard": "Почни з числа, яке вже є, і рахуй далі до потрібного.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_missing_ten": {
   "text": "Спочатку дорахуй до десяти, а потім далі до потрібного.",
   "heard": "Спочатку дорахуй до десяти, а потім далі до потрібного.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_missing": {
   "text": "Рахуймо далі разом і подивимось, скільки додали.",
   "heard": "Рахуймо далі разом і подивимось, скільки додали.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_house": {
   "text": "Число на даху — це дві частини разом. Скільки бракує до нього?",
   "heard": "Число на даху — це дві частини разом. Скільки бракує до нього?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_house": {
   "text": "Рахуймо разом від числа у віконці до числа на даху.",
   "heard": "Рахуймо разом від числа у віконці до числа на даху.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_pattern": {
   "text": "Дивись, ось що повторюється. Продовжимо разом!",
   "heard": "Дивися, ось що повторюється. Продовжимо разом!",
   "score": 0.977,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_pattern_grow": {
   "text": "Порахуй, скільки в кожній групі. Як росте ряд?",
   "heard": "Порахуй, скільки в кожній групі. Як росте ряд?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_pattern_grow": {
   "text": "Рахуймо разом, скільки предметів у кожній групі.",
   "heard": "Порахуймо разом, скільки предметів у кожній групі.",
   "score": 0.979,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_pattern_two": {
   "text": "Тут змінюються і колір, і предмет. Подивись на кожне окремо.",
   "heard": "Тут змінюється і колір, і предмет. Подивись на кожне окремо.",
   "score": 0.982,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_pattern_two": {
   "text": "Спочатку знайдемо, як іде колір, а потім — предмет.",
   "heard": "Спочатку знайдемо, як іде колір, а потім предмет.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_simon": {
   "text": "Коли кнопка засвітиться, тихенько назви її колір.",
   "heard": "Коли кнопка засвітиться, тихенько назви її колір.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_simon_long": {
   "text": "Запамʼятовуй кольори по два разом, так легше.",
   "heard": "Запамятовуй кольори по два разом. Так легше!",
   "score": 0.988,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_odd_shape": {
   "text": "Колір у всіх однаковий. Подивись на форму і на розмір.",
   "heard": "Колір у всіх однаковий. Подивись на форму і на розмір.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_odd_two": {
   "text": "Подивись і на колір, і на форму. Хто тут інший?",
   "heard": "Подивись і на колір, і на форму. Хто тут інший?",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_odd": {
   "text": "Знайдемо разом тих, хто схожий між собою.",
   "heard": "Знайдемо разом тих, хто схожий між собою.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_sort": {
   "text": "Знайдемо разом кошик такого ж кольору.",
   "heard": "Знайдемо разом кошик такого ж кольору.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h1_sort_two": {
   "text": "Подивись на колір і на форму. Потрібен кошик, де збігається і те, і те.",
   "heard": "Подивись на колір і на форму. Потрібен кошик, де збігається і те, і те.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h2_sort_two": {
   "text": "Спочатку знайдемо колір, а потім форму.",
   "heard": "Спочатку знайдемо колір, а потім форму.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "h3_show": {
   "text": "Подивись, що світиться. Це підказка для тебе.",
   "heard": "Подивись, що світиться. Це підказка для тебе.",
   "score": 1.0,
-  "style": "warm"
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_1": {
   "text": "Скільки буде десять плюс один?",
   "heard": "Скільки буде десять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_2": {
   "text": "Скільки буде десять плюс два?",
   "heard": "Скільки буде десять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_3": {
   "text": "Скільки буде десять плюс три?",
   "heard": "Скільки буде десять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_4": {
   "text": "Скільки буде десять плюс чотири?",
   "heard": "Скільки буде десять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_5": {
   "text": "Скільки буде десять плюс п'ять?",
   "heard": "Скільки буде десять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_6": {
   "text": "Скільки буде десять плюс шість?",
   "heard": "Скільки буде десять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_7": {
   "text": "Скільки буде десять плюс сім?",
   "heard": "Скільки буде десять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_8": {
   "text": "Скільки буде десять плюс вісім?",
   "heard": "Скільки буде десять плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_10_9": {
   "text": "Скільки буде десять плюс дев'ять?",
   "heard": "Скільки буде десять плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_1": {
   "text": "Скільки буде одинадцять плюс один?",
   "heard": "Скільки буде одинадцять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_2": {
   "text": "Скільки буде одинадцять плюс два?",
   "heard": "Скільки буде одинадцять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_3": {
   "text": "Скільки буде одинадцять плюс три?",
   "heard": "Скільки буде одинадцять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_4": {
   "text": "Скільки буде одинадцять плюс чотири?",
   "heard": "Скільки буде одинадцять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_5": {
   "text": "Скільки буде одинадцять плюс п'ять?",
   "heard": "Скільки буде одинадцять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_6": {
   "text": "Скільки буде одинадцять плюс шість?",
   "heard": "Скільки буде одинадцять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_7": {
   "text": "Скільки буде одинадцять плюс сім?",
   "heard": "Скільки буде одинадцять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_8": {
   "text": "Скільки буде одинадцять плюс вісім?",
   "heard": "Скільки буде одинадцять плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_11_9": {
   "text": "Скільки буде одинадцять плюс дев'ять?",
   "heard": "Скільки буде одинадцять плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_1": {
   "text": "Скільки буде дванадцять плюс один?",
   "heard": "Скільки буде дванадцять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_2": {
   "text": "Скільки буде дванадцять плюс два?",
   "heard": "Скільки буде дванадцять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_3": {
   "text": "Скільки буде дванадцять плюс три?",
   "heard": "Скільки буде дванадцять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_4": {
   "text": "Скільки буде дванадцять плюс чотири?",
   "heard": "Скільки буде дванадцять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_5": {
   "text": "Скільки буде дванадцять плюс п'ять?",
   "heard": "Скільки буде дванадцять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_6": {
   "text": "Скільки буде дванадцять плюс шість?",
   "heard": "Скільки буде дванадцять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_7": {
   "text": "Скільки буде дванадцять плюс сім?",
   "heard": "Скільки буде дванадцять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_12_8": {
   "text": "Скільки буде дванадцять плюс вісім?",
   "heard": "Скільки буде дванадцять плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_1": {
   "text": "Скільки буде тринадцять плюс один?",
   "heard": "Скільки буде тринадцять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_2": {
   "text": "Скільки буде тринадцять плюс два?",
   "heard": "Скільки буде тринадцять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_3": {
   "text": "Скільки буде тринадцять плюс три?",
   "heard": "Скільки буде тринадцять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_4": {
   "text": "Скільки буде тринадцять плюс чотири?",
   "heard": "Скільки буде тринадцять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_5": {
   "text": "Скільки буде тринадцять плюс п'ять?",
   "heard": "Скільки буде тринадцять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_6": {
   "text": "Скільки буде тринадцять плюс шість?",
   "heard": "Скільки буде тринадцять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_13_7": {
   "text": "Скільки буде тринадцять плюс сім?",
   "heard": "Скільки буде тринадцять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_1": {
   "text": "Скільки буде чотирнадцять плюс один?",
   "heard": "Скільки буде чотирнадцять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_2": {
   "text": "Скільки буде чотирнадцять плюс два?",
   "heard": "Скільки буде чотирнадцять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_3": {
   "text": "Скільки буде чотирнадцять плюс три?",
   "heard": "Скільки буде чотирнадцять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_4": {
   "text": "Скільки буде чотирнадцять плюс чотири?",
   "heard": "Скільки буде чотирнадцять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_5": {
   "text": "Скільки буде чотирнадцять плюс п'ять?",
   "heard": "Скільки буде чотирнадцять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_14_6": {
   "text": "Скільки буде чотирнадцять плюс шість?",
   "heard": "Скільки буде чотирнадцять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_15_1": {
   "text": "Скільки буде п'ятнадцять плюс один?",
   "heard": "Скільки буде п'ятнадцять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_15_2": {
   "text": "Скільки буде п'ятнадцять плюс два?",
   "heard": "Скільки буде п'ятнадцять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_15_3": {
   "text": "Скільки буде п'ятнадцять плюс три?",
   "heard": "Скільки буде п'ятнадцять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_15_4": {
   "text": "Скільки буде п'ятнадцять плюс чотири?",
   "heard": "Скільки буде п'ятнадцять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_15_5": {
   "text": "Скільки буде п'ятнадцять плюс п'ять?",
   "heard": "Скільки буде п'ятнадцять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_1": {
   "text": "Скільки буде один плюс один?",
   "heard": "Скільки буде один плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_2": {
   "text": "Скільки буде один плюс два?",
   "heard": "Скільки буде один плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_3": {
   "text": "Скільки буде один плюс три?",
   "heard": "Скільки буде один плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_4": {
   "text": "Скільки буде один плюс чотири?",
   "heard": "Скільки буде один плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_5": {
   "text": "Скільки буде один плюс п'ять?",
   "heard": "Скільки буде один плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_6": {
   "text": "Скільки буде один плюс шість?",
   "heard": "Скільки буде один плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_7": {
   "text": "Скільки буде один плюс сім?",
   "heard": "Скільки буде один плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_8": {
   "text": "Скільки буде один плюс вісім?",
   "heard": "Скільки буде один плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_1_9": {
   "text": "Скільки буде один плюс дев'ять?",
   "heard": "Скільки буде один плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_1": {
   "text": "Скільки буде два плюс один?",
   "heard": "Скільки буде два плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_2": {
   "text": "Скільки буде два плюс два?",
   "heard": "Скільки буде два плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_3": {
   "text": "Скільки буде два плюс три?",
   "heard": "Скільки буде два плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_4": {
   "text": "Скільки буде два плюс чотири?",
   "heard": "Скільки буде два плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_5": {
   "text": "Скільки буде два плюс п'ять?",
   "heard": "Скільки буде два плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_6": {
   "text": "Скільки буде два плюс шість?",
   "heard": "Скільки буде два плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_7": {
   "text": "Скільки буде два плюс сім?",
   "heard": "Скільки буде два плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_8": {
   "text": "Скільки буде два плюс вісім?",
   "heard": "Скільки буде два плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_2_9": {
   "text": "Скільки буде два плюс дев'ять?",
   "heard": "Скільки буде два плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_1": {
   "text": "Скільки буде три плюс один?",
   "heard": "Скільки буде три плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_2": {
   "text": "Скільки буде три плюс два?",
   "heard": "Скільки буде три плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_3": {
   "text": "Скільки буде три плюс три?",
   "heard": "Скільки буде три плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_4": {
   "text": "Скільки буде три плюс чотири?",
   "heard": "Скільки буде три плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_5": {
   "text": "Скільки буде три плюс п'ять?",
   "heard": "Скільки буде три плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_6": {
   "text": "Скільки буде три плюс шість?",
   "heard": "Скільки буде три плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_7": {
   "text": "Скільки буде три плюс сім?",
   "heard": "Скільки буде три плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_8": {
   "text": "Скільки буде три плюс вісім?",
   "heard": "Скільки буде три плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_3_9": {
   "text": "Скільки буде три плюс дев'ять?",
   "heard": "Скільки буде три плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_1": {
   "text": "Скільки буде чотири плюс один?",
   "heard": "Скільки буде чотири плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_2": {
   "text": "Скільки буде чотири плюс два?",
   "heard": "Скільки буде чотири плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_3": {
   "text": "Скільки буде чотири плюс три?",
   "heard": "Скільки буде чотири плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_4": {
   "text": "Скільки буде чотири плюс чотири?",
   "heard": "Скільки буде чотири плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_5": {
   "text": "Скільки буде чотири плюс п'ять?",
   "heard": "Скільки буде чотири плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_6": {
   "text": "Скільки буде чотири плюс шість?",
   "heard": "Скільки буде чотири плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_7": {
   "text": "Скільки буде чотири плюс сім?",
   "heard": "Скільки буде чотири плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_8": {
   "text": "Скільки буде чотири плюс вісім?",
   "heard": "Скільки буде чотири плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_4_9": {
   "text": "Скільки буде чотири плюс дев'ять?",
   "heard": "Скільки буде чотири плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_1": {
   "text": "Скільки буде п'ять плюс один?",
   "heard": "Скільки буде п'ять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_2": {
   "text": "Скільки буде п'ять плюс два?",
   "heard": "Скільки буде п'ять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_3": {
   "text": "Скільки буде п'ять плюс три?",
   "heard": "Скільки буде п'ять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_4": {
   "text": "Скільки буде п'ять плюс чотири?",
   "heard": "Скільки буде п'ять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_5": {
   "text": "Скільки буде п'ять плюс п'ять?",
   "heard": "Скільки буде п'ять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_6": {
   "text": "Скільки буде п'ять плюс шість?",
   "heard": "Скільки буде п'ять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_7": {
   "text": "Скільки буде п'ять плюс сім?",
   "heard": "Скільки буде п'ять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_8": {
   "text": "Скільки буде п'ять плюс вісім?",
   "heard": "Скільки буде п'ять плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_5_9": {
   "text": "Скільки буде п'ять плюс дев'ять?",
   "heard": "Скільки буде п'ять плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_1": {
   "text": "Скільки буде шість плюс один?",
   "heard": "Скільки буде шість плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_2": {
   "text": "Скільки буде шість плюс два?",
   "heard": "Скільки буде шість плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_3": {
   "text": "Скільки буде шість плюс три?",
   "heard": "Скільки буде шість плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_4": {
   "text": "Скільки буде шість плюс чотири?",
   "heard": "Скільки буде шість плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_5": {
   "text": "Скільки буде шість плюс п'ять?",
   "heard": "Скільки буде шість плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_6": {
   "text": "Скільки буде шість плюс шість?",
   "heard": "Скільки буде шість плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_7": {
   "text": "Скільки буде шість плюс сім?",
   "heard": "Скільки буде шість плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_8": {
   "text": "Скільки буде шість плюс вісім?",
   "heard": "Скільки буде шість плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_6_9": {
   "text": "Скільки буде шість плюс дев'ять?",
   "heard": "Скільки буде шість плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_1": {
   "text": "Скільки буде сім плюс один?",
   "heard": "Скільки буде сім плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_2": {
   "text": "Скільки буде сім плюс два?",
   "heard": "Скільки буде сім плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_3": {
   "text": "Скільки буде сім плюс три?",
   "heard": "Скільки буде сім плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_4": {
   "text": "Скільки буде сім плюс чотири?",
   "heard": "Скільки буде сім плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_5": {
   "text": "Скільки буде сім плюс п'ять?",
   "heard": "Скільки буде сім плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_6": {
   "text": "Скільки буде сім плюс шість?",
   "heard": "Скільки буде сім плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_7": {
   "text": "Скільки буде сім плюс сім?",
   "heard": "Скільки буде сім плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_8": {
   "text": "Скільки буде сім плюс вісім?",
   "heard": "Скільки буде сім плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_7_9": {
   "text": "Скільки буде сім плюс дев'ять?",
   "heard": "Скільки буде сім плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_1": {
   "text": "Скільки буде вісім плюс один?",
   "heard": "Скільки буде вісім плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_2": {
   "text": "Скільки буде вісім плюс два?",
   "heard": "Скільки буде вісім плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_3": {
   "text": "Скільки буде вісім плюс три?",
   "heard": "Скільки буде вісім плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_4": {
   "text": "Скільки буде вісім плюс чотири?",
   "heard": "Скільки буде вісім плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_5": {
   "text": "Скільки буде вісім плюс п'ять?",
   "heard": "Скільки буде вісім плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_6": {
   "text": "Скільки буде вісім плюс шість?",
   "heard": "Скільки буде вісім плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_7": {
   "text": "Скільки буде вісім плюс сім?",
   "heard": "Скільки буде вісім плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_8": {
   "text": "Скільки буде вісім плюс вісім?",
   "heard": "Скільки буде вісім плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_8_9": {
   "text": "Скільки буде вісім плюс дев'ять?",
   "heard": "Скільки буде вісім плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_1": {
   "text": "Скільки буде дев'ять плюс один?",
   "heard": "Скільки буде дев'ять плюс один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_2": {
   "text": "Скільки буде дев'ять плюс два?",
   "heard": "Скільки буде дев'ять плюс два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_3": {
   "text": "Скільки буде дев'ять плюс три?",
   "heard": "Скільки буде дев'ять плюс три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_4": {
   "text": "Скільки буде дев'ять плюс чотири?",
   "heard": "Скільки буде дев'ять плюс чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_5": {
   "text": "Скільки буде дев'ять плюс п'ять?",
   "heard": "Скільки буде дев'ять плюс п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_6": {
   "text": "Скільки буде дев'ять плюс шість?",
   "heard": "Скільки буде дев'ять плюс шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_7": {
   "text": "Скільки буде дев'ять плюс сім?",
   "heard": "Скільки буде дев'ять плюс сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_8": {
   "text": "Скільки буде дев'ять плюс вісім?",
   "heard": "Скільки буде дев'ять плюс вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_add_9_9": {
   "text": "Скільки буде дев'ять плюс дев'ять?",
   "heard": "Скільки буде дев'ять плюс дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_1": {
   "text": "Скільки буде десять мінус один?",
   "heard": "Скільки буде десять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_2": {
   "text": "Скільки буде десять мінус два?",
   "heard": "Скільки буде десять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_3": {
   "text": "Скільки буде десять мінус три?",
   "heard": "Скільки буде десять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_4": {
   "text": "Скільки буде десять мінус чотири?",
   "heard": "Скільки буде десять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_5": {
   "text": "Скільки буде десять мінус п'ять?",
   "heard": "Скільки буде десять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_6": {
   "text": "Скільки буде десять мінус шість?",
   "heard": "Скільки буде десять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_7": {
   "text": "Скільки буде десять мінус сім?",
   "heard": "Скільки буде десять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_8": {
   "text": "Скільки буде десять мінус вісім?",
   "heard": "Скільки буде десять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_10_9": {
   "text": "Скільки буде десять мінус дев'ять?",
   "heard": "Скільки буде десять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_1": {
   "text": "Скільки буде одинадцять мінус один?",
   "heard": "Скільки буде одинадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_2": {
   "text": "Скільки буде одинадцять мінус два?",
   "heard": "Скільки буде одинадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_3": {
   "text": "Скільки буде одинадцять мінус три?",
   "heard": "Скільки буде одинадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_4": {
   "text": "Скільки буде одинадцять мінус чотири?",
   "heard": "Скільки буде одинадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_5": {
   "text": "Скільки буде одинадцять мінус п'ять?",
   "heard": "Скільки буде одинадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_6": {
   "text": "Скільки буде одинадцять мінус шість?",
   "heard": "Скільки буде одинадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_7": {
   "text": "Скільки буде одинадцять мінус сім?",
   "heard": "Скільки буде одинадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_8": {
   "text": "Скільки буде одинадцять мінус вісім?",
   "heard": "Скільки буде одинадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_11_9": {
   "text": "Скільки буде одинадцять мінус дев'ять?",
   "heard": "Скільки буде одинадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_1": {
   "text": "Скільки буде дванадцять мінус один?",
   "heard": "Скільки буде дванадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_2": {
   "text": "Скільки буде дванадцять мінус два?",
   "heard": "Скільки буде дванадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_3": {
   "text": "Скільки буде дванадцять мінус три?",
   "heard": "Скільки буде дванадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_4": {
   "text": "Скільки буде дванадцять мінус чотири?",
   "heard": "Скільки буде дванадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_5": {
   "text": "Скільки буде дванадцять мінус п'ять?",
   "heard": "Скільки буде дванадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_6": {
   "text": "Скільки буде дванадцять мінус шість?",
   "heard": "Скільки буде дванадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_7": {
   "text": "Скільки буде дванадцять мінус сім?",
   "heard": "Скільки буде дванадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_8": {
   "text": "Скільки буде дванадцять мінус вісім?",
   "heard": "Скільки буде дванадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_12_9": {
   "text": "Скільки буде дванадцять мінус дев'ять?",
   "heard": "Скільки буде дванадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_1": {
   "text": "Скільки буде тринадцять мінус один?",
   "heard": "Скільки буде тринадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_2": {
   "text": "Скільки буде тринадцять мінус два?",
   "heard": "Скільки буде тринадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_3": {
   "text": "Скільки буде тринадцять мінус три?",
   "heard": "Скільки буде тринадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_4": {
   "text": "Скільки буде тринадцять мінус чотири?",
   "heard": "Скільки буде тринадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_5": {
   "text": "Скільки буде тринадцять мінус п'ять?",
   "heard": "Скільки буде тринадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_6": {
   "text": "Скільки буде тринадцять мінус шість?",
   "heard": "Скільки буде тринадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_7": {
   "text": "Скільки буде тринадцять мінус сім?",
   "heard": "Скільки буде тринадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_8": {
   "text": "Скільки буде тринадцять мінус вісім?",
   "heard": "Скільки буде тринадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_13_9": {
   "text": "Скільки буде тринадцять мінус дев'ять?",
   "heard": "Скільки буде тринадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_1": {
   "text": "Скільки буде чотирнадцять мінус один?",
   "heard": "Скільки буде чотирнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_2": {
   "text": "Скільки буде чотирнадцять мінус два?",
   "heard": "Скільки буде чотирнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_3": {
   "text": "Скільки буде чотирнадцять мінус три?",
   "heard": "Скільки буде чотирнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_4": {
   "text": "Скільки буде чотирнадцять мінус чотири?",
   "heard": "Скільки буде чотирнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_5": {
   "text": "Скільки буде чотирнадцять мінус п'ять?",
   "heard": "Скільки буде чотирнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_6": {
   "text": "Скільки буде чотирнадцять мінус шість?",
   "heard": "Скільки буде чотирнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_7": {
   "text": "Скільки буде чотирнадцять мінус сім?",
   "heard": "Скільки буде чотирнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_8": {
   "text": "Скільки буде чотирнадцять мінус вісім?",
   "heard": "Скільки буде чотирнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_14_9": {
   "text": "Скільки буде чотирнадцять мінус дев'ять?",
   "heard": "Скільки буде чотирнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_1": {
   "text": "Скільки буде п'ятнадцять мінус один?",
   "heard": "Скільки буде п'ятнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_2": {
   "text": "Скільки буде п'ятнадцять мінус два?",
   "heard": "Скільки буде п'ятнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_3": {
   "text": "Скільки буде п'ятнадцять мінус три?",
   "heard": "Скільки буде п'ятнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_4": {
   "text": "Скільки буде п'ятнадцять мінус чотири?",
   "heard": "Скільки буде п'ятнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_5": {
   "text": "Скільки буде п'ятнадцять мінус п'ять?",
   "heard": "Скільки буде п'ятнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_6": {
   "text": "Скільки буде п'ятнадцять мінус шість?",
   "heard": "Скільки буде п'ятнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_7": {
   "text": "Скільки буде п'ятнадцять мінус сім?",
   "heard": "Скільки буде п'ятнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_8": {
   "text": "Скільки буде п'ятнадцять мінус вісім?",
   "heard": "Скільки буде п'ятнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_15_9": {
   "text": "Скільки буде п'ятнадцять мінус дев'ять?",
   "heard": "Скільки буде п'ятнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_1": {
   "text": "Скільки буде шістнадцять мінус один?",
   "heard": "Скільки буде шістнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_2": {
   "text": "Скільки буде шістнадцять мінус два?",
   "heard": "Скільки буде шістнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_3": {
   "text": "Скільки буде шістнадцять мінус три?",
   "heard": "Скільки буде шістнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_4": {
   "text": "Скільки буде шістнадцять мінус чотири?",
   "heard": "Скільки буде шістнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_5": {
   "text": "Скільки буде шістнадцять мінус п'ять?",
   "heard": "Скільки буде шістнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_6": {
   "text": "Скільки буде шістнадцять мінус шість?",
   "heard": "Скільки буде шістнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_7": {
   "text": "Скільки буде шістнадцять мінус сім?",
   "heard": "Скільки буде шістнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_8": {
   "text": "Скільки буде шістнадцять мінус вісім?",
   "heard": "Скільки буде шістнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_16_9": {
   "text": "Скільки буде шістнадцять мінус дев'ять?",
   "heard": "Скільки буде шістнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_1": {
   "text": "Скільки буде сімнадцять мінус один?",
   "heard": "Скільки буде сімнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_2": {
   "text": "Скільки буде сімнадцять мінус два?",
   "heard": "Скільки буде сімнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_3": {
   "text": "Скільки буде сімнадцять мінус три?",
   "heard": "Скільки буде сімнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_4": {
   "text": "Скільки буде сімнадцять мінус чотири?",
   "heard": "Скільки буде сімнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_5": {
   "text": "Скільки буде сімнадцять мінус п'ять?",
   "heard": "Скільки буде сімнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_6": {
   "text": "Скільки буде сімнадцять мінус шість?",
   "heard": "Скільки буде сімнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_7": {
   "text": "Скільки буде сімнадцять мінус сім?",
   "heard": "Скільки буде сімнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_8": {
   "text": "Скільки буде сімнадцять мінус вісім?",
   "heard": "Скільки буде сімнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_17_9": {
   "text": "Скільки буде сімнадцять мінус дев'ять?",
   "heard": "Скільки буде сімнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_1": {
   "text": "Скільки буде вісімнадцять мінус один?",
   "heard": "Скільки буде вісімнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_2": {
   "text": "Скільки буде вісімнадцять мінус два?",
   "heard": "Скільки буде вісімнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_3": {
   "text": "Скільки буде вісімнадцять мінус три?",
   "heard": "Скільки буде вісімнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_4": {
   "text": "Скільки буде вісімнадцять мінус чотири?",
   "heard": "Скільки буде вісімнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_5": {
   "text": "Скільки буде вісімнадцять мінус п'ять?",
   "heard": "Скільки буде вісімнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_6": {
   "text": "Скільки буде вісімнадцять мінус шість?",
   "heard": "Скільки буде вісімнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_7": {
   "text": "Скільки буде вісімнадцять мінус сім?",
   "heard": "Скільки буде вісімнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_8": {
   "text": "Скільки буде вісімнадцять мінус вісім?",
   "heard": "Скільки буде вісімнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_18_9": {
   "text": "Скільки буде вісімнадцять мінус дев'ять?",
   "heard": "Скільки буде вісімнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_1": {
   "text": "Скільки буде дев'ятнадцять мінус один?",
   "heard": "Скільки буде дев'ятнадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_2": {
   "text": "Скільки буде дев'ятнадцять мінус два?",
   "heard": "Скільки буде дев'ятнадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_3": {
   "text": "Скільки буде дев'ятнадцять мінус три?",
   "heard": "Скільки буде дев'ятнадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_4": {
   "text": "Скільки буде дев'ятнадцять мінус чотири?",
   "heard": "Скільки буде дев'ятнадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_5": {
   "text": "Скільки буде дев'ятнадцять мінус п'ять?",
   "heard": "Скільки буде дев'ятнадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_6": {
   "text": "Скільки буде дев'ятнадцять мінус шість?",
   "heard": "Скільки буде дев'ятнадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_7": {
   "text": "Скільки буде дев'ятнадцять мінус сім?",
   "heard": "Скільки буде дев'ятнадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_8": {
   "text": "Скільки буде дев'ятнадцять мінус вісім?",
   "heard": "Скільки буде дев'ятнадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_19_9": {
   "text": "Скільки буде дев'ятнадцять мінус дев'ять?",
   "heard": "Скільки буде дев'ятнадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_1": {
   "text": "Скільки буде двадцять мінус один?",
   "heard": "Скільки буде двадцять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_2": {
   "text": "Скільки буде двадцять мінус два?",
   "heard": "Скільки буде двадцять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_3": {
   "text": "Скільки буде двадцять мінус три?",
   "heard": "Скільки буде двадцять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_4": {
   "text": "Скільки буде двадцять мінус чотири?",
   "heard": "Скільки буде двадцять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_5": {
   "text": "Скільки буде двадцять мінус п'ять?",
   "heard": "Скільки буде двадцять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_6": {
   "text": "Скільки буде двадцять мінус шість?",
   "heard": "Скільки буде двадцять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_7": {
   "text": "Скільки буде двадцять мінус сім?",
   "heard": "Скільки буде двадцять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_8": {
   "text": "Скільки буде двадцять мінус вісім?",
   "heard": "Скільки буде двадцять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_20_9": {
   "text": "Скільки буде двадцять мінус дев'ять?",
   "heard": "Скільки буде двадцять мінус дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_2_1": {
   "text": "Скільки буде два мінус один?",
   "heard": "Скільки буде два мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_3_1": {
   "text": "Скільки буде три мінус один?",
   "heard": "Скільки буде три мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_3_2": {
   "text": "Скільки буде три мінус два?",
   "heard": "Скільки буде три мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_4_1": {
   "text": "Скільки буде чотири мінус один?",
   "heard": "Скільки буде чотири мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_4_2": {
   "text": "Скільки буде чотири мінус два?",
   "heard": "Скільки буде чотири мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_4_3": {
   "text": "Скільки буде чотири мінус три?",
   "heard": "Скільки буде чотири мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_5_1": {
   "text": "Скільки буде п'ять мінус один?",
   "heard": "Скільки буде п'ять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_5_2": {
   "text": "Скільки буде п'ять мінус два?",
   "heard": "Скільки буде п'ять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_5_3": {
   "text": "Скільки буде п'ять мінус три?",
   "heard": "Скільки буде п'ять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_5_4": {
   "text": "Скільки буде п'ять мінус чотири?",
   "heard": "Скільки буде п'ять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_6_1": {
   "text": "Скільки буде шість мінус один?",
   "heard": "Скільки буде шість мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_6_2": {
   "text": "Скільки буде шість мінус два?",
   "heard": "Скільки буде шість мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_6_3": {
   "text": "Скільки буде шість мінус три?",
   "heard": "Скільки буде шість мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_6_4": {
   "text": "Скільки буде шість мінус чотири?",
   "heard": "Скільки буде шість мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_6_5": {
   "text": "Скільки буде шість мінус п'ять?",
   "heard": "Скільки буде шість мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_1": {
   "text": "Скільки буде сім мінус один?",
   "heard": "Скільки буде сім мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_2": {
   "text": "Скільки буде сім мінус два?",
   "heard": "Скільки буде сім мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_3": {
   "text": "Скільки буде сім мінус три?",
   "heard": "Скільки буде сім мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_4": {
   "text": "Скільки буде сім мінус чотири?",
   "heard": "Скільки буде сім мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_5": {
   "text": "Скільки буде сім мінус п'ять?",
   "heard": "Скільки буде сім мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_7_6": {
   "text": "Скільки буде сім мінус шість?",
   "heard": "Скільки буде сім мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_1": {
   "text": "Скільки буде вісім мінус один?",
   "heard": "Скільки буде вісім мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_2": {
   "text": "Скільки буде вісім мінус два?",
   "heard": "Скільки буде вісім мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_3": {
   "text": "Скільки буде вісім мінус три?",
   "heard": "Скільки буде вісім мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_4": {
   "text": "Скільки буде вісім мінус чотири?",
   "heard": "Скільки буде вісім мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_5": {
   "text": "Скільки буде вісім мінус п'ять?",
   "heard": "Скільки буде вісім мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_6": {
   "text": "Скільки буде вісім мінус шість?",
   "heard": "Скільки буде вісім мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_8_7": {
   "text": "Скільки буде вісім мінус сім?",
   "heard": "Скільки буде вісім мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_1": {
   "text": "Скільки буде дев'ять мінус один?",
   "heard": "Скільки буде дев'ять мінус один?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_2": {
   "text": "Скільки буде дев'ять мінус два?",
   "heard": "Скільки буде дев'ять мінус два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_3": {
   "text": "Скільки буде дев'ять мінус три?",
   "heard": "Скільки буде дев'ять мінус три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_4": {
   "text": "Скільки буде дев'ять мінус чотири?",
   "heard": "Скільки буде дев'ять мінус чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_5": {
   "text": "Скільки буде дев'ять мінус п'ять?",
   "heard": "Скільки буде дев'ять мінус п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_6": {
   "text": "Скільки буде дев'ять мінус шість?",
   "heard": "Скільки буде дев'ять мінус шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_7": {
   "text": "Скільки буде дев'ять мінус сім?",
   "heard": "Скільки буде дев'ять мінус сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_sub_9_8": {
   "text": "Скільки буде дев'ять мінус вісім?",
   "heard": "Скільки буде дев'ять мінус вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_10": {
   "text": "Яке число стоїть перед числом десять?",
   "heard": "Яке число стоїть перед числом десять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_11": {
   "text": "Яке число стоїть перед числом одинадцять?",
   "heard": "Яке число стоїть перед числом одинадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_12": {
   "text": "Яке число стоїть перед числом дванадцять?",
   "heard": "Яке число стоїть перед числом дванадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_13": {
   "text": "Яке число стоїть перед числом тринадцять?",
   "heard": "Яке число стоїть перед числом тринадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_14": {
   "text": "Яке число стоїть перед числом чотирнадцять?",
   "heard": "Яке число стоїть перед числом чотирнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_15": {
   "text": "Яке число стоїть перед числом п'ятнадцять?",
   "heard": "Яке число стоїть перед числом п'ятнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_16": {
   "text": "Яке число стоїть перед числом шістнадцять?",
   "heard": "Яке число стоїть перед числом шістнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_17": {
   "text": "Яке число стоїть перед числом сімнадцять?",
   "heard": "Яке число стоїть перед числом сімнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_18": {
   "text": "Яке число стоїть перед числом вісімнадцять?",
   "heard": "Яке число стоїть перед числом вісімнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_19": {
   "text": "Яке число стоїть перед числом дев'ятнадцять?",
   "heard": "Яке число стоїть перед числом дев'ятнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_2": {
   "text": "Яке число стоїть перед числом два?",
   "heard": "Яке число стоїть перед числом два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_3": {
   "text": "Яке число стоїть перед числом три?",
   "heard": "Яке число стоїть перед числом три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_4": {
   "text": "Яке число стоїть перед числом чотири?",
   "heard": "Яке число стоїть перед числом чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_5": {
   "text": "Яке число стоїть перед числом п'ять?",
   "heard": "Яке число стоїть перед числом п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_6": {
   "text": "Яке число стоїть перед числом шість?",
   "heard": "Яке число стоїть перед числом шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_7": {
   "text": "Яке число стоїть перед числом сім?",
   "heard": "Яке число стоїть перед числом сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_8": {
   "text": "Яке число стоїть перед числом вісім?",
   "heard": "Яке число стоїть перед числом вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_before_9": {
   "text": "Яке число стоїть перед числом дев'ять?",
   "heard": "Яке число стоїть перед числом дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_10": {
   "text": "Яке число стоїть після числа десять?",
   "heard": "Яке число стоїть після числа десять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_11": {
   "text": "Яке число стоїть після числа одинадцять?",
   "heard": "Яке число стоїть після числа одинадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_12": {
   "text": "Яке число стоїть після числа дванадцять?",
   "heard": "Яке число стоїть після числа дванадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_13": {
   "text": "Яке число стоїть після числа тринадцять?",
   "heard": "Яке число стоїть після числа тринадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_14": {
   "text": "Яке число стоїть після числа чотирнадцять?",
   "heard": "Яке число стоїть після числа чотирнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_15": {
   "text": "Яке число стоїть після числа п'ятнадцять?",
   "heard": "Яке число стоїть після числа п'ятнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_16": {
   "text": "Яке число стоїть після числа шістнадцять?",
   "heard": "Яке число стоїть після числа шістнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_17": {
   "text": "Яке число стоїть після числа сімнадцять?",
   "heard": "Яке число стоїть після числа сімнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_18": {
   "text": "Яке число стоїть після числа вісімнадцять?",
   "heard": "Яке число стоїть після числа вісімнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_19": {
   "text": "Яке число стоїть після числа дев'ятнадцять?",
   "heard": "Яке число стоїть після числа дев'ятнадцять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_2": {
   "text": "Яке число стоїть після числа два?",
   "heard": "Яке число стоїть після числа два?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_3": {
   "text": "Яке число стоїть після числа три?",
   "heard": "Яке число стоїть після числа три?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_4": {
   "text": "Яке число стоїть після числа чотири?",
   "heard": "Яке число стоїть після числа чотири?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_5": {
   "text": "Яке число стоїть після числа п'ять?",
   "heard": "Яке число стоїть після числа п'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_6": {
   "text": "Яке число стоїть після числа шість?",
   "heard": "Яке число стоїть після числа шість?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_7": {
   "text": "Яке число стоїть після числа сім?",
   "heard": "Яке число стоїть після числа сім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_8": {
   "text": "Яке число стоїть після числа вісім?",
   "heard": "Яке число стоїть після числа вісім?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_after_9": {
   "text": "Яке число стоїть після числа дев'ять?",
   "heard": "Яке число стоїть після числа дев'ять?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_2_9": {
   "text": "Давай порахуємо разом! Два плюс дев'ять. Переставимо: дев'ять плюс два. Дев'ять плюс один — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. Два плюс дев'ять. Переставимо: дев'ять плюс два. Дев'ять плюс один – десять. І ще один – одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_3_8": {
   "text": "Давай порахуємо разом! Три плюс вісім. Переставимо: вісім плюс три. Вісім плюс два — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом: три плюс вісім. Переставимо: вісім плюс три. Вісім плюс два – десять, і ще один – одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_3_9": {
   "text": "Давай порахуємо разом! Три плюс дев'ять. Переставимо: дев'ять плюс три. Дев'ять плюс один — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом. Три плюс дев'ять. Переставимо: дев'ять плюс три. Дев'ять плюс один — десять. І ще два — дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_4_7": {
   "text": "Давай порахуємо разом! Чотири плюс сім. Переставимо: сім плюс чотири. Сім плюс три — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. 4 плюс 7. Переставимо: 7 плюс 4. 7 плюс 3 — десять і ще один — одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_4_8": {
   "text": "Давай порахуємо разом! Чотири плюс вісім. Переставимо: вісім плюс чотири. Вісім плюс два — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом. Чотири плюс вісім. Переставимо: вісім плюс чотири. Вісім плюс два – десять, і ще два – дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_4_9": {
   "text": "Давай порахуємо разом! Чотири плюс дев'ять. Переставимо: дев'ять плюс чотири. Дев'ять плюс один — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом. Чотири плюс дев'ять. Переставимо: дев'ять плюс чотири. Дев'ять плюс один — десять, і ще три — тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_5_6": {
   "text": "Давай порахуємо разом! П'ять плюс шість. Переставимо: шість плюс п'ять. Шість плюс чотири — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. П'ять плюс шість. Переставимо: шість плюс п'ять. Шість плюс чотири — десять, і ще один — одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_5_7": {
   "text": "Давай порахуємо разом! П'ять плюс сім. Переставимо: сім плюс п'ять. Сім плюс три — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом. П'ять плюс сім. Переставимо. Сім плюс п'ять. Сім плюс три – десять, і ще два – дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_5_8": {
   "text": "Давай порахуємо разом! П'ять плюс вісім. Переставимо: вісім плюс п'ять. Вісім плюс два — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом. П'ять плюс вісім. Переставимо: вісім плюс п'ять. Вісім плюс два – десять, і ще три – тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_5_9": {
   "text": "Давай порахуємо разом! П'ять плюс дев'ять. Переставимо: дев'ять плюс п'ять. Дев'ять плюс один — десять, і ще чотири — чотирнадцять.",
   "heard": "Давай порахуємо разом. П'ять плюс дев'ять. Переставимо. Дев'ять плюс п'ять. Дев'ять плюс один – десять. І ще чотири – чотирнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_6_5": {
   "text": "Давай порахуємо разом! Шість плюс п'ять. Шість плюс чотири — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. Шість плюс п'ять. Шість плюс чотири – десять, і ще один – одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_6_6": {
   "text": "Давай порахуємо разом! Шість плюс шість. Шість плюс чотири — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом. Шість плюс шість. Шість плюс чотири - десять і ще два - дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_6_7": {
   "text": "Давай порахуємо разом! Шість плюс сім. Переставимо: сім плюс шість. Сім плюс три — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом. Шість плюс сім. Переставимо. Сім плюс шість. Сім плюс три – десять. І ще три – тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_6_8": {
   "text": "Давай порахуємо разом! Шість плюс вісім. Переставимо: вісім плюс шість. Вісім плюс два — десять, і ще чотири — чотирнадцять.",
   "heard": "Давай порахуємо разом. Шість плюс вісім. Переставимо: вісім плюс шість. Вісім плюс два - десять, і ще чотири - чотирнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_6_9": {
   "text": "Давай порахуємо разом! Шість плюс дев'ять. Переставимо: дев'ять плюс шість. Дев'ять плюс один — десять, і ще п'ять — п'ятнадцять.",
   "heard": "Давай порахуємо разом. Шість плюс дев'ять. Переставимо: дев'ять плюс шість. Дев'ять плюс один – десять, і ще п'ять – п'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_4": {
   "text": "Давай порахуємо разом! Сім плюс чотири. Сім плюс три — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. Сім плюс чотири. Сім плюс три – десять, і ще один – одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_5": {
   "text": "Давай порахуємо разом! Сім плюс п'ять. Сім плюс три — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом: сім плюс п'ять. Сім плюс три – десять, і ще два – дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_6": {
   "text": "Давай порахуємо разом! Сім плюс шість. Сім плюс три — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом: сім плюс шість. Сім плюс три — десять, і ще три — тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_7": {
   "text": "Давай порахуємо разом! Сім плюс сім. Сім плюс три — десять, і ще чотири — чотирнадцять.",
   "heard": "Давай порахуємо разом. Сім плюс сім. Сім плюс три — десять, і ще чотири — чотирнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_8": {
   "text": "Давай порахуємо разом! Сім плюс вісім. Переставимо: вісім плюс сім. Вісім плюс два — десять, і ще п'ять — п'ятнадцять.",
   "heard": "Давай порахуємо разом. Сім плюс вісім. Переставимо. Вісім плюс сім. Вісім плюс два - десять, і ще п'ять - п'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_7_9": {
   "text": "Давай порахуємо разом! Сім плюс дев'ять. Переставимо: дев'ять плюс сім. Дев'ять плюс один — десять, і ще шість — шістнадцять.",
   "heard": "Давай порахуємо разом! 7 плюс 9. Переставимо: 9 плюс 7. 9 плюс 1 – 10, і ще 6 – 16.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_3": {
   "text": "Давай порахуємо разом! Вісім плюс три. Вісім плюс два — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом: вісім плюс три. Вісім плюс два — десять, і ще один — одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_4": {
   "text": "Давай порахуємо разом! Вісім плюс чотири. Вісім плюс два — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом: вісім плюс чотири. Вісім плюс два – десять, і ще два – дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_5": {
   "text": "Давай порахуємо разом! Вісім плюс п'ять. Вісім плюс два — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом. Вісім плюс п'ять. Вісім плюс два – десять, і ще три – тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_6": {
   "text": "Давай порахуємо разом! Вісім плюс шість. Вісім плюс два — десять, і ще чотири — чотирнадцять.",
   "heard": "Давай порахуємо разом: вісім плюс шість. Вісім плюс два - десять, і ще чотири - чотирнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_7": {
   "text": "Давай порахуємо разом! Вісім плюс сім. Вісім плюс два — десять, і ще п'ять — п'ятнадцять.",
   "heard": "Давай порахуємо разом. Вісім плюс сім. Вісім плюс два — десять, і ще п'ять — п'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_8": {
   "text": "Давай порахуємо разом! Вісім плюс вісім. Вісім плюс два — десять, і ще шість — шістнадцять.",
   "heard": "Давай порахуємо разом. Вісім плюс вісім. Вісім плюс два — десять, і ще шість — шістнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_8_9": {
   "text": "Давай порахуємо разом! Вісім плюс дев'ять. Переставимо: дев'ять плюс вісім. Дев'ять плюс один — десять, і ще сім — сімнадцять.",
   "heard": "Давай порахуємо разом. Вісім плюс дев'ять. Переставимо. Дев'ять плюс вісім. Дев'ять плюс один – десять. І ще сім – сімнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_2": {
   "text": "Давай порахуємо разом! Дев'ять плюс два. Дев'ять плюс один — десять, і ще один — одинадцять.",
   "heard": "Давай порахуємо разом. Дев'ять плюс два. Дев'ять плюс один — десять, і ще один — одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_3": {
   "text": "Давай порахуємо разом! Дев'ять плюс три. Дев'ять плюс один — десять, і ще два — дванадцять.",
   "heard": "Давай порахуємо разом. Дев'ять плюс три. Дев'ять плюс один — десять, іще два — дванадцять.",
   "score": 0.994,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_4": {
   "text": "Давай порахуємо разом! Дев'ять плюс чотири. Дев'ять плюс один — десять, і ще три — тринадцять.",
   "heard": "Давай порахуємо разом: дев'ять плюс чотири. Дев'ять плюс один — десять, і ще три — тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_5": {
   "text": "Давай порахуємо разом! Дев'ять плюс п'ять. Дев'ять плюс один — десять, і ще чотири — чотирнадцять.",
   "heard": "Давай порахуємо разом. Дев'ять плюс п'ять. Дев'ять плюс один — десять, і ще чотири — чотирнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_6": {
   "text": "Давай порахуємо разом! Дев'ять плюс шість. Дев'ять плюс один — десять, і ще п'ять — п'ятнадцять.",
   "heard": "Давай порахуємо разом. Дев'ять плюс шість. Дев'ять плюс один — десять. І ще п'ять — п'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_7": {
   "text": "Давай порахуємо разом! Дев'ять плюс сім. Дев'ять плюс один — десять, і ще шість — шістнадцять.",
   "heard": "Давай порахуємо разом: дев'ять плюс сім. Дев'ять плюс один – десять і ще шість – шістнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_8": {
   "text": "Давай порахуємо разом! Дев'ять плюс вісім. Дев'ять плюс один — десять, і ще сім — сімнадцять.",
   "heard": "Давай порахуємо разом. Дев'ять плюс вісім. Дев'ять плюс один - десять і ще сім - сімнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "cross_9_9": {
   "text": "Давай порахуємо разом! Дев'ять плюс дев'ять. Дев'ять плюс один — десять, і ще вісім — вісімнадцять.",
   "heard": "Давай порахуємо разом: дев'ять плюс дев'ять. Дев'ять плюс один — десять, і ще вісім — вісімнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_0": {
   "text": "Правильна відповідь: нуль.",
   "heard": "Правильна відповідь: нуль.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_1": {
   "text": "Правильна відповідь: один.",
   "heard": "Правильна відповідь: один.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_10": {
   "text": "Правильна відповідь: десять.",
   "heard": "Правильна відповідь: десять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_11": {
   "text": "Правильна відповідь: одинадцять.",
   "heard": "Правильна відповідь — одинадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_12": {
   "text": "Правильна відповідь: дванадцять.",
   "heard": "Правильна відповідь: дванадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_13": {
   "text": "Правильна відповідь: тринадцять.",
   "heard": "Правильна відповідь: тринадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_14": {
   "text": "Правильна відповідь: чотирнадцять.",
   "heard": "Правильно. Відповідь чотирнадцять.",
   "score": 0.969,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_15": {
   "text": "Правильна відповідь: п'ятнадцять.",
   "heard": "Правильна відповідь: п'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_16": {
   "text": "Правильна відповідь: шістнадцять.",
   "heard": "Правильно відповідь шістнадцять.",
   "score": 0.968,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_17": {
   "text": "Правильна відповідь: сімнадцять.",
   "heard": "Правильна відповідь — сімнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_18": {
   "text": "Правильна відповідь: вісімнадцять.",
   "heard": "Правильна відповідь вісімнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_19": {
   "text": "Правильна відповідь: дев'ятнадцять.",
   "heard": "Правильна відповідь: дев'ятнадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_2": {
   "text": "Правильна відповідь: два.",
   "heard": "Правильна відповідь: два.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_20": {
   "text": "Правильна відповідь: двадцять.",
   "heard": "Правильна відповідь двадцять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_3": {
   "text": "Правильна відповідь: три.",
   "heard": "Правильна відповідь три.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_4": {
   "text": "Правильна відповідь: чотири.",
   "heard": "Правильна відповідь: чотири.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_5": {
   "text": "Правильна відповідь: п'ять.",
   "heard": "Правильна відповідь: п'ять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_6": {
   "text": "Правильна відповідь: шість.",
   "heard": "Правильна відповідь: шість.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_7": {
   "text": "Правильна відповідь: сім.",
   "heard": "Правильна відповідь: сім.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_8": {
   "text": "Правильна відповідь: вісім.",
   "heard": "Правильна відповідь: вісім",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "ans_9": {
   "text": "Правильна відповідь: дев'ять.",
   "heard": "Правильна відповідь: дев'ять.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_apple": {
   "text": "Скільки тут яблук?",
   "heard": "Скільки тут яблук?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_balloon": {
   "text": "Скільки тут кульок?",
   "heard": "Скільки тут кульок?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_butterfly": {
   "text": "Скільки тут метеликів?",
   "heard": "Скільки тут метеликів?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_candy": {
   "text": "Скільки тут цукерок?",
   "heard": "Скільки тут цукерок?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_car": {
   "text": "Скільки тут машинок?",
   "heard": "Скільки тут машинок?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_fish": {
   "text": "Скільки тут рибок?",
   "heard": "Скільки тут рибок?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_flower": {
   "text": "Скільки тут квіточок?",
   "heard": "Скільки тут квіточок!",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_ladybug": {
   "text": "Скільки тут сонечок?",
   "heard": "Скільки тут сонечок!",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_star": {
   "text": "Скільки тут зірочок?",
   "heard": "Скільки тут зірочок?",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "q_count_strawberry": {
   "text": "Скільки тут полуниць?",
   "heard": "Скільки тут полуниць!",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_1": {
   "text": "Один",
   "heard": "Один",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_1"
+  "from": "old game: cut from ans_1",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_10": {
   "text": "Десять",
   "heard": "Десять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_10"
+  "from": "old game: cut from ans_10",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_11": {
   "text": "Одинадцять",
   "heard": "Одинадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_11"
+  "from": "old game: cut from ans_11",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_12": {
   "text": "Дванадцять",
   "heard": "Дванадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_12"
+  "from": "old game: cut from ans_12",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_13": {
   "text": "Тринадцять",
   "heard": "Тринадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_13"
+  "from": "old game: cut from ans_13",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_14": {
   "text": "Чотирнадцять",
   "heard": "Чотирнадцять",
   "score": 0.969,
   "style": "warm",
-  "from": "old game: cut from ans_14"
+  "from": "old game: cut from ans_14",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_15": {
   "text": "П'ятнадцять",
   "heard": "П'ятнадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_15"
+  "from": "old game: cut from ans_15",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_16": {
   "text": "Шістнадцять",
   "heard": "Шістнадцять",
   "score": 0.968,
   "style": "warm",
-  "from": "old game: cut from ans_16"
+  "from": "old game: cut from ans_16",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_17": {
   "text": "Сімнадцять",
   "heard": "Сімнадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_17"
+  "from": "old game: cut from ans_17",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_18": {
   "text": "Вісімнадцять",
   "heard": "Вісімнадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_18"
+  "from": "old game: cut from ans_18",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_19": {
   "text": "Дев'ятнадцять",
   "heard": "Дев'ятнадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_19"
+  "from": "old game: cut from ans_19",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_2": {
   "text": "Два",
   "heard": "Два",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_2"
+  "from": "old game: cut from ans_2",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_20": {
   "text": "Двадцять",
   "heard": "Двадцять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_20"
+  "from": "old game: cut from ans_20",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_3": {
   "text": "Три",
   "heard": "Три",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_3"
+  "from": "old game: cut from ans_3",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_4": {
   "text": "Чотири",
   "heard": "Чотири",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_4"
+  "from": "old game: cut from ans_4",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_5": {
   "text": "П'ять",
   "heard": "П'ять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_5"
+  "from": "old game: cut from ans_5",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_6": {
   "text": "Шість",
   "heard": "Шість",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_6"
+  "from": "old game: cut from ans_6",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_7": {
   "text": "Сім",
   "heard": "Сім",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_7"
+  "from": "old game: cut from ans_7",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_8": {
   "text": "Вісім",
   "heard": "Вісім",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_8"
+  "from": "old game: cut from ans_8",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "tap_9": {
   "text": "Дев'ять",
   "heard": "Дев'ять",
   "score": 1.0,
   "style": "warm",
-  "from": "old game: cut from ans_9"
+  "from": "old game: cut from ans_9",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_0": {
   "text": "Молодець!",
   "heard": "Молодец!",
   "score": 0.933,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_1": {
   "text": "Чудово!",
   "heard": "Чудово!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_3": {
   "text": "Супер!",
   "heard": "Супер!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_4": {
   "text": "Правильно!",
   "heard": "Правильно!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_5": {
   "text": "Ура! Вірно!",
   "heard": "Ура, вірно!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_6": {
   "text": "Ти розумниця!",
   "heard": "Ти розумниця!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "praise_7": {
   "text": "Клас! Ти молодчинка!",
   "heard": "Клас, ти молодчинка!",
   "score": 1.0,
   "style": "joy",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "try_0": {
   "text": "Майже! Спробуй ще раз.",
   "heard": "Майже! Спробуй ще раз.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "try_1": {
   "text": "Ой, не зовсім. Ще раз!",
   "heard": "Ой, не зовсім щераз.",
   "score": 0.973,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
  },
  "try_2": {
   "text": "Подумай ще трішки.",
   "heard": "Подумай ще трішки.",
   "score": 1.0,
   "style": "warm",
-  "from": "old game"
+  "from": "old game",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck"
+ },
+ "npc_next@Sulafat": {
+  "text": "Чудово! А ось іще одне завдання.",
+  "heard": "Чудово! А ось і ще одне завдання.",
+  "score": 0.984,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_next@Leda": {
+  "text": "Чудово! А ось іще одне завдання.",
+  "heard": "Чудово! А ось і ще одне завдання.",
+  "score": 0.984,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_next@Orus": {
+  "text": "Чудово! А ось іще одне завдання.",
+  "heard": "Чудово! А ось іще одне завдання.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_next@Charon": {
+  "text": "Чудово! А ось іще одне завдання.",
+  "heard": "Чудово! А ось іще одне завдання.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_again@Sulafat": {
+  "text": "Пограємо ще разок?",
+  "heard": "Пограємо ще разок?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_again@Leda": {
+  "text": "Пограємо ще разок?",
+  "heard": "Пограємо ще разок?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_again@Orus": {
+  "text": "Пограємо ще разок?",
+  "heard": "Пограємо ще разок?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_again@Charon": {
+  "text": "Пограємо ще разок?",
+  "heard": "Пограємо ще разок?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_count@Sulafat": {
+  "text": "Скільки їх тут? Торкайся і рахуй.",
+  "heard": "Скільки їх тут? Торкайся і рахуй.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_count@Leda": {
+  "text": "Скільки їх тут? Торкайся і рахуй.",
+  "heard": "Скільки їх тут? Торкайся і рахуй.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_count@Orus": {
+  "text": "Скільки їх тут? Торкайся і рахуй.",
+  "heard": "Скількі іх тут! Доткайся і рахуй.",
+  "score": 0.871,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_count@Charon": {
+  "text": "Скільки їх тут? Торкайся і рахуй.",
+  "heard": "Скільки їх тут? Торкайся і рахуй.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_add@Sulafat": {
+  "text": "Скільки буде разом?",
+  "heard": "Скільки буде разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_add@Leda": {
+  "text": "Скільки буде разом?",
+  "heard": "Скількі будзе разам?",
+  "score": 0.865,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_add@Orus": {
+  "text": "Скільки буде разом?",
+  "heard": "Скільки буде разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_add@Charon": {
+  "text": "Скільки буде разом?",
+  "heard": "Скільки буде разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sub@Sulafat": {
+  "text": "Дехто втік. Скільки залишилось?",
+  "heard": "Дехто втік. Скільки залишилось?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sub@Leda": {
+  "text": "Дехто втік. Скільки залишилось?",
+  "heard": "Дехто втік, скільки залишилось?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sub@Orus": {
+  "text": "Дехто втік. Скільки залишилось?",
+  "heard": "Дехто втік. Скільки залишилось?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sub@Charon": {
+  "text": "Дехто втік. Скільки залишилось?",
+  "heard": "Дехто втік. Скільки залишилось?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_more@Sulafat": {
+  "text": "Де більше?",
+  "heard": "Де більше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_more@Leda": {
+  "text": "Де більше?",
+  "heard": "Де більше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_more@Orus": {
+  "text": "Де більше?",
+  "heard": "Де більше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_more@Charon": {
+  "text": "Де більше?",
+  "heard": "Де більше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "tour": {
+  "text": "Подивись, яке гарне Королівство фей! Тут ставок, замок і чарівні галявини. Ходімо гуляти!",
+  "heard": "Подивись, яке гарне Королівство фей! Тут ставок, замок і чарівні галявини. Ходімо гуляти!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_less@Sulafat": {
+  "text": "Де менше?",
+  "heard": "Де менше.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_less@Leda": {
+  "text": "Де менше?",
+  "heard": "Да менше.",
+  "score": 0.875,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_less@Orus": {
+  "text": "Де менше?",
+  "heard": "Де менше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_compare_less@Charon": {
+  "text": "Де менше?",
+  "heard": "Де менше?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pattern@Sulafat": {
+  "text": "Що буде далі?",
+  "heard": "Що буде далі?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pattern@Leda": {
+  "text": "Що буде далі?",
+  "heard": "Що буде далі?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pattern@Orus": {
+  "text": "Що буде далі?",
+  "heard": "Шо буде далі?",
+  "score": 0.917,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pattern@Charon": {
+  "text": "Що буде далі?",
+  "heard": "Що буде далі?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_odd@Sulafat": {
+  "text": "Що тут зайве?",
+  "heard": "Що тут зайве?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_odd@Leda": {
+  "text": "Що тут зайве?",
+  "heard": "Що тут зайде?",
+  "score": 0.917,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_odd@Orus": {
+  "text": "Що тут зайве?",
+  "heard": "Що тут зайве?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_odd@Charon": {
+  "text": "Що тут зайве?",
+  "heard": "Що тут зайве?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pairs@Sulafat": {
+  "text": "Знайди однакові картки.",
+  "heard": "Знайди однакові картки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pairs@Leda": {
+  "text": "Знайди однакові картки.",
+  "heard": "Знайди однакові катки",
+  "score": 0.977,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pairs@Orus": {
+  "text": "Знайди однакові картки.",
+  "heard": "Знайди однаконі картки.",
+  "score": 0.955,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_pairs@Charon": {
+  "text": "Знайди однакові картки.",
+  "heard": "Знайди однакові картки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_order@Sulafat": {
+  "text": "Натискай числа від найменшого.",
+  "heard": "Натискай числа від найменшого.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_order@Leda": {
+  "text": "Натискай числа від найменшого.",
+  "heard": "Натискай числа від найменшого.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_order@Orus": {
+  "text": "Натискай числа від найменшого.",
+  "heard": "Натискай числа від найменшого",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_order@Charon": {
+  "text": "Натискай числа від найменшого.",
+  "heard": "Натискай числа від найменшого.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort@Sulafat": {
+  "text": "Поклади кристал у кошик такого ж кольору.",
+  "heard": "Поклади кристал у кошик такого ж кольору.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort@Leda": {
+  "text": "Поклади кристал у кошик такого ж кольору.",
+  "heard": "Поклади кришталь у кошик такого ж кольору.",
+  "score": 0.963,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort@Orus": {
+  "text": "Поклади кристал у кошик такого ж кольору.",
+  "heard": "Поклади кристал у кошик такого ж кольору.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort@Charon": {
+  "text": "Поклади кристал у кошик такого ж кольору.",
+  "heard": "Поклади кристал у кошик такого ж кольору.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_watch@Sulafat": {
+  "text": "Дивись і запамʼятовуй!",
+  "heard": "Дзівісь і запамятовуй.",
+  "score": 0.857,
+  "style": "calm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_watch@Leda": {
+  "text": "Дивись і запамʼятовуй!",
+  "heard": "Дывесь і запамятовуй.",
+  "score": 0.878,
+  "style": "calm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_watch@Orus": {
+  "text": "Дивись і запамʼятовуй!",
+  "heard": "Дывись і запамятовуй!",
+  "score": 0.927,
+  "style": "calm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_watch@Charon": {
+  "text": "Дивись і запамʼятовуй!",
+  "heard": "Дивись і запам'ятовуй.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_repeat@Sulafat": {
+  "text": "Тепер повтори!",
+  "heard": "Тепер повторюй.",
+  "score": 0.889,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_repeat@Leda": {
+  "text": "Тепер повтори!",
+  "heard": "Тепер повтори.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_repeat@Orus": {
+  "text": "Тепер повтори!",
+  "heard": "Тепер повтори.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_simon_repeat@Charon": {
+  "text": "Тепер повтори!",
+  "heard": "Тепер повтори.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_missing@Sulafat": {
+  "text": "Скільки не вистачає до потрібного числа?",
+  "heard": "Скільки не вистачає до потрібного числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_missing@Leda": {
+  "text": "Скільки не вистачає до потрібного числа?",
+  "heard": "Скільки не вистачає до потрібного числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_missing@Orus": {
+  "text": "Скільки не вистачає до потрібного числа?",
+  "heard": "Скільки не вистачає до потрібного числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_missing@Charon": {
+  "text": "Скільки не вистачає до потрібного числа?",
+  "heard": "Скільки не вистачає до потрібного числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_house@Sulafat": {
+  "text": "Яке число сховалося в будиночку?",
+  "heard": "Яке число сховалося в будиночку?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_house@Leda": {
+  "text": "Яке число сховалося в будиночку?",
+  "heard": "Яке число сховалося в будиночку?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_house@Orus": {
+  "text": "Яке число сховалося в будиночку?",
+  "heard": "Яке число сховалося в будиночку?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_house@Charon": {
+  "text": "Яке число сховалося в будиночку?",
+  "heard": "Яке число сховалося в будиночку?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_before@Sulafat": {
+  "text": "Яке число стоїть перед цим числом?",
+  "heard": "Яке число стоїть перед цим числом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_before@Leda": {
+  "text": "Яке число стоїть перед цим числом?",
+  "heard": "Яке число стоїть перед цим числом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_before@Orus": {
+  "text": "Яке число стоїть перед цим числом?",
+  "heard": "Яке число стоїть перед цим числом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_before@Charon": {
+  "text": "Яке число стоїть перед цим числом?",
+  "heard": "Яке число стоїть перед цим числом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_after@Sulafat": {
+  "text": "Яке число стоїть після цього числа?",
+  "heard": "Яке число стоїть після цього числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_after@Leda": {
+  "text": "Яке число стоїть після цього числа?",
+  "heard": "Яке число стоїть після цього числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_after@Orus": {
+  "text": "Яке число стоїть після цього числа?",
+  "heard": "Яке число стоїть після цього числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_after@Charon": {
+  "text": "Яке число стоїть після цього числа?",
+  "heard": "Яке число стоїть після цього числа?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_signs@Sulafat": {
+  "text": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "heard": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_signs@Leda": {
+  "text": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "heard": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_signs@Orus": {
+  "text": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "heard": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_signs@Charon": {
+  "text": "Порівняй числа. Який знак поставимо: більше, менше чи дорівнює?",
+  "heard": "Порівняй числа. Який знак поставимо? Більше, менше чи дорівнює?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort_two@Sulafat": {
+  "text": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "heard": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort_two@Leda": {
+  "text": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "heard": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort_two@Orus": {
+  "text": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "heard": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sort_two@Charon": {
+  "text": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "heard": "Поклади кожну фігурку в кошик за кольором і формою.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "unicorn_hi@Sulafat": {
+  "text": "Мої метелики розлетілися! Допоможи їх порахувати.",
+  "heard": "Мої метелики розлетілися, допоможи їх порахувати.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "fox_hi@Leda": {
+  "text": "Привіт! Я лисичка. Розгадаєш мої хитрі загадки?",
+  "heard": "Привіт! Я Лисичка. Розгадаєш мої хитрі загадки?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mushking_hi@Orus": {
+  "text": "Я Грибний Король. Допоможи навести лад у моєму лісі!",
+  "heard": "Я рибний король, допоможи навести лад у моєму лісі.",
+  "score": 0.99,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "deer_hi@Charon": {
+  "text": "Мої зірочки сховалися в траві. Знайдеш їх?",
+  "heard": "Мої зірочки сховалися в траві, знайдеш їх?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "queen_hi@Sulafat": {
+  "text": "Вітаю, Хранителько! Останній уламок у мене. Пройди три випробування.",
+  "heard": "Вітаю, Хранителько. Останній уламок у мене. Пройди три випробування.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_done@Sulafat": {
+  "text": "Дякую тобі! Тримай уламок Кристала світла!",
+  "heard": "Дякую тобі. Тримай уламок кристала світла.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_done@Leda": {
+  "text": "Дякую тобі! Тримай уламок Кристала світла!",
+  "heard": "Дякую тобі! Тримай уламок Кристала Світла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_done@Orus": {
+  "text": "Дякую тобі! Тримай уламок Кристала світла!",
+  "heard": "Дякую тобі! Тримай уламок кристала світла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_done@Charon": {
+  "text": "Дякую тобі! Тримай уламок Кристала світла!",
+  "heard": "Дякую тобі, тримай уламок кристала світла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_stars@Sulafat": {
+  "text": "Знайди пʼять зірочок, що сховалися поруч!",
+  "heard": "Знайди п'ять зірочок, що сховалися поруч.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_stars@Leda": {
+  "text": "Знайди пʼять зірочок, що сховалися поруч!",
+  "heard": "Знайди п'ять зірочок, що сховалися поруч.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_stars@Orus": {
+  "text": "Знайди пʼять зірочок, що сховалися поруч!",
+  "heard": "Знайди п'ять зірочок, що сховалися поруч.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_stars@Charon": {
+  "text": "Знайди пʼять зірочок, що сховалися поруч!",
+  "heard": "Знайди п'ять зірочок, що сховалися поруч.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

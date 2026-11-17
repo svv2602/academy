@@ -4,7 +4,9 @@
  * The list is built by `recordingList()` in src/ui/strings.ts from the shared strings and the strings of every world
  * (src/worlds/<id>/strings.ts, in the order of the folder names), then the bank of the old game's clips
  * (src/ui/strings-bank.ts): one entry per key marked as spoken, Ukrainian text
- * with the name placeholder cut out, plus the intonation. Nothing is typed into the JSON by hand.
+ * with the name placeholder cut out, plus the intonation and the speaker. The speakers and their voices come from each
+ * world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10): a line a character says in its own voice
+ * is listed again as `<key>@<voice>`. Nothing is typed into the JSON by hand.
  *
  *   npm run voice:sync              rewrite voice/phrases.json
  *   npm run voice:sync -- --check   change nothing; exit 1 and list the differences if the file is out of date
@@ -52,17 +54,31 @@ async function worldStrings() {
   return out;
 }
 
+/** The table "character - voice" of every world that has one (src/worlds/<id>/voices.ts), in the order of the names. */
+async function worldVoices() {
+  const ids = readdirSync(WORLDS, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+  const out = [];
+  for (const id of ids) {
+    const file = `${WORLDS}${id}/voices.ts`;
+    if (!existsSync(file)) continue;
+    const { voices } = await import(pathToFileURL(file).href);
+    if (!voices || voices.id !== id) throw new Error(`src/worlds/${id}/voices.ts exports no \`voices\` of world "${id}"`);
+    out.push(voices);
+  }
+  return out;
+}
+
 let list;
 try {
   const { recordingList } = await import('../src/ui/strings.ts');
   const { bank } = await import('../src/ui/strings-bank.ts');
-  list = recordingList(await worldStrings(), bank);
+  list = recordingList(await worldStrings(), bank, await worldVoices());
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
 }
 
 // Same layout the file has always had: one line per key, one-space indent, non-ASCII kept as it is, newline at the end.
-const rows = Object.entries(list).map(([key, [text, style]]) => ` ${JSON.stringify(key)}: [${JSON.stringify(text)}, ${JSON.stringify(style)}]`);
+const rows = Object.entries(list).map(([key, row]) => ` ${JSON.stringify(key)}: [${row.map((v) => JSON.stringify(v)).join(', ')}]`);
 const next = `{\n${rows.join(',\n')}\n}\n`;
 
 let current = null;
