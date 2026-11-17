@@ -5,6 +5,7 @@ import { initShop } from '../ui/shop';
 import { el, initBook } from '../ui/ui';
 import type { Game } from './context';
 import { tour } from './flyover';
+import { atPlay } from './stops';
 import type { Gear } from './gear';
 import type { BookInfo, WorldLines } from './world';
 
@@ -43,7 +44,7 @@ export function initStartScreen(g: Game, o: {
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
     await enterWorld(g, first);
-    void import('./stops').then((s) => s.atPlay(g));   // PLAY-08: the day of play is counted, then a stop point
+    void atPlay(g);   // PLAY-08: the day of play is counted, then a stop point - at once, not when a chunk has loaded
   }, { once: true });
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.
   const openShop = initShop(save, o.gear, {

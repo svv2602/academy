@@ -7,7 +7,7 @@ import { cheatTask } from './taskviews/panel';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
-import { stopPoint, type StopWhere } from './stops';
+import { played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
 
@@ -87,6 +87,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       hold() { achState.held = true; },
       release() { achState.held = false; },
       stop(where: StopWhere) { return stopPoint(where, g); },
+      /** The stop points of "Play" over since the page loaded. */
+      get plays() { return played.n; },
     },
     /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
     get time() { return uTime.value; },

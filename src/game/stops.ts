@@ -65,8 +65,10 @@ export async function stopPoint(where: StopWhere, g: StopHost | null = host): Pr
 export async function atPlay(g: StopHost | null = host): Promise<void> {
   if (!g) return;
   if (noteDay(g.save)) g.persist();
-  await stopPoint('play', g);
+  try { await stopPoint('play', g); } finally { played.n++; }
 }
+/** The stop points of "Play" over (a scene shown or not): the walkthrough waits for it before it taps (__game.ach.plays). */
+export const played = { n: 0 };
 
 /**
  * The achievements at a point: every one earned is granted (the save keeps it for ever), and the first of those whose

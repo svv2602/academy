@@ -440,6 +440,13 @@ try {
   // after its one tap (the card of the parts given back, the scene stored as shown); the first one of a run is also a
   // picture, the layout check of the card in this size.
   let achPictured = false;
+  // Holds the achievements' scenes for the length of `fn` (a block that measures something else) and gives the lever
+  // back as it was, whatever `fn` does: the walkthrough's own lever (__game.ach.hold, ?debug only), never the game's.
+  const holdAchDuring = async (fn) => {
+    const was = await g(() => __game.ach.held);
+    await g(() => __game.ach.hold());
+    try { return await fn(); } finally { if (!was) await g(() => __game.ach.release()).catch(() => {}); }
+  };
   const endAchievement = async (where) => {
     const on = await g(() => ({ id: __game.ach.scene, queue: __game.ach.queue, task: __game.inTask, cat: __game.line,
       title: document.querySelector('#fanfareTitle').textContent, sign: document.querySelector('#fanfare .gem').textContent }));
@@ -2512,6 +2519,10 @@ try {
         const until = (fn, arg, what, ms = 10000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what));
         if (!(await visible('#setup')) || !(await visible('#start'))) fail('the start screen is not shown');
         await until(() => window.__game?.gear && document.querySelectorAll('#looks button[data-look]').length === 4, null, 'no row of four looks on the start screen', 30000);
+        // This block measures the looks, not the achievements (PLAY-08): the scenes the save still has in its queue would
+        // come at the stop point of its own "play" and lie over the book's button. They wait for the whole block - the
+        // walkthrough's lever (holdAchDuring), given back as it was at the end; the game never holds them.
+        await holdAchDuring(async () => {
         const look = () => g(() => {
           const s = __game.save, gear = __game.gear, st = JSON.parse(localStorage.getItem('amw-save') || '{}');
           const lit = (id) => [...document.querySelectorAll(`#${id} button`)].findIndex((b) => b.classList.contains('sel'));
@@ -2564,6 +2575,8 @@ try {
         const witch = seen.witch;
         await page.click('#play');
         await until(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden'), null, 'the game did not start after "play"', 60000);
+        // The stop point of "play" over (its scene held, see above): only then the first tap - by the event, not the clock.
+        await until(() => __game.ach.plays >= 1, null, 'the stop point of "play" did not come', 60000);
         await tap('#btnBook');
         await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open');
         await tap('#btnShop');
@@ -2586,6 +2599,7 @@ try {
         await shot('look-witch-hair');
         await tap('#shopDone');
         console.log(`looks: ${ids.join(', ')} put on from the start screen and stored, the trail and ${before.owned.length} purchases kept; then the hair ${hair} alone in the fitting room`);
+        });
         // back to the start screen for the blocks after this one
         await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
       }
