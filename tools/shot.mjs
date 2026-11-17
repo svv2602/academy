@@ -840,8 +840,10 @@ try {
         // a tap anywhere ends it, long before its end
         const vp = page.viewportSize();
         await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
-        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(5000) })
-          .catch(() => fail('a tap did not end the tour'));
+        // The tap ends it in its own handler; the end is waited for by the page, with room for a slow runner's frames (a busy
+        // CI runner took more than 5 s of the clock for it), and the place it ended at is checked right below.
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(60000) })
+          .catch(async () => fail(`a tap did not end the tour: ${JSON.stringify(await state())}`));
         const s1 = await state();
         if (!(s1.at < pts[pts.length - 1] - 0.5)) fail(`the tour ran to its end (${s1.at.toFixed(2)} s) instead of ending at the tap`);
         // The reloads below start a new log of the voice: its line is checked here.
