@@ -20,6 +20,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { chromium } from 'playwright-core';
+import { gameWaits } from './game-wait.mjs';
 
 const [distArg = 'dist'] = process.argv.slice(2);
 const usage = (msg) => { console.error(`[update] ${msg}\nUsage: node tools/update.mjs [distDir]`); process.exit(2); };
@@ -34,14 +35,6 @@ if (!GL_ARGS[gl]) usage(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
 const slow = Number(process.env.E2E_SLOW || 1);
 if (!(slow > 0)) usage(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
 const T = (ms) => Math.round(ms * slow);
-// What the game does in its own time is waited for by its clock (window.__game.time), the wall clock only a ceiling for
-// a game that stopped (tools/clock-waits.mjs): fails once `seconds` of game time have passed without `pred(arg)`.
-async function gameFor(page, pred, arg, seconds) {
-  const t0 = await page.evaluate(() => __game.time);
-  const h = await page.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
-    null, { timeout: T(600000) }); /* clock: ceiling */
-  if ((await h.jsonValue()) !== 'yes') throw new Error(`not within ${seconds} s of game time`);
-}
 const MARK = 'e2e-build';
 // The character whose first task is a panel task: __game.cheat() solves it.
 const TALK_TO = 'fox';
@@ -132,6 +125,7 @@ try {
   // ---- 1. build A: the worker takes the page, "Play" ----
   const log = { navigations: 0 };
   const page = await ctx.newPage();
+  const { gameFor } = gameWaits(page, { ceiling: T(600000) }); /* clock: ceiling */
   watch(page, 'build A', log);
   await page.goto(gameUrl);
   await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); /* clock: page-load */
@@ -198,18 +192,18 @@ try {
   };
   await check('after the update was found');
   // A task is still solved in build A, and its stars are written.
-  await gameFor(page, () => !__game.busy, null, 60).catch(() => fail('the game stayed busy after "Play"'));
+  await gameFor(() => !__game.busy, null, 60).catch(() => fail('the game stayed busy after "Play"'));
   const stars0 = await page.evaluate(() => __game.save.stars);
   await page.evaluate((id) => __game.talk(id), TALK_TO);
-  await gameFor(page, () => !!document.querySelector('#task:not(.hidden)'), null, 30);
+  await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 30);
   const did = await page.evaluate(() => __game.cheat());
   const state = () => page.evaluate(() => ({ stars: __game.save.stars, busy: __game.busy, line: __game.line, task: !document.querySelector('#task').classList.contains('hidden') }));
-  await gameFor(page, (s) => __game.save.stars > s, stars0, 60).catch(async () => {
+  await gameFor((s) => __game.save.stars > s, stars0, 60).catch(async () => {
     throw new Error(`the task with "${TALK_TO}" was not solved after the update was found (cheat: "${did}"; now ${JSON.stringify(await state())}, stars before ${stars0})`);
   });
   // The chain goes on to its next task: it is closed with its button (that changes nothing in the save).
   await page.locator('#task:not(.hidden):not(.won) #taskClose').click({ timeout: T(30000) }); /* clock: input-event */
-  await gameFor(page, () => !__game.busy, null, 60).catch(async () => {
+  await gameFor(() => !__game.busy, null, 60).catch(async () => {
     throw new Error(`the game stayed busy after the next task was closed (${JSON.stringify(await state())})`);
   });
   const before = await page.evaluate(() => ({ stars: __game.save.stars, quests: JSON.stringify(__game.save.worlds.fairy.quests), stored: JSON.parse(localStorage.getItem('amw-save')).stars }));

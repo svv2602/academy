@@ -63,6 +63,7 @@
 //                           group's friends and its blocks are played; the checks at the end count only what was played.
 //                           Pictures are named <outDir>/<size>-<group>-<screen>.png. Default: the whole world
 import { chromium } from 'playwright-core';
+import { gameWaits } from './game-wait.mjs';
 import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
 import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
@@ -357,19 +358,9 @@ try {
     return false;
   };
   const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) }); /* clock: audio */
-  // Waits for `pred(arg)` in the page while the game plays: true when it holds, false once `seconds` of game time have
-  // passed without it. What the game does in its own time is waited for by the game's clock; the wall clock is only the
-  // ceiling for a game that stopped altogether (the slow CI runner may take minutes of it for seconds of the game's).
-  const gameUntil = async (pred, arg, seconds) => {
-    const t0 = await page.evaluate(() => __game.time);
-    const h = await page.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
-      null, { timeout: T(600000) }); /* clock: ceiling */
-    return (await h.jsonValue()) === 'yes';
-  };
-  // The same as a promise that fails once `seconds` of game time have passed without `pred` (for `.catch` and `.then`).
-  const gameFor = async (pred, arg, seconds) => {
-    if (!(await gameUntil(pred, arg, seconds))) throw new Error(`not within ${seconds} s of game time`);
-  };
+  // What the game does in its own time is waited for by its clock (tools/game-wait.mjs): gameUntil - true / false after
+  // its seconds of game time, gameFor - the same as a promise that fails; a game that stands still fails at once.
+  const { gameUntil, gameFor } = gameWaits(page, { ceiling: T(600000) }); /* clock: ceiling */
   // The shown magic comes to `want` (within 0.001) in MAGIC_SETTLE s of game time.
   const magicSettles = (want) => gameUntil((w) => Math.abs(__game.magic.value - w) <= 0.001, want, MAGIC_SETTLE);
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the

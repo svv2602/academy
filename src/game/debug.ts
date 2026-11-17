@@ -107,6 +107,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * still. Everything on game time waits too - a change of world under it does not close until it is let go.
      */
     still(v: boolean) { g.still = v; },
+    /** Whether frames are drawn with no game time now (`still`). */
+    get isStill() { return g.still; },
     fade: transition,
     talk(id: string) { world.talk(id); },
     /** Does the right thing for whatever task is on screen; returns what it did. */
