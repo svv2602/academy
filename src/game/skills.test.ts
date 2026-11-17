@@ -170,3 +170,32 @@ describe('levelFor: the level fixed by the parent for each skill (LEARN-15, R21,
     expect(levelFor(s, 'count')).toBe(2);
   });
 });
+
+describe('the run of clean solves of every skill (PLAY-08, R44)', () => {
+  it('a fresh save has no run; the first task starts it', () => {
+    const s = defaultSave();
+    expect(s.clean).toBeUndefined();
+    recordTask(s, 'add', 0);
+    expect(s.clean).toEqual({ run: 1, best: 1 });
+  });
+
+  it('a clean solve of any skill adds one; a solve after a mistake ends the run, the best stays', () => {
+    const s = defaultSave();
+    play(s, 'add', 0, 0, 0);
+    play(s, 'count', 0, 0);
+    expect(s.clean).toEqual({ run: 5, best: 5 });
+    play(s, 'sub', 2);
+    expect(s.clean).toEqual({ run: 0, best: 5 });
+    play(s, 'memory', 0, 1, 0, 0);
+    expect(s.clean).toEqual({ run: 2, best: 5 });
+  });
+
+  it('is counted beside the skill counters, which it does not change', () => {
+    const a = defaultSave(), b = defaultSave();
+    play(a, 'add', 0, 1, 0, 3, 0, 0);
+    play(b, 'add', 0, 1, 0, 3, 0, 0);
+    expect(a.clean).toEqual({ run: 2, best: 2 });
+    expect(a.skills.add).toEqual({ ...b.skills.add });
+    expect(a.skills.add).toMatchObject({ tasks: 6, first: 4, errors: 4 });
+  });
+});
