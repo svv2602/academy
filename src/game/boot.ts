@@ -1,12 +1,13 @@
-import { rig, type Rig } from '../core/assets';
+import { rig, shared, type Rig } from '../core/assets';
 import type { Save } from '../core/save';
 import { showNotice } from '../ui/ui';
 import { loadGear, type GearModels } from './gear';
 import { buildHero } from './hero';
+import { PETS } from './pets';
 
 /**
- * The shared load (TECH-15): what every world is played with and no world owns - the heroine's model with her items
- * and the cat's. It runs once, next to the load of the world (src/main.ts starts both under one loading bar); a world
+ * The shared load (TECH-15): what every world is played with and no world owns - the heroine's model with her items,
+ * the cat's and the pets' (PLAY-09: one model of each species of src/game/pets.ts). It runs once, next to the load of the world (src/main.ts starts both under one loading bar); a world
  * loads and builds only its own (WorldDef.load) and reads the heroine's model from the game (`g.heroRig`).
  */
 
@@ -14,7 +15,14 @@ import { buildHero } from './hero';
 export type HeroModel = Awaited<ReturnType<typeof buildHero>> & { gear: GearModels };
 
 /** What the shared load hands to the game (createGame, src/game/context.ts). */
-export interface Shared { heroRig: HeroModel; catRig: Rig }
+export interface Shared {
+  heroRig: HeroModel; catRig: Rig;
+  /**
+   * The pets by species id (PLAY-09). A world showing the same model file asks for it too: the loader holds one request
+   * per file (src/core/assets.ts `gltf`), each `rig` is a clone of its own.
+   */
+  petRigs: Record<string, Rig>;
+}
 
 let failed = false;
 
@@ -32,11 +40,14 @@ export function loadFailed(e: unknown): void {
   showNotice('load_failed', () => location.reload());
 }
 
-/** The heroine (dressed as the save says) and the cat. Null = failed for good, the notice is already shown. */
+/** The heroine (dressed as the save says), the cat and the pets. Null = failed for good, the notice is already shown. */
 export function loadShared(save: Save): Promise<Shared | null> {
+  // The pets are of the core: never released with a world, also when a world shows the same model file.
+  shared(...PETS.map((p) => p.model));
   return Promise.all([
     // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
     rig('extra/cat2', 0.62, true),
-  ]).then(([heroRig, catRig]): Shared => ({ heroRig, catRig }), (e: unknown) => { loadFailed(e); return null; });
+    Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
+  ]).then(([heroRig, catRig, pets]): Shared => ({ heroRig, catRig, petRigs: Object.fromEntries(pets) }), (e: unknown) => { loadFailed(e); return null; });
 }

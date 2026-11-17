@@ -13,7 +13,8 @@ import type { Stage } from './stage';
 import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './taskviews/panel';
 import { Butterflies } from './butterflies';
-import type { WorldGround } from './world';
+import { createPets, type PetsInWorld } from './pets';
+import type { CharacterDef, WorldDef, WorldGround } from './world';
 import { el, setAct, setCounter } from '../ui/ui';
 
 /** A walk the heroine makes by herself (a tap on the ground or on a spot); `then` runs when she gets there. */
@@ -34,6 +35,11 @@ export interface GameWorld {
    * part (look, stars, skills, settings) stays on `save`.
    */
   readonly ws: WorldState;
+  /**
+   * The description of the world being played (its id, pet, characters, secrets...): the achievements and the pets read
+   * it through `g` every time, never keep it - it is the world's part, like `ws` and `ground`.
+   */
+  readonly world: WorldEntry;
   groundY(x: number, z: number): number;
 }
 
@@ -48,6 +54,11 @@ export interface Game extends GameWorld {
   readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
   /** The heroine's model with her items (the shared load): a world makes her gear and her wings of it. */
   readonly heroRig: HeroModel;
+  /**
+   * The pets in the world played (PLAY-09, src/game/pets.ts): the world's own waiting at its place, the chosen one after
+   * the heroine. Its spots join the world's and it moves in the frame (src/game/loop.ts); `dispose` on leaving the world.
+   */
+  readonly pets: PetsInWorld;
   /**
    * The randomness of the tasks (ARCH-08): which task, its numbers and pictures, where the stars and butterflies are.
    * Seeded by `?seed=`, else Math.random. Praise, "try again" and the scenery do not draw from it.
@@ -81,7 +92,15 @@ export interface Game extends GameWorld {
  * walks on, where she stands on a first launch, and `crystals`, the text of the crystal counter - the world knows how
  * many parts there are.
  */
-export interface WorldEntry { id: string; ground: WorldGround; spawn: { x: number; z: number }; crystals: () => string }
+export interface WorldEntry {
+  id: string; ground: WorldGround; spawn: { x: number; z: number }; crystals: () => string;
+  /** The world's pet (WorldDef.pet); absent: the world has none. */
+  pet?: WorldDef['pet'];
+  /** The world's characters: a pet that comes after a chain waits until it is finished; absent: such a pet never comes. */
+  characters?: readonly CharacterDef[];
+  /** The world's secrets, chest and ground stars (WorldDef): what its achievements count (src/ui/achieve.ts). */
+  secrets?: WorldDef['secrets']; chest?: WorldDef['chest']; groundStars?: WorldDef['groundStars'];
+}
 
 /**
  * The world's part of the game, made of the world to play: its progress in the save, its ground, where the heroine
@@ -90,7 +109,7 @@ export interface WorldEntry { id: string; ground: WorldGround; spawn: { x: numbe
 function worldPart(save: Save, w: WorldEntry): GameWorld & { start: { x: number; z: number }; crystals: () => string } {
   const ws = worldState(save, w.id);
   return {
-    ws, ground: w.ground, groundY: (x, z) => w.ground.height(x, z),
+    ws, ground: w.ground, groundY: (x, z) => w.ground.height(x, z), world: w,
     start: { x: ws.pos?.[0] ?? w.spawn.x, z: ws.pos?.[1] ?? w.spawn.z }, crystals: w.crystals,
   };
 }
@@ -101,7 +120,7 @@ export function createGame(o: {
   debug: boolean; speech: Speech; rng: Rng; shared: Shared; world: WorldEntry;
 }): Game {
   const { scene, save, speech } = o;
-  const { ws, ground, groundY, start, crystals } = worldPart(save, o.world);
+  const { ws, ground, groundY, world, start, crystals } = worldPart(save, o.world);
   const sparks = new Sparks(scene);
   const flies = new Butterflies(scene, 96, groundY);
 
@@ -145,17 +164,25 @@ export function createGame(o: {
     good: () => sfx('pop'),
   });
 
+  // The pets read the game live (`busy`, the heroine): they are made of it right after it.
+  let pets: PetsInWorld | null = null;
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
+    get pets() { return pets!; },
     busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
     // the world's part (GameWorld)
-    ground, ws, groundY,
+    ground, ws, groundY, world,
     started: () => el.start.classList.contains('hidden'),
     persist, refreshHud, addStars, above,
     fault: () => { if (g.failNext) { g.failNext = false; throw new Error('broken on purpose by __game.failNext()'); } },
     praise, task, hooksFor,
   };
+  // The chain a pet waits for is read through `g` each time (the world played, its progress): nothing kept from now.
+  pets = createPets(g, {
+    pet: o.world.pet, rigs: o.shared.petRigs,
+    chainDone: (id) => { const c = g.world.characters?.find((x) => x.id === id); return !!c && (g.ws.quests[c.id] ?? 0) >= c.steps.length; },
+  });
   return g;
 }
 

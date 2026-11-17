@@ -39,6 +39,14 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
   const companion = createCompanion(g);
   const camera = createCamera(g, () => world.focusDist());
   const clock = new THREE.Clock();
+  // The world's spots and the pets' (PLAY-09: the spot of the world's pet, without a change to the world), read anew
+  // each frame into one list: a world may change its own. Without a pet's spot the world's list is used as it is.
+  const spots: Spot[] = [];
+  const allSpots = (): readonly Spot[] => {
+    if (g.pets.spots.length === 0) return world.spots;
+    spots.length = 0; spots.push(...world.spots, ...g.pets.spots);
+    return spots;
+  };
 
   function frame() {
     requestAnimationFrame(frame);
@@ -52,11 +60,13 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
     const canMove = g.started() && !g.busy && !g.paused;
 
     camera.look();
-    player.tap(canMove, world.spots, world.tap);
+    const here = allSpots();
+    player.tap(canMove, here, world.tap);
     const mag = player.move(dt, canMove);
     world.afterMove(time, player.grounded);
-    player.prompt(canMove, world.spots);
+    player.prompt(canMove, here);
     companion.update(dt);
+    g.pets.update(dt);
     world.update(dt, time, canMove);
     guide.update(time, g.started() && !g.busy ? world.goal() : null);
     player.fadeRing(dt);

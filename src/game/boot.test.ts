@@ -1,13 +1,15 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Save } from '../core/save';
+import { PETS } from './pets';
 
 // The shared load without a page: the loaders and the notice are stand-ins, the order and the failure are real.
 const rig = vi.fn();
 const buildHero = vi.fn();
 const loadGear = vi.fn();
 const showNotice = vi.fn();
-vi.mock('../core/assets', () => ({ rig }));
+const shared = vi.fn();
+vi.mock('../core/assets', () => ({ rig, shared }));
 vi.mock('./hero', () => ({ buildHero }));
 vi.mock('./gear', () => ({ loadGear }));
 vi.mock('../ui/ui', () => ({ showNotice }));
@@ -20,6 +22,7 @@ const boot = async () => { vi.resetModules(); return import('./boot'); };
 let error: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   rig.mockReset().mockResolvedValue(CAT);
+  shared.mockReset();
   buildHero.mockReset().mockImplementation(async () => ({ ...HERO }));
   loadGear.mockReset().mockResolvedValue(GEAR);
   showNotice.mockReset();
@@ -30,12 +33,12 @@ afterEach(() => { error.mockRestore(); });
 describe('the shared load (TECH-15): the heroine with her items and the cat, once, for every world', () => {
   it('loads the heroine dressed as the save says, hangs her items on that very model, and the cat', async () => {
     const { loadShared } = await boot();
-    const shared = await loadShared(SAVE);
+    const got = await loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledExactlyOnceWith(SAVE);
-    expect(rig).toHaveBeenCalledExactlyOnceWith('extra/cat2', 0.62, true);
-    expect(shared).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT });
+    expect(rig.mock.calls[0]).toEqual(['extra/cat2', 0.62, true]);
+    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])) });
     // The items are hung under the bones of the model the game plays with, not of a copy.
-    expect(loadGear).toHaveBeenCalledExactlyOnceWith(shared!.heroRig);
+    expect(loadGear).toHaveBeenCalledExactlyOnceWith(got!.heroRig);
     expect(showNotice).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
   });
@@ -45,7 +48,14 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const { loadShared } = await boot();
     void loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledTimes(1);
-    expect(rig).toHaveBeenCalledTimes(1);
+    expect(rig).toHaveBeenCalledTimes(1 + PETS.length);
+  });
+
+  it('PLAY-09: the model of every pet once, at its height, kept for every world (never released with one)', async () => {
+    const { loadShared } = await boot();
+    await loadShared(SAVE);
+    expect(rig.mock.calls.slice(1)).toEqual(PETS.map((p) => [p.model, p.height, true]));
+    expect(shared).toHaveBeenCalledExactlyOnceWith(...PETS.map((p) => p.model));
   });
 
   it.each([

@@ -8,6 +8,7 @@
  * counters of the achievements (PLAY-08): the run of clean solves (`clean`), the days played (`days`) and the
  * achievements whose scene was shown (`achShown`): optional, absent until first written (a save without them is read
  * as empty ones, so the saves written before them and tools/e2e-saves.mjs stay as they are), a damaged one is mended.
+ * So did the pet walking after the heroine (`pet`, PLAY-09): absent until first chosen, a damaged or unknown one is none.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -67,6 +68,11 @@ export interface Save {
    * counted at the first "Play" of a date other than `last` (noteDay, src/game/achievements.ts); `n` never goes down.
    */
   days?: { n: number; last: string };
+  /**
+   * The pet walking after the heroine (PLAY-09): an id of src/game/pets.ts, null or absent = none. Which pets are found
+   * is not here: each is the flag `pet` of its world (`worlds[<id>].flags.pet`).
+   */
+  pet?: string | null;
   vol: { music: number; sfx: number; voice: number };
   // Graphics quality (TECH-04); a save without them gets the defaults.
   tier: Tier;                       // the tier the session runs on now, the next launch starts from it
@@ -97,6 +103,8 @@ export const SAVE_VERSION = 4;
 export const WING_COLOR = '#d8f6ff';
 const KEY = 'amw-save';
 /** The skills a fresh save counts: the ids of src/game/skills.ts (save.test.ts checks that the two lists agree). */
+/** The pets a save may choose: the ids of PETS of src/game/pets.ts (save.test.ts checks that the two lists agree). */
+const PET_IDS = ['fawn'];
 const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
 /** The lowest level of a skill whose ladder does not start at 1 (LEVELS of src/game/skills.ts; save.test.ts compares). */
 const FIRST_LEVEL: Record<string, number> = { compose: 3 };
@@ -316,6 +324,8 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The counters of the achievements, when stored (absent: none yet); a damaged one is mended, not dropped.
   if (s.clean !== undefined) out.clean = cleanOf(s.clean);
   if (s.days !== undefined) out.days = daysOf(s.days);
+  // The pet chosen, when stored: anything but the id of a known pet is none.
+  if (s.pet !== undefined) out.pet = typeof s.pet === 'string' && PET_IDS.includes(s.pet) ? s.pet : null;
   if (s.achShown !== undefined) out.achShown = Array.isArray(s.achShown) ? (s.achShown as unknown[]).filter((id): id is string => typeof id === 'string') : [];
   // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
   if (!isTier(out.tier)) out.tier = d.tier;

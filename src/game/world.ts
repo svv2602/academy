@@ -83,7 +83,11 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
   /** PLAY-09: the world's pet. Its done mark is ws.flags.pet (the item `pet` of the world description); `species` is an id of src/game/pets.ts. */
-  readonly pet?: { readonly species: string; readonly at: { readonly x: number; readonly z: number } };
+  readonly pet?: {
+    readonly species: string; readonly at: { readonly x: number; readonly z: number };
+    /** The id of the character whose chain has to be finished before the pet shows itself; absent: it is there at once. */
+    readonly after?: string;
+  };
   /**
    * PLAY-07, PLAY-08: the names of ws.flags that are this world's secrets; the ids of the items of kind `secret` (items(),
    * ARCH-16) must be exactly these.

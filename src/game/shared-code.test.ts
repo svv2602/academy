@@ -15,11 +15,11 @@ const SOURCES = Object.entries(RAW)
   .map(([path, text]) => ({ path: path.replace(/^\.\//, 'src/game/').replace(/^\.\.\//, 'src/'), text }));
 
 interface Hit { file: string; line: number; text: string; }
-function find(re: RegExp, keep: (m: RegExpMatchArray) => boolean = () => true): Hit[] {
+function find(re: RegExp, keep: (m: RegExpMatchArray, path: string, text: string) => boolean = () => true): Hit[] {
   const out: Hit[] = [];
   for (const { path, text } of SOURCES) {
     for (const m of text.matchAll(re)) {
-      if (!keep(m)) continue;
+      if (!keep(m, path, text)) continue;
       const line = text.slice(0, m.index).split('\n').length;
       out.push({ file: path, line, text: m[0].trim() });
     }
@@ -34,6 +34,19 @@ const SPECIFIER = /(?:\bfrom|\bimport(?:\.meta\.glob)?)\s*\(?\s*\[?\s*(['"`])([^
 const WORLD_PATH = /(?:^|\/)worlds(?:\/|$)|(?:^|\/)world\//;
 /** The characters of the first world, in any case and inside longer names (fox_hi, deerQuest, FairyQueen). */
 const NAMES = /unicorn|fox|mushking|deer|queen/gi;
+/**
+ * The one exception to NAMES (PLAY-09, R57): the path of the model of the first world's pet in the catalog of pets.
+ * A model file of the core, not a world's name: this exact quoted string, in this one file - the same word anywhere
+ * else in it (an id, a comment, another path) is still caught.
+ */
+const CORE_MODEL = { file: 'src/game/pets.ts', text: "'animals_pack/Deer'" };
+const inCoreModel = (m: RegExpMatchArray, path: string, text: string) => {
+  if (path !== CORE_MODEL.file) return false;
+  for (let at = text.indexOf(CORE_MODEL.text); at >= 0; at = text.indexOf(CORE_MODEL.text, at + 1)) {
+    if (m.index! >= at && m.index! + m[0].length <= at + CORE_MODEL.text.length) return true;
+  }
+  return false;
+};
 /** Five as the number of parts: "n/5", a quoted '5', "n з 5" / "n из 5" / "n of 5". */
 const FIVE = /\/5(?![\d.])|(['"`])5\1|(?<![\p{L}\d])(?:з|из|of)\s+5(?![\d.])/gu;
 
@@ -69,7 +82,7 @@ describe('the shared code knows no world (ARCH-10, R11)', () => {
   });
 
   it('no shared file names a character of the first world', () => {
-    const hits = find(NAMES);
+    const hits = find(NAMES, (m, path, text) => !inCoreModel(m, path, text));
     expect(hits, `shared code names a character of the first world: ${where(hits)}`).toEqual([]);
   });
 

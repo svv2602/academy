@@ -76,7 +76,7 @@ async function boot() {
   // join the scene after the world's sky and load, and are not the world's.
   const g = scope.shared(() => createGame({
     scene, camera, renderer, save, touch, debug, speech, rng, shared,
-    world: { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => built?.hud() ?? '' },
+    world: { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => built?.hud() ?? '', pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars },
   }));
   applyLook = () => shared.heroRig.setLook(save);
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).

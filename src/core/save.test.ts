@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PETS } from '../game/pets';
 import { LEVELS, SKILLS, recordTask } from '../game/skills';
 import type { SkillId } from '../game/skills';
 import { HARD_MAX, SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
@@ -1092,5 +1093,40 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
   it('a damaged list of shown scenes keeps only its ids', () => {
     expect(load({ achShown: 'first_task' }).achShown).toEqual([]);
     expect(load({ achShown: ['first_task', 4, null, 'days_3'] }).achShown).toEqual(['first_task', 'days_3']);
+  });
+});
+
+describe('the pet chosen (PLAY-09): a field of version 4 without a new version (R45)', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none; a version 4 save written before the field opens as it was, without it', () => {
+    expect('pet' in defaultSave()).toBe(false);
+    const s = load({ stars: 4 });
+    expect([s.v, s.stars, 'pet' in s]).toEqual([4, 4, false]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+  });
+
+  it('every pet of src/game/pets.ts is kept, and none (null) too', () => {
+    for (const p of PETS) expect(load({ pet: p.id }).pet).toBe(p.id);
+    expect(load({ pet: null }).pet).toBeNull();
+  });
+
+  it('a damaged or unknown pet is none, the rest of the save is read as it is', () => {
+    for (const bad of ['dragon', '', 3, true, {}, ['fawn']]) {
+      const s = load({ pet: bad, stars: 7 });
+      expect([s.pet, s.stars], JSON.stringify(bad)).toEqual([null, 7]);
+    }
+  });
+
+  it('read and write: the pet and the flag of its world survive a store and a load, next to a field this code does not know', () => {
+    const p = PETS[0];
+    const fields = { pet: p.id, petLater: { hat: 'red' }, worlds: { [p.world]: { ...defaultWorld(), flags: { pet: true, later: true } } } };
+    storeSave({ ...load(fields) });
+    const s = loadSave();
+    expect(s).toMatchObject(fields);
+    expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
   });
 });
