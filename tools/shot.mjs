@@ -817,6 +817,13 @@ try {
         if (s0.jump) fail('the jump button shows during the tour');
         if (s0.line !== 'tour') fail(`the cat says "${s0.line}", not its line of the tour`);
         if (!s0.toured) fail('the world is not marked as toured when its tour starts');
+        // the tour itself moves the camera: it leaves the first point by more than 2 m (waited for by the frames of the
+        // game, not the clock: a player that holds the camera still never gets there)
+        const cam0 = await g(() => __game.camera.position.toArray());
+        await page.waitForFunction((p) => __game.flyoverPlayer.active
+          && Math.hypot(__game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]) > 2,
+        cam0, { timeout: T(120000) }).catch(async () => fail(`the camera did not fly: still ${(await g((p) => Math.hypot(
+          __game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]), cam0)).toFixed(2)} m from where it started`));
         // a tap anywhere ends it, long before its end
         const vp = page.viewportSize();
         await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
@@ -830,27 +837,26 @@ try {
         // a picture from every point of the path
         await g(() => __game.flyover());
         await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(5000) }).catch(() => fail('the debug command did not start the tour'));
+        // The camera is put on each point at once (hold) and pictured after two frames of the game: on the slow CI runner
+        // flying from point to point in game time would take minutes of the clock.
         for (const [i, t] of pts.entries()) {
-          await page.waitForFunction((t) => __game.flyoverPlayer.elapsed >= t - 0.3, t, { timeout: T(30000) })
-            .catch(() => fail(`the camera did not come to point ${i + 1} (${t.toFixed(2)} s)`));
           await g((i) => __game.flyoverPlayer.hold(i), i);
           await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          const at = await g(() => __game.flyoverPlayer.elapsed);
+          if (Math.abs(at - t) > 0.01) fail(`point ${i + 1}: the tour stands at ${at.toFixed(2)} s, not ${t.toFixed(2)} s`);
           await shot(`flyover-${i + 1}`);
-          await g(() => __game.flyoverPlayer.hold(null));
         }
+        await g(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
         await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
         console.log(`the tour: ${pts.length} pictures of its points (flyover-1 .. flyover-${pts.length})`);
-        // An entry that has no tour: "play", a second of game time, and the tour never started.
+        // An entry that has no tour: "play", three frames, and the tour never started. The tour starts in the handler of
+        // "play" itself, so frames are enough - a second of game time would outlast the welcome on the slow CI runner,
+        // and the next block wants that line still sounding.
         const noTour = async (what) => {
           await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
           await page.click('#play');
-          const t0 = await g(() => __game.time);
-          for (;;) {
-            const s = await g(() => ({ on: __game.flyoverPlayer.active, t: __game.time, busy: __game.busy }));
-            if (s.on) fail(`${what}: the tour is shown`);
-            if (s.t > t0 + 1) break;
-            await wait(100);
-          }
+          await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+          if (await g(() => __game.flyoverPlayer.active)) fail(`${what}: the tour is shown`);
           console.log(`the tour: ${what}: no tour`);
         };
         // the second entry
@@ -881,8 +887,14 @@ try {
           } else { delete document.hidden; delete document.visibilityState; }       // back to the real ones
           document.dispatchEvent(new Event('visibilitychange'));
         }, hidden);
-        await page.waitForFunction(() => window.__started.some((a) => !a.paused && !a.ended && a.currentTime > 0.2), null, { timeout: T(10000) })
-          .catch(() => fail('no line was sounding after "play"'));
+        // The line said after "play" (the cat's tour line on a first entry, its welcome on a world visited before) is waited
+        // for by its own clip starting and then playing - on the slow CI runner, offline, its first sound can be many
+        // seconds of the clock away.
+        const said = await g(() => __game.line);
+        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key), said, { timeout: T(60000) })
+          .catch(() => fail(`the clip of "${said}", said after "play", never started`));
+        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key && !a.paused && !a.ended && a.currentTime > 0.2), said, { timeout: T(60000) })
+          .catch(() => fail(`no line was sounding after "play" (the clip of "${said}" started but did not play)`));
         const id = await g(() => { const a = window.__started.findLast((x) => !x.paused && !x.ended); a.__probe = true; return window.__clip(a); });
         await visibility(true);
         await wait(1200);
