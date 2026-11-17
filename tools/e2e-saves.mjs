@@ -75,17 +75,32 @@ function played({ done, stars, tasks, final = false }) {
 }
 
 /**
- * The groups: the save each starts from (null: no save, a new player), the friends whose chains it plays, the blocks.
+ * The achievements a piece earns (PLAY-08, R06): the scenes the walkthrough saw and closed plus the ones still waiting in
+ * the queue (tools/shot.mjs, block "achievements"). None of the saves holds an achievement: all of them are earned in
+ * play. The first task, a task tried again after a mistake and the first shard come with any chain - from the play
+ * itself or from the save's quests and skills (each skill with a mistake, see `skill`). "All skills" needs the
+ * composition of a number, which only the deer's chain trains (the saves hold none of it); the artifact is the crystal
+ * restored - in the finale, or in the shop's save. Neither the chest nor every star on the ground is taken by the
+ * walkthrough, so the secret, the stars and three secrets are never earned; one day, under fifty tasks, a mistake in
+ * every run of clean solves.
+ */
+const ACH_BASE = ['first_shard', 'first_task', 'try_again'];
+/** The whole world from no save (no group): every piece's. */
+export const ACH_WHOLE = [...ACH_BASE, 'all_skills', 'first_artifact'];
+
+/**
+ * The groups: the save each starts from (null: no save, a new player), the friends whose chains it plays, the blocks,
+ * the achievements it earns (`ach`, a piece only).
  * The size decides the rest as it always did (tools/e2e.mjs): desktop is played offline, desktop-tall without the voice.
  */
 export const GROUPS = {
   // friends 1-2 from no save: the published game without ?debug, the tour of the world, a hidden page, the introduction, the cat
-  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'] },
+  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'], ach: ACH_BASE },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
-    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'magic', 'achievements'],
+    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'magic', 'achievements'], ach: ACH_BASE,
   },
   // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
   finale: {
@@ -94,14 +109,14 @@ export const GROUPS = {
     save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'achievements', 'leave', 'start-again'],
+    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'achievements', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'achievements', 'leave', 'looks'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'achievements', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },

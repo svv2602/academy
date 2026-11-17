@@ -65,7 +65,7 @@
 import { chromium } from 'playwright-core';
 import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
-import { GROUPS, startSave } from './e2e-saves.mjs';
+import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
 
 const [url = 'http://localhost:5173/', out = 'shots', mode = 'desktop'] = process.argv.slice(2);
 const GL_ARGS = {
@@ -425,6 +425,79 @@ try {
     const steps = lines.filter((s) => s.startsWith('- ')).slice(-3);
     return [lines[0], ...steps].join(' | ');
   };
+  // ---- the card of the fanfare (#fanfare): a part's, the finale's - or the scene of an achievement (PLAY-08) ----
+  // The game shows an achievement's scene at its stop points (src/game/stops.ts) on the same card, marked `.ach`. A block
+  // that waits for its own card (a shard, the finale) closes such a scene on the way with one tap, the line
+  // "achievement shown: <id>" goes to the log, and the wait goes on for the card it waited for. `achSeen`: the ids of
+  // every scene closed so, across the reloads (the page's own `__game.ach.log` starts again with every page).
+  const achSeen = [];
+  let achWant = null;    // the set of the piece, once the block "achievements" has come: the end of the walk checks it again
+  const fanfareIs = () => g(() => {
+    const e = document.querySelector('#fanfare');
+    return !e || e.classList.contains('hidden') ? 'none' : e.classList.contains('ach') ? 'ach' : 'own';
+  });
+  // Every scene is checked as it comes (not over a task, its title, the cat's subtitle, its id still in the queue) and
+  // after its one tap (the card of the parts given back, the scene stored as shown); the first one of a run is also a
+  // picture, the layout check of the card in this size.
+  let achPictured = false;
+  const endAchievement = async (where) => {
+    const on = await g(() => ({ id: __game.ach.scene, queue: __game.ach.queue, task: __game.inTask, cat: __game.line,
+      title: document.querySelector('#fanfareTitle').textContent, sign: document.querySelector('#fanfare .gem').textContent }));
+    if (!on.id) throw new Error(`${where}: the card is marked as an achievement's, but __game.ach.scene is null`);
+    const left = [];
+    if (on.task) left.push('the scene came over a task');
+    if (!on.title) left.push('the card has no title');
+    if (!on.cat) left.push('the cat says nothing (no subtitle)');
+    if (!on.queue.includes(on.id)) left.push(`"${on.id}" is not in the queue while its scene is on`);
+    if (!achPictured) { achPictured = true; await shot(`achievement-${on.id}`); }
+    await tapOn('#fanfareOk').catch((e) => { throw new Error(`${where}: the button of the scene of "${on.id}" cannot be pressed: ${why(e)}`); });
+    await page.waitForFunction(() => __game.ach.scene === null, null, { timeout: T(15000) })
+      .catch(() => { throw new Error(`${where}: one tap did not end the scene of "${on.id}"`); });
+    const after = await g(() => ({ queue: __game.ach.queue, sign: document.querySelector('#fanfare .gem').textContent,
+      ach: document.querySelector('#fanfare').classList.contains('ach'), stored: JSON.parse(localStorage.getItem('amw-save') || '{}').achShown ?? [] }));
+    if (after.queue.includes(on.id)) left.push(`"${on.id}" is still in the queue after its scene`);
+    if (!after.stored.includes(on.id)) left.push(`the shown scene of "${on.id}" is not stored`);
+    if (after.ach) left.push('the card is still marked as an achievement\'s');
+    if (after.sign !== '💎') left.push(`the card of the parts is not given its crystal back (sign ${after.sign})`);
+    if (left.length) errors.push(`achievements: ${mode}: the scene of "${on.id}" (${where}): ${left.join('; ')}`);
+    achSeen.push(on.id);
+    console.log(`achievement shown: ${on.id} (${on.sign}, ${where})`);
+    return on.id;
+  };
+  // Whether the block's own card is up now; an achievement's scene in its place is closed first (then: false, or the
+  // card that came right after it).
+  const fanfareUp = async (where = 'the card of the fanfare') => {
+    for (;;) {
+      const s = await fanfareIs();
+      if (s !== 'ach') return s === 'own';
+      await endAchievement(where);
+    }
+  };
+  // Waits for the block's own card, closing the scenes of the achievements that come before it.
+  // Every scene closed starts the wait again: their number is that of the achievements, a handful.
+  const fanfareCard = async (timeout, where = 'the card of the fanfare') => {
+    for (;;) {
+      await page.waitForSelector('#fanfare:not(.hidden)', { timeout });
+      if (await fanfareUp(where)) return;
+    }
+  };
+  // Waits for the controls to come back (`!__game.busy`), closing on the way the scene a stop point inside the
+  // conversation brings (after a task's praise, after a part's card).
+  const controlsBack = async (timeout, where = 'the end of the scene') => {
+    for (;;) {
+      await page.waitForFunction(() => __game.ach.scene !== null || !__game.busy, null, { timeout });
+      if (!(await fanfareIs() === 'ach')) return;
+      await endAchievement(where);
+    }
+  };
+  // Closes the book: its button is a stop point (src/ui/ui.ts), whose scene - if one waits - is closed right away (the
+  // point runs inside the click, so the scene is up by the time the tap returns).
+  const closeBook = async () => { await tapOn('#bookClose'); await fanfareUp('the closed book'); };
+  // The lever of a block that measures what a scene would disturb (a line after a shard, the silence): the scenes wait in
+  // the queue from `holdAch()` to `releaseAch()` (`__game.ach.hold()` / `release()`, ?debug only); the achievements are
+  // still granted, and the next stop point after the release shows the first of them.
+  const holdAch = () => g(() => __game.ach.hold());
+  const releaseAch = () => g(() => __game.ach.release());
   const saved = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.worlds.fairy.quests, stars: __game.save.stars }));
   // The heroine walks: "forward" is held until she has moved half a step, however slow the frames are.
   const walks = async () => {
@@ -648,7 +721,7 @@ try {
       const t0 = Date.now(), starsBefore = await g(() => __game.save.stars);
       while ((await step(q.id)) < q.steps || await g(() => __game.busy)) {
         if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (world "${worldId}")`);
-        if (await visible('#fanfare')) {
+        if (await fanfareUp(`world "${worldId}"`)) {
           await shot(`shard-${q.id}`);
           await tapOn('#fanfareOk').catch((e) => fail(`the button of the part cannot be pressed: ${why(e)}`));
           await wait(500); continue;
@@ -693,7 +766,7 @@ try {
       if (left.length) errors.push(`book: ${mode} ${worldId}: ${left.join('; ')}`);
       else console.log(`book: ${b.got} of ${b.parts} parts, ${b.stars} stars`);
     }
-    await tapOn('#bookClose').catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+    await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
     // the checks every world shares: the voice, the planner of spoken lines, the frame counter
     {
       const frames = await starsKept(`by the end of the world "${worldId}"`);
@@ -816,6 +889,13 @@ try {
           throw new Error(`group "${only}": the game does not play from the save of the group: it holds ${JSON.stringify(got)}, the save ${JSON.stringify({ ...was, quests: was.quests ?? {} })}`);
         }
         console.log(`group "${only}": the game plays from ${groupSave ? `its save (${JSON.stringify(got)})` : 'no save'}`);
+        // "Play" is a stop point (src/game/start.ts): a save with friends done earns its achievements there (none of the
+        // saves holds one), and the first one's scene comes at once - before the first block, which it would stand over.
+        if (want) {
+          await page.waitForFunction(() => __game.ach.scene !== null || Object.keys(__game.save.achievements).length > 0, null, { timeout: T(30000) })
+            .catch(() => { throw new Error(`group "${only}": the stop point of "Play" earned nothing from the save`); });
+          await fanfareUp('the stop point of "Play"');
+        }
       }
       // ---- the tour of the world (WORLD-11): a new save flies the camera along the world's path after "play" while the
       // cat says its line, and a tap ends it; then a picture from every point of the path (the debug command, each point
@@ -1407,6 +1487,7 @@ try {
       let shardSearched = false;
       const shardInSearch = async (q) => {
         const fail = (what) => { throw new Error(`a shard during the search: ${what}`); };
+        await holdAch();   // the block measures the silence, the decision on "go on" and the bubble after the shard
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
         const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
         if (!other) fail('no character with a finished quest to talk to');
@@ -1420,7 +1501,7 @@ try {
         // that one synchronous call (no frame runs in between)
         const how = await g(() => { const s = __game.search; s.active = false; try { return __game.cheat(); } finally { s.active = true; } });
         if (how !== 'panel') fail(`the last task of "${other.id}" was not solved (${how || 'nothing done'})`);
-        await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(30000) }).catch(() => fail(`no shard of "${other.id}" after its last task`));
+        await fanfareCard(T(30000), 'a shard during the search').catch(() => fail(`no shard of "${other.id}" after its last task`));
         await tapOn('#fanfareOk').catch((e) => fail(`the button of the shard cannot be pressed: ${why(e)}`));
         await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene of the shard did not end'));
         await silence().catch(() => fail('the thanks did not end'));
@@ -1439,6 +1520,7 @@ try {
         if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search: a tap on the cat would say it`);
         if (!b.text.includes(`⭐ ${was.found} / 5`)) left.push(`the bubble shows "${b.text}", not the count ⭐ ${was.found} / 5`);
         if (left.length) fail(`${left.join('; ')} (${other.id})`);
+        await releaseAch();
         console.log(`the last task of "${other.id}" solved during the search: its shard, no "go_next", the bubble shows "${b.text}" (${b.key})`);
         searchBefore = await progress();   // the task recorded its skill and stars: the search is measured from here on
         shardSearched = true;
@@ -1496,7 +1578,7 @@ try {
             console.log('star search: "count" skill before', JSON.stringify(searchBefore.skills.count), 'after', JSON.stringify(searchAfter.skills.count));
             if (hurried && !fifthHeard) await g(() => { __game.save.worlds.fairy.quests.deer = 0; });   // the second search, see fifthStar
           }
-          if (await visible('#fanfare')) {
+          if (await fanfareUp(`the chain of "${q.id}"`)) {
             await shot(`shard-${q.id}`);
             // After the first shard: the cat's "go on" comes with its subtitle - after the scene (its end clears the bubble)
             // and after the character's thanks, which still sound when the button is pressed (a hint does not cut them off).
@@ -1504,10 +1586,12 @@ try {
               const fail = (what) => { throw new Error(`after the shard: ${what}`); };
               const during = await sounding();   // false only on a very slow machine: then the order is not put to the test
               const said = await g(() => window.__starts.go_next ?? 0);
+              await holdAch();   // the stop point after the card would bring a scene in before "go_next"
               await page.click('#fanfareOk');
               await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
                 && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
                 .catch(() => fail('"go_next" was not said with its subtitle once the thanks were over'));
+              await releaseAch();
               console.log(`after the shard: "go_next" is said with its subtitle (the button was pressed ${during ? 'while the thanks sounded' : 'after the thanks'})`);
               onward = true;
             } else if (shardTalks && !onwardLate) {
@@ -1517,10 +1601,12 @@ try {
               const t0 = Date.now();
               while (await sounding()) { if (Date.now() - t0 > T(15000)) fail('the thanks did not end'); await wait(200); }
               const said = await g(() => window.__starts.go_next ?? 0);
+              await holdAch();   // as above: no scene between the card and "go_next"
               await page.click('#fanfareOk');
               await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
                 && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
                 .catch(() => fail('"go_next" was not said with its subtitle after the scene (the button was pressed after the thanks)'));
+              await releaseAch();
               console.log('after the second shard: "go_next" is said with its subtitle (the button was pressed after the thanks)');
               onwardLate = true;
             } else await page.click('#fanfareOk');
@@ -1947,7 +2033,7 @@ try {
       }
       if (has('finale')) {
         // replay one finished quest
-        await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
+        await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await controlsBack(T(30000), 'a finished quest replayed');
         // finale
         await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine');
         // The finale is broken once on purpose, right after it has taken the controls and started to merge the shards.
@@ -1962,7 +2048,7 @@ try {
         await g(() => __game.teleport(21.2, -6.4)); await wait(600);
         if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
         await wait(2500); await shot('21-finale');
-        await page.waitForSelector('#fanfare:not(.hidden)', { timeout: T(20000) }); await wait(800); await shot('22-final-card');
+        await fanfareCard(T(20000), 'the finale'); await wait(800); await shot('22-final-card');
         const freeSaid = await g(() => window.__starts.free ?? 0);
         await page.click('#fanfareOk'); await wait(4000);
         // "Walk around" comes after the scene and after the final words, with its subtitle - like "go on" after a shard.
@@ -2002,7 +2088,7 @@ try {
           else console.log(`book: ${b.got} of ${b.shards} shards, ${b.stars} stars, the chest ${b.chest ? 'open' : 'closed'}`);
         }
         // without the shop (which opens from the book) the book is closed again
-        if (!listed('shop')) await tapOn('#bookClose').catch((e) => { throw new Error(`book: it cannot be closed: ${why(e)}`); });
+        if (!listed('shop')) await closeBook().catch((e) => { throw new Error(`book: it cannot be closed: ${why(e)}`); });
       }
       // ---- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book, opened in the middle of the game ----
       // A tap on a thing puts it on at once; one tried on and not bought comes off when the screen closes; a thing she
@@ -2288,55 +2374,60 @@ try {
       const counter = await page.textContent('#fps').catch(() => null);
       console.log('fps:', counter);
       if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
-      // ---- the achievements (PLAY-08, R03, R06, R43): the set the piece earned, and the scene of one of them ----
-      // The scenes wait in the queue under automation (src/ui/achieve.ts `held`: the blocks above tap every card as a
-      // part's), the achievements themselves are granted at every stop point. Here the scenes are let out, the book is
-      // opened and closed - a stop point - and exactly one scene comes, waited for by its flag; one tap ends it.
+      // ---- the achievements (PLAY-08, R03, R06, R43): the set the piece earned, and a scene at the stop point of the book ----
+      // The scenes come at the stop points as in the game; the blocks above closed them on their way (`fanfareUp`,
+      // "achievement shown: <id>"). Here: whatever the piece earned has either been shown or waits in the queue - that
+      // set is the piece's own (`ach` of tools/e2e-saves.mjs); with something waiting, the closed book (a stop point)
+      // shows the first of it, one scene and one only.
       if (has('achievements')) {
         const fail = (what) => { throw new Error(`achievements: ${what}`); };
-        const base = ['first_shard', 'first_task', 'try_again'];
-        const EXPECTED = { world1: base, world2: base, finale: [...base, 'all_skills', 'first_artifact'], shop: [...base, 'first_artifact'] };
-        const want = (only ? EXPECTED[only] : [...base, 'all_skills', 'first_artifact']).slice().sort();
-        await page.waitForFunction(() => !__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden'), null, { timeout: T(30000) })
-          .catch(() => fail('the game did not come to rest before the block'));
-        const before = await g(() => { __game.ach.held = false; return { shown: __game.ach.shown, achShown: [...(__game.save.achShown ?? [])] }; });
-        await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
-        await tapOn('#bookClose').catch((e) => fail(`the book cannot be closed: ${why(e)}`));
-        await page.waitForFunction(() => __game.ach.scene !== null, null, { timeout: T(20000) }).catch(() => fail('no scene at the stop point of the closed book'));
-        const on = await g(() => ({ id: __game.ach.scene, queue: __game.ach.queue, task: __game.inTask, ach: document.querySelector('#fanfare').classList.contains('ach'),
-          sign: document.querySelector('#fanfare .gem').textContent, title: document.querySelector('#fanfareTitle').textContent,
-          cat: __game.line, earned: Object.keys(__game.save.achievements) }));
+        const want = [...(group ? group.ach : ACH_WHOLE)].sort();
+        achWant = want;
+        // a scene of the point before (the closed book of the block "book") may still be on: it is closed first
+        for (;;) {
+          await page.waitForFunction(() => __game.ach.scene !== null
+            || (!__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden')), null, { timeout: T(30000) })
+            .catch(() => fail('the game did not come to rest before the block'));
+          if (!(await g(() => __game.ach.scene))) break;
+          await endAchievement('before the block "achievements"');
+        }
         const left = [];
-        if (on.task) left.push('the scene came over a task');
-        if (!on.ach) left.push('the card is not marked as an achievement\'s');
-        if (!on.title) left.push('the card has no title');
-        if (!on.cat) left.push('the cat says nothing (no subtitle)');
-        if (!on.queue.includes(on.id)) left.push(`"${on.id}" is not in the queue while its scene is on`);
-        if (left.length) fail(left.join('; '));
-        await shot('achievement');
-        await tapOn('#fanfareOk').catch((e) => fail(`the button of the scene cannot be pressed: ${why(e)}`));
-        await page.waitForFunction((n) => __game.ach.scene === null && __game.ach.shown > n && !__game.busy, before.shown, { timeout: T(15000) })
-          .catch(() => fail('one tap did not end the scene'));
-        const after = await g(() => ({ achShown: [...(__game.save.achShown ?? [])], queue: __game.ach.queue, sign: document.querySelector('#fanfare .gem').textContent,
-          ach: document.querySelector('#fanfare').classList.contains('ach'), earned: Object.keys(__game.save.achievements).sort(),
-          stored: JSON.parse(localStorage.getItem('amw-save') || '{}') }));
-        if (after.achShown.join() !== [...before.achShown, on.id].join()) left.push(`shown ${JSON.stringify(after.achShown)}, expected ${JSON.stringify([...before.achShown, on.id])} (one scene per point)`);
-        if (!after.stored.achShown?.includes(on.id)) left.push(`the shown scene of "${on.id}" is not stored`);
-        if (after.queue.length !== on.queue.length - 1) left.push(`the queue went from ${on.queue.length} to ${after.queue.length}, not one less`);
-        if (after.sign !== '💎' || after.ach) left.push(`the card of the parts is not given back (sign ${after.sign})`);
-        if (after.earned.join() !== want.join()) left.push(`earned ${after.earned.join(', ')}; expected ${want.join(', ')}`);
-        if (Object.keys(after.stored.achievements ?? {}).sort().join() !== after.earned.join()) left.push('the achievements are not stored as earned');
+        const before = await g(() => ({ held: __game.ach.held, queue: __game.ach.queue, shown: __game.ach.shown }));
+        if (before.held) left.push('the scenes are still held: a block above did not release them');
+        if (before.queue.length) {
+          await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
+          await tapOn('#bookClose').catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+          await page.waitForFunction(() => __game.ach.scene !== null, null, { timeout: T(20000) }).catch(() => fail('no scene at the stop point of the closed book'));
+          const id = await endAchievement('the closed book');
+          await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene at the closed book did not give the controls back'));
+          const after = await g(() => ({ queue: __game.ach.queue, shown: __game.ach.shown, scene: __game.ach.scene }));
+          if (id !== before.queue[0]) left.push(`the closed book showed "${id}", not the first of the queue "${before.queue[0]}"`);
+          if (after.shown !== before.shown + 1 || after.scene) left.push(`the closed book showed ${after.shown - before.shown} scenes, not one`);
+          if (after.queue.length !== before.queue.length - 1) left.push(`the queue went from ${before.queue.length} to ${after.queue.length}, not one less`);
+        } else console.log('achievements: nothing waits in the queue, the closed book is not tried');
+        const now = await g(() => ({ queue: __game.ach.queue, earned: Object.keys(__game.save.achievements).sort(), times: __game.save.achievements,
+          stored: Object.keys(JSON.parse(localStorage.getItem('amw-save') || '{}').achievements ?? {}).sort() }));
+        // R06: the scenes shown and those still waiting are the piece's set
+        const got = [...new Set([...achSeen, ...now.queue])].sort();
+        const missing = want.filter((id) => !got.includes(id)), extra = got.filter((id) => !want.includes(id));
+        if (missing.length || extra.length) {
+          left.push(`shown ${achSeen.join(', ') || 'none'}, waiting ${now.queue.join(', ') || 'none'}; expected ${want.join(', ')}`
+            + (missing.length ? `; missing ${missing.join(', ')}` : '') + (extra.length ? `; not expected ${extra.join(', ')}` : ''));
+        }
+        const twice = achSeen.filter((id, i) => achSeen.indexOf(id) !== i);
+        if (twice.length) left.push(`scenes shown twice: ${twice.join(', ')}`);
+        if (now.earned.join() !== want.join()) left.push(`earned ${now.earned.join(', ') || 'none'}; expected ${want.join(', ')}`);
+        if (now.stored.join() !== now.earned.join()) left.push('the achievements are not stored as earned');
         // From no save the first task's praise is a stop point of its own, before the card of the first part.
         if (!only || only === 'world1') {
-          const t = await g(() => __game.save.achievements);
-          if (!(t.first_task < t.first_shard)) left.push(`"first_task" (${t.first_task}) did not come before "first_shard" (${t.first_shard}): no stop point after the praise`);
+          if (!(now.times.first_task < now.times.first_shard)) left.push(`"first_task" (${now.times.first_task}) did not come before "first_shard" (${now.times.first_shard}): no stop point after the praise`);
         }
         // on open ground (the block before may leave her against a character), as the block "leave" puts her
         await g(() => __game.teleport(2.5, 12.5));
         if (!(await walks())) left.push('the heroine does not walk after the scene');
-        await g(() => { __game.ach.held = true; });
+        if (!achPictured) left.push('no scene came in this run: the card of an achievement was not measured');
         if (left.length) errors.push(`achievements: ${mode}: ${left.join('; ')}`);
-        else console.log(`achievements: ${after.earned.join(', ')}; the scene of "${on.id}" (${on.sign}) came at the closed book and ended with one tap, ${after.queue.length} wait in the queue`);
+        else console.log(`achievements: ${want.join(', ')}; shown ${achSeen.join(', ')}; ${now.queue.length} wait in the queue${now.queue.length ? ` (${now.queue.join(', ')})` : ''}`);
       }
       if (has('leave')) {
         // the start screen of a returning player: the saved game adds the "start again" button
@@ -2492,6 +2583,15 @@ try {
           if (left.length) fail(`after the reload the old progress is back: ${left.join(', ')}`);
           console.log(`start again: ${had.stars} stars and quests ${JSON.stringify(hadW.quests)} cleared, the start screen of a new player`);
         }
+      }
+      // The end of the walk (R06, R43): the scenes the blocks after "achievements" closed (a reload's "Play" is a stop
+      // point too) were waiting in its queue - every scene of the walk is of the piece's set, and each came once.
+      if (achWant) {
+        const want = achWant;
+        const extra = achSeen.filter((id) => !want.includes(id)), twice = achSeen.filter((id, i) => achSeen.indexOf(id) !== i);
+        if (extra.length) errors.push(`achievements: ${mode}: by the end of the walk scenes not of the set: ${extra.join(', ')}`);
+        if (twice.length) errors.push(`achievements: ${mode}: by the end of the walk scenes shown twice: ${twice.join(', ')}`);
+        console.log(`achievements of the walk: ${achSeen.length} scenes shown: ${achSeen.join(', ') || 'none'}`);
       }
       // E2E_ONLY: the group came to the end through every block of its own
       if (group) {

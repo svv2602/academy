@@ -144,6 +144,10 @@ try {
   });
   log.navigations = 0;
   if (await mark(page) !== 'A') fail('build A: the page is not build A');
+  // This step measures the service worker, not the achievements (PLAY-08): their scenes wait in the queue for the whole
+  // step - the walkthrough's own lever (__game.ach.hold, ?debug only), the game itself never holds them.
+  await page.waitForFunction(() => !!window.__game, null, { timeout: T(30000) });
+  await page.evaluate(() => __game.ach.hold());
   await page.click('#play');
   await page.waitForFunction(() => !!window.__game && !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) });
   // A new save flies over the world first (WORLD-11): a tap skips the tour - its end is waited for by the tour's own
