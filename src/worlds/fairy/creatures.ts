@@ -20,6 +20,16 @@ export type Kind = 'fairy' | 'bird' | 'fish';
 export const ACTIONS = { fairy: ['fly', 'gather'], bird: ['perch', 'fly'], fish: ['swim', 'leap'] } as const;
 /** What a tap starts: each kind its own. */
 export const REACTION = { fairy: 'spin', bird: 'flutter', fish: 'splash' } as const;
+/** The action a creature is held in (`Herd.hold`): the one it keeps still in. */
+export const CALM = { fairy: 'gather', bird: 'perch', fish: 'swim' } as const;
+/**
+ * m above a creature's position where the middle of its drawn model is - what a child taps (the fairy hovers over her
+ * point, the bird stands on its feet, the fish is centred): the middle of the model's box, times the size it is drawn at.
+ */
+export function bodyHeight(geo: THREE.BufferGeometry, scale = 1): number {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  return ((geo.boundingBox!.min.y + geo.boundingBox!.max.y) / 2) * scale;
+}
 export type State = (typeof ACTIONS)[Kind][number] | (typeof REACTION)[Kind];
 
 /** One creature; window.__game.creatures lists these very objects (with ?debug), so they are changed in place. */
@@ -41,6 +51,8 @@ export interface Creature {
   a: number; r: number;
   /** The state a reaction returns to. */
   back: State;
+  /** Debug: the point it is held at, calm, until a tap (`Herd.hold`); null - it lives its own life. */
+  held: THREE.Vector3 | null;
 }
 
 /** Where the creatures live: flower spots (on the ground), perches (tree tops), the pond. */
@@ -59,6 +71,11 @@ export interface Herd {
   update(dt: number, onEvent?: (c: Creature, e: HerdEvent) => void): void;
   /** The creature a tap at `dist` hits (screen pixels from it within `reach`), its reaction started; null - none. */
   tap(dist: (c: Creature) => number, reach: number): Creature | null;
+  /**
+   * Debug (the walkthrough): holds `c` at `at` in its calm action - it does not move, and its state never ends - until
+   * a tap; its reaction is the usual one and starts from there, and it comes back to the point. null lets it go.
+   */
+  hold(c: Creature, at: THREE.Vector3 | null): void;
 }
 
 /** m over the flower a fairy gathers at; how deep a fish swims under the surface (its back breaks it). */
@@ -72,7 +89,7 @@ export function createHerd(h: Habitat, counts = COUNTS, seed = 77): Herd {
   const all: Creature[] = [];
   const make = (kind: Kind, look: number, state: State, spot: number): Creature => ({
     kind, look, state, pos: new THREE.Vector3(), heading: rnd() * 6.28, pitch: 0, roll: 0, t: 0, dur: range(1, 3), taps: 0,
-    from: new THREE.Vector3(), to: new THREE.Vector3(), spot, a: rnd() * 6.28, r: 0, back: state,
+    from: new THREE.Vector3(), to: new THREE.Vector3(), spot, a: rnd() * 6.28, r: 0, back: state, held: null,
   });
   for (let i = 0; i < counts.fairy && h.flowers.length; i++) {
     const c = make('fairy', 0, 'gather', (i * 3) % h.flowers.length);
@@ -135,6 +152,7 @@ export function createHerd(h: Habitat, counts = COUNTS, seed = 77): Herd {
     update(dt, onEvent = () => {}) {
       for (const c of all) {
         c.t += dt;
+        if (c.held && c.state !== REACTION[c.kind]) { c.pos.copy(c.held); c.t = 0; continue; }
         const k = Math.min(1, c.t / Math.max(c.dur, 1e-3));
         switch (c.state) {
           case 'gather': {                                       // hovers over the flower, dipping to it
@@ -197,6 +215,11 @@ export function createHerd(h: Habitat, counts = COUNTS, seed = 77): Herd {
       c.taps++;
       return c;
     },
+    hold(c, at) {
+      if (!at) { c.held = null; return; }
+      c.held = at.clone(); c.state = c.back = CALM[c.kind]; c.t = 0; c.dur = 1;
+      c.pos.copy(at); c.from.copy(at); c.pitch = 0; c.roll = 0;
+    },
   };
 }
 
@@ -256,6 +279,8 @@ export interface Creatures {
   update(dt: number): void;
   /** A tap no task took: true when it hit a creature (its reaction started). */
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
+  /** m above `c.pos` where its drawn body's middle is: a tap is measured from there (bodyHeight). */
+  bodyOf(c: Creature): number;
 }
 
 /** Colours: the fairies' dresses and glow, the reaction sparkles of each kind. */
@@ -319,13 +344,17 @@ export function createCreatures(g: Game, models: CreatureModels, habitat?: Habit
   };
   // Sparkles of the herd: the pollen of a fairy at a flower, the splash of a fish - near the heroine only.
   const splashAt = new THREE.Vector3();
+  const body = new THREE.Vector3();
+  // the middle of each drawn body over its position: from the models and the sizes they are drawn at
+  const heights = { fairy: bodyHeight(fairyMesh.geometry, FAIRY_SIZE.y), bird: bodyHeight(models.bird), fish: fishMeshes.map((m) => bodyHeight(m.geometry)) };
+  const bodyOf = (c: Creature) => (c.kind === 'fish' ? heights.fish[c.look] ?? 0 : heights[c.kind]);
   const onEvent = (c: Creature, ev: HerdEvent) => {
     if (c.pos.distanceToSquared(g.hero.root.position) > 40 * 40) return;
     if (ev === 'pollen') sparks.burst(c.pos, '#fff2a8', 6, 1.2);
     else sparks.burst(splashAt.set(c.pos.x, hab.pond.water + 0.05, c.pos.z), '#d6f6ff', 10, 2);
   };
   return {
-    herd,
+    herd, bodyOf,
     update(dt) {
       herd.update(dt, onEvent);
       fairies.forEach((c, i) => { place(fairyMesh, i, c, FAIRY_SIZE); glowPos.set([c.pos.x, c.pos.y + 0.25, c.pos.z], i * 3); });
@@ -337,7 +366,8 @@ export function createCreatures(g: Game, models: CreatureModels, habitat?: Habit
     // Only while she is free to walk: during a conversation or a cut-scene a tap is not the creatures'.
     tap(screenDist) {
       if (g.busy || !g.started()) return false;
-      const c = herd.tap((c) => screenDist(c.pos), g.touch ? 70 : 46);
+      // measured from the middle of the drawn body, not the point it stands or hovers on
+      const c = herd.tap((c) => screenDist(body.copy(c.pos).setY(c.pos.y + bodyOf(c))), g.touch ? 70 : 46);
       if (!c) return false;
       // Its own reaction: the move started in the herd, the sparkles and the sound here. No stars, nothing saved.
       sparks.burst(c.pos, SPARK[c.kind], c.kind === 'fish' ? 28 : 20, c.kind === 'fish' ? 3.5 : 2.5);
@@ -362,7 +392,7 @@ function shape(geo: THREE.BufferGeometry, col: THREE.Color, v: number[], c: numb
 }
 
 /** A small fairy, about 0.3 m (drawn 1.8 times larger): a dress (cone), a head, two pairs of wings on her back that flap. +z forward. */
-function fairyGeometry(): THREE.BufferGeometry {
+export function fairyGeometry(): THREE.BufferGeometry {
   const v: number[] = [], c: number[] = [], flap: number[] = [];
   const dress = new THREE.ConeGeometry(0.06, 0.16, 7, 1, true); dress.translate(0, 0.08, 0);
   shape(dress, new THREE.Color('#ffffff'), v, c, flap);

@@ -19,6 +19,7 @@ import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
+import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
 import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
@@ -52,6 +53,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const chestStars = createChestStars(g, L, starMat);
   const butterflies = createButterfliesTask(g, scope);
   const { bf } = butterflies;
+  // The creatures of no task (PLAY-11, PLAY-12): fairies, birds, fish - after everything above, so the trees are there.
+  const creatures = createCreatures(g, L.creatureModels);
 
   // ---------- game state ----------
   const starSearch = createStarSearch(g, starGeo, starMat);
@@ -115,7 +118,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const frame: WorldFrame = {
     spots,
     // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
-    tap: (screenDist) => butterflies.tap(screenDist) || (sortShow?.tap(screenDist) ?? false),
+    // A tap no task took may be a creature's (its reaction; nothing recorded).
+    tap: (screenDist) => butterflies.tap(screenDist) || (sortShow?.tap(screenDist) ?? false) || creatures.tap(screenDist),
     afterMove: (time, grounded) => characters.wings(time, grounded),
     // The characters, then the collectibles, then the shrine: the order they were always updated in.
     update: (dt, time, canMove) => {
@@ -123,6 +127,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       chestStars.update(time, canMove);
       starSearch.update(dt, time);
       shrine.update(dt, time);
+      creatures.update(dt);
       magic.update(dt);
     },
     goal,
@@ -157,8 +162,12 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const debug: DebugExtras = {
     npcs,
     // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop; shopSign: where
-    // the walkthrough walks up to the shop's signboard.
-    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign,
+    // the walkthrough walks up to the shop's signboard; creatures: the creatures of no task (kind, state, position, taps), holdCreature: one of them held still.
+    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign, creatures: creatures.herd.all,
+      // holds creature `i` calm at [x, y, z] until a tap (null lets it go): the walkthrough taps it there
+      // creatureBody(i): m above creature i's position where its drawn body's middle is - the point a tap is measured from
+      creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
+      holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
       // the tour: `flyover()` plays it without marking anything, `flyoverPoints` are its points with the moment each is
       // passed, `flyoverPlayer` is its state (active, elapsed) with skip() and hold(i)
       flyover: () => { void tour(g, { record: false }); }, flyoverPlayer: flyover,
