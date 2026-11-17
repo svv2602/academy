@@ -38,6 +38,35 @@ export const voiceLog = { clips: 0, synth: [] as string[] };
 /** Ids of the lines the planner turned away, in order; for the walkthrough. Such a line is in neither list of `voiceLog`. */
 export const dropped: string[] = [];
 
+/** The voice of each speaker (the emoji a line is said by) of the world that plays, and the narrator's voice. */
+const voiceOf = new Map<string, string>();
+let narratorVoice: string | null = null;
+/**
+ * The world hands in its table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). A line of a character is
+ * then played from `voice/<key>@<voice>.mp3`, a line of the narrator (or of a speaker the table lacks) from `<key>.mp3`.
+ */
+export function setCast(table: { narrator: string; cast: Record<string, { emoji: string; voice: string }> }) {
+  voiceOf.clear();
+  for (const c of Object.values(table.cast)) voiceOf.set(c.emoji, c.voice);
+  narratorVoice = table.cast[table.narrator]?.voice ?? null;
+}
+/**
+ * The clips a character said with the narrator's clip of the same key, its own (`<key>@<voice>`) not recorded yet:
+ * the passage until the voices are recorded (VOICE-10), so that a line goes neither to the synthesizer nor unheard.
+ * For the walkthrough and the debug overlay.
+ */
+export const borrowed: string[] = [];
+/** Which recorded clip says line `id` by `speaker`: the speaker's own voice, else the narrator's clip; null if none. */
+export function clipFor(id: string, speaker?: string): string | null {
+  const voice = speaker === undefined ? undefined : voiceOf.get(speaker);
+  if (voice !== undefined && voice !== narratorVoice) {
+    const mine = `${id}@${voice}`;
+    if (recorded.has(mine)) return mine;
+    if (recorded.has(id)) borrowed.push(mine);
+  }
+  return recorded.has(id) ? id : null;
+}
+
 /** Runs `fn` now, or when the page is shown again if it is hidden. */
 const whenShown = (fn: () => void) => { if (hidden) held.push(fn); else fn(); };
 /** A safety timer of a line. Due while the page is hidden, it waits for the return and then counts its whole time again. */
@@ -96,13 +125,14 @@ export function endTask() { taskOpen = false; stopVoice(); }
 export const inTask = () => taskOpen;
 
 /**
- * Plays `voice/<id>.mp3`; if the clip is missing, falls back to the device's Ukrainian speech synthesis.
+ * Plays the clip of line `id` in the voice of `speaker` (see `clipFor`); if there is no clip, falls back to the
+ * device's Ukrainian speech synthesis.
  * A line the planner turns away (see `mayStart`) starts nothing and its end is already settled.
  * `id` is a key of the list of spoken lines (VOICE-07): a key built on the spot (`tap_${n}`) does not compile.
  */
-export function say(id: SpokenKey, text: string, priority: Priority): Spoken {
+export function say(id: SpokenKey, text: string, priority: Priority, speaker?: string): Spoken {
   if (!willSay(priority)) { dropped.push(id); return Promise.resolve() as Spoken; }
-  return begin(priority, (finish, live) => { sound(id, text, finish, live); });
+  return begin(priority, (finish, live) => { sound(id, text, finish, live, speaker); });
 }
 
 /**
@@ -171,10 +201,11 @@ function begin(priority: Priority, body: (finish: () => void, live: () => boolea
 }
 
 /** A line of the list: its recorded clip, or the device's synthesizer when there is none or it fails to load. */
-function sound(id: SpokenKey, text: string, finish: () => void, live: () => boolean) {
-  if (!recorded.has(id)) { voiceLog.synth.push(id); speak(text, finish, live); return; }
+function sound(id: SpokenKey, text: string, finish: () => void, live: () => boolean, speaker?: string) {
+  const clip = clipFor(id, speaker);
+  if (clip === null) { voiceLog.synth.push(id); speak(text, finish, live); return; }
   // A clip that failed to load is asked for once more before the device's synthesizer takes the line (TECH-08).
-  playClip(`${base}voice/${id}.mp3`, CLIP_RETRIES, finish, live, () => { voiceLog.synth.push(id); speak(text, finish, live); });
+  playClip(`${base}voice/${clip}.mp3`, CLIP_RETRIES, finish, live, () => { voiceLog.synth.push(id); speak(text, finish, live); });
   lineTimer(finish, 15000);
 }
 

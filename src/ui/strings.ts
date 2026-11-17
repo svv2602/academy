@@ -245,18 +245,37 @@ export function recordable(key: string, text: string): string {
   return out;
 }
 /**
- * What is sent for recording: every spoken line in Ukrainian with its intonation, the shared ones in the order of
- * `SPOKEN`, then each world's in the order given and of its `spoken`, then the bank's (src/ui/strings-bank.ts).
- * A key two tables share is an error.
+ * What is sent for recording: every spoken line in Ukrainian with its intonation and its speaker, the shared ones in
+ * the order of `SPOKEN`, then each world's in the order given and of its `spoken`, then the bank's
+ * (src/ui/strings-bank.ts). A key two tables share is an error.
+ *
+ * The speaker is a character of a world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). Every
+ * line is the narrator's under its own key, the name of its clip, which never changes. A line the table's `voiced`
+ * gives to the characters is listed once more for every voice of a character that says it, as `<key>@<voice>`, with
+ * the first such character of the table as its speaker. The whole game has at most five voices.
  */
-export function recordingList(worlds: readonly WorldStrings[], bank: SpokenTable): Record<string, [text: string, style: VoiceStyle]> {
-  const list: Record<string, [text: string, style: VoiceStyle]> = {};
+export function recordingList(
+  worlds: readonly WorldStrings[], bank: SpokenTable,
+  casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[] }[],
+): Record<string, [text: string, style: VoiceStyle, speaker: string]> {
+  const list: Record<string, [text: string, style: VoiceStyle, speaker: string]> = {};
   const keys = new Set(Object.keys(S.uk));
+  const narrator = casts[0]?.narrator;
+  if (!narrator) throw new Error('no table "character - voice" (src/worlds/<id>/voices.ts): nobody speaks the lines');
+  const narratorVoice = casts[0].cast[narrator]?.voice;
+  const voices = new Set<string>();
+  for (const c of casts) {
+    if (c.narrator !== narrator || c.cast[c.narrator]?.voice !== narratorVoice) {
+      throw new Error(`the voices of world "${c.id}": every world has the narrator "${narrator}" with the voice ${narratorVoice}`);
+    }
+    for (const ch of Object.values(c.cast)) voices.add(ch.voice);
+  }
+  if (voices.size > 5) throw new Error(`the game has ${voices.size} voices, at most 5 with the narrator's: ${[...voices].join(', ')}`);
   const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>) => {
     for (const [k, style] of Object.entries(spoken)) {
       if (own(k)) throw new Error(`"${k}" of ${owner} is the world's own text of a shared screen (WORLD_OWN): never spoken`);
       if (typeof uk[k] !== 'string') throw new Error(`spoken line "${k}" of ${owner} has no Ukrainian text`);
-      list[k] = [recordable(k, uk[k]), style];
+      list[k] = [recordable(k, uk[k]), style, narrator];
     }
   };
   add('the shared strings', S.uk, SPOKEN);
@@ -269,7 +288,36 @@ export function recordingList(worlds: readonly WorldStrings[], bank: SpokenTable
   const twice = Object.keys(bank.table.uk).filter((k) => keys.has(k));
   if (twice.length) throw new Error(`the bank: these strings already exist (one key, one clip): ${twice.join(', ')}`);
   add('the bank', bank.table.uk, bank.spoken);
-  return list;
+  // The lines said in a voice of their own: key -> voice -> the first character of a table with that voice.
+  const voiced = new Map<string, Map<string, string>>();
+  for (const c of casts) {
+    const world = worlds.find((w) => w.id === c.id);
+    if (!world) throw new Error(`the voices of world "${c.id}": there is no such world`);
+    const lines = (rule: string) => {
+      const ks = rule.endsWith('*') ? Object.keys(list).filter((k) => k.startsWith(rule.slice(0, -1))) : [rule];
+      if (ks.length === 0 || !ks.every((k) => Object.hasOwn(list, k))) throw new Error(`the voices of world "${c.id}": "${rule}" is no spoken line`);
+      return ks;
+    };
+    // `!<key>` takes a line back from the rules before it (a line of the prefix the narrator says).
+    const not = new Set(c.voiced.filter((r) => r.startsWith('!')).flatMap((r) => lines(r.slice(1))));
+    for (const rule of c.voiced.filter((r) => !r.startsWith('!'))) {
+      const shared = rule === 'own' ? [] : lines(rule).filter((k) => !not.has(k));
+      for (const [who, ch] of Object.entries(c.cast)) {
+        if (who === c.narrator) continue;
+        for (const k of rule === 'own' ? Object.keys(world.spoken).filter((s) => s.startsWith(`${who}_`)) : shared) {
+          const by = voiced.get(k) ?? new Map<string, string>();
+          if (!by.has(ch.voice)) by.set(ch.voice, who);
+          voiced.set(k, by);
+        }
+      }
+    }
+  }
+  const out: Record<string, [text: string, style: VoiceStyle, speaker: string]> = {};
+  for (const [k, row] of Object.entries(list)) {
+    out[k] = row;
+    for (const [voice, who] of voiced.get(k) ?? []) if (voice !== narratorVoice) out[`${k}@${voice}`] = [row[0], row[1], who];
+  }
+  return out;
 }
 /** Saved language; falls back to Ukrainian when storage is missing, blocked or holds an unknown value. */
 function savedLang(): Lang {
