@@ -43,9 +43,32 @@ function results(change = {}) {
 function combine(dir, ...extra) {
   const env = { ...process.env };
   delete env.E2E_MUTE;
+  delete env.E2E_NET;
   const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine', dir, ...extra], { cwd: root, encoding: 'utf8', env, timeout: 30000 });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 }
+
+describe('tools/e2e.mjs E2E_NET: the network of a walkthrough chosen by hand (a trial of one piece, try.yml)', () => {
+  const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
+  it('anything but "net" and "offline" is refused before anything is played: exit code 2', () => {
+    for (const value of ['wifi', '1', 'OFFLINE', 'net,offline']) {
+      const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--skip-build', '--mode', 'mobile'], { cwd: root, encoding: 'utf8', env: { ...process.env, E2E_NET: value }, timeout: 30000 });
+      expect({ value, code: r.status }).toEqual({ value, code: 2 });
+      expect(r.stderr).toContain(`bad E2E_NET "${value}": expected net or offline`);
+    }
+  });
+
+  it('without it the size decides, as always: only the desktop is played without the network', () => {
+    expect(src).toContain("const OFFLINE_MODES = ['desktop'];");
+    expect(src).toContain("const offline = (mode) => (process.env.E2E_NET ? process.env.E2E_NET === 'offline' : OFFLINE_MODES.includes(mode));");
+  });
+
+  it('the walkthrough is told, and named, by the one answer: nothing else reads the list of sizes', () => {
+    expect(src).toContain("E2E_OFFLINE: offline(mode) ? '1' : '0'");
+    expect(src).toContain("${offline(mode) ? ' (offline)' : ''}");
+    expect(src.match(/OFFLINE_MODES/g)).toHaveLength(2);   // the list and the default of offline()
+  });
+});
 const summary = (mode, change) => ({ [`summary-${mode}.json`]: { mode, commit, walkthrough: 'ok', note: '', passed: true, ...(mode === 'mobile' ? { failureScreens: 'ok' } : {}), ...change } });
 
 describe('tools/e2e.mjs --combine: the checks over the walkthroughs CI plays in separate jobs', () => {

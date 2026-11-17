@@ -11,22 +11,35 @@
 //   files of a world (and maybe documents)              -> the jobs of that world; of several worlds - of each of them
 //   any other file - a shared one                       -> everything
 //   the changed files are not known, or there are none  -> everything
-//   a push to dev, whatever it changed                  -> everything
-// The plan is for the branches the work is brought on. On dev itself everything is always played: the protection of main
-// takes a commit by its green "check", and for a commit that lies in dev a green "check" means "everything was played",
-// not "what the plan chose" (a commit of documents alone must not be green on top of a red one).
+//   a push to dev, whatever it changed                  -> everything, unless this very commit was already played
+//                                                          green on its branch (`rests` below): then nothing again
+// The plan is for the branches the work is brought on. On dev a commit is not played a second time: the gate into dev
+// is a green run of the branch on this very commit, and the push that merges it would only repeat that run. A push to
+// dev rests on such a run when it finds one - a completed, successful run of ci.yml started by a push, on this commit,
+// that is not this run, not a trial (try/**) and not one started by hand - AND either
+//   (a) that run played everything (every walkthrough and every part of the probe world succeeded, none skipped), or
+//   (b) that run played less, by its plan, and the head dev had before this push (`before`) has a completed,
+//       successful run of ci.yml on dev: the plan of a branch counts its files from dev, so "green by the plan" on top
+//       of a green head is as good as everything - and on top of a red or unknown head it is not.
+// In every other case - no such run, a red, cancelled or running one, a question to GitHub that failed - everything is
+// played. So a green "check" on a commit of dev still means: all of it was played green on this tree, here or in the
+// run named in the log of "check" (by induction over the heads of dev).
 // Whenever in doubt, everything is played: "check" is the gate into dev and the status the protection of main asks for.
 // pages.yml does not use this file: before a publication everything is played, always.
+//   node tools/ci-pieces.mjs try <branch> <commit>   the job "plan" of try.yml: reads what to try from the name of the
+//                                            branch (`tryPlan` below) and writes it to $GITHUB_OUTPUT
 // Exit code: 0 - done (check: every job ended as planned); 1 - check failed; 2 - bad arguments.
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { appendFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { WORLDS } from './world-pieces.mjs';
+import { PIECES } from './e2e-saves.mjs';
+import { SIZES, WORLDS } from './world-pieces.mjs';
+import { PARTS } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-/** The branch the work is merged into: a push to it always plays everything; the other branches are compared with it. */
+/** The branch the work is merged into: the other branches are compared with it; a push to it plays everything or rests on a run of its commit (`rests`). */
 export const GATE = 'dev';
 /** A file that belongs to no world and is no document. */
 export const SHARED = 'shared';
@@ -70,7 +83,7 @@ const lastLine = (text) => String(text).trim().split('\n').pop().trim();
  * The files changed by what this run checks: { files, why }. `files` is null whenever they are not to be chosen by -
  * a push to dev, a run started by hand - or cannot be told - the commit to compare with is not in the clone, git
  * failed - and then everything is played. `git(args)` runs git in the repository and returns its output, or throws.
- *   push to dev        not compared with anything: dev is always played whole (git is not asked)
+ *   push to dev        not compared with anything (git is not asked): played whole, unless `rests` finds its run
  *   push elsewhere     the common ancestor with origin/dev .. HEAD: the whole branch, not only its last push
  *   pull request       its base (`prBase`) .. HEAD
  * A renamed file counts under both names, a deleted one under its own (--no-renames).
@@ -79,7 +92,7 @@ export function changedFiles({ event = '', ref = '', prBase = '' }, git) {
   const unknown = (why) => ({ files: null, why });
   try {
     let base, from;
-    if (event === 'push' && ref === `refs/heads/${GATE}`) return unknown(`a push to ${GATE}: the branch the work is merged into is always played whole`);
+    if (event === 'push' && ref === `refs/heads/${GATE}`) return unknown(`a push to ${GATE}: the branch the work is merged into is played whole`);
     if (event === 'push') {
       base = git(['merge-base', `origin/${GATE}`, 'HEAD']).trim(); from = `the common ancestor with origin/${GATE}`;
       if (!COMMIT.test(base)) return unknown(`no common ancestor with origin/${GATE}`);
@@ -160,6 +173,150 @@ export function verdict({ plan = '', build = '', walk = '', worlds = '' } = {}, 
   return { ok: !bad.length, lines, bad, combine: expected.walk === 'true' };
 }
 
+// ---- a push to dev does not play its commit a second time ----
+/** The names ci.yml gives the jobs that play the game (tools/ci-pieces.test.mjs holds them to the workflow). */
+export const walkJobName = (size, group) => `walkthrough ${size} ${group}`;
+export const worldsJobName = (part) => `worlds (probe world, ${part})`;
+/** Every job that plays the game, by the name GitHub lists it under: what "everything was played" means. */
+export const PLAYING_JOBS = [...SIZES.flatMap((size) => PIECES.map((group) => walkJobName(size, group))), ...PARTS.map(worldsJobName)];
+const NO_COMMIT = /^0+$/;
+const short = (sha) => String(sha ?? '').slice(0, 7);
+
+/**
+ * May a push to dev rest on a run already played on its commit (the rule: the head of this file)?
+ *   sha, runId - the commit and the run of this push; before - the head dev had before it;
+ *   runs       - the runs of ci.yml on `sha`, as GitHub lists them ({ id, event, status, conclusion, head_branch, head_sha });
+ *   jobsOf(id) - the jobs of a run ({ name, conclusion }), asked only for a run that may be rested on;
+ *   beforeRuns() - the runs of ci.yml on `before`, asked only when (b) is to be decided.
+ * `jobsOf` and `beforeRuns` may throw (GitHub did not answer): that is a "no" with the reason.
+ * Returns { ok, basis: 'a' | 'b' | null, run: the run rested on | null, why: one line for the log }.
+ */
+export function rests({ sha, runId, before }, { runs, jobsOf, beforeRuns }) {
+  const no = (why) => ({ ok: false, basis: null, run: null, why: `${why}: everything is played` });
+  if (!COMMIT.test(String(sha ?? ''))) return no('the commit of this push is not known');
+  if (!Array.isArray(runs)) return no('GitHub did not list the runs of this commit');
+  const own = String(runId ?? '');
+  const others = runs.filter((r) => r && String(r.id) !== own && r.head_sha === sha);
+  const usable = others.filter((r) => r.event === 'push' && r.status === 'completed' && r.conclusion === 'success' && typeof r.head_branch === 'string' && !r.head_branch.startsWith('try/'));
+  if (!usable.length) {
+    if (!others.length) return no(`no other run of ci.yml on ${short(sha)}`);
+    const seen = others.slice(0, 5).map((r) => `#${r.id} ${r.event} on ${r.head_branch}: ${r.status === 'completed' ? r.conclusion : r.status}`).join('; ');
+    return no(`no completed, successful run by a push on ${short(sha)} (found: ${seen})`);
+  }
+  const reasons = [];
+  let beforeGreen = null;   // asked once, only if a run that played less is met
+  for (const run of usable) {
+    const name = `run #${run.id} (branch ${run.head_branch})`;
+    let jobs;
+    try { jobs = jobsOf(run.id); } catch (e) { reasons.push(`${name}: GitHub did not list its jobs (${lastLine(e?.message ?? e)})`); continue; }
+    if (!Array.isArray(jobs)) { reasons.push(`${name}: GitHub did not list its jobs`); continue; }
+    const result = (job) => jobs.filter((j) => j && j.name === job).map((j) => j.conclusion);
+    const failed = jobs.filter((j) => j && j.conclusion !== 'success' && j.conclusion !== 'skipped');
+    if (failed.length) { reasons.push(`${name}: its job "${failed[0].name}" ended as ${failed[0].conclusion ?? 'no result'}`); continue; }
+    const missing = PLAYING_JOBS.filter((job) => !(result(job).length === 1 && result(job)[0] === 'success'));
+    if (!missing.length) return { ok: true, basis: 'a', run, why: `this commit was played whole by ${name}: all ${PLAYING_JOBS.length} jobs that play the game succeeded there, none was skipped` };
+    // (b): it played less, by its plan - good only on top of a head of dev that is green itself
+    const less = `${name} played less, by its plan (${missing.length} of ${PLAYING_JOBS.length} jobs not played, e.g. "${missing[0]}")`;
+    if (beforeGreen === null) {
+      if (!COMMIT.test(String(before ?? '')) || NO_COMMIT.test(before)) beforeGreen = { ok: false, why: 'the head dev had before this push is not known' };
+      else {
+        try {
+          const list = beforeRuns();
+          if (!Array.isArray(list)) beforeGreen = { ok: false, why: `GitHub did not list the runs of the head before, ${short(before)}` };
+          else {
+            const onDev = list.filter((r) => r && r.head_sha === before && r.head_branch === GATE && r.event === 'push');
+            const green = onDev.find((r) => r.status === 'completed' && r.conclusion === 'success');
+            if (green) beforeGreen = { ok: true, why: `the head before, ${short(before)}, is green on ${GATE} (run #${green.id})` };
+            else if (!onDev.length) beforeGreen = { ok: false, why: `the head before, ${short(before)}, has no run of ci.yml on ${GATE}` };
+            else if (onDev.some((r) => r.status === 'completed' && r.conclusion === 'cancelled') && !onDev.some((r) => r.status === 'completed' && r.conclusion === 'failure')) beforeGreen = { ok: false, why: `the run of the head before, ${short(before)}, on ${GATE} was cancelled (a newer push replaced it before it ended) - nothing is wrong with the commit, its green is just not known` };
+            else beforeGreen = { ok: false, why: `the head before, ${short(before)}, is not green on ${GATE} (${onDev.map((r) => `#${r.id}: ${r.status === 'completed' ? r.conclusion : r.status}`).join('; ')})` };
+          }
+        } catch (e) { beforeGreen = { ok: false, why: `GitHub did not list the runs of the head before (${lastLine(e?.message ?? e)})` }; }
+      }
+    }
+    if (beforeGreen.ok) return { ok: true, basis: 'b', run, why: `${less}, and ${beforeGreen.why}: green by the plan on top of a green head` };
+    reasons.push(`${less}, and ${beforeGreen.why}`);
+  }
+  return no(reasons.join('; '));
+}
+
+// ---- a trial on the runner (try.yml): what to try is the name of the branch ----
+/** The size that means "a part of the probe world" in the name of a trial branch. */
+export const TRY_PROBE = 'probe';
+export const TRY_MAX = 10;
+/**
+ * A trial branch is try/<size>/<piece>/x<N>/<net|offline>/<the first 7 or more characters of its commit>:
+ *   size - one of the four screen sizes, or "probe" (a part of the probe world, tools/worlds.mjs);
+ *   piece - a piece of the world of that size (tools/e2e-saves.mjs PIECES), or a part of the probe world;
+ *   N - how many times it is played at once, 1..10;  net | offline - played with the network or without
+ *   (a part of the probe world has its own network scenarios: only "net").
+ * Returns { size, piece, n, offline, probe, title, matrix } or { error } - a name that cannot be read is an error
+ * with the reason, never "play everything": a trial nobody asked for proves nothing.
+ */
+export function tryPlan(branch, commit) {
+  const shape = `try/<${[...SIZES, TRY_PROBE].join('|')}>/<piece>/x<1..${TRY_MAX}>/<net|offline>/<commit, 7 characters or more>`;
+  // what the name holds is printed like a file name: it is written by whoever pushed the branch
+  const bad = (why) => ({ error: `the trial branch "${shown(String(branch ?? ''))}": ${shown(why)}. The name is ${shape}; pieces: ${PIECES.join(', ')}; parts of the probe world: ${PARTS.join(', ')}` });
+  const parts = String(branch ?? '').split('/');
+  if (parts[0] !== 'try') return bad('is not a trial branch (try/...)');
+  if (parts.length !== 6) return bad(`has ${parts.length - 1} parts after "try", not 5`);
+  const [, size, piece, times, net, sha] = parts;
+  const probe = size === TRY_PROBE;
+  if (!probe && !SIZES.includes(size)) return bad(`unknown size "${size}"`);
+  if (probe ? !PARTS.includes(piece) : !PIECES.includes(piece)) return bad(probe ? `unknown part of the probe world "${piece}"` : `unknown piece "${piece}"`);
+  const m = /^x([1-9]\d?)$/.exec(times);
+  const n = m ? Number(m[1]) : 0;
+  if (!m || n > TRY_MAX) return bad(`"${times}" is not x1..x${TRY_MAX}`);
+  if (net !== 'net' && net !== 'offline') return bad(`"${net}" is neither "net" nor "offline"`);
+  if (probe && net !== 'net') return bad('a part of the probe world is played with "net" only (it switches the network itself)');
+  if (!/^[0-9a-f]{7,64}$/.test(sha)) return bad(`"${sha}" is not the beginning of a commit (7 or more of 0-9a-f)`);
+  if (!COMMIT.test(String(commit ?? ''))) return bad('the commit of the branch is not known');
+  if (!commit.startsWith(sha)) return bad(`names the commit ${sha}, but points at ${short(commit)}`);
+  return {
+    size, piece, n, offline: net === 'offline', probe,
+    title: `${piece} ${size} x${n}${net === 'offline' ? ' offline' : ''}`,
+    matrix: { include: Array.from({ length: n }, (_, i) => ({ turn: i + 1 })) },
+  };
+}
+
+/**
+ * The end of a trial: `turns` - what each turn left ({ turn, ok, error }), `n` - how many were asked for.
+ * Returns { ok, green, lines }: a turn that left nothing counts as red.
+ */
+export function tryResult(turns, n) {
+  const byTurn = new Map((Array.isArray(turns) ? turns : []).filter((t) => t && Number.isInteger(t.turn)).map((t) => [t.turn, t]));
+  const lines = [];
+  let green = 0;
+  for (let turn = 1; turn <= n; turn++) {
+    const t = byTurn.get(turn);
+    if (t?.ok === true) { green++; continue; }
+    lines.push(`turn ${turn}: ${t ? 'RED' : 'RED - it left no result (the job did not come to its end)'}`);
+    for (const l of String(t?.error ?? '').split('\n').filter(Boolean).slice(0, 30)) lines.push(`  ${shown(l)}`);
+  }
+  lines.unshift(`${green} of ${n} green`);
+  return { ok: green === n, green, lines };
+}
+
+/**
+ * The text of the failure in the log of one turn: the errors the walkthrough lists (the block "ERRORS:" of
+ * tools/shot.mjs), the lines of the steps with a tool of their own ("worlds: ...", "failures: ...", "update: ...") and
+ * every line that says FAILED; with none of them,
+ * the end of the log. For the summary of the run: at most 30 lines.
+ */
+export function turnError(log) {
+  const lines = String(log ?? '').split('\n').map((l) => l.replace(/\s+$/, ''));
+  const out = [];
+  const add = (l) => { if (l && !out.includes(l)) out.push(l); };
+  let inErrors = false;
+  for (const l of lines) {
+    if (l === 'ERRORS:') { inErrors = true; continue; }
+    if (inErrors && (l.startsWith('[e2e]') || l === '')) inErrors = false;
+    if (inErrors || /^(?:worlds|failures|update): /.test(l) || /\bFAILED\b/.test(l)) add(l);
+  }
+  if (!out.length) for (const l of lines.filter(Boolean).slice(-15)) add(l);
+  return out.slice(0, 30).join('\n');
+}
+
 // ---- command line ----
 function main(argv, env) {
   const [cmd, ...rest] = argv;
@@ -170,7 +327,15 @@ function main(argv, env) {
       const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
       changed = changedFiles({ event: env.CI_EVENT, ref: env.CI_REF, prBase: env.CI_PR_BASE }, git);
     }
-    const out = outputs(pick(changed.files), changed);
+    let plan = pick(changed.files);
+    // A push to dev: this very commit may have been played already, green, on its branch (`rests`).
+    if (cmd === 'plan' && env.CI_EVENT === 'push' && env.CI_REF === `refs/heads/${GATE}`) {
+      const rest = restsOnGitHub(env);
+      console.log(`[ci] a push to ${GATE}: ${rest.why}`);
+      if (rest.ok) plan = rested(plan, rest);
+      else plan = { ...plan, reason: `a push to ${GATE}, and no run of this commit to rest on - ${rest.why}` };
+    }
+    const out = outputs(plan, changed);
     console.log(`[ci] plan\n${out.report}\n[ci] outputs: walk=${out.walk} worlds=${out.worlds}\n[ci] jobs=${out.jobs}\n[ci] matrix=${out.matrix}`);
     if (cmd === 'plan' && env.GITHUB_OUTPUT) {
       // The report holds file names: a delimiter nobody can guess keeps a name from ending the value early.
@@ -191,8 +356,60 @@ function main(argv, env) {
     console.log('[ci] PASSED: every job ended as planned');
     return 0;
   }
-  console.error('[ci] usage: node tools/ci-pieces.mjs plan | pick <file>... | check');
+  if (cmd === 'try' && rest.length === 2) {
+    const t = tryPlan(rest[0], rest[1]);
+    if (t.error) { console.error(`[ci] ${t.error}`); return 1; }
+    console.log(`[ci] trial: ${t.title} (${t.probe ? `the part "${t.piece}" of the probe world` : `the piece "${t.piece}" in the size ${t.size}, ${t.offline ? 'without the network' : 'with the network'}`}, ${t.n} time(s))`);
+    if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `size=${t.size}\npiece=${t.piece}\nn=${t.n}\noffline=${t.offline ? 'true' : 'false'}\nprobe=${t.probe ? 'true' : 'false'}\ntitle=${t.title}\nmatrix=${JSON.stringify(t.matrix)}\n`);
+    return 0;
+  }
+  if (cmd === 'try-turn' && rest.length === 3) {
+    // rest: the number of the turn, the outcome of its step as GitHub names it (success, failure...), its log
+    const turn = Number(rest[0]);
+    if (!Number.isInteger(turn) || turn < 1 || turn > TRY_MAX) { console.error(`[ci] try-turn: "${rest[0]}" is not 1..${TRY_MAX}`); return 2; }
+    const ok = rest[1] === 'success';
+    let log = '';
+    try { log = readFileSync(resolve(rest[2]), 'utf8'); } catch { /* no log: the step did not start */ }
+    const left = { turn, ok, error: ok ? '' : turnError(log) || `the step ended as "${rest[1]}" and left no log` };
+    writeFileSync(`turn-${turn}.json`, JSON.stringify(left));
+    console.log(`[ci] turn ${turn}: ${ok ? 'green' : `RED\n${left.error}`}`);
+    return 0;
+  }
+  if (cmd === 'try-result' && rest.length === 2) {
+    // rest[0]: the folder with what the turns left (turn-<i>.json, anywhere under it); rest[1]: how many were asked for
+    const n = Number(rest[1]);
+    if (!Number.isInteger(n) || n < 1 || n > TRY_MAX) { console.error(`[ci] try-result: "${rest[1]}" is not 1..${TRY_MAX}`); return 2; }
+    const turns = [];
+    const walk = (dir) => { for (const e of existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : []) { const p = join(dir, e.name); if (e.isDirectory()) walk(p); else if (/^turn-\d+\.json$/.test(e.name)) { try { turns.push(JSON.parse(readFileSync(p, 'utf8'))); } catch { /* an unreadable result is no result */ } } } };
+    walk(resolve(rest[0]));
+    const r = tryResult(turns, n);
+    for (const l of r.lines) console.log(`[ci] ${l}`);
+    if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `### ${r.lines[0]}\n\n\`\`\`\n${r.lines.slice(1).join('\n') || 'every turn passed'}\n\`\`\`\n`);
+    return r.ok ? 0 : 1;
+  }
+  console.error('[ci] usage: node tools/ci-pieces.mjs plan | pick <file>... | check | try <branch> <commit> | try-turn <turn> <outcome> <log> | try-result <folder> <n>');
   return 2;
+}
+
+/** The plan of a push to dev that rests on a run of its commit: nothing is played again, and the report says on what. */
+export function rested(plan, rest) {
+  return { ...plan, all: false, play: [], walk: [], worlds: false, rests: { basis: rest.basis, run: rest.run.id }, reason: `a push to ${GATE} that rests on run #${rest.run.id} (branch ${rest.run.head_branch}), basis (${rest.basis}) - ${rest.why}. Not played again here: the walkthroughs and the probe world` };
+}
+
+/** `rests` asked of GitHub with the token of the job (`gh api`, the permission "actions: read"); a failed question is a "no". */
+function restsOnGitHub(env) {
+  const repo = env.GITHUB_REPOSITORY ?? '';
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return { ok: false, basis: null, run: null, why: 'the repository of this run is not known: everything is played' };
+  const api = (path) => JSON.parse(execFileSync('gh', ['api', '-H', 'Accept: application/vnd.github+json', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, timeout: 60000 }));
+  const runsOf = (sha) => api(`repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=100`).workflow_runs;
+  let runs = null, failed = '';
+  try { runs = runsOf(env.CI_SHA); } catch (e) { failed = lastLine(e?.message ?? e); }
+  if (!Array.isArray(runs)) return { ok: false, basis: null, run: null, why: `GitHub did not list the runs of this commit${failed ? ` (${failed})` : ''}: everything is played` };
+  return rests({ sha: env.CI_SHA, runId: env.GITHUB_RUN_ID, before: env.CI_BEFORE }, {
+    runs,
+    jobsOf: (id) => api(`repos/${repo}/actions/runs/${id}/jobs?filter=latest&per_page=100`).jobs,
+    beforeRuns: () => runsOf(env.CI_BEFORE),
+  });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) process.exitCode = main(process.argv.slice(2), process.env);

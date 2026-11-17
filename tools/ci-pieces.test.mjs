@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { DOCS, MAX_LISTED, SHARED, changedFiles, outputs, ownerOf, pick, report, verdict } from './ci-pieces.mjs';
+import { DOCS, MAX_LISTED, PLAYING_JOBS, SHARED, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
 import { PARTS } from './worlds.mjs';
@@ -172,13 +172,13 @@ function fakeGit(table) {
 const diffOf = (base) => `diff --name-only --no-renames -z ${base} HEAD`;
 
 describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => {
-  it('a push to dev plays everything, whatever it changed: git is not even asked (a green check on dev means all of it was played)', () => {
+  it('a push to dev is not chosen by its files, whatever it changed: git is not even asked, and without a run to rest on everything is played', () => {
     // A git that would answer "documents alone" to every way of asking: on a branch nothing but tests and build would be played.
     const { git, calls } = fakeGit({ 'merge-base origin/dev HEAD': `${A}\n`, [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: 'docs/a.md\0' });
     const r = changedFiles({ event: 'push', ref: 'refs/heads/dev' }, git);
     expect(r.files).toBe(null);
     expect(r.why).toContain('a push to dev');
-    expect(r.why).toContain('always played whole');
+    expect(r.why).toContain('played whole');
     expect(calls).toEqual([]);
     expect(pick(r.files)).toMatchObject(EVERYTHING);
     expect(outputs(pick(r.files), r)).toMatchObject({ walk: 'true', worlds: 'true' });
@@ -216,7 +216,7 @@ describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => 
     ['a run started by hand on dev', { event: 'workflow_dispatch', ref: 'refs/heads/dev' }, 'started by hand'],
     ['an event nobody thought of', { event: 'schedule', ref: 'refs/heads/dev' }, 'the event "schedule"'],
     ['no event', {}, 'the event ""'],
-    ['a push to dev', { event: 'push', ref: 'refs/heads/dev' }, 'always played whole'],
+    ['a push to dev', { event: 'push', ref: 'refs/heads/dev' }, 'played whole'],
     ['a pull request without its base', { event: 'pull_request', prBase: '' }, 'without the commit of its base'],
   ])('%s: the files are not known, git is not asked', (_, source, why) => {
     const { git, calls } = fakeGit({});
@@ -404,7 +404,7 @@ describe('tools/ci-pieces.mjs verdict: may "check" pass', () => {
 const script = join(root, 'tools/ci-pieces.mjs');
 function cli(args, env = {}) {
   const clean = { ...process.env };
-  for (const k of ['GITHUB_OUTPUT', 'CI_EVENT', 'CI_REF', 'CI_BEFORE', 'CI_PR_BASE', 'PLAN_RESULT', 'BUILD_RESULT', 'WALK_RESULT', 'WORLDS_RESULT', 'PLAN_WALK', 'PLAN_WORLDS', 'PLAN_REPORT']) delete clean[k];
+  for (const k of ['GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GH_TOKEN', 'CI_SHA', 'CI_EVENT', 'CI_REF', 'CI_BEFORE', 'CI_PR_BASE', 'PLAN_RESULT', 'BUILD_RESULT', 'WALK_RESULT', 'WORLDS_RESULT', 'PLAN_WALK', 'PLAN_WORLDS', 'PLAN_REPORT']) delete clean[k];
   const r = spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', env: { ...clean, ...env }, timeout: 30000 });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 }
@@ -445,7 +445,7 @@ describe('tools/ci-pieces.mjs from the command line', () => {
     expect(r.out).toContain(out.report);
   });
 
-  it('plan: a push to dev plays everything and says why', () => {
+  it('plan: a push to dev that cannot ask GitHub (no repository named) plays everything and says why', () => {
     const file = join(tmp(), 'out');
     writeFileSync(file, '');
     const r = cli(['plan'], { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', GITHUB_OUTPUT: file });
@@ -453,7 +453,27 @@ describe('tools/ci-pieces.mjs from the command line', () => {
     const out = readOutputs(file);
     expect(out).toMatchObject({ walk: 'true', worlds: 'true' });
     expect(JSON.parse(out.matrix)).toEqual({ include: ALL_WALKS });
-    expect(out.report).toContain('the changed files are not known: a push to dev: the branch the work is merged into is always played whole');
+    expect(out.report).toContain('the changed files are not known: a push to dev: the branch the work is merged into is played whole');
+    expect(out.report).toContain('reason: a push to dev, and no run of this commit to rest on - the repository of this run is not known: everything is played');
+    expect(r.out).toContain('[ci] a push to dev: the repository of this run is not known: everything is played');
+  });
+
+  it('plan: a push to dev whose question to GitHub fails (a repository that does not exist) plays everything', () => {
+    const file = join(tmp(), 'out');
+    writeFileSync(file, '');
+    // `gh` either is not installed, or has no token, or is refused: each way the answer is "everything"
+    const r = cli(['plan'], { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', GITHUB_OUTPUT: file, GITHUB_REPOSITORY: 'nobody-at-all-0/no-such-repository-0', CI_SHA: A, CI_BEFORE: B, GITHUB_RUN_ID: '1', GH_TOKEN: 'not-a-token', GH_HOST: 'localhost:9', GH_PROMPT_DISABLED: '1' });
+    expect(r.code, r.out).toBe(0);
+    expect(readOutputs(file)).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(r.out).toContain('GitHub did not list the runs of this commit');
+    expect(r.out).toContain('everything is played');
+  });
+
+  it('plan: a push to another branch never asks GitHub about runs', () => {
+    const r = cli(['plan'], { CI_EVENT: 'workflow_dispatch', CI_REF: 'refs/heads/dev', GITHUB_REPOSITORY: 'nobody-at-all-0/no-such-repository-0', CI_SHA: A });
+    expect(r.code, r.out).toBe(0);
+    expect(r.out).not.toContain('a push to dev:');
+    expect(r.out).toContain('[ci] outputs: walk=true worlds=true');
   });
 
   it('check: passes with everything skipped by the plan, and says what was skipped, why, and for which files', () => {
@@ -536,8 +556,12 @@ describe('.github/workflows/ci.yml: the jobs follow the plan, "check" compares t
     for (const out of ['walk', 'worlds', 'matrix', 'jobs', 'report']) expect(plan).toContain(`      ${out}: \${{ steps.pick.outputs.${out} }}`);
     expect(plan).toContain('CI_EVENT: ${{ github.event_name }}');
     expect(plan).toContain('CI_REF: ${{ github.ref }}');
-    // dev is not compared with the commit it was at before the push: a push to dev plays everything
-    expect(plan).not.toContain('github.event.before');
+    // a push to dev asks GitHub whether this commit was already played (tools/ci-pieces.mjs `rests`): the commit, the
+    // head dev had before, the token - and the permission to read the runs
+    expect(plan).toContain('CI_SHA: ${{ github.sha }}');
+    expect(plan).toContain('CI_BEFORE: ${{ github.event.before }}');
+    expect(plan).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(ci.text).toMatch(/\npermissions:\n {2}contents: read\n {2}actions: read\n/);
     expect(plan).toContain('CI_PR_BASE: ${{ github.event.pull_request.base.sha }}');
     expect(hasKey(plan, 'if')).toBe(false);
     expect(hasKey(plan, 'needs')).toBe(false);
@@ -608,9 +632,10 @@ describe('.github/workflows/ci.yml: the jobs follow the plan, "check" compares t
   });
 
   it('the rest stays as it was: the triggers, the sizes of "break", the permissions, the concurrency', () => {
-    expect(ci.text).toContain('on:\n  push:\n    branches-ignore: [main]\n  pull_request:\n  workflow_dispatch:\n');
+    // trial branches are played by try.yml alone: a run of ci.yml on one would leave a status "check" on its commit
+    expect(ci.text).toContain("on:\n  push:\n    branches-ignore: [main, 'try/**']\n  pull_request:\n  workflow_dispatch:\n");
     expect(yamlList(/^ {8}options: (\[.*\])$/m.exec(ci.text)[1])).toEqual(['none', ...SIZES]);
-    expect(ci.text).toContain('permissions:\n  contents: read\n');
+    expect(ci.text).toContain('permissions:\n  contents: read\n  actions: read\n');
     expect(ci.text).toContain('concurrency:\n  group: ci-${{ github.ref }}\n  cancel-in-progress: true\n');
   });
 });
@@ -684,5 +709,314 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     // a failed part keeps its own pictures: two parts must not upload under one name
     expect(worlds).toContain('          name: worlds-failure-${{ matrix.part }}\n');
     expect(worlds.match(/tools\/worlds\.mjs/g)).toHaveLength(1);
+  });
+});
+
+// ---- a push to dev does not play its commit a second time ----
+const run = (id, o = {}) => ({ id, event: 'push', status: 'completed', conclusion: 'success', head_branch: 'run/work', head_sha: A, ...o });
+const allPlayed = () => [{ name: 'plan', conclusion: 'success' }, { name: 'unit tests and build', conclusion: 'success' }, ...PLAYING_JOBS.map((name) => ({ name, conclusion: 'success' })), { name: 'check', conclusion: 'success' }];
+/** The jobs of a run that played by a reduced plan: `played` of the playing jobs succeeded, the rest are not there (a skipped matrix job is one "skipped" entry). */
+const byPlan = (played = []) => [{ name: 'plan', conclusion: 'success' }, { name: 'unit tests and build', conclusion: 'success' }, ...played.map((name) => ({ name, conclusion: 'success' })), { name: 'walk', conclusion: 'skipped' }, { name: 'check', conclusion: 'success' }];
+const devRun = (id, o = {}) => ({ id, event: 'push', status: 'completed', conclusion: 'success', head_branch: 'dev', head_sha: B, ...o });
+function ask({ runs = [], jobs = {}, before = [] } = {}) {
+  const asked = { jobs: [], before: 0 };
+  return {
+    asked,
+    api: {
+      runs,
+      jobsOf: (id) => { asked.jobs.push(id); const j = jobs[id]; if (j instanceof Error) throw j; return j; },
+      beforeRuns: () => { asked.before++; if (before instanceof Error) throw before; return before; },
+    },
+  };
+}
+const THIS = { sha: A, runId: 100, before: B };
+
+describe('tools/ci-pieces.mjs rests: may a push to dev rest on a run of its commit', () => {
+  it('the jobs that play the game are the sixteen walkthroughs and every part of the probe world, under the names ci.yml gives them', () => {
+    expect(PLAYING_JOBS).toHaveLength(SIZES.length * PIECES.length + PARTS.length);
+    expect(PLAYING_JOBS).toContain('walkthrough mobile world1');
+    expect(PLAYING_JOBS).toContain('worlds (probe world, travel)');
+    const ci = workflow('ci.yml');
+    expect(key(ci.jobs.walk, 'name')).toBe(walkJobName('${{ matrix.size }}', '${{ matrix.group }}'));
+    expect(key(ci.jobs.worlds, 'name')).toBe(worldsJobName('${{ matrix.part }}'));
+  });
+
+  it('(a) a completed, successful run by a push on this commit that played everything: rests on it, and the head before is not even asked', () => {
+    const { api, asked } = ask({ runs: [run(100), run(7)], jobs: { 7: allPlayed() } });
+    const r = rests(THIS, api);
+    expect(r).toMatchObject({ ok: true, basis: 'a' });
+    expect(r.run.id).toBe(7);
+    expect(r.why).toContain('run #7 (branch run/work)');
+    expect(asked).toEqual({ jobs: [7], before: 0 });
+  });
+
+  it('this run itself is never rested on, nor a run of another commit', () => {
+    expect(rests(THIS, ask({ runs: [run(100)], jobs: { 100: allPlayed() } }).api)).toMatchObject({ ok: false, basis: null, run: null });
+    expect(rests({ ...THIS, runId: '100' }, ask({ runs: [run(100)], jobs: { 100: allPlayed() } }).api).ok).toBe(false);
+    expect(rests(THIS, ask({ runs: [run(7, { head_sha: B })], jobs: { 7: allPlayed() } }).api).ok).toBe(false);
+    expect(rests(THIS, ask({ runs: [] }).api).why).toBe(`no other run of ci.yml on ${A.slice(0, 7)}: everything is played`);
+  });
+
+  it.each([
+    ['red', { conclusion: 'failure' }], ['cancelled', { conclusion: 'cancelled' }], ['still running', { status: 'in_progress', conclusion: null }],
+    ['queued', { status: 'queued', conclusion: null }], ['played again right now, its old green still listed', { status: 'in_progress', conclusion: 'success' }], ['started by hand', { event: 'workflow_dispatch' }], ['of a pull request', { event: 'pull_request' }],
+    ['a trial', { head_branch: 'try/mobile/world1/x5/net/aaaaaaa' }], ['with no branch', { head_branch: null }],
+  ])('a run that is %s is not rested on, though it played everything - and its jobs are not asked for', (_name, o) => {
+    const { api, asked } = ask({ runs: [run(7, o)], jobs: { 7: allPlayed() } });
+    const r = rests(THIS, api);
+    expect(r).toMatchObject({ ok: false, basis: null, run: null });
+    expect(r.why).toContain('no completed, successful run by a push');
+    expect(r.why).toContain('#7');
+    expect(r.why).toMatch(/: everything is played$/);
+    expect(asked.jobs).toEqual([]);
+  });
+
+  it('(a) needs every playing job once and green: one skipped, missing, red or doubled is not "everything"', () => {
+    const drop = (name) => allPlayed().filter((j) => j.name !== name);
+    const set = (name, conclusion) => allPlayed().map((j) => (j.name === name ? { ...j, conclusion } : j));
+    for (const jobs of [drop('walkthrough desktop shop'), set('worlds (probe world, cache)', 'skipped'), [...allPlayed(), { name: 'walkthrough mobile world1', conclusion: 'success' }]]) {
+      const r = rests(THIS, ask({ runs: [run(7)], jobs: { 7: jobs }, before: [devRun(3, { conclusion: 'failure' })] }).api);
+      expect(r.ok, JSON.stringify(jobs.slice(-2))).toBe(false);
+      expect(r.why).toContain('played less, by its plan');
+    }
+    // a job that is red in a run GitHub calls successful: never
+    const red = rests(THIS, ask({ runs: [run(7)], jobs: { 7: set('walkthrough mobile shop', 'failure') }, before: [devRun(3)] }).api);
+    expect(red.ok).toBe(false);
+    expect(red.why).toContain('its job "walkthrough mobile shop" ended as failure');
+  });
+
+  it('(b) a run that played less, by its plan, on top of a head of dev that is green on dev: rests on it', () => {
+    const { api, asked } = ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3)] });
+    const r = rests(THIS, api);
+    expect(r).toMatchObject({ ok: true, basis: 'b' });
+    expect(r.run.id).toBe(7);
+    expect(r.why).toContain('played less, by its plan');
+    expect(r.why).toContain(`the head before, ${B.slice(0, 7)}, is green on dev (run #3)`);
+    expect(asked).toEqual({ jobs: [7], before: 1 });
+    // the probe world alone was played there: still "less"
+    expect(rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan(PARTS.map(worldsJobName)) }, before: [devRun(3)] }).api)).toMatchObject({ ok: true, basis: 'b' });
+  });
+
+  it.each([
+    ['is red on dev', [devRun(3, { conclusion: 'failure' })], 'is not green on dev (#3: failure)'],
+    ['has no run on dev', [], 'has no run of ci.yml on dev'],
+    ['is green only on its branch, not on dev', [devRun(3, { head_branch: 'run/earlier' })], 'has no run of ci.yml on dev'],
+    ['is green on dev only by a run started by hand', [devRun(3, { event: 'workflow_dispatch' })], 'has no run of ci.yml on dev'],
+    ['is still played on dev', [devRun(3, { status: 'in_progress', conclusion: null })], 'is not green on dev (#3: in_progress)'],
+    ['has a green run of another commit listed', [devRun(3, { head_sha: A })], 'has no run of ci.yml on dev'],
+  ])('(b) a run that played less is not rested on when the head before %s', (_name, before, why) => {
+    const r = rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before }).api);
+    expect(r).toMatchObject({ ok: false, basis: null, run: null });
+    expect(r.why).toContain(why);
+    expect(r.why).toMatch(/: everything is played$/);
+  });
+
+  it('(b) the run of the head before was cancelled by the next push: everything is played, and the line says that nothing is wrong with the commit', () => {
+    const r = rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3, { conclusion: 'cancelled' })] }).api);
+    expect(r.ok).toBe(false);
+    expect(r.why).toContain(`the run of the head before, ${B.slice(0, 7)}, on dev was cancelled (a newer push replaced it before it ended)`);
+    expect(r.why).toContain('its green is just not known');
+    // cancelled once, green on another attempt: green
+    expect(rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3, { conclusion: 'cancelled' }), devRun(4)] }).api)).toMatchObject({ ok: true, basis: 'b' });
+    // cancelled and red: red is what is said
+    expect(rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3, { conclusion: 'cancelled' }), devRun(4, { conclusion: 'failure' })] }).api).why).toContain('is not green on dev');
+  });
+
+  it('(b) the head before is not known - the first push of the branch, no commit at all - or GitHub does not answer: everything is played', () => {
+    for (const before of ['0'.repeat(40), '', undefined, 'not-a-commit']) {
+      const { api, asked } = ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3)] });
+      const r = rests({ ...THIS, before }, api);
+      expect(r.ok, String(before)).toBe(false);
+      expect(r.why).toContain('the head dev had before this push is not known');
+      expect(asked.before).toBe(0);
+    }
+    const down = rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: new Error('HTTP 502\ngh: Bad Gateway') }).api);
+    expect(down.ok).toBe(false);
+    expect(down.why).toContain('GitHub did not list the runs of the head before (gh: Bad Gateway)');
+    expect(rests(THIS, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: null }).api).ok).toBe(false);
+  });
+
+  it('several commits pushed to dev at once: the head before is the one dev had, whatever lies between', () => {
+    // nothing here reads the commits between `before` and the head: the plan of the branch counted its files from dev,
+    // and dev was `before` (or behind it) when that run was planned
+    const r = rests({ sha: A, runId: 100, before: B }, ask({ runs: [run(7)], jobs: { 7: byPlan() }, before: [devRun(3)] }).api);
+    expect(r).toMatchObject({ ok: true, basis: 'b' });
+  });
+
+  it('GitHub does not list the runs or the jobs: everything is played', () => {
+    expect(rests(THIS, { runs: null, jobsOf: () => [], beforeRuns: () => [] })).toMatchObject({ ok: false });
+    expect(rests(THIS, { runs: undefined, jobsOf: () => [], beforeRuns: () => [] }).why).toContain('GitHub did not list the runs of this commit');
+    const r = rests(THIS, ask({ runs: [run(7)], jobs: { 7: new Error('HTTP 403') } }).api);
+    expect(r.ok).toBe(false);
+    expect(r.why).toContain('run #7 (branch run/work): GitHub did not list its jobs (HTTP 403)');
+    expect(rests(THIS, ask({ runs: [run(7)], jobs: {} }).api).ok).toBe(false);
+    expect(rests({ ...THIS, sha: '' }, ask({ runs: [run(7)], jobs: { 7: allPlayed() } }).api).why).toContain('the commit of this push is not known');
+  });
+
+  it('two runs of the commit: the one that can be rested on is found, the head before is asked once', () => {
+    const { api, asked } = ask({ runs: [run(7), run(8), run(9)], jobs: { 7: byPlan(), 8: new Error('gone'), 9: allPlayed() }, before: [devRun(3, { conclusion: 'failure' })] });
+    const r = rests(THIS, api);
+    expect(r).toMatchObject({ ok: true, basis: 'a' });
+    expect(r.run.id).toBe(9);
+    const none = ask({ runs: [run(7), run(8)], jobs: { 7: byPlan(), 8: byPlan() }, before: [devRun(3, { conclusion: 'failure' })] });
+    expect(rests(THIS, none.api).ok).toBe(false);
+    expect(none.asked.before).toBe(1);
+    expect(asked.before).toBe(1);
+  });
+
+  it('rested: the plan of such a push plays nothing again, and the report names the run and the basis', () => {
+    const rest = rests(THIS, ask({ runs: [run(7)], jobs: { 7: allPlayed() } }).api);
+    const plan = rested(pick(null), rest);
+    expect(plan).toMatchObject({ all: false, play: [], walk: [], worlds: false, rests: { basis: 'a', run: 7 } });
+    const out = outputs(plan, { files: null, why: 'a push to dev: the branch the work is merged into is played whole' });
+    expect(out).toMatchObject({ walk: 'false', worlds: 'false', jobs: '' });
+    expect(out.report.split('\n')[0]).toContain('reason: a push to dev that rests on run #7 (branch run/work), basis (a)');
+    expect(out.report).toContain('Not played again here: the walkthroughs and the probe world');
+    // "check" then expects both skipped, and passes
+    expect(verdict({ plan: 'success', build: 'success', walk: 'skipped', worlds: 'skipped' }, { walk: out.walk, worlds: out.worlds })).toMatchObject({ ok: true, combine: false });
+    expect(verdict({ plan: 'success', build: 'success', walk: 'success', worlds: 'skipped' }, { walk: out.walk, worlds: out.worlds }).ok).toBe(false);
+  });
+});
+
+// ---- a trial on the runner ----
+describe('tools/ci-pieces.mjs tryPlan: the name of a trial branch says what to try', () => {
+  const C = `1a2b3c4${'d'.repeat(33)}`;
+  it('a piece of the walkthrough in a size, N times, with the network or without', () => {
+    expect(tryPlan('try/mobile/world2/x5/net/1a2b3c4', C)).toEqual({
+      size: 'mobile', piece: 'world2', n: 5, offline: false, probe: false, title: 'world2 mobile x5',
+      matrix: { include: [{ turn: 1 }, { turn: 2 }, { turn: 3 }, { turn: 4 }, { turn: 5 }] },
+    });
+    expect(tryPlan('try/desktop/shop/x1/offline/1a2b3c4dddd', C)).toMatchObject({ size: 'desktop', piece: 'shop', n: 1, offline: true, probe: false, title: 'shop desktop x1 offline' });
+    for (const size of SIZES) for (const piece of PIECES) expect(tryPlan(`try/${size}/${piece}/x${TRY_MAX}/net/1a2b3c4`, C).error, `${size} ${piece}`).toBeUndefined();
+    expect(tryPlan(`try/mobile/shop/x${TRY_MAX}/net/${C}`, C).matrix.include).toHaveLength(TRY_MAX);
+  });
+
+  it('a part of the probe world: the size is "probe", with the network only', () => {
+    for (const part of PARTS) expect(tryPlan(`try/probe/${part}/x3/net/1a2b3c4`, C)).toMatchObject({ size: 'probe', piece: part, n: 3, probe: true, offline: false });
+    expect(tryPlan('try/probe/travel/x3/offline/1a2b3c4', C).error).toContain('with "net" only');
+    expect(tryPlan('try/probe/world1/x3/net/1a2b3c4', C).error).toContain('unknown part of the probe world "world1"');
+    expect(tryPlan('try/mobile/travel/x3/net/1a2b3c4', C).error).toContain('unknown piece "travel"');
+  });
+
+  it.each([
+    ['run/work', 'is not a trial branch'], ['try', '0 parts after "try"'], ['try/mobile/world1/x5/net', '4 parts after "try"'],
+    ['try/mobile/world1/x5/net/1a2b3c4/more', '6 parts after "try"'], ['try/phone/world1/x5/net/1a2b3c4', 'unknown size "phone"'],
+    ['try/mobile/world9/x5/net/1a2b3c4', 'unknown piece "world9"'], ['try/mobile/world1/5/net/1a2b3c4', '"5" is not x1..x10'],
+    ['try/mobile/world1/x0/net/1a2b3c4', '"x0" is not x1..x10'], ['try/mobile/world1/x11/net/1a2b3c4', '"x11" is not x1..x10'],
+    ['try/mobile/world1/x05/net/1a2b3c4', '"x05" is not x1..x10'], ['try/mobile/world1/x5/wifi/1a2b3c4', '"wifi" is neither "net" nor "offline"'],
+    ['try/mobile/world1/x5/net/1a2b3c', 'is not the beginning of a commit'], ['try/mobile/world1/x5/net/1A2B3C4', 'is not the beginning of a commit'],
+    ['try/mobile/world1/x5/net/7777777', 'names the commit 7777777, but points at 1a2b3c4'],
+    ['try/mobile/world1,shop/x5/net/1a2b3c4', 'unknown piece "world1,shop"'], ['try/mobile/world1 ; rm/x5/net/1a2b3c4', 'unknown piece'],
+  ])('"%s" cannot be read: an error with the reason and the shape of the name - never a trial of something else', (branch, why) => {
+    const t = tryPlan(branch, C);
+    expect(t.error).toContain(why);
+    expect(t.error).toContain('The name is try/<mobile|desktop|desktop-tall|mobile-portrait|probe>/<piece>/x<1..10>/<net|offline>/<commit, 7 characters or more>');
+    expect(t.size).toBeUndefined();
+    expect(t.matrix).toBeUndefined();
+  });
+
+  it('the commit of the branch must be known; a name with a control character or a command to the runner is printed harmless', () => {
+    expect(tryPlan('try/mobile/world1/x5/net/1a2b3c4', '').error).toContain('the commit of the branch is not known');
+    expect(tryPlan('try/mobile/world1/x5/net/1a2b3c4', undefined).error).toContain('the commit of the branch is not known');
+    expect(tryPlan(undefined, C).error).toContain('is not a trial branch');
+    expect(tryPlan('try/::error::x\n/a/b/c/d', C).error).not.toMatch(/::error::|\n/);
+  });
+});
+
+describe('tools/ci-pieces.mjs tryResult and turnError: k of N and the text of every failure', () => {
+  it('every turn green: "N of N green", nothing else', () => {
+    expect(tryResult([{ turn: 1, ok: true, error: '' }, { turn: 2, ok: true, error: '' }], 2)).toEqual({ ok: true, green: 2, lines: ['2 of 2 green'] });
+  });
+
+  it('a red turn is counted and its text is printed under its number; a turn that left nothing is red', () => {
+    const r = tryResult([{ turn: 1, ok: true }, { turn: 3, ok: false, error: 'scenario failed: the magic\n::notice::x' }], 4);
+    expect(r).toMatchObject({ ok: false, green: 1 });
+    expect(r.lines[0]).toBe('1 of 4 green');
+    expect(r.lines).toContain('turn 3: RED');
+    expect(r.lines).toContain('  scenario failed: the magic');
+    expect(r.lines).toContain('  : :notice: :x');
+    expect(r.lines).toContain('turn 2: RED - it left no result (the job did not come to its end)');
+    expect(r.lines).toContain('turn 4: RED - it left no result (the job did not come to its end)');
+  });
+
+  it('nothing at all was left: 0 of N, red; a result that only looks green is not', () => {
+    expect(tryResult([], 3)).toMatchObject({ ok: false, green: 0 });
+    expect(tryResult(null, 1).ok).toBe(false);
+    expect(tryResult([{ turn: 1, ok: 'true' }, { turn: 2, ok: 1 }, { turn: '3', ok: true }], 3)).toMatchObject({ ok: false, green: 0 });
+    // a turn beyond N is not counted
+    expect(tryResult([{ turn: 5, ok: true }], 1)).toMatchObject({ ok: false, green: 0 });
+  });
+
+  it('turnError: the block ERRORS: of the walkthrough, the lines of the probe world, every FAILED; else the end of the log', () => {
+    const walk = ['block magic: 658s', 'ERRORS:', 'scenario failed: the magic: two pictures', 'layout: mobile start: #play is cut', '[e2e] walkthrough mobile world2: FAILED — tools/shot.mjs exited with code 1', '  walkthrough mobile world2  FAILED   284.2s', '[e2e] FAILED'].join('\n');
+    expect(turnError(walk).split('\n')).toEqual(['scenario failed: the magic: two pictures', 'layout: mobile start: #play is cut', '[e2e] walkthrough mobile world2: FAILED — tools/shot.mjs exited with code 1', '  walkthrough mobile world2  FAILED   284.2s', '[e2e] FAILED']);
+    expect(turnError('[worlds] parts: travel\nworlds: the change of world: the load fails\n[worlds] FAILED: 1 problem(s)\n').split('\n')).toEqual(['worlds: the change of world: the load fails', '[worlds] FAILED: 1 problem(s)']);
+    expect(turnError('[failures] no WebGL: message shown\nfailures: blocked texture: console error\nupdate: the page was reloaded\n[e2e] FAILED\n').split('\n')).toEqual(['failures: blocked texture: console error', 'update: the page was reloaded', '[e2e] FAILED']);
+    expect(turnError('npm error code ELIFECYCLE\nnpm error errno 137\n')).toBe('npm error code ELIFECYCLE\nnpm error errno 137');
+    expect(turnError('')).toBe('');
+    expect(turnError(Array.from({ length: 80 }, (_, i) => `worlds: problem ${i}`).join('\n')).split('\n')).toHaveLength(30);
+  });
+});
+
+describe('.github/workflows/try.yml: a trial is not the gate', () => {
+  const t = workflow('try.yml');
+  it('runs on a push to try/** and on nothing else; ci.yml does not run there', () => {
+    expect(t.text).toContain("on:\n  push:\n    branches: ['try/**']\npermissions:\n  contents: read\n");
+    expect(t.text).not.toContain('workflow_dispatch');
+    expect(t.text).not.toContain('pull_request');
+    expect(workflow('ci.yml').text).toContain("branches-ignore: [main, 'try/**']");
+  });
+
+  it('has no job named "check" - by its id or by its name: a trial leaves no status "check" on the commit', () => {
+    expect(Object.keys(t.jobs)).toEqual(['plan', 'build', 'try', 'try-result']);
+    for (const [id, job] of Object.entries(t.jobs)) {
+      expect(id).not.toBe('check');
+      expect(key(job, 'name'), id).not.toBe(null);
+      expect(key(job, 'name')).not.toMatch(/^['"]?check['"]?$/);
+    }
+    expect(key(t.jobs['try-result'], 'name')).toBe('try-result');
+  });
+
+  it('plan reads the name of the branch and its commit with tools/ci-pieces.mjs; a name that cannot be read fails it', () => {
+    const plan = t.jobs.plan;
+    expect(plan).toContain('TRY_BRANCH: ${{ github.ref_name }}');
+    expect(plan).toContain('TRY_COMMIT: ${{ github.sha }}');
+    expect(plan).toContain('run: node tools/ci-pieces.mjs try "$TRY_BRANCH" "$TRY_COMMIT"');
+    expect(plan).not.toContain('continue-on-error');
+    for (const out of ['size', 'piece', 'n', 'offline', 'probe', 'title', 'matrix']) expect(plan).toContain(`      ${out}: \${{ steps.read.outputs.${out} }}`);
+  });
+
+  it('one build, N turns of it at once, each to its end, played as the gate plays', () => {
+    expect(key(t.jobs.build, 'needs')).toBe('plan');
+    expect(t.jobs.build).toContain('run: npm run build');
+    const turn = t.jobs.try;
+    expect(key(turn, 'needs')).toBe('[plan, build]');
+    expect(turn).toContain('      fail-fast: false\n      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n');
+    expect(turn).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
+    expect(turn).toContain("          E2E_NET: ${{ needs.plan.outputs.offline == 'true' && 'offline' || 'net' }}\n");
+    expect(turn).toContain('npm run e2e -- --skip-build --mode "$TRY_SIZE" --only "$TRY_PIECE" 2>&1 | tee try.log');
+    expect(turn).toContain('node tools/worlds.mjs dist --only "$TRY_PIECE" 2>&1 | tee try.log');
+    expect(turn).toContain('set -o pipefail');
+    // what was read from the name of the branch reaches the shell as variables, never as text of the script
+    expect(/run: \|\n((?: {10}.*\n)+)/.exec(turn)[1]).not.toContain('${{');
+    expect(turn).toContain('run: node tools/ci-pieces.mjs try-turn "$TRY_TURN" "$TRY_OUTCOME" try.log');
+    expect(turn).toContain('          name: try-turn-${{ matrix.turn }}\n          path: turn-${{ matrix.turn }}.json\n');
+    expect(turn).not.toContain('continue-on-error');
+  });
+
+  it('try-result runs when turns failed too, and is red when the name was not read or the build failed', () => {
+    const end = t.jobs['try-result'];
+    expect(key(end, 'needs')).toBe('[plan, build, try]');
+    expect(key(end, 'if')).toBe('${{ !cancelled() }}');
+    expect(end).toContain('if [ "$PLAN_RESULT" != success ]; then');
+    expect(end).toContain('if [ "$BUILD_RESULT" != success ]; then');
+    expect(end).toContain('node tools/ci-pieces.mjs try-result try-turns "$TRY_N"');
+  });
+
+  it('pages.yml knows nothing of trials or of the runs of a commit: before a publication everything is played', () => {
+    const pages = workflow('pages.yml');
+    expect(pages.text).not.toContain('ci-pieces');
+    expect(pages.text).not.toContain('try/');
+    expect(pages.text).not.toContain('actions: read');
   });
 });

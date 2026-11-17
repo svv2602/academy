@@ -8,12 +8,17 @@ name: CI
 # On a branch, what is played depends on the files that changed against dev (ARCH-16; the job "plan",
 # tools/ci-pieces.mjs): files of one world - the jobs of that world, a shared file - everything, documents alone - unit
 # tests and build only; whenever the changed files cannot be told, and in a run started by hand - everything.
-# A push to dev always plays everything: a green "check" on a commit of dev means that all of it was played.
+# A push to dev does not play its commit a second time: when this very commit has a completed, successful run by a
+# push on its branch - one that played everything, or one that played less by its plan on top of a head of dev that is
+# green itself - the push to dev rests on that run and plays nothing again; "check" names the run and the basis. In
+# every other case (no such run, a red or cancelled one, GitHub did not answer) a push to dev plays everything. So a
+# green "check" on a commit of dev still means that all of it was played green on this tree - here, or in the run named.
+# Trial branches (try/**) are not checked here: .github/workflows/try.yml plays them, and it is not the gate.
 # "check" compares the result of every job with the plan and prints what was skipped and why.
 # "check" is the status the protection of main requires: do not rename that job.
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore: [main, 'try/**']
   pull_request:
   # Proof that "check" really fails: a run started by hand can break the walkthrough of one size on purpose.
   workflow_dispatch:
@@ -25,6 +30,7 @@ on:
         default: none
 permissions:
   contents: read
+  actions: read       # the job "plan" of a push to dev asks which runs this commit already has (tools/ci-pieces.mjs `rests`)
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -42,7 +48,8 @@ jobs:
       report: ${{ steps.pick.outputs.report }}     # the reason and the changed files, in words
     steps:
       # The whole history and every branch: the changed files of a branch are counted from its common ancestor with
-      # origin/dev (a push to dev itself is not compared with anything: everything is played).
+      # origin/dev. A push to dev itself is not compared with anything: it asks GitHub whether this commit was already
+      # played green on its branch (CI_SHA, CI_BEFORE, the token) and plays everything unless it was.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -55,6 +62,9 @@ jobs:
           CI_EVENT: ${{ github.event_name }}
           CI_REF: ${{ github.ref }}
           CI_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          CI_SHA: ${{ github.sha }}
+          CI_BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
         run: node tools/ci-pieces.mjs plan
 
   build:

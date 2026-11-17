@@ -109,6 +109,9 @@ Environment (passed on to tools/shot.mjs unchanged):
                           "task sequence (seed …): N tasks, <fingerprint>" and writes shots-e2e/<size>-tasks.txt
   E2E_MUTE=<0|1>          1: every size is played without the voice, 0: every size with it (default: desktop-tall
                           without the voice, the other sizes with it)
+  E2E_NET=<net|offline>   offline: every size is played without the network after the first load, net: every size
+                          with it (default: desktop without the network, the other sizes with it); for a trial of
+                          one piece (.github/workflows/try.yml), not for the gate
 Environment (this script):
   E2E_PORT=<n>            first port to try for the preview server (default 4183)
   E2E_WORLDS=<0|1>        0: the step "worlds" is skipped - the probe world is played elsewhere (CI: its own job);
@@ -139,6 +142,9 @@ const FAILURE_MODE = 'mobile';
 const FAILURE_GROUP = 'shop';
 if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) { console.error(`[e2e] bad E2E_MUTE "${process.env.E2E_MUTE}": expected 0 or 1`); process.exit(2); }
 const muted = (mode) => (process.env.E2E_MUTE ? process.env.E2E_MUTE === '1' : MUTE_MODES.includes(mode));
+// E2E_NET in the environment overrides the network of every size the same way (a trial of one piece, try.yml).
+if (!['', 'net', 'offline'].includes(process.env.E2E_NET ?? '')) { console.error(`[e2e] bad E2E_NET "${process.env.E2E_NET}": expected net or offline`); process.exit(2); }
+const offline = (mode) => (process.env.E2E_NET ? process.env.E2E_NET === 'offline' : OFFLINE_MODES.includes(mode));
 // The step "worlds" is played unless it is switched off: in CI the probe world has a job of its own (ARCH-16), and the
 // walkthrough jobs must not play it a second time. Anything but 0 or 1 is a mistake, not a silent "off".
 if (!['', '0', '1'].includes(process.env.E2E_WORLDS ?? '')) { console.error(`[e2e] bad E2E_WORLDS "${process.env.E2E_WORLDS}": expected 0 or 1`); process.exit(2); }
@@ -314,7 +320,7 @@ async function stopServer() {
 // A walkthrough is a size and a group of it ('' = the whole world); its files are named after both.
 const jobId = ({ mode, group }) => (group ? `${mode}-${group}` : mode);
 const jobLabel = ({ mode, group }) => (group ? `${mode} ${group}` : mode);
-const walkthroughName = ({ mode, group }) => `walkthrough ${mode}${group ? ` ${group}` : ''}${OFFLINE_MODES.includes(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
+const walkthroughName = ({ mode, group }) => `walkthrough ${mode}${group ? ` ${group}` : ''}${offline(mode) ? ' (offline)' : ''}${muted(mode) ? ' (no voice)' : ''}`;
 // The walkthrough that plays the failure screens with it: the mobile size, of the whole world or of FAILURE_GROUP.
 const playsFailures = ({ mode, group }) => mode === FAILURE_MODE && (!group || group === FAILURE_GROUP);
 // Where the walkthroughs leave their results: shots-e2e/ here, or the folder of --combine.
@@ -329,7 +335,7 @@ async function walkthrough(url, job) {
   rmSync(modelsOut(job), { force: true });   // never compare against the list of an earlier run
   rmSync(voiceOut(job), { force: true });
   rmSync(summaryOut(job), { force: true });
-  const env = { ...process.env, E2E_OFFLINE: OFFLINE_MODES.includes(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(job),
+  const env = { ...process.env, E2E_OFFLINE: offline(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(job),
     E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(job), E2E_COMMIT: sourceCommit(), E2E_ONLY: group };
   if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);

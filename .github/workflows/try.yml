@@ -1,0 +1,171 @@
+name: Try
+# A trial on the runner (ARCH-15): one piece of the walkthrough, or one part of the probe world, played N times at the
+# same moment on one build - to see how often it fails where the gate plays it, before the gate is asked.
+# It is started by a push to a branch try/<size>/<piece>/x<N>/<net|offline>/<commit> - the name of the branch says what
+# to try (tools/ci-pieces.mjs `tryPlan`; a name that cannot be read fails the run with the reason):
+#   try/mobile/world2/x5/net/1a2b3c4      the piece world2 in the phone's size, five times, with the network
+#   try/desktop/shop/x3/offline/1a2b3c4   the piece shop in the computer's size, three times, without the network
+#   try/probe/travel/x5/net/1a2b3c4       the part "travel" of the probe world (tools/worlds.mjs), five times
+# The last part is the beginning of the commit the branch points at, so every trial has a name of its own. More turns
+# on the same commit: run the whole run again (gh run rerun <id>).
+# A trial is NOT the gate: this file has no job named "check" on purpose, so a trial leaves no status "check" on the
+# commit - neither a green one that the protection of main would take, nor a red one over the gate's. ci.yml does not
+# run on these branches (branches-ignore). The result is the job "try-result": "k of N green" and the text of every
+# failure, in the log and in the summary of the run.
+run-name: 'try: ${{ github.ref_name }}'
+on:
+  push:
+    branches: ['try/**']
+permissions:
+  contents: read
+concurrency:
+  group: try-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    name: what to try
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      size: ${{ steps.read.outputs.size }}
+      piece: ${{ steps.read.outputs.piece }}
+      n: ${{ steps.read.outputs.n }}
+      offline: ${{ steps.read.outputs.offline }}
+      probe: ${{ steps.read.outputs.probe }}
+      title: ${{ steps.read.outputs.title }}
+      matrix: ${{ steps.read.outputs.matrix }}     # {"include":[{"turn":1},…]}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read the name of the branch
+        id: read
+        env:
+          TRY_BRANCH: ${{ github.ref_name }}
+          TRY_COMMIT: ${{ github.sha }}
+        run: node tools/ci-pieces.mjs try "$TRY_BRANCH" "$TRY_COMMIT"
+
+  # The build only: the unit tests belong to the gate (ci.yml), a trial asks one question.
+  build:
+    name: build
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check and build
+        run: npm run build
+      - name: Keep the build for the turns
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+
+  try:
+    name: try ${{ needs.plan.outputs.title }}, turn ${{ matrix.turn }}
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false        # every turn is played to its end: the answer is "k of N"
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # Played as the gate plays it (ci.yml): software rendering, the lowest fixed graphics tier, the same limits.
+      # TRY_NET overrides what the size would decide (tools/e2e.mjs: E2E_NET).
+      - name: Play
+        id: play
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+          E2E_RUN_TIMEOUT_MS: '1080000'
+          E2E_WORLDS: '0'
+          E2E_NET: ${{ needs.plan.outputs.offline == 'true' && 'offline' || 'net' }}
+          TRY_SIZE: ${{ needs.plan.outputs.size }}
+          TRY_PIECE: ${{ needs.plan.outputs.piece }}
+          TRY_PROBE: ${{ needs.plan.outputs.probe }}
+        run: |
+          set -o pipefail
+          if [ "$TRY_PROBE" = true ]; then
+            node tools/worlds.mjs dist --only "$TRY_PIECE" 2>&1 | tee try.log
+          else
+            npm run e2e -- --skip-build --mode "$TRY_SIZE" --only "$TRY_PIECE" 2>&1 | tee try.log
+          fi
+      # What "try-result" reads: green or red, and the text of the failure taken from the log.
+      - name: What this turn leaves
+        if: ${{ !cancelled() }}
+        env:
+          TRY_TURN: ${{ matrix.turn }}
+          TRY_OUTCOME: ${{ steps.play.outcome }}
+        run: node tools/ci-pieces.mjs try-turn "$TRY_TURN" "$TRY_OUTCOME" try.log
+      - name: Result for "try-result"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: try-turn-${{ matrix.turn }}
+          path: turn-${{ matrix.turn }}.json
+          if-no-files-found: warn
+          retention-days: 1
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: try-failure-${{ matrix.turn }}
+          path: |
+            shots-e2e/
+            try.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # "k of N green" and the text of every failure. Red when a turn is red - and when the name could not be read or the
+  # build failed (then no turn was played at all).
+  try-result:
+    name: try-result
+    needs: [plan, build, try]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: What the turns left
+        uses: actions/download-artifact@v4
+        continue-on-error: true   # none at all when nothing was played: the next step says so
+        with:
+          pattern: try-turn-*
+          path: try-turns
+          merge-multiple: true
+      - name: k of N
+        shell: bash
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          TRY_N: ${{ needs.plan.outputs.n }}
+          TRY_TITLE: ${{ needs.plan.outputs.title }}
+        run: |
+          echo "what to try: $PLAN_RESULT; build: $BUILD_RESULT; trial: $TRY_TITLE"
+          if [ "$PLAN_RESULT" != success ]; then echo "::error::the name of the trial branch could not be read - see the job \"what to try\""; exit 1; fi
+          if [ "$BUILD_RESULT" != success ]; then echo "::error::the build failed - no turn was played"; exit 1; fi
+          node tools/ci-pieces.mjs try-result try-turns "$TRY_N"
