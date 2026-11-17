@@ -222,7 +222,8 @@ try {
     const play = HTMLMediaElement.prototype.play, started = window.__started = [], starts = window.__starts = {};
     window.__plays = 0;
     window.__loud = [];         // clips started with a volume above zero: none of them in a walkthrough without the voice
-    window.__clip = (a) => (a.src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? '';
+    // A character's clip `<key>@<voice>` (VOICE-10) counts as its line `<key>`.
+    window.__clip = (a) => decodeURIComponent((a.src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? '').split('@')[0];
     HTMLMediaElement.prototype.play = function () {
       started.push(this); if (started.length > 8) started.shift();
       const id = window.__clip(this); starts[id] = (starts[id] ?? 0) + 1; this.__n = ++window.__plays;
@@ -799,6 +800,76 @@ try {
         }
         console.log(`group "${only}": the game plays from ${groupSave ? `its save (${JSON.stringify(got)})` : 'no save'}`);
       }
+      // ---- the tour of the world (WORLD-11): a new save flies the camera along the world's path after "play" while the
+      // cat says its line, and a tap ends it; then a picture from every point of the path (the debug command, each point
+      // held for its picture); a reload (the second entry) and an old save (played before, never toured) have no tour ----
+      if (has('flyover')) {
+        const fail = (what) => { throw new Error(`the tour: ${what}`); };
+        const state = () => g(() => {
+          const f = __game.flyoverPlayer;
+          return { on: f.active, at: f.elapsed, busy: __game.busy, line: __game.line, toured: __game.save.worlds.fairy?.flags?.toured === true,
+            jump: !document.querySelector('#btnJump').classList.contains('hidden'), synth: [...__game.voice.synth] };
+        });
+        const pts = await g(() => __game.flyoverPoints.map((p) => p.t));
+        const s0 = await state();
+        if (!s0.on) fail('a new save: no tour after "play"');
+        if (!s0.busy) fail('the heroine is free to walk during the tour');
+        if (s0.jump) fail('the jump button shows during the tour');
+        if (s0.line !== 'tour') fail(`the cat says "${s0.line}", not its line of the tour`);
+        if (!s0.toured) fail('the world is not marked as toured when its tour starts');
+        // a tap anywhere ends it, long before its end
+        const vp = page.viewportSize();
+        await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(5000) })
+          .catch(() => fail('a tap did not end the tour'));
+        const s1 = await state();
+        if (!(s1.at < pts[pts.length - 1] - 0.5)) fail(`the tour ran to its end (${s1.at.toFixed(2)} s) instead of ending at the tap`);
+        // The reloads below start a new log of the voice: its line is checked here.
+        if (s1.synth.includes('tour')) errors.push('no recorded clip for: tour (python3 tools/gen_voice.py)');
+        console.log(`the tour: a new save flies it with the line "tour", a tap ends it at ${s1.at.toFixed(2)} of ${pts[pts.length - 1].toFixed(1)} s`);
+        // a picture from every point of the path
+        await g(() => __game.flyover());
+        await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(5000) }).catch(() => fail('the debug command did not start the tour'));
+        for (const [i, t] of pts.entries()) {
+          await page.waitForFunction((t) => __game.flyoverPlayer.elapsed >= t - 0.3, t, { timeout: T(30000) })
+            .catch(() => fail(`the camera did not come to point ${i + 1} (${t.toFixed(2)} s)`));
+          await g((i) => __game.flyoverPlayer.hold(i), i);
+          await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          await shot(`flyover-${i + 1}`);
+          await g(() => __game.flyoverPlayer.hold(null));
+        }
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
+        console.log(`the tour: ${pts.length} pictures of its points (flyover-1 .. flyover-${pts.length})`);
+        // An entry that has no tour: "play", a second of game time, and the tour never started.
+        const noTour = async (what) => {
+          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+          await page.click('#play');
+          const t0 = await g(() => __game.time);
+          for (;;) {
+            const s = await g(() => ({ on: __game.flyoverPlayer.active, t: __game.time, busy: __game.busy }));
+            if (s.on) fail(`${what}: the tour is shown`);
+            if (s.t > t0 + 1) break;
+            await wait(100);
+          }
+          console.log(`the tour: ${what}: no tour`);
+        };
+        // the second entry
+        await page.reload();
+        await noTour('the second entry');
+        // an old save: played before, the world never marked toured; the game writes nothing until the reload
+        await g(() => {
+          const s = JSON.parse(localStorage.getItem('amw-save'));
+          s.played = true; delete s.worlds.fairy.flags.toured;
+          localStorage.setItem('amw-save', JSON.stringify(s));
+          Storage.prototype.setItem = () => {};
+        });
+        await page.reload();
+        const old = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+        if (!old.played || old.worlds?.fairy?.flags?.toured) fail(`the old save was not stored as one: ${JSON.stringify({ played: old.played, flags: old.worlds?.fairy?.flags })}`);
+        await noTour('an old save');
+        // ... and it gets the mark it never had: the world's description reads "toured" from the flag alone
+        if (!(await g(() => __game.save.worlds.fairy?.flags?.toured === true))) fail('an old save entered the world without the mark "toured"');
+      } else await g(() => __game.flyoverPlayer?.skip());
       // ---- a hidden page (another app, a locked screen) pauses the line that sounds; shown again, it plays on (TECH-05) ----
       // The page is "hidden" by its visibility state alone: what the game hears from a phone that leaves it.
       if (has('hidden-page')) {

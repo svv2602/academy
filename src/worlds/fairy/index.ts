@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { setCast } from '../../core/audio';
 import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
+import { setTour, tour } from '../../game/flyover';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
@@ -16,6 +18,7 @@ import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
+import { FAIRY_FLYOVER } from './flyover-path';
 import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
@@ -25,6 +28,7 @@ import { buildSky } from './sky';
 import { createStarSearch } from './star-search';
 import { strings } from './strings';
 import { SPAWN, colliders, height, raycastGround, resolve } from './terrain';
+import { voices } from './voices';
 
 /**
  * The first world, built (ARCH-05): its objects in the order they always joined the scene (and the colliders) in, its
@@ -54,6 +58,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
   const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
+  setCast(voices);   // each character speaks with its voice (VOICE-10)
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
 
   // ---------- "sort" in the world (ARCH-09): a debug show only, opened by __game.worldSort() ----------
@@ -131,11 +136,24 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
     },
   };
 
+  // The tour of the world (WORLD-11): visited once toured, and a save played before this session (an old save) counts
+  // as visited too - `save.played` is read here, before "play" sets it.
+  const playedBefore = save.played;
+  const flyover = setTour(g, {
+    path: FAIRY_FLYOVER,
+    visited: () => ws.flags.toured === true || playedBefore,
+    mark: () => { ws.flags.toured = true; g.persist(); },
+  });
+
   const debug: DebugExtras = {
     npcs,
     // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop; shopSign: where
     // the walkthrough walks up to the shop's signboard.
-    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign },
+    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign,
+      // the tour: `flyover()` plays it without marking anything, `flyoverPoints` are its points with the moment each is
+      // passed, `flyoverPlayer` is its state (active, elapsed) with skip() and hold(i)
+      flyover: () => { void tour(g, { record: false }); }, flyoverPlayer: flyover,
+      flyoverPoints: FAIRY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })) },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }

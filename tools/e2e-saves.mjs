@@ -15,6 +15,7 @@
 /** The blocks of tools/shot.mjs a group may play, in the order the whole walkthrough plays them. */
 export const BLOCKS = [
   'no-debug',       // the built game without ?debug: no window.__game, no frame counter, the quality lowered by itself
+  'flyover',        // the tour of the world: a new save flies it and a tap ends it, a picture per point, none on a second entry or an old save (WORLD-11)
   'hidden-page',    // a hidden page pauses the introduction (TECH-05)
   'intro',          // the introduction heard to its end, the picture of the spawn
   'cat',            // a tap on the cat repeats the line (VOICE-08)
@@ -74,8 +75,8 @@ function played({ done, stars, tasks, final = false }) {
  * The size decides the rest as it always did (tools/e2e.mjs): desktop is played offline, desktop-tall without the voice.
  */
 export const GROUPS = {
-  // friends 1-2 from no save: the published game without ?debug, a hidden page, the introduction, the cat
-  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'hidden-page', 'intro', 'cat'] },
+  // friends 1-2 from no save: the published game without ?debug, the tour of the world, a hidden page, the introduction, the cat
+  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat'] },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions - none of them needs the finished world
   world2: {

@@ -4,8 +4,21 @@ import { clearSave } from '../core/save';
 import { initShop } from '../ui/shop';
 import { el, initBook } from '../ui/ui';
 import type { Game } from './context';
+import { tour } from './flyover';
 import type { Gear } from './gear';
 import type { BookInfo, WorldLines } from './world';
+
+/**
+ * The order of an entry into the world once "play" is pressed (R35): the opening scene of a new save, then the tour of
+ * the world (src/game/flyover.ts: only for a world not visited yet - neither toured nor played in an earlier session),
+ * then the game with the cat's first hint. The world's old welcome (`lines.intro`) is no longer said here.
+ */
+export async function enterWorld(g: Game, first: boolean): Promise<void> {
+  // WORLD-13: the opening scene of a new save goes here, before the tour.
+  await tour(g);
+  if (first) void g.speech.line('go_next', 'hint', 6000);
+  else await g.speech.line('welcome_back', 'hint', 5000);
+}
 
 /**
  * The start screen, the menus and the page events (ARCH-05). Called once the world is built and before the first frame:
@@ -29,8 +42,7 @@ export function initStartScreen(g: Game, o: {
     save.played = true; persist();
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
-    if (first) { if (o.lines.intro) await speech.line(o.lines.intro, 'story'); void speech.line('go_next', 'hint', 6000); }
-    else await speech.line('welcome_back', 'hint', 5000);
+    await enterWorld(g, first);
   }, { once: true });
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.
   const openShop = initShop(save, o.gear, {
