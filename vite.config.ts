@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { defineConfig } from 'vite';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
@@ -13,11 +15,34 @@ function commit(): string {
   } catch { return NO_COMMIT; }
 }
 
-export default defineConfig({
+// The probe world (src/worlds/probe/, TECH-15) is a test world: its files live in worlds-test/probe/, outside public/,
+// under the paths the game asks for them (models/probe/…, story/probe/…). Only a build made with `--mode probe`
+// (tools/worlds.mjs: `vite build --mode probe --outDir dist-probe`) lists the world in the registry
+// (src/worlds/index.ts) and gets these files, at the same paths; the published build (`npm run build`) has neither.
+const PROBE_MODE = 'probe';
+const PROBE_FILES = 'worlds-test/probe';
+function probeFiles(): Plugin {
+  let from = PROBE_FILES;
+  return {
+    name: 'probe-world-files',
+    apply: 'build',
+    configResolved(config) { from = join(config.root, PROBE_FILES); },
+    generateBundle() {
+      for (const f of readdirSync(from, { recursive: true, withFileTypes: true })) {
+        if (!f.isFile() || f.name === 'README.md') continue;
+        const file = join(f.parentPath, f.name);
+        this.emitFile({ type: 'asset', fileName: relative(from, file).split(sep).join('/'), source: readFileSync(file) });
+      }
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
   base: './',
   define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()) },
   build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
   plugins: [
+    ...(mode === PROBE_MODE ? [probeFiles()] : []),
     VitePWA({
       // A new version is taken at the next launch, never in the middle of a game (TECH-13): the new worker installs and
       // waits until every page of the game is closed (registerType 'prompt', skipWaiting: false; the game never asks
@@ -57,4 +82,4 @@ export default defineConfig({
       },
     }),
   ],
-});
+}));

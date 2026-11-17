@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-probe
 *.log
 development-checklists/
 shots*/

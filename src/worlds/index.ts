@@ -3,6 +3,9 @@
 // src/game/world.ts `pickWorld`).
 import { fairy } from './fairy';
 
-export const WORLDS = [fairy];
+// The probe world (./probe, TECH-15) is a test world: it is listed only in a build made with `--mode probe`
+// (tools/worlds.mjs builds dist-probe/ and plays it there). In any other mode the condition is a constant false, so
+// the build holds neither its code nor its files: `npm run e2e` checks dist/ for that (the step "worlds").
+export const WORLDS = [fairy, ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : [])];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';

@@ -20,14 +20,14 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkDistSize } from './dist-size.mjs';
+import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { GROUPS, PIECES } from './e2e-saves.mjs';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
 Steps: build -> preview server -> walkthrough mobile -> walkthrough desktop (offline) -> [--all-sizes: walkthrough
 desktop-tall (no voice) -> walkthrough mobile-portrait -> silent walkthrough] -> [with the mobile size: failure screens
--> update] -> models used -> dist links -> dist size -> stop server.
+-> update -> worlds] -> models used -> dist links -> dist size -> stop server.
 The exit code is non-zero if any step fails.
 Sizes: mobile 844x390 (touch), desktop 1280x720 (mouse and keyboard), desktop-tall 1280x800 (mouse and keyboard),
 mobile-portrait 390x844 (touch).
@@ -49,9 +49,15 @@ the button pressed, the start screen with "Play" appears. Both screens are measu
 build is published while the game is played - the new service worker installs and waits, the page keeps its worker
 (no controllerchange), is not navigated, and a task is still solved; once every page of the game is closed, a new page
 opens the new build with the stars of the old one.
+"worlds" (tools/worlds.mjs; once per run, with the mobile size, like "update"; a build and a server of its own): the
+probe world is a test world - dist/ must hold nothing of it (no file, no code); the build that lists it is made anew
+(vite build --mode probe --outDir dist-probe), must hold its files under models/probe/ and story/probe/ and the commit
+of the sources, and the world is played there in the mobile size by the walkthrough every world shares
+(E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
-"dist size" holds the build to the budget of docs/15-tech.md: dist/ without voice/ at most 12 MB, voice/ at most 4 MB, one file at most 1 MB
-(tools/dist-size.mjs).
+"dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12 MB
+without voice/ and 4 MB of voice/, every next world (models/<id>/, story/<id>/, voice/<id>/) at most 8 MB and 3 MB of voice,
+one file at most 1 MB (tools/dist-size.mjs).
 Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and
 whether the whole run passed.
 
@@ -64,7 +70,7 @@ parents' section, leaving the page, "start again"), shop (the heroine and her it
 wears after a reload), tasks (every friend from no save: every kind of task). world1, world2, finale and shop together
 are the whole world.
 Files of a group: summary-, models-requested-, voice-<size>-<group>.json, pictures <size>-<group>-<screen>.png.
-"failure screens" and "update" go with the mobile size of shop; "models used" needs both main sizes and the four
+"failure screens", "update" and "worlds" go with the mobile size of shop; "models used" needs both main sizes and the four
 pieces. Without --only: the whole world, as always.
 
 --combine <folder>: build nothing, play nothing. The folder holds what walkthroughs of all four sizes left behind
@@ -342,6 +348,13 @@ async function update() {
   if (code !== 0) throw new Error(`tools/update.mjs exited with ${signal ?? `code ${code}`} — see "update:" above`);
   return 'the new version waited through a solved task, no controllerchange, no reload; the next launch: new version, same stars';
 }
+// The probe world (TECH-15): tools/worlds.mjs checks that dist/ has nothing of it, builds dist-probe/ and plays it there.
+async function worlds() {
+  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist')], 1500000);
+  if (timedOut) throw new Error('killed after 1500000 ms');
+  if (code !== 0) throw new Error(`tools/worlds.mjs exited with ${signal ?? `code ${code}`} — see "worlds:" above`);
+  return 'dist/ holds nothing of the probe world; dist-probe/ built with its files and this commit, the probe world played in the mobile size';
+}
 // With all four sizes (the way CI runs) one size must have been played in silence, by the report of each of its
 // walkthroughs (with --only: of every group of it; checkPlayed makes sure the groups of a size are the whole world).
 function checkSilent() {
@@ -438,7 +451,7 @@ function checkDist() {
 function checkSize() {
   const r = checkDistSize(join(root, 'dist'));
   if (r.problems.length) throw new Error(`the build is over its budget:\n  ${r.problems.join('\n  ')}`);
-  return `${(r.total / 1e6).toFixed(2)} MB of the game and ${(r.voice / 1e6).toFixed(2)} MB of voice in ${r.files} files; the heaviest: ${r.heaviest.path}, ${(r.heaviest.size / 1e6).toFixed(2)} MB`;
+  return sizeSummary(r);
 }
 
 // ---- run ----
@@ -470,6 +483,8 @@ if (ready) {
       else await step('failure screens', () => failureScreens(url));
       if (opts.bail && failed()) skip('update', '--bail');
       else await step('update', update);
+      if (opts.bail && failed()) skip('worlds', '--bail');
+      else await step('worlds', worlds);
     }
     const played = jobs.map((j) => results.find((r) => r.name === walkthroughName(j))?.result);
     if (opts.allSizes) {
