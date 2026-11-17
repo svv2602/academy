@@ -1,6 +1,10 @@
 // Waiting for what the game does in its own time, by the game's clock (window.__game.time, ?debug only): on the slow CI
 // runner a second of game time takes many of the wall clock, so a wait by the wall clock there failed while the game was
 // right (tools/clock-waits.mjs lists the waits that may still count the wall clock).
+// A frame counts at most 0.05 s of game time (src/game/loop.ts), so the game runs at min(1, 0.05 x frames a second):
+// at 3 frames a second (the desktop sizes under software rendering on the CI runner) N s of game time take up to 6.7N s
+// of the clock - set the limits with that in mind; a wait that may run to its limit on a normal path is a wait by the
+// clock, not by the game.
 //
 //   const { gameUntil, gameFor } = gameWaits(page, { ceiling: T(600000) });   (clock: helper)
 //   await gameFor(() => !__game.busy, null, 30);          // fails after 30 s of game time
