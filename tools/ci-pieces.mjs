@@ -396,11 +396,20 @@ export function rested(plan, rest) {
   return { ...plan, all: false, play: [], walk: [], worlds: false, rests: { basis: rest.basis, run: rest.run.id }, reason: `a push to ${GATE} that rests on run #${rest.run.id} (branch ${rest.run.head_branch}), basis (${rest.basis}) - ${rest.why}. Not played again here: the walkthroughs and the probe world` };
 }
 
-/** `rests` asked of GitHub with the token of the job (`gh api`, the permission "actions: read"); a failed question is a "no". */
+/** How long one question to GitHub may take, ms: a question that hangs is a "no", not a job "plan" that hangs with it. */
+export const GH_TIMEOUT_MS = 10000;
+
+/**
+ * `rests` asked of GitHub with the token of the job (`gh api`, the permission "actions: read"). A question that fails
+ * in any way - no such program, a refusal, an answer that is not JSON, no answer within the limit - is a "no".
+ * CI_GH names the program to ask instead of `gh` and CI_GH_TIMEOUT_MS the limit of one question: the unit tests ask a
+ * stand-in, never the network.
+ */
 function restsOnGitHub(env) {
   const repo = env.GITHUB_REPOSITORY ?? '';
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return { ok: false, basis: null, run: null, why: 'the repository of this run is not known: everything is played' };
-  const api = (path) => JSON.parse(execFileSync('gh', ['api', '-H', 'Accept: application/vnd.github+json', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, timeout: 60000 }));
+  const limit = Number(env.CI_GH_TIMEOUT_MS) > 0 ? Number(env.CI_GH_TIMEOUT_MS) : GH_TIMEOUT_MS;
+  const api = (path) => JSON.parse(execFileSync(env.CI_GH || 'gh', ['api', '-H', 'Accept: application/vnd.github+json', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024, timeout: limit, killSignal: 'SIGKILL' }));
   const runsOf = (sha) => api(`repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=100`).workflow_runs;
   let runs = null, failed = '';
   try { runs = runsOf(env.CI_SHA); } catch (e) { failed = lastLine(e?.message ?? e); }

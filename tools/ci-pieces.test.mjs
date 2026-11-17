@@ -5,12 +5,12 @@
 // played would otherwise still give a green "check".
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { DOCS, MAX_LISTED, PLAYING_JOBS, SHARED, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
+import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, SHARED, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
 import { PARTS } from './worlds.mjs';
@@ -402,8 +402,29 @@ describe('tools/ci-pieces.mjs verdict: may "check" pass', () => {
 });
 
 const script = join(root, 'tools/ci-pieces.mjs');
+/**
+ * A stand-in for `gh`: no unit test asks GitHub. FAKE_GH says how it answers: "refuse" (the default: an error and exit
+ * code 1), "garbage" (an answer that is not JSON), "hang" (no answer for a minute), or a JSON object - the answer for
+ * the first key that is a part of the path asked for (no key fits: an error).
+ */
+const fakeGh = (() => {
+  const file = join(tmp(), 'gh');
+  writeFileSync(file, `#!${process.execPath}
+const mode = process.env.FAKE_GH || 'refuse', path = process.argv[process.argv.length - 1];
+if (mode === 'garbage') { console.log('<html>502 Bad Gateway</html>'); process.exit(0); }
+if (mode === 'hang') setTimeout(() => {}, 60000);
+else if (mode.startsWith('{')) {
+  const hit = Object.entries(JSON.parse(mode)).find(([key]) => path.includes(key));
+  if (hit) { console.log(JSON.stringify(hit[1])); process.exit(0); }
+  console.error('gh: no answer prepared for ' + path); process.exit(1);
+} else { console.error('gh: Not Found (HTTP 404)'); process.exit(1); }
+`);
+  chmodSync(file, 0o755);
+  return file;
+})();
 function cli(args, env = {}) {
-  const clean = { ...process.env };
+  const clean = { ...process.env, CI_GH: fakeGh };
+  for (const k of ['FAKE_GH', 'CI_GH_TIMEOUT_MS']) delete clean[k];
   for (const k of ['GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_REPOSITORY', 'GITHUB_RUN_ID', 'GH_TOKEN', 'CI_SHA', 'CI_EVENT', 'CI_REF', 'CI_BEFORE', 'CI_PR_BASE', 'PLAN_RESULT', 'BUILD_RESULT', 'WALK_RESULT', 'WORLDS_RESULT', 'PLAN_WALK', 'PLAN_WORLDS', 'PLAN_REPORT']) delete clean[k];
   const r = spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', env: { ...clean, ...env }, timeout: 30000 });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
@@ -458,15 +479,77 @@ describe('tools/ci-pieces.mjs from the command line', () => {
     expect(r.out).toContain('[ci] a push to dev: the repository of this run is not known: everything is played');
   });
 
-  it('plan: a push to dev whose question to GitHub fails (a repository that does not exist) plays everything', () => {
+  // ---- a push to dev asks GitHub: the stand-in answers, the network is never touched ----
+  const DEV = { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', GITHUB_REPOSITORY: 'someone/some-game', CI_SHA: A, CI_BEFORE: B, GITHUB_RUN_ID: '100' };
+  const planOnDev = (env = {}) => {
     const file = join(tmp(), 'out');
     writeFileSync(file, '');
-    // `gh` either is not installed, or has no token, or is refused: each way the answer is "everything"
-    const r = cli(['plan'], { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', GITHUB_OUTPUT: file, GITHUB_REPOSITORY: 'nobody-at-all-0/no-such-repository-0', CI_SHA: A, CI_BEFORE: B, GITHUB_RUN_ID: '1', GH_TOKEN: 'not-a-token', GH_HOST: 'localhost:9', GH_PROMPT_DISABLED: '1' });
+    const r = cli(['plan'], { ...DEV, GITHUB_OUTPUT: file, ...env });
+    return { ...r, outputs: readOutputs(file) };
+  };
+
+  it.each([
+    ['refuses (an error and exit code 1)', { FAKE_GH: 'refuse' }, 'gh: Not Found (HTTP 404)'],
+    ['is not installed', { CI_GH: 'gh-that-is-not-installed-anywhere' }, 'ENOENT'],
+    ['answers with something that is not JSON', { FAKE_GH: 'garbage' }, 'JSON'],
+    ['answers with JSON of another shape', { FAKE_GH: JSON.stringify({ 'actions/workflows': { message: 'Not Found' } }) }, 'GitHub did not list the runs of this commit'],
+  ])('plan: a push to dev whose question to GitHub fails - gh %s - plays everything and says why', (_name, env, why) => {
+    const r = planOnDev(env);
     expect(r.code, r.out).toBe(0);
-    expect(readOutputs(file)).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(r.outputs).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(JSON.parse(r.outputs.matrix)).toEqual({ include: ALL_WALKS });
     expect(r.out).toContain('GitHub did not list the runs of this commit');
+    expect(r.out).toContain(why);
     expect(r.out).toContain('everything is played');
+  }, 30000);
+
+  it('plan: a question to GitHub that hangs is given up within its limit, and everything is played', () => {
+    expect(GH_TIMEOUT_MS).toBeGreaterThanOrEqual(3000);
+    expect(GH_TIMEOUT_MS).toBeLessThanOrEqual(20000);      // three questions at most: far inside the 5 minutes of the job "plan"
+    const started = Date.now();
+    const r = planOnDev({ FAKE_GH: 'hang', CI_GH_TIMEOUT_MS: '400' });
+    expect(Date.now() - started).toBeLessThan(20000);       // the stand-in would hang for a minute
+    expect(r.code, r.out).toBe(0);
+    expect(r.outputs).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(r.out).toContain('GitHub did not list the runs of this commit');
+    // the source: the limit is on the question itself, and a hung program is killed, not waited for
+    const src = readFileSync(script, 'utf8');
+    expect(src).toContain("timeout: limit, killSignal: 'SIGKILL'");
+    expect(src).toContain('const limit = Number(env.CI_GH_TIMEOUT_MS) > 0 ? Number(env.CI_GH_TIMEOUT_MS) : GH_TIMEOUT_MS;');
+  }, 60000);
+
+  const answers = (o) => ({ FAKE_GH: JSON.stringify(o) });
+  const jobsAll = { jobs: [{ name: 'plan', conclusion: 'success' }, ...PLAYING_JOBS.map((name) => ({ name, conclusion: 'success' })), { name: 'check', conclusion: 'success' }] };
+  const jobsLess = { jobs: [{ name: 'plan', conclusion: 'success' }, { name: 'walk', conclusion: 'skipped' }, { name: 'check', conclusion: 'success' }] };
+  const runOf = (id, sha, o = {}) => ({ id, event: 'push', status: 'completed', conclusion: 'success', head_branch: 'run/work', head_sha: sha, ...o });
+
+  it('plan: a push to dev whose commit was played whole on its branch plays nothing again - basis (a), the run is named', () => {
+    const r = planOnDev(answers({ [`head_sha=${A}`]: { workflow_runs: [runOf(100, A, { head_branch: 'dev', status: 'in_progress', conclusion: null }), runOf(7, A)] }, 'runs/7/jobs': jobsAll }));
+    expect(r.code, r.out).toBe(0);
+    expect(r.outputs).toMatchObject({ walk: 'false', worlds: 'false', jobs: '' });
+    expect(r.outputs.report.split('\n')[0]).toContain('reason: a push to dev that rests on run #7 (branch run/work), basis (a)');
+    expect(r.out).toContain('[ci] a push to dev: this commit was played whole by run #7');
+  }, 30000);
+
+  it('plan: a commit played by a reduced plan rests on it only on top of a head of dev that is green on dev - basis (b)', () => {
+    const less = { [`head_sha=${A}`]: { workflow_runs: [runOf(7, A)] }, 'runs/7/jobs': jobsLess };
+    const green = planOnDev(answers({ ...less, [`head_sha=${B}`]: { workflow_runs: [runOf(3, B, { head_branch: 'dev' })] } }));
+    expect(green.outputs).toMatchObject({ walk: 'false', worlds: 'false' });
+    expect(green.outputs.report.split('\n')[0]).toContain('rests on run #7 (branch run/work), basis (b)');
+    const red = planOnDev(answers({ ...less, [`head_sha=${B}`]: { workflow_runs: [runOf(3, B, { head_branch: 'dev', conclusion: 'failure' })] } }));
+    expect(red.outputs).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(red.out).toContain('is not green on dev (#3: failure)');
+    // the jobs of the run cannot be listed: everything is played
+    const blind = planOnDev(answers({ [`head_sha=${A}`]: { workflow_runs: [runOf(7, A)] } }));
+    expect(blind.outputs).toMatchObject({ walk: 'true', worlds: 'true' });
+    expect(blind.out).toContain('GitHub did not list its jobs');
+  }, 60000);
+
+  it('no test of this file reaches the real gh: the planner is always handed the stand-in', () => {
+    const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+    expect(src).toContain('const clean = { ...process.env, CI_GH: fakeGh };');
+    expect(src.match(/spawnSync\(process\.execPath, \[script/g)).toHaveLength(1);     // the one place the planner is started from
+    expect(readFileSync(script, 'utf8')).toContain("execFileSync(env.CI_GH || 'gh', ['api',");
   });
 
   it('plan: a push to another branch never asks GitHub about runs', () => {
