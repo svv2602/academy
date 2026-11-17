@@ -3,7 +3,8 @@ import type { MusicParams } from '../game/world';
 import { pauseVoice, resumeVoice, voiceVolume } from './voice';
 
 export {
-  CLIP_RETRIES, beginTask, dropped, endTask, inTask, mayStart, say, speaking, stopVoice, voiceLog, willSay,
+  CLIP_RETRIES, beginTask, borrowed, clipFor, dropped, endTask, inTask, mayStart, say, setCast, speaking, stopVoice, voiceLog,
+  willSay,
   type Priority, type Spoken,
 } from './voice';
 

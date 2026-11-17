@@ -16,6 +16,9 @@ const ukKeys = Object.keys(tables.uk).sort();
 const files = import.meta.glob<{ strings: WorldStrings }>('../worlds/*/strings.ts', { eager: true });
 const folder = (path: string) => path.split('/')[2];
 const worlds = Object.keys(files).sort().map((p) => files[p].strings);
+/** Each world's table "character - voice" (VOICE-10), as tools/sync_phrases.mjs reads them. */
+const castFiles = import.meta.glob<{ voices: Parameters<typeof recordingList>[2][number] }>('../worlds/*/voices.ts', { eager: true });
+const casts = Object.keys(castFiles).sort().map((p) => castFiles[p].voices);
 // What src/main.ts does before the start screen: the game reads the worlds' texts through `t` and `voiceText`; the first
 // world (in the order of the folders) is the one played here.
 const played = worlds[0];
@@ -96,7 +99,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(t('subtitle')).toBe(played.table.ru.subtitle);
     setLang('uk');
     const other: WorldStrings = { id: 'other', table: { uk: { subtitle: 'Інший світ', other_x: 'х' }, ru: { subtitle: 'Другой мир', other_x: 'х' } }, spoken: {} };
-    expect(() => recordingList([...worlds, other], bank)).not.toThrow();
+    expect(() => recordingList([...worlds, other], bank, casts)).not.toThrow();
     addStrings(other, false);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // A second world played is an error: one subtitle on the start screen.
@@ -104,7 +107,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(() => addStrings(third, true)).toThrow(/"third".*subtitle/);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // Never spoken: marking it for recording is an error.
-    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }], bank)).toThrow(/subtitle/);
+    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }], bank, casts)).toThrow(/subtitle/);
   });
 
   it.each(worlds.map((w) => [w.id, w] as const))('%s: each spoken line is in its table, with a known intonation', (_, w) => {
@@ -116,15 +119,15 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: 'в', [key]: 'а' }, ru: { subtitle: 'г', [key]: 'б' } }, spoken: {} });
     expect(() => addStrings(clash('x', 'play'), false)).toThrow(/"x".*play/);
     expect(() => addStrings(worlds[0], false)).toThrow(new RegExp(`"${worlds[0].id}"`));
-    expect(() => recordingList([clash('x', 'play')], bank)).toThrow(/"x".*play/);
-    expect(() => recordingList([...worlds, ...worlds], bank)).toThrow(new RegExp(`"${worlds[0].id}"`));
+    expect(() => recordingList([clash('x', 'play')], bank, casts)).toThrow(/"x".*play/);
+    expect(() => recordingList([...worlds, ...worlds], bank, casts)).toThrow(new RegExp(`"${worlds[0].id}"`));
     // A refused world adds nothing.
     expect(t('play')).toBe('Грати');
   });
 
   it('refuses a spoken line without a Ukrainian text', () => {
     const w: WorldStrings = { id: 'x', table: { uk: { subtitle: 'а' }, ru: { subtitle: 'б' } }, spoken: { nothing_here: 'warm' } };
-    expect(() => recordingList([w], bank)).toThrow(/nothing_here/);
+    expect(() => recordingList([w], bank, casts)).toThrow(/nothing_here/);
   });
 });
 
@@ -236,7 +239,8 @@ describe('lines to record (voice/phrases.json)', () => {
   const texts = () => Object.entries(file).map(([k, v]) => ({ key: k, text: Array.isArray(v) ? String(v[0]) : String(v) }));
 
   it('lists exactly the lines marked as spoken (shared, then each world), in the order of the marks', () => {
-    const keys = Object.keys(file);
+    // A line a character says in its own voice is listed again as `<key>@<voice>` (VOICE-10): its key is the line's.
+    const keys = Object.keys(file).filter((k) => !k.includes('@'));
     // Named lists first, so a failure says which key to mark or which mark to sync.
     expect({
       notInFile: spoken.filter((k) => !keys.includes(k)),
@@ -247,9 +251,9 @@ describe('lines to record (voice/phrases.json)', () => {
   });
 
   it('is what `npm run voice:sync` builds from the game texts', () => {
-    expect(file).toEqual(recordingList(worlds, bank));
+    expect(file).toEqual(recordingList(worlds, bank, casts));
     // The order too: the file is written in the order of the list.
-    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank)));
+    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank, casts)));
   });
 
   it('has a subtitle in every language for each spoken line', () => {
@@ -262,7 +266,7 @@ describe('lines to record (voice/phrases.json)', () => {
   it('gives every line a text and a known intonation', () => {
     const styles: readonly string[] = VOICE_STYLES;
     const bad = Object.entries(file)
-      .filter(([, v]) => !(Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && v[0].trim() !== '' && styles.includes(v[1])))
+      .filter(([, v]) => !(Array.isArray(v) && v.length === 3 && typeof v[0] === 'string' && typeof v[2] === 'string' && v[0].trim() !== '' && styles.includes(v[1])))
       .map(([k]) => k);
     expect(bad).toEqual([]);
   });
@@ -288,7 +292,7 @@ describe('lines to record (voice/phrases.json)', () => {
     setChildName('');
     // The bank is not in the game's table yet (the game asks for none of its clips): its line is its own table's text.
     const said = (key: string) => (Object.hasOwn(bank.spoken, key) ? bank.table.uk[key] : voiceText(key as SpokenKey));
-    expect(texts().filter(({ key, text }) => text !== said(key)).map(({ key }) => key)).toEqual([]);
+    expect(texts().filter(({ key, text }) => text !== said(key.split('@')[0])).map(({ key }) => key)).toEqual([]);
   });
 
   it('never carries the name, whatever name and language are set', () => {
@@ -298,8 +302,8 @@ describe('lines to record (voice/phrases.json)', () => {
     expect(t('intro')).toContain('Зоряна');
     expect(voiceText('intro')).toContain('Зоряна');
     // …the list for recording is built the same and matches the committed file.
-    expect(JSON.stringify(recordingList(worlds, bank))).not.toContain('Зоряна');
-    expect(recordingList(worlds, bank)).toEqual(file);
+    expect(JSON.stringify(recordingList(worlds, bank, casts))).not.toContain('Зоряна');
+    expect(recordingList(worlds, bank, casts)).toEqual(file);
     expect(JSON.stringify(file)).not.toContain('Зоряна');
   });
 
