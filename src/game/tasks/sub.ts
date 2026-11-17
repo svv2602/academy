@@ -31,7 +31,16 @@ function numbers(level: number, rng: Rng): [number, number] {
 }
 
 export function generate(level: number, rng: Rng): SubSpec {
-  const [total, gone] = numbers(level, rng), thing = pick(THINGS, rng);
+  const [total, gone] = numbers(level, rng);
+  return example(level, total, gone, rng);
+}
+
+/**
+ * The task "total - gone" of `level` for numbers already chosen: by the generator, or by the planner when it brings
+ * back an example with a mistake (LEARN-11, src/game/planner.ts). The rest comes from `rng` in the generator's order.
+ */
+export function example(level: number, total: number, gone: number, rng: Rng): SubSpec {
+  const thing = pick(THINGS, rng);
   const tilt = tilts(total, rng);
   const answer = total - gone;
   return {

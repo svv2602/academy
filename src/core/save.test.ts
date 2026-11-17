@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEVELS, SKILLS, recordTask } from '../game/skills';
 import type { SkillId } from '../game/skills';
-import { SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
+import { HARD_MAX, SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
 import type { Save, WorldState } from './save';
 
 // The key is part of the contract: renaming it silently drops the save already on the child's device.
@@ -452,7 +452,7 @@ describe('version 3 moves to version 4: "logic" split, a level fixed per skill, 
         memory: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 }, classify: { level: 3, streak: 1, tasks: 17, first: 11, errors: 9 },
         compose: { level: 3, streak: 0, tasks: 0, first: 0, errors: 0 } },
       fixed: { count: 0, add: 0, sub: 0, compare: 0, series: 0, pattern: 0, memory: 0, classify: 0, compose: 0 },
-      playMinutes: {},
+      playMinutes: {}, hard: { n: 0, list: [] },
     };
   }
 
@@ -572,6 +572,62 @@ describe('version 4: the fixed levels and the minutes played as stored', () => {
       storage.setItem(KEY, JSON.stringify({ ...defaultSave(), playMinutes }));
       expect(loadSave().playMinutes).toEqual({});
     }
+  });
+});
+
+describe('the examples with mistakes (LEARN-11): a field of version 4 without a new version', () => {
+  const ex = (k: string, e = 1, at = 0) => ({ k, l: 3, e, c: 0, at });
+
+  it('a fresh save has none, and no task given yet', () => {
+    expect(defaultSave().hard).toEqual({ n: 0, list: [] });
+    expect(defaultSave().v).toBe(SAVE_VERSION);
+  });
+
+  it('saves of versions 1, 2 and 3 open with an empty list and keep all the rest', () => {
+    storage.setItem(KEY, JSON.stringify(v1Save()));
+    expect(loadSave()).toEqual(v1AsV4());
+    expect(loadSave().hard).toEqual({ n: 0, list: [] });
+    storage.setItem(KEY, JSON.stringify(v2Save()));
+    expect(loadSave()).toEqual(v2AsV4());
+    expect(loadSave().hard).toEqual({ n: 0, list: [] });
+    storage.setItem(KEY, JSON.stringify({ ...v2Save(), v: 3, worlds: {} }));
+    expect(loadSave().hard).toEqual({ n: 0, list: [] });
+  });
+
+  it('a version 4 save written before the field (no "hard") opens with an empty list, and stays version 4', () => {
+    const { hard, ...before } = defaultSave();
+    expect(hard).toEqual({ n: 0, list: [] });
+    storage.setItem(KEY, JSON.stringify({ ...before, stars: 9 }));
+    const s = loadSave();
+    expect([s.v, s.stars, s.hard]).toEqual([4, 9, { n: 0, list: [] }]);
+  });
+
+  it('read and write: the examples survive a store and a load, with fields this code does not know (in the list and in each)', () => {
+    const s = defaultSave();
+    s.hard = { n: 12, list: [ex('add:8+5', 3, 4), { ...ex('sub:13-6', 1, 9), seen: 2 } as never] };
+    (s.hard as unknown as Record<string, unknown>).later = 'x';
+    storeSave(s);
+    const again = loadSave();
+    expect(again.hard).toEqual({ n: 12, list: [ex('add:8+5', 3, 4), { ...ex('sub:13-6', 1, 9), seen: 2 }], later: 'x' });
+    storeSave(again);
+    expect(JSON.parse(storage.data.get(KEY)!).hard).toEqual(again.hard);
+  });
+
+  it('a damaged list is none; a damaged example is dropped, the others kept; the count is never behind the examples', () => {
+    for (const hard of [null, 'x', [3], 7, { n: 'a', list: 'b' }]) {
+      storage.setItem(KEY, JSON.stringify({ ...defaultSave(), hard }));
+      expect(loadSave().hard, JSON.stringify(hard)).toEqual({ n: 0, list: [] });
+    }
+    const list = [ex('add:8+5', 2, 3), null, 'add:1+2', { k: 'sub:9-4', l: 2, e: -1, c: 0, at: 1 }, { k: '', l: 2, e: 1, c: 0, at: 1 },
+      { k: 'x'.repeat(40), l: 2, e: 1, c: 0, at: 1 }, { k: 'sub:9-4', l: 2, e: 1.5, c: 0, at: 1 }, ex('missing:3+?=7', 1, 7)];
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), hard: { n: 2, list } }));
+    expect(loadSave().hard).toEqual({ n: 8, list: [ex('add:8+5', 2, 3), ex('missing:3+?=7', 1, 7)] });
+  });
+
+  it('a list over the limit keeps its first HARD_MAX examples', () => {
+    const list = Array.from({ length: HARD_MAX + 15 }, (_, i) => ex(`add:${i % 9 + 1}+${Math.floor(i / 9) + 1}`, 1, i));
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), hard: { n: 100, list } }));
+    expect(loadSave().hard).toEqual({ n: 100, list: list.slice(0, HARD_MAX) });
   });
 });
 

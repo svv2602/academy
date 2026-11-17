@@ -49,7 +49,7 @@ export function baseSave() {
     v: 4, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
     skills: Object.fromEntries(SKILL_IDS.map((k) => [k, skill(0, k === 'compose' ? 3 : 1)])),
-    fixed: Object.fromEntries(SKILL_IDS.map((k) => [k, 0])), playMinutes: {},
+    fixed: Object.fromEntries(SKILL_IDS.map((k) => [k, 0])), playMinutes: {}, hard: { n: 0, list: [] },
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: '#d8f6ff', achievements: {},
     vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,

@@ -34,7 +34,17 @@ function numbers(level: number, rng: Rng): [number, number] {
 }
 
 export function generate(level: number, rng: Rng): AddSpec {
-  const [a, b] = numbers(level, rng), thing = pick(THINGS, rng);
+  const [a, b] = numbers(level, rng);
+  return example(level, a, b, rng);
+}
+
+/**
+ * The task "a + b" of `level` for numbers already chosen: by the generator, or by the planner when it brings back an
+ * example with a mistake (LEARN-11, src/game/planner.ts). The rest - the things, their tilts, the choices - comes from
+ * `rng` in the order the generator always drew it, so one seed still builds the same task.
+ */
+export function example(level: number, a: number, b: number, rng: Rng): AddSpec {
+  const thing = pick(THINGS, rng);
   const tilt = tilts(a + b, rng);
   const answer = a + b;
   return {

@@ -35,7 +35,16 @@ function numbers(level: number, rng: Rng): [a: number, sum: number] {
 }
 
 export function generate(level: number, rng: Rng): MissingSpec {
-  const [a, sum] = numbers(level, rng), thing = pick(THINGS, rng);
+  const [a, sum] = numbers(level, rng);
+  return example(level, a, sum, rng);
+}
+
+/**
+ * The task "a + ? = sum" of `level` for numbers already chosen: by the generator, or by the planner when it brings
+ * back an example with a mistake (LEARN-11, src/game/planner.ts). The rest comes from `rng` in the generator's order.
+ */
+export function example(level: number, a: number, sum: number, rng: Rng): MissingSpec {
+  const thing = pick(THINGS, rng);
   const tilt = tilts(a, rng), answer = sum - a;
   // Rung 1 says the way: count on from the number that is there; across the ten - first up to ten (HINTS.md).
   return {

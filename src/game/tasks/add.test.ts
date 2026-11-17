@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { THINGS } from './types';
-import { MAX, add } from './add';
+import { MAX, add, example } from './add';
 
 /** The hint as HINTS.md has it: rung 1 says the way and shows nothing, rung 2 solves it together, rung 3 lights the answer. */
 const LADDER = (way: string, key: string, steps: object[], lit: object[] = [{ do: 'pulseAnswer' }]) =>
@@ -81,5 +81,14 @@ describe('add generator', () => {
     for (const level of [1, 2, 3]) expect(add.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_add', 'h_count', [{ do: 'countAloud', which: 'all' }]));
     expect(add.generate(4, mulberry32(1)).hint).toEqual(LADDER('h1_ten', 'h2_ten', [{ do: 'countOn', which: 'all' }]));
     for (const level of [5, 6]) expect(add.generate(level, mulberry32(1)).hint).toEqual(LADDER('h1_add_cross', 'h2_add_cross', [{ do: 'fillTen' }]));
+  });
+
+  it.each([1, 2, 3, 4, 5])('level %i: the task of chosen numbers (an example brought back, LEARN-11) is the one the generator builds of them', (level) => {
+    for (const s of tasks(level).slice(0, 200)) {
+      const { a, b } = s.body, e = example(level, a, b, mulberry32(a * 31 + b));
+      expect([e.type, e.level, e.prompt, e.ask, e.hint], `${a} + ${b}`).toEqual([s.type, s.level, s.prompt, s.ask, s.hint]);
+      expect([e.body.a, e.body.b, e.body.answer, e.body.tilt.length]).toEqual([a, b, a + b, a + b]);
+      expect(e.body.options).toContain(a + b);
+    }
   });
 });

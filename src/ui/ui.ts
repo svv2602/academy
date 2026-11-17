@@ -1,5 +1,6 @@
 import type { Save } from '../core/save';
 import { lastDays } from '../game/playtime';
+import { hardest } from '../game/planner';
 import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
 import type { BookInfo } from '../game/world';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
@@ -182,10 +183,15 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     return `<div class="ptime"><div class="phead"><b>${t('p_time')}</b> · ${total ? `${t('p_total')}: ${tf('p_min', { n: total })}` : t('p_time_none')}</div>`
       + `<div class="pdays">${days.map((d) => `<span><b>${t(`p_wd${d.weekday}` as Key)}</b>${tf('p_min', { n: d.minutes })}</span>`).join('')}</div></div>`;
   };
+  // The five hardest examples (PLAY-15, LEARN-11), in numbers ("8 + 5"), the most mistakes first; none yet - a line says so.
+  const hardBlock = () => {
+    const list = hardest(save);
+    return `<p id="pHard" class="pnote phard"><b>${t('p_hard')}</b> · ${list.length ? list.join(' · ') : t('p_hard_none')}</p>`;
+  };
   const renderParents = () => {
     $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}${skillTable(SKILLS.slice(5))}</div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
-      <div id="pHard" class="phard" hidden><b>${t('p_hard')}</b> ${t('p_hard_none')}</div></div>
+      ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
       <div class="prow preset"><button id="pReset">${t('p_reset')}</button></div>
