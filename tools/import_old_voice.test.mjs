@@ -120,6 +120,12 @@ describe('tools/import_old_voice.py', () => {
     const again = run(f, '--exclude', f.words);
     expect(again.out).toContain('changes: 0 clips written');
     expect(watched.map((p) => [readFileSync(join(f.repo, p), 'utf8'), statSync(join(f.repo, p)).mtimeMs])).toEqual(before);
+    // `npm run voice:sync` puts the bank's keys into voice/phrases.json: a run after it is a second run all the same
+    const synced = { intro: ['Привіт!', 'joy'], ...Object.fromEntries(Object.keys(json(join(f.repo, 'voice/qa.json'))).filter((k) => k !== 'intro').map((k) => [k, ['…', 'warm']])) };
+    writeFileSync(join(f.repo, 'voice/phrases.json'), JSON.stringify(synced));
+    const synced2 = run(f, '--exclude', f.words, '--check');
+    expect({ code: synced2.code, err: synced2.err }).toEqual({ code: 0, err: '' });
+    expect(watched.map((p) => [readFileSync(join(f.repo, p), 'utf8'), statSync(join(f.repo, p)).mtimeMs])).toEqual(before);
   });
 
   it('takes a clip out again once the list catches it', () => {

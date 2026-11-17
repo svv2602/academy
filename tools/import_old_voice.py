@@ -155,10 +155,12 @@ def main(argv=None):
     qa = json.loads(qa_path.read_text()) if qa_path.exists() else {}
     take, skipped = plan(a.audio, texts, oldqa, words, only)
 
-    # A clip of the bank must not take a key the game already speaks: one key, one clip.
+    # A clip of the bank must not take a key the game already speaks: one key, one clip. A key this script imported
+    # before (its check record has `from`) is in voice/phrases.json too after `npm run voice:sync`: that is no clash.
     phrases_path = root / 'voice' / 'phrases.json'
     game = set(json.loads(phrases_path.read_text())) if phrases_path.exists() else set()
-    clash = sorted(k for k, (_, folder, _, _) in take.items() if folder == 'bank' and k in game)
+    clash = sorted(k for k, (_, folder, _, _) in take.items()
+                   if folder == 'bank' and k in game and not (k in qa and 'from' in qa[k]))
     if clash:
         stop('These keys of the bank are lines of the game already: ' + ' '.join(clash))
     # A clip that tools/gen_voice.py recorded since (its check record has no `from`) is the game's own: keep it.

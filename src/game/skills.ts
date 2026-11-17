@@ -14,8 +14,7 @@ export type SkillStat = Save['skills'][string];
 
 /**
  * The levels each skill has on the ladder (R38): 1 to 5, but the composition of a number, which starts at level 3
- * (it has no levels 1 and 2). The generators of patterns, memory and classification know levels 1 to 3 so far and
- * play a higher one as their third.
+ * (it has no levels 1 and 2). Every generator plays every level of its skill (docs/11-learning.md, the ladder).
  */
 export const LEVELS: Readonly<Record<SkillId, readonly [min: number, max: number]>> = {
   count: [1, 5], add: [1, 5], sub: [1, 5], compare: [1, 5], series: [1, 5],
