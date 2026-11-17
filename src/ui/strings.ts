@@ -22,6 +22,8 @@ const S = sameKeys({
     npc_next: 'Чудово! А ось іще одне завдання.',
     npc_again: 'Пограємо ще разок?',
     go_next: 'Біжи за іскорками до нового друга!',
+    // TECH-09: the cat at the portal of a world that is not downloaded, without the network (src/game/gate.ts)
+    need_net: 'Щоб відкрити цей портал, потрібен інтернет. Попроси дорослих увімкнути його.',
     t_count: 'Скільки їх тут? Торкайся і рахуй.', t_add: 'Скільки буде разом?', t_sub: 'Дехто втік. Скільки залишилось?',
     t_compare_more: 'Де більше?', t_compare_less: 'Де менше?', t_pattern: 'Що буде далі?', t_odd: 'Що тут зайве?',
     t_pairs: 'Знайди однакові картки.', t_order: 'Натискай числа від найменшого.', t_sort: 'Поклади кристал у кошик такого ж кольору.',
@@ -123,6 +125,7 @@ const S = sameKeys({
     npc_next: 'Отлично! А вот ещё одно задание.',
     npc_again: 'Сыграем ещё разок?',
     go_next: 'Беги за искорками к новому другу!',
+    need_net: 'Чтобы открыть этот портал, нужен интернет. Попроси взрослых включить его.',
     t_count: 'Сколько их здесь? Касайся и считай.', t_add: 'Сколько будет вместе?', t_sub: 'Кое-кто убежал. Сколько осталось?',
     t_compare_more: 'Где больше?', t_compare_less: 'Где меньше?', t_pattern: 'Что будет дальше?', t_odd: 'Что здесь лишнее?',
     t_pairs: 'Найди одинаковые карточки.', t_order: 'Нажимай числа от самого маленького.', t_sort: 'Положи кристалл в корзину такого же цвета.',
@@ -245,7 +248,7 @@ export type Key = keyof typeof S.uk | WorldOwnKey | WorldKey;
  */
 const SPOKEN = {
   welcome_back: 'joy',
-  npc_next: 'joy', npc_again: 'warm', go_next: 'warm',
+  npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
