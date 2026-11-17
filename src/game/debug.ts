@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { dropped, inTask, voiceLog } from '../core/audio';
+import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
 import { uTime } from '../core/materials';
 import { cheatTask } from './taskviews/panel';
@@ -30,6 +31,8 @@ export function exposeDebug(g: Game, extras: DebugExtras) {
     ...extras.more,
     hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: extras.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
+    /** The shards whose "go on" was decided (src/game/dialogue.ts): said, or not, once their thanks ended. */
+    get shardsSettled() { return shardsSettled.n; },
     /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
     get inTask() { return inTask(); },
     get line() { return g.speech.shown?.key ?? null; },
