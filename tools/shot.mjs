@@ -431,9 +431,9 @@ try {
     const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
     await page.keyboard.down('KeyW');
     try {
-      await page.waitForFunction(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z) > 0.5, from, { timeout: T(5000) });
-      return true;
-    } catch { return false; } finally { await page.keyboard.up('KeyW'); }
+      // her steps are the game's: 3 s of game time to walk 0.5 m (5 s of the clock were too few on a busy slow runner)
+      return await gameUntil(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z) > 0.5, from, 3);
+    } finally { await page.keyboard.up('KeyW'); }
   };
   // What a scene that has ended may not leave behind, whichever way it ended.
   const held = () => g(() => {
