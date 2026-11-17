@@ -109,11 +109,11 @@ const only = process.env.E2E_ONLY || '';
 const group = only ? GROUPS[only] : null;
 if (only && !Object.hasOwn(GROUPS, only)) usage(`bad E2E_ONLY="${only}": expected one of ${Object.keys(GROUPS).join(', ')}`);
 if (only && worldId) usage('E2E_ONLY and E2E_WORLD exclude each other: the groups are of the first world');
-const t00 = Date.now();
+const t00 = Date.now(); /* clock: log-time */
 const blocksPlayed = [];     // the blocks the walkthrough came to, in order
 const has = (block) => {
   if (group && !group.blocks.includes(block)) return false;
-  blocksPlayed.push(block); console.log(`block ${block}: ${((Date.now() - t00) / 1000).toFixed(0)}s`);
+  blocksPlayed.push(block); console.log(`block ${block}: ${((Date.now() - t00) / 1000).toFixed(0)}s`); /* clock: log-time */
   return true;
 };
 const listed = (block) => !group || group.blocks.includes(block);   // the same, without counting it as played
@@ -351,20 +351,24 @@ try {
   // stretches them) the wait goes on, up to three times that; a hint stuck in silence fails as before.
   const hintRan = async (sel) => {
     for (let i = 0; i < 3; i++) {
-      if (await page.waitForSelector(sel, { state: 'attached', timeout: T(20000) }).then(() => true, () => false)) return true;
+      if (await page.waitForSelector(sel, { state: 'attached', timeout: T(20000) }).then(() => true, () => false)) return true; /* clock: audio */
       if (!(await sounding())) return false;
     }
     return false;
   };
-  const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
+  const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) }); /* clock: audio */
   // Waits for `pred(arg)` in the page while the game plays: true when it holds, false once `seconds` of game time have
   // passed without it. What the game does in its own time is waited for by the game's clock; the wall clock is only the
   // ceiling for a game that stopped altogether (the slow CI runner may take minutes of it for seconds of the game's).
   const gameUntil = async (pred, arg, seconds) => {
     const t0 = await page.evaluate(() => __game.time);
     const h = await page.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
-      null, { timeout: T(600000) });
+      null, { timeout: T(600000) }); /* clock: ceiling */
     return (await h.jsonValue()) === 'yes';
+  };
+  // The same as a promise that fails once `seconds` of game time have passed without `pred` (for `.catch` and `.then`).
+  const gameFor = async (pred, arg, seconds) => {
+    if (!(await gameUntil(pred, arg, seconds))) throw new Error(`not within ${seconds} s of game time`);
   };
   // The shown magic comes to `want` (within 0.001) in MAGIC_SETTLE s of game time.
   const magicSettles = (want) => gameUntil((w) => Math.abs(__game.magic.value - w) <= 0.001, want, MAGIC_SETTLE);
@@ -390,12 +394,12 @@ try {
   // is a different animation, and it is pictured while it runs.
   const ENTRANCES = new Set(['rise', 'pop', 'pop2', 'fade']);
   const entered = () => page.waitForFunction((names) => document.getAnimations()
-    .every((a) => !(names.includes(a.animationName) && a.playState === 'running')), [...ENTRANCES], { timeout: T(10000) }).catch(() => {});
+    .every((a) => !(names.includes(a.animationName) && a.playState === 'running')), [...ENTRANCES], { timeout: T(10000) }).catch(() => {}); /* clock: dom-anim */
   // The picture is taken again when a panel started to fly in between it and the measure; the third try measures anyway.
   const shot = async (n) => {
     for (let i = 0; i < 3; i++) { await entered(); await picture(n); if (await checkLayout(n, i === 2)) return; }
   };
-  const wait = (ms) => page.waitForTimeout(T(ms));
+  const wait = (ms) => page.waitForTimeout(T(ms)); /* clock: helper */
   const g = (fn, ...a) => page.evaluate(fn, ...a);
   const visible = (sel) => g((s) => { const e = document.querySelector(s); return !!e && !e.classList.contains('hidden'); }, sel);
   const press = (sel) => page.locator(sel).dispatchEvent(touch ? 'pointerdown' : 'click').catch(() => {});
@@ -411,12 +415,12 @@ try {
       const t = a.effect?.target;
       return !(t instanceof Element && t.contains(e) && a.playState === 'running' && Number.isFinite(a.effect.getComputedTiming().endTime));
     });
-  }, sel, { timeout: T(20000) }).catch(() => {});
+  }, sel, { timeout: T(20000) }).catch(() => {}); /* clock: dom-anim */
   const tapOn = async (sel) => {
     await settled(sel);
     // Playwright waits for two still frames before a click; on the CI runner (2-20 frames a second, slower in the desktop
     // sizes) 5 s was not always enough for the tuning button.
-    return touch ? page.tap(sel, { timeout: T(15000) }) : page.click(sel, { timeout: T(15000) });
+    return touch ? page.tap(sel, { timeout: T(15000) }) : page.click(sel, { timeout: T(15000) }); /* clock: input-event */
   };
   // Why a tap failed: the first line of the error and the last steps of Playwright's call log (what covered the element,
   // or that it never stood still) - the first line alone says only "Timeout exceeded".
@@ -458,7 +462,7 @@ try {
     if (!on.queue.includes(on.id)) left.push(`"${on.id}" is not in the queue while its scene is on`);
     if (!achPictured) { achPictured = true; await shot(`achievement-${on.id}`); }
     await tapOn('#fanfareOk').catch((e) => { throw new Error(`${where}: the button of the scene of "${on.id}" cannot be pressed: ${why(e)}`); });
-    await page.waitForFunction(() => __game.ach.scene === null, null, { timeout: T(15000) })
+    await gameFor(() => __game.ach.scene === null, null, 15)
       .catch(() => { throw new Error(`${where}: one tap did not end the scene of "${on.id}"`); });
     const after = await g(() => ({ queue: __game.ach.queue, sign: document.querySelector('#fanfare .gem').textContent,
       ach: document.querySelector('#fanfare').classList.contains('ach'), stored: JSON.parse(localStorage.getItem('amw-save') || '{}').achShown ?? [] }));
@@ -482,17 +486,17 @@ try {
   };
   // Waits for the block's own card, closing the scenes of the achievements that come before it.
   // Every scene closed starts the wait again: their number is that of the achievements, a handful.
-  const fanfareCard = async (timeout, where = 'the card of the fanfare') => {
+  const fanfareCard = async (seconds, where = 'the card of the fanfare') => {
     for (;;) {
-      await page.waitForSelector('#fanfare:not(.hidden)', { timeout });
+      await gameFor(() => !!document.querySelector('#fanfare:not(.hidden)'), null, seconds);
       if (await fanfareUp(where)) return;
     }
   };
   // Waits for the controls to come back (`!__game.busy`), closing on the way the scene a stop point inside the
   // conversation brings (after a task's praise, after a part's card).
-  const controlsBack = async (timeout, where = 'the end of the scene') => {
+  const controlsBack = async (seconds, where = 'the end of the scene') => {
     for (;;) {
-      await page.waitForFunction(() => __game.ach.scene !== null || !__game.busy, null, { timeout });
+      await gameFor(() => __game.ach.scene !== null || !__game.busy, null, seconds);
       if (!(await fanfareIs() === 'ach')) return;
       await endAchievement(where);
     }
@@ -531,7 +535,7 @@ try {
     fault.text = sceneFault(name); fault.expected = seen + 1;
     await g(() => __game.failNext());
     await start();
-    for (const t1 = Date.now(); fault.seen === seen && Date.now() - t1 < T(10000);) await page.waitForTimeout(100);
+    for (const t1 = Date.now(); fault.seen === seen && Date.now() - t1 < T(10000);) await page.waitForTimeout(100); /* clock: pending-part-2 */
     const left = await held();
     if (fault.seen === seen) left.push('the scene did not report its error in the console');
     fault.expected = fault.seen;
@@ -661,18 +665,18 @@ try {
       for (const u of list) if (!(await caches.match(u, { ignoreSearch: true }))) missing.push(u);
       return missing.length ? { why: `${missing.length} of ${list.length} files are not in the cache yet, e.g. ${missing[0]}` } : { files: list.length };
     });
-    const t0 = Date.now();
+    const t0 = Date.now(); /* clock: page-load */
     for (;;) {
       const st = await probe();
       if (st.files) return st.files;
       // The registration is made on the window "load" event, long before the start button shows up: no registration
       // a few seconds later means there will be none (the development server), so do not wait the whole limit.
-      const limit = st.none ? T(5000) : T(120000);
-      if (st.fatal || Date.now() - t0 > limit) {
+      const limit = st.none ? T(5000) : T(120000); /* clock: page-load */
+      if (st.fatal || Date.now() - t0 > limit) { /* clock: page-load */
         throw new Error(`service worker did not become ready: ${st.why}`
           + (st.none ? ' — E2E_OFFLINE=1 needs the built game (npm run e2e); the development server has no service worker' : ''));
       }
-      await page.waitForTimeout(250);
+      await page.waitForTimeout(250); /* clock: pending-part-2 */
     }
   };
 
@@ -683,10 +687,10 @@ try {
     const fail = (what) => { throw new Error(`world "${worldId}": ${what}`); };
     const stored = () => g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
     const kept = JSON.stringify(FAIRY_KEPT);
-    await wait(1500); await shot('00-start'); await checkLinks('start screen');
+    await wait(1500); await shot('00-start'); await checkLinks('start screen'); /* clock: moves-to-world-pass */
     await page.click('#play');
     if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
-    await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) })
+    await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) }) /* clock: moves-to-world-pass */
       .catch(() => fail('no line after "play"'));
     // "play" stores the save: the world played has its part in it - the proof that ?world= picked this world
     {
@@ -695,7 +699,7 @@ try {
       if (JSON.stringify(s0.worlds.fairy) !== kept) fail(`worlds.fairy changed at the start: ${JSON.stringify(s0.worlds.fairy)}, was ${kept}`);
       if (s0.stars !== STARS_KEPT) fail(`the save starts with ${s0.stars} stars, not the ${STARS_KEPT} it was given`);
     }
-    await wait(3000); await shot('01-spawn');
+    await wait(3000); await shot('01-spawn'); /* clock: moves-to-world-pass */
     // the stars never go down, and a star won is stored in the same frame (as in the first world)
     await g(() => {
       const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0, buy: null, bought: [] };
@@ -725,42 +729,42 @@ try {
     const seenTypes = new Set();
     let done = 0;
     for (const q of npcs) {
-      const t0 = Date.now(), starsBefore = await g(() => __game.save.stars);
+      const t0 = Date.now(), starsBefore = await g(() => __game.save.stars); /* clock: moves-to-world-pass */
       while ((await step(q.id)) < q.steps || await g(() => __game.busy)) {
-        if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (world "${worldId}")`);
+        if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (world "${worldId}")`); /* clock: moves-to-world-pass */
         if (await fanfareUp(`world "${worldId}"`)) {
           await shot(`shard-${q.id}`);
           await tapOn('#fanfareOk').catch((e) => fail(`the button of the part cannot be pressed: ${why(e)}`));
-          await wait(500); continue;
+          await wait(500); continue; /* clock: moves-to-world-pass */
         }
         if (await g(() => !document.querySelector('#task').classList.contains('hidden') && !__game.inTask)) errors.push(`world "${worldId}": a task is open, but the planner of spoken lines does not know it`);
         if (await visible('#task')) {
           const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
-          if (!seenTypes.has(type)) { seenTypes.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); if (QUESTIONS[type]) await checkQuestion(type); }
+          if (!seenTypes.has(type)) { seenTypes.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); if (QUESTIONS[type]) await checkQuestion(type); } /* clock: moves-to-world-pass */
           if (!(await g(() => __game.cheat()))) fail(`__game.cheat() did nothing for the "${type}" task of "${q.id}"`);
-          await wait(1500); continue;
+          await wait(1500); continue; /* clock: moves-to-world-pass */
         }
         // a task of the world itself (in the foreground or the background): the world's cheat does its right move
         const how = await g(() => __game.cheat());
-        if (how) { if (!seenTypes.has(how)) { seenTypes.add(how); await shot(`task-${how}`); } await wait(700); continue; }
+        if (how) { if (!seenTypes.has(how)) { seenTypes.add(how); await shot(`task-${how}`); } await wait(700); continue; } /* clock: moves-to-world-pass */
         if (!(await g(() => __game.busy))) {
           await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
-          await wait(400);
+          await wait(400); /* clock: moves-to-world-pass */
           await act();
         }
-        await wait(600);
+        await wait(600); /* clock: moves-to-world-pass */
       }
       done++;
       await starsKept(`in the chain of "${q.id}"`);
       const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, stars: __game.save.stars }));
       if (c.hud !== `${done}/${npcs.length}`) errors.push(`crystals: ${mode} ${worldId}: the counter shows ${c.hud} with ${done} of ${npcs.length} chains done`);
       if (!(c.stars > starsBefore)) errors.push(`stars: ${mode} ${worldId}: the chain of "${q.id}" gave no stars (${starsBefore} -> ${c.stars})`);
-      console.log(`chain done: ${q.id} (${q.steps} steps), ${((Date.now() - t0) / 1000).toFixed(0)}s, counter ${c.hud}, stars ${starsBefore} -> ${c.stars}`);
+      console.log(`chain done: ${q.id} (${q.steps} steps), ${((Date.now() - t0) / 1000).toFixed(0)}s, counter ${c.hud}, stars ${starsBefore} -> ${c.stars}`); /* clock: moves-to-world-pass */
     }
-    await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the last scene did not end'));
+    await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the last scene did not end')); /* clock: moves-to-world-pass */
     // the book: one part per character, lit for every chain done, the stars of the save
     await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
-    await wait(500); await shot('30-book'); await checkLinks('collection book');
+    await wait(500); await shot('30-book'); await checkLinks('collection book'); /* clock: moves-to-world-pass */
     {
       const b = await g(() => {
         const parts = [...document.querySelectorAll('#shards .shard')];
@@ -792,7 +796,7 @@ try {
     }
     // a reload: the progress is the world's own, under worlds.<id>; the first world's is as it was
     const before = await g(() => __game.save.stars);
-    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: moves-to-world-pass */
     {
       const s1 = await stored(), w = s1.worlds?.[worldId], left = [];
       for (const q of npcs) if ((w?.quests?.[q.id] ?? 0) < q.steps) left.push(`the chain of "${q.id}" is at ${w?.quests?.[q.id] ?? 0} of ${q.steps} in worlds.${worldId}`);
@@ -802,12 +806,12 @@ try {
       if (left.length) errors.push(`reload: ${mode} ${worldId}: ${left.join('; ')}`);
       else console.log(`reload: worlds.${worldId} ${JSON.stringify(w.quests)}, worlds.fairy as it was, ${s1.stars} stars`);
     }
-    await wait(1500); await shot('40-start-again');
+    await wait(1500); await shot('40-start-again'); /* clock: moves-to-world-pass */
     // "start again": the save of a new player, every world of it cleared
     {
       const had = await stored();
-      await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`start again: the button did not reload the game: ${why(e)}`));
-      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+      await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`start again: the button did not reload the game: ${why(e)}`)); /* clock: moves-to-world-pass */
+      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: moves-to-world-pass */
       const now = await stored(), left = [];
       if (now.stars) left.push(`${now.stars} stars`);
       if (now.played) left.push('"played"');
@@ -838,18 +842,18 @@ try {
         // (2 device pixels per pixel) that shows as a smaller canvas: q2 draws 2 pixels per pixel, q1 1.5.
         if (!process.env.Q) await p.addInitScript(() => { const raf = requestAnimationFrame.bind(window); window.requestAnimationFrame = (cb) => setTimeout(() => raf(cb), 40); });
         await p.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
-        await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
-        await p.waitForTimeout(T(1500));
+        await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
+        await p.waitForTimeout(T(1500)); /* clock: pending-part-2 */
         if (!process.env.Q && touch) {
           const w0 = await p.evaluate(() => document.querySelector('#c').width);
-          const lowered = await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) })
+          const lowered = await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) }) /* clock: no-debug */
             .then(async () => { const w1 = await p.evaluate(() => document.querySelector('#c').width); console.log(`without ?debug: slow frames lowered the quality by itself (canvas ${w0} -> ${w1} px wide)`); return true; })
             .catch(() => { errors.push(`without ?debug: slow frames did not lower the quality (the canvas stayed ${w0} px wide)`); return false; });
           // TECH-04: the lowered tier is remembered, so the next launch starts with it, not with the top one again.
           // Read as soon as the start button shows: the game's own fallback needs seconds of frames before it acts.
           if (lowered) {
             await p.reload();
-            await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+            await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
             const w2 = await p.evaluate(() => document.querySelector('#c').width);
             if (w2 < w0) console.log(`without ?debug: after a reload the game starts with the lowered quality (canvas ${w2} px wide, ${w0} before the fallback)`);
             else errors.push(`without ?debug: after the fallback and a reload the game started with the top quality again (the canvas is ${w2} px wide, as before the fallback)`);
@@ -867,24 +871,24 @@ try {
     // Everything below plays with ?debug: the reloads keep the address.
     await page.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : '') + (seed ? `&seed=${encodeURIComponent(seed)}` : '')
       + (worldId ? `&world=${encodeURIComponent(worldId)}` : ''));
-    await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+    await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
     if (offline) {
       cachedFiles = await waitForOfflineCache();
       await ctx.setOffline(true);
       networkOff = true;
       await page.reload();
-      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
     }
     if (worldId) await playWorld();
     else {
-      await wait(1500); await shot('00-start'); await checkLinks('start screen');
+      await wait(1500); await shot('00-start'); await checkLinks('start screen'); /* clock: pending-part-2 */
       let catRepeated = false;      // a tap on the cat repeated a line
       await page.click('#play');
       if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
       // The composition of a number has no levels 1-2: it would play them as its 3, the missing addend, which the phone
       // sizes play already. A run that fixes 1 or 2 (the tall desktop, tools/e2e.mjs) plays its house (level 4) instead.
       if (level && Number(level) < 3) await page.evaluate(() => { __game.save.fixed.compose = 4; });
-      await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) });
+      await gameFor(() => !document.querySelector('#bubble').classList.contains('hidden'), null, 20);
       // E2E_ONLY: the game plays from the group's save - or the group would pass playing something else.
       if (group) {
         // what the group declares (not the text written above: a save lost on its way must not agree with itself)
@@ -899,7 +903,7 @@ try {
         // "Play" is a stop point (src/game/start.ts): a save with friends done earns its achievements there (none of the
         // saves holds one), and the first one's scene comes at once - before the first block, which it would stand over.
         if (want) {
-          await page.waitForFunction(() => __game.ach.scene !== null || Object.keys(__game.save.achievements).length > 0, null, { timeout: T(30000) })
+          await gameFor(() => __game.ach.scene !== null || Object.keys(__game.save.achievements).length > 0, null, 30)
             .catch(() => { throw new Error(`group "${only}": the stop point of "Play" earned nothing from the save`); });
           await fanfareUp('the stop point of "Play"');
         }
@@ -934,7 +938,7 @@ try {
         await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
         // The tap ends it in its own handler; the end is waited for by the page, with room for a slow runner's frames (a busy
         // CI runner took more than 5 s of the clock for it), and the place it ended at is checked right below.
-        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(60000) })
+        await gameFor(() => !__game.flyoverPlayer.active && !__game.busy, null, 60)
           .catch(async () => fail(`a tap did not end the tour: ${JSON.stringify(await state())}`));
         const s1 = await state();
         if (!(s1.at < pts[pts.length - 1] - 0.5)) fail(`the tour ran to its end (${s1.at.toFixed(2)} s) instead of ending at the tap`);
@@ -943,7 +947,7 @@ try {
         console.log(`the tour: a new save flies it with the line "tour", a tap ends it at ${s1.at.toFixed(2)} of ${pts[pts.length - 1].toFixed(1)} s`);
         // a picture from every point of the path
         await g(() => __game.flyover());
-        await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(5000) }).catch(() => fail('the debug command did not start the tour'));
+        await gameFor(() => __game.flyoverPlayer.active, null, 5).catch(() => fail('the debug command did not start the tour'));
         // The camera is put on each point at once (hold) and pictured after two frames of the game: on the slow CI runner
         // flying from point to point in game time would take minutes of the clock.
         for (const [i, t] of pts.entries()) {
@@ -954,13 +958,13 @@ try {
           await shot(`flyover-${i + 1}`);
         }
         await g(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
-        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
+        await gameFor(() => !__game.flyoverPlayer.active && !__game.busy, null, 30).catch(() => fail('the debug tour did not end'));
         console.log(`the tour: ${pts.length} pictures of its points (flyover-1 .. flyover-${pts.length})`);
         // An entry that has no tour: "play", three frames, and the tour never started. The tour starts in the handler of
         // "play" itself, so frames are enough - a second of game time would outlast the welcome on the slow CI runner,
         // and the next block wants that line still sounding.
         const noTour = async (what) => {
-          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
           await page.click('#play');
           await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
           if (await g(() => __game.flyoverPlayer.active)) fail(`${what}: the tour is shown`);
@@ -1024,7 +1028,7 @@ try {
         }, said);
         const caught = (ms) => page.waitForFunction(() => !!window.__hideCatch.done, null, { timeout: ms }).then(() => true, () => false);
         let again = false;
-        if (!(await caught(T(15000)))) {
+        if (!(await caught(T(15000)))) { /* clock: audio */
           // over already (or never sounding): the cat repeats it on a tap
           if (await g(() => !!window.__hideCatch.done)) { /* caught in between */ } else {
             const cat = await g(() => {
@@ -1038,22 +1042,22 @@ try {
             again = true;
           }
         }
-        if (!(await caught(T(60000)))) {
+        if (!(await caught(T(60000)))) { /* clock: audio */
           const clips = await g((key) => window.__started.filter((a) => window.__clip(a) === key).map((a) => ({ paused: a.paused, ended: a.ended, t: +a.currentTime.toFixed(2), dur: +(a.duration || 0).toFixed(2), ready: a.readyState, net: a.networkState, err: a.error?.code ?? null })), said);
           fail(`the clip of "${said}" was never heard sounding past 0.3 s${again ? ', also after a tap on the cat' : ''}: ${JSON.stringify(clips)}`);
         }
         const { clip: id, at: hiddenAt } = await g(() => window.__hideCatch.done);
-        await wait(1200);
+        await wait(1200); /* clock: pending-part-2 */
         const away = await g(() => { const a = window.__started.find((x) => x.__probe); return { paused: a.paused, ended: a.ended, at: a.currentTime }; });
         await visibility(false);
         if (!away.paused || away.ended) fail(`the line "${id}" did not pause (${away.ended ? 'it ended' : 'it went on sounding'})`);
         if (away.at > hiddenAt + 0.15) fail(`the line "${id}" went on ${(away.at - hiddenAt).toFixed(2)} s after the page was hidden`);
-        await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(15000) })
+        await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(15000) }) /* clock: audio */
           .catch(() => fail(`the line "${id}" did not play on when the page was shown again`));
         console.log(`a hidden page: "${id}" paused at ${away.at.toFixed(2)} s and played on when shown${again ? ' (said again on a tap on the cat: the first was over before it was caught)' : ''}`);
       }
       if (has('intro')) {
-        await wait(9000); await shot('01-spawn');
+        await wait(9000); await shot('01-spawn'); /* clock: pending-part-2 */
         await checkVoice('after the introduction');
       }
       // ---- a tap on the cat says the line of the bubble once more, and the heroine does not walk to the cat (VOICE-08) ----
@@ -1070,9 +1074,9 @@ try {
         if (!cat.key) fail('the game remembers no line after the introduction');
         if (cat.under !== 'c') fail(`the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
         await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
-        await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [cat.key, cat.n], { timeout: T(5000) })
+        await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [cat.key, cat.n], { timeout: T(5000) }) /* clock: audio */
           .catch(() => fail(`the clip "${cat.key}" was not started again`));
-        await wait(300);
+        await wait(300); /* clock: pending-part-2 */
         const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), cat.at);
         if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m instead of standing`);
         if (!(await visible('#bubble'))) fail(`"${cat.key}" is said again without its subtitle`);
@@ -1129,7 +1133,7 @@ try {
         // Pictures on open ground at the spawn, the camera close; waits in game time (__game.time).
         const gameWait = async (s) => {
           const t0 = await g(() => __game.time);
-          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) })
+          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) }) /* clock: ceiling */
             .catch(() => fail(`${s} s of game time did not pass`));
         };
         const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
@@ -1137,14 +1141,14 @@ try {
         await gameWait(1.2); await shot('hero-idle');
         await page.keyboard.down('KeyW');
         try {
-          await page.waitForFunction(() => ['Walk', 'Run'].includes(__game.hero.current), null, { timeout: T(5000) }).catch(() => fail('she does not walk'));
+          await gameFor(() => ['Walk', 'Run'].includes(__game.hero.current), null, 5).catch(() => fail('she does not walk'));
           await gameWait(0.6); await shot('hero-walk');
         } finally { await page.keyboard.up('KeyW'); }
         await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
         await gameWait(0.8);
         const floor = await g(() => __game.hero.root.position.y);
         await page.keyboard.press('Space');
-        await page.waitForFunction((y) => __game.hero.current === 'Jump' && __game.hero.root.position.y - y > 0.3, floor, { timeout: T(5000), polling: 'raf' })
+        await gameFor((y) => __game.hero.current === 'Jump' && __game.hero.root.position.y - y > 0.3, floor, 5)
           .catch(() => fail('she does not jump'));
         await shot('hero-jump');
         await g(() => __game.closeup(null));
@@ -1239,7 +1243,7 @@ try {
         await wear({ head: 'crown', wand: 'wand_star', wings: 'wings_butterfly', trail: 'trail_sparkle' });
         await page.keyboard.down('KeyW');
         try {
-          await page.waitForFunction(() => ['Walk', 'Run'].includes(__game.hero.current), null, { timeout: T(5000) }).catch(() => gearFail('she does not walk'));
+          await gameFor(() => ['Walk', 'Run'].includes(__game.hero.current), null, 5).catch(() => gearFail('she does not walk'));
           await gameWait(0.6); await shot('gear-crown-walk');
         } finally { await page.keyboard.up('KeyW'); }
         await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
@@ -1310,10 +1314,10 @@ try {
         const record = () => g(() => JSON.stringify({ skills: __game.save.skills, quests: __game.save.worlds.fairy.quests, stars: __game.save.stars }));
         const before = await record();
         if (await sounding()) cutOff++;
-        await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) }))
+        await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) })) /* clock: input-event */
           .catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
         for (const pause of [400, 1200]) {
-          await wait(pause);
+          await wait(pause); /* clock: pending-part-2 */
           const left = await held();
           left.push(...await g((n) => {
             const out = [], shownEl = (sel) => !document.querySelector(sel).classList.contains('hidden');
@@ -1330,7 +1334,7 @@ try {
           if (await sounding()) left.push('a spoken line is still sounding');
           if (left.length) fail(`${left.join('; ')} (${pause} ms later)`);
         }
-        await g(([x, z]) => __game.teleport(x + 8, z + 8), [q.x, q.z]); await wait(300);
+        await g(([x, z]) => __game.teleport(x + 8, z + 8), [q.x, q.z]); await wait(300); /* clock: pending-part-2 */
         if (!(await walks())) fail('the heroine does not walk');
         console.log(`butterflies closed ${when}: ${ambient} butterflies in the world, nothing recorded, the heroine walks`);
       };
@@ -1368,14 +1372,14 @@ try {
           tick();
         }), other.id);
         if (mark < 0) fail('the search did not end on the fifth star');
-        await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the task of "${other.id}" did not open`));
+        await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20).catch(() => fail(`the task of "${other.id}" did not open`));
         // A question of the bank (R37) is fetched the first time it is asked: src/core/voice.ts waits up to 4 s for it
         // (BANK_WAIT_MS), then says the general question of the task instead. So the question is waited for until one of the
         // two sounds - the bubble's key tells which - within that pause and a margin; nothing sounding by then fails below.
         const asked = await page.waitForFunction(() => {
           const key = __game.line;
           return !!key && window.__started.some((a) => !a.paused && !a.ended && window.__clip(a) === key) && key;
-        }, null, { timeout: T(6000) }).then((h) => h.jsonValue(), () => null);
+        }, null, { timeout: T(6000) }).then((h) => h.jsonValue(), () => null); /* clock: audio */
         const askedBy = !asked ? 'nothing' : /^q_/.test(asked) ? `its clip of the bank (${asked})`
           : `the general question (${asked}): no clip of the bank to play (not kept, without network; or not loaded in 4 s)`;
         const before = await saved();
@@ -1388,7 +1392,7 @@ try {
         if (!probe.inTask) fail(noPlan);
         if (!probe.live.includes(probe.key)) fail(`the question "${probe.key}" is not sounding when its task opens (sounding: ${probe.live.join(' ') || 'nothing'})`);
         if (probe.again) fail(`a tap on the bubble started "${probe.key}" anew while it was still sounding`);
-        await page.waitForFunction((k) => window.__started.findLast((a) => window.__clip(a) === k)?.paused, probe.key, { timeout: T(20000) })
+        await page.waitForFunction((k) => window.__started.findLast((a) => window.__clip(a) === k)?.paused, probe.key, { timeout: T(20000) }) /* clock: audio */
           .catch(() => fail(`the question "${probe.key}" did not end`));
         const heard = await g((from) => {
           const captions = window.__captions; window.__captions = null;
@@ -1405,10 +1409,10 @@ try {
         if (!heard.dropped.includes('t_stars_back')) fail('"t_stars_back" was not turned away: the conversation did not start before it');
         const n = await g((k) => window.__starts[k] ?? 0, probe.key);
         await tapOn('#bubble').catch((e) => fail(`the bubble cannot be tapped: ${why(e)}`));
-        await page.waitForFunction(([k, was]) => (window.__starts[k] ?? 0) === was + 1, [probe.key, n], { timeout: T(5000) })
+        await page.waitForFunction(([k, was]) => (window.__starts[k] ?? 0) === was + 1, [probe.key, n], { timeout: T(5000) }) /* clock: audio */
           .catch(() => fail(`a tap on the bubble did not start "${probe.key}" again once it was over`));
         await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${why(e)}`));
-        await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
+        await gameFor(() => !__game.busy, null, 10).catch(() => fail('the closed task did not give the controls back'));
         const left = [];
         if (await sounding()) left.push('the question is still sounding after its task was closed');
         if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
@@ -1428,7 +1432,7 @@ try {
         const fail = (what) => { throw new Error(`fifth star: ${what}`); };
         const from = await g(() => { const n = window.__plays; __game.cheat(); return n; });
         const since = () => g((f) => window.__started.filter((a) => a.__n > f).map((a) => ({ id: window.__clip(a), ended: a.ended })), from);
-        await page.waitForFunction((f) => window.__started.some((a) => a.__n > f && window.__clip(a).startsWith('praise_')), from, { timeout: T(15000) })
+        await page.waitForFunction((f) => window.__started.some((a) => a.__n > f && window.__clip(a).startsWith('praise_')), from, { timeout: T(15000) }) /* clock: audio */
           .catch(async () => fail(`no praise was started after it (started since: ${(await since()).map((c) => c.id).join(' ') || 'nothing'})`));
         const clips = await since(), names = clips.map((c) => c.id).join(' ');
         const five = clips.findIndex((c) => c.id === 'tap_5'), praised = clips.findIndex((c) => c.id.startsWith('praise_'));
@@ -1448,9 +1452,9 @@ try {
         const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
         if (!other) fail('no character with a finished quest to talk to');
         const found = await g((id) => { __game.talk(id); return __game.search.found; }, other.id);
-        await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the task of "${other.id}" did not open`));
+        await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20).catch(() => fail(`the task of "${other.id}" did not open`));
         await tapOn('#taskClose').catch((e) => fail(`the task cannot be closed: ${why(e)}`));
-        await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
+        await gameFor(() => !__game.busy, null, 10).catch(() => fail('the closed task did not give the controls back'));
         const b = await bubbleNow(), left = [];
         if (!b.shown) left.push('the bubble is hidden');
         if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search: a tap on the cat would say it`);
@@ -1478,10 +1482,10 @@ try {
           if (mute && !b.text.startsWith(asked.stars?.text ?? '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
           if (left.length) fail(`${when}: ${left.join('; ')}`);
         };
-        await page.waitForFunction((n) => __game.busy && (window.__starts.t_stars ?? 0) > n, was.n, { timeout: T(10000) })
+        await page.waitForFunction((n) => __game.busy && (window.__starts.t_stars ?? 0) > n, was.n, { timeout: T(10000) }) /* clock: audio */
           .catch(() => fail('the question of the search was not said'));
         check(await bubbleNow(), 'while the question sounds');
-        await page.waitForFunction(() => !__game.busy, null, { timeout: T(20000) }).catch(() => fail('the scene did not end'));
+        await gameFor(() => !__game.busy, null, 20).catch(() => fail('the scene did not end'));
         const b = await bubbleNow();
         check(b, 'after the scene');
         console.log(`a talk to the deer during the search: the question was said, the bubble shows "${b.text}" (${b.key})`);
@@ -1503,21 +1507,21 @@ try {
           __game.save.worlds.fairy.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
           return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found, settled: __game.shardsSettled };
         }, other.id);
-        await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the last task of "${other.id}" did not open`));
+        await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20).catch(() => fail(`the last task of "${other.id}" did not open`));
         // __game.cheat() walks onto a star while the search is on: the panel task is solved with the search put aside for
         // that one synchronous call (no frame runs in between)
         const how = await g(() => { const s = __game.search; s.active = false; try { return __game.cheat(); } finally { s.active = true; } });
         if (how !== 'panel') fail(`the last task of "${other.id}" was not solved (${how || 'nothing done'})`);
-        await fanfareCard(T(30000), 'a shard during the search').catch(() => fail(`no shard of "${other.id}" after its last task`));
+        await fanfareCard(30, 'a shard during the search').catch(() => fail(`no shard of "${other.id}" after its last task`));
         await tapOn('#fanfareOk').catch((e) => fail(`the button of the shard cannot be pressed: ${why(e)}`));
-        await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene of the shard did not end'));
+        await gameFor(() => !__game.busy, null, 15).catch(() => fail('the scene of the shard did not end'));
         await silence().catch(() => fail('the thanks did not end'));
         // "go on" is decided the moment the thanks end (src/game/dialogue.ts, `shardsSettled`): the walkthrough waits for
         // that decision, not for a while of game time (a starved runner did not reach 1 s of it in 30 s), then for the
         // line it may have started to be heard to its end
-        await page.waitForFunction((n) => __game.shardsSettled > n, was.settled, { timeout: T(30000) })
+        await gameFor((n) => __game.shardsSettled > n, was.settled, 30)
           .catch(() => fail('the game never decided whether to say "go on" after the shard'));
-        await wait(300); await silence().catch(() => fail('a line after the shard did not end'));
+        await wait(300); await silence().catch(() => fail('a line after the shard did not end')); /* clock: pending-part-2 */
         const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.worlds.fairy.quests }));
         const b = await bubbleNow(), left = [];
         if ((now.quest[other.id] ?? 0) < 3) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
@@ -1542,8 +1546,8 @@ try {
         const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
         const before = await saved();
         await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
-        await page.waitForFunction(() => !__game.busy, null, { timeout: T(10000) }).catch(() => fail('the closed task did not give the controls back'));
-        await wait(500);
+        await gameFor(() => !__game.busy, null, 10).catch(() => fail('the closed task did not give the controls back'));
+        await wait(500); /* clock: pending-part-2 */
         const left = await held();
         if (await visible('#task')) left.push('the task is still on screen');
         if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
@@ -1551,7 +1555,7 @@ try {
         const after = await saved();
         if (after !== before) left.push(`the save changed: ${before} -> ${after}`);
         if (left.length) fail(left.join('; '));
-        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(300);   // open ground at the spawn
+        await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(300);   // open ground at the spawn /* clock: pending-part-2 */
         if (!(await walks())) fail('the heroine does not walk');
         closed.set(type, { quest: q.id, step });
         console.log(`"${type}" closed with the cross (${q.id}, step ${step + 1}): nothing recorded, the heroine walks`);
@@ -1561,11 +1565,11 @@ try {
         // "Stuck" is no progress, not a long chain: the clock starts again at every step of the chain. A chain whose tasks are
         // met for the first time (closed with the cross, then three deliberate mistakes each) outlasts one limit on the slow
         // CI runner while every step of it moves on (the deer's chain of a new kind, 2026-11-16).
-        let t0 = Date.now(), at = -1;
+        let t0 = Date.now(), at = -1; /* clock: stuck-guard */
         while ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
           const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
-          if (step !== at) { at = step; t0 = Date.now(); }
-          if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (no step for ${Math.round(T(stuckMs) / 1000)} s at step ${step + 1})`);
+          if (step !== at) { at = step; t0 = Date.now(); } /* clock: stuck-guard */
+          if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (no step for ${Math.round(T(stuckMs) / 1000)} s at step ${step + 1})`); /* clock: stuck-guard */
           await starsKept(`in the quest "${q.id}"`);
           // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
           if (!crystalsWrong && !(await g(() => __game.busy))) {
@@ -1596,7 +1600,7 @@ try {
               await holdAch();   // the stop point after the card would bring a scene in before "go_next"
               await page.click('#fanfareOk');
               await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
-                && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
+                && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) }) /* clock: audio */
                 .catch(() => fail('"go_next" was not said with its subtitle once the thanks were over'));
               await releaseAch();
               console.log(`after the shard: "go_next" is said with its subtitle (the button was pressed ${during ? 'while the thanks sounded' : 'after the thanks'})`);
@@ -1605,26 +1609,26 @@ try {
               // After the second shard the button waits for the end of the thanks: "go on" must still come after the scene,
               // with its subtitle - not inside the scene, whose end would clear its bubble.
               const fail = (what) => { throw new Error(`after the second shard: ${what}`); };
-              const t0 = Date.now();
-              while (await sounding()) { if (Date.now() - t0 > T(15000)) fail('the thanks did not end'); await wait(200); }
+              const t0 = Date.now(); /* clock: audio */
+              while (await sounding()) { if (Date.now() - t0 > T(15000)) fail('the thanks did not end'); await wait(200); } /* clock: audio */
               const said = await g(() => window.__starts.go_next ?? 0);
               await holdAch();   // as above: no scene between the card and "go_next"
               await page.click('#fanfareOk');
               await page.waitForFunction((n) => !__game.busy && __game.line === 'go_next' && (window.__starts.go_next ?? 0) > n
-                && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) })
+                && !document.querySelector('#bubble').classList.contains('hidden'), said, { timeout: T(15000) }) /* clock: audio */
                 .catch(() => fail('"go_next" was not said with its subtitle after the scene (the button was pressed after the thanks)'));
               await releaseAch();
               console.log('after the second shard: "go_next" is said with its subtitle (the button was pressed after the thanks)');
               onwardLate = true;
             } else await page.click('#fanfareOk');
-            await wait(500); continue;
+            await wait(500); continue; /* clock: pending-part-2 */
           }
           { const wrong = await unplanned(); if (wrong) errors.push(wrong); }
           if (await visible('#task')) {
             const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
             if (!closed.has(type)) { await closeTask(q, type); continue; }
             if (!seen.has(type)) {
-              seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); await checkQuestion(type);
+              seen.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); await checkQuestion(type); /* clock: pending-part-2 */
               // Three deliberate mistakes per task type (LEARN-10, R16): after each the scenario waits until "try again" and
               // the line of that rung have ended and the rung's show has run (the stage's `data-shown`), then checks the
               // screen: rung 1 gives nothing away (`hint step 1:`), rung 2 shows the solution without lighting the answer
@@ -1637,7 +1641,7 @@ try {
                 let rungs = 0;
                 for (let k = 1; k <= 3; k++) {
                   // a replay of "watch and repeat" locks its pads: the next mistake waits for the end of the show
-                  await page.waitForFunction(() => !document.querySelector('#taskStage').classList.contains('watch'), null, { timeout: T(20000) }).catch(() => {});
+                  await gameFor(() => !document.querySelector('#taskStage').classList.contains('watch'), null, 20).catch(() => {});
                   const wrong = await g((kind) => {
                     const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
                     if (kind === 'sort') {
@@ -1665,7 +1669,7 @@ try {
                     await shot(`hint1-${type}`); await checkHint(type);
                   } else if (k === 2) {
                     // The picture is taken once the solution is on screen: a broken "show the solution" step fails the run.
-                    const drawn = await page.waitForSelector(SHOWS[type], { state: 'attached', timeout: T(15000) }).then(() => true, () => false);
+                    const drawn = await gameFor((sel) => !!document.querySelector(sel), SHOWS[type], 15).then(() => true, () => false);
                     if (!drawn) errors.push(`hint: ${mode} hint-${type}: the solution was not shown after the second mistake (no ${SHOWS[type]})`);
                     const lit = await g(() => document.querySelectorAll('#task .pulse').length);
                     if (lit) errors.push(`hint: ${mode} hint-${type}: the second mistake already lights the answer (.pulse)`);
@@ -1688,7 +1692,7 @@ try {
                 if (rungs === 3) mistakes.add(type);
               }
             }
-            await g(() => __game.cheat()); await wait(1500); continue;
+            await g(() => __game.cheat()); await wait(1500); continue; /* clock: pending-part-2 */
           }
           if (await g(() => __game.bf.active)) {
             bfVisits++;
@@ -1699,16 +1703,16 @@ try {
             }
             if (bfVisits === 2) {
               // second meeting: a wrong number, and the task is closed while the cat counts the butterflies aloud
-              await wait(1500); await shot('task-butterflies'); await checkQuestion('butterflies');
+              await wait(1500); await shot('task-butterflies'); await checkQuestion('butterflies'); /* clock: pending-part-2 */
               // the cat counts after the second mistake (rung 2): the first one only says the way
               if (!(await wrongNumber())) throw new Error('closing the butterflies task: no wrong number to tap');
-              await page.waitForFunction(() => __game.bf.shown === 1, null, { timeout: T(20000) });
+              await gameFor(() => __game.bf.shown === 1, null, 20);
               if (!(await wrongNumber())) throw new Error('closing the butterflies task: no second wrong number to tap');
-              await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 2, null, { timeout: T(30000) });
+              await gameFor(() => __game.bf.demo && __game.bf.sprites.length >= 2, null, 30);
               await closeButterflies(q, 'while the cat counts'); continue;
             }
             if (bfVisits === 3) {
-              await wait(1500);
+              await wait(1500); /* clock: pending-part-2 */
               // Three deliberate wrong numbers (R16): 1 - the way is said, no butterfly is touched or numbered and no
               // answer pulses; 2 - the cat counts every butterfly aloud; 3 - the button of the right number pulses, alone.
               const giveaway = () => g(() => ({ sprites: __game.bf.sprites.length, landed: __game.flies.flies.slice(__game.bf.first, __game.bf.first + __game.bf.n).filter((f) => f.landed).length,
@@ -1717,13 +1721,13 @@ try {
               for (let k = 1; k <= 3; k++) {
                 if (!(await wrongNumber())) { errors.push(`no deliberate mistake ${k} in the "butterflies" task: no other number to tap`); break; }
                 if (k === 2) {
-                  const counting = await page.waitForFunction(() => __game.bf.demo && __game.bf.sprites.length >= 1, null, { timeout: T(20000) }).then(() => true, () => false);
+                  const counting = await gameFor(() => __game.bf.demo && __game.bf.sprites.length >= 1, null, 20).then(() => true, () => false);
                   if (!counting) { errors.push(`hint: ${mode} hint-butterflies: the cat did not start counting the butterflies after the second mistake`); break; }
                   if ((await giveaway()).pulse.length) errors.push(`hint: ${mode} hint-butterflies: the second mistake already lights the answer`);
                   await shot('hint-butterflies'); await checkHint('butterflies');
-                  await page.waitForFunction(() => !__game.bf.demo, null, { timeout: T(30000) });
+                  await gameFor(() => !__game.bf.demo, null, 30);
                 } else {
-                  const ran = await page.waitForFunction((r) => __game.bf.shown === r, k, { timeout: T(20000) }).then(() => true, () => false);
+                  const ran = await gameFor((r) => __game.bf.shown === r, k, 20).then(() => true, () => false);
                   if (!ran) { errors.push(`hint: ${mode} butterflies: the hint of mistake ${k} did not run its course`); break; }
                   const v = await giveaway();
                   if (k === 1 && (v.sprites || v.landed || v.pulse.length)) errors.push(`hint step 1: ${mode} butterflies: after the first mistake the screen gives the answer away: ${JSON.stringify(v)}`);
@@ -1739,15 +1743,15 @@ try {
             const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
             await g(() => __game.cheat());
             await page.locator('#answersClose').dispatchEvent('click');
-            await wait(1500);
+            await wait(1500); /* clock: pending-part-2 */
             if ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) !== step + 1) errors.push('the close button undid the right answer of the butterflies task');
             continue;
           }
           if (await g(() => __game.search.active)) {
-            if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); await checkQuestion('stars');
+            if (!seen.has('stars')) { seen.add('stars'); await wait(800); await shot('task-stars'); await checkQuestion('stars'); /* clock: pending-part-2 */
               // Without the voice no timer hides the question: it is still there after the six seconds it gets with the voice.
               if (mute) {
-                await wait(6500);
+                await wait(6500); /* clock: pending-part-2 */
                 const b = await bubbleNow();
                 if (!b.shown || b.text !== asked.stars.text) errors.push(`question: ${mode} task-stars: without the voice the question was gone before the first star: ${b.shown ? `"${b.text}"` : 'the bubble is hidden'}`);
               }
@@ -1766,16 +1770,16 @@ try {
             if (!shardSearched && !hurried && found >= 1 && found <= 3) { await shardInSearch(q); continue; }
             if (!hurried && found === 4) { await talkAfterLastStar(q); continue; }
             if (!fifthHeard && found === 4) { await fifthStar(); continue; }
-            await g(() => __game.cheat()); await wait(700); continue;
+            await g(() => __game.cheat()); await wait(700); continue; /* clock: pending-part-2 */
           }
           if (!(await g(() => __game.busy))) {
             await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
-            await wait(400);
+            await wait(400); /* clock: pending-part-2 */
             if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
           }
-          await wait(600);
+          await wait(600); /* clock: pending-part-2 */
         }
-        console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`);
+        console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`); /* clock: log-time */
         // "All the shards are found" is said after the last friend's shard, never earlier.
         {
           const a = await g(() => ({ said: window.__starts.all_shards ?? 0, done: Object.values(__game.save.worlds.fairy.quests).filter((v) => v >= 3).length, all: __game.npcs.length }));
@@ -1809,7 +1813,7 @@ try {
         }
         console.log(`closed with the cross at the first meeting, nothing recorded, the heroine walked, then played: ${[...closed.keys()].join(' ')}`);
       }
-      await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
+      await gameFor(() => !__game.busy, null, 30);
       // ---- "sort" in the world (ARCH-09): the debug show at the deer, from a description like the panel's ----
       // Opened by __game.worldSort() only (the deer's chain keeps its "sort" on the panel). Once it is closed with its
       // cross, once it is solved; either way nothing is recorded - it is a debug show - and the heroine walks afterwards.
@@ -1818,13 +1822,13 @@ try {
         const before = await saved();
         const open = async () => {
           await g(() => __game.worldSort());
-          await page.waitForFunction(() => __game.sorting.active && __game.busy, null, { timeout: T(10000) }).catch(() => fail('the show did not open'));
+          await gameFor(() => __game.sorting.active && __game.busy, null, 10).catch(() => fail('the show did not open'));
           if (!(await g(() => __game.inTask))) fail(noPlan);
         };
         const ended = async (how) => {
-          await page.waitForFunction(() => !__game.sorting.active && !__game.busy, null, { timeout: T(10000) })
+          await gameFor(() => !__game.sorting.active && !__game.busy, null, 10)
             .catch(() => fail(`${how}: the show did not give the controls back`));
-          await wait(500);
+          await wait(500); /* clock: pending-part-2 */
           const left = await held();
           if (await visible('#answersClose')) left.push('the close button is still shown');
           if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
@@ -1834,7 +1838,7 @@ try {
           if (left.length) fail(`${how}: ${left.join('; ')}`);
         };
         await open();
-        await wait(1500); await shot('task-world-sort');
+        await wait(1500); await shot('task-world-sort'); /* clock: pending-part-2 */
         const pedestals = await g(() => __game.sorting.colors.length);
         if (pedestals < 2) fail(`${pedestals} pedestals on the arc`);
         await tapOn('#answersClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
@@ -1865,20 +1869,20 @@ try {
         // a starved CI runner a wall-clock pause is a fraction of that in the game. Waits here are in game seconds.
         const gameWait = async (s) => {
           const t0 = await g(() => __game.time);
-          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) })
+          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) }) /* clock: ceiling */
             .catch(() => fail(`${s} s of game time did not pass`));
         };
         const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
         // `ms` is game time (__game.time): a frame counts at most 0.05 s, so with software rendering (CI) a second
         // on the wall clock is a quarter of a second in the game, and the path in it is a quarter as long.
         const path = async (ms) => {
-          await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(400);
+          await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; }); await wait(400); /* clock: pending-part-2 */
           const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
           await page.keyboard.down('KeyW');
           let anim = '';
           try {
             const t0 = await g(() => __game.time);
-            await page.waitForFunction(([t, s]) => __game.time - t >= s, [t0, ms / 1000], { timeout: T(ms * 30 + 5000), polling: 'raf' })
+            await page.waitForFunction(([t, s]) => __game.time - t >= s, [t0, ms / 1000], { timeout: T(600000), polling: 'raf' }) /* clock: ceiling */
               .catch(() => fail(`${ms / 1000} s of game time did not pass`));
             anim = await g(() => __game.hero.current);
           } finally { await page.keyboard.up('KeyW'); }
@@ -1887,9 +1891,9 @@ try {
         };
         // The picture of the open panel: at the spawn, with no bubble and no action button over the game.
         await g(() => { __game.teleport(0, 14); __game.cam.yaw = 0; });
-        await page.waitForFunction(() => document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) })
+        await gameFor(() => document.querySelector('#bubble').classList.contains('hidden'), null, 20)
           .catch(() => fail('the speech bubble did not go away'));
-        await wait(600);
+        await wait(600); /* clock: pending-part-2 */
         await tapOn('#tuneBtn');
         if (!(await visible('#tune'))) fail('the button did not open the panel');
         await shot('32-tuning');
@@ -1931,7 +1935,7 @@ try {
         if (await visible('#tune')) fail('the button did not close the panel');
         {
           const t0 = await g(() => __game.time);   // up to 5 s of game time, however slow the frames are
-          await page.waitForFunction((t) => (__game.cam.dist > 8.5 && !__game.cam.focus) || __game.time - t > 5, t0, { timeout: T(155000) })
+          await page.waitForFunction((t) => (__game.cam.dist > 8.5 && !__game.cam.focus) || __game.time - t > 5, t0, { timeout: T(155000) }) /* clock: ceiling */
             .catch(() => {});
           if (!(await g(() => __game.cam.dist > 8.5 && !__game.cam.focus))) {
             fail(`the camera distance did not follow its slider: ${(await g(() => __game.cam.dist)).toFixed(2)} after ${(await g((t) => __game.time - t, t0)).toFixed(1)} s of game time`);
@@ -1950,7 +1954,7 @@ try {
         if (JSON.stringify(now) !== JSON.stringify(defaults)) fail(`"reset" did not bring the values of the code back: ${JSON.stringify(now)}`);
         await tapOn('#tuneBtn');
         if (await visible('#tune')) fail('the button did not close the panel');
-        await g(([x, z]) => __game.teleport(x, z), back); await wait(300);
+        await g(([x, z]) => __game.teleport(x, z), back); await wait(300); /* clock: pending-part-2 */
       }
       // ---- the heroine does not walk through a character (the world's ground and its colliders, ARCH-06) ----
       // She stands 2.5 m in front of the first character (south of it: with the camera turn 0 "forward" is -z) and walks
@@ -1962,11 +1966,11 @@ try {
           const look = () => { if (window.__near === undefined) return;
             window.__near = Math.min(window.__near, Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z)); requestAnimationFrame(look); };
           look(); }, at);
-        await wait(300);
+        await wait(300); /* clock: pending-part-2 */
         const t0 = await g(() => __game.time);
         await page.keyboard.down('KeyW');
         try {
-          await page.waitForFunction((t) => __game.time - t >= 1.5, t0, { timeout: T(60000) }).catch(() => fail('1.5 s of game time did not pass'));
+          await page.waitForFunction((t) => __game.time - t >= 1.5, t0, { timeout: T(600000) /* clock: ceiling */ }).catch(() => fail('1.5 s of game time did not pass'));
         } finally { await page.keyboard.up('KeyW'); }
         const near = await g(() => { const n = window.__near; window.__near = undefined; return n; });
         const moved = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), at);
@@ -1987,7 +1991,7 @@ try {
           const CALM = { fairy: 'gather', bird: 'perch', fish: 'swim' };
           const gameWait = async (s) => {
             const t0 = await g(() => __game.time);
-            await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) })
+            await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) }) /* clock: ceiling */
               .catch(() => fail(`${s} s of game time did not pass`));
           };
           const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
@@ -2085,7 +2089,7 @@ try {
             if (tap0.state !== CALM[k]) fail(`the ${k} is held in "${tap0.state}", not "${CALM[k]}"`);
             if (tap0.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(tap0.x)},${Math.round(tap0.y)}: there is "${tap0.under}"`);
             await (touch ? page.touchscreen.tap(tap0.x, tap0.y) : page.mouse.click(tap0.x, tap0.y));
-            await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(10000) })
+            await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(10000) }) /* clock: input-event */
               .catch(() => fail(`a tap on the ${k} at ${Math.round(tap0.x)},${Math.round(tap0.y)} was not taken`));
             if (await g(([i, n]) => __game.creatures[i].taps !== n + 1, [i, taps0])) fail(`one tap on the ${k} counted more than once`);
             const state = await g((i) => __game.creatures[i].state, i);
@@ -2119,7 +2123,7 @@ try {
         await g(() => __game.flyover());
         // the camera is set on the point at once (hold): flying there in game time would take minutes of the clock on the
         // slow CI runner
-        await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(30000) })
+        await gameFor(() => __game.flyoverPlayer.active, null, 30)
           .catch(() => fail('the debug tour did not start'));
         await g((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
         if (Math.abs((await g(() => __game.flyoverPlayer.elapsed)) - pts[MAGIC_POINT]) > 0.01) fail(`the camera did not stand on point ${MAGIC_POINT + 1} of the tour`);
@@ -2186,7 +2190,7 @@ try {
         if (!(d.before < MAGIC_DIFF.all)) fail(`the still world's picture differs from the frame before it by ${d.before.toFixed(4)} (the threshold ${MAGIC_DIFF.all})`);
         const said = `magic 0 vs 1 differ by ${d.all.toFixed(4)} (the sky ${d.sky.toFixed(4)}), two pictures at 0 by ${d.same.toFixed(4)}, the still frame from the one before by ${d.before.toFixed(4)}`;
         if (!(d.all > MAGIC_DIFF.all) || !(d.sky > MAGIC_DIFF.sky) || !(d.all > d.same * 3)) fail(`${said}: the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and 3 times the same magic`);
-        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
+        await gameFor(() => !__game.flyoverPlayer.active && !__game.busy, null, 30).catch(() => fail('the debug tour did not end'));
         // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way
         // (the whole way back takes seconds of game time - minutes of the clock on the slow CI runner)
         if (!(await gameUntil((w) => Math.abs(__game.magic.target - w) < 1e-9 && __game.magic.value < 1 - (1 - w) * 0.1, want, 2))) fail('the debug value did not let go of the magic in 2 s of game time');
@@ -2196,8 +2200,8 @@ try {
           const p2 = await page.context().newPage();
           try {
             await p2.goto(page.url());
-            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
-            await p2.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => fail('no __game.magic in the page loaded again'));
+            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
+            await p2.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => fail('no __game.magic in the page loaded again')); /* clock: page-load */
             return await p2.evaluate(() => ({ value: __game.magic.value, target: __game.magic.target }));
           } finally { await p2.close().catch(() => {}); }
         })();
@@ -2206,9 +2210,9 @@ try {
       }
       if (has('finale')) {
         // replay one finished quest
-        await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await controlsBack(T(30000), 'a finished quest replayed');
+        await g(() => __game.talk('fox')); await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20); await g(() => __game.cheat()); await controlsBack(30, 'a finished quest replayed');
         // finale
-        await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine');
+        await g(() => __game.teleport(21.2, -6.4)); await wait(600); await shot('20-shrine'); /* clock: pending-part-2 */
         // The finale is broken once on purpose, right after it has taken the controls and started to merge the shards.
         // The heroine must walk again; then the finale is played for real.
         {
@@ -2218,15 +2222,15 @@ try {
           if (!(await walks())) throw new Error('the broken finale: the heroine does not walk');
           console.log('broken finale: reported, the controls are back, the heroine walks');
         }
-        await g(() => __game.teleport(21.2, -6.4)); await wait(600);
+        await g(() => __game.teleport(21.2, -6.4)); await wait(600); /* clock: pending-part-2 */
         if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
-        await wait(2500); await shot('21-finale');
-        await fanfareCard(T(20000), 'the finale'); await wait(800); await shot('22-final-card');
+        await wait(2500); await shot('21-finale'); /* clock: pending-part-2 */
+        await fanfareCard(20, 'the finale'); await wait(800); await shot('22-final-card'); /* clock: pending-part-2 */
         const freeSaid = await g(() => window.__starts.free ?? 0);
-        await page.click('#fanfareOk'); await wait(4000);
+        await page.click('#fanfareOk'); await wait(4000); /* clock: pending-part-2 */
         // "Walk around" comes after the scene and after the final words, with its subtitle - like "go on" after a shard.
         await page.waitForFunction((n) => !__game.busy && __game.line === 'free' && (window.__starts.free ?? 0) > n
-          && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(10000) })
+          && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(10000) }) /* clock: audio */
           .catch(() => { throw new Error('after the finale: "free" was not said with its subtitle'); });
         await shot('23-restored');
       }
@@ -2234,7 +2238,7 @@ try {
       if (has('magic-crystal')) {
         const state = () => g(() => ({ value: __game.magic.value, target: __game.magic.target, final: __game.save.worlds.fairy.final }));
         // the target at once (the save says the crystal is whole), the shown value by the game's clock
-        await page.waitForFunction(() => __game.save.worlds.fairy.final === true, null, { timeout: T(60000) })
+        await gameFor(() => __game.save.worlds.fairy.final === true, null, 60)
           .catch(async () => { throw new Error(`the magic: the crystal is not restored in the save: ${JSON.stringify(await state())}`); });
         if ((await g(() => __game.magic.target)) !== 1) throw new Error(`the magic: the crystal is restored, the magic heads for ${JSON.stringify(await state())}, not 1`);
         if (!(await magicSettles(1))) throw new Error(`the magic: the crystal is restored, the magic is ${JSON.stringify(await state())} after ${MAGIC_SETTLE} s of game time, not 1`);
@@ -2247,7 +2251,7 @@ try {
       // that nothing scrolls. `want`: how many places of the shelf must stand lit. Waits are by event only (R49).
       const checkProfile = async (when, want) => {
         const fail = (what) => { throw new Error(`profile (${when}): ${what}`); };
-        const until = (fn, arg, what, ms = 15000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what));
+        const until = (fn, arg, what, ms = 15000) => gameFor(fn, arg, ms / 1000).catch(() => fail(what));
         const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
         await until(() => !document.querySelector('#book').classList.contains('hidden') && document.querySelectorAll('#shelf .place').length === 5, null, 'the book shows no shelf of five places');
         await until(() => __game.cam.dist < 4, null, 'the camera does not come close to the heroine', 20000);
@@ -2302,7 +2306,7 @@ try {
       // collection + parents
       if (has('book')) {
         const firstBook = await g(() => !__game.save.shelfSeen);
-        await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book');
+        await page.click('#btnBook'); await wait(500); await shot('30-book'); await checkLinks('collection book'); /* clock: pending-part-2 */
         // the first opening of the shelf: the cat's line, a subtitle only (shelf_first is not recorded yet)
         if (firstBook && !(await g(() => !document.querySelector('#bookSay').classList.contains('quiet') && document.querySelector('#bookSayText').textContent.length > 0))) errors.push(`book: ${mode}: no line of the cat at the first opening of the shelf`);
         // The book shows what the world gives it: one shard per friend, lit for every friend done, the stars of the save
@@ -2337,7 +2341,7 @@ try {
         const fail = (what) => { throw new Error(`shop: ${what}`); };
         const stored = () => g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
         const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
-        const tab = async (id) => { await tap(`#shopTabs [data-tab=${id}]`); await wait(250); };
+        const tab = async (id) => { await tap(`#shopTabs [data-tab=${id}]`); await wait(250); }; /* clock: pending-part-2 */
         const state = () => g(() => ({ stars: __game.save.stars, owned: [...__game.save.owned], gear: { ...__game.save.gear },
           worn: Object.fromEntries(['head', 'wand', 'wings', 'trail'].map((k) => [k, __game.gear.get(k)])),
           hair: __game.save.hair, wingColor: __game.save.wingColor, tint: __game.gear.color, hud: document.querySelector('#stars').textContent }));
@@ -2346,16 +2350,16 @@ try {
           return [cs.color, cs.backgroundColor, cs.backgroundImage].join(' ').match(/rgba?\([^)]*\)/g)?.map((c) => c.match(/[\d.]+/g).map(Number))
             .filter(([r, gr, b, a = 1]) => a > 0.1 && r > 180 && gr < 120 && b < 120).length ?? 0;
         });
-        await tap('#btnShop'); await wait(600);
+        await tap('#btnShop'); await wait(600); /* clock: pending-part-2 */
         if (!(await visible('#shop'))) fail('the button of the book does not open it');
         if (await visible('#book')) fail('the book is still open over the heroine');
-        await page.waitForFunction(() => __game.cam.dist < 4, null, { timeout: T(20000) }).catch(() => fail('the camera does not come close to the heroine'));
+        await gameFor(() => __game.cam.dist < 4, null, 20).catch(() => fail('the camera does not come close to the heroine'));
         const start = await state();
         if (start.stars < 10) fail(`the walkthrough reaches the shop with ${start.stars} stars: nothing to buy`);
         if (!touch) {
           // the game stands while the screen is open
           const p0 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-          await page.keyboard.down('KeyW'); await wait(700); await page.keyboard.up('KeyW');
+          await page.keyboard.down('KeyW'); await wait(700); await page.keyboard.up('KeyW'); /* clock: pending-part-2 */
           const p1 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
           if (Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) > 0.05) fail('the heroine walks while the shop is open');
         }
@@ -2364,27 +2368,27 @@ try {
         await tab('head');
         const tryId = await g(() => ['wreath', 'crown', 'wizard_hat'].find((id) => !__game.save.owned.includes(id)));
         if (!tryId) fail('every hat is bought already');
-        await tap(`#shopItems [data-id=${tryId}]`); await wait(300);
+        await tap(`#shopItems [data-id=${tryId}]`); await wait(300); /* clock: pending-part-2 */
         let s1 = await state();
         if (s1.worn.head !== tryId) fail(`a tap on ${tryId} did not put it on (she wears ${s1.worn.head})`);
         if (s1.gear.head !== start.gear.head || (await stored()).gear?.head !== start.gear.head) fail(`trying ${tryId} on reached the save`);
         await shot('shop-try');
-        await tap('#shopDone'); await wait(400);
+        await tap('#shopDone'); await wait(400); /* clock: pending-part-2 */
         if (await visible('#shop')) fail('"done" does not close it');
         s1 = await state();
         if (s1.worn.head !== start.gear.head) fail(`closed without buying, she still wears ${s1.worn.head} (the save holds ${start.gear.head})`);
         if (s1.stars !== start.stars || s1.owned.length !== start.owned.length) fail('trying on spent stars or bought something');
-        await page.click('#btnBook'); await wait(400); await tap('#btnShop'); await wait(600);
+        await page.click('#btnBook'); await wait(400); await tap('#btnShop'); await wait(600); /* clock: pending-part-2 */
         // 2. bought: exactly the price, worn, stored at once, the counter of the HUD follows; the watch of the stars is
         // told of the purchase just before the tap, so that any other drop stays an error
         const buyOne = async (slot, id, price) => {
           await tab(slot);
-          await tap(`#shopItems [data-id=${id}]`); await wait(300);
+          await tap(`#shopItems [data-id=${id}]`); await wait(300); /* clock: pending-part-2 */
           const before = await state();
           const label = await page.textContent('#shopBuy').catch(() => '');
           if (!label.includes(`${price} ⭐`) || (await g(() => document.querySelector('#shopBuy').classList.contains('short')))) fail(`the button under ${id} (${price} ⭐) with ${before.stars} stars: "${label}"`);
           await g((it) => { window.__stars.buy = it; }, { id, price });
-          await tap('#shopBuy'); await wait(500);
+          await tap('#shopBuy'); await wait(500); /* clock: pending-part-2 */
           const s = await state(), st = await stored();
           if (s.stars !== before.stars - price || !s.owned.includes(id)) fail(`buying ${id}: ${before.stars} -> ${s.stars} stars, purchases ${s.owned.join(', ')}`);
           if (s.gear[slot] !== id || s.worn[slot] !== id) fail(`${id} is bought but not worn (save ${s.gear[slot]}, on her ${s.worn[slot]})`);
@@ -2392,7 +2396,7 @@ try {
           if (s.hud !== String(s.stars)) fail(`the counter shows ${s.hud} after the purchase, the save ${s.stars}`);
           // The watch reads the stars on animation frames; a slow runner (CI: 2-20 frames a second) may not have drawn one
           // since the tap, so wait for it to take the announced purchase instead of reading it at once.
-          await page.waitForFunction(() => !window.__stars.buy, null, { timeout: T(10000) })
+          await gameFor(() => !window.__stars.buy, null, 10)
             .catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
           return s;
         };
@@ -2406,7 +2410,7 @@ try {
         await tab('trail');
         const s2a = await state();
         if (s2a.stars < 40) {
-          await tap('#shopItems [data-id=trail_sparkle]'); await wait(300);
+          await tap('#shopItems [data-id=trail_sparkle]'); await wait(300); /* clock: pending-part-2 */
           const b = await g(() => { const e = document.querySelector('#shopBuy'); return e && { text: e.textContent, short: e.classList.contains('short') }; });
           const need = 40 - s2a.stars;
           if (!b) fail('no button under a thing she cannot buy yet');
@@ -2414,7 +2418,7 @@ try {
           if (await reddish()) fail(`the button "${b.text}" is red`);
           if ((await state()).worn.trail !== 'trail_sparkle') fail('a thing she cannot buy yet is not tried on');
           await shot('shop-short');
-          await tap('#shopBuy'); await wait(400);
+          await tap('#shopBuy'); await wait(400); /* clock: pending-part-2 */
           const s2 = await state();
           if (s2.stars !== s2a.stars || s2.owned.includes('trail_sparkle')) fail(`the button "${b.text}" bought the sparkles: ${s2a.stars} -> ${s2.stars} stars`);
           shortChecked = true;
@@ -2422,21 +2426,21 @@ try {
         // 4. free: another hair colour, another colour of the wings, then no wings - each stored at once
         await tab('hair');
         const hair = await g(() => [...document.querySelectorAll('#shopItems .swatches button')].map((b) => b.dataset.color).find((c) => c !== __game.save.hair));
-        await tap(`#shopItems .swatches button[data-color="${hair}"]`); await wait(300);
+        await tap(`#shopItems .swatches button[data-color="${hair}"]`); await wait(300); /* clock: pending-part-2 */
         if ((await stored()).hair !== hair) fail(`the hair ${hair} was not stored at once`);
         await tab('wings');
         const wingColor = await g(() => [...document.querySelectorAll('#shopItems .swatches button')].map((b) => b.dataset.color).find((c) => c !== __game.save.wingColor));
-        await tap(`#shopItems .swatches button[data-color="${wingColor}"]`); await wait(300);
+        await tap(`#shopItems .swatches button[data-color="${wingColor}"]`); await wait(300); /* clock: pending-part-2 */
         {
           const w = await g(() => ({ tint: __game.gear.color, petal: __game.hero.root.children.find((o) => o.isMesh && o.material.transparent)?.material.color.getHexString(__game.THREE.SRGBColorSpace) }));
           if (w.tint !== wingColor || `#${w.petal}` !== wingColor) fail(`the wings ${wingColor}: the gear has ${w.tint}, the petals #${w.petal}`);
         }
         await shot('shop-wings');
-        await tap('#shopItems [data-id=none]'); await wait(300);
+        await tap('#shopItems [data-id=none]'); await wait(300); /* clock: pending-part-2 */
         const s4 = await state(), st4 = await stored();
         if (s4.hair !== hair || s4.wingColor !== wingColor || s4.gear.wings !== null || s4.worn.wings !== null) fail(`the choice: hair ${s4.hair}, wings ${s4.gear.wings} (on her ${s4.worn.wings}) of colour ${s4.wingColor}`);
         if (st4.hair !== hair || st4.wingColor !== wingColor || st4.gear?.wings !== null) fail('the choice of the wings was not stored at once');
-        await tap('#shopDone'); await wait(400);
+        await tap('#shopDone'); await wait(400); /* clock: pending-part-2 */
         const s5 = await state();
         if (s5.worn.wand !== 'wand_star' || s5.worn.wings !== null || s5.worn.trail !== start.gear.trail || s5.worn.head !== head) fail(`after "done" she wears wand ${s5.worn.wand}, wings ${s5.worn.wings}, trail ${s5.worn.trail}, head ${s5.worn.head}`);
         shopped = { wand: 'wand_star', head, wings: null, hair, wingColor };
@@ -2451,12 +2455,12 @@ try {
         // where she starts the sign is not in reach: no "Shop" on the action button there
         {
           const t0 = await g(() => __game.time);
-          await page.waitForFunction((t) => __game.time - t >= 0.5, t0, { timeout: T(30000) }).catch(() => fail('0.5 s of game time did not pass'));
+          await page.waitForFunction((t) => __game.time - t >= 0.5, t0, { timeout: T(600000) /* clock: ceiling */ }).catch(() => fail('0.5 s of game time did not pass'));
         }
         if (await visible('#btnAct')) fail(`the action button is shown at the spawn: "${await page.textContent('#btnAct')}"`);
         // 2.3 m from it, south-west (with the camera turn 0 "forward" is -z): the signboard stands beside her in the frame
         await g((p) => { __game.teleport(p.x - 1.7, p.z + 1.5); __game.cam.yaw = 0; }, at);
-        await page.waitForFunction(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, { timeout: T(20000) })
+        await gameFor(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 20)
           .catch(() => fail('no action button beside the signboard'));
         const label = await page.textContent('#btnAct');
         const want = (await page.textContent('#btnShop')).replace('🛍️', '').trim();   // the word of the book's button
@@ -2464,20 +2468,20 @@ try {
         await shot('shop-sign');
         // The action button is read on the next frame of the game (a slow runner draws 2-20 a second): wait for the screen.
         await act();
-        await page.waitForFunction(() => { const e = document.querySelector('#shop'); return !!e && !e.classList.contains('hidden'); }, null, { timeout: T(10000) })
+        await gameFor(() => { const e = document.querySelector('#shop'); return !!e && !e.classList.contains('hidden'); }, null, 10)
           .catch(() => fail('the action button beside the signboard does not open the shop'));
         if (await visible('#book')) fail('the action button opened the book over the shop');
-        await tapOn('#shopDone').catch((e) => fail(`"done" cannot be pressed: ${why(e)}`)); await wait(400);
+        await tapOn('#shopDone').catch((e) => fail(`"done" cannot be pressed: ${why(e)}`)); await wait(400); /* clock: pending-part-2 */
         if (await visible('#shop')) fail('"done" does not close the shop opened from the signboard');
         if (!(await walks())) fail('the heroine does not walk after the shop of the signboard');
         console.log(`shop sign: "${label}" beside the signboard at ${at.x}, ${at.z} opened the shop, "done" closed it`);
       }
       if (has('parents')) {
-        await page.click('#btnBook'); await wait(500);
+        await page.click('#btnBook'); await wait(500); /* clock: pending-part-2 */
         // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
         // the second one different.
         await g(() => { window.__random = Math.random; Math.random = () => 0.42; });
-        await page.click('#btnParents'); await wait(500); await shot('31-gate');
+        await page.click('#btnParents'); await wait(500); await shot('31-gate'); /* clock: pending-part-2 */
         // ---- the gate (PLAY-14): the example is read from the screen; only its whole right answer opens the section ----
         {
           const fail = (what) => { throw new Error(`the gate of the parents' section: ${what}`); };
@@ -2493,10 +2497,10 @@ try {
           const first = await read();
           // typed the way a parent does, key by key: the first digit alone and a wrong number open nothing
           for (const typed of [String(first.answer)[0], String(first.answer + 1), '']) {
-            await page.fill('#gateA', ''); if (typed) await page.type('#gateA', typed); await wait(200);
+            await page.fill('#gateA', ''); if (typed) await page.type('#gateA', typed); await wait(200); /* clock: pending-part-2 */
             if (await open()) fail(`"${typed}" opened the section, the question was "${first.text}"`);
           }
-          await page.type('#gateA', String(first.answer)); await wait(500);
+          await page.type('#gateA', String(first.answer)); await wait(500); /* clock: pending-part-2 */
           if (!(await open())) fail(`the right answer ${first.answer} did not open the section, the question was "${first.text}"`);
           await shot('31-parents'); await checkLinks('parents section');
           // ---- the version (TECH-10): the day of the build and the commit number the game was built from ----
@@ -2532,11 +2536,11 @@ try {
           {
             const steps = [];
             for (let i = 0; i < 4; i++) {
-              await page.click('#pQuality'); await wait(300);
+              await page.click('#pQuality'); await wait(300); /* clock: pending-part-2 */
               const pin = await g(() => __game.save.pinTier);
               let shown = '';
               if (pin !== null && !process.env.Q) {
-                await page.waitForFunction((t) => (document.querySelector('#fps')?.textContent ?? '').includes(` q${t} `), pin, { timeout: T(5000) })
+                await gameFor((t) => (document.querySelector('#fps')?.textContent ?? '').includes(` q${t} `), pin, 5)
                   .catch(async () => errors.push(`quality: the parent pinned q${pin}, but the counter shows "${await g(() => document.querySelector('#fps')?.textContent)}"`));
                 shown = ` (counter q${pin})`;
               }
@@ -2546,11 +2550,11 @@ try {
             console.log(`quality button: ${steps.join(' -> ')}`);
           }
           // closed and opened again: another example, and the section is shut until it is answered
-          await page.click('#parentsClose'); await page.click('#btnBook'); await wait(300); await page.click('#btnParents'); await wait(300);
+          await page.click('#parentsClose'); await page.click('#btnBook'); await wait(300); await page.click('#btnParents'); await wait(300); /* clock: pending-part-2 */
           if (await open()) fail('opened for the second time, the section is not shut');
           const second = await read();
           if (second.answer === first.answer) fail(`two openings in a row asked the same example: "${first.text}" and "${second.text}"`);
-          await page.type('#gateA', String(first.answer)); await wait(200);
+          await page.type('#gateA', String(first.answer)); await wait(200); /* clock: pending-part-2 */
           if (await open()) fail(`the answer of the previous example (${first.answer}) opened the section, the question was "${second.text}"`);
           console.log(`the gate: "${first.text}" was opened by ${first.answer} only; the next opening asked "${second.text}"`);
         }
@@ -2622,8 +2626,8 @@ try {
         achWant = want;
         // a scene of the point before (the closed book of the block "book") may still be on: it is closed first
         for (;;) {
-          await page.waitForFunction(() => __game.ach.scene !== null
-            || (!__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden')), null, { timeout: T(30000) })
+          await gameFor(() => __game.ach.scene !== null
+            || (!__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden')), null, 30)
             .catch(() => fail('the game did not come to rest before the block'));
           if (!(await g(() => __game.ach.scene))) break;
           await endAchievement('before the block "achievements"');
@@ -2634,9 +2638,9 @@ try {
         if (before.queue.length) {
           await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
           await tapOn('#bookClose').catch((e) => fail(`the book cannot be closed: ${why(e)}`));
-          await page.waitForFunction(() => __game.ach.scene !== null, null, { timeout: T(20000) }).catch(() => fail('no scene at the stop point of the closed book'));
+          await gameFor(() => __game.ach.scene !== null, null, 20).catch(() => fail('no scene at the stop point of the closed book'));
           const id = await endAchievement('the closed book');
-          await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene at the closed book did not give the controls back'));
+          await gameFor(() => !__game.busy, null, 15).catch(() => fail('the scene at the closed book did not give the controls back'));
           const after = await g(() => ({ queue: __game.ach.queue, shown: __game.ach.shown, scene: __game.ach.scene }));
           if (id !== before.queue[0]) left.push(`the closed book showed "${id}", not the first of the queue "${before.queue[0]}"`);
           if (after.shown !== before.shown + 1 || after.scene) left.push(`the closed book showed ${after.shown - before.shown} scenes, not one`);
@@ -2672,7 +2676,7 @@ try {
         const leftAt = [2.5, 12.5];
         // Save v3 (ARCH-07): the spot is the first world's progress, under worlds.fairy.
         const storedBefore = await g((p) => { __game.teleport(p[0], p[1]); return JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.pos; }, leftAt);
-        await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+        await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
         {
           const pos = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.pos);
           const near = (p) => Array.isArray(p) && Math.hypot(p[0] - leftAt[0], p[1] - leftAt[1]) < 0.01;
@@ -2682,7 +2686,7 @@ try {
         }
         // The shop's choices after the reload (R05, R09): the bought wand, no wings, the hair and the colour of the wings.
         if (shopped) {
-          await page.waitForFunction(() => window.__game?.gear, null, { timeout: T(30000) }).catch(() => { throw new Error('shop: no __game.gear after the reload'); });
+          await page.waitForFunction(() => window.__game?.gear, null, { timeout: T(30000) }).catch(() => { throw new Error('shop: no __game.gear after the reload'); }); /* clock: page-load */
           const a = await g(() => ({ wand: __game.gear.get('wand'), head: __game.gear.get('head'), wings: __game.gear.get('wings'), hair: __game.save.hair, wingColor: __game.save.wingColor,
             tint: __game.gear.color, owned: __game.save.owned, petals: __game.hero.root.children.filter((o) => o.isMesh && o.visible && o.material.transparent).length }));
           const left = [];
@@ -2711,7 +2715,7 @@ try {
         };
         const KEYS = ['dress', 'hair', 'wings', 'wingColor', 'head', 'wand'];
         const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
-        const until = (fn, arg, what, ms = 10000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what));
+        const until = (fn, arg, what, ms = 10000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => fail(what)); /* clock: input-event */
         if (!(await visible('#setup')) || !(await visible('#start'))) fail('the start screen is not shown');
         await until(() => window.__game?.gear && document.querySelectorAll('#looks button[data-look]').length === 4, null, 'no row of four looks on the start screen', 30000);
         // This block measures the looks, not the achievements (PLAY-08): the scenes the save still has in its queue would
@@ -2742,7 +2746,7 @@ try {
           if (box.w < 44 || box.h < 44) fail(`the button of ${id} is ${box.w}x${box.h}, smaller than 44x44`);
           await tap(sel);
           // Waited for by what the tap does (the save holds the look), not by the clock; a wrong look is reported below.
-          await page.waitForFunction((w) => Object.entries(w).every(([k, v]) => (k in __game.save.gear ? __game.save.gear[k] : __game.save[k]) === v), want, { timeout: T(5000) }).catch(() => {});
+          await page.waitForFunction((w) => Object.entries(w).every(([k, v]) => (k in __game.save.gear ? __game.save.gear[k] : __game.save[k]) === v), want, { timeout: T(5000) }).catch(() => {}); /* clock: input-event */
           const a = await look(), wrong = [];
           for (const k of KEYS) {
             if (a.save[k] !== want[k]) wrong.push(`the save's ${k} ${a.save[k]}, not ${want[k]}`);
@@ -2796,10 +2800,10 @@ try {
         console.log(`looks: ${ids.join(', ')} put on from the start screen and stored, the trail and ${before.owned.length} purchases kept; then the hair ${hair} alone in the fitting room`);
         });
         // back to the start screen for the blocks after this one
-        await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+        await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
       }
       if (has('start-again')) {
-        await wait(1500); await shot('40-start-again');
+        await wait(1500); await shot('40-start-again'); /* clock: pending-part-2 */
         // "Start again" really starts again: after the reload the save is the one of a new player. The game saves itself
         // on the way out (pagehide), and that once wrote the whole progress straight back.
         {
@@ -2810,8 +2814,8 @@ try {
           const hadW = had.worlds?.fairy;
           if (!(had.stars > 0)) fail(`the walkthrough left no stars to clear: ${had.stars}`);
           if (!hadW?.final || Object.keys(hadW.quests ?? {}).length === 0) fail(`the walkthrough left no world progress to clear under worlds.fairy: ${JSON.stringify(hadW)}`);
-          await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`the button did not reload the game: ${why(e)}`));
-          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+          await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`the button did not reload the game: ${why(e)}`)); /* clock: page-load */
+          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
           const now = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
           const left = [];
           if (now.stars) left.push(`${now.stars} stars`);
@@ -2832,7 +2836,7 @@ try {
       if (listed('book') && listed('start-again')) {
         await tapOn('#play').catch((e) => errors.push(`book: ${mode}: "play" of a new player cannot be pressed: ${why(e)}`));
         await page.waitForFunction(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden') && !!window.__game,
-          null, { timeout: T(90000) }).catch(() => errors.push(`book: ${mode}: the game of a new player did not start`));
+          null, { timeout: T(90000) }).catch(() => errors.push(`book: ${mode}: the game of a new player did not start`)); /* clock: page-load */
         await tapOn('#btnBook').then(() => checkProfile('start', 0)).then(() => closeBook())
           .catch((e) => errors.push(`book: ${mode}: ${e.message}`));
       }

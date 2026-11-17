@@ -75,7 +75,7 @@ const text = (page, sel) => page.locator(sel).innerText();
 /** The layout rules of tools/shot.mjs for the start screen, in short. */
 async function layout(page, screen, size) {
   await page.setViewportSize(SIZES[size]);
-  await page.waitForTimeout(T(300));
+  await page.waitForTimeout(T(300)); /* clock: quiet-window */
   const found = await page.evaluate((min) => {
     const out = [], vw = innerWidth, vh = innerHeight, px = (v) => Math.round(v);
     const shown = (e) => e.offsetWidth > 0 && e.offsetHeight > 0 && getComputedStyle(e).visibility === 'visible';
@@ -115,7 +115,7 @@ async function noWebGL() {
     let models = 0;
     page.on('request', (r) => { if (new URL(r.url()).pathname.includes('/models/')) models++; });
     await page.goto(url);
-    try { await page.locator('#noticeText').waitFor({ state: 'visible', timeout: T(15000) }); } catch { /* reported below */ }
+    try { await page.locator('#noticeText').waitFor({ state: 'visible', timeout: T(15000) }); } catch { /* reported below */ } /* clock: page-load */
     if (await page.evaluate(() => !!document.createElement('canvas').getContext('webgl2'))) fail('no WebGL: the browser still gives a WebGL2 context, the check proves nothing');
     const shown = await visible(page, '#noticeText');
     if (!shown) fail('no WebGL: no message on the screen');
@@ -130,12 +130,12 @@ async function noWebGL() {
       if (!ru.includes(TEXT.no_webgl.ru)) fail(`no WebGL: after RU the message is not Russian: "${ru}"`);
       // The chosen language is remembered: the next opening shows the message in it at once.
       await page.reload();
-      await page.locator('#noticeText').waitFor({ state: 'visible', timeout: T(15000) }).catch(() => {});
+      await page.locator('#noticeText').waitFor({ state: 'visible', timeout: T(15000) }).catch(() => {}); /* clock: page-load */
       const again = await text(page, '#noticeText').catch(() => '');
       if (!again.includes(TEXT.no_webgl.ru)) fail(`no WebGL: reopened with RU chosen, the message is not Russian: "${again}"`);
       await page.locator('#langs [data-lang="uk"]').click();
     }
-    await page.waitForTimeout(T(1500));   // anything the game would still try to do comes now
+    await page.waitForTimeout(T(1500));   // anything the game would still try to do comes now /* clock: quiet-window */
     for (const [sel, what] of [['#loading', 'the loading bar'], ['#setup', 'the start menu'], ['#retry', 'the "try again" button']]) {
       if (await visible(page, sel)) fail(`no WebGL: ${what} is shown`);
     }
@@ -160,10 +160,10 @@ async function blockedModel(target = BLOCKED, full = true) {
     page.on('response', (r) => { if (blocked(new URL(r.url())) && r.status() === 200) served++; });
     const block = (route) => { asked++; return route.abort(); };
     await page.route(blocked, block);
-    const t0 = Date.now();
+    const t0 = Date.now(); /* clock: log-time */
     await page.goto(url);
-    try { await page.locator('#retry').waitFor({ state: 'visible', timeout: T(90000) }); } catch { /* reported below */ }
-    const waited = Date.now() - t0;
+    try { await page.locator('#retry').waitFor({ state: 'visible', timeout: T(90000) }); } catch { /* reported below */ } /* clock: page-load */
+    const waited = Date.now() - t0; /* clock: log-time */
     if (!(await visible(page, '#retry'))) fail(`${what}: no "try again" button after ${waited} ms`);
     else {
       const msg = await text(page, '#noticeText'), btn = await text(page, '#retry');
@@ -190,7 +190,7 @@ async function blockedModel(target = BLOCKED, full = true) {
 
     await page.unroute(blocked, block);
     if (await visible(page, '#retry')) await page.locator('#retry').click();
-    try { await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); } catch { /* reported below */ }
+    try { await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); } catch { /* reported below */ } /* clock: page-load */
     if (!(await visible(page, '#play'))) fail(`${what}: after the block was lifted and "try again" was pressed, the game did not start ("Play" is not shown)`);
     else {
       if (await visible(page, '#notice')) fail(`${what}: the message is still shown on the started game`);

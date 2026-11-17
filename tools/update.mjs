@@ -34,6 +34,14 @@ if (!GL_ARGS[gl]) usage(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
 const slow = Number(process.env.E2E_SLOW || 1);
 if (!(slow > 0)) usage(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
 const T = (ms) => Math.round(ms * slow);
+// What the game does in its own time is waited for by its clock (window.__game.time), the wall clock only a ceiling for
+// a game that stopped (tools/clock-waits.mjs): fails once `seconds` of game time have passed without `pred(arg)`.
+async function gameFor(page, pred, arg, seconds) {
+  const t0 = await page.evaluate(() => __game.time);
+  const h = await page.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
+    null, { timeout: T(600000) }); /* clock: ceiling */
+  if ((await h.jsonValue()) !== 'yes') throw new Error(`not within ${seconds} s of game time`);
+}
 const MARK = 'e2e-build';
 // The character whose first task is a panel task: __game.cheat() solves it.
 const TALK_TO = 'fox';
@@ -126,10 +134,10 @@ try {
   const page = await ctx.newPage();
   watch(page, 'build A', log);
   await page.goto(gameUrl);
-  await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) });
+  await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); /* clock: page-load */
   // clientsClaim: the worker installed by this very page takes it at once (the offline walkthrough relies on that).
   // Events, not polling: the worker is ready (activated), then the page has its controller or gets it (controllerchange).
-  const taken = await limit('build A: the worker', T(120000), page.evaluate(async () => {
+  const taken = await limit('build A: the worker', T(120000), page.evaluate(async () => { /* clock: page-load */
     const sw = navigator.serviceWorker;
     const reg = await sw.ready;
     if (reg.active.state !== 'activated') await new Promise((r) => reg.active.addEventListener('statechange', function f() { if (reg.active.state === 'activated') { reg.active.removeEventListener('statechange', f); r(); } }));
@@ -146,22 +154,22 @@ try {
   if (await mark(page) !== 'A') fail('build A: the page is not build A');
   // This step measures the service worker, not the achievements (PLAY-08): their scenes wait in the queue for the whole
   // step - the walkthrough's own lever (__game.ach.hold, ?debug only), the game itself never holds them.
-  await page.waitForFunction(() => !!window.__game, null, { timeout: T(30000) });
+  await page.waitForFunction(() => !!window.__game, null, { timeout: T(30000) }); /* clock: page-load */
   await page.evaluate(() => __game.ach.hold());
   await page.click('#play');
-  await page.waitForFunction(() => !!window.__game && !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) });
+  await page.waitForFunction(() => !!window.__game && !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) }); /* clock: page-load */
   // A new save flies over the world first (WORLD-11): a tap skips the tour - its end is waited for by the tour's own
   // state, not by the clock (on the slow CI runner the tour lasts minutes of the clock).
   if (await page.evaluate(() => !!__game.flyoverPlayer?.active)) {
     const vp = page.viewportSize();
     await page.touchscreen.tap(vp.width / 2, vp.height / 2);
-    await page.waitForFunction(() => !__game.flyoverPlayer.active, null, { timeout: T(30000) })
+    await page.waitForFunction(() => !__game.flyoverPlayer.active, null, { timeout: T(30000) }) /* clock: input-event */
       .catch(() => fail('build A: a tap did not end the tour of the world'));
   }
 
   // ---- 2. build B is published in the middle of the game ----
   serving = copy;
-  const found = await limit('reg.update()', T(120000), page.evaluate(async () => {
+  const found = await limit('reg.update()', T(120000), page.evaluate(async () => { /* clock: page-load */
     const reg = await navigator.serviceWorker.getRegistration();
     await reg.update();
     const w = reg.installing ?? reg.waiting;
@@ -190,18 +198,18 @@ try {
   };
   await check('after the update was found');
   // A task is still solved in build A, and its stars are written.
-  await page.waitForFunction(() => !__game.busy, null, { timeout: T(60000) }).catch(() => fail('the game stayed busy after "Play"'));
+  await gameFor(page, () => !__game.busy, null, 60).catch(() => fail('the game stayed busy after "Play"'));
   const stars0 = await page.evaluate(() => __game.save.stars);
   await page.evaluate((id) => __game.talk(id), TALK_TO);
-  await page.locator('#task:not(.hidden)').waitFor({ timeout: T(30000) });
+  await gameFor(page, () => !!document.querySelector('#task:not(.hidden)'), null, 30);
   const did = await page.evaluate(() => __game.cheat());
   const state = () => page.evaluate(() => ({ stars: __game.save.stars, busy: __game.busy, line: __game.line, task: !document.querySelector('#task').classList.contains('hidden') }));
-  await page.waitForFunction((s) => __game.save.stars > s, stars0, { timeout: T(60000) }).catch(async () => {
+  await gameFor(page, (s) => __game.save.stars > s, stars0, 60).catch(async () => {
     throw new Error(`the task with "${TALK_TO}" was not solved after the update was found (cheat: "${did}"; now ${JSON.stringify(await state())}, stars before ${stars0})`);
   });
   // The chain goes on to its next task: it is closed with its button (that changes nothing in the save).
-  await page.locator('#task:not(.hidden):not(.won) #taskClose').click({ timeout: T(30000) });
-  await page.waitForFunction(() => !__game.busy, null, { timeout: T(60000) }).catch(async () => {
+  await page.locator('#task:not(.hidden):not(.won) #taskClose').click({ timeout: T(30000) }); /* clock: input-event */
+  await gameFor(page, () => !__game.busy, null, 60).catch(async () => {
     throw new Error(`the game stayed busy after the next task was closed (${JSON.stringify(await state())})`);
   });
   const before = await page.evaluate(() => ({ stars: __game.save.stars, quests: JSON.stringify(__game.save.worlds.fairy.quests), stored: JSON.parse(localStorage.getItem('amw-save')).stars }));
@@ -212,15 +220,15 @@ try {
   const blank = await ctx.newPage();
   const sw = await versions(ctx, blank);
   const waitingB = () => [...sw.all.values()].find((v) => v.status === 'installed');
-  await sw.until('the waiting worker in DevTools', () => !!waitingB(), T(30000));
+  await sw.until('the waiting worker in DevTools', () => !!waitingB(), T(30000)); /* clock: page-load */
   const idB = waitingB().versionId;
   await page.close();
-  await sw.until('the new worker after every page was closed', () => sw.all.get(idB)?.status === 'activated', T(60000))
+  await sw.until('the new worker after every page was closed', () => sw.all.get(idB)?.status === 'activated', T(60000)) /* clock: page-load */
     .catch(() => { throw new Error(`every page of the game is closed, but the new worker did not activate (it is "${sw.all.get(idB)?.status}")`); });
   watch(blank, 'build B', { navigations: 0 });
   await blank.goto(gameUrl);
-  await blank.locator('#play').waitFor({ state: 'visible', timeout: T(90000) });
-  await blank.waitForFunction(() => !!window.__game && !!navigator.serviceWorker.controller, null, { timeout: T(30000) })
+  await blank.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); /* clock: page-load */
+  await blank.waitForFunction(() => !!window.__game && !!navigator.serviceWorker.controller, null, { timeout: T(30000) }) /* clock: page-load */
     .catch(() => fail('build B: no window.__game or no controlling worker'));
   if (await mark(blank) !== 'B') fail('the game opened after every page was closed is not build B');
   const after = await blank.evaluate(() => ({ stars: __game.save.stars, quests: JSON.stringify(__game.save.worlds.fairy.quests) }));

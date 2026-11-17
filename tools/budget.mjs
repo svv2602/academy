@@ -4,7 +4,7 @@ const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome'
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
 await page.goto('http://localhost:5173/?debug&' + (process.argv[2] || 'q=2'), { waitUntil: 'networkidle' });   // ?debug: __game
 await page.waitForSelector('#play', { state: 'visible' }); await page.click('#play');
-await page.waitForTimeout(5000);
+await page.waitForTimeout(5000); /* clock: measure */
 const rows = await page.evaluate(() => {
   const { scene, camera, THREE } = __game;
   const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));

@@ -21,7 +21,7 @@ for (const q of tiers) {
     await page.waitForFunction(() => window.__game?.flyoverPlayer);
     await page.evaluate(() => __game.flyoverPlayer.skip());
     await page.waitForFunction(() => !__game.busy);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(1500); /* clock: measure */
     const r = await page.evaluate(() => new Promise((done) => {
       const dts = [];
       let last = 0;
@@ -43,10 +43,10 @@ for (const q of tiers) {
     // the tour of the first entry would fly the camera away from the spawn point
     await page.waitForFunction(() => window.__game);
     await page.evaluate(() => __game.flyoverPlayer?.skip());
-    await page.waitForTimeout(7000);
+    await page.waitForTimeout(7000); /* clock: measure */
     const a = await page.textContent('#fps');
     await page.evaluate(() => { __game.hero.root.visible = false; });
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(4000); /* clock: measure */
     console.log(q, '| with hero:', a, '| without:', await page.textContent('#fps'));
   }
   await ctx.close();
