@@ -6,6 +6,10 @@ import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
 import { propMaterial } from '../../core/materials';
+import type { MagicCount, MagicGlow } from './magic';
+
+/** How many more flowers (at the full density) the magic of the world grows over the drifts. */
+export const MAGIC_FLOWERS = 120;
 
 /** m: the height of the shop's signboard (its cap top) and the radius of its stem. */
 export const SIGN_H = 2.1;
@@ -78,14 +82,14 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
   farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
 
-  const scatter = (n: number, margin: number, ok?: (x: number, z: number) => boolean, maxR = WORLD_R - 6) => {
+  const scatter = (n: number, margin: number, ok?: (x: number, z: number) => boolean, maxR = WORLD_R - 6, rand = rnd) => {
     const out: Placement[] = [];
     let t = 0;
     while (out.length < n && t++ < n * 30) {
-      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * maxR;
+      const a = rand() * Math.PI * 2, r = Math.sqrt(rand()) * maxR;
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       if (reserved(x, z, margin) || (ok && !ok(x, z))) continue;
-      out.push({ x, z, s: 0.7 + rnd() * 0.7, rot: rnd() * 6.28 });
+      out.push({ x, z, s: 0.7 + rand() * 0.7, rot: rand() * 6.28 });
     }
     return out;
   };
@@ -113,7 +117,18 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     const a = rnd() * 6.28, r = Math.sqrt(rnd()) * 2.6;
     flowers.push({ x: PATCH.x + Math.cos(a) * r, z: PATCH.z + Math.sin(a) * r, s: 1.1 + rnd() * 0.5, rot: rnd() * 6.28 });
   }
-  flowerKinds.forEach((parts, k) => instancedParts(scene, height, parts, flowers.filter((f) => kindOf(f) === k), 0.45, false, 55));
+  // The flowers the magic of the world grows (./magic.ts, WORLD-09): more of the same drifts, from a randomness of their
+  // own (everything placed after them stays where it always was), drawn only as the magic comes back. Each cell keeps
+  // the flowers of before at its front: with no magic it draws exactly them.
+  const more = scatter(MAGIC_FLOWERS * density, 0.2, drift, 58, mulberry32(4242));
+  flowerKinds.forEach((parts, k) => {
+    const base = flowers.filter((f) => kindOf(f) === k);
+    for (const { mesh, idx } of instancedParts(scene, height, parts, [...base, ...more.filter((f) => kindOf(f) === k)], 0.45, false, 55)) {
+      const shown = idx.filter((i) => i < base.length).length;
+      mesh.userData.magicCount = { base: shown, full: idx.length } satisfies MagicCount;
+      mesh.count = shown;
+    }
+  });
 
   // Stepping stones along the path and pebbles on the pond shore.
   const stones: Placement[] = [], shore: Placement[] = [];
@@ -140,6 +155,7 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     }
   }
   const mushMat = propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 });
+  mushMat.userData.magicGlow = { base: 0.12, full: 0.42 } satisfies MagicGlow;     // they glow brighter with the magic
   instanced(scene, height, mushGeo, mushMat, mush, true);
 
   // Lily pads float on the pond.

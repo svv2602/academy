@@ -19,14 +19,17 @@ export function shardCount(ws: Game['ws']): number {
 export interface Shrine {
   /** Where the Crystal of Light stands (and the shards circle). */
   readonly pos: THREE.Vector3;
-  /** The shards, the crystal and its light; the glow of the sky and the rainbow once the crystal is whole. */
+  /** The shards, the crystal and its light (the glow of the sky and the rainbow are the world's magic, ./magic.ts). */
   update(dt: number, time: number): void;
 }
 
-/** The shrine: the Crystal of Light and its five shards (ARCH-05). The glow of the world lives here. */
-export function buildShrine(g: Game, L: FairyLoads, sky: ReturnType<typeof buildSky>): Shrine {
+/**
+ * The shrine: the Crystal of Light and its five shards (ARCH-05). The glow of the world it once lit after the finale
+ * is the magic of the world now (./magic.ts, WORLD-09), which every shard given back raises; `_sky` is no more read.
+ */
+export function buildShrine(g: Game, L: FairyLoads, _sky: ReturnType<typeof buildSky>): Shrine {
   const { scene, ws, groundY } = g;
-  const { crystalGeo, rainbowAlpha } = L;
+  const { crystalGeo } = L;
   // ----- shrine: the Crystal of Light and its five shards -----
   const shrine = new THREE.Vector3(SHRINE.x, groundY(SHRINE.x, SHRINE.z) + 1.7, SHRINE.z);
   const crystal = new THREE.Mesh(crystalGeo, new THREE.MeshStandardMaterial({ color: '#bff4ff', emissive: '#56d8ff', emissiveIntensity: 0.9, roughness: 0.15, flatShading: true, transparent: true }));
@@ -40,7 +43,6 @@ export function buildShrine(g: Game, L: FairyLoads, sky: ReturnType<typeof build
     scene.add(m);
     return m;
   });
-  let glow = ws.final ? 1 : 0;
 
   return {
     pos: shrine,
@@ -61,10 +63,6 @@ export function buildShrine(g: Game, L: FairyLoads, sky: ReturnType<typeof build
       crystal.scale.setScalar(lerp(crystal.scale.x, ws.final ? 1.25 : 0.8, damp(3, dt)));
       crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
       crystalLight.intensity = ws.final ? 5 + Math.sin(time * 3) * 1.2 : g.finale > 0 ? g.finale * 2 : 0;
-      glow = lerp(glow, ws.final ? 1 : 0, damp(0.6, dt));
-      rainbowAlpha.value = glow;
-      (sky.sky.material as THREE.ShaderMaterial).uniforms.uGlow.value = glow;
-      sky.hemi.intensity = 1.25 + glow * 0.25;
     },
   };
 }

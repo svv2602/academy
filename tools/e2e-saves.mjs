@@ -24,7 +24,9 @@ export const BLOCKS = [
   'broken-talk',    // a conversation broken on purpose (PLAY-03)
   'tuning',         // the tuning panel (ARCH-14)
   'collisions',     // the heroine does not walk through a character
+  'magic',          // the magic of the world from the shards; a point of the tour pictured at magic 0 and 1, a reload (WORLD-09)
   'finale',         // a finished quest replayed, the finale broken on purpose, then played
+  'magic-crystal',  // the crystal restored brings the magic to 1 (WORLD-09)
   'book',           // the collection book against the save
   'shop',           // the shop and the fitting room (PLAY-04, PLAY-05)
   'shop-sign',      // the signboard of the shop
@@ -79,10 +81,10 @@ export const GROUPS = {
   // friends 1-2 from no save: the published game without ?debug, the tour of the world, a hidden page, the introduction, the cat
   world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat'] },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
-  // the collisions - none of them needs the finished world
+  // the collisions, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
-    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions'],
+    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'magic'],
   },
   // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
   finale: {
@@ -91,7 +93,7 @@ export const GROUPS = {
     save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'book', 'parents', 'leave', 'start-again'],
+    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'leave', 'start-again'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the

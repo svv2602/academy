@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 
 export const uTime = { value: 0 };
+/**
+ * How strongly the wind bends the plants: one multiplier for every swaying material (1 - as they always swayed). The
+ * world's magic (src/worlds/fairy/magic.ts) changes it; the shaders read it as a uniform, so no program is rebuilt.
+ */
+export const uSway = { value: 1 };
 
 /** Vertex-coloured standard material; with `sway` the top of every instance bends in the wind. */
 export function propMaterial(sway = 0, opts: THREE.MeshStandardMaterialParameters = {}) {
@@ -8,7 +13,8 @@ export function propMaterial(sway = 0, opts: THREE.MeshStandardMaterialParameter
   if (sway > 0) {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = uTime;
-      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+      sh.uniforms.uSway = uSway;
+      sh.vertexShader = 'uniform float uTime;\nuniform float uSway;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
         vec3 transformed = vec3(position);
         #ifdef USE_INSTANCING
           vec2 wp = instanceMatrix[3].xz;
@@ -16,7 +22,7 @@ export function propMaterial(sway = 0, opts: THREE.MeshStandardMaterialParameter
           vec2 wp = modelMatrix[3].xz;
         #endif
         float gust = sin(uTime * 1.5 + wp.x * 0.31 + wp.y * 0.27) * 0.6 + sin(uTime * 2.9 + wp.x * 0.83 - wp.y * 0.6) * 0.3;
-        float bend = position.y * position.y * ${sway.toFixed(5)};
+        float bend = position.y * position.y * ${sway.toFixed(5)} * uSway;
         transformed.x += gust * bend;
         transformed.z += cos(uTime * 1.1 + wp.y * 0.4) * bend * 0.5;`);
     };

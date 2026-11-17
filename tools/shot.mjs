@@ -163,6 +163,9 @@ const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots'
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
+// The magic of the world (WORLD-09, src/worlds/fairy/magic.ts): what a shard given back adds (SHARD_MAGIC), the point of
+// the tour its two pictures are taken from (0-based) and how much they must differ (mean colour difference, 0..1).
+const MAGIC_SHARD = 0.16, MAGIC_POINT = 2, MAGIC_DIFF = { all: 0.02, sky: 0.02 };
 
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
@@ -1861,6 +1864,71 @@ try {
         if (!(moved < 2.2)) fail(`she did not walk towards "${at.id}" (still ${moved.toFixed(2)} m away)`);
         console.log(`collisions: she stopped ${near.toFixed(2)} m from the middle of "${at.id}"`);
       }
+      // ---- the magic of the world (WORLD-09): the shards in the save decide it (also those given in this walkthrough);
+      // one point of the tour pictured with no magic and with all of it - the two pictures differ above the threshold
+      // (over the whole picture and over its sky), more than two pictures of the same magic do; the same in the page loaded again ----
+      if (has('magic')) {
+        const fail = (what) => { throw new Error(`the magic: ${what}`); };
+        const shards = await g(() => Object.values(__game.save.worlds.fairy.quests).filter((n) => n >= 3).length);
+        const want = Math.min(1, shards * MAGIC_SHARD);
+        // the shown magic follows the save: given shards raise it while the world is played, no reload needed
+        await page.waitForFunction((w) => Math.abs(__game.magic.target - w) < 1e-9 && Math.abs(__game.magic.value - w) < 0.005, want, { timeout: T(30000) })
+          .catch(async () => fail(`${shards} shards given back: magic ${JSON.stringify(await g(() => ({ value: __game.magic.value, target: __game.magic.target })))}, expected ${want}`));
+        // the pictures: the camera held on a point of the tour, the magic set by the debug command
+        const pts = await g(() => __game.flyoverPoints.map((p) => p.t));
+        await g(() => __game.flyover());
+        // the camera is set on the point at once (hold): flying there in game time would take minutes of the clock on the
+        // slow CI runner
+        await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(30000) })
+          .catch(() => fail('the debug tour did not start'));
+        await g((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
+        if (Math.abs((await g(() => __game.flyoverPlayer.elapsed)) - pts[MAGIC_POINT]) > 0.01) fail(`the camera did not stand on point ${MAGIC_POINT + 1} of the tour`);
+        const frames = () => g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+        const pic = async (m, n) => { await g((m) => __game.setMagic(m), m); await frames(); return (await page.screenshot({ path: `${out}/${tag}-${n}.png` })).toString('base64'); };
+        const p0 = await pic(0, 'magic-0'), p0b = await pic(0, 'magic-0-again'), p1 = await pic(1, 'magic-1');
+        await g(() => { __game.setMagic(null); __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
+        // mean difference of the colours (0..1) over the whole picture and over its top fifth (the sky)
+        const d = await g(async ([a, b, c]) => {
+          const px = async (b64) => {
+            const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+            const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+            const cv = new OffscreenCanvas(160, Math.round((160 * bmp.height) / bmp.width)), x = cv.getContext('2d');
+            x.drawImage(bmp, 0, 0, cv.width, cv.height);
+            return { w: cv.width, h: cv.height, d: x.getImageData(0, 0, cv.width, cv.height).data };
+          };
+          const [A, B, C] = await Promise.all([a, b, c].map(px));
+          const diff = (P, Q, rows) => {
+            let s = 0, n = 0;
+            for (let y = 0; y < rows; y++) for (let x = 0; x < P.w; x++) {
+              const i = (y * P.w + x) * 4;
+              s += Math.abs(P.d[i] - Q.d[i]) + Math.abs(P.d[i + 1] - Q.d[i + 1]) + Math.abs(P.d[i + 2] - Q.d[i + 2]); n += 3;
+            }
+            return s / n / 255;
+          };
+          const sky = Math.round(A.h / 5);
+          return { all: diff(A, C, A.h), sky: diff(A, C, sky), same: diff(A, B, A.h) };
+        }, [p0, p0b, p1]);
+        const said = `magic 0 vs 1 differ by ${d.all.toFixed(4)} (the sky ${d.sky.toFixed(4)}), two pictures at 0 by ${d.same.toFixed(4)}`;
+        if (!(d.all > MAGIC_DIFF.all) || !(d.sky > MAGIC_DIFF.sky) || !(d.all > d.same * 3)) fail(`${said}: the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and 3 times the same magic`);
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
+        // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way
+        // (the whole way back takes seconds of game time - minutes of the clock on the slow CI runner)
+        await page.waitForFunction((w) => Math.abs(__game.magic.target - w) < 1e-9 && __game.magic.value < 1 - (1 - w) * 0.1, want, { timeout: T(30000) })
+          .catch(() => fail('the debug value did not let go of the magic'));
+        // the page loaded again (a second tab of the same address and storage: a reload of this one would drop the
+        // watchers of the walkthrough) builds the world with the same magic, from its first frame
+        const again = await (async () => {
+          const p2 = await page.context().newPage();
+          try {
+            await p2.goto(page.url());
+            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+            await p2.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => fail('no __game.magic in the page loaded again'));
+            return await p2.evaluate(() => ({ value: __game.magic.value, target: __game.magic.target }));
+          } finally { await p2.close().catch(() => {}); }
+        })();
+        if (Math.abs(again.value - want) > 1e-9 || Math.abs(again.target - want) > 1e-9) fail(`the page loaded again shows the magic ${JSON.stringify(again)}, this one ${want}`);
+        console.log(`the magic: ${shards} shards - ${want.toFixed(2)}, the same in the page loaded again; point ${MAGIC_POINT + 1} of the tour: ${said} (${tag}-magic-0.png, ${tag}-magic-1.png)`);
+      }
       if (has('finale')) {
         // replay one finished quest
         await g(() => __game.talk('fox')); await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }); await g(() => __game.cheat()); await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) });
@@ -1886,6 +1954,12 @@ try {
           && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(10000) })
           .catch(() => { throw new Error('after the finale: "free" was not said with its subtitle'); });
         await shot('23-restored');
+      }
+      // ---- the crystal restored brings the magic to 1 (WORLD-09), the rainbow with it ----
+      if (has('magic-crystal')) {
+        await page.waitForFunction(() => __game.magic.target === 1 && __game.magic.value > 0.99, null, { timeout: T(60000) })
+          .catch(async () => { throw new Error(`the magic: the crystal is restored, the magic is ${JSON.stringify(await g(() => ({ value: __game.magic.value, target: __game.magic.target, final: __game.save.worlds.fairy.final })))}, not 1`); });
+        console.log('the magic: the crystal restored brings it to 1');
       }
       // collection + parents
       if (has('book')) {
