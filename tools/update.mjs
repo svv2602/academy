@@ -146,6 +146,14 @@ try {
   if (await mark(page) !== 'A') fail('build A: the page is not build A');
   await page.click('#play');
   await page.waitForFunction(() => !!window.__game && !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) });
+  // A new save flies over the world first (WORLD-11): a tap skips the tour - its end is waited for by the tour's own
+  // state, not by the clock (on the slow CI runner the tour lasts minutes of the clock).
+  if (await page.evaluate(() => !!__game.flyoverPlayer?.active)) {
+    const vp = page.viewportSize();
+    await page.touchscreen.tap(vp.width / 2, vp.height / 2);
+    await page.waitForFunction(() => !__game.flyoverPlayer.active, null, { timeout: T(30000) })
+      .catch(() => fail('build A: a tap did not end the tour of the world'));
+  }
 
   // ---- 2. build B is published in the middle of the game ----
   serving = copy;
