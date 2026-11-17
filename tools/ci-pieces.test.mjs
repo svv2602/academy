@@ -13,6 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { DOCS, MAX_LISTED, SHARED, changedFiles, outputs, ownerOf, pick, report, verdict } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
+import { PARTS } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -567,7 +568,7 @@ describe('.github/workflows/ci.yml: the jobs follow the plan, "check" compares t
     const worlds = ci.jobs.worlds;
     expect(key(worlds, 'needs')).toBe('[plan, build]');
     expect(key(worlds, 'if')).toBe("${{ needs.plan.outputs.worlds == 'true' }}");
-    expect(worlds).toContain('node tools/worlds.mjs dist ');
+    expect(worlds).toContain('node tools/worlds.mjs dist --only ${{ matrix.part }} ');
     expect(worlds).toContain('set -o pipefail');
     expect(worlds).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
     expect(worlds).toContain('- run: npm ci');
@@ -643,7 +644,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     const worlds = pages.jobs.worlds;
     expect(key(worlds, 'needs')).toBe('build');
     expect(hasKey(worlds, 'if')).toBe(false);
-    expect(worlds).toContain('node tools/worlds.mjs dist ');
+    expect(worlds).toContain('node tools/worlds.mjs dist --only ${{ matrix.part }} ');
     expect(worlds).toContain('set -o pipefail');
     expect(worlds).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
     expect(worlds).not.toContain('continue-on-error');
@@ -673,5 +674,15 @@ describe('.github/workflows/pages.yml: before a publication everything is played
   it('the steps of the job "worlds" are the same in both workflows', () => {
     const steps = (job) => job.slice(job.indexOf('    steps:'));
     expect(steps(pages.jobs.worlds)).toBe(steps(workflow('ci.yml').jobs.worlds));
+  });
+
+  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" is a job for each part of tools/worlds.mjs, none left out, and one failed part does not stop the others', (name) => {
+    const worlds = workflow(name).jobs.worlds;
+    expect(yamlList(/^ {8}part: (\[.*\])$/m.exec(worlds)[1])).toEqual(PARTS);
+    expect(worlds).toContain('    strategy:\n      fail-fast: false\n      matrix:\n        part: [');
+    expect(key(worlds, 'name')).toBe('worlds (probe world, ${{ matrix.part }})');
+    // a failed part keeps its own pictures: two parts must not upload under one name
+    expect(worlds).toContain('          name: worlds-failure-${{ matrix.part }}\n');
+    expect(worlds.match(/tools\/worlds\.mjs/g)).toHaveLength(1);
   });
 });

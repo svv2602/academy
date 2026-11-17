@@ -10,8 +10,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList, ringPixels,
+  PARTS, PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels,
 } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -365,6 +365,52 @@ describe('node tools/worlds.mjs', () => {
       expect({ args, status: r.status }).toEqual({ args, status: 2 });
       expect(r.stderr).toMatch(/Usage: node tools\/worlds\.mjs \[distDir\]/);
     }
+  });
+
+  it('refuses --only without a part, with an unknown part, given twice: exit code 2, the parts are named, nothing built', () => {
+    for (const args of [['--only'], ['dist', '--only'], ['--only', 'walks'], ['--only', 'cache,rounds'], ['--only', ''], ['--only', 'cache', '--only', 'walk'], ['--only', '--bail']]) {
+      const r = run(...args);
+      expect({ args, status: r.status }).toEqual({ args, status: 2 });
+      expect(r.stderr).toContain(`parts: ${PARTS.join(', ')}`);
+      expect(r.stdout).not.toContain('[worlds] parts:');
+    }
+  });
+
+  it('readArgs: without --only every part is played, in the order of the run', () => {
+    expect(PARTS).toEqual(['walk', 'cache', 'transition']);
+    expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
+    expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
+  });
+
+  it('readArgs: --only plays the parts named and no other, before or after the folder, in the order of the run', () => {
+    for (const part of PARTS) expect(readArgs(['dist', '--only', part])).toEqual({ dist: 'dist', parts: [part] });
+    expect(readArgs(['--only', 'cache', 'dist'])).toEqual({ dist: 'dist', parts: ['cache'] });
+    expect(readArgs(['--only', 'transition,walk'])).toEqual({ dist: null, parts: ['walk', 'transition'] });
+    expect(readArgs(['--only', 'cache,cache'])).toEqual({ dist: null, parts: ['cache'] });
+  });
+
+  it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
+    expect(readArgs(['--only']).error).toContain('--only needs a part');
+    expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition');
+    expect(readArgs(['--only', '']).error).toContain('unknown part ""');
+    expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
+    expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
+    expect(readArgs(['--only=walk']).error).toBe('unknown flag "--only=walk"');
+    expect(readArgs(['dist', 'more']).error).toBe('a second folder "more"');
+    for (const bad of [['--only'], ['--only', 'x'], ['a', 'b'], ['-x']]) expect(readArgs(bad).parts).toBeUndefined();
+  });
+
+  it('each part is played only when it is named: the walkthrough, the cache and the transition are behind play(<part>)', () => {
+    const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
+    expect(src).toContain("const play = (part) => read.parts.includes(part);");
+    expect(src).toMatch(/if \(play\('walk'\)\) try \{\n[^\n]*\n[^\n]*\n\s+const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)/);
+    expect(src).toMatch(/if \(play\('cache'\)\) try \{\n\s+const summary = await cacheScenarios\(/);
+    expect(src).toMatch(/if \(play\('transition'\)\) try \{\n\s+const summary = await transitionScenarios\(/);
+    expect(src).toMatch(/if \(!play\('walk'\)\) console\.log\([^\n]*\n\s+else try \{\n\s+if \(!args\[0\]\) await vite\('the published build'\);/);
+    // the probe build is made for every part
+    expect(src).toMatch(/\n {2}try \{\n\s+rmSync\(probeDist, [^\n]*\n\s+await vite\('the probe build'/);
+    for (const call of ['await cacheScenarios(', 'await transitionScenarios(', "join(root, 'tools/shot.mjs')"]) expect(src.split(call)).toHaveLength(2);
   });
 
   it('tools/e2e.mjs runs it as the step "worlds", after "update", on the dist/ it built', () => {

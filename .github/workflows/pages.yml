@@ -99,12 +99,16 @@ jobs:
           retention-days: 7
 
   # The probe world (TECH-15, TECH-09): the build to publish must hold nothing of it; the build that lists it is made
-  # here (dist-probe/) and the world is played in it. Played before every publication.
+  # here (dist-probe/) and the world is played in it. Played before every publication, every part of tools/worlds.mjs.
   worlds:
-    name: worlds (probe world)
+    name: worlds (probe world, ${{ matrix.part }})
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [walk, cache, transition]   # the parts of tools/worlds.mjs, a job each
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -127,12 +131,12 @@ jobs:
           Q: '0'
         run: |
           set -o pipefail
-          node tools/worlds.mjs dist 2>&1 | tee worlds.log
+          node tools/worlds.mjs dist --only ${{ matrix.part }} 2>&1 | tee worlds.log
       - name: Upload screenshots and log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: worlds-failure
+          name: worlds-failure-${{ matrix.part }}
           path: |
             shots-e2e/
             worlds.log

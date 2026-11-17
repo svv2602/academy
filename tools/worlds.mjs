@@ -1,6 +1,10 @@
 // The probe world is a test world: the sources have it, the published game does not (TECH-15, TECH-09):
-//   node tools/worlds.mjs [distDir]
+//   node tools/worlds.mjs [distDir] [--only <part>[,<part>...]]
 // tools/e2e.mjs runs it as the step "worlds", once per run (with the mobile size, like "update"), on the dist/ it built.
+// The run has three parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5) and
+// "transition" (6). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
+// every part - each of them plays it. CI gives each part a job of its own (ARCH-16: a new scenario is a new part and a
+// new job, not more minutes in an old one); without --only everything is played, as tools/e2e.mjs does.
 //   1. The published build (distDir; without the argument `vite build` makes dist/ anew, as `npm run build` does) holds
 //      nothing of the probe world: no file under a folder "probe", no chunk of it, none of its marks in the code.
 //   2. The probe build is made anew: `vite build --mode probe --outDir dist-probe`. It must hold every file of
@@ -34,6 +38,7 @@
 //      a transition started for real closes and opens in no less than 0.4 s of game time each and stays closed until
 //      the world is said to be ready. The waits are for states too.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
+// Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of the walkthrough, default 600000).
 // Exit code: 0 — passed; 1 — a check failed (every failure is printed as "worlds: …"); 2 — bad arguments.
@@ -55,6 +60,30 @@ export const PROBE = 'probe';
 export const PROBE_FILES = 'worlds-test/probe';
 /** The build of the probe world, next to dist/. */
 export const PROBE_DIST = 'dist-probe';
+/** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
+export const PARTS = ['walk', 'cache', 'transition'];
+
+/**
+ * Reads the arguments `[distDir] [--only <part>[,<part>...]]`: { dist, parts } - the folder as given (null: none) and
+ * the parts to play in the order of PARTS (all of them without --only) - or { error }.
+ */
+export function readArgs(args) {
+  let dist = null, only = null;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--only') {
+      if (only) return { error: '--only is given twice' };
+      const value = args[++i];
+      if (value === undefined || value.startsWith('-')) return { error: `--only needs a part: ${PARTS.join(', ')}` };
+      only = value.split(',');
+      const unknown = only.filter((x) => !PARTS.includes(x));
+      if (unknown.length) return { error: `unknown part "${unknown.join('", "')}" of --only: use ${PARTS.join(', ')}` };
+    } else if (a.startsWith('-')) return { error: `unknown flag "${a}"` };
+    else if (dist !== null) return { error: `a second folder "${a}"` };
+    else dist = a;
+  }
+  return { dist, parts: PARTS.filter((x) => !only || only.includes(x)) };
+}
 
 /** Every file under `dir`, as paths relative to it with "/" between the folders, sorted. */
 function filesOf(dir) {
@@ -286,9 +315,11 @@ export function layerDifference(a, b) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
 async function main() {
-  const usage = (msg) => { console.error(`[worlds] ${msg}\nUsage: node tools/worlds.mjs [distDir]`); process.exit(2); };
-  const args = process.argv.slice(2);
-  if (args.length > 1 || args[0]?.startsWith('-')) usage(`bad arguments "${args.join(' ')}"`);
+  const usage = (msg) => { console.error(`[worlds] ${msg}\nUsage: node tools/worlds.mjs [distDir] [--only <part>[,<part>...]]   parts: ${PARTS.join(', ')}`); process.exit(2); };
+  const read = readArgs(process.argv.slice(2));
+  if (read.error) usage(read.error);
+  const args = [read.dist].filter((x) => x !== null);
+  const play = (part) => read.parts.includes(part);
   const firstPort = Number(process.env.E2E_PORT || 4183);
   if (!Number.isInteger(firstPort) || firstPort < 1 || firstPort > 65000) usage(`bad E2E_PORT "${process.env.E2E_PORT}"`);
   const runTimeoutMs = Number(process.env.E2E_RUN_TIMEOUT_MS || 600000);
@@ -327,8 +358,10 @@ async function main() {
     if (code !== 0) throw new Error(`${what}: vite build ${argv.join(' ')} ${timedOut ? 'was killed after 600000 ms' : `exited with ${signal ?? `code ${code}`}`}`);
   };
 
+  console.log(`[worlds] parts: ${read.parts.join(', ')}`);
   // ---- 1. the published build has nothing of the probe world ----
-  try {
+  if (!play('walk')) console.log('[worlds] the published build: not checked - it is the check of the part "walk"');
+  else try {
     if (!args[0]) await vite('the published build');
     const left = publishedProblems(dist);
     for (const p of left) fail(p);
@@ -386,7 +419,7 @@ async function main() {
   mkdirSync(join(root, shots), { recursive: true });
   const voiceOut = join(root, shots, 'voice-mobile.json');
   rmSync(voiceOut, { force: true });   // never read the report of an earlier run
-  try {
+  if (play('walk')) try {
     const env = { ...process.env, E2E_WORLD: PROBE, E2E_ONLY: '', E2E_OFFLINE: '0', E2E_MUTE: '0', E2E_COMMIT: commit,
       E2E_VOICE_OUT: voiceOut, E2E_MODELS_OUT: join(root, shots, 'models-requested-mobile.json'), E2E_LEVEL: process.env.E2E_LEVEL || '3' };
     const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, 'mobile'], runTimeoutMs, env);
@@ -407,21 +440,20 @@ async function main() {
     fail(`${e.stack ?? e}`);
   }
   // ---- 5. the cache of the next world ----
-  try {
+  if (play('cache')) try {
     const summary = await cacheScenarios({ url, asked, list: readList(probeDist), fail });
     if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`the cache of the world "${PROBE}": ${e.stack ?? e}`);
   }
   // ---- 6. the transition between worlds ----
-  try {
+  if (play('transition')) try {
     const summary = await transitionScenarios({ url, shots, fail });
     if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`the transition: ${e.stack ?? e}`);
-  } finally {
-    server.close(); server.closeAllConnections();
   }
+  server.close(); server.closeAllConnections();
   end();
 }
 

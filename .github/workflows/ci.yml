@@ -2,8 +2,9 @@ name: CI
 # Checks every branch except main (main is checked by pages.yml before it publishes: there everything is played, always).
 # Unit tests, type check and build run once; the built game is then played in the four screen sizes, each in four
 # pieces of the world (--only, tools/e2e-saves.mjs), sixteen jobs at the same time, on that very build; the probe
-# world is played by a job of its own ("worlds"). The job "check" passes only if all of them passed and the checks
-# that need every size at once (the models requested, the walkthrough without the voice) pass over their results (ARCH-15).
+# world is played by jobs of its own ("worlds": one for each part of tools/worlds.mjs). The job "check" passes only
+# if all of them passed and the checks that need every size at once (the models requested, the walkthrough without
+# the voice) pass over their results (ARCH-15).
 # On a branch, what is played depends on the files that changed against dev (ARCH-16; the job "plan",
 # tools/ci-pieces.mjs): files of one world - the jobs of that world, a shared file - everything, documents alone - unit
 # tests and build only; whenever the changed files cannot be told, and in a run started by hand - everything.
@@ -147,13 +148,18 @@ jobs:
           retention-days: 7
 
   # The probe world (TECH-15, TECH-09): the build of this run must hold nothing of it; the build that lists it is made
-  # here (dist-probe/, so the sources and the packages are needed) and the world is played in it.
+  # here (dist-probe/, so the sources and the packages are needed) and the world is played in it. Each part of
+  # tools/worlds.mjs is a job: a new scenario there is a new part here, not more minutes in an old job.
   worlds:
-    name: worlds (probe world)
+    name: worlds (probe world, ${{ matrix.part }})
     needs: [plan, build]
     if: ${{ needs.plan.outputs.worlds == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [walk, cache, transition]   # the parts of tools/worlds.mjs, a job each
     steps:
       # The same checkout as in "build": tools/worlds.mjs compares the commit in the build with the one of the sources.
       - uses: actions/checkout@v4
@@ -177,12 +183,12 @@ jobs:
           Q: '0'
         run: |
           set -o pipefail
-          node tools/worlds.mjs dist 2>&1 | tee worlds.log
+          node tools/worlds.mjs dist --only ${{ matrix.part }} 2>&1 | tee worlds.log
       - name: Upload screenshots and log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: worlds-failure
+          name: worlds-failure-${{ matrix.part }}
           path: |
             shots-e2e/
             worlds.log
