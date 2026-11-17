@@ -887,8 +887,14 @@ try {
           } else { delete document.hidden; delete document.visibilityState; }       // back to the real ones
           document.dispatchEvent(new Event('visibilitychange'));
         }, hidden);
-        await page.waitForFunction(() => window.__started.some((a) => !a.paused && !a.ended && a.currentTime > 0.2), null, { timeout: T(10000) })
-          .catch(() => fail('no line was sounding after "play"'));
+        // The line said after "play" (the cat's tour line on a first entry, its welcome on a world visited before) is waited
+        // for by its own clip starting and then playing - on the slow CI runner, offline, its first sound can be many
+        // seconds of the clock away.
+        const said = await g(() => __game.line);
+        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key), said, { timeout: T(60000) })
+          .catch(() => fail(`the clip of "${said}", said after "play", never started`));
+        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key && !a.paused && !a.ended && a.currentTime > 0.2), said, { timeout: T(60000) })
+          .catch(() => fail(`no line was sounding after "play" (the clip of "${said}" started but did not play)`));
         const id = await g(() => { const a = window.__started.findLast((x) => !x.paused && !x.ended); a.__probe = true; return window.__clip(a); });
         await visibility(true);
         await wait(1200);
@@ -1887,10 +1893,21 @@ try {
             const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
             return { x, y, under: under ? under.id || under.localName : 'nothing', taps: c.taps, state: c.state, hero: [hp.x, hp.z] };
           }, i);
+          // The camera follows a moving creature with a lag (a swimming fish above all): before each tap the creature is
+          // waited for inside the window, 10 % in from its edges - by the frames of the game, not the clock.
+          const inView = () => page.waitForFunction((i) => {
+            const c = __game.creatures[i];
+            const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + (c.kind === 'fish' ? 0 : 0.15), c.pos.z).project(__game.camera);
+            return s.z < 1 && Math.abs(s.x) < 0.8 && Math.abs(s.y) < 0.8;
+          }, i, { timeout: T(30000) }).catch(async () => {
+            const a = await where();
+            fail(`the ${k} did not come into the window: it is at ${Math.round(a.x)},${Math.round(a.y)} of ${page.viewportSize().width}x${page.viewportSize().height}`);
+          });
+          await inView();
           let at = await where(), took = false, attempt = 0;
           const taps0 = at.taps;
           for (; attempt < 3 && !took; attempt++) {
-            if (attempt > 0) at = await where();
+            if (attempt > 0) { await inView(); at = await where(); }
             if (at.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(at.x)},${Math.round(at.y)}: there is "${at.under}"`);
             await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
             took = await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(5000) }).then(() => true, () => false);
