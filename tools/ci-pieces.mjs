@@ -26,12 +26,14 @@
 // run named in the log of "check" (by induction over the heads of dev).
 // Whenever in doubt, everything is played: "check" is the gate into dev and the status the protection of main asks for.
 // pages.yml does not use this file: before a publication everything is played, always.
+//   node tools/ci-pieces.mjs results <from> <to>     the job "check": of the results the walkthroughs left, the ones of the
+//                                            last attempt of each (`lastAttempts` below), laid out for --combine
 //   node tools/ci-pieces.mjs try <branch> <commit>   the job "plan" of try.yml: reads what to try from the name of the
 //                                            branch (`tryPlan` below) and writes it to $GITHUB_OUTPUT
 // Exit code: 0 - done (check: every job ended as planned); 1 - check failed; 2 - bad arguments.
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PIECES } from './e2e-saves.mjs';
@@ -244,6 +246,8 @@ export function rests({ sha, runId, before }, { runs, jobsOf, beforeRuns }) {
 /** The size that means "a part of the probe world" in the name of a trial branch. */
 export const TRY_PROBE = 'probe';
 export const TRY_MAX = 10;
+/** The kinds of what the jobs leave for the job that sums them up (the names: `attemptName`). */
+export const RESULTS = 'results', TRY_TURN = 'try-turn';
 /**
  * A trial branch is try/<size>/<piece>/x<N>/<net|offline>/<the first 7 or more characters of its commit>:
  *   size - one of the four screen sizes, or "probe" (a part of the probe world, tools/worlds.mjs);
@@ -296,6 +300,40 @@ export function tryResult(turns, n) {
   lines.unshift(`${green} of ${n} green`);
   return { ok: green === n, green, lines };
 }
+
+// ---- a job played again leaves its results again: the last attempt is chosen here, by its number ----
+// A job that is played again (gh run rerun) uploads what it leaves under the same name, and the run then holds both.
+// Which of the two a download by name or by pattern takes is not ours to say: on 2026-11-18 a walkthrough passed on its
+// third attempt and "check" still read the failure of the second one (the newer artifact had the smaller id). So the
+// name carries the number of the attempt, every artifact is downloaded into a folder of its own, and the choice is
+// made here.
+/** The name of what a job leaves: `<kind>-<what>-a<attempt>`, e.g. results-mobile-shop-a2, try-turn-3-a1. */
+export const attemptName = (kind, what, attempt) => `${kind}-${what}-a${attempt}`;
+/**
+ * Of the folders `names` (one an artifact), the one of the highest attempt for each `what` of the kind `kind`.
+ * Returns { chosen: [{ what, attempt, name, attempts }] in the order of `what`, ignored: the names that are not
+ * `<kind>-<what>-a<attempt>` }. `attempts` - every attempt found for it, ascending.
+ */
+export function lastAttempts(names, kind) {
+  const shape = new RegExp(`^${kind.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(.+)-a([1-9]\\d*)$`);
+  const by = new Map(), ignored = [];
+  for (const name of Array.isArray(names) ? names : []) {
+    const m = typeof name === 'string' ? shape.exec(name) : null;
+    if (!m) { ignored.push(String(name)); continue; }
+    const what = m[1], attempt = Number(m[2]);
+    const had = by.get(what) ?? { what, attempt: 0, name: '', attempts: [] };
+    had.attempts.push(attempt);
+    if (attempt > had.attempt) { had.attempt = attempt; had.name = name; }
+    by.set(what, had);
+  }
+  const chosen = [...by.values()].map((c) => ({ ...c, attempts: [...new Set(c.attempts)].sort((a, b) => a - b) }))
+    .sort((a, b) => (a.what < b.what ? -1 : a.what > b.what ? 1 : 0));
+  return { chosen, ignored };
+}
+/** The folders right under `dir` (one an artifact, as download-artifact lays out a download by pattern); none if there is no `dir`. */
+const foldersOf = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) : []);
+/** One line a choice, for the log: which attempt was taken of which. */
+const attemptLine = (c) => `${c.what}: attempt ${c.attempt}${c.attempts.length > 1 ? ` (the last of ${c.attempts.join(', ')})` : ''}`;
 
 /**
  * The text of the failure in the log of one turn: the errors the walkthrough lists (the block "ERRORS:" of
@@ -356,6 +394,17 @@ function main(argv, env) {
     console.log('[ci] PASSED: every job ended as planned');
     return 0;
   }
+  if (cmd === 'results' && rest.length === 2) {
+    // rest[0]: the folder the results were downloaded into, a folder an artifact (results-<size>-<group>-a<attempt>);
+    // rest[1]: the folder tools/e2e.mjs --combine reads - the files of the last attempt of every walkthrough
+    const from = resolve(rest[0]), to = resolve(rest[1]);
+    const { chosen, ignored } = lastAttempts(foldersOf(from), RESULTS);
+    mkdirSync(to, { recursive: true });
+    for (const c of chosen) { cpSync(join(from, c.name), to, { recursive: true }); console.log(`[ci] results of ${attemptLine(c)}`); }
+    for (const name of ignored) console.log(`[ci] not the results of a walkthrough, left out: ${shown(name)}`);
+    if (!chosen.length) console.log(`[ci] no results of a walkthrough in ${shown(rest[0])}: the checks over all sizes will say what is missing`);
+    return 0;
+  }
   if (cmd === 'try' && rest.length === 2) {
     const t = tryPlan(rest[0], rest[1]);
     if (t.error) { console.error(`[ci] ${t.error}`); return 1; }
@@ -379,15 +428,22 @@ function main(argv, env) {
     // rest[0]: the folder with what the turns left (turn-<i>.json, anywhere under it); rest[1]: how many were asked for
     const n = Number(rest[1]);
     if (!Number.isInteger(n) || n < 1 || n > TRY_MAX) { console.error(`[ci] try-result: "${rest[1]}" is not 1..${TRY_MAX}`); return 2; }
-    const turns = [];
-    const walk = (dir) => { for (const e of existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : []) { const p = join(dir, e.name); if (e.isDirectory()) walk(p); else if (/^turn-\d+\.json$/.test(e.name)) { try { turns.push(JSON.parse(readFileSync(p, 'utf8'))); } catch { /* an unreadable result is no result */ } } } };
-    walk(resolve(rest[0]));
+    // a folder an artifact (try-turn-<turn>-a<attempt>): of a turn played again, only its last attempt is read
+    const turns = [], from = resolve(rest[0]);
+    const { chosen } = lastAttempts(foldersOf(from), TRY_TURN);
+    for (const c of chosen) {
+      console.log(`[ci] turn ${attemptLine(c)}`);
+      for (const e of readdirSync(join(from, c.name))) {
+        if (!/^turn-\d+\.json$/.test(e)) continue;
+        try { turns.push(JSON.parse(readFileSync(join(from, c.name, e), 'utf8'))); } catch { /* an unreadable result is no result */ }
+      }
+    }
     const r = tryResult(turns, n);
     for (const l of r.lines) console.log(`[ci] ${l}`);
     if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `### ${r.lines[0]}\n\n\`\`\`\n${r.lines.slice(1).join('\n') || 'every turn passed'}\n\`\`\`\n`);
     return r.ok ? 0 : 1;
   }
-  console.error('[ci] usage: node tools/ci-pieces.mjs plan | pick <file>... | check | try <branch> <commit> | try-turn <turn> <outcome> <log> | try-result <folder> <n>');
+  console.error('[ci] usage: node tools/ci-pieces.mjs plan | pick <file>... | check | results <from> <to> | try <branch> <commit> | try-turn <turn> <outcome> <log> | try-result <folder> <n>');
   return 2;
 }
 

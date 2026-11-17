@@ -122,7 +122,8 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: try-turn-${{ matrix.turn }}
+          # the number of the attempt: after `gh run rerun` "try-result" reads the last attempt of every turn
+          name: try-turn-${{ matrix.turn }}-a${{ github.run_attempt }}
           path: turn-${{ matrix.turn }}.json
           if-no-files-found: warn
           retention-days: 1
@@ -130,7 +131,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: try-failure-${{ matrix.turn }}
+          name: try-failure-${{ matrix.turn }}-a${{ github.run_attempt }}
           path: |
             shots-e2e/
             try.log
@@ -155,8 +156,7 @@ jobs:
         continue-on-error: true   # none at all when nothing was played: the next step says so
         with:
           pattern: try-turn-*
-          path: try-turns
-          merge-multiple: true
+          path: try-turns          # a folder an artifact: try-turn-<turn>-a<attempt>
       - name: k of N
         shell: bash
         env:

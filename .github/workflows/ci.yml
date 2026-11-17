@@ -82,6 +82,9 @@ jobs:
         run: npm test
       - name: Type check and build
         run: npm run build
+      # Left under a bare name on purpose, unlike the results below: a build made again (the whole run played again)
+      # is a build of this same commit, so whichever of the two a later job downloads is the build of this commit -
+      # and every walkthrough compares the commit in the build with its checkout.
       - name: Keep the build for the walkthroughs
         uses: actions/upload-artifact@v4
         with:
@@ -139,7 +142,8 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: results-${{ matrix.size }}-${{ matrix.group }}
+          # the number of the attempt: a job played again leaves its results again, and "check" takes the last ones
+          name: results-${{ matrix.size }}-${{ matrix.group }}-a${{ github.run_attempt }}
           path: |
             shots-e2e/summary-${{ matrix.size }}-${{ matrix.group }}.json
             shots-e2e/models-requested-${{ matrix.size }}-${{ matrix.group }}.json
@@ -150,7 +154,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-failure-${{ matrix.size }}-${{ matrix.group }}
+          name: e2e-failure-${{ matrix.size }}-${{ matrix.group }}-a${{ github.run_attempt }}
           path: |
             shots-e2e/
             e2e.log
@@ -198,7 +202,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: worlds-failure-${{ matrix.part }}
+          name: worlds-failure-${{ matrix.part }}-a${{ github.run_attempt }}
           path: |
             shots-e2e/
             worlds.log
@@ -234,8 +238,12 @@ jobs:
         continue-on-error: true   # none at all when the build failed: the next step says what is missing
         with:
           pattern: results-*
-          path: e2e-results
-          merge-multiple: true
+          path: e2e-results-all     # a folder an artifact: results-<size>-<group>-a<attempt>
+      # A walkthrough played again left its results again: the ones of its last attempt are taken (tools/ci-pieces.mjs
+      # `lastAttempts`), by the number in the name - not by whichever artifact a merged download would write last.
+      - name: The last attempt of every walkthrough
+        if: ${{ !cancelled() && needs.plan.outputs.walk == 'true' }}
+        run: node tools/ci-pieces.mjs results e2e-results-all e2e-results
       # All four sizes passed on this commit, one was played without the voice, the models requested add up.
       # Not run when no walkthrough was planned: it needs every size played whole (the step above says so).
       - name: Checks over all sizes

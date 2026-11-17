@@ -5,12 +5,12 @@
 // played would otherwise still give a green "check".
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, SHARED, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
+import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_TURN, attemptName, lastAttempts, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
 import { PARTS } from './worlds.mjs';
@@ -665,7 +665,7 @@ describe('.github/workflows/ci.yml: the jobs follow the plan, "check" compares t
     expect(walk).toContain('      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}\n');
     expect(walk).not.toMatch(/^\s+(size|group): \[/m);
     expect(walk).toContain('npm run e2e -- --skip-build --mode ${{ matrix.size }} --only ${{ matrix.group }}');
-    expect(walk).toContain('name: results-${{ matrix.size }}-${{ matrix.group }}');
+    expect(walk).toContain('name: results-${{ matrix.size }}-${{ matrix.group }}-a${{ github.run_attempt }}\n');
     expect(walk).toContain("E2E_STUCK_MS: ${{ inputs.break == matrix.size && '1' || '' }}");
     expect(walk).not.toContain('continue-on-error');
   });
@@ -729,7 +729,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
   it('has no plan: the jobs are build, walk, worlds, check and deploy, and nothing asks tools/ci-pieces.mjs', () => {
     expect(Object.keys(pages.jobs)).toEqual(['build', 'walk', 'worlds', 'check', 'deploy']);
     expect(pages.text).not.toContain('needs.plan');
-    expect(pages.text).not.toContain('ci-pieces');
+    expect([...pages.text.matchAll(/ci-pieces\.mjs (\w[\w-]*)/g)].map((m) => m[1])).toEqual(['results']);   // lays out the last attempts; never plans
     expect(pages.text).not.toContain('fromJSON');
     expect(pages.text).not.toMatch(/needs\.[\w-]+\.outputs/);   // no job decides for another what is played
   });
@@ -790,7 +790,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(worlds).toContain('    strategy:\n      fail-fast: false\n      matrix:\n        part: [');
     expect(key(worlds, 'name')).toBe('worlds (probe world, ${{ matrix.part }})');
     // a failed part keeps its own pictures: two parts must not upload under one name
-    expect(worlds).toContain('          name: worlds-failure-${{ matrix.part }}\n');
+    expect(worlds).toContain('          name: worlds-failure-${{ matrix.part }}-a${{ github.run_attempt }}\n');
     expect(worlds.match(/tools\/worlds\.mjs/g)).toHaveLength(1);
   });
 });
@@ -1083,7 +1083,7 @@ describe('.github/workflows/try.yml: a trial is not the gate', () => {
     // what was read from the name of the branch reaches the shell as variables, never as text of the script
     expect(/run: \|\n((?: {10}.*\n)+)/.exec(turn)[1]).not.toContain('${{');
     expect(turn).toContain('run: node tools/ci-pieces.mjs try-turn "$TRY_TURN" "$TRY_OUTCOME" try.log');
-    expect(turn).toContain('          name: try-turn-${{ matrix.turn }}\n          path: turn-${{ matrix.turn }}.json\n');
+    expect(turn).toContain('          name: try-turn-${{ matrix.turn }}-a${{ github.run_attempt }}\n          path: turn-${{ matrix.turn }}.json\n');
     expect(turn).not.toContain('continue-on-error');
   });
 
@@ -1098,8 +1098,132 @@ describe('.github/workflows/try.yml: a trial is not the gate', () => {
 
   it('pages.yml knows nothing of trials or of the runs of a commit: before a publication everything is played', () => {
     const pages = workflow('pages.yml');
-    expect(pages.text).not.toContain('ci-pieces');
+    expect([...pages.text.matchAll(/ci-pieces\.mjs (\w[\w-]*)/g)].map((m) => m[1])).toEqual(['results']);   // lays out the last attempts; never plans
     expect(pages.text).not.toContain('try/');
     expect(pages.text).not.toContain('actions: read');
+  });
+});
+
+// ---- a job played again: the results of its last attempt are chosen here, by the number in the name ----
+describe('tools/ci-pieces.mjs lastAttempts: a job played again leaves its results again', () => {
+  it('the name of what a job leaves carries the attempt, and the last attempt of each is chosen - by its number', () => {
+    expect(attemptName(RESULTS, 'desktop-shop', 3)).toBe('results-desktop-shop-a3');
+    expect(attemptName(TRY_TURN, 4, 1)).toBe('try-turn-4-a1');
+    // the very case of 2026-11-18: the second attempt failed, the third passed - whatever the order they are listed in
+    for (const names of [['results-desktop-shop-a2', 'results-desktop-shop-a3'], ['results-desktop-shop-a3', 'results-desktop-shop-a2']]) {
+      expect(lastAttempts(names, RESULTS)).toEqual({ chosen: [{ what: 'desktop-shop', attempt: 3, name: 'results-desktop-shop-a3', attempts: [2, 3] }], ignored: [] });
+    }
+  });
+
+  it('one job played again among jobs played once: each keeps its own last attempt', () => {
+    const r = lastAttempts(['results-mobile-world1-a1', 'results-desktop-shop-a1', 'results-desktop-shop-a2', 'results-mobile-portrait-finale-a1'], RESULTS);
+    expect(r.chosen.map((c) => c.name)).toEqual(['results-desktop-shop-a2', 'results-mobile-portrait-finale-a1', 'results-mobile-world1-a1']);
+    expect(r.chosen.map((c) => c.attempts)).toEqual([[1, 2], [1], [1]]);
+  });
+
+  it('the attempts are numbers, not text: the tenth is after the ninth, and the second after the first of ten', () => {
+    expect(lastAttempts(['results-mobile-shop-a9', 'results-mobile-shop-a10', 'results-mobile-shop-a2'], RESULTS).chosen[0]).toMatchObject({ attempt: 10, name: 'results-mobile-shop-a10', attempts: [2, 9, 10] });
+    expect(lastAttempts(['try-turn-1-a1', 'try-turn-10-a1', 'try-turn-1-a2'], TRY_TURN).chosen.map((c) => c.name)).toEqual(['try-turn-1-a2', 'try-turn-10-a1']);
+  });
+
+  it('what is not "<kind>-<what>-a<attempt>" is left out and named: another kind, no attempt, an attempt 0', () => {
+    const r = lastAttempts(['dist', 'results-mobile-shop', 'results-mobile-shop-a0', 'results-mobile-shop-a', 'results--a1', 'try-turn-1-a1', 'e2e-failure-mobile-shop-a1', 'results-mobile-shop-a1'], RESULTS);
+    expect(r.chosen.map((c) => c.name)).toEqual(['results-mobile-shop-a1']);
+    expect(r.ignored).toEqual(['dist', 'results-mobile-shop', 'results-mobile-shop-a0', 'results-mobile-shop-a', 'results--a1', 'try-turn-1-a1', 'e2e-failure-mobile-shop-a1']);
+    expect(lastAttempts([], RESULTS)).toEqual({ chosen: [], ignored: [] });
+    expect(lastAttempts(null, RESULTS)).toEqual({ chosen: [], ignored: [] });
+    // a kind is text, not a pattern
+    const dotted = lastAttempts(['resultsX-mobile-a1', 'results.-mobile-a1'], 'results.');
+    expect(dotted.chosen.map((c) => c.name)).toEqual(['results.-mobile-a1']);
+    expect(dotted.ignored).toEqual(['resultsX-mobile-a1']);
+  });
+});
+
+describe('node tools/ci-pieces.mjs results and try-result: only the last attempt is read', () => {
+  /** A folder of downloaded artifacts: { '<artifact>/<file>': content }. */
+  const downloaded = (files) => {
+    const dir = tmp();
+    for (const [path, content] of Object.entries(files)) { mkdirSync(join(dir, path, '..'), { recursive: true }); writeFileSync(join(dir, path), typeof content === 'string' ? content : JSON.stringify(content)); }
+    return dir;
+  };
+
+  it('results: the files of the last attempt of every walkthrough are laid out for --combine, the earlier attempts are not', () => {
+    const from = downloaded({
+      'results-desktop-shop-a2/summary-desktop-shop.json': { passed: false, attempt: 2 },
+      'results-desktop-shop-a3/summary-desktop-shop.json': { passed: true, attempt: 3 },
+      'results-desktop-shop-a3/voice-desktop-shop.json': { loud: 8 },
+      'results-desktop-shop-a2/models-requested-desktop-shop.json': ['only the failed attempt left this'],
+      'results-mobile-world1-a1/summary-mobile-world1.json': { passed: true, attempt: 1 },
+      'something-else/summary-desktop-shop.json': { passed: false, attempt: 99 },
+    });
+    const to = join(tmp(), 'e2e-results');
+    const r = cli(['results', from, to]);
+    expect(r.code, r.out).toBe(0);
+    expect(JSON.parse(readFileSync(join(to, 'summary-desktop-shop.json'), 'utf8'))).toEqual({ passed: true, attempt: 3 });
+    expect(JSON.parse(readFileSync(join(to, 'summary-mobile-world1.json'), 'utf8'))).toEqual({ passed: true, attempt: 1 });
+    expect(readdirSync(to).sort()).toEqual(['summary-desktop-shop.json', 'summary-mobile-world1.json', 'voice-desktop-shop.json']);
+    expect(r.out).toContain('[ci] results of desktop-shop: attempt 3 (the last of 2, 3)');
+    expect(r.out).toContain('[ci] results of mobile-world1: attempt 1\n');
+    expect(r.out).toContain('left out: something-else');
+  }, 30000);
+
+  it('results: nothing was left at all - the folder for --combine is made empty, and the log says so', () => {
+    const to = join(tmp(), 'e2e-results');
+    const r = cli(['results', join(tmp(), 'not-there'), to]);
+    expect(r.code, r.out).toBe(0);
+    expect(existsSync(to)).toBe(true);
+    expect(readdirSync(to)).toEqual([]);
+    expect(r.out).toContain('no results of a walkthrough');
+  }, 30000);
+
+  it('try-result: a turn played again counts by its last attempt - red then green is green, green then red is red', () => {
+    const from = downloaded({
+      'try-turn-1-a1/turn-1.json': { turn: 1, ok: false, error: 'scenario failed: first attempt' },
+      'try-turn-1-a2/turn-1.json': { turn: 1, ok: true, error: '' },
+      'try-turn-2-a1/turn-2.json': { turn: 2, ok: true, error: '' },
+      'try-turn-3-a1/turn-3.json': { turn: 3, ok: true, error: '' },
+      'try-turn-3-a2/turn-3.json': { turn: 3, ok: false, error: 'scenario failed: second attempt' },
+    });
+    const r = cli(['try-result', from, '3']);
+    expect(r.code, r.out).toBe(1);
+    expect(r.out).toContain('[ci] 2 of 3 green');
+    expect(r.out).toContain('turn 3: RED');
+    expect(r.out).toContain('scenario failed: second attempt');
+    expect(r.out).not.toContain('first attempt');
+    expect(r.out).toContain('[ci] turn 1: attempt 2 (the last of 1, 2)');
+    // every turn green by its last attempt
+    const green = cli(['try-result', downloaded({ 'try-turn-1-a1/turn-1.json': { turn: 1, ok: false, error: 'x' }, 'try-turn-1-a3/turn-1.json': { turn: 1, ok: true, error: '' } }), '1']);
+    expect(green.code, green.out).toBe(0);
+    expect(green.out).toContain('[ci] 1 of 1 green');
+  }, 30000);
+});
+
+describe('the workflows: what a job leaves is named by its attempt, and the job that sums up chooses the last', () => {
+  it.each(['ci.yml', 'pages.yml'])('%s: "check" downloads every artifact into a folder of its own and lays out the last attempts before --combine', (name) => {
+    const w = workflow(name), check = w.jobs.check;
+    expect(w.jobs.walk).toContain('          name: results-${{ matrix.size }}-${{ matrix.group }}-a${{ github.run_attempt }}\n');
+    expect(check).toContain('          pattern: results-*\n          path: e2e-results-all\n');
+    // merged into one folder, the files of two attempts would overwrite each other in an order nobody chose
+    expect(check).not.toContain('merge-multiple');
+    const choose = check.indexOf('run: node tools/ci-pieces.mjs results e2e-results-all e2e-results\n'), combine = check.indexOf('node tools/e2e.mjs --combine e2e-results ');
+    expect(choose).toBeGreaterThan(check.indexOf('pattern: results-*'));
+    expect(combine).toBeGreaterThan(choose);
+    // every artifact a job may leave twice says which attempt left it
+    for (const job of Object.values(w.jobs)) for (const m of job.matchAll(/^ {10}name: ((?:results|e2e-failure|worlds-failure)-.*)$/gm)) expect(m[1]).toMatch(/-a\$\{\{ github\.run_attempt \}\}$/);
+  });
+
+  it('try.yml: every turn leaves its result under its attempt, and "try-result" reads a folder an artifact', () => {
+    const t = workflow('try.yml');
+    expect(t.jobs.try).toContain('          name: try-turn-${{ matrix.turn }}-a${{ github.run_attempt }}\n');
+    expect(t.jobs.try).toContain('          name: try-failure-${{ matrix.turn }}-a${{ github.run_attempt }}\n');
+    expect(t.jobs['try-result']).toContain('          pattern: try-turn-*\n          path: try-turns\n');
+    expect(t.jobs['try-result']).not.toContain('merge-multiple');
+  });
+
+  it('the build is the only artifact left under a bare name: every attempt builds the same commit', () => {
+    for (const name of ['ci.yml', 'pages.yml', 'try.yml']) {
+      const bare = [...workflow(name).text.matchAll(/^ {10}name: (.*)$/gm)].map((m) => m[1]).filter((n) => !n.includes('github.run_attempt'));
+      expect([...new Set(bare)], name).toEqual(['dist']);
+    }
   });
 });
