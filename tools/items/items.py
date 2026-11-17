@@ -2,7 +2,7 @@
 
 Run (from the repository root, see tools/items/README.md):
     blender -b --factory-startup --python tools/items/items.py -- <shop dir> <looks dir>
-    e.g. ... -- models-src/items models-unused/items
+    e.g. ... -- models-src/items models-src/items
 Every item is modelled in the rest-pose model space of the UNSCALED heroine (models-src/hero/child.glb: head with
 hair x ±0.31, y ±0.25, z 0.67–1.20 m; right hand x -0.34…-0.47 m at z 0.64; Blender axes, the face looks to -y) and
 exported on its own as <id>.glb: the items of the first shop into <shop dir>, the items of the looks (PLAY-06, not

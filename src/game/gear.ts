@@ -5,7 +5,7 @@ import type { Sparks } from './fx';
 /** Where an item is worn on the heroine (PLAY-04, PLAY-05). Each slot holds one item or none. */
 export type GearSlot = 'head' | 'wand' | 'wings' | 'trail';
 
-/** The items of the first shop and the bone that carries each modelled one (shared ids of the shop, the save and the screen). */
+/** The items of the first shop and of the looks, and the bone that carries each modelled one (shared ids of the shop, the save and the screen). */
 export const GEAR = {
   wand_star: { slot: 'wand', bone: 'hand_r' },
   wand_crystal: { slot: 'wand', bone: 'hand_r' },
@@ -13,6 +13,13 @@ export const GEAR = {
   crown: { slot: 'head', bone: 'Head' },
   wizard_hat: { slot: 'head', bone: 'Head' },
   earrings_star: { slot: 'head', bone: 'Head' },
+  // The things of the four looks (PLAY-06, src/game/looks.ts): simple, free versions, never sold.
+  tiara: { slot: 'head', bone: 'Head' },
+  wizard_cap: { slot: 'head', bone: 'Head' },
+  elf_ears: { slot: 'head', bone: 'Head' },
+  wand_flower: { slot: 'wand', bone: 'hand_r' },
+  wand_moon: { slot: 'wand', bone: 'hand_r' },
+  wand_leaf: { slot: 'wand', bone: 'hand_r' },
   wings_butterfly: { slot: 'wings', bone: 'spine_03' },
   /** The procedural petals the heroine always had (src/worlds/fairy/characters.ts): free, worn by default. */
   wings_petals: { slot: 'wings', bone: null },

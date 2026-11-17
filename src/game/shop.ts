@@ -25,9 +25,14 @@ export interface Item {
   reward?: Reward;
   /** Every heroine has it from the start. */
   free?: boolean;
+  /** A thing of one of the four looks (src/game/looks.ts): always free as well. */
+  look?: boolean;
 }
 
-/** The first version: six things to buy, two rewards and the wings she has always had (decision Q3: 5 to 8 for sale). */
+/**
+ * The first version: six things to buy, two rewards, the wings she has always had (decision Q3: 5 to 8 for sale) and
+ * the six free things of the looks.
+ */
 export const CATALOG: readonly Item[] = [
   { id: 'wand_star', slot: 'wand', price: 10 },
   { id: 'wings_butterfly', slot: 'wings', price: 15 },
@@ -38,6 +43,14 @@ export const CATALOG: readonly Item[] = [
   { id: 'wand_crystal', slot: 'wand', reward: 'crystal' },
   { id: 'earrings_star', slot: 'head', reward: 'three_secrets' },
   { id: 'wings_petals', slot: 'wings', free: true },
+  // The things of the four looks (PLAY-06, decision 3 of 2026-11-15): simple versions, free, never sold; the full ones
+  // (the crown, the hat with stars, the star and crystal wands) stay in the shop and the rewards.
+  { id: 'tiara', slot: 'head', free: true, look: true },
+  { id: 'wizard_cap', slot: 'head', free: true, look: true },
+  { id: 'elf_ears', slot: 'head', free: true, look: true },
+  { id: 'wand_flower', slot: 'wand', free: true, look: true },
+  { id: 'wand_moon', slot: 'wand', free: true, look: true },
+  { id: 'wand_leaf', slot: 'wand', free: true, look: true },
 ];
 
 /** The thing of an id, or undefined for an id the catalog does not know (a later version's thing, a damaged save). */
