@@ -138,6 +138,19 @@ export function notDownloaded(listed, asked) {
   return listed.filter((f) => !asked.some((r) => r.path === `/${f.url}` && r.search === `?v=${f.revision}`)).map((f) => f.url);
 }
 
+/**
+ * The requests of `asked` that reached the server though the game had to do without it. The browser's own check for
+ * a new service worker is not one of them: at a navigation it may ask for the worker's script again (/sw.js) and for
+ * the scripts that script imports (/workbox-<hash>.js, asked by /sw.js), whatever the page does, and switching the
+ * network off for the pages does not stop it (seen on the CI runner: CI 44055935550). Nothing else is left out: a
+ * file of the game or of a world asked by the worker - a route that went to the network - still counts.
+ */
+export function askedWithoutNetwork(asked) {
+  const byWorker = (referer) => { try { return /\/sw\.js$/.test(new URL(referer).pathname); } catch { return false; } };
+  const updateCheck = (r) => r.path === '/sw.js' || (byWorker(r.referer) && /^\/workbox-[0-9a-z]+\.js$/i.test(r.path));
+  return asked.filter((r) => !updateCheck(r));
+}
+
 /** worlds.json of the build `dir`, or null when it cannot be read. */
 export function readList(dir) {
   try { return JSON.parse(readFileSync(join(dir, WORLDS_LIST), 'utf8')); } catch { return null; }
@@ -389,7 +402,8 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
 
     // ---- "offline": the probe world from the cache ----
     // The switch takes the network from the pages (navigator.onLine is false), not from the service worker's own
-    // requests: what proves the cache is that the server is asked for nothing from here on (`off`).
+    // requests: what proves the cache is that the server is asked for nothing from here on (`off`) - but for the
+    // browser's check for a new worker, which is not the game's (`askedWithoutNetwork`).
     await ctx.setOffline(true);
     const off = asked.length;
     const page2 = await ctx.newPage();
@@ -412,7 +426,7 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
     await page2.evaluate(() => __game.talk(__game.npcs[0].def.id));
     await page2.locator('#task:not(.hidden)').waitFor({ timeout: T(30000) })
       .catch(() => fail(`offline: the character of the world "${PROBE}" gave no task`));
-    const leaked = asked.slice(off);
+    const leaked = askedWithoutNetwork(asked.slice(off));
     if (leaked.length) fail(`offline: the server was asked for ${leaked.length} file(s) with the network switched off: ${leaked.slice(0, 5).map(who).join(', ')}`);
     await ctx.close();
     if (failures) return '';

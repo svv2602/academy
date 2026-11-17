@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, buildCommit, listProblems, notAskedByPage, notDownloaded, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList } from './worlds.mjs';
+import { PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, listProblems, notAskedByPage, notDownloaded, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -165,6 +165,32 @@ describe('the cache of the next world: what the server was asked for (TECH-09)',
     expect(askedOfWorld([...other, ...own], PROBE)).toEqual(own);
     expect(askedOfWorld(other, PROBE)).toEqual([]);
     expect(askedOfWorld(own, 'ocean')).toEqual([]);
+  });
+
+  it('askedWithoutNetwork: the browser\'s check for a new service worker is not a request of the game; everything else is', () => {
+    const origin = 'http://127.0.0.1:4183', sw = `${origin}/sw.js`, page = `${origin}/?debug&world=probe`;
+    // What the CI runner showed with the network switched off (CI 44055935550): the worker's script and the script it imports.
+    const check = [{ path: '/sw.js', referer: sw, search: '' }, { path: '/workbox-0ab24316.js', referer: sw, search: '' }, { path: '/sw.js', referer: '', search: '' }];
+    expect(askedWithoutNetwork(check)).toEqual([]);
+    expect(askedWithoutNetwork([])).toEqual([]);
+    const leaks = [
+      { path: '/models/probe/stump.glb', referer: sw, search: '' },        // the worker's route went to the network for a file of the world
+      { path: '/models/probe/stump.glb', referer: page, search: '' },      // the page reached the server
+      { path: '/worlds.json', referer: sw, search: '' },                   // the list, asked by the worker
+      { path: '/assets/index-abc123.js', referer: sw, search: '' },        // a script of the game, asked by the worker
+      { path: '/workbox-0ab24316.js', referer: page, search: '' },         // the worker's library, but asked by the page
+      { path: '/workbox-0ab24316.js', referer: '', search: '' },           // ... or by nobody known
+      { path: '/models/workbox-0ab24316.js', referer: sw, search: '' },    // not at the root
+      { path: '/index.html', referer: '', search: '' },
+    ];
+    expect(askedWithoutNetwork(leaks)).toEqual(leaks);
+    expect(askedWithoutNetwork([...check, ...leaks])).toEqual(leaks);
+  });
+
+  it('the scenario "offline" counts what the server was asked for through askedWithoutNetwork, and fails on anything left', () => {
+    const src = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    expect(src).toContain('const leaked = askedWithoutNetwork(asked.slice(off));');
+    expect(src).toMatch(/if \(leaked\.length\) fail\(`offline: the server was asked for \$\{leaked\.length\} file\(s\) with the network switched off/);
   });
 
   it('notDownloaded: the files of the list never asked for by their fingerprint', () => {
