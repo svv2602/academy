@@ -59,7 +59,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
 describe('the folders of the worlds under public/ (TECH-09)', () => {
   /** The folders of the core and the first world: the packs of models. Their voice and story frames have none. */
   const CORE_FOLDERS: Record<string, readonly string[]> = {
-    models: ['animals_pack', 'extra', 'hero', 'items', 'medieval_village_pack', 'nature2', 'nature_pack', 'platformer_game_pack', 'rpg_items_pack'],
+    models: ['animals_pack', 'creatures', 'extra', 'hero', 'items', 'medieval_village_pack', 'nature2', 'nature_pack', 'platformer_game_pack', 'rpg_items_pack'],
     voice: [],
     story: [],
   };

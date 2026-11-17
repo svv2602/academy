@@ -20,4 +20,11 @@ Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wand
 and the items of the looks in `models-unused/items/`): our own simple shapes made in Blender for this game with
 `tools/items/items.py` — not taken from any pack or service.
 
+Creatures of the first world (`models-src/creatures/`): Quaternius "Bird" (https://poly.pizza/m/gYYC0gYMnw),
+"Clownfish" (https://poly.pizza/m/769fHo3eEB) and "Fish" (https://poly.pizza/m/XWl86YFtpF), single models fetched
+from https://poly.pizza (its fish packs, https://quaternius.com/packs/animatedfish.html, are CC0 too) — each CC0 1.0
+on its page; made static (no skeleton, no animation; the bird's texture turned into flat colours) in Blender.
+The fairies and their little flowers are our own simple shapes built in code (`src/worlds/fairy/creatures.ts`),
+not taken from any pack or service.
+
 Code: Three.js (MIT).
