@@ -1981,123 +1981,128 @@ try {
       // three reactions different; the heroine does not walk off, the stars and the save stay as they were.
       if (has('creatures')) {
         const fail = (what) => { throw new Error(`creatures: ${what}`); };
-        // A scene of an achievement (PLAY-08) is not let in while the creatures are framed and tapped: it would take the
-        // camera. (A failure ends the walkthrough, so the hold is given back on the way out of a passed block only.)
-        const achHeld = await g(() => { const was = __game.ach.held; __game.ach.hold(); return was; });
-        const ACTS = { fairy: ['fly', 'gather'], bird: ['perch', 'fly'], fish: ['swim', 'leap'] };
-        const CALM = { fairy: 'gather', bird: 'perch', fish: 'swim' };
-        const gameWait = async (s) => {
-          const t0 = await g(() => __game.time);
-          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) })
-            .catch(() => fail(`${s} s of game time did not pass`));
-        };
-        const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-        const kinds = await g(() => __game.creatures.map((c) => c.kind));
-        for (const k of Object.keys(ACTS)) if (!kinds.includes(k)) fail(`there is no ${k} (${kinds.join(' ')})`);
-        // The camera follows creature `i` from `DIST` m (a close-up); the heroine stands `d` m from it towards the spawn,
-        // out of the water.
-        const DIST = { fairy: 2.5, bird: 10, fish: 3 }, CLOSE = { fairy: 3.2, bird: 6, fish: 4 };
-        const frame = (i, d) => g(([i, d, close]) => {
-          const c = __game.creatures[i], p = c.pos, ux = -p.x, uz = 14 - p.z, n = Math.hypot(ux, uz) || 1;
-          for (let k = d; k < 40; k += 0.5) {
-            __game.teleport(p.x + (ux / n) * k, p.z + (uz / n) * k);
-            if (c.kind !== 'fish' || __game.hero.root.position.y > p.y + 0.4) break;
+        // A scene of an achievement (PLAY-08) is not let in while the creatures are framed and tapped: it would take the camera.
+        await holdAchDuring(async () => {
+          const ACTS = { fairy: ['fly', 'gather'], bird: ['perch', 'fly'], fish: ['swim', 'leap'] };
+          const CALM = { fairy: 'gather', bird: 'perch', fish: 'swim' };
+          const gameWait = async (s) => {
+            const t0 = await g(() => __game.time);
+            await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(600000) })
+              .catch(() => fail(`${s} s of game time did not pass`));
+          };
+          const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+          const kinds = await g(() => __game.creatures.map((c) => c.kind));
+          for (const k of Object.keys(ACTS)) if (!kinds.includes(k)) fail(`there is no ${k} (${kinds.join(' ')})`);
+          // The camera follows creature `i` from `DIST` m (a close-up); the heroine stands `d` m from it towards the spawn,
+          // out of the water.
+          const DIST = { fairy: 2.5, bird: 10, fish: 3 }, CLOSE = { fairy: 3.2, bird: 6, fish: 4 };
+          const frame = (i, d) => g(([i, d, close]) => {
+            const c = __game.creatures[i], p = c.pos, ux = -p.x, uz = 14 - p.z, n = Math.hypot(ux, uz) || 1;
+            for (let k = d; k < 40; k += 0.5) {
+              __game.teleport(p.x + (ux / n) * k, p.z + (uz / n) * k);
+              if (c.kind !== 'fish' || __game.hero.root.position.y > p.y + 0.4) break;
+            }
+            __game.cam.focus = p; __game.closeup(close[c.kind]);
+            // the camera is put where it would come to rest on the creature (src/game/camera.ts: the target a third of the
+            // way from the creature to the heroine's head, the turn past her, the close-up distance, the pitch of a close-up)
+            // - on a slow runner it would take seconds of game time to glide there
+            const hp = __game.hero.root.position, cam = __game.cam;
+            cam.target.copy(p).lerp(new __game.THREE.Vector3(hp.x, hp.y + 1.2, hp.z), 0.3);
+            cam.yaw = Math.atan2(hp.x - p.x, hp.z - p.z) + 0.5; cam.dist = close[c.kind]; cam.pitch = 0.3;
+          }, [i, d, CLOSE]);
+          // A state is waited for by the creature's own steps, hurried on: one that is in another state has it ended at
+          // once (its time set to its length), so the next state comes in a frame or two of the game - its random length
+          // would take minutes of the clock on the slow CI runner. Each action still runs and is pictured as itself.
+          const until = async (i, states, what) => {
+            if (!(await gameUntil(([i, s]) => {
+              const c = __game.creatures[i];
+              if (s.includes(c.state)) return true;
+              c.t = Math.max(c.t, c.dur);
+              return false;
+            }, [i, states], 10))) fail(`${what} in 10 s of game time: still "${await g((i) => __game.creatures[i].state, i)}"`);
+          };
+          // The two actions of each kind, pictured - in the sizes whose pictures are looked at (a phone held upright and the
+          // computer); the taps below are played in every size. Each action is brought on by the lever (until: the state
+          // it waits for is hurried in), and the picture is taken a moment of game time into it.
+          const PICTURES = ['mobile-portrait', 'desktop'].includes(mode);
+          for (const [k, acts] of PICTURES ? Object.entries(ACTS) : []) {
+            const i = kinds.indexOf(k);
+            await frame(i, DIST[k]);
+            for (const a of acts) {
+              await until(i, [a], `the ${k} never started to ${a}`);
+              await gameWait(0.3);
+              await shot(`creature-${k}-${a}`);
+            }
           }
-          __game.cam.focus = p; __game.closeup(close[c.kind]);
-        }, [i, d, CLOSE]);
-        // A state is waited for by the creature's own steps, hurried on: one that is in another state has it ended at
-        // once (its time set to its length), so the next state comes in a frame or two of the game - its random length
-        // would take minutes of the clock on the slow CI runner. Each action still runs and is pictured as itself.
-        const until = async (i, states, what) => {
-          if (!(await gameUntil(([i, s]) => {
-            const c = __game.creatures[i];
-            if (s.includes(c.state)) return true;
-            c.t = Math.max(c.t, c.dur);
-            return false;
-          }, [i, states], 10))) fail(`${what} in 10 s of game time: still "${await g((i) => __game.creatures[i].state, i)}"`);
-        };
-        // The two actions of each kind, pictured - in the sizes whose pictures are looked at (a phone held upright and the
-        // computer); the taps below are played in every size. Each action is brought on by the lever (until: the state
-        // it waits for is hurried in), and the picture is taken a moment of game time into it.
-        const PICTURES = ['mobile-portrait', 'desktop'].includes(mode);
-        for (const [k, acts] of PICTURES ? Object.entries(ACTS) : []) {
-          const i = kinds.indexOf(k);
-          await frame(i, DIST[k]);
-          for (const a of acts) {
-            await until(i, [a], `the ${k} never started to ${a}`);
-            await gameWait(0.3);
-            await shot(`creature-${k}-${a}`);
+          // a tap on one of each kind. A moving creature caught by its place on the screen is a matter of luck on the slow
+          // CI runner, so the walkthrough sets the scene itself: the creature is held still in its calm action at a known
+          // point (the world's debug holdCreature) - a fairy and a bird in the open before the heroine's spawn, a fish where
+          // it swims in the pond, at the point of its circle that faces the spawn - the camera looks at it, and the game's frames bring it into the middle of the window.
+          // Then one real tap on the screen, counted by the creature's own counter of taps; its reaction is its usual one.
+          const reactions = {};
+          const spawn = await g(() => { __game.teleport(0, 14); const p = __game.hero.root.position; return [p.x, p.y, p.z]; });
+          const HOLD = { fairy: [0, 1.2, -4], bird: [1.5, 1.4, -5] };
+          for (const k of Object.keys(ACTS)) {
+            const i = kinds.indexOf(k);
+            // the fish: on its own circle in the pond (its centre found from its angle and radius), at the point that faces
+            // the spawn - the heroine then stands between the spawn and the fish, and the camera looks straight at it
+            if (k === 'fish') await until(i, ['swim'], 'the fish never swam again');     // on its circle, not mid-leap
+            const at = k === 'fish' ? await g((i) => {
+              const c = __game.creatures[i], cx = c.pos.x - Math.cos(c.a) * c.r, cz = c.pos.z - Math.sin(c.a) * c.r;
+              const a = Math.atan2(14 - cz, 0 - cx);
+              return [cx + Math.cos(a) * c.r, c.pos.y, cz + Math.sin(a) * c.r];
+            }, i) : HOLD[k].map((d, j) => spawn[j] + d);
+            await g(([i, at]) => __game.holdCreature(i, at), [i, at]);
+            await frame(i, DIST[k]);
+            // The point tapped is the middle of the drawn creature - what a child taps, and what the game measures a tap from.
+            const where = () => g((i) => {
+              const c = __game.creatures[i], hp = __game.hero.root.position;
+              const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + __game.creatureBody(i), c.pos.z).project(__game.camera);
+              const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+              const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
+              return { x, y, middle: s.z < 1 && Math.abs(s.x) < 0.6 && Math.abs(s.y) < 0.6, under: under ? under.id || under.localName : 'nothing', taps: c.taps, state: c.state, hero: [hp.x, hp.z] };
+            }, i);
+            // the camera comes to it with a lag: first it comes to rest (it stops moving between two looks), then the creature
+            // must be in the middle of the window - both by the game's clock. A camera still on its way moved the creature
+            // away from the point read for the tap (a tap missed at the window's edge on the phone in landscape).
+            await g(() => { window.__camPrev = null; });
+            if (!(await gameUntil(() => {
+              const p = __game.camera.position.toArray(), w = window.__camPrev;
+              window.__camPrev = p;
+              return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
+            }, null, 10))) fail(`the camera did not come to rest on the ${k} in 10 s of game time`);
+            if (!(await gameUntil((i) => {
+              const c = __game.creatures[i];
+              const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + __game.creatureBody(i), c.pos.z).project(__game.camera);
+              return s.z < 1 && Math.abs(s.x) < 0.6 && Math.abs(s.y) < 0.6;
+            }, i, 5))) {
+              const w = await where();
+              fail(`the ${k} held at ${at.map((v) => v.toFixed(1)).join(',')} is not in the middle of the window after 5 s of game time: it is at ${Math.round(w.x)},${Math.round(w.y)} of ${page.viewportSize().width}x${page.viewportSize().height}`);
+            }
+            const before = await saved();
+            const tap0 = await where();
+            const taps0 = tap0.taps;
+            if (tap0.state !== CALM[k]) fail(`the ${k} is held in "${tap0.state}", not "${CALM[k]}"`);
+            if (tap0.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(tap0.x)},${Math.round(tap0.y)}: there is "${tap0.under}"`);
+            await (touch ? page.touchscreen.tap(tap0.x, tap0.y) : page.mouse.click(tap0.x, tap0.y));
+            await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(10000) })
+              .catch(() => fail(`a tap on the ${k} at ${Math.round(tap0.x)},${Math.round(tap0.y)} was not taken`));
+            if (await g(([i, n]) => __game.creatures[i].taps !== n + 1, [i, taps0])) fail(`one tap on the ${k} counted more than once`);
+            const state = await g((i) => __game.creatures[i].state, i);
+            if (ACTS[k].includes(state)) fail(`a tap on the ${k} gave no reaction: it goes on to "${state}"`);
+            reactions[k] = state;
+            if (PICTURES) await shot(`creature-${k}-tapped`);
+            await gameWait(0.2);   // a tap she took as a walk would have moved her by now
+            const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), tap0.hero);
+            if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m after a tap on the ${k}`);
+            const after = await saved();
+            if (after !== before) fail(`a tap on the ${k} changed the save (no rewards): ${before} -> ${after}`);
+            await g((i) => __game.holdCreature(i, null), i);
           }
-        }
-        // a tap on one of each kind. A moving creature caught by its place on the screen is a matter of luck on the slow
-        // CI runner, so the walkthrough sets the scene itself: the creature is held still in its calm action at a known
-        // point (the world's debug holdCreature) - a fairy and a bird in the open before the heroine's spawn, a fish where
-        // it swims in the pond, at the point of its circle that faces the spawn - the camera looks at it, and the game's frames bring it into the middle of the window.
-        // Then one real tap on the screen, counted by the creature's own counter of taps; its reaction is its usual one.
-        const reactions = {};
-        const spawn = await g(() => { __game.teleport(0, 14); const p = __game.hero.root.position; return [p.x, p.y, p.z]; });
-        const HOLD = { fairy: [0, 1.2, -4], bird: [1.5, 1.4, -5] };
-        for (const k of Object.keys(ACTS)) {
-          const i = kinds.indexOf(k);
-          // the fish: on its own circle in the pond (its centre found from its angle and radius), at the point that faces
-          // the spawn - the heroine then stands between the spawn and the fish, and the camera looks straight at it
-          if (k === 'fish') await until(i, ['swim'], 'the fish never swam again');     // on its circle, not mid-leap
-          const at = k === 'fish' ? await g((i) => {
-            const c = __game.creatures[i], cx = c.pos.x - Math.cos(c.a) * c.r, cz = c.pos.z - Math.sin(c.a) * c.r;
-            const a = Math.atan2(14 - cz, 0 - cx);
-            return [cx + Math.cos(a) * c.r, c.pos.y, cz + Math.sin(a) * c.r];
-          }, i) : HOLD[k].map((d, j) => spawn[j] + d);
-          await g(([i, at]) => __game.holdCreature(i, at), [i, at]);
-          await frame(i, DIST[k]);
-          // The point tapped is the middle of the drawn creature - what a child taps, and what the game measures a tap from.
-          const where = () => g((i) => {
-            const c = __game.creatures[i], hp = __game.hero.root.position;
-            const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + __game.creatureBody(i), c.pos.z).project(__game.camera);
-            const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
-            const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
-            return { x, y, middle: s.z < 1 && Math.abs(s.x) < 0.6 && Math.abs(s.y) < 0.6, under: under ? under.id || under.localName : 'nothing', taps: c.taps, state: c.state, hero: [hp.x, hp.z] };
-          }, i);
-          // the camera comes to it with a lag: first it comes to rest (it stops moving between two looks), then the creature
-          // must be in the middle of the window - both by the game's clock. A camera still on its way moved the creature
-          // away from the point read for the tap (a tap missed at the window's edge on the phone in landscape).
-          await g(() => { window.__camPrev = null; });
-          if (!(await gameUntil(() => {
-            const p = __game.camera.position.toArray(), w = window.__camPrev;
-            window.__camPrev = p;
-            return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
-          }, null, 10))) fail(`the camera did not come to rest on the ${k} in 10 s of game time`);
-          if (!(await gameUntil((i) => {
-            const c = __game.creatures[i];
-            const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + __game.creatureBody(i), c.pos.z).project(__game.camera);
-            return s.z < 1 && Math.abs(s.x) < 0.6 && Math.abs(s.y) < 0.6;
-          }, i, 5))) {
-            const w = await where();
-            fail(`the ${k} held at ${at.map((v) => v.toFixed(1)).join(',')} is not in the middle of the window after 5 s of game time: it is at ${Math.round(w.x)},${Math.round(w.y)} of ${page.viewportSize().width}x${page.viewportSize().height}`);
-          }
-          const before = await saved();
-          const tap0 = await where();
-          const taps0 = tap0.taps;
-          if (tap0.state !== CALM[k]) fail(`the ${k} is held in "${tap0.state}", not "${CALM[k]}"`);
-          if (tap0.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(tap0.x)},${Math.round(tap0.y)}: there is "${tap0.under}"`);
-          await (touch ? page.touchscreen.tap(tap0.x, tap0.y) : page.mouse.click(tap0.x, tap0.y));
-          await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(10000) })
-            .catch(() => fail(`a tap on the ${k} at ${Math.round(tap0.x)},${Math.round(tap0.y)} was not taken`));
-          if (await g(([i, n]) => __game.creatures[i].taps !== n + 1, [i, taps0])) fail(`one tap on the ${k} counted more than once`);
-          const state = await g((i) => __game.creatures[i].state, i);
-          if (ACTS[k].includes(state)) fail(`a tap on the ${k} gave no reaction: it goes on to "${state}"`);
-          reactions[k] = state;
-          if (PICTURES) await shot(`creature-${k}-tapped`);
-          await gameWait(0.4);
-          const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), tap0.hero);
-          if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m after a tap on the ${k}`);
-          const after = await saved();
-          if (after !== before) fail(`a tap on the ${k} changed the save (no rewards): ${before} -> ${after}`);
-          await g((i) => __game.holdCreature(i, null), i);
-        }
-        if (new Set(Object.values(reactions)).size !== 3) fail(`the three reactions are not different: ${JSON.stringify(reactions)}`);
-        await g(([x, z]) => { __game.cam.focus = null; __game.closeup(null); __game.teleport(x, z); }, back);
-        await g((was) => { if (!was) __game.ach.release(); }, achHeld);
-        console.log(`creatures: ${PICTURES ? `${Object.entries(ACTS).map(([k, a]) => `${k} ${a.join('/')}`).join(', ')} pictured` : 'no pictures in this size'}; taps (each held still, one tap): ${Object.entries(reactions).map(([k, r]) => `${k} -> ${r}`).join(', ')}; nothing recorded`);
+          if (new Set(Object.values(reactions)).size !== 3) fail(`the three reactions are not different: ${JSON.stringify(reactions)}`);
+          await g(([x, z]) => { __game.cam.focus = null; __game.closeup(null); __game.teleport(x, z); }, back);
+          console.log(`creatures: ${PICTURES ? `${Object.entries(ACTS).map(([k, a]) => `${k} ${a.join('/')}`).join(', ')} pictured` : 'no pictures in this size'}; taps (each held still, one tap): ${Object.entries(reactions).map(([k, r]) => `${k} -> ${r}`).join(', ')}; nothing recorded`);
+        });
       }
       // ---- the magic of the world (WORLD-09): the shards in the save decide it (also those given in this walkthrough);
       // one point of the tour pictured with no magic and with all of it - the two pictures differ above the threshold
@@ -2137,21 +2142,22 @@ try {
         // The scene first comes to rest on the point: the camera stops moving (it follows the tour with a lag) - waited for
         // by the game's clock.
         // A scene of an achievement (PLAY-08) is not let in while the pictures are taken: it would take the camera.
-        const achHeld = await g(() => { window.__camPrev = null; const was = __game.ach.held; __game.ach.hold(); return was; });
-        const achBack = () => g((was) => { if (!was) __game.ach.release(); }, achHeld);
-        if (!(await gameUntil(() => {
-          const p = __game.camera.position.toArray(), w = window.__camPrev;
-          window.__camPrev = p;
-          return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
-        }, null, 10))) { await achBack(); fail(`the camera did not come to rest on point ${MAGIC_POINT + 1} of the tour in 10 s of game time`); }
-        await canvasOnly(true);
         let pre, s0, p0, p0b, p1, s1;
-        try {
-          pre = await pic(0, null);
-          s0 = await g(() => { __game.still(true); return { time: __game.time, frame: __game.renderer.info.render.frame }; });
-          p0 = await pic(0, 'magic-0'); p0b = await pic(0, 'magic-0-again'); p1 = await pic(1, 'magic-1');
-          s1 = await g(() => ({ time: __game.time, frame: __game.renderer.info.render.frame, cam: __game.camera.position.toArray() }));
-        } finally { await g(() => __game.still(false)); await achBack(); await canvasOnly(false); }
+        await g(() => { window.__camPrev = null; });
+        await holdAchDuring(async () => {
+          if (!(await gameUntil(() => {
+            const p = __game.camera.position.toArray(), w = window.__camPrev;
+            window.__camPrev = p;
+            return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
+          }, null, 10))) fail(`the camera did not come to rest on point ${MAGIC_POINT + 1} of the tour in 10 s of game time`);
+          await canvasOnly(true);
+          try {
+            pre = await pic(0, null);
+            s0 = await g(() => { __game.still(true); return { time: __game.time, frame: __game.renderer.info.render.frame }; });
+            p0 = await pic(0, 'magic-0'); p0b = await pic(0, 'magic-0-again'); p1 = await pic(1, 'magic-1');
+            s1 = await g(() => ({ time: __game.time, frame: __game.renderer.info.render.frame, cam: __game.camera.position.toArray() }));
+          } finally { await g(() => __game.still(false)); await canvasOnly(false); }
+        });
         if (s1.time !== s0.time) fail(`the still world went on: its game time moved from ${s0.time} to ${s1.time}`);
         if (!(s1.frame - s0.frame >= 9)) fail(`the still world drew ${s1.frame - s0.frame} frames for three pictures`);
         if (!s1.cam.every(Number.isFinite)) fail(`the camera of the still world is at ${s1.cam}`);
