@@ -2,9 +2,12 @@ import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { propMaterial, uSway } from '../../core/materials';
 import { defaultSave, loadSave, storeSave, worldState } from '../../core/save';
-import { MAGIC_MOTES, buildMotes } from './sky';
+import { MAGIC_MOTES, buildMotes, type buildSky } from './sky';
 import { QUESTS } from './quests';
-import { SHARD_MAGIC, magicOf } from './magic';
+import { MAGIC_BUTTERFLIES, SHARD_MAGIC, createMagic, magicOf } from './magic';
+import type { FairyLoads } from './load';
+import type { Game } from '../../game/context';
+import { Butterflies } from '../../game/butterflies';
 
 /** In-memory stand-in for localStorage: save.ts talks to the global directly and node has none. */
 function memoryStorage() {
@@ -79,5 +82,48 @@ describe('what the magic changes needs no new shader program', () => {
     expect(pts.geometry.drawRange.count).toBe(100);
     expect(pts.geometry.getAttribute('position').count).toBe(100 + Math.round(100 * MAGIC_MOTES));
     expect(pts.userData.magicCount).toEqual({ base: 100, full: 100 + Math.round(100 * MAGIC_MOTES) });
+  });
+});
+
+describe('the small living things grow with the magic (WORLD-09): flowers, motes, butterflies', () => {
+  beforeEach(() => { vi.stubGlobal('localStorage', memoryStorage()); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  /** A first world in small: two cells of flowers marked as ./scenery.ts marks them, the motes of ./sky.ts, a flock. */
+  function world() {
+    const scene = new THREE.Scene();
+    const cells = [{ base: 5, full: 9 }, { base: 0, full: 4 }].map((n) => {
+      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), n.full);
+      mesh.userData.magicCount = n; mesh.count = n.base;
+      scene.add(mesh);
+      return mesh;
+    });
+    buildMotes(scene, 100);
+    const motes = scene.children.at(-1) as THREE.Points;
+    const flies = new Butterflies(scene, 96, () => 0);
+    for (let i = 0; i < 6; i++) flies.add(i, i, 1, '#ffffff');        // the ambient ones, there with no magic
+    const g = { scene, ws: worldState(saveWith(0), 'fairy'), flies } as unknown as Game;
+    const sky = {
+      sky: new THREE.Mesh(new THREE.BufferGeometry(), new THREE.ShaderMaterial({ uniforms: { uGlow: { value: 0 } } })),
+      fog: new THREE.Fog('#ffffff', 70, 300), hemi: new THREE.HemisphereLight(), sun: new THREE.DirectionalLight(),
+    } as unknown as ReturnType<typeof buildSky>;
+    const magic = createMagic(g, { rainbowAlpha: { value: 0 } } as unknown as FairyLoads, sky);
+    const count = () => ({
+      flowers: cells.reduce((s, m) => s + m.count, 0),
+      motes: motes.geometry.drawRange.count,
+      butterflies: flies.flies.filter((f) => f.scale > 0).length,
+    });
+    return { magic, count };
+  }
+
+  it('none of them falls as the magic grows, and with all of it there are more of each than with none', () => {
+    const { magic, count } = world();
+    const at = [0, 0.25, 0.5, 0.75, 1].map((m) => { magic.set(m); return count(); });
+    for (let i = 1; i < at.length; i++) {
+      for (const k of ['flowers', 'motes', 'butterflies'] as const) expect(at[i][k], `${k} at step ${i}`).toBeGreaterThanOrEqual(at[i - 1][k]);
+    }
+    for (const k of ['flowers', 'motes', 'butterflies'] as const) expect(at[4][k], k).toBeGreaterThan(at[0][k]);
+    expect(at[0]).toEqual({ flowers: 5, motes: 100, butterflies: 6 });
+    expect(at[4]).toEqual({ flowers: 13, motes: 100 + Math.round(100 * MAGIC_MOTES), butterflies: 6 + MAGIC_BUTTERFLIES });
   });
 });
