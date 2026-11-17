@@ -893,10 +893,23 @@ try {
         const said = await g(() => __game.line);
         await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key), said, { timeout: T(60000) })
           .catch(() => fail(`the clip of "${said}", said after "play", never started`));
-        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key && !a.paused && !a.ended && a.currentTime > 0.2), said, { timeout: T(60000) })
+        // The page is hidden by the page itself the moment the line is heard sounding: the welcome lasts under 3 s, and on
+        // the slow CI runner a frame can take a second, so a check from here, frame by frame, can miss it. A timer of the
+        // page runs between frames; the game hears the visibility change in the same task.
+        const id = await page.evaluate(([key, ms]) => new Promise((resolve, reject) => {
+          const timer = setInterval(() => {
+            const a = window.__started.find((x) => window.__clip(x) === key && !x.paused && !x.ended && x.currentTime > 0.2);
+            if (!a) return;
+            clearInterval(timer); clearTimeout(limit);
+            a.__probe = true;
+            Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+            Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+            document.dispatchEvent(new Event('visibilitychange'));
+            resolve(window.__clip(a));
+          }, 10);
+          const limit = setTimeout(() => { clearInterval(timer); reject(new Error('none')); }, ms);
+        }), [said, T(60000)])
           .catch(() => fail(`no line was sounding after "play" (the clip of "${said}" started but did not play)`));
-        const id = await g(() => { const a = window.__started.findLast((x) => !x.paused && !x.ended); a.__probe = true; return window.__clip(a); });
-        await visibility(true);
         await wait(1200);
         const away = await g(() => { const a = window.__started.find((x) => x.__probe); return { paused: a.paused, ended: a.ended, at: a.currentTime }; });
         await visibility(false);
