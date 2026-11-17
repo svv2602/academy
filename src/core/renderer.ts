@@ -7,6 +7,7 @@ import { startTier, type Tier } from './quality';
 import { storeSave, type Save } from './save';
 import { setDrawRange } from './instancing';
 import { el } from '../ui/ui';
+import { transition } from '../game/transition';
 
 /**
  * The renderer, the scene and the camera. A factory, not module code: main.ts imports this before its WebGL2 check
@@ -84,6 +85,9 @@ export function createQuality(o: {
   function render(dt: number) {
     renderer.info.reset();
     if (composer) composer.render(dt); else renderer.render(scene, camera);
+    // The transition between worlds (TECH-15), over the finished frame of either path: straight into the canvas, after
+    // the bloom and the tone curve. Outside a transition it draws nothing - the count of calls stays as it was.
+    transition.render(renderer, dt);
   }
 
   // fps meter + automatic quality fallback. The frames are measured with or without ?debug: the fallback needs them.

@@ -9,7 +9,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, listProblems, notAskedByPage, notDownloaded, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList } from './worlds.mjs';
+import {
+  PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList, ringPixels,
+} from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -282,6 +285,74 @@ describe('the probe world in the sources', () => {
     expect(cfg).toContain(`const PROBE_MODE = '${PROBE}';`);
     expect(cfg).toContain(`const PROBE_FILES = '${PROBE_FILES}';`);
     expect(cfg).toContain('...(mode === PROBE_MODE ? [probeFiles()] : []),');
+  });
+});
+
+describe('the pictures of the transition (TECH-15)', () => {
+  /** A picture w x h, as the step reads a screenshot: `paint(x, y)` gives the colour of a pixel. */
+  const picture = (w, h, paint) => {
+    const data = Buffer.alloc(w * h * 4, 255);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) data.set(paint(x, y), (y * w + x) * 4);
+    return { data, width: w, height: h };
+  };
+  const layer = (y, h) => [184 + Math.round(35 * y / h), 199 - Math.round(5 * y / h), 250];   // blue at the top, lilac at the bottom
+  const scene = (x, y) => [90 + (x * 7 + y * 3) % 60, 170, 80];
+  const closed = (w, h) => picture(w, h, (x, y) => layer(y, h));
+  /** The layer with a hole: half-axes rx and ry around cx, cy. */
+  const iris = (w, h, rx, ry = rx, cx = w / 2, cy = h / 2) => picture(w, h, (x, y) => (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 < 1 ? scene(x, y) : layer(y, h)));
+  const W = 422, H = 195;
+
+  it('the closed frame: one calm colour from side to side', () => {
+    expect(closedProblems(closed(W, H))).toEqual([]);
+    expect(closedProblems(closed(H, W))).toEqual([]);
+    expect(closedProblems(picture(W, H, scene))[0]).toMatch(/the closed frame is not one colour across the row 6: .* the layer does not cover the frame/);
+    expect(closedProblems(picture(W, H, () => [10, 10, 30]))[0]).toMatch(/the closed frame is dark in the row 6: 10,10,30/);
+    // covered on the left only: the layer stops half-way
+    expect(closedProblems(picture(W, H, (x, y) => (x < W / 2 ? layer(y, H) : scene(x, y)))).length).toBe(5);
+  });
+
+  it('the middle of the closing: a round hole around the middle, on a screen lying and upright', () => {
+    expect(irisProblems(iris(W, H, 120), closed(W, H))).toEqual([]);
+    expect(irisProblems(iris(H, W, 120), closed(H, W))).toEqual([]);
+    expect(irisProblems(iris(W, H, 90), closed(W, H))).toEqual([]);
+  });
+
+  it('the middle of the closing: what is not a layer with a round hole in the middle is a problem', () => {
+    const one = (mid, back = closed(W, H)) => irisProblems(mid, back).join(' | ');
+    expect(one(picture(W, H, scene))).toMatch(/the corner 2,2 is not covered by the layer: .* the corner 419,192 is not covered/);   // no layer at all
+    expect(one(closed(W, H))).toMatch(/^the middle of the frame is covered \(\d+,\d+,250\): the iris has no hole$/);            // closed too early
+    expect(one(iris(W, H, 120, 200))).toMatch(/^the hole is not a circle: 120 px from the middle to its edge, and .* px at 68 px aside, where a circle has 98\.9 px$/);
+    expect(one(iris(W, H, 200, 92))).toMatch(/the hole is not a circle/);                                                          // stretched along the screen
+    expect(one(iris(H, W, 92, 200), closed(H, W))).toMatch(/the hole is not a circle/);
+    expect(one(iris(W, H, 100, 100, W / 2 + 40))).toMatch(/^the hole is not around the middle: 1\d\d px to one side, \d\d px to the other/);
+    expect(one(iris(W, H, 400, 80))).toBe('the hole of the iris has no edge inside the frame along its longer side');
+    expect(one(iris(W, H, 120), closed(H, W))).toBe('the pictures are not of one size: 422x195 and 195x422');
+    // a frame wiped by the layer: the hole is there and round, but nothing of the world is in it
+    const wiped = picture(W, H, (x, y) => ((x - W / 2) ** 2 + (y - H / 2) ** 2 < 120 ** 2 ? [0, 0, 0] : layer(y, H)));
+    expect(one(wiped)).toBe('the hole is one flat colour (0,0,0): the layer is drawn instead of the frame, not over it');
+  });
+
+  it('the cost of the layer: one draw call in a frame between two frames of one count', () => {
+    expect(layerCallsProblems([283, 284, 283, 284, 283, 284, 283, 284, 283])).toEqual([]);
+    expect(layerCallsProblems([283, 284, 283, 283, 282, 283, 282, 283, 282])).toEqual([]);            // the world dropped a call on the way
+    expect(layerCallsProblems([283, 283, 283, 283, 283])[0]).toMatch(/^the layer costs 0 draw call\(s\) a frame, it must cost exactly one and none outside a transition \(.*: 283, 283, 283, 283, 283\)$/);
+    expect(layerCallsProblems([283, 285, 283, 284, 283])[0]).toMatch(/^the layer costs 2 and 1 draw call/);
+    expect(layerCallsProblems([283, 284, 282, 283, 281])[0]).toMatch(/^the count of draw calls never stood still around a frame with the layer \(283, 284, 282, 283, 281\)/);
+  });
+
+  it('the ring: only its filled part is counted, not the layer, the track or the star', () => {
+    const quiet = [[205, 196, 250], [236, 226, 251], [255, 235, 158], [255, 255, 255], [90, 170, 80]];
+    const filled = [[255, 155, 208], [209, 131, 232], [165, 107, 255]];
+    expect(ringPixels(picture(10, 5, (x) => quiet[x % quiet.length]))).toBe(0);
+    expect(ringPixels(picture(10, 6, (x, y) => (y < 3 ? filled[y] : quiet[x % quiet.length])))).toBe(30);
+  });
+
+  it('two closed frames: the same colours whatever the size of the picture, a shifted colour is seen', () => {
+    expect(layerDifference(closed(W, H), closed(W, H))).toBe(0);
+    expect(layerDifference(closed(W, H), closed(W * 2, H * 2))).toBeLessThanOrEqual(1);
+    expect(layerDifference(closed(W, H), picture(W, H, (x, y) => layer(y, H).map((v, i) => (i === 1 ? v - 12 : v))))).toBe(12);
+    // a glow near the ring only is not looked at; a glow that reaches the edge is
+    expect(layerDifference(closed(W, H), picture(W, H, (x, y) => (x > W * 0.9 ? [255, 255, 255] : layer(y, H))))).toBeGreaterThan(30);
   });
 });
 

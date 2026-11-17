@@ -23,6 +23,16 @@
 //      switch does not reach the requests the service worker makes itself: a file missing in the cache would still
 //      be fetched, so "the server was asked for nothing" is the check that the world came from the cache.
 //      Every wait is for an event or a state, with generous limits (E2E_SLOW multiplies them).
+//   6. The transition between worlds (TECH-15), in a browser of its own, on the first world of the same build, once with
+//      the bloom (?q=2) and once without (?q=0): the layer is stopped by window.__game.transition(p) in the middle of
+//      its closing and on the loading screen, and each stop is a picture in shots-e2e/worlds-probe/
+//      (transition-q<n>-mid.png, transition-q<n>-loading.png; without the bloom also the ring at 0 and at 1 and the
+//      phone turned upright). Read from the pictures: the corners are covered and the middle is not, the hole is a
+//      circle, the closed frame is one calm colour from side to side and the same on both paths (no bloom and no tone
+//      curve on the layer), the ring grows with the progress, the world shows through the hole. Read from the game: the
+//      layer costs one draw call a frame (frames with and without it in turn) and is not drawn outside a transition;
+//      a transition started for real closes and opens in no less than 0.4 s of game time each and stays closed until
+//      the world is said to be ready. The waits are for states too.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of the walkthrough, default 600000).
@@ -183,6 +193,95 @@ export function listProblems(dir, id, files) {
   return out;
 }
 
+// ---- pictures of the transition, as raw pixels: { data (RGBA), width, height } ----
+const at = (img, x, y) => {
+  const i = (Math.min(img.height - 1, Math.max(0, Math.round(y))) * img.width + Math.min(img.width - 1, Math.max(0, Math.round(x)))) * 4;
+  return [img.data[i], img.data[i + 1], img.data[i + 2]];
+};
+const near = (a, b, tol) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
+
+/**
+ * A picture of the closed frame must be one calm colour from side to side (it changes only from top to bottom) and
+ * never dark. Returns the problems, [] when it is right.
+ */
+export function closedProblems(img) {
+  const out = [];
+  for (const f of [0.03, 0.25, 0.5, 0.75, 0.97]) {
+    const y = Math.round((img.height - 1) * f), l = at(img, 2, y), r = at(img, img.width - 3, y);
+    if (!near(l, r, 4)) out.push(`the closed frame is not one colour across the row ${y}: ${l} on the left, ${r} on the right - the layer does not cover the frame`);
+    else if (Math.min(...l) < 120) out.push(`the closed frame is dark in the row ${y}: ${l}`);
+  }
+  return out;
+}
+
+/**
+ * A picture of the middle of the closing (`mid`), read against the closed frame of the same size (`closed`, whose
+ * left edge gives the colour of the layer in every row): the corners must be covered, the middle must not, and the
+ * hole must be a circle around the middle - its half-width through the middle and 35% of the shorter side away from
+ * it must fit one radius. Returns the problems, [] when it is right.
+ */
+export function irisProblems(mid, closed) {
+  const { width: w, height: h } = mid, out = [];
+  if (closed.width !== w || closed.height !== h) return [`the pictures are not of one size: ${w}x${h} and ${closed.width}x${closed.height}`];
+  const covered = (x, y) => near(at(mid, x, y), at(closed, 2, y), 8);
+  for (const [x, y] of [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3]]) {
+    if (!covered(x, y)) out.push(`the corner ${x},${y} is not covered by the layer: ${at(mid, x, y)} there, ${at(closed, 2, y)} on the closed frame`);
+  }
+  const cx = Math.round(w / 2), cy = Math.round(h / 2);
+  if (covered(cx, cy)) out.push(`the middle of the frame is covered (${at(mid, cx, cy)}): the iris has no hole`);
+  if (out.length) return out;
+  // From a point inside the hole along the longer side, to the first four covered pixels in a row.
+  const wide = w >= h, d = Math.round(Math.min(w, h) * 0.35);
+  const edge = (off, dir) => {
+    for (let n = 0, row = 0; ; n++) {
+      const x = wide ? cx + dir * n : cx + off, y = wide ? cy + off : cy + dir * n;
+      if (x < 0 || y < 0 || x >= w || y >= h) return null;
+      row = covered(x, y) ? row + 1 : 0;
+      if (row === 4) return n - 3;
+    }
+  };
+  const through = [edge(0, 1), edge(0, -1)], aside = [edge(d, 1), edge(d, -1), edge(-d, 1), edge(-d, -1)];
+  if ([...through, ...aside].includes(null)) return ['the hole of the iris has no edge inside the frame along its longer side'];
+  const r = (through[0] + through[1]) / 2, tol = 0.03 * r + 4, want = Math.sqrt(Math.max(0, r * r - d * d));
+  // The world shows through the hole: along it the colours differ. One flat colour is a frame wiped by the layer.
+  const inside = Array.from({ length: 33 }, (_, i) => { const t = Math.round((i / 32 - 0.5) * 1.6 * Math.min(...through)); return wide ? at(mid, cx + t, cy) : at(mid, cx, cy + t); });
+  if (inside.every((c) => near(c, inside[0], 8))) out.push(`the hole is one flat colour (${inside[0]}): the layer is drawn instead of the frame, not over it`);
+  if (Math.abs(through[0] - through[1]) > tol) out.push(`the hole is not around the middle: ${through[0]} px to one side, ${through[1]} px to the other`);
+  if (aside.some((v) => Math.abs(v - want) > tol)) {
+    out.push(`the hole is not a circle: ${r} px from the middle to its edge, and ${aside.join(', ')} px at ${d} px aside, where a circle has ${want.toFixed(1)} px`);
+  }
+  return out;
+}
+
+/**
+ * `calls` - the draw calls of frames in a row, the layer stopped on the screen in every second one (the first is
+ * without it). The world itself changes its count now and then, so only a frame with the layer between two frames
+ * of one count is read: it must have exactly one call more. Returns the problems, [] when it is right.
+ */
+export function layerCallsProblems(calls) {
+  const cost = [];
+  for (let i = 0; i + 2 < calls.length; i += 2) if (calls[i] === calls[i + 2]) cost.push(calls[i + 1] - calls[i]);
+  if (!cost.length) return [`the count of draw calls never stood still around a frame with the layer (${calls.join(', ')}): its cost cannot be read`];
+  return cost.every((c) => c === 1) ? [] : [`the layer costs ${[...new Set(cost)].join(' and ')} draw call(s) a frame, it must cost exactly one and none outside a transition (frames without and with it in turn: ${calls.join(', ')})`];
+}
+
+/** How many pixels of a picture have the colours of the filled part of the loading ring (pink to violet: little green in them). */
+export function ringPixels(img) {
+  let n = 0;
+  for (let i = 0; i < img.data.length; i += 4) if (Math.max(img.data[i], img.data[i + 2]) - img.data[i + 1] > 85) n++;
+  return n;
+}
+
+/** The largest difference of a colour between two pictures of the closed frame, over points away from the ring. */
+export function layerDifference(a, b) {
+  let most = 0;
+  for (const fx of [0.03, 0.2, 0.8, 0.97]) for (const fy of [0.03, 0.25, 0.5, 0.75, 0.97]) {
+    const p = at(a, (a.width - 1) * fx, (a.height - 1) * fy), q = at(b, (b.width - 1) * fx, (b.height - 1) * fy);
+    most = Math.max(most, ...p.map((v, i) => Math.abs(v - q[i])));
+  }
+  return most;
+}
+
 // ---- the run itself: only when this file is the script, not when a test imports it ----
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
@@ -313,10 +412,158 @@ async function main() {
     if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`the cache of the world "${PROBE}": ${e.stack ?? e}`);
+  }
+  // ---- 6. the transition between worlds ----
+  try {
+    const summary = await transitionScenarios({ url, shots, fail });
+    if (summary) console.log(`[worlds] ${summary}`);
+  } catch (e) {
+    fail(`the transition: ${e.stack ?? e}`);
   } finally {
     server.close(); server.closeAllConnections();
   }
   end();
+}
+
+/**
+ * The scenarios of the transition between worlds (6 above) on the build served at `url`; the pictures go to `shots`.
+ * Every failure goes to `fail`; returns the line to print when it all came to its end without one ('' otherwise).
+ */
+async function transitionScenarios({ url, shots, fail: report }) {
+  let failures = 0;
+  const fail = (msg) => { failures++; report(`the transition: ${msg}`); };
+  const { chromium } = await import('playwright-core');
+  const { default: sharp } = await import('sharp');
+  const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+  const gl = process.env.E2E_GL || 'gl';
+  if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+  const slow = Number(process.env.E2E_SLOW || 1);
+  if (!(slow > 0)) throw new Error(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
+  const T = (ms) => Math.round(ms * slow);
+  const origin = new URL(url).origin;
+  const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/google-chrome', headless: true,
+    args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+  });
+  try {
+    const closedOn = {};   // the closed frame of each path, to compare the two
+    const times = {};
+    for (const q of [2, 0]) {
+      const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
+      const page = await ctx.newPage();
+      page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`q${q}: console ${m.type()}: ${m.text()}`); });
+      page.on('pageerror', (e) => fail(`q${q}: pageerror: ${e.message}`));
+      await page.goto(`${url}?debug&q=${q}`);
+      // With the bloom on software rendering (the CI runner) the game loads and draws many times slower: generous limits.
+      await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
+      await page.waitForFunction(() => !!window.__game?.fade && typeof __game.transition === 'function' && __game.time > 0, null, { timeout: T(30000) })
+        .catch(() => { throw new Error(`q${q}: no window.__game.transition and window.__game.fade - the game does not show its transition with ?debug`); });
+      // The layer is drawn in the canvas, the interface lies over it: only the canvas is pictured.
+      await page.addStyleTag({ content: 'body > *:not(canvas) { visibility: hidden !important; }' });
+      /** In how many of the next frames the layer is drawn (seven of them pass). */
+      const drawn = () => page.evaluate(() => new Promise((res) => {
+        const from = __game.fade.frames;
+        let n = 0;
+        const f = () => { if (++n < 7) requestAnimationFrame(f); else res(__game.fade.frames - from); };
+        requestAnimationFrame(f);
+      }));
+      /** Stops the layer at a point, waits until two frames were drawn with it, pictures the screen. */
+      const hold = async (p, progress, name) => {
+        const n = await page.evaluate(([point, f]) => { __game.transition(point, f); return __game.fade.frames; }, [p, progress]);
+        await page.waitForFunction((from) => __game.fade.frames > from + 1, n, { timeout: T(90000) })
+          .catch(() => { throw new Error(`q${q}: __game.transition(${p}) did not bring the layer to the screen: no frame was drawn with it`); });
+        const { data, info } = await sharp(await page.screenshot({ path: join(root, shots, `${name}.png`) })).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        return { data, width: info.width, height: info.height };
+      };
+
+      const early = await drawn() + await page.evaluate(() => __game.fade.frames);
+      if (early !== 0) fail(`q${q}: the layer is drawn before any transition: in ${early} frame(s)`);
+      // Nine frames, the layer stopped in every second one. This callback runs after the game's frame of the same
+      // tick (the game asked for its next frame first): it reads the frame just drawn and sets the next one.
+      // Counted: the draw calls of a frame (renderer.info.render.calls, as the counter of ?debug shows them) less the
+      // drawing of the world itself - what the world draws changes from frame to frame by a call or two (seen on the
+      // first runs of this check), what is drawn after it (the passes of the bloom, the layer) does not.
+      const calls = await page.evaluate(() => new Promise((res) => {
+        const r = __game.renderer, plain = r.render, got = [];
+        let world = 0;
+        r.render = function (scene, camera) {
+          const from = r.info.render.calls;
+          plain.call(r, scene, camera);
+          if (scene === __game.scene) world += r.info.render.calls - from;
+        };
+        const f = () => {
+          got.push(r.info.render.calls - world);
+          world = 0;
+          __game.transition(got.length % 2 && got.length < 9 ? 0.5 : null);
+          if (got.length < 9) requestAnimationFrame(f); else { r.render = plain; res(got); }
+        };
+        requestAnimationFrame(f);
+      }));
+      for (const p of layerCallsProblems(calls)) fail(`q${q}: ${p}`);
+      const mid = await hold(0.5, 0, `transition-q${q}-mid`);
+      const closed = closedOn[q] = await hold(1, 0.6, `transition-q${q}-loading`);
+      for (const p of closedProblems(closed)) fail(`q${q}: the loading screen: ${p}`);
+      for (const p of irisProblems(mid, closed)) fail(`q${q}: the middle of the closing: ${p}`);
+      const filled = ringPixels(closed);
+      if (q === 0) {
+        // the ring at 0 and at 1: it grows with the progress
+        const none = ringPixels(await hold(1, 0, 'transition-q0-loading-0')), whole = ringPixels(await hold(1, 1, 'transition-q0-loading-1'));
+        if (!(whole > 2000 && none < whole * 0.1 && filled > whole * 0.45 && filled < whole * 0.75)) {
+          fail(`q0: the loading ring does not grow with the progress: ${none} px filled at 0, ${filled} px at 0.6, ${whole} px at 1`);
+        }
+        // the phone turned upright: the hole is still a circle
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.waitForFunction(() => __game.renderer.domElement.width < __game.renderer.domElement.height, null, { timeout: T(30000) })
+          .catch(() => { throw new Error('q0: the canvas did not follow the screen turned upright'); });
+        const upright = await hold(0.5, 0, 'transition-q0-portrait-mid'), uprightClosed = await hold(1, 0.6, 'transition-q0-portrait-loading');
+        for (const p of closedProblems(uprightClosed)) fail(`q0, upright: the loading screen: ${p}`);
+        for (const p of irisProblems(upright, uprightClosed)) fail(`q0, upright: the middle of the closing: ${p}`);
+        await page.setViewportSize({ width: 844, height: 390 });
+        await page.waitForFunction(() => __game.renderer.domElement.width > __game.renderer.domElement.height, null, { timeout: T(30000) })
+          .catch(() => { throw new Error('q0: the canvas did not follow the screen turned back'); });
+      } else if (!(filled > 2000)) fail(`q${q}: the loading ring is not on the loading screen: ${filled} px of its colours`);
+      await page.evaluate(() => __game.transition(null));
+      const left = await drawn();
+      if (left) fail(`q${q}: the layer is still drawn after __game.transition(null): in ${left} frame(s)`);
+
+      if (q === 0) {
+        // A transition for real, in game time: closes, stays closed 0.6 s with the world not ready, opens after ready().
+        let timer;
+        const live = await Promise.race([
+          page.evaluate(() => new Promise((res) => {
+            const f = __game.fade, t0 = __game.time, out = {};
+            f.start();
+            const tick = () => {
+              const t = __game.time;
+              if (out.closing === undefined) { if (f.closed) { out.closing = t - t0; out.closedAt = t; f.setProgress(0.5); } }
+              else if (out.held === undefined) { if (t - out.closedAt >= 0.6) { out.held = f.closed && f.phase === 'hold'; out.readyAt = t; f.ready(); } }
+              else if (!f.active) { out.opening = t - out.readyAt; res(out); return; }
+              requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          })),
+          new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`q0: a started transition did not come to its end in ${T(90000)} ms: the frame did not close, or did not open after ready()`)), T(90000)); }),
+        ]).finally(() => clearTimeout(timer));
+        times.closing = live.closing; times.opening = live.opening;
+        if (!(live.closing >= 0.4 && live.closing <= 1.5)) fail(`q0: the frame closed in ${live.closing} s of game time, expected 0.4 to 1.5`);
+        if (!live.held) fail('q0: the frame did not stay closed while the world was not ready');
+        if (!(live.opening >= 0.4 && live.opening <= 2.5)) fail(`q0: the frame opened ${live.opening} s of game time after ready(), expected 0.4 to 2.5`);
+        const ended = await drawn();
+        if (ended) fail(`q0: the layer is still drawn after a transition played to its end: in ${ended} frame(s)`);
+      }
+      await ctx.close();
+    }
+    const apart = layerDifference(closedOn[2], closedOn[0]);
+    if (apart > 6) fail(`the closed frame with the bloom (q2) is not the colour it is without (q0): they differ by ${apart} of 255 - the bloom or the tone curve reaches the layer`);
+    if (failures) return '';
+    return 'the transition: the layer is on the screen with the bloom (q2) and without (q0), one draw call a frame and none outside a transition; the hole is a circle '
+      + `(844x390 and 390x844), the loading screen is one colour on both paths, the ring grows with the progress; played for real it closed in ${times.closing.toFixed(2)} s `
+      + `and opened ${times.opening.toFixed(2)} s of game time after "ready"; pictures: ${shots}/transition-*.png`;
+  } finally {
+    await browser.close().catch(() => {});
+  }
 }
 
 /**

@@ -4,6 +4,7 @@ import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
 import { uTime } from '../core/materials';
 import { cheatTask } from './taskviews/panel';
+import { transition } from './transition';
 import type { Game } from './context';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
@@ -43,6 +44,13 @@ export function exposeDebug(g: Game, extras: DebugExtras) {
     failNext() { g.failNext = true; },
     teleport(x: number, z: number) { hero.root.position.set(x, g.groundY(x, z), z); },
     closeup(d: number | null) { g.camOverride = d; },
+    /**
+     * The transition between worlds (TECH-15), stopped at the point `p` of its closing (0 - open, 1 - closed, with the
+     * loading ring at `progress`); null lets it go. `fade` is the transition itself: its state (`phase`, `active`,
+     * `closed`, `frames`) and its commands (`start`, `setProgress`, `ready`).
+     */
+    transition(p: number | null, progress?: number) { transition.freeze(p, progress); },
+    fade: transition,
     talk(id: string) { extras.talk(id); },
     /** Does the right thing for whatever task is on screen; returns what it did. */
     cheat() {
