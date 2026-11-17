@@ -1,4 +1,9 @@
 import { sfx } from '../core/audio';
+/**
+ * How many times the game has decided, after a shard's thanks, whether to say "go on" (go_next): the walkthrough
+ * (`__game.shardsSettled`) waits for this instead of a while of game time, which a starved runner may never reach.
+ */
+export const shardsSettled = { n: 0 };
 import { fanfare } from '../ui/ui';
 import { tf } from '../ui/strings';
 import type { Game } from './context';
@@ -104,8 +109,13 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     const thanks = line(lines.partGiven, 'story', 0, n.def.emoji);
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
-    if (count === characters.length) { await line(lines.allParts, 'story'); return () => {}; }
-    return () => { void thanks.then(() => (background.some((t) => t.active?.()) ? undefined : line('go_next', 'hint', 5000))); };
+    if (count === characters.length) { await line(lines.allParts, 'story'); return () => { shardsSettled.n++; }; }
+    return () => {
+      void thanks.then(() => {
+        if (!background.some((t) => t.active?.())) void line('go_next', 'hint', 5000);
+        shardsSettled.n++;
+      });
+    };
   }
 
   return { talk };

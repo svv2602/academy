@@ -1248,7 +1248,7 @@ try {
         await silence().catch(() => fail('the voice did not fall silent before the talk'));
         const was = await g((id) => {
           __game.save.worlds.fairy.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
-          return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found };
+          return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found, settled: __game.shardsSettled };
         }, other.id);
         await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the last task of "${other.id}" did not open`));
         // __game.cheat() walks onto a star while the search is on: the panel task is solved with the search put aside for
@@ -1259,9 +1259,12 @@ try {
         await tapOn('#fanfareOk').catch((e) => fail(`the button of the shard cannot be pressed: ${why(e)}`));
         await page.waitForFunction(() => !__game.busy, null, { timeout: T(15000) }).catch(() => fail('the scene of the shard did not end'));
         await silence().catch(() => fail('the thanks did not end'));
-        // "go on" would start the moment the thanks end; one second of game time is left for it, however slow the frames are
-        const t0 = await g(() => __game.time);
-        await page.waitForFunction((t) => __game.time - t >= 1, t0, { timeout: T(30000), polling: 'raf' });
+        // "go on" is decided the moment the thanks end (src/game/dialogue.ts, `shardsSettled`): the walkthrough waits for
+        // that decision, not for a while of game time (a starved runner did not reach 1 s of it in 30 s), then for the
+        // line it may have started to be heard to its end
+        await page.waitForFunction((n) => __game.shardsSettled > n, was.settled, { timeout: T(30000) })
+          .catch(() => fail('the game never decided whether to say "go on" after the shard'));
+        await wait(300); await silence().catch(() => fail('a line after the shard did not end'));
         const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.worlds.fairy.quests }));
         const b = await bubbleNow(), left = [];
         if ((now.quest[other.id] ?? 0) < 3) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
