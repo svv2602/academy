@@ -1,12 +1,10 @@
 import type * as THREE from 'three';
-import type { Rig } from '../core/assets';
 import type { Save } from '../core/save';
 import type { Key, SpokenKey, WorldStrings } from '../ui/strings';
 import type { Actor } from './actor';
 import type { Game } from './context';
 import type { DebugExtras } from './debug';
 import type { Gear } from './gear';
-import type { Look } from './hero';
 import type { WorldFrame } from './loop';
 import type { TaskType } from './tasks/types';
 import type { SkillId } from './skills';
@@ -25,9 +23,6 @@ export interface WorldGround {
   /** A round obstacle. Pushed in call order: the order decides where resolve() puts the ground stars. */
   block(x: number, z: number, r: number): void;
 }
-
-/** The heroine's model: the start screen changes her look on it. */
-export type HeroRig = Rig & { setLook(l: Look): void };
 
 /** What the renderer needs of a world's sky: the sun follows the heroine (and the quality tier sets its shadows). */
 export interface WorldSky { sun: THREE.DirectionalLight; sunOffset: THREE.Vector3 }
@@ -90,8 +85,12 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly music?: MusicParams;
   /** Before the quality tier is made: it needs the sun. */
   sky(scene: THREE.Scene): S;
-  /** The heroine and the cat load here, with the world. Null = failed for good, the notice is already shown. */
-  load(scene: THREE.Scene, save: Save, touch: boolean): Promise<(L & { heroRig: HeroRig; catRig: Rig }) | null>;
+  /**
+   * The world's own models, pictures and scenery: the heroine and the cat are not a world's, the shared load brings them
+   * once (src/game/boot.ts) and the built world reads her model from the game (`g.heroRig`). It runs next to the shared
+   * load. Null = failed for good: the failure went to `loadFailed` (src/game/boot.ts), the notice is shown.
+   */
+  load(scene: THREE.Scene, save: Save, touch: boolean): Promise<L | null>;
   build(g: Game, loads: L, sky: S): BuiltWorld;
 }
 

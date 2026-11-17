@@ -17,7 +17,7 @@ import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { SHOP_SIGN } from './layout';
-import { loadFairy, type FairyLoads } from './load';
+import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
@@ -206,7 +206,7 @@ const ground: WorldGround = {
 };
 
 /** The first world, the Fairy Kingdom (ARCH-06): listed in src/worlds/index.ts. */
-export const fairy: WorldDef<FairyLoads, FairySky> = {
+export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   id: 'fairy',
   spawn: SPAWN,
   ground,
@@ -216,5 +216,6 @@ export const fairy: WorldDef<FairyLoads, FairySky> = {
   music: MUSIC,
   sky: buildSky,
   load: loadFairy,
-  build: buildFairy,
+  // The heroine's model is the game's (src/game/boot.ts): the parts of the world read it next to the world's own loads.
+  build: (g, L, sky) => buildFairy(g, { ...L, heroRig: g.heroRig }, sky),
 };

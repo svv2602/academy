@@ -5,6 +5,7 @@ import { createRng } from './core/rng';
 import { loadSave } from './core/save';
 import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
+import { loadShared } from './game/boot';
 import { createGame } from './game/context';
 import { exposeDebug } from './game/debug';
 import { startLoop } from './game/loop';
@@ -60,17 +61,18 @@ quality.apply();
 void boot();
 
 async function boot() {
-  const L = await world.load(scene, save, touch);
-  if (!L) return;
-  const { heroRig } = L;
+  // TECH-15: the shared load (the heroine with her items, the cat) and the load of the world run together under the one
+  // loading bar. Either may fail (TECH-08): the notice with "try again" is on screen then, once, and nothing is built.
+  const [shared, L] = await Promise.all([loadShared(save), world.load(scene, save, touch)]);
+  if (!shared || !L) return;
   const speech = createSpeech();
   // The counter is read only once the world is built (the first frame, the start button, a reward).
   let built: BuiltWorld | null = null;
   const g = createGame({
-    scene, camera, renderer, save, touch, debug, speech, heroRig, catRig: L.catRig, crystals: () => built?.hud() ?? '', rng,
-    world: world.id, ground: world.ground, spawn: world.spawn,
+    scene, camera, renderer, save, touch, debug, speech, rng, shared,
+    world: { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => built?.hud() ?? '' },
   });
-  applyLook = () => heroRig.setLook(save);
+  applyLook = () => shared.heroRig.setLook(save);
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
   const w = built = world.build(g, L, sky);
 

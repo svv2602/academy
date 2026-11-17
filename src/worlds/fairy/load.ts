@@ -1,9 +1,8 @@
 import type * as THREE from 'three';
 import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
-import { loadGear } from '../../game/gear';
-import { buildAdult, buildHero } from '../../game/hero';
-import { showNotice } from '../../ui/ui';
+import { loadFailed, type HeroModel } from '../../game/boot';
+import { buildAdult } from '../../game/hero';
 import { buildGrass, buildScenery } from './scenery';
 import { buildClouds, buildMotes, buildRainbow, buildWater } from './sky';
 import { buildTerrain } from './terrain';
@@ -22,9 +21,7 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
   buildGrass(scene, touch ? 9000 : 16000);
   const loads = await Promise.all([
     buildScenery(scene, density), buildClouds(scene),
-    // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
-    buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
-    rig('extra/cat2', 0.62, true), rig('platformer_game_pack/Chest', 0.9),
+    rig('platformer_game_pack/Chest', 0.9),
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
     rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
     rig('animals_pack/Deer', 1.55, true), buildAdult({ dress: '#ffd54f', hair: '#f5d16b' }, 1.72, 1.1),
@@ -32,14 +29,15 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
     // TECH-08: a model failed even after its repeats (src/core/assets.ts). "Try again" reloads the page rather than
     // building again here: the terrain, the water, the grass and part of the props are in the scene already, and a
     // second build in this page would double them. The models that did load come from the cache then.
-    console.error('the game could not load:', e);
-    showNotice('load_failed', () => location.reload());
+    loadFailed(e);
     return null;
   });
   if (!loads) return null;
-  const [, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = loads;
-  return { rainbowAlpha, motes, updateClouds, heroRig, catRig, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig };
+  const [, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = loads;
+  return { rainbowAlpha, motes, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig };
 }
 
-/** What `loadFairy` hands to the rest of the world once everything is loaded. */
-export type FairyLoads = NonNullable<Awaited<ReturnType<typeof loadFairy>>>;
+/** What `loadFairy` loads: the world's own. The heroine and the cat are loaded once, for every world (src/game/boot.ts). */
+export type FairyOwnLoads = NonNullable<Awaited<ReturnType<typeof loadFairy>>>;
+/** What the parts of the world are built from: its own loads and the heroine's model of the game (`g.heroRig`). */
+export type FairyLoads = FairyOwnLoads & { heroRig: HeroModel };

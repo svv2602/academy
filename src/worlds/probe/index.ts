@@ -4,10 +4,9 @@ import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
-import { createGear, loadGear } from '../../game/gear';
-import { buildHero } from '../../game/hero';
+import { loadFailed } from '../../game/boot';
+import { createGear } from '../../game/gear';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
-import { showNotice } from '../../ui/ui';
 import { strings } from './strings';
 
 /**
@@ -68,30 +67,31 @@ function buildSky(scene: THREE.Scene): WorldSky {
   return { sun, sunOffset: new THREE.Vector3(18, 30, 14) };
 }
 
-/** The meadow joins the scene at once; the models and the picture load together. Null = failed for good (TECH-08). */
-async function loadProbe(scene: THREE.Scene, save: Save, _touch: boolean) {
+/**
+ * The meadow joins the scene at once; the world's own models and its picture load together (the heroine and the cat are
+ * the game's, src/game/boot.ts). Null = failed for good (TECH-08).
+ */
+async function loadProbe(scene: THREE.Scene, _save: Save, _touch: boolean) {
   const meadow = new THREE.Mesh(new THREE.CircleGeometry(RADIUS + 6, 48), new THREE.MeshStandardMaterial({ color: '#8fcf6a', roughness: 0.95 }));
   meadow.rotation.x = -Math.PI / 2; meadow.receiveShadow = true;
   scene.add(meadow);
   const loads = await Promise.all([
-    // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
-    buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
-    rig('extra/cat2', 0.62, true), rig('animals_pack/Fox', 0.8, true), staticGeo('platformer_game_pack/Star', 0.7),
+    rig('animals_pack/Fox', 0.8, true), staticGeo('platformer_game_pack/Star', 0.7),
     staticGeo(STUMP.model, 0.7), new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}${SIGN.picture}`),
   ]).catch((e: unknown) => {
-    console.error('the game could not load:', e);
-    showNotice('load_failed', () => location.reload());
+    loadFailed(e);
     return null;
   });
   if (!loads) return null;
-  const [heroRig, catRig, foxRig, starGeo, stumpGeo, signMap] = loads;
-  return { heroRig, catRig, foxRig, starGeo, stumpGeo, signMap };
+  const [foxRig, starGeo, stumpGeo, signMap] = loads;
+  return { foxRig, starGeo, stumpGeo, signMap };
 }
 type ProbeLoads = NonNullable<Awaited<ReturnType<typeof loadProbe>>>;
 
 function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky): BuiltWorld {
   const { scene, hero, save, ws, flies, speech, groundY } = g;
-  const gear = createGear(L.heroRig, L.heroRig.gear, [], g.sparks);
+  // The heroine's model is the game's: a world makes her items of it.
+  const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
 
   // The world's own model, and its own picture on a signboard.
   const stump = new THREE.Mesh(L.stumpGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }));

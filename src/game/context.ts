@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { tint, type Rig } from '../core/assets';
+import { tint } from '../core/assets';
 import { beginTask, endTask, say, sfx } from '../core/audio';
 import { tuning } from '../core/tuning';
 import { storeSave, worldState, type Save, type WorldState } from '../core/save';
@@ -7,6 +7,7 @@ import type { Rng } from '../core/rng';
 import { pick, randInt } from '../core/util';
 import { PRAISE, TRY, tapKey, voiceText } from '../ui/strings';
 import { Actor } from './actor';
+import type { HeroModel, Shared } from './boot';
 import { Sparks } from './fx';
 import type { Stage } from './stage';
 import type { Speech } from './speech';
@@ -20,14 +21,11 @@ export interface Auto { x: number; z: number; then?: () => void; stuck: number; 
 export interface Cam { yaw: number; pitch: number; dist: number; target: THREE.Vector3; focus: THREE.Vector3 | null }
 
 /**
- * The state the parts of the game share (ARCH-05): made once after the models are loaded and handed to every part.
- * The flags are plain fields, read through `g` every time: a scene started in a frame (playScene -> take) sets
- * `busy` at once, and the rest of that frame has to see it.
+ * The world's part of the game (TECH-15): what `g` holds of the world being played. Everything else of `Game` is made
+ * once, of the shared load (src/game/boot.ts), and belongs to no world; `worldPart` below is the one place this part
+ * comes from.
  */
-export interface Game {
-  readonly scene: THREE.Scene; readonly camera: THREE.PerspectiveCamera; readonly renderer: THREE.WebGLRenderer;
-  readonly save: Save; readonly touch: boolean; readonly debug: boolean; readonly speech: Speech;
-  readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
+export interface GameWorld {
   /** The ground of the world being played (its relief and colliders): the shared code never reaches a world directly. */
   readonly ground: WorldGround;
   /**
@@ -36,6 +34,20 @@ export interface Game {
    * part (look, stars, skills, settings) stays on `save`.
    */
   readonly ws: WorldState;
+  groundY(x: number, z: number): number;
+}
+
+/**
+ * The state the parts of the game share (ARCH-05): made once after the models are loaded and handed to every part.
+ * The flags are plain fields, read through `g` every time: a scene started in a frame (playScene -> take) sets
+ * `busy` at once, and the rest of that frame has to see it.
+ */
+export interface Game extends GameWorld {
+  readonly scene: THREE.Scene; readonly camera: THREE.PerspectiveCamera; readonly renderer: THREE.WebGLRenderer;
+  readonly save: Save; readonly touch: boolean; readonly debug: boolean; readonly speech: Speech;
+  readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
+  /** The heroine's model with her items (the shared load): a world makes her gear and her wings of it. */
+  readonly heroRig: HeroModel;
   /**
    * The randomness of the tasks (ARCH-08): which task, its numbers and pictures, where the stars and butterflies are.
    * Seeded by `?seed=`, else Math.random. Praise, "try again" and the scenery do not draw from it.
@@ -51,7 +63,6 @@ export interface Game {
   finale: number;
   /** Test hook (__game.failNext): the next scene breaks once. */
   failNext: boolean;
-  groundY(x: number, z: number): number;
   started(): boolean;
   persist(): void;
   refreshHud(): void;
@@ -66,30 +77,43 @@ export interface Game {
 }
 
 /**
- * `crystals` is the text of the crystal counter: the world knows how many parts there are. `world`, `ground` and `spawn`
- * are the world's (WorldDef): its id (the key of its progress in the save), where the heroine stands on a first launch
- * and what she walks on.
+ * What the game is told of the world to play (WorldDef): its id (the key of its progress in the save), what the heroine
+ * walks on, where she stands on a first launch, and `crystals`, the text of the crystal counter - the world knows how
+ * many parts there are.
  */
+export interface WorldEntry { id: string; ground: WorldGround; spawn: { x: number; z: number }; crystals: () => string }
+
+/**
+ * The world's part of the game, made of the world to play: its progress in the save, its ground, where the heroine
+ * stands when it opens (where she was left, else the world's spawn) and the text of its counter.
+ */
+function worldPart(save: Save, w: WorldEntry): GameWorld & { start: { x: number; z: number }; crystals: () => string } {
+  const ws = worldState(save, w.id);
+  return {
+    ws, ground: w.ground, groundY: (x, z) => w.ground.height(x, z),
+    start: { x: ws.pos?.[0] ?? w.spawn.x, z: ws.pos?.[1] ?? w.spawn.z }, crystals: w.crystals,
+  };
+}
+
+/** `shared` is the shared load (the heroine's model and the cat's, src/game/boot.ts), `world` the world to play. */
 export function createGame(o: {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; save: Save; touch: boolean;
-  debug: boolean; speech: Speech; heroRig: Rig; catRig: Rig; crystals: () => string; rng: Rng;
-  world: string; ground: WorldGround; spawn: { x: number; z: number };
+  debug: boolean; speech: Speech; rng: Rng; shared: Shared; world: WorldEntry;
 }): Game {
-  const { scene, save, speech, ground, spawn } = o;
-  const ws = worldState(save, o.world);
+  const { scene, save, speech } = o;
+  const { ws, ground, groundY, start, crystals } = worldPart(save, o.world);
   const sparks = new Sparks(scene);
-  const groundY = (x: number, z: number) => ground.height(x, z);
   const flies = new Butterflies(scene, 96, groundY);
 
   // ----- hero -----
-  const hero = new Actor(o.heroRig);
-  hero.root.position.set(ws.pos?.[0] ?? spawn.x, 0, ws.pos?.[1] ?? spawn.z);
+  const hero = new Actor(o.shared.heroRig);
+  hero.root.position.set(start.x, 0, start.z);
   hero.heading = Math.PI; hero.root.rotation.y = Math.PI;
   scene.add(hero.root);
   hero.play('Idle');
 
   // ----- cat companion -----
-  const cat = new Actor(o.catRig);
+  const cat = new Actor(o.shared.catRig);
   cat.root.position.set(hero.root.position.x + 1, 0, hero.root.position.z + 0.6);
   scene.add(cat.root);
   cat.play('Idle');
@@ -100,7 +124,7 @@ export function createGame(o: {
 
   const persist = () => { ws.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
   const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
-  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', o.crystals()); };
+  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', crystals()); };
   // The one writer of the stars (src/game/no-penalties.test.ts reads this line): it only ever adds.
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
@@ -123,9 +147,10 @@ export function createGame(o: {
 
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
-    hero, cat, sparks, flies, cam, ground, ws, rng: o.rng,
+    hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
     busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
-    groundY,
+    // the world's part (GameWorld)
+    ground, ws, groundY,
     started: () => el.start.classList.contains('hidden'),
     persist, refreshHud, addStars, above,
     fault: () => { if (g.failNext) { g.failNext = false; throw new Error('broken on purpose by __game.failNext()'); } },
