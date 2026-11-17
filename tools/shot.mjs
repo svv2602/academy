@@ -817,6 +817,13 @@ try {
         if (s0.jump) fail('the jump button shows during the tour');
         if (s0.line !== 'tour') fail(`the cat says "${s0.line}", not its line of the tour`);
         if (!s0.toured) fail('the world is not marked as toured when its tour starts');
+        // the tour itself moves the camera: it leaves the first point by more than 2 m (waited for by the frames of the
+        // game, not the clock: a player that holds the camera still never gets there)
+        const cam0 = await g(() => __game.camera.position.toArray());
+        await page.waitForFunction((p) => __game.flyoverPlayer.active
+          && Math.hypot(__game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]) > 2,
+        cam0, { timeout: T(120000) }).catch(async () => fail(`the camera did not fly: still ${(await g((p) => Math.hypot(
+          __game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]), cam0)).toFixed(2)} m from where it started`));
         // a tap anywhere ends it, long before its end
         const vp = page.viewportSize();
         await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
@@ -830,27 +837,26 @@ try {
         // a picture from every point of the path
         await g(() => __game.flyover());
         await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(5000) }).catch(() => fail('the debug command did not start the tour'));
+        // The camera is put on each point at once (hold) and pictured after two frames of the game: on the slow CI runner
+        // flying from point to point in game time would take minutes of the clock.
         for (const [i, t] of pts.entries()) {
-          await page.waitForFunction((t) => __game.flyoverPlayer.elapsed >= t - 0.3, t, { timeout: T(30000) })
-            .catch(() => fail(`the camera did not come to point ${i + 1} (${t.toFixed(2)} s)`));
           await g((i) => __game.flyoverPlayer.hold(i), i);
           await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          const at = await g(() => __game.flyoverPlayer.elapsed);
+          if (Math.abs(at - t) > 0.01) fail(`point ${i + 1}: the tour stands at ${at.toFixed(2)} s, not ${t.toFixed(2)} s`);
           await shot(`flyover-${i + 1}`);
-          await g(() => __game.flyoverPlayer.hold(null));
         }
+        await g(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
         await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
         console.log(`the tour: ${pts.length} pictures of its points (flyover-1 .. flyover-${pts.length})`);
-        // An entry that has no tour: "play", a second of game time, and the tour never started.
+        // An entry that has no tour: "play", three frames, and the tour never started. The tour starts in the handler of
+        // "play" itself, so frames are enough - a second of game time would outlast the welcome on the slow CI runner,
+        // and the next block wants that line still sounding.
         const noTour = async (what) => {
           await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
           await page.click('#play');
-          const t0 = await g(() => __game.time);
-          for (;;) {
-            const s = await g(() => ({ on: __game.flyoverPlayer.active, t: __game.time, busy: __game.busy }));
-            if (s.on) fail(`${what}: the tour is shown`);
-            if (s.t > t0 + 1) break;
-            await wait(100);
-          }
+          await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+          if (await g(() => __game.flyoverPlayer.active)) fail(`${what}: the tour is shown`);
           console.log(`the tour: ${what}: no tour`);
         };
         // the second entry
@@ -1836,7 +1842,15 @@ try {
           }
           __game.cam.focus = p; __game.closeup(close[c.kind]);
         }, [i, d, CLOSE]);
-        const until = (i, states, what) => page.waitForFunction(([i, s]) => s.includes(__game.creatures[i].state), [i, states], { timeout: T(60000) })
+        // A state is waited for by the creature's own steps, hurried on: one that is in another state has it ended at
+        // once (its time set to its length), so the next state comes in a frame or two of the game - its random length
+        // would take minutes of the clock on the slow CI runner. Each action still runs and is pictured as itself.
+        const until = (i, states, what) => page.waitForFunction(([i, s]) => {
+          const c = __game.creatures[i];
+          if (s.includes(c.state)) return true;
+          c.t = Math.max(c.t, c.dur);
+          return false;
+        }, [i, states], { timeout: T(60000) })
           .catch(async () => fail(`${what}: still "${await g((i) => __game.creatures[i].state, i)}"`));
         // the two actions of each kind, pictured
         for (const [k, acts] of Object.entries(ACTS)) {
@@ -1849,27 +1863,41 @@ try {
           }
         }
         // a tap on one of each kind
-        const reactions = {};
+        const reactions = {}, tries = {};
         for (const k of Object.keys(ACTS)) {
           const i = kinds.indexOf(k);
           await frame(i, DIST[k]);
-          await until(i, [CALM[k]], `the ${k} did not calm down to "${CALM[k]}"`);
           // Held in its calm state while it is tapped: a random end of that state between reading its place and the tap
-          // would let it fly off (seen once in four runs; on the slow CI runner far more often). The tap ends the hold.
-          await g((i) => { const c = __game.creatures[i]; c.dur = c.t + 60; }, i);
+          // would let it fly off. The state is checked and held in one step of the page (on the slow CI runner a separate
+          // step could hold a flight instead). The tap ends the hold.
+          await page.waitForFunction(([i, s]) => {
+            const c = __game.creatures[i];
+            if (c.state !== s) { c.t = Math.max(c.t, c.dur); return false; }      // hurried on, as in until()
+            c.dur = c.t + 60;
+            return true;
+          }, [i, CALM[k]], { timeout: T(60000) }).catch(async () => fail(`the ${k} did not calm down to "${CALM[k]}": still "${await g((i) => __game.creatures[i].state, i)}"`));
           await gameWait(1.2);
           const before = await saved();
-          const at = await g((i) => {
+          // The place is read right before each tap and the tap counts by the creature's own counter of taps: on the slow
+          // CI runner a few frames pass between reading and tapping, so a tap that missed a moving fairy is tried again.
+          const where = () => g((i) => {
             const c = __game.creatures[i], hp = __game.hero.root.position;
             const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + (c.kind === 'fish' ? 0 : 0.15), c.pos.z).project(__game.camera);
             const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
             const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
             return { x, y, under: under ? under.id || under.localName : 'nothing', taps: c.taps, state: c.state, hero: [hp.x, hp.z] };
           }, i);
-          if (at.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(at.x)},${Math.round(at.y)}: there is "${at.under}"`);
-          await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
-          await page.waitForFunction(([i, n]) => __game.creatures[i].taps === n + 1, [i, at.taps], { timeout: T(5000) })
-            .catch(() => fail(`a tap on the ${k} was not taken`));
+          let at = await where(), took = false, attempt = 0;
+          const taps0 = at.taps;
+          for (; attempt < 3 && !took; attempt++) {
+            if (attempt > 0) at = await where();
+            if (at.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(at.x)},${Math.round(at.y)}: there is "${at.under}"`);
+            await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
+            took = await page.waitForFunction(([i, n]) => __game.creatures[i].taps > n, [i, taps0], { timeout: T(5000) }).then(() => true, () => false);
+          }
+          if (!took) fail(`a tap on the ${k} was not taken (3 tries)`);
+          tries[k] = attempt;
+          if (await g(([i, n]) => __game.creatures[i].taps !== n + 1, [i, taps0])) fail(`one tap on the ${k} counted more than once`);
           const state = await g((i) => __game.creatures[i].state, i);
           if (ACTS[k].includes(state)) fail(`a tap on the ${k} gave no reaction: it goes on to "${state}"`);
           reactions[k] = state;
@@ -1883,7 +1911,7 @@ try {
         if (new Set(Object.values(reactions)).size !== 3) fail(`the three reactions are not different: ${JSON.stringify(reactions)}`);
         await g(([x, z]) => { __game.cam.focus = null; __game.closeup(null); __game.teleport(x, z); }, back);
         await gameWait(0.5);
-        console.log(`creatures: ${Object.entries(ACTS).map(([k, a]) => `${k} ${a.join('/')}`).join(', ')} pictured; taps: ${Object.entries(reactions).map(([k, r]) => `${k} -> ${r}`).join(', ')}; nothing recorded`);
+        console.log(`creatures: ${Object.entries(ACTS).map(([k, a]) => `${k} ${a.join('/')}`).join(', ')} pictured; taps: ${Object.entries(reactions).map(([k, r]) => `${k} -> ${r} (${tries[k]} tap${tries[k] > 1 ? 's' : ''})`).join(', ')}; nothing recorded`);
       }
       if (has('finale')) {
         // replay one finished quest
