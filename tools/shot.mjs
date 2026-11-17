@@ -222,7 +222,8 @@ try {
     const play = HTMLMediaElement.prototype.play, started = window.__started = [], starts = window.__starts = {};
     window.__plays = 0;
     window.__loud = [];         // clips started with a volume above zero: none of them in a walkthrough without the voice
-    window.__clip = (a) => (a.src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? '';
+    // A character's clip `<key>@<voice>` (VOICE-10) counts as its line `<key>`.
+    window.__clip = (a) => decodeURIComponent((a.src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? '').split('@')[0];
     HTMLMediaElement.prototype.play = function () {
       started.push(this); if (started.length > 8) started.shift();
       const id = window.__clip(this); starts[id] = (starts[id] ?? 0) + 1; this.__n = ++window.__plays;
@@ -789,6 +790,76 @@ try {
         }
         console.log(`group "${only}": the game plays from ${groupSave ? `its save (${JSON.stringify(got)})` : 'no save'}`);
       }
+      // ---- the tour of the world (WORLD-11): a new save flies the camera along the world's path after "play" while the
+      // cat says its line, and a tap ends it; then a picture from every point of the path (the debug command, each point
+      // held for its picture); a reload (the second entry) and an old save (played before, never toured) have no tour ----
+      if (has('flyover')) {
+        const fail = (what) => { throw new Error(`the tour: ${what}`); };
+        const state = () => g(() => {
+          const f = __game.flyoverPlayer;
+          return { on: f.active, at: f.elapsed, busy: __game.busy, line: __game.line, toured: __game.save.worlds.fairy?.flags?.toured === true,
+            jump: !document.querySelector('#btnJump').classList.contains('hidden'), synth: [...__game.voice.synth] };
+        });
+        const pts = await g(() => __game.flyoverPoints.map((p) => p.t));
+        const s0 = await state();
+        if (!s0.on) fail('a new save: no tour after "play"');
+        if (!s0.busy) fail('the heroine is free to walk during the tour');
+        if (s0.jump) fail('the jump button shows during the tour');
+        if (s0.line !== 'tour') fail(`the cat says "${s0.line}", not its line of the tour`);
+        if (!s0.toured) fail('the world is not marked as toured when its tour starts');
+        // a tap anywhere ends it, long before its end
+        const vp = page.viewportSize();
+        await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(5000) })
+          .catch(() => fail('a tap did not end the tour'));
+        const s1 = await state();
+        if (!(s1.at < pts[pts.length - 1] - 0.5)) fail(`the tour ran to its end (${s1.at.toFixed(2)} s) instead of ending at the tap`);
+        // The reloads below start a new log of the voice: its line is checked here.
+        if (s1.synth.includes('tour')) errors.push('no recorded clip for: tour (python3 tools/gen_voice.py)');
+        console.log(`the tour: a new save flies it with the line "tour", a tap ends it at ${s1.at.toFixed(2)} of ${pts[pts.length - 1].toFixed(1)} s`);
+        // a picture from every point of the path
+        await g(() => __game.flyover());
+        await page.waitForFunction(() => __game.flyoverPlayer.active, null, { timeout: T(5000) }).catch(() => fail('the debug command did not start the tour'));
+        for (const [i, t] of pts.entries()) {
+          await page.waitForFunction((t) => __game.flyoverPlayer.elapsed >= t - 0.3, t, { timeout: T(30000) })
+            .catch(() => fail(`the camera did not come to point ${i + 1} (${t.toFixed(2)} s)`));
+          await g((i) => __game.flyoverPlayer.hold(i), i);
+          await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          await shot(`flyover-${i + 1}`);
+          await g(() => __game.flyoverPlayer.hold(null));
+        }
+        await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
+        console.log(`the tour: ${pts.length} pictures of its points (flyover-1 .. flyover-${pts.length})`);
+        // An entry that has no tour: "play", a second of game time, and the tour never started.
+        const noTour = async (what) => {
+          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) });
+          await page.click('#play');
+          const t0 = await g(() => __game.time);
+          for (;;) {
+            const s = await g(() => ({ on: __game.flyoverPlayer.active, t: __game.time, busy: __game.busy }));
+            if (s.on) fail(`${what}: the tour is shown`);
+            if (s.t > t0 + 1) break;
+            await wait(100);
+          }
+          console.log(`the tour: ${what}: no tour`);
+        };
+        // the second entry
+        await page.reload();
+        await noTour('the second entry');
+        // an old save: played before, the world never marked toured; the game writes nothing until the reload
+        await g(() => {
+          const s = JSON.parse(localStorage.getItem('amw-save'));
+          s.played = true; delete s.worlds.fairy.flags.toured;
+          localStorage.setItem('amw-save', JSON.stringify(s));
+          Storage.prototype.setItem = () => {};
+        });
+        await page.reload();
+        const old = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
+        if (!old.played || old.worlds?.fairy?.flags?.toured) fail(`the old save was not stored as one: ${JSON.stringify({ played: old.played, flags: old.worlds?.fairy?.flags })}`);
+        await noTour('an old save');
+        // ... and it gets the mark it never had: the world's description reads "toured" from the flag alone
+        if (!(await g(() => __game.save.worlds.fairy?.flags?.toured === true))) fail('an old save entered the world without the mark "toured"');
+      } else await g(() => __game.flyoverPlayer?.skip());
       // ---- a hidden page (another app, a locked screen) pauses the line that sounds; shown again, it plays on (TECH-05) ----
       // The page is "hidden" by its visibility state alone: what the game hears from a phone that leaves it.
       if (has('hidden-page')) {
@@ -1715,6 +1786,83 @@ try {
         if (!(near > 1.1)) fail(`she walked into "${at.id}": ${near.toFixed(2)} m from its middle`);
         if (!(moved < 2.2)) fail(`she did not walk towards "${at.id}" (still ${moved.toFixed(2)} m away)`);
         console.log(`collisions: she stopped ${near.toFixed(2)} m from the middle of "${at.id}"`);
+      }
+      // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----
+      // Each kind (fairy, bird, fish) is pictured in both of its actions, framed by the camera (__game.cam.focus is the
+      // creature's own position, so the camera follows it); the change of action is waited for in game time. Then a tap
+      // on one of each kind, while it is calm: it must answer at once with a reaction that is none of its actions, the
+      // three reactions different; the heroine does not walk off, the stars and the save stay as they were.
+      if (has('creatures')) {
+        const fail = (what) => { throw new Error(`creatures: ${what}`); };
+        const ACTS = { fairy: ['fly', 'gather'], bird: ['perch', 'fly'], fish: ['swim', 'leap'] };
+        const CALM = { fairy: 'gather', bird: 'perch', fish: 'swim' };
+        const gameWait = async (s) => {
+          const t0 = await g(() => __game.time);
+          await page.waitForFunction(([t, d]) => __game.time - t >= d, [t0, s], { timeout: T(s * 30000 + 5000) })
+            .catch(() => fail(`${s} s of game time did not pass`));
+        };
+        const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        const kinds = await g(() => __game.creatures.map((c) => c.kind));
+        for (const k of Object.keys(ACTS)) if (!kinds.includes(k)) fail(`there is no ${k} (${kinds.join(' ')})`);
+        // The camera follows creature `i` from `DIST` m (a close-up); the heroine stands `d` m from it towards the spawn,
+        // out of the water.
+        const DIST = { fairy: 2.5, bird: 10, fish: 3 }, CLOSE = { fairy: 3.2, bird: 6, fish: 4 };
+        const frame = (i, d) => g(([i, d, close]) => {
+          const c = __game.creatures[i], p = c.pos, ux = -p.x, uz = 14 - p.z, n = Math.hypot(ux, uz) || 1;
+          for (let k = d; k < 40; k += 0.5) {
+            __game.teleport(p.x + (ux / n) * k, p.z + (uz / n) * k);
+            if (c.kind !== 'fish' || __game.hero.root.position.y > p.y + 0.4) break;
+          }
+          __game.cam.focus = p; __game.closeup(close[c.kind]);
+        }, [i, d, CLOSE]);
+        const until = (i, states, what) => page.waitForFunction(([i, s]) => s.includes(__game.creatures[i].state), [i, states], { timeout: T(60000) })
+          .catch(async () => fail(`${what}: still "${await g((i) => __game.creatures[i].state, i)}"`));
+        // the two actions of each kind, pictured
+        for (const [k, acts] of Object.entries(ACTS)) {
+          const i = kinds.indexOf(k);
+          await frame(i, DIST[k]); await gameWait(1);
+          for (const a of acts) {
+            await until(i, [a], `the ${k} never started to ${a}`);
+            if (a === 'leap' || a === 'fly') await gameWait(0.3); else await gameWait(1);
+            await shot(`creature-${k}-${a}`);
+          }
+        }
+        // a tap on one of each kind
+        const reactions = {};
+        for (const k of Object.keys(ACTS)) {
+          const i = kinds.indexOf(k);
+          await frame(i, DIST[k]);
+          await until(i, [CALM[k]], `the ${k} did not calm down to "${CALM[k]}"`);
+          // Held in its calm state while it is tapped: a random end of that state between reading its place and the tap
+          // would let it fly off (seen once in four runs; on the slow CI runner far more often). The tap ends the hold.
+          await g((i) => { const c = __game.creatures[i]; c.dur = c.t + 60; }, i);
+          await gameWait(1.2);
+          const before = await saved();
+          const at = await g((i) => {
+            const c = __game.creatures[i], hp = __game.hero.root.position;
+            const s = new __game.THREE.Vector3(c.pos.x, c.pos.y + (c.kind === 'fish' ? 0 : 0.15), c.pos.z).project(__game.camera);
+            const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+            const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
+            return { x, y, under: under ? under.id || under.localName : 'nothing', taps: c.taps, state: c.state, hero: [hp.x, hp.z] };
+          }, i);
+          if (at.under !== 'c') fail(`the ${k} cannot be tapped at ${Math.round(at.x)},${Math.round(at.y)}: there is "${at.under}"`);
+          await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
+          await page.waitForFunction(([i, n]) => __game.creatures[i].taps === n + 1, [i, at.taps], { timeout: T(5000) })
+            .catch(() => fail(`a tap on the ${k} was not taken`));
+          const state = await g((i) => __game.creatures[i].state, i);
+          if (ACTS[k].includes(state)) fail(`a tap on the ${k} gave no reaction: it goes on to "${state}"`);
+          reactions[k] = state;
+          await shot(`creature-${k}-tapped`);
+          await gameWait(0.4);
+          const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), at.hero);
+          if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m after a tap on the ${k}`);
+          const after = await saved();
+          if (after !== before) fail(`a tap on the ${k} changed the save (no rewards): ${before} -> ${after}`);
+        }
+        if (new Set(Object.values(reactions)).size !== 3) fail(`the three reactions are not different: ${JSON.stringify(reactions)}`);
+        await g(([x, z]) => { __game.cam.focus = null; __game.closeup(null); __game.teleport(x, z); }, back);
+        await gameWait(0.5);
+        console.log(`creatures: ${Object.entries(ACTS).map(([k, a]) => `${k} ${a.join('/')}`).join(', ')} pictured; taps: ${Object.entries(reactions).map(([k, r]) => `${k} -> ${r}`).join(', ')}; nothing recorded`);
       }
       if (has('finale')) {
         // replay one finished quest

@@ -11,6 +11,8 @@ const uk = {
   // --- the start screen's subtitle: the name of this world (a key every world has, WORLD_OWN in src/ui/strings.ts)
   subtitle: 'Королівство фей',
   intro: 'Привіт{, name}! Ми в Королівстві фей. Кристал світла розбився на пʼять уламків! Допоможеш їх зібрати?',
+  // --- the tour of the world on the first entry (WORLD-11): the cat's one line while the camera flies
+  tour: 'Подивись, яке гарне Королівство фей! Тут ставок, замок і чарівні галявини. Ходімо гуляти!',
   count_hint: 'Торкайся кожного метелика, і ми порахуємо разом.',
   pick_number: 'Скільки метеликів? Обери число.',
   chest: 'Ого, таємна скриня! У ній зірочки!', crystal_name: 'Кристал світла',
@@ -33,6 +35,7 @@ const uk = {
 const ru: Record<keyof typeof uk, string> = {
   subtitle: 'Королевство фей',
   intro: 'Привет{, name}! Мы в Королевстве фей. Кристалл света разбился на пять осколков! Поможешь их собрать?',
+  tour: 'Посмотри, какое красивое Королевство фей! Здесь пруд, замок и волшебные поляны. Пойдём гулять!',
   count_hint: 'Касайся каждой бабочки, и мы посчитаем вместе.',
   pick_number: 'Сколько бабочек? Выбери число.',
   chest: 'Ого, тайный сундук! В нём звёздочки!', crystal_name: 'Кристалл света',
@@ -51,7 +54,7 @@ const ru: Record<keyof typeof uk, string> = {
 
 /** The lines of this world the game speaks, with the intonation of their recording (as `SPOKEN` in src/ui/strings.ts). */
 const spoken = {
-  intro: 'joy', chest: 'joy', free: 'warm',
+  intro: 'joy', tour: 'joy', chest: 'joy', free: 'warm',
   unicorn_hi: 'warm', fox_hi: 'warm', mushking_hi: 'warm', deer_hi: 'warm', queen_hi: 'warm',
   npc_done: 'joy', t_stars: 'warm', t_stars_back: 'joy', all_shards: 'joy', final_text: 'joy',
 } as const satisfies Partial<Record<keyof typeof uk, VoiceStyle>>;
