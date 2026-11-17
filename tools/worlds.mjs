@@ -1,7 +1,7 @@
 // The probe world is a test world: the sources have it, the published game does not (TECH-15, TECH-09):
 //   node tools/worlds.mjs [distDir] [--only <part>[,<part>...]]
 // tools/e2e.mjs runs it as the step "worlds", once per run (with the mobile size, like "update"), on the dist/ it built.
-// The run has four parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5),
+// The run has four parts, played one after another on one probe build: "walk" (1, 3, 4 and 4a below), "cache" (5),
 // "transition" (6) and "travel" (7). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
 // every part - each of them plays it. CI gives each part a job of its own (ARCH-16: a new scenario is a new part and a
 // new job, not more minutes in an old one); without --only everything is played, as tools/e2e.mjs does.
@@ -17,6 +17,14 @@
 //   4. The page itself asked the server for every file of the probe world (a request of the service worker filling
 //      its cache does not count, nor one of the download in the background): a file of a world that the world never
 //      loads proves nothing about loading.
+//  4a. The description of the world (ARCH-16), in a browser of its own with an empty save, on the same server: the
+//      probe world shows its points of the world template as window.__game.items - one of every kind (a chain, a
+//      secret, a part of the artifact, a cutscene, the tour, the pet, the finale), each of the one shape; the game
+//      finds nothing lacking (`__game.missing`) and nothing that disagrees with what the world declares
+//      (`__game.itemProblems`). Then every item is done in the game by its description alone - where to stand (`at`),
+//      what moves it on (`how`), what comes first (`after`: before that it cannot be done), when it is over
+//      (`active`) - and its mark is in the stored save under its id. After a reload of the page every item is still
+//      done. The generic walkthrough of a world by its description (ARCH-16) is built on what this part proves.
 //   5. The cache of the next world (TECH-09), in a browser of its own with an empty cache, on the same server:
 //      "launch" - the first world is opened; until "Play" is pressed nobody asks the server for a file of the probe
 //      world and no download has started; "download" - "Play" is pressed, the game downloads the probe world in the
@@ -44,7 +52,9 @@
 //      the controls are taken; the world changes only there. Then, in the probe world: the mark is alive (the page
 //      was not reloaded), the heroine stands at its spawn and walks, its character gives a task and the task is
 //      solved, the names of the first world are gone from window.__game, its voices too, its wings and butterflies are
-//      off the heroine and the flock, the music is the probe world's. Back through the spot "portal home" of the probe
+//      off the heroine and the flock, the music is the probe world's. window.__game.items is the description of the
+//      world played: null in the first world (it hands in none), the probe world's after the change (its tour of the
+//      first entry is on), and null again once the game is back in the first world. Back through the spot "portal home" of the probe
 //      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
 //      heroine and in the flock as the first time), the heroine where she was left, she walks, a character gives a
 //      task and it is solved. After a reload of the page the progress of each world is in its own part of the save.
@@ -352,6 +362,76 @@ export function travelFramesProblems(frames, from, to) {
   return out;
 }
 
+// ---- the description of a world (ARCH-16): window.__game.items as the scenarios read it ----
+/** The kinds of the items of a description (src/game/world.ts `WorldItemKind`). */
+export const ITEM_KINDS = ['chain', 'secret', 'part', 'scene', 'flyover', 'pet', 'finale'];
+/** What a test world needs of the world template: one item of every kind (the argument of window.__game.missing). */
+export const ONE_OF_EACH = Object.fromEntries(ITEM_KINDS.map((k) => [k, 1]));
+const HOWS = ['act', 'walk', 'tap', 'auto'];
+
+/**
+ * What is wrong with the description of a test world as window.__game shows it: `seen` is { items, missing, problems } -
+ * `__game.items`, `__game.missing(ONE_OF_EACH)` and `__game.itemProblems`. The items must be a list of plain values of
+ * the one shape, with one item of every kind; the game itself must find nothing lacking and nothing that disagrees
+ * with what the world declares. Returns the problems, [] when it is right.
+ */
+export function descriptionProblems(seen) {
+  const { items } = seen;
+  if (!Array.isArray(items)) return [`window.__game.items is ${items === null ? 'null: the world hands in no description' : typeof items}, expected the list of its items`];
+  const out = [];
+  const point = (p) => p === null || (typeof p === 'object' && Number.isFinite(p.x) && Number.isFinite(p.z));
+  for (const [n, i] of items.entries()) {
+    const wrong = [];
+    if (!i || typeof i !== 'object') { out.push(`the item ${n} is ${JSON.stringify(i)}, not an item`); continue; }
+    if (!ITEM_KINDS.includes(i.kind)) wrong.push(`kind ${JSON.stringify(i.kind)}`);
+    if (typeof i.id !== 'string' || !i.id) wrong.push(`id ${JSON.stringify(i.id)}`);
+    if (!point(i.at)) wrong.push(`at ${JSON.stringify(i.at)}`);
+    if (!HOWS.includes(i.how)) wrong.push(`how ${JSON.stringify(i.how)}`);
+    if (!Array.isArray(i.after) || i.after.some((a) => typeof a !== 'string')) wrong.push(`after ${JSON.stringify(i.after)}`);
+    if (typeof i.done !== 'boolean') wrong.push(`done ${JSON.stringify(i.done)}`);
+    if (typeof i.active !== 'boolean') wrong.push(`active ${JSON.stringify(i.active)}`);
+    if (wrong.length) out.push(`the item ${n} ("${i.id}") is not of the shape of an item: ${wrong.join(', ')}`);
+  }
+  for (const k of ITEM_KINDS) {
+    const of = items.filter((i) => i?.kind === k);
+    if (of.length !== 1) out.push(`${of.length} items of kind "${k}"${of.length ? ` (${of.map((i) => i.id).join(', ')})` : ''}, a test world has one of every kind`);
+  }
+  if (!Array.isArray(seen.missing)) out.push(`window.__game.missing() answered ${JSON.stringify(seen.missing)}, expected a list`);
+  else for (const m of seen.missing) out.push(`the description lacks a point of the world template: ${m}`);
+  if (!Array.isArray(seen.problems)) out.push(`window.__game.itemProblems is ${JSON.stringify(seen.problems)}, expected a list`);
+  else for (const p of seen.problems) out.push(`the description disagrees with what the world declares: ${p}`);
+  return out;
+}
+
+/**
+ * The marks of the items in the stored save: `world` is the world's part of it (worlds.<id> of localStorage, null when
+ * there is none). The id of an item is the name of its mark - the flag `id`; a chain - quests[id] (a step or more);
+ * the finale - `final`. An item that says "done" without its mark, or has the mark and says "not done", is a problem:
+ * its `done` does not read the save, and would not survive a reload. Returns the problems, [] when they agree.
+ */
+export function marksProblems(items, world) {
+  const out = [];
+  for (const i of items) {
+    const [where, value] = i.kind === 'chain' ? [`quests.${i.id}`, world?.quests?.[i.id]] : i.kind === 'finale' ? ['final', world?.final] : [`flags.${i.id}`, world?.flags?.[i.id]];
+    const marked = i.kind === 'chain' ? Number(value) > 0 : value === true;
+    if (i.done && !marked) out.push(`the item "${i.id}" (${i.kind}) is done, but its mark "${where}" is ${JSON.stringify(value)} in the stored save`);
+    if (!i.done && marked && i.kind !== 'chain') out.push(`the item "${i.id}" (${i.kind}) is not done, but its mark "${where}" is set in the stored save`);
+  }
+  return out;
+}
+
+/**
+ * The item to do next, by the description alone: the first one of the list that is not done and comes after nothing
+ * undone (`after` sets the order, the rest goes in the order of the list). Returns the item; null when every item is
+ * done; { stuck: [ids] } when none of the undone ones can be done - each waits for an item that is not done, or not there.
+ */
+export function nextItem(items) {
+  const undone = items.filter((i) => !i.done);
+  if (!undone.length) return null;
+  const done = (id) => items.find((i) => i.id === id)?.done === true;
+  return undone.find((i) => i.after.every(done)) ?? { stuck: undone.map((i) => i.id) };
+}
+
 // ---- the run itself: only when this file is the script, not when a test imports it ----
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
@@ -479,6 +559,9 @@ async function main() {
       for (const f of missed) fail(`the page of the world "${PROBE}" never asked for ${f}: the world does not load its own file`);
       if (voice && !missed.length) console.log(`[worlds] the world "${PROBE}" played in the mobile size (${voice.loud} of ${voice.clips} clips with a volume); the page asked for ${files.join(', ')}`);
     }
+    // ---- 4a. the description of the world: whole, every item done in the game, still done after a reload ----
+    const summary = await describedScenario({ url, shots, fail });
+    if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`${e.stack ?? e}`);
   }
@@ -507,6 +590,150 @@ async function main() {
   }
   server.close(); server.closeAllConnections();
   end();
+}
+
+/**
+ * The description of the probe world (4a above, ARCH-16) on the probe build served at `url`, in a browser of its own
+ * with an empty save; a picture goes to `shots`. Nothing here is written for the probe world but its id: what to do,
+ * where and in which order is read from window.__game.items. Every failure goes to `fail`; returns the line to print
+ * when the scenario came to its end without one ('' otherwise).
+ */
+async function describedScenario({ url, shots, fail: report }) {
+  let failures = 0;
+  const fail = (msg) => { failures++; report(`the description of the world "${PROBE}": ${msg}`); };
+  const { chromium } = await import('playwright-core');
+  const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+  const gl = process.env.E2E_GL || 'gl';
+  if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+  const slow = Number(process.env.E2E_SLOW || 1);
+  if (!(slow > 0)) throw new Error(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
+  const T = (ms) => Math.round(ms * slow);
+  const origin = new URL(url).origin;
+  const q = process.env.Q ? `&q=${process.env.Q}` : '';
+  const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
+  const started = Date.now();
+
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/google-chrome', headless: true,
+    args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+  });
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
+    const page = await ctx.newPage();
+    page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`console ${m.type()}: ${m.text()}`); });
+    page.on('pageerror', (e) => fail(`pageerror: ${e.message}`));
+    page.on('requestfailed', (r) => fail(`request failed: ${r.url()} (${r.failure()?.errorText})`));
+    page.on('response', (r) => { if (r.status() >= 400) fail(`HTTP ${r.status()} for ${r.url()}`); });
+    const g = (fn, arg) => page.evaluate(fn, arg);
+    const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(what); });
+    /** The description as the game shows it now, and the world's part of the save as it is stored. */
+    const seen = () => g((need) => ({ items: __game.items, missing: typeof __game.missing === 'function' ? __game.missing(need) : undefined, problems: __game.itemProblems }), ONE_OF_EACH);
+    const stored = () => g((id) => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.[id] ?? null, PROBE);
+    const itemNow = (id) => g((i) => __game.items.find((x) => x.id === i), id);
+    const open = async () => {
+      await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
+      await until(() => !!window.__game?.save && __game.time > 0, null, 'no window.__game - the game does not show itself with ?debug', 30000);
+    };
+    /** Seconds of game time pass (a frame counts at most 0.05 s): the wait for "nothing happened". */
+    const gameSeconds = async (s) => { const from = await g(() => __game.time); await until(([t, d]) => __game.time >= t + d, [from, s], 'the game time stands still', 30000); };
+    const stand = (at) => g(([x, z]) => __game.teleport(x, z), [at.x, at.z]);
+    const button = () => g(() => !document.getElementById('btnAct').classList.contains('hidden'));
+
+    await page.goto(`${url}?debug&world=${PROBE}${q}`);
+    await open();
+    // ---- whole, and nothing done yet ----
+    const first = await seen();
+    for (const p of descriptionProblems(first)) fail(`before "Play": ${p}`);
+    if (!Array.isArray(first.items)) return '';
+    const early = first.items.filter((i) => i.done || i.active).map((i) => i.id);
+    if (early.length) fail(`in a new game these items are already done or on: ${early.join(', ')}`);
+    for (const p of marksProblems(first.items, await stored())) fail(`before "Play": ${p}`);
+
+    // ---- "Play": what plays by itself is waited for by its `active`, never by the clock ----
+    await page.click('#play');
+    const quiet = (what) => until(() => !__game.busy && !__game.items.some((i) => i.active), null, what, 90000);
+    await quiet('after "Play" the game stayed busy, or an item of the description stayed on');
+
+    // ---- the order: an item that comes after an undone one cannot be done yet ----
+    for (const it of (await g(() => __game.items)).filter((i) => !i.done && i.at && i.after.length)) {
+      await stand(it.at);
+      await gameSeconds(0.4);
+      const now = await itemNow(it.id);
+      if (now.done) fail(`the item "${it.id}" was done by standing at its place before ${it.after.join(', ')}: the game does not keep the order of "after"`);
+      else if (it.how === 'act' && await button()) fail(`the item "${it.id}" has its action button before ${it.after.join(', ')} are done: the game does not keep the order of "after"`);
+    }
+
+    // ---- every item is done the way its description says ----
+    const order = [];
+    /** Waits for the item to be done and over: a task that comes up is solved, the card of a part is closed. */
+    const finish = async (id, ms) => {
+      for (const t0 = Date.now(); ;) {
+        const s = await g((i) => {
+          const shown = (e) => !document.getElementById(e).classList.contains('hidden');
+          const it = __game.items.find((x) => x.id === i);
+          return { over: !!it?.done && !it.active && !__game.busy && !shown('task') && !shown('fanfare'), card: shown('fanfare'), task: shown('task') && !document.getElementById('task').classList.contains('won') };
+        }, id);
+        if (s.over) return true;
+        if (Date.now() - t0 > T(ms)) return false;
+        if (s.card) await page.locator('#fanfareOk').click().catch(() => {});
+        else if (s.task) {
+          await g(() => __game.cheat());
+          await page.waitForFunction(() => { const t = document.getElementById('task').classList; return t.contains('hidden') || t.contains('won'); }, null, { timeout: T(5000) }).catch(() => {});
+        } else await page.waitForTimeout(100);
+      }
+    };
+    for (let n = 0; ; n++) {
+      const items = await g(() => __game.items);
+      const next = nextItem(items);
+      if (!next) break;
+      if (next.stuck) { fail(`no item can be done next: ${next.stuck.join(', ')} are not done, and each comes after an item that is not`); break; }
+      if (n >= items.length) { fail(`the item "${next.id}" is asked for again: it does not stay done`); break; }
+      const where = `the item "${next.id}" (${next.kind}, done by "${next.how}"${next.at ? ` at ${next.at.x},${next.at.z}` : ''})`;
+      let done = false;
+      if (next.how === 'auto') done = await finish(next.id, 60000);
+      else if (!next.at) fail(`${where} has no place to do it at`);
+      else if (next.how === 'walk') { await stand(next.at); done = await finish(next.id, 30000); }
+      else if (next.how === 'act') {
+        await stand(next.at);
+        await gameSeconds(0.1);                      // the button on the screen is the one of this place, not of the last
+        if (!(await page.locator('#btnAct:not(.hidden)').waitFor({ timeout: T(30000) }).then(() => true, () => false))) { fail(`${where}: no action button at its place`); break; }
+        await page.locator('#btnAct').dispatchEvent('pointerdown');
+        done = await finish(next.id, 120000);
+      } else fail(`${where}: this scenario cannot do an item that way`);
+      if (!done) { fail(`${where} was not done in the game`); break; }
+      order.push(next.id);
+      await quiet(`after ${where} the game stayed busy, or an item stayed on`);
+    }
+
+    // ---- everything is done, each mark is in the stored save under the id of its item ----
+    const last = await seen();
+    await page.screenshot({ path: join(root, shots, 'described.png') });
+    for (const p of descriptionProblems(last)) fail(`at the end: ${p}`);
+    const undone = last.items.filter((i) => !i.done).map((i) => i.id);
+    if (undone.length) fail(`at the end these items are not done: ${undone.join(', ')}`);
+    for (const p of marksProblems(last.items, await stored())) fail(`at the end: ${p}`);
+
+    // ---- a reload: "done" is read from the save ----
+    await page.reload();
+    await open();
+    const again = await seen();
+    for (const p of descriptionProblems(again)) fail(`after a reload: ${p}`);
+    if (Array.isArray(again.items)) {
+      const lost = again.items.filter((i) => !i.done).map((i) => i.id);
+      if (lost.length) fail(`after a reload of the page these items are not done any more: ${lost.join(', ')} - their marks are not in the save`);
+      const on = again.items.filter((i) => i.active).map((i) => i.id);
+      if (on.length) fail(`after a reload these items are on before "Play": ${on.join(', ')}`);
+      for (const p of marksProblems(again.items, await stored())) fail(`after a reload: ${p}`);
+    }
+    await ctx.close();
+    if (failures) return '';
+    return `the description of the world "${PROBE}": ${last.items.length} items, one of every kind (${last.items.map((i) => `${i.kind} ${i.id}`).join(', ')}); `
+      + `each done in the game by its description (${order.join(', ')}), its mark in the save under its id, all still done after a reload; `
+      + `${((Date.now() - started) / 1000).toFixed(0)} s; picture: ${shots}/described.png`;
+  } finally {
+    await browser.close().catch(() => {});
+  }
 }
 
 /**
@@ -581,6 +808,8 @@ async function travelScenarios({ url, shots, fail: report, block }) {
         same: !window.__travelKept ? null : ['hero', 'cat'].filter((k) => __game[k] !== window.__travelKept[k] || __game[k].root !== window.__travelKept[`${k}Root`] || __game[k].root.parent !== __game.scene),
         at: [__game.hero.root.position.x, __game.hero.root.position.z].map((v) => Math.round(v * 100) / 100),
         npcs: __game.npcs.map((n) => n.def.id), names: ['search', 'bf', 'worldSort', 'shopSign'].filter((k) => k in __game),
+        // The description of the world played (ARCH-16): its items as "<kind> <id>", null for a world that hands in none.
+        described: Array.isArray(__game.items) ? __game.items.map((i) => `${i.kind} ${i.id}`) : __game.items === null ? null : 'no window.__game.items',
         scene: __game.scene.children.length, onHero: __game.hero.root.children.length, flies: __game.flies.flies.length,
         held: { geometries: __game.renderer.info.memory.geometries, textures: __game.renderer.info.memory.textures },
         suns: __game.scene.children.filter((o) => o.isDirectionalLight).length,
@@ -647,6 +876,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (home.world !== FIRST) fail(`${name}: the game started in the world "${home.world}", expected "${FIRST}"`);
       if (home.foxClip === 'npc_next') fail(`${name}: the fox of the first world has no voice of its own (${home.foxClip}): the check of the voices after the change would be blind`);
       if (home.music === null) fail(`${name}: no music plays in the first world after "Play": the check of the music would be blind`);
+      if (home.described !== null) fail(`${name}: the first world hands in no items of a description, yet window.__game.items is ${JSON.stringify(home.described)} there, expected null`);
       // A character of the first world is talking when the change is asked for: its line must be cut by the closed frame.
       const clips = await p.g(() => { __game.talk('unicorn'); return __game.voice.clips; });
       await p.until((n) => __game.speaking && __game.line === 'unicorn_hi' && __game.voice.clips > n, clips, 'the unicorn did not start its greeting (no clip sounds)');
@@ -654,7 +884,12 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       const there = await p.travel(PROBE);
       if (there.ok !== true) fail(`${name}: __game.travel('${PROBE}') answered ${there.ok}, expected true`);
       for (const x of travelFramesProblems(there.frames, FIRST, PROBE)) fail(`${name}, to "${PROBE}": ${x}`);
-      await p.until(() => !__game.busy, null, `the game stayed busy after the change to "${PROBE}"`);
+      // The first entry into the probe world plays its tour - the item `flyover` of its description is on, and done as
+      // it starts; the scenario ends it the way a tap does.
+      const entered = await p.g(() => ({ flying: __game.flyoverPlayer?.active ?? null, items: __game.items }));
+      const flyover = Array.isArray(entered.items) ? entered.items.find((i) => i.kind === 'flyover') : null;
+      if (entered.flying !== true || !flyover?.active || !flyover.done) fail(`${name}: on the first entry into the probe world its tour is not played, or its description does not say so (the tour on: ${entered.flying}, the item: ${JSON.stringify(flyover ?? null)})`);
+      await p.until(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, `the game stayed busy after the change to "${PROBE}"`);
       const away = await p.state();
       await p.page.screenshot({ path: join(root, shots, 'travel-probe.png') });
       if (away.mark !== mark) fail(`${name}: the mark left in window is gone after the change (${away.mark}): the page was reloaded`);
@@ -663,6 +898,9 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (!same(away.at, [0, 6])) fail(`${name}: the heroine stands at ${away.at} in the probe world, expected its spawn 0,6`);
       if (!same(away.npcs, ['friend'])) fail(`${name}: the characters of window.__game are ${JSON.stringify(away.npcs)} in the probe world, expected its own "friend"`);
       if (away.names.length) fail(`${name}: window.__game still has the first world's own names in the probe world: ${away.names.join(', ')}`);
+      // The description is the one of the world played now: one item of every kind, the chain of its own character.
+      const kinds = Array.isArray(away.described) ? away.described.map((d) => d.split(' ')[0]).sort() : [];
+      if (!same(kinds, [...ITEM_KINDS].sort()) || !away.described.includes('chain friend')) fail(`${name}: after the change window.__game.items is not the description of the probe world: ${JSON.stringify(away.described)}, expected one item of every kind (${ITEM_KINDS.join(', ')}) with the chain of "friend"`);
       if (away.crystals !== '0/1') fail(`${name}: the counter of parts shows "${away.crystals}" in the probe world, expected "0/1"`);
       if (away.music === null || away.music === home.music) fail(`${name}: the music in the probe world starts at ${away.music}, in the first world at ${home.music}: it is not the music of the new world`);
       if (away.foxClip !== 'npc_next') fail(`${name}: a fox of the probe world would speak with the clip "${away.foxClip}": the voices of the first world were not taken back`);
@@ -680,6 +918,8 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       const fairyThen = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
       if (!same(JSON.parse(fairyThen).pos.map((v) => Math.round(v * 100) / 100), left)) fail(`${name}: the save holds ${JSON.parse(fairyThen).pos} as her place in the first world, she left it at ${left}: the game was not saved before the change`);
       await p.solveWith('friend', PROBE);
+      const chain = await p.g(() => __game.items?.find((i) => i.kind === 'chain') ?? null);
+      if (chain?.id !== 'friend' || chain.done !== true) fail(`${name}: with the task of "friend" solved the chain of the description is ${JSON.stringify(chain)}, expected it done`);
       const fairyNow = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
       if (fairyNow !== fairyThen) fail(`${name}: a task solved in the probe world changed the part of the first world in the save: ${fairyThen} -> ${fairyNow}`);
 
@@ -694,7 +934,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (back.mark !== mark) fail(`${name}: the mark left in window is gone after the way back (${back.mark}): the page was reloaded`);
       if (!same(back.at, left)) fail(`${name}: back in the first world the heroine stands at ${back.at}, she was left at ${left}`);
       if (!same(back.same, [])) fail(`${name}: back in the first world these are not the objects the game started with: ${JSON.stringify(back.same)}`);
-      for (const k of ['npcs', 'names', 'scene', 'onHero', 'flies', 'suns', 'sun', 'music', 'crystals', 'foxClip', 'hud']) {
+      for (const k of ['npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'sun', 'music', 'crystals', 'foxClip', 'hud']) {
         if (!same(back[k], home[k])) fail(`${name}: the first world entered again differs from the first time in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
       }
       // Entered again, the first world may not hold more than it did (TECH-15 allows 10 % over five rounds; this is one).
@@ -740,7 +980,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       await p.page.screenshot({ path: join(root, shots, 'travel-failed.png') });
       if (back.mark !== mark) fail(`${name}: the mark left in window is gone (${back.mark}): the page was reloaded`);
       if (back.world !== FIRST || back.busy || back.going) fail(`${name}: after the failed change the game is in "${back.world}" (busy: ${back.busy}, changing: ${back.going}), expected the first world with the controls returned`);
-      for (const k of ['at', 'npcs', 'names', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'hud', 'shown']) {
+      for (const k of ['at', 'npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'hud', 'shown']) {
         if (!same(back[k], home[k])) fail(`${name}: the first world built again differs from before in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
       }
       if (!said || !/Не вдалося завантажити/.test(said)) fail(`${name}: the bubble does not say that the load failed: ${JSON.stringify(said)}`);
@@ -753,7 +993,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (again.ok !== true) fail(`${name}: with the files back __game.travel('${PROBE}') answered ${again.ok}, expected true`);
       for (const x of travelFramesProblems(again.frames, FIRST, PROBE)) fail(`${name}, with the files back: ${x}`);
       const away = await p.state();
-      if (away.world !== PROBE || !same(away.npcs, ['friend'])) fail(`${name}: with the files back the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
+      if (away.world !== PROBE || !same(away.npcs, ['friend']) || !Array.isArray(away.described)) fail(`${name}: with the files back the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)} and the description ${JSON.stringify(away.described)}, expected the probe world`);
       notFound = p.expected.notFound;
       await p.ctx.close();
     }
@@ -1011,7 +1251,9 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
     const offline = await page2.evaluate(() => __game.worlds.status('probe'));
     if (offline !== 'ready') fail(`offline: the world "${PROBE}" is "${offline}" without network, expected "ready"`);
     await page2.click('#play');
-    await page2.waitForFunction(() => !__game.busy, null, { timeout: T(60000) }).catch(() => fail('offline: the game stayed busy after "Play"'));
+    // The first entry into the world plays its tour: it is ended the way a tap ends it.
+    await page2.waitForFunction(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, { timeout: T(60000) })
+      .catch(() => fail('offline: the game stayed busy after "Play"'));
     await page2.evaluate(() => __game.talk(__game.npcs[0].def.id));
     await page2.locator('#task:not(.hidden)').waitFor({ timeout: T(30000) })
       .catch(() => fail(`offline: the character of the world "${PROBE}" gave no task`));

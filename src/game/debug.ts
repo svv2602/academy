@@ -8,6 +8,8 @@ import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
 import { stopPoint, type StopWhere } from './stops';
+import { describeWorld, look, missing, problems, type Need } from './describe';
+import type { WorldItem } from './world';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -24,7 +26,9 @@ export interface DebugExtras {
 }
 
 /** The change of world as window.__game shows it (src/game/travel.ts). */
-export interface DebugTravel { readonly world: string; readonly active: boolean; go(id: string): Promise<boolean> }
+export interface DebugTravel { readonly world: string; readonly active: boolean; go(id: string): Promise<boolean>; readonly built?: DebugBuilt | null }
+/** What the world played built, as far as window.__game reads it (null between two worlds): its own items of the world description, if it hands any in. */
+export interface DebugBuilt { items?(): readonly WorldItem[] }
 
 /**
  * Test/debug hook (ARCH-11): window.__game, only with ?debug or on the development server. The walkthrough
@@ -35,6 +39,8 @@ export interface DebugTravel { readonly world: string; readonly active: boolean;
 export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): (next: DebugExtras) => void {
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
+  // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
+  const described = (): WorldItem[] | null => { const built = travel.built; return built?.items ? describeWorld(g, built.items()) : null; };
   const game: Record<string, unknown> = {
     hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: world.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
@@ -46,6 +52,16 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     get world() { return travel.world; },
     get transitioning() { return travel.active; },
     travel(id: string) { return travel.go(id); },
+    /**
+     * The description of the world played (ARCH-16, src/game/describe.ts), after a change of world - of the new one:
+     * `items` - the points of the world template as plain values ({ kind, id, at, how, after, done, active }, `done` and
+     * `active` read now); `missing(need)` - what the description lacks of the template, in its words (`need`: how many
+     * of a kind are enough, by default the numbers of the template); `itemProblems` - where it disagrees with what the
+     * world declares. All three are null for a world that hands in no items: it has no description.
+     */
+    get items() { const d = described(); return d && look(d); },
+    missing(need?: Need) { const d = described(); return d && missing(d, need); },
+    get itemProblems() { const d = described(); return d && problems(g.world, d); },
     /** The sound for the walkthrough: the notes of the music that plays (null in silence), is a line sounding, which clip a speaker says a line with. */
     get music() { return musicPlaying(); },
     get speaking() { return speaking(); },

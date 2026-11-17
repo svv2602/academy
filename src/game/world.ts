@@ -72,10 +72,46 @@ export interface BookInfo {
 export type { WorldStrings } from '../ui/strings';
 
 /**
+ * A point of the world template (docs/13-worlds.md) as the generic walkthrough sees it (ARCH-16). The description of a
+ * world is the list of them (src/game/describe.ts): the chains and the pet are made there of what the world declares
+ * (`characters`, `pet`), the rest the built world hands in itself (`BuiltWorld.items`: its secrets, the parts of the
+ * artifact that lie in it, its cutscenes, its tour, its finale). An item describes what is in the game anyway: a world
+ * does nothing "for the walkthrough". A world that hands in no `items` has no description: a scenario of its own plays it.
+ */
+export type WorldItemKind = 'chain' | 'secret' | 'part' | 'scene' | 'flyover' | 'pet' | 'finale';
+
+export interface WorldItem {
+  kind: WorldItemKind;
+  /**
+   * Unique within the world, and the name of the item's done mark in the world's part of the save: ws.flags[id]. For a
+   * chain it is the id of its character (the mark is ws.quests[id]); the finale's mark is ws.final. One item - one mark;
+   * the name does not change once published.
+   */
+  id: string;
+  /**
+   * Where the heroine has to stand for it: a point, not an object. With `how: 'act'` the world has an action spot whose
+   * radius covers it. Absent: the item starts by itself (a cutscene, the tour, the finale).
+   */
+  at?: { x: number; z: number };
+  /** What moves it on: the action button near `at`, walking into `at`, a tap on the screen, or nothing (it plays by itself). */
+  how: 'act' | 'walk' | 'tap' | 'auto';
+  /**
+   * Ids of the items that have to be done before this one (a part that lies in a secret; the finale after everything):
+   * until then the game does not let it be done. The order is set here alone: what `after` does not name is done in the
+   * order of the list.
+   */
+  after?: readonly string[];
+  /** Done. Read from the save (the world's quests and flags), never from a variable: it is still true after a reload. */
+  done(): boolean;
+  /** On screen or running right now (a cutscene, the tour, the finale): the walkthrough waits for its end by this, not by the clock. */
+  active?(): boolean;
+}
+
+/**
  * A world once built: its parts of the frame, what window.__game reads of it, the book, its lines, the HUD counter and
  * the heroine's items (src/game/gear.ts: the shop screen puts on what the save holds and what she tries on).
  */
-export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear }
+export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear; items?(): readonly WorldItem[] }
 
 export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly id: string;
