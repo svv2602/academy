@@ -51,7 +51,13 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()) },
-    build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
+    // Three.js goes into a chunk of its own: with the game's code in one file that file neared the limit of 1 MB a
+    // file (tools/dist-size.mjs), and the library changes far less often than the game - an update of the game leaves
+    // its chunk in the cache of the phone.
+    build: {
+      target: 'es2022', chunkSizeWarningLimit: 1200,
+      rolldownOptions: { output: { codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/ }] } } },
+    },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
