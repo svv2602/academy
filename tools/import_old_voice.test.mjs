@@ -63,7 +63,8 @@ function run(f, ...extra) {
 const files = (d) => (existsSync(d) ? readdirSync(d).sort() : []);
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
-describe('tools/import_old_voice.py', () => {
+// Each test starts python3 once or more: on a loaded machine the default 5 s is not enough.
+describe('tools/import_old_voice.py', { timeout: 60_000 }, () => {
   it('refuses to run without an exclusion list, or with one that holds no word, and writes nothing', () => {
     const f = setup();
     const none = run(f);

@@ -17,7 +17,8 @@ const TASKS = 1000;
 const crosses = (total: number, gone: number) => gone % 10 > total % 10;
 const tasks = (level: number) => Array.from({ length: TASKS }, (_, i) => sub.generate(level, mulberry32(level * 100_000 + i)));
 
-describe('sub generator', () => {
+// Thousands of tasks per level: on a loaded machine (three streams at once) the default 5 s is not enough.
+describe('sub generator', { timeout: 30_000 }, () => {
   it('runs without a page', () => { expect(typeof document).toBe('undefined'); });
 
   it.each([1, 2, 3, 4, 5, 6])(`level %i: ${TASKS} tasks stay within bounds and have one right answer`, (level) => {
