@@ -887,36 +887,63 @@ try {
           } else { delete document.hidden; delete document.visibilityState; }       // back to the real ones
           document.dispatchEvent(new Event('visibilitychange'));
         }, hidden);
-        // The line said after "play" (the cat's tour line on a first entry, its welcome on a world visited before) is waited
-        // for by its own clip starting and then playing - on the slow CI runner, offline, its first sound can be many
-        // seconds of the clock away.
+        // The line said after "play" (the cat's welcome on a world visited before) is caught by its own clip: listeners of
+        // the page on that clip hide the page the moment its time has gone past 0.3 s while it plays - by the sound itself,
+        // not by a check from here (the welcome lasts under 3 s; on the CI runner it can be over before a check from here
+        // comes). If it is over before it is caught, a tap on the cat says it once more (VOICE-08) and that one is caught.
         const said = await g(() => __game.line);
-        await page.waitForFunction((key) => window.__started.some((a) => window.__clip(a) === key), said, { timeout: T(60000) })
-          .catch(() => fail(`the clip of "${said}", said after "play", never started`));
-        // The page is hidden by the page itself the moment the line is heard sounding: the welcome lasts under 3 s, and on
-        // the slow CI runner a frame can take a second, so a check from here, frame by frame, can miss it. A timer of the
-        // page runs between frames; the game hears the visibility change in the same task.
-        const id = await page.evaluate(([key, ms]) => new Promise((resolve, reject) => {
-          const timer = setInterval(() => {
-            const a = window.__started.find((x) => window.__clip(x) === key && !x.paused && !x.ended && x.currentTime > 0.2);
-            if (!a) return;
-            clearInterval(timer); clearTimeout(limit);
+        if (!said) fail('the game remembers no line after "play"');
+        await g((key) => {
+          const st = window.__hideCatch = { key, done: null, seen: new Set() };
+          const hide = (a) => {
+            if (st.done) return;
+            st.done = { clip: window.__clip(a), at: a.currentTime };
             a.__probe = true;
             Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
             Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
             document.dispatchEvent(new Event('visibilitychange'));
-            resolve(window.__clip(a));
-          }, 10);
-          const limit = setTimeout(() => { clearInterval(timer); reject(new Error('none')); }, ms);
-        }), [said, T(60000)])
-          .catch(() => fail(`no line was sounding after "play" (the clip of "${said}" started but did not play)`));
+          };
+          const check = (a) => { if (!a.paused && !a.ended && a.currentTime > 0.3) hide(a); };
+          const watch = () => {
+            for (const a of window.__started) {
+              if (window.__clip(a) !== key || st.seen.has(a)) continue;
+              st.seen.add(a);
+              for (const ev of ['timeupdate', 'playing']) a.addEventListener(ev, () => check(a));
+              check(a);
+            }
+            if (!st.done) setTimeout(watch, 10);
+          };
+          watch();
+        }, said);
+        const caught = (ms) => page.waitForFunction(() => !!window.__hideCatch.done, null, { timeout: ms }).then(() => true, () => false);
+        let again = false;
+        if (!(await caught(T(15000)))) {
+          // over already (or never sounding): the cat repeats it on a tap
+          if (await g(() => !!window.__hideCatch.done)) { /* caught in between */ } else {
+            const cat = await g(() => {
+              const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+              const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+              const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
+              return { x, y, under: under ? under.id || under.localName : 'nothing' };
+            });
+            if (cat.under !== 'c') fail(`"${said}" was not heard sounding, and the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
+            await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
+            again = true;
+          }
+        }
+        if (!(await caught(T(60000)))) {
+          const clips = await g((key) => window.__started.filter((a) => window.__clip(a) === key).map((a) => ({ paused: a.paused, ended: a.ended, t: +a.currentTime.toFixed(2), dur: +(a.duration || 0).toFixed(2), ready: a.readyState, net: a.networkState, err: a.error?.code ?? null })), said);
+          fail(`the clip of "${said}" was never heard sounding past 0.3 s${again ? ', also after a tap on the cat' : ''}: ${JSON.stringify(clips)}`);
+        }
+        const { clip: id, at: hiddenAt } = await g(() => window.__hideCatch.done);
         await wait(1200);
         const away = await g(() => { const a = window.__started.find((x) => x.__probe); return { paused: a.paused, ended: a.ended, at: a.currentTime }; });
         await visibility(false);
         if (!away.paused || away.ended) fail(`the line "${id}" did not pause (${away.ended ? 'it ended' : 'it went on sounding'})`);
+        if (away.at > hiddenAt + 0.15) fail(`the line "${id}" went on ${(away.at - hiddenAt).toFixed(2)} s after the page was hidden`);
         await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(5000) })
           .catch(() => fail(`the line "${id}" did not play on when the page was shown again`));
-        console.log(`a hidden page: "${id}" paused at ${away.at.toFixed(2)} s and played on when shown`);
+        console.log(`a hidden page: "${id}" paused at ${away.at.toFixed(2)} s and played on when shown${again ? ' (said again on a tap on the cat: the first was over before it was caught)' : ''}`);
       }
       if (has('intro')) {
         await wait(9000); await shot('01-spawn');
