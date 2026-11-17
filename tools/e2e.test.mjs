@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
+import { outputs, pick } from './ci-pieces.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SIZES = ['mobile', 'desktop', 'desktop-tall', 'mobile-portrait'];
@@ -201,5 +202,50 @@ describe('tools/e2e.mjs --combine with groups: the world played in pieces', () =
     expect(combine(pieces(), '--jobs', jobList(), '--only', 'shop').code).toBe(2);
     expect(spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--jobs', 'mobile'], { cwd: root, encoding: 'utf8' }).status).toBe(2);
     expect(spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--only', 'nosuch'], { cwd: root, encoding: 'utf8' }).status).toBe(2);
+  });
+});
+
+// ci.yml takes the list of walkthroughs from its job "plan" (tools/ci-pieces.mjs) and hands the same list to
+// --combine --jobs; its walkthrough jobs switch the step "worlds" off (E2E_WORLDS=0): the probe world has its own job.
+describe('tools/e2e.mjs and the plan of CI', () => {
+  it('the list the plan gives when everything is played is one --combine --jobs accepts: every size whole, the failure screens in it', () => {
+    const all = combine(pieces(), '--jobs', outputs(pick(null)).jobs);
+    expect(all.out).toMatch(/walkthroughs +ok/);
+    expect(all.code, all.out).toBe(0);
+    const firstWorld = combine(pieces(), '--jobs', outputs(pick(['src/worlds/fairy/index.ts'])).jobs);
+    expect(firstWorld.code, firstWorld.out).toBe(0);
+  });
+
+  it('a walkthrough of that list that left no result fails --combine', () => {
+    const r = combine(pieces({ 'summary-mobile-portrait-world2.json': null }), '--jobs', outputs(pick(null)).jobs);
+    expect(r.code, r.out).toBe(1);
+    expect(r.out).toContain('mobile-portrait world2: no summary of its walkthrough');
+  });
+
+  it('E2E_WORLDS takes 0 or 1; anything else is refused at once, not read as "off"', () => {
+    const run = (value) => {
+      const env = { ...process.env, E2E_WORLDS: value };
+      delete env.E2E_MUTE;
+      const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine', pieces(), '--jobs', jobList()], { cwd: root, encoding: 'utf8', env, timeout: 30000 });
+      return { code: r.status, out: `${r.stdout}${r.stderr}` };
+    };
+    for (const bad of ['off', 'false', '2', '00']) {
+      const r = run(bad);
+      expect(r.code, r.out).toBe(2);
+      expect(r.out).toContain(`[e2e] bad E2E_WORLDS "${bad}": expected 0 or 1`);
+    }
+    for (const good of ['0', '1', '']) expect(run(good).code, good).toBe(0);
+  });
+
+  // The step itself cannot be played in a unit test (it needs a build and Chrome), so its switch is pinned as text:
+  // off only with E2E_WORLDS=0, and then the summary names the step as skipped with the reason.
+  it('the step "worlds" is left out only with E2E_WORLDS=0, and is then listed as skipped', () => {
+    const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
+    expect(src).toContain("\nconst switchedOff = process.env.E2E_WORLDS === '0' ? { worlds: 'E2E_WORLDS=0: the probe world is played elsewhere (in CI: by the job \"worlds\")' } : {};\n");
+    expect(src).toContain("async function step(name, fn) {\n"
+      + "  // A step switched off for this run is not played: it is listed as skipped, with the reason.\n"
+      + "  if (Object.hasOwn(switchedOff, name)) { skip(name, switchedOff[name]); console.log(`\\n[e2e] ${name}: skipped — ${switchedOff[name]}`); return true; }\n");
+    expect(src).toContain("      else await step('worlds', worlds);\n");
+    expect(src.split('switchedOff')).toHaveLength(5);   // defined once, read in step() only
   });
 });

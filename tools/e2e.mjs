@@ -53,7 +53,8 @@ opens the new build with the stars of the old one.
 probe world is a test world - dist/ must hold nothing of it (no file, no code); the build that lists it is made anew
 (vite build --mode probe --outDir dist-probe), must hold its files under models/probe/ and story/probe/ and the commit
 of the sources, and the world is played there in the mobile size by the walkthrough every world shares
-(E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/).
+(E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/). E2E_WORLDS=0 leaves the step out (the summary says so): CI
+plays the probe world in a job of its own (node tools/worlds.mjs dist).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
 "dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12 MB
 without voice/ and 4 MB of voice/, every next world (models/<id>/, story/<id>/, voice/<id>/) at most 8 MB and 3 MB of voice,
@@ -110,6 +111,8 @@ Environment (passed on to tools/shot.mjs unchanged):
                           without the voice, the other sizes with it)
 Environment (this script):
   E2E_PORT=<n>            first port to try for the preview server (default 4183)
+  E2E_WORLDS=<0|1>        0: the step "worlds" is skipped - the probe world is played elsewhere (CI: its own job);
+                          1 or unset: the step is played with the mobile size, as always
   E2E_RUN_TIMEOUT_MS=<ms> hard limit for one walkthrough process (default 1200000)`;
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -136,6 +139,11 @@ const FAILURE_MODE = 'mobile';
 const FAILURE_GROUP = 'shop';
 if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) { console.error(`[e2e] bad E2E_MUTE "${process.env.E2E_MUTE}": expected 0 or 1`); process.exit(2); }
 const muted = (mode) => (process.env.E2E_MUTE ? process.env.E2E_MUTE === '1' : MUTE_MODES.includes(mode));
+// The step "worlds" is played unless it is switched off: in CI the probe world has a job of its own (ARCH-16), and the
+// walkthrough jobs must not play it a second time. Anything but 0 or 1 is a mistake, not a silent "off".
+if (!['', '0', '1'].includes(process.env.E2E_WORLDS ?? '')) { console.error(`[e2e] bad E2E_WORLDS "${process.env.E2E_WORLDS}": expected 0 or 1`); process.exit(2); }
+// Steps switched off for this run, by name, each with the reason the summary gives (see step() below).
+const switchedOff = process.env.E2E_WORLDS === '0' ? { worlds: 'E2E_WORLDS=0: the probe world is played elsewhere (in CI: by the job "worlds")' } : {};
 // The commit the sources are at: what the build had to put into the parents' section (TECH-10). Worked out at the
 // moment of the walkthrough, the same way as in vite.config.ts; with --skip-build it tells a stale dist/ apart.
 function sourceCommit() {
@@ -244,6 +252,8 @@ process.on('uncaughtException', (e) => { console.error('[e2e] internal error:', 
 // ---- steps ----
 const results = [];
 async function step(name, fn) {
+  // A step switched off for this run is not played: it is listed as skipped, with the reason.
+  if (Object.hasOwn(switchedOff, name)) { skip(name, switchedOff[name]); console.log(`\n[e2e] ${name}: skipped — ${switchedOff[name]}`); return true; }
   console.log(`\n[e2e] ${name}: start`);
   const t0 = Date.now();
   let ok = true, note = '';

@@ -1,6 +1,8 @@
 name: Deploy to GitHub Pages
 # The same checks as ci.yml (ARCH-15), then the very build that was checked is published - and only if "check" passed.
-# Keep the jobs build, walk and check the same as in ci.yml.
+# Before a publication everything is played, whatever changed (ARCH-16): every walkthrough and the probe world. There
+# is no job "plan" here on purpose: the list of jobs is fixed, do not take it from tools/ci-pieces.mjs.
+# Keep the steps of the jobs build, walk and worlds the same as in ci.yml.
 on:
   push:
     branches: [main]
@@ -69,6 +71,8 @@ jobs:
           Q: '0'
           # One piece of the world takes 5-9 minutes here; the limit leaves room for a slow runner.
           E2E_RUN_TIMEOUT_MS: '1080000'
+          # The probe world is played by the job "worlds", not by the step of the same name in the phone's shop.
+          E2E_WORLDS: '0'
         run: |
           set -o pipefail
           npm run e2e -- --skip-build --mode ${{ matrix.size }} --only ${{ matrix.group }} 2>&1 | tee e2e.log
@@ -94,8 +98,49 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The probe world (TECH-15, TECH-09): the build to publish must hold nothing of it; the build that lists it is made
+  # here (dist-probe/) and the world is played in it. Played before every publication.
+  worlds:
+    name: worlds (probe world)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # The runner has no GPU: software rendering and the lowest fixed graphics tier, as in the walkthroughs.
+      - name: Probe world
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+        run: |
+          set -o pipefail
+          node tools/worlds.mjs dist 2>&1 | tee worlds.log
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worlds-failure
+          path: |
+            shots-e2e/
+            worlds.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   check:
-    needs: [build, walk]
+    needs: [build, walk, worlds]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -103,8 +148,8 @@ jobs:
       - name: Every job passed
         shell: bash
         run: |
-          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}"
-          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success
+          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}; probe world: ${{ needs.worlds.result }}"
+          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success && test "${{ needs.worlds.result }}" = success
       - uses: actions/checkout@v4
         if: ${{ !cancelled() }}
       - uses: actions/setup-node@v4

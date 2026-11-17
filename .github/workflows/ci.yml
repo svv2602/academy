@@ -1,9 +1,13 @@
 name: CI
-# Checks every branch except main (main is checked by pages.yml, the same way, before it publishes).
+# Checks every branch except main (main is checked by pages.yml before it publishes: there everything is played, always).
 # Unit tests, type check and build run once; the built game is then played in the four screen sizes, each in four
-# pieces of the world (--only, tools/e2e-saves.mjs), sixteen jobs at the same time,
-# one job per size, on that very build. The job "check" passes only if all of them passed and the checks that need every
-# size at once (the models requested, the walkthrough without the voice) pass over their results (ARCH-15).
+# pieces of the world (--only, tools/e2e-saves.mjs), sixteen jobs at the same time, on that very build; the probe
+# world is played by a job of its own ("worlds"). The job "check" passes only if all of them passed and the checks
+# that need every size at once (the models requested, the walkthrough without the voice) pass over their results (ARCH-15).
+# What is played depends on the files that changed (ARCH-16; the job "plan", tools/ci-pieces.mjs): files of one world -
+# the jobs of that world, a shared file - everything, documents alone - unit tests and build only; whenever the
+# changed files cannot be told, and in a run started by hand - everything. "check" compares the result of every job
+# with the plan and prints what was skipped and why.
 # "check" is the status the protection of main requires: do not rename that job.
 on:
   push:
@@ -23,6 +27,35 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # What this run plays. All the logic is in tools/ci-pieces.mjs (unit tests: tools/ci-pieces.test.mjs); a failure
+  # here fails "check".
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      walk: ${{ steps.pick.outputs.walk }}         # 'true': the walkthroughs of "matrix" are played
+      worlds: ${{ steps.pick.outputs.worlds }}     # 'true': the probe world is played
+      matrix: ${{ steps.pick.outputs.matrix }}     # {"include":[{"size":…,"group":…},…]}
+      jobs: ${{ steps.pick.outputs.jobs }}         # the same walkthroughs for --combine --jobs
+      report: ${{ steps.pick.outputs.report }}     # the reason and the changed files, in words
+    steps:
+      # The whole history and every branch: the changed files are counted from the commit dev was at before the push
+      # or, on another branch, from the common ancestor with origin/dev.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: What to play
+        id: pick
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_REF: ${{ github.ref }}
+          CI_BEFORE: ${{ github.event.before }}
+          CI_PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: node tools/ci-pieces.mjs plan
+
   build:
     name: unit tests and build
     runs-on: ubuntu-latest
@@ -48,16 +81,16 @@ jobs:
 
   walk:
     name: walkthrough ${{ matrix.size }} ${{ matrix.group }}
-    needs: build
+    needs: [plan, build]
+    # No walkthrough planned: the job is skipped (an empty matrix would be an error), and "check" expects exactly that.
+    if: ${{ needs.plan.outputs.walk == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false        # every size reports, not only the first that failed
-      matrix:
-        size: [mobile, desktop, desktop-tall, mobile-portrait]
-        # The pieces of the world (tools/e2e-saves.mjs): each starts from its own save, together they are the whole
-        # walkthrough of a size; the four of one size are what --combine expects of it.
-        group: [world1, world2, finale, shop]
+      # A size and a piece of the world per job (tools/world-pieces.mjs, tools/e2e-saves.mjs): each piece starts from
+      # its own save, the four of one size are the whole walkthrough of it - what --combine expects.
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -83,6 +116,8 @@ jobs:
           Q: '0'
           # One piece of the world takes 5-9 minutes here; the limit leaves room for a slow runner.
           E2E_RUN_TIMEOUT_MS: '1080000'
+          # The probe world is played by the job "worlds", not by the step of the same name in the phone's shop.
+          E2E_WORLDS: '0'
           # workflow_dispatch "break": every quest of this size counts as stuck at once, so its walkthrough fails.
           E2E_STUCK_MS: ${{ inputs.break == matrix.size && '1' || '' }}
         run: |
@@ -111,26 +146,74 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The probe world (TECH-15, TECH-09): the build of this run must hold nothing of it; the build that lists it is made
+  # here (dist-probe/, so the sources and the packages are needed) and the world is played in it.
+  worlds:
+    name: worlds (probe world)
+    needs: [plan, build]
+    if: ${{ needs.plan.outputs.worlds == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      # The same checkout as in "build": tools/worlds.mjs compares the commit in the build with the one of the sources.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # The runner has no GPU: software rendering and the lowest fixed graphics tier, as in the walkthroughs.
+      - name: Probe world
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+        run: |
+          set -o pipefail
+          node tools/worlds.mjs dist 2>&1 | tee worlds.log
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worlds-failure
+          path: |
+            shots-e2e/
+            worlds.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   check:
-    needs: [build, walk]
+    needs: [plan, build, walk, worlds]
     # Runs when they failed too: a job skipped because of a failure would count as passed for the protection of main.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Every job passed
-        shell: bash
-        run: |
-          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}"
-          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success
       - uses: actions/checkout@v4
-        if: ${{ !cancelled() }}
       - uses: actions/setup-node@v4
-        if: ${{ !cancelled() }}
         with:
           node-version: 22
+      # A planned job must have succeeded, a job that was not planned must have been skipped; a failed plan fails it.
+      # Prints what the plan skipped and why, with the changed files.
+      - name: Every job ended as planned
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          WALK_RESULT: ${{ needs.walk.result }}
+          WORLDS_RESULT: ${{ needs.worlds.result }}
+          PLAN_WALK: ${{ needs.plan.outputs.walk }}
+          PLAN_WORLDS: ${{ needs.plan.outputs.worlds }}
+          PLAN_REPORT: ${{ needs.plan.outputs.report }}
+        run: node tools/ci-pieces.mjs check
       - name: Results of the walkthroughs
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && needs.plan.outputs.walk == 'true' }}
         uses: actions/download-artifact@v4
         continue-on-error: true   # none at all when the build failed: the next step says what is missing
         with:
@@ -138,6 +221,9 @@ jobs:
           path: e2e-results
           merge-multiple: true
       # All four sizes passed on this commit, one was played without the voice, the models requested add up.
+      # Not run when no walkthrough was planned: it needs every size played whole (the step above says so).
       - name: Checks over all sizes
-        if: ${{ !cancelled() }}
-        run: node tools/e2e.mjs --combine e2e-results --only world1,world2,finale,shop
+        if: ${{ !cancelled() && needs.plan.outputs.walk == 'true' }}
+        env:
+          PLAN_JOBS: ${{ needs.plan.outputs.jobs }}
+        run: node tools/e2e.mjs --combine e2e-results --jobs "$PLAN_JOBS"
