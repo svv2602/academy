@@ -129,11 +129,20 @@ describe('rewards: found or earned, not bought (R03, R17)', () => {
     expect(s.stars).toBe(0);
   });
 
-  it('the star earrings stay closed until the achievements come (PLAY-08), even with every world finished', () => {
+  it('the star earrings stay a silhouette until "three secrets" (PLAY-08), even with every world finished and other achievements', () => {
     const s = save(500, true);
-    s.achievements = { three_secrets: 1 };
+    s.achievements = { first_shard: 1, secret_chest: 1, first_artifact: 1 };
     expect(unlocked(s, 'earrings_star')).toBe(false);
     expect(itemState(s, 'earrings_star')).toEqual({ kind: 'silhouette', reward: 'three_secrets' });
+  });
+
+  it('the star earrings open with the achievement "three secrets" (PLAY-08), free', () => {
+    const s = save(0);
+    s.achievements = { three_secrets: 1 };
+    expect(unlocked(s, 'earrings_star')).toBe(true);
+    expect(has(s, 'earrings_star')).toBe(true);
+    expect(itemState(s, 'earrings_star')?.kind).not.toBe('silhouette');
+    expect(s.stars).toBe(0);
   });
 
   it('the petal wings are hers from the start, and worn', () => {

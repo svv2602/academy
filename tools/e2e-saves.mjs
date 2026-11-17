@@ -31,6 +31,7 @@ export const BLOCKS = [
   'shop',           // the shop and the fitting room (PLAY-04, PLAY-05)
   'shop-sign',      // the signboard of the shop
   'parents',        // the gate, the version, the voice slider, the quality button
+  'achievements',   // the set of achievements the piece earned; the scene of one at a stop point, ended by one tap (PLAY-08)
   'leave',          // leaving the page saves the spot; after the reload she wears what the shop sold
   'looks',          // the four looks of the start screen, then the hair alone in the fitting room (PLAY-06)
   'start-again',    // "start again" clears the save
@@ -79,12 +80,12 @@ function played({ done, stars, tasks, final = false }) {
  */
 export const GROUPS = {
   // friends 1-2 from no save: the published game without ?debug, the tour of the world, a hidden page, the introduction, the cat
-  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat'] },
+  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'] },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
-    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'magic'],
+    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'magic', 'achievements'],
   },
   // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
   finale: {
@@ -93,14 +94,14 @@ export const GROUPS = {
     save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'leave', 'start-again'],
+    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'achievements', 'leave', 'start-again'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'leave', 'looks'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'achievements', 'leave', 'looks'],
   },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },

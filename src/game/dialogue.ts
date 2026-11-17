@@ -5,6 +5,8 @@ import { sfx } from '../core/audio';
  */
 export const shardsSettled = { n: 0 };
 import { fanfare } from '../ui/ui';
+import { bindAchievements } from '../ui/achieve';
+import { stopPoint } from './stops';
 import { tf } from '../ui/strings';
 import type { Game } from './context';
 import { levelFor, recordTask, type SkillId } from './skills';
@@ -41,6 +43,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   // Every panel task of the conversations is planned (src/game/planner.ts): the examples with mistakes come back, the
   // same task never twice in a row.
   const plan = createPlanner(save);
+  // The stop points of this game (src/game/stops.ts): the achievements' scene comes in at them.
+  bindAchievements(g);
 
   const finished = (c: CharacterDef) => (ws.quests[c.id] ?? 0) >= c.steps.length;
   // A panel step names a task type, or a skill whose type follows the level (R34: "compose", the composition of a number).
@@ -64,7 +68,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         await line('npc_again', 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
-        if (res.solved) { recordTask(save, skill, res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); }
+        if (res.solved) { recordTask(save, skill, res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
         return;
       }
       if (done === 0 && q.hi) await line(q.hi, 'story', 0, q.emoji);
@@ -88,7 +92,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
-        if (k < q.steps.length - 1) await line('npc_next', 'story', 0, q.emoji);
+        // A stop point after the praise; after the last step the card of the part comes first, and its own point.
+        if (k < q.steps.length - 1) { await stopPoint('task'); await line('npc_next', 'story', 0, q.emoji); }
       }
       onward = await givePart(n);
     });
@@ -109,6 +114,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     const thanks = line(lines.partGiven, 'story', 0, n.def.emoji);
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
+    await stopPoint('part');
     if (count === characters.length) { await line(lines.allParts, 'story'); return () => { shardsSettled.n++; }; }
     return () => {
       void thanks.then(() => {

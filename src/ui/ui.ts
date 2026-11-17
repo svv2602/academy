@@ -1,5 +1,6 @@
 import type { Save } from '../core/save';
 import { lastDays } from '../game/playtime';
+import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
 import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
 import type { BookInfo } from '../game/world';
@@ -163,7 +164,7 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     $('colStats').innerHTML = book.stats().map((s) => `<div>${s.icon} ${t(s.label)}: ${s.value}</div>`).join('');
   };
   $('btnBook').addEventListener('click', () => { renderBook(); show(bookCard, true); });
-  $('bookClose').addEventListener('click', () => show(bookCard, false));
+  $('bookClose').addEventListener('click', () => { show(bookCard, false); void stopPoint('book'); });
   // The shop and the fitting room (PLAY-04, PLAY-05): a screen of its own over the game, which stays paused.
   $('btnShop').addEventListener('click', () => { bookCard.classList.add('hidden'); on.shop(); });
 

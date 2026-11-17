@@ -239,6 +239,9 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   spawn: SPAWN,
   ground,
   characters: FRIENDS,
+  secrets: ['chest'],
+  chest: 'chest',
+  groundStars: 8,
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,
   music: MUSIC,

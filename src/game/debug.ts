@@ -6,6 +6,8 @@ import { uTime } from '../core/materials';
 import { cheatTask } from './taskviews/panel';
 import { transition } from './transition';
 import type { Game } from './context';
+import { achState, queue } from '../ui/achieve';
+import { stopPoint, type StopWhere } from './stops';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -38,6 +40,22 @@ export function exposeDebug(g: Game, extras: DebugExtras) {
     get inTask() { return inTask(); },
     get line() { return g.speech.shown?.key ?? null; },
     get finale() { return g.finale; },
+    /**
+     * The achievements (PLAY-08): `scene` - the one whose card is on screen, else null; `shown` - scenes ended since the
+     * launch, `log` - their ids in order; `queue` - received, scene not shown yet; `hold()` / `release()` - the walkthrough's
+     * own lever around a block a scene would disturb (the game never holds them), `held` - whether it is pulled;
+     * `stop(where)` - a stop point now.
+     */
+    ach: {
+      get scene() { return achState.scene; },
+      get shown() { return achState.shown; },
+      get log() { return [...achState.log]; },
+      get queue() { return queue(g); },
+      get held() { return achState.held; },
+      hold() { achState.held = true; },
+      release() { achState.held = false; },
+      stop(where: StopWhere) { return stopPoint(where, g); },
+    },
     /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
     get time() { return uTime.value; },
     /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */

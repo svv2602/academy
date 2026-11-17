@@ -43,6 +43,7 @@ export function initStartScreen(g: Game, o: {
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
     await enterWorld(g, first);
+    void import('./stops').then((s) => s.atPlay(g));   // PLAY-08: the day of play is counted, then a stop point
   }, { once: true });
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.
   const openShop = initShop(save, o.gear, {

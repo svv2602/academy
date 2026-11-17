@@ -58,15 +58,16 @@ export const item = (id: string): Item | undefined => CATALOG.find((i) => i.id =
 
 /**
  * Whether the reward of a thing that is not sold has been earned. The Crystal of Light: the first world's final.
- * Three secrets: an achievement of PLAY-08, which does not exist yet - until it comes the earrings stay a silhouette;
- * PLAY-08 answers here from `save.achievements`.
+ * Three secrets: the achievement `three_secrets` of PLAY-08 in `save.achievements` - until it comes the earrings stay a
+ * silhouette.
  */
 export function unlocked(s: Save, id: string): boolean {
   const it = item(id);
   if (!it?.reward) return false;
   // Read without worldState, which would create the world in the save: asking must change nothing.
   if (it.reward === 'crystal') return s.worlds[FIRST_WORLD]?.final === true;
-  return false;   // 'three_secrets': PLAY-08
+  // Three secrets: the achievement of PLAY-08, received for good (src/game/achievements.ts).
+  return it.reward === 'three_secrets' && 'three_secrets' in s.achievements;
 }
 
 /** Whether she may wear a thing: bought, opened by its reward, or free. */

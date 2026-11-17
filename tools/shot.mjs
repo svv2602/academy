@@ -2288,6 +2288,56 @@ try {
       const counter = await page.textContent('#fps').catch(() => null);
       console.log('fps:', counter);
       if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
+      // ---- the achievements (PLAY-08, R03, R06, R43): the set the piece earned, and the scene of one of them ----
+      // The scenes wait in the queue under automation (src/ui/achieve.ts `held`: the blocks above tap every card as a
+      // part's), the achievements themselves are granted at every stop point. Here the scenes are let out, the book is
+      // opened and closed - a stop point - and exactly one scene comes, waited for by its flag; one tap ends it.
+      if (has('achievements')) {
+        const fail = (what) => { throw new Error(`achievements: ${what}`); };
+        const base = ['first_shard', 'first_task', 'try_again'];
+        const EXPECTED = { world1: base, world2: base, finale: [...base, 'all_skills', 'first_artifact'], shop: [...base, 'first_artifact'] };
+        const want = (only ? EXPECTED[only] : [...base, 'all_skills', 'first_artifact']).slice().sort();
+        await page.waitForFunction(() => !__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden'), null, { timeout: T(30000) })
+          .catch(() => fail('the game did not come to rest before the block'));
+        const before = await g(() => { __game.ach.held = false; return { shown: __game.ach.shown, achShown: [...(__game.save.achShown ?? [])] }; });
+        await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
+        await tapOn('#bookClose').catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        await page.waitForFunction(() => __game.ach.scene !== null, null, { timeout: T(20000) }).catch(() => fail('no scene at the stop point of the closed book'));
+        const on = await g(() => ({ id: __game.ach.scene, queue: __game.ach.queue, task: __game.inTask, ach: document.querySelector('#fanfare').classList.contains('ach'),
+          sign: document.querySelector('#fanfare .gem').textContent, title: document.querySelector('#fanfareTitle').textContent,
+          cat: __game.line, earned: Object.keys(__game.save.achievements) }));
+        const left = [];
+        if (on.task) left.push('the scene came over a task');
+        if (!on.ach) left.push('the card is not marked as an achievement\'s');
+        if (!on.title) left.push('the card has no title');
+        if (!on.cat) left.push('the cat says nothing (no subtitle)');
+        if (!on.queue.includes(on.id)) left.push(`"${on.id}" is not in the queue while its scene is on`);
+        if (left.length) fail(left.join('; '));
+        await shot('achievement');
+        await tapOn('#fanfareOk').catch((e) => fail(`the button of the scene cannot be pressed: ${why(e)}`));
+        await page.waitForFunction((n) => __game.ach.scene === null && __game.ach.shown > n && !__game.busy, before.shown, { timeout: T(15000) })
+          .catch(() => fail('one tap did not end the scene'));
+        const after = await g(() => ({ achShown: [...(__game.save.achShown ?? [])], queue: __game.ach.queue, sign: document.querySelector('#fanfare .gem').textContent,
+          ach: document.querySelector('#fanfare').classList.contains('ach'), earned: Object.keys(__game.save.achievements).sort(),
+          stored: JSON.parse(localStorage.getItem('amw-save') || '{}') }));
+        if (after.achShown.join() !== [...before.achShown, on.id].join()) left.push(`shown ${JSON.stringify(after.achShown)}, expected ${JSON.stringify([...before.achShown, on.id])} (one scene per point)`);
+        if (!after.stored.achShown?.includes(on.id)) left.push(`the shown scene of "${on.id}" is not stored`);
+        if (after.queue.length !== on.queue.length - 1) left.push(`the queue went from ${on.queue.length} to ${after.queue.length}, not one less`);
+        if (after.sign !== '💎' || after.ach) left.push(`the card of the parts is not given back (sign ${after.sign})`);
+        if (after.earned.join() !== want.join()) left.push(`earned ${after.earned.join(', ')}; expected ${want.join(', ')}`);
+        if (Object.keys(after.stored.achievements ?? {}).sort().join() !== after.earned.join()) left.push('the achievements are not stored as earned');
+        // From no save the first task's praise is a stop point of its own, before the card of the first part.
+        if (!only || only === 'world1') {
+          const t = await g(() => __game.save.achievements);
+          if (!(t.first_task < t.first_shard)) left.push(`"first_task" (${t.first_task}) did not come before "first_shard" (${t.first_shard}): no stop point after the praise`);
+        }
+        // on open ground (the block before may leave her against a character), as the block "leave" puts her
+        await g(() => __game.teleport(2.5, 12.5));
+        if (!(await walks())) left.push('the heroine does not walk after the scene');
+        await g(() => { __game.ach.held = true; });
+        if (left.length) errors.push(`achievements: ${mode}: ${left.join('; ')}`);
+        else console.log(`achievements: ${after.earned.join(', ')}; the scene of "${on.id}" (${on.sign}) came at the closed book and ended with one tap, ${after.queue.length} wait in the queue`);
+      }
       if (has('leave')) {
         // the start screen of a returning player: the saved game adds the "start again" button
         // Leaving the page saves where she stands (pagehide): the save on a timer alone would lose up to ten seconds of walk.
