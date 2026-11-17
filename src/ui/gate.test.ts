@@ -36,15 +36,18 @@ describe('gateQuestion', () => {
   });
 
   it('never repeats the answer of the previous question, whatever the randomness', () => {
+    // 6400 questions. What is wrong is gathered and held to an empty list once: an `expect` for each check (25600 of
+    // them) did not fit the time a test is given on a busy machine.
+    const wrong: string[] = [];
     for (const prev of everyQuestion) {
       for (const rnd of sweep) {
         const q = gateQuestion(prev, rnd);
-        expect(q.answer, `${q.a} x ${q.b} after ${prev.a} x ${prev.b}`).not.toBe(prev.answer);
-        expect(FACTORS).toContain(q.a);
-        expect(FACTORS).toContain(q.b);
-        expect(q.answer).toBe(q.a * q.b);
+        if (q.answer === prev.answer) wrong.push(`${q.a} x ${q.b} after ${prev.a} x ${prev.b}: the same answer`);
+        if (!FACTORS.includes(q.a) || !FACTORS.includes(q.b)) wrong.push(`${q.a} x ${q.b} after ${prev.a} x ${prev.b}: not of ${FACTORS.join(', ')}`);
+        if (q.answer !== q.a * q.b) wrong.push(`${q.a} x ${q.b} = ${q.answer}`);
       }
     }
+    expect(wrong).toEqual([]);
   });
 
   it('does not ask the mirrored example either: no "7 x 8" right after "8 x 7"', () => {
