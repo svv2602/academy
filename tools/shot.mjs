@@ -339,6 +339,16 @@ try {
     }
   };
   const sounding = () => page.evaluate(() => window.__started.some((a) => !a.paused && !a.ended));
+  // The rung of a hint is shown once "try again" and its line have been said (src/game/taskviews/flow.ts): the mark of the
+  // rung is the event waited for. Its ceiling - 20 s - runs out only in silence: while a line still sounds (a loaded machine
+  // stretches them) the wait goes on, up to three times that; a hint stuck in silence fails as before.
+  const hintRan = async (sel) => {
+    for (let i = 0; i < 3; i++) {
+      if (await page.waitForSelector(sel, { state: 'attached', timeout: T(20000) }).then(() => true, () => false)) return true;
+      if (!(await sounding())) return false;
+    }
+    return false;
+  };
   const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
   // finale once - to see that the heroine is not left standing. Excused is the text of that very scene only, only
@@ -1128,6 +1138,15 @@ try {
         }), other.id);
         if (mark < 0) fail('the search did not end on the fifth star');
         await page.waitForSelector('#task:not(.hidden)', { timeout: T(20000) }).catch(() => fail(`the task of "${other.id}" did not open`));
+        // A question of the bank (R37) is fetched the first time it is asked: src/core/voice.ts waits up to 4 s for it
+        // (BANK_WAIT_MS), then says the general question of the task instead. So the question is waited for until one of the
+        // two sounds - the bubble's key tells which - within that pause and a margin; nothing sounding by then fails below.
+        const asked = await page.waitForFunction(() => {
+          const key = __game.line;
+          return !!key && window.__started.some((a) => !a.paused && !a.ended && window.__clip(a) === key) && key;
+        }, null, { timeout: T(6000) }).then((h) => h.jsonValue(), () => null);
+        const askedBy = !asked ? 'nothing' : /^q_/.test(asked) ? `its clip of the bank (${asked})`
+          : `the general question (${asked}): no clip of the bank to play (not kept, without network; or not loaded in 4 s)`;
         const before = await saved();
         const probe = await g(() => {
           const key = __game.line, n = window.__starts[key] ?? 0;
@@ -1148,7 +1167,9 @@ try {
         const cut = heard.clips.filter((c) => !c.ended).map((c) => c.id);
         if (cut.length) fail(`cut off before the end: ${cut.join(' ')} (started since the star: ${names.join(' ')})`);
         if (names.length < 2 || names.at(-1) !== probe.key) fail(`a greeting and the question "${probe.key}" had to sound, but these did: ${names.join(' ') || 'nothing'}`);
-        const mute = heard.captions.filter((k) => !names.includes(k));
+        // Online the bubble shows the example of the bank at once and, if its clip does not come in time, the general
+        // question that is said instead (src/core/voice.ts `sayBank`): that example is the only caption allowed unspoken.
+        const mute = heard.captions.filter((k) => !names.includes(k) && !(/^q_/.test(k) && asked && !/^q_/.test(asked) && names.includes(asked)));
         if (mute.length) fail(`the bubble showed a line that was not spoken: ${mute.join(' ')}`);
         if (!heard.dropped.includes('t_stars_back')) fail('"t_stars_back" was not turned away: the conversation did not start before it');
         const n = await g((k) => window.__starts[k] ?? 0, probe.key);
@@ -1164,7 +1185,7 @@ try {
         const after = await saved();
         if (after !== before) left.push(`the save changed: ${before} -> ${after}`);
         if (left.length) fail(left.join('; '));
-        console.log(`a talk right after the fifth star (${other.id}): ${names.join(', ')} heard to the end, "t_stars_back" turned away; `
+        console.log(`a talk right after the fifth star (${other.id}): asked by ${askedBy}; ${names.join(', ')} heard to the end, "t_stars_back" turned away; `
           + `a tap on the bubble repeated "${probe.key}" only once it was over; the closed task recorded nothing`);
         hurried = true;
       };
@@ -1399,7 +1420,7 @@ try {
                     tap(same[0]); return '';
                   }, type);
                   if (wrong) { errors.push(`no deliberate mistake ${k} in the "${type}" task: ${wrong}`); break; }
-                  const ran = await page.waitForSelector(`#taskStage[data-shown="${k}"]`, { state: 'attached', timeout: T(20000) }).then(() => true, () => false);
+                  const ran = await hintRan(`#taskStage[data-shown="${k}"]`);
                   if (!ran) { errors.push(`hint: ${mode} ${type}: the hint of mistake ${k} did not run its course`); break; }
                   if (k === 1) {
                     const away = await g((sel) => [...document.querySelectorAll(sel)].map((e) => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')}`), GIVEAWAY);
