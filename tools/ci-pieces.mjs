@@ -1,7 +1,7 @@
 // Which jobs a run of ci.yml plays, chosen by the files that changed (ARCH-16), and whether "check" may pass:
 //   node tools/ci-pieces.mjs plan            the job "plan" of ci.yml: asks git for the changed files (the event comes
-//                                            in CI_EVENT, CI_REF, CI_BEFORE, CI_PR_BASE), prints the plan and writes
-//                                            it to $GITHUB_OUTPUT: matrix, jobs, walk, worlds, report
+//                                            in CI_EVENT, CI_REF, CI_PR_BASE), prints the plan and writes it to
+//                                            $GITHUB_OUTPUT: matrix, jobs, walk, worlds, report
 //   node tools/ci-pieces.mjs pick <file>...  the same plan for the files given, printed only (to try a set of files)
 //   node tools/ci-pieces.mjs check           the job "check" of ci.yml: compares the result of every job (PLAN_RESULT,
 //                                            BUILD_RESULT, WALK_RESULT, WORLDS_RESULT) with what the plan expected
@@ -11,6 +11,10 @@
 //   files of a world (and maybe documents)              -> the jobs of that world; of several worlds - of each of them
 //   any other file - a shared one                       -> everything
 //   the changed files are not known, or there are none  -> everything
+//   a push to dev, whatever it changed                  -> everything
+// The plan is for the branches the work is brought on. On dev itself everything is always played: the protection of main
+// takes a commit by its green "check", and for a commit that lies in dev a green "check" means "everything was played",
+// not "what the plan chose" (a commit of documents alone must not be green on top of a red one).
 // Whenever in doubt, everything is played: "check" is the gate into dev and the status the protection of main asks for.
 // pages.yml does not use this file: before a publication everything is played, always.
 // Exit code: 0 - done (check: every job ended as planned); 1 - check failed; 2 - bad arguments.
@@ -22,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { WORLDS } from './world-pieces.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-/** The branch the work is merged into: a push to it is compared with the commit it was at before. */
+/** The branch the work is merged into: a push to it always plays everything; the other branches are compared with it. */
 export const GATE = 'dev';
 /** A file that belongs to no world and is no document. */
 export const SHARED = 'shared';
@@ -63,22 +67,20 @@ export function pick(files, worlds = WORLDS) {
 const COMMIT = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const lastLine = (text) => String(text).trim().split('\n').pop().trim();
 /**
- * The files changed by what this run checks: { files, why }. `files` is null whenever they cannot be told - the run
- * was started by hand, the branch is new, the commit to compare with is not in the clone, git failed - and then
- * everything is played. `git(args)` runs git in the repository and returns its output, or throws.
- *   push to dev        the commit dev was at before the push (`before`) .. HEAD
+ * The files changed by what this run checks: { files, why }. `files` is null whenever they are not to be chosen by -
+ * a push to dev, a run started by hand - or cannot be told - the commit to compare with is not in the clone, git
+ * failed - and then everything is played. `git(args)` runs git in the repository and returns its output, or throws.
+ *   push to dev        not compared with anything: dev is always played whole (git is not asked)
  *   push elsewhere     the common ancestor with origin/dev .. HEAD: the whole branch, not only its last push
  *   pull request       its base (`prBase`) .. HEAD
  * A renamed file counts under both names, a deleted one under its own (--no-renames).
  */
-export function changedFiles({ event = '', ref = '', before = '', prBase = '' }, git) {
+export function changedFiles({ event = '', ref = '', prBase = '' }, git) {
   const unknown = (why) => ({ files: null, why });
   try {
     let base, from;
-    if (event === 'push' && ref === `refs/heads/${GATE}`) {
-      if (!COMMIT.test(before) || /^0+$/.test(before)) return unknown(`a push to ${GATE} with no commit before it`);
-      base = before; from = `the commit ${GATE} was at before this push`;
-    } else if (event === 'push') {
+    if (event === 'push' && ref === `refs/heads/${GATE}`) return unknown(`a push to ${GATE}: the branch the work is merged into is always played whole`);
+    if (event === 'push') {
       base = git(['merge-base', `origin/${GATE}`, 'HEAD']).trim(); from = `the common ancestor with origin/${GATE}`;
       if (!COMMIT.test(base)) return unknown(`no common ancestor with origin/${GATE}`);
     } else if (event === 'pull_request') {
@@ -166,7 +168,7 @@ function main(argv, env) {
     if (cmd === 'pick') changed = { files: rest, why: 'the files given on the command line' };
     else {
       const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
-      changed = changedFiles({ event: env.CI_EVENT, ref: env.CI_REF, before: env.CI_BEFORE, prBase: env.CI_PR_BASE }, git);
+      changed = changedFiles({ event: env.CI_EVENT, ref: env.CI_REF, prBase: env.CI_PR_BASE }, git);
     }
     const out = outputs(pick(changed.files), changed);
     console.log(`[ci] plan\n${out.report}\n[ci] outputs: walk=${out.walk} worlds=${out.worlds}\n[ci] jobs=${out.jobs}\n[ci] matrix=${out.matrix}`);

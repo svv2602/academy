@@ -171,17 +171,28 @@ function fakeGit(table) {
 const diffOf = (base) => `diff --name-only --no-renames -z ${base} HEAD`;
 
 describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => {
-  it('a push to dev: the commit dev was at before the push .. HEAD', () => {
-    const { git, calls } = fakeGit({ [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: 'docs/a.md\0src/worlds/probe/index.ts\0' });
-    const r = changedFiles({ event: 'push', ref: 'refs/heads/dev', before: A }, git);
-    expect(r.files).toEqual(['docs/a.md', 'src/worlds/probe/index.ts']);
-    expect(r.why).toContain(`${A.slice(0, 7)}..HEAD`);
-    expect(calls).toEqual([`cat-file -e ${A}^{commit}`, diffOf(A)]);
+  it('a push to dev plays everything, whatever it changed: git is not even asked (a green check on dev means all of it was played)', () => {
+    // A git that would answer "documents alone" to every way of asking: on a branch nothing but tests and build would be played.
+    const { git, calls } = fakeGit({ 'merge-base origin/dev HEAD': `${A}\n`, [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: 'docs/a.md\0' });
+    const r = changedFiles({ event: 'push', ref: 'refs/heads/dev' }, git);
+    expect(r.files).toBe(null);
+    expect(r.why).toContain('a push to dev');
+    expect(r.why).toContain('always played whole');
+    expect(calls).toEqual([]);
+    expect(pick(r.files)).toMatchObject(EVERYTHING);
+    expect(outputs(pick(r.files), r)).toMatchObject({ walk: 'true', worlds: 'true' });
+    // The same push to a branch is chosen by its files.
+    const branch = changedFiles({ event: 'push', ref: 'refs/heads/run/docs' }, git);
+    expect(branch.files).toEqual(['docs/a.md']);
+    expect(outputs(pick(branch.files), branch)).toMatchObject({ walk: 'false', worlds: 'false' });
+    // A branch merely named like it is a branch.
+    expect(changedFiles({ event: 'push', ref: 'refs/heads/dev-notes' }, git).files).toEqual(['docs/a.md']);
+    expect(changedFiles({ event: 'push', ref: 'refs/heads/run/dev' }, git).files).toEqual(['docs/a.md']);
   });
 
   it('a push to another branch: the common ancestor with origin/dev .. HEAD - the whole branch, not its last push', () => {
     const { git, calls } = fakeGit({ 'merge-base origin/dev HEAD': `${B}\n`, [`cat-file -e ${B}^{commit}`]: '', [diffOf(B)]: 'CLAUDE.md\0' });
-    const r = changedFiles({ event: 'push', ref: 'refs/heads/run/world', before: A }, git);
+    const r = changedFiles({ event: 'push', ref: 'refs/heads/run/world' }, git);
     expect(r.files).toEqual(['CLAUDE.md']);
     expect(r.why).toContain('the common ancestor with origin/dev');
     expect(calls).toEqual(['merge-base origin/dev HEAD', `cat-file -e ${B}^{commit}`, diffOf(B)]);
@@ -195,17 +206,16 @@ describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => 
   });
 
   it('names are split by the zero byte only: a space or a line break inside a name stays in it', () => {
-    const { git } = fakeGit({ [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: 'docs/a b.md\0docs/two\nlines.md\0' });
-    expect(changedFiles({ event: 'push', ref: 'refs/heads/dev', before: A }, git).files).toEqual(['docs/a b.md', 'docs/two\nlines.md']);
+    const { git } = fakeGit({ 'merge-base origin/dev HEAD': `${A}\n`, [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: 'docs/a b.md\0docs/two\nlines.md\0' });
+    expect(changedFiles({ event: 'push', ref: 'refs/heads/run/names' }, git).files).toEqual(['docs/a b.md', 'docs/two\nlines.md']);
   });
 
   it.each([
-    ['a run started by hand', { event: 'workflow_dispatch', ref: 'refs/heads/dev', before: A }, 'started by hand'],
-    ['an event nobody thought of', { event: 'schedule', ref: 'refs/heads/dev', before: A }, 'the event "schedule"'],
+    ['a run started by hand', { event: 'workflow_dispatch', ref: 'refs/heads/run/x' }, 'started by hand'],
+    ['a run started by hand on dev', { event: 'workflow_dispatch', ref: 'refs/heads/dev' }, 'started by hand'],
+    ['an event nobody thought of', { event: 'schedule', ref: 'refs/heads/dev' }, 'the event "schedule"'],
     ['no event', {}, 'the event ""'],
-    ['a new dev: the commit before is all zeros', { event: 'push', ref: 'refs/heads/dev', before: '0'.repeat(40) }, 'no commit before it'],
-    ['a push to dev without the commit before', { event: 'push', ref: 'refs/heads/dev', before: '' }, 'no commit before it'],
-    ['a commit before that is no commit id', { event: 'push', ref: 'refs/heads/dev', before: '--output=x' }, 'no commit before it'],
+    ['a push to dev', { event: 'push', ref: 'refs/heads/dev' }, 'always played whole'],
     ['a pull request without its base', { event: 'pull_request', prBase: '' }, 'without the commit of its base'],
   ])('%s: the files are not known, git is not asked', (_, source, why) => {
     const { git, calls } = fakeGit({});
@@ -217,10 +227,10 @@ describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => 
   });
 
   it.each([
-    ['the commit before the push is not in the clone (dev was rewritten)', { event: 'push', ref: 'refs/heads/dev', before: A },
-      { [`cat-file -e ${A}^{commit}`]: new Error('Command failed: git cat-file\nfatal: Not a valid object name') }, 'Not a valid object name'],
-    ['git diff fails', { event: 'push', ref: 'refs/heads/dev', before: A },
-      { [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: new Error('Command failed: git diff\nfatal: bad object') }, 'bad object'],
+    ['the common ancestor is not in the clone', { event: 'push', ref: 'refs/heads/run/x' },
+      { 'merge-base origin/dev HEAD': `${A}\n`, [`cat-file -e ${A}^{commit}`]: new Error('Command failed: git cat-file\nfatal: Not a valid object name') }, 'Not a valid object name'],
+    ['git diff fails', { event: 'push', ref: 'refs/heads/run/x' },
+      { 'merge-base origin/dev HEAD': `${A}\n`, [`cat-file -e ${A}^{commit}`]: '', [diffOf(A)]: new Error('Command failed: git diff\nfatal: bad object') }, 'bad object'],
     ['there is no origin/dev', { event: 'push', ref: 'refs/heads/run/x' },
       { 'merge-base origin/dev HEAD': new Error('Command failed: git merge-base\nfatal: Not a valid object name origin/dev') }, 'origin/dev'],
     ['the branch has no common ancestor with dev', { event: 'push', ref: 'refs/heads/run/x' }, { 'merge-base origin/dev HEAD': '\n' }, 'no common ancestor'],
@@ -258,9 +268,8 @@ describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => 
     expect([...branch.files].sort()).toEqual(['gone.md', 'new-name.ts', 'old-name.md']);
     // the rename took a document out of the documents: the new name is a shared file, so everything is played
     expect(pick(branch.files)).toMatchObject(EVERYTHING);
-    const dev = changedFiles({ event: 'push', ref: 'refs/heads/dev', before: first }, git);
-    expect([...dev.files].sort()).toEqual(['gone.md', 'new-name.ts', 'old-name.md']);
-    expect(changedFiles({ event: 'push', ref: 'refs/heads/dev', before: 'c'.repeat(40) }, git).files).toBe(null);
+    // the same commit pushed to dev is not chosen by its files
+    expect(changedFiles({ event: 'push', ref: 'refs/heads/dev' }, git).files).toBe(null);
   });
 });
 
@@ -287,9 +296,9 @@ describe('tools/ci-pieces.mjs outputs and report: what the job "plan" hands on',
   });
 
   it('the report says what is skipped, why, what was compared, and lists the changed files with their owners', () => {
-    const text = report(pick(['docs/a.md', 'CLAUDE.md']), { files: ['docs/a.md', 'CLAUDE.md'], why: 'the commit dev was at before this push, aaaaaaa..HEAD' }).join('\n');
+    const text = report(pick(['docs/a.md', 'CLAUDE.md']), { files: ['docs/a.md', 'CLAUDE.md'], why: 'the common ancestor with origin/dev, aaaaaaa..HEAD' }).join('\n');
     expect(text).toContain('reason: only documents changed (docs/**, *.md, .claude/**)');
-    expect(text).toContain('compared with: the commit dev was at before this push, aaaaaaa..HEAD');
+    expect(text).toContain('compared with: the common ancestor with origin/dev, aaaaaaa..HEAD');
     expect(text).toContain('walkthroughs: skipped by the plan');
     expect(text).toContain('probe world (the job "worlds"): skipped by the plan');
     expect(text).toContain('changed files (2):\n  docs/a.md [document]\n  CLAUDE.md [document]');
@@ -435,18 +444,19 @@ describe('tools/ci-pieces.mjs from the command line', () => {
     expect(r.out).toContain(out.report);
   });
 
-  it('plan: a push to dev whose commit before is not in the repository plays everything', () => {
+  it('plan: a push to dev plays everything and says why', () => {
     const file = join(tmp(), 'out');
     writeFileSync(file, '');
-    const r = cli(['plan'], { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', CI_BEFORE: 'c'.repeat(40), GITHUB_OUTPUT: file });
+    const r = cli(['plan'], { CI_EVENT: 'push', CI_REF: 'refs/heads/dev', GITHUB_OUTPUT: file });
     expect(r.code, r.out).toBe(0);
     const out = readOutputs(file);
     expect(out).toMatchObject({ walk: 'true', worlds: 'true' });
-    expect(out.report).toContain('the changed files are not known: git failed');
+    expect(JSON.parse(out.matrix)).toEqual({ include: ALL_WALKS });
+    expect(out.report).toContain('the changed files are not known: a push to dev: the branch the work is merged into is always played whole');
   });
 
   it('check: passes with everything skipped by the plan, and says what was skipped, why, and for which files', () => {
-    const plan = outputs(pick(['docs/a.md', 'CLAUDE.md']), { files: [], why: 'the commit dev was at before this push, aaaaaaa..HEAD' });
+    const plan = outputs(pick(['docs/a.md', 'CLAUDE.md']), { files: [], why: 'the common ancestor with origin/dev, aaaaaaa..HEAD' });
     const r = cli(['check'], { PLAN_RESULT: 'success', BUILD_RESULT: 'success', WALK_RESULT: 'skipped', WORLDS_RESULT: 'skipped', PLAN_WALK: plan.walk, PLAN_WORLDS: plan.worlds, PLAN_REPORT: plan.report });
     expect(r.code, r.out).toBe(0);
     expect(r.out).toContain('[ci] walkthroughs: skipped - SKIPPED BY THE PLAN');
@@ -525,7 +535,8 @@ describe('.github/workflows/ci.yml: the jobs follow the plan, "check" compares t
     for (const out of ['walk', 'worlds', 'matrix', 'jobs', 'report']) expect(plan).toContain(`      ${out}: \${{ steps.pick.outputs.${out} }}`);
     expect(plan).toContain('CI_EVENT: ${{ github.event_name }}');
     expect(plan).toContain('CI_REF: ${{ github.ref }}');
-    expect(plan).toContain('CI_BEFORE: ${{ github.event.before }}');
+    // dev is not compared with the commit it was at before the push: a push to dev plays everything
+    expect(plan).not.toContain('github.event.before');
     expect(plan).toContain('CI_PR_BASE: ${{ github.event.pull_request.base.sha }}');
     expect(hasKey(plan, 'if')).toBe(false);
     expect(hasKey(plan, 'needs')).toBe(false);

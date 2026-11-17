@@ -4,10 +4,11 @@ name: CI
 # pieces of the world (--only, tools/e2e-saves.mjs), sixteen jobs at the same time, on that very build; the probe
 # world is played by a job of its own ("worlds"). The job "check" passes only if all of them passed and the checks
 # that need every size at once (the models requested, the walkthrough without the voice) pass over their results (ARCH-15).
-# What is played depends on the files that changed (ARCH-16; the job "plan", tools/ci-pieces.mjs): files of one world -
-# the jobs of that world, a shared file - everything, documents alone - unit tests and build only; whenever the
-# changed files cannot be told, and in a run started by hand - everything. "check" compares the result of every job
-# with the plan and prints what was skipped and why.
+# On a branch, what is played depends on the files that changed against dev (ARCH-16; the job "plan",
+# tools/ci-pieces.mjs): files of one world - the jobs of that world, a shared file - everything, documents alone - unit
+# tests and build only; whenever the changed files cannot be told, and in a run started by hand - everything.
+# A push to dev always plays everything: a green "check" on a commit of dev means that all of it was played.
+# "check" compares the result of every job with the plan and prints what was skipped and why.
 # "check" is the status the protection of main requires: do not rename that job.
 on:
   push:
@@ -39,8 +40,8 @@ jobs:
       jobs: ${{ steps.pick.outputs.jobs }}         # the same walkthroughs for --combine --jobs
       report: ${{ steps.pick.outputs.report }}     # the reason and the changed files, in words
     steps:
-      # The whole history and every branch: the changed files are counted from the commit dev was at before the push
-      # or, on another branch, from the common ancestor with origin/dev.
+      # The whole history and every branch: the changed files of a branch are counted from its common ancestor with
+      # origin/dev (a push to dev itself is not compared with anything: everything is played).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -52,7 +53,6 @@ jobs:
         env:
           CI_EVENT: ${{ github.event_name }}
           CI_REF: ${{ github.ref }}
-          CI_BEFORE: ${{ github.event.before }}
           CI_PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: node tools/ci-pieces.mjs plan
 
