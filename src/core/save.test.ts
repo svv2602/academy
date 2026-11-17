@@ -1130,3 +1130,38 @@ describe('the pet chosen (PLAY-09): a field of version 4 without a new version (
     expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
   });
 });
+
+describe('the rhythm of a session (PLAY-20, PLAY-21): breakMin, gift, session - fields of version 4 without a new version (R45)', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none of them; a version 4 save written before them opens as it was, without them', () => {
+    expect(['breakMin', 'gift', 'session'].filter((k) => k in defaultSave())).toEqual([]);
+    const s = load({ stars: 7 });
+    expect([s.v, s.stars, 'breakMin' in s, 'gift' in s, 'session' in s]).toEqual([4, 7, false, false, false]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+  });
+
+  it('read and write: the three survive a store and a load, next to fields this code does not know (on top and in the session)', () => {
+    const fields = { breakMin: 0, gift: '2026-11-16', session: { min: 12.5, last: 1_000_000, quiet: 20, seen: 3 }, later: 'x' };
+    storeSave({ ...load(fields) });
+    const s = loadSave();
+    expect(s).toMatchObject(fields);
+    expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
+  });
+
+  it('each choice of the parent is kept (10, 15, 20, 30 and off); a damaged one is 20', () => {
+    for (const m of [0, 10, 15, 20, 30]) expect(load({ breakMin: m }).breakMin).toBe(m);
+    for (const bad of [25, -1, '10', null, 1.5, {}]) expect(load({ breakMin: bad }).breakMin, JSON.stringify(bad)).toBe(20);
+  });
+
+  it('a damaged gift date is none; a damaged session is mended number by number', () => {
+    expect(load({ gift: 'yesterday' }).gift).toBe('');
+    expect(load({ gift: 3 }).gift).toBe('');
+    expect(load({ session: { min: 'a', last: -5, quiet: 14 } }).session).toEqual({ min: 0, last: 0, quiet: 14 });
+    expect(load({ session: 'x' }).session).toEqual({ min: 0, last: 0, quiet: 0 });
+    expect(load({ session: { min: Infinity, last: 5, quiet: null } }).session).toEqual({ min: 0, last: 5, quiet: 0 });
+  });
+});

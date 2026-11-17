@@ -1,15 +1,17 @@
 /**
  * The stop points of the game (PLAY-08, R43): the calm moments where something of its own may come in - after a task's
  * praise, after the card of an artifact's part, when the book is closed, when "Play" is pressed. There is one function,
- * `stopPoint`; whoever wants such a moment subscribes (`onStop`): the achievements' scene now (src/ui/achieve.ts), the
- * cat's break later. A point never comes in over a task, over a card, over the book or the shop: then it is skipped,
- * and what waits waits for the next one.
+ * `stopPoint`; whoever wants such a moment subscribes (`onStop`): the cat's break (src/game/session.ts, subscribed here,
+ * first), the achievements' scene (src/ui/achieve.ts). A point never comes in over a task, over a card, over the book
+ * or the shop: then it is skipped, and what waits waits for the next one.
  *
  * Pure of the page: the screen is told by `setScreen` (src/ui/achieve.ts), the game by `bindStops` (the conversation,
  * src/game/dialogue.ts), so that the unit test plays the points with stand-ins.
  */
 import type { Save } from '../core/save';
 import { check, markShown, noteDay, unshown, type AchContext, type AchievementId, type WorldFacts } from './achievements';
+import type { WorldEntry } from './context';
+import { breakStop } from './session';
 import type { SkillId } from './skills';
 import type { WorldDef } from './world';
 
@@ -42,6 +44,8 @@ export function onStop(fn: StopSubscriber): () => void {
   subscribers.push(fn);
   return () => { const at = subscribers.indexOf(fn); if (at >= 0) subscribers.splice(at, 1); };
 }
+// The break (PLAY-20): whether one is due is read at every point; it only puts an offer for its screen, never waits.
+onStop(breakStop);
 export function setScreen(s: StopScreen) { screen = s; }
 /** The game the points of the book and of "Play" (which do not know it) belong to. */
 export function bindStops(g: StopHost) { host = g; }
@@ -107,4 +111,15 @@ export function achContext(worlds: readonly Parameters<typeof worldFacts>[0][], 
   const skills = new Set<SkillId>();
   for (const w of worlds) for (const c of w.characters) for (const s of c.steps) { const k = skillOf(s); if (k) skills.add(k); }
   return { worlds: worlds.map(worldFacts), skills: [...skills] };
+}
+
+/**
+ * The context of the conditions at a point: the world being played, from its description as the game holds it
+ * (`g.world`, read by the caller at every point - never kept), and the skills of its chains. A world without a chest or
+ * ground stars counts none (`secret_chest`, `all_world_stars` cannot come of it). The shared code may not import the
+ * registry (ARCH-10): the other worlds' achievements already received stay in the save.
+ */
+export function worldContext(w: Pick<WorldEntry, 'id' | 'characters' | 'secrets' | 'chest' | 'groundStars'>,
+  skillOf: (step: string) => SkillId | null): AchContext {
+  return achContext([{ id: w.id, characters: w.characters ?? [], secrets: w.secrets, chest: w.chest, groundStars: w.groundStars }], skillOf);
 }

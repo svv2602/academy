@@ -8,6 +8,7 @@ import type { Game } from './context';
 import { createGuide } from './guide';
 import { createPlayer, type Spot } from './player';
 import { tickPlayTime } from './playtime';
+import { tickSession } from './session';
 
 /**
  * The seam between the frame and the world (ARCH-05): the world's own parts of a frame, called at fixed places in it.
@@ -71,6 +72,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     // The minutes played (R33): the real time of a seen frame once the game is started, a long gap (the page came back
     // from hidden, the tab slept) counted as one second at most. The usual saving writes it, not this frame.
     tickPlayTime(g.save, Math.min(real, 1), g.started() && !document.hidden);
+    tickSession(g.save, Math.min(real, 1), g.started() && !document.hidden);   // PLAY-20, R56: the minutes of the session
     pollInput();
     const hp = hero.root.position;
     const canMove = g.started() && !g.busy && !g.paused;

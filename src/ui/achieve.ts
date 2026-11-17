@@ -8,7 +8,7 @@ import { inTask, sfx } from '../core/audio';
 import { pick } from '../core/util';
 import { ACHIEVEMENTS, unshown, type AchContext, type AchievementId } from '../game/achievements';
 import type { Game } from '../game/context';
-import { achContext, achievementStop, bindStops, onStop, setScreen } from '../game/stops';
+import { achievementStop, bindStops, onStop, setScreen, worldContext } from '../game/stops';
 import { isSkillStep } from '../game/tasks/index';
 import { SKILL } from '../game/taskviews/panel';
 import type { SkillId } from '../game/skills';
@@ -36,8 +36,7 @@ const skillOf = (s: string): SkillId | null => (isSkillStep(s) ? s : s in SKILL 
  * registry (ARCH-10). Achievements of other worlds already received stay received (they are in the save).
  */
 function context(g: Game): AchContext {
-  const w = g.world;
-  return achContext([{ id: w.id, characters: w.characters ?? [], secrets: w.secrets, chest: w.chest, groundStars: w.groundStars }], skillOf);
+  return worldContext(g.world, skillOf);   // the pure function of src/game/stops.ts, tested there
 }
 
 /** The achievements waiting for their scene. */

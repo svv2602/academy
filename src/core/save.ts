@@ -9,6 +9,8 @@
  * achievements whose scene was shown (`achShown`): optional, absent until first written (a save without them is read
  * as empty ones, so the saves written before them and tools/e2e-saves.mjs stay as they are), a damaged one is mended.
  * So did the pet walking after the heroine (`pet`, PLAY-09): absent until first chosen, a damaged or unknown one is none.
+ * So did the rhythm of a session (PLAY-20, PLAY-21): the minutes before a break (`breakMin`), the date of the last gift
+ * of the day (`gift`) and the current session of play (`session`): optional, absent until first written, a damaged one mended.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -73,6 +75,19 @@ export interface Save {
    * is not here: each is the flag `pet` of its world (`worlds[<id>].flags.pet`).
    */
   pet?: string | null;
+  /**
+   * The minutes of play after which the cat offers a break (PLAY-20, R33), chosen by the parent: one of BREAK_CHOICES,
+   * 0 = off. Absent = BREAK_DEFAULT; a damaged value is BREAK_DEFAULT too.
+   */
+  breakMin?: number;
+  /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
+  gift?: string;
+  /**
+   * The current session of play (PLAY-20, R56; src/game/session.ts): `min` its minutes, `last` the time (ms) of its last
+   * counted frame - a gap of 30 minutes or more starts it again, a reload does not -, `quiet` the minute of the session
+   * before which no break is offered (after one declined). Not `playMinutes`: those are by day, for the parents.
+   */
+  session?: SessionTime;
   vol: { music: number; sfx: number; voice: number };
   // Graphics quality (TECH-04); a save without them gets the defaults.
   tier: Tier;                       // the tier the session runs on now, the next launch starts from it
@@ -86,6 +101,13 @@ export interface Save {
  * The worn things. A version 3 save written before the shop has none: it gets the defaults (the petal wings she has
  * always had), and a stored one missing a slot gets that slot's default. No new version: the fields are added.
  */
+export interface SessionTime { min: number; last: number; quiet: number }
+
+/** The minutes the parent may choose before a break (R33); 0 = off. */
+export const BREAK_CHOICES: readonly number[] = [0, 10, 15, 20, 30];
+/** The minutes before a break of a save that has not chosen (Q8: 20). */
+export const BREAK_DEFAULT = 20;
+
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
 /**
@@ -283,6 +305,13 @@ function daysOf(x: unknown): NonNullable<Save['days']> {
   return { ...d, n: Math.max(count(d.n) ? d.n : 0, last ? 1 : 0), last };
 }
 
+const amount = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
+/** The session as stored: a damaged number is 0 (a damaged `last` starts the session again at its next frame). */
+function sessionOf(x: unknown): SessionTime {
+  const t = part(x);
+  return { ...t, min: amount(t.min) ? t.min : 0, last: amount(t.last) ? t.last : 0, quiet: amount(t.quiet) ? t.quiet : 0 };
+}
+
 /** A level within the levels of skill `id`; anything but a number gives its first level. */
 function levelOf(id: string, x: unknown) {
   return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : firstLevel(id);
@@ -326,6 +355,10 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.days !== undefined) out.days = daysOf(s.days);
   // The pet chosen, when stored: anything but the id of a known pet is none.
   if (s.pet !== undefined) out.pet = typeof s.pet === 'string' && PET_IDS.includes(s.pet) ? s.pet : null;
+  // The rhythm of a session (PLAY-20, PLAY-21), when stored: a damaged choice is the default, a damaged date none.
+  if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
+  if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
+  if (s.session !== undefined) out.session = sessionOf(s.session);
   if (s.achShown !== undefined) out.achShown = Array.isArray(s.achShown) ? (s.achShown as unknown[]).filter((id): id is string => typeof id === 'string') : [];
   // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
   if (!isTier(out.tier)) out.tier = d.tier;
