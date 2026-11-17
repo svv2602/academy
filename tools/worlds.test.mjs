@@ -374,7 +374,7 @@ describe('node tools/worlds.mjs', () => {
       expect(r.stderr).toContain(`parts: ${PARTS.join(', ')}`);
       expect(r.stdout).not.toContain('[worlds] parts:');
     }
-  });
+  }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
     expect(PARTS).toEqual(['walk', 'cache', 'transition']);
