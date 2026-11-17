@@ -35,6 +35,7 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
     expect(SKILL).toEqual({
       count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
+      neighbors: 'series', signs: 'compare',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house)

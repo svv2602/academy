@@ -1,7 +1,8 @@
 /**
  * Two groups: where are more (or fewer) things? The answer is the index of a group, 0 or 1.
  * Levels 1-3 draw the groups as things; from level 4 the two numbers are written as digits, up to 20 (LEARN-05).
- * Level 5 (the signs `>`, `<`, `=`, LEARN-09) is not made yet and is level 4 until then.
+ * Level 5 of the skill is the signs (LEARN-09, `tasks/signs.ts`; `BY_LEVEL` of `tasks/index.ts` plays them there):
+ * this type itself plays its level 5 as its 4.
  */
 import { pick, randInt } from '../../core/util';
 import type { Rng } from '../../core/rng';

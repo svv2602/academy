@@ -1,0 +1,15 @@
+/* The neighbours of a number on the panel (neighbors.ts, LEARN-08). Like hints.css, only `scale` and `opacity` move, and
+   nothing grows past its own box. Nothing on the track is a button: the answers are the usual `.opt`. */
+
+/* A piece of the number track: five cells in a row. The number the question is about is marked; the empty cell
+   holds "?". Five cells of 56 px and their gaps stay within a phone held upright (390 px). */
+.t-stage .road { display: flex; gap: 6px; padding: 6px; border-radius: 18px; background: #f6eefc; }
+.road .cell { width: clamp(48px, 7vw, 64px); height: clamp(48px, 7vw, 64px); box-sizing: border-box; border-radius: 12px; background: #fff;
+  border: 3px solid #d9c4ee; display: grid; place-items: center; color: #7a4fd0; font: 800 clamp(24px, 4vw, 34px)/1 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.road .cell.here { background: #e4f3ff; border-color: #5cb8ff; color: #2f86c9; }
+.road .cell.empty { border-style: dashed; color: #b07ad6; background: #fff7e8; border-color: #ffa62b; }
+
+/* Rung 2 (h2_neighbors): the cells counted stay marked, the one being said is lit. */
+.road .cell.said { background: #fff3c4; }
+.road .cell.on { background: #ffd95e; color: #6b4a00; scale: 1.08; }

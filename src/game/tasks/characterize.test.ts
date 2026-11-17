@@ -98,6 +98,10 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   // 1-2 of its own and plays levels 1-3 alike (the missing addend up to 10; the house is the same on every level).
   missing: ['c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf', 'c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf', 'c2f2488c a2dd18e2 44052225 a60f6c9a 60dee478 84c7dcbd 922919d1 0df8fcff 12d8c1d1 88d9b4bf'],
   house: ['20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3', '20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3', '20334d86 5fdc32ce 8a854d79 90fbb39c c230d66e 3b82f54d cac385fb f0af8ec2 196f804e f1ed93a3'],
+  // The neighbours of a number and the signs came after the split (LEARN-08, LEARN-09): recorded when they were made.
+  // Each is one kind on every level (the skill plays them on its 4 and 5, tasks/index.ts BY_LEVEL).
+  neighbors: ['30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6', '30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6', '30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6'],
+  signs: ['48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39', '48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39', '48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39'],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

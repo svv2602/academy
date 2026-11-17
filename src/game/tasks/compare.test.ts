@@ -72,7 +72,7 @@ describe('compare generator', () => {
     expect(bothBig).toBeGreaterThan(TASKS / 10);
   });
 
-  it('level 5 (the signs, not made yet) is level 4: the same task from the same seed', () => {
+  it('the type itself plays level 5 as its 4 (level 5 of the skill is the signs, tasks/index.ts BY_LEVEL)', () => {
     for (let i = 0; i < 200; i++) {
       const five = compare.generate(5, mulberry32(500_000 + i)), four = compare.generate(4, mulberry32(500_000 + i));
       expect(five.level).toBe(5);

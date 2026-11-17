@@ -84,7 +84,11 @@ export const GROUPS = {
   },
   // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
   finale: {
-    save: () => played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
+    // Six examples with mistakes (LEARN-11), so that the parents' section has more than its five hardest to show (PLAY-15):
+    // addition and take away only - the deer's chain has neither, so none of them comes back in place of its steps.
+    save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
+      hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
+        .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
     friends: ['deer'], blocks: ['finale', 'book', 'parents', 'leave', 'start-again'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
