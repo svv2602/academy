@@ -82,6 +82,17 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly spawn: { x: number; z: number };
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
+  /** PLAY-09: the world's pet. Its done mark is ws.flags.pet (the item `pet` of the world description); `species` is an id of src/game/pets.ts. */
+  readonly pet?: { readonly species: string; readonly at: { readonly x: number; readonly z: number } };
+  /**
+   * PLAY-07, PLAY-08: the names of ws.flags that are this world's secrets; the ids of the items of kind `secret` (items(),
+   * ARCH-16) must be exactly these.
+   */
+  readonly secrets?: readonly string[];
+  /** PLAY-08 (`secret_chest`): the flag of the world's chest, one of `secrets`. */
+  readonly chest?: string;
+  /** PLAY-08 (`all_world_stars`): how many stars lie on the world's ground (ids 0 to n - 1 in ws.starsTaken); a search's are not. */
+  readonly groundStars?: number;
   readonly strings: WorldStrings;
   readonly music?: MusicParams;
   /**
