@@ -1031,3 +1031,66 @@ describe('storeSave and clearSave', () => {
     expect(() => clearSave()).not.toThrow();
   });
 });
+
+describe('the counters of the achievements (PLAY-08): fields of version 4 without a new version (R45)', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none of them yet: no achievement, no run, no day', () => {
+    const s = defaultSave();
+    expect(s.achievements).toEqual({});
+    expect([s.clean, s.days, s.achShown]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('a version 4 save written before them opens with all its progress, stays version 4, and has none', () => {
+    const s = load({ stars: 9, achievements: { first_task: 7 } });
+    expect([s.v, s.stars, s.achievements]).toEqual([4, 9, { first_task: 7 }]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+    expect('clean' in s || 'days' in s || 'achShown' in s).toBe(false);
+  });
+
+  it('saves of versions 1, 2 and 3 open without them and keep their achievements', () => {
+    storage.setItem(KEY, JSON.stringify(v1Save()));
+    expect(loadSave().achievements).toEqual({});
+    storage.setItem(KEY, JSON.stringify({ ...v2Save(), achievements: { first_shard: 3 } }));
+    const s = loadSave();
+    expect([s.v, s.achievements, s.clean, s.days]).toEqual([4, { first_shard: 3 }, undefined, undefined]);
+  });
+
+  it('read and write: they survive a store and a load, with fields this code does not know in each and on top', () => {
+    const fields = { achievements: { first_task: 5, later_one: 8 }, achShown: ['first_task', 'later_one'],
+      clean: { run: 3, best: 11, perSkill: { add: 2 } }, days: { n: 4, last: '2026-11-16', list: ['x'] }, pets: { owl: true } };
+    storeSave({ ...load(fields) });
+    const s = loadSave();
+    expect(s).toMatchObject(fields);
+    expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
+  });
+
+  it('a damaged list of achievements is none; a damaged time keeps the achievement with time 0 (R51); a list of ids is mended', () => {
+    for (const bad of [null, 5, 'first_task', true]) expect(load({ achievements: bad }).achievements).toEqual({});
+    expect(load({ achievements: { first_task: -3, try_again: 'x', days_3: null, clean_ten: 'Infinity', first_shard: 12 } }).achievements)
+      .toEqual({ first_task: 0, try_again: 0, days_3: 0, clean_ten: 0, first_shard: 12 });
+    expect(load({ achievements: ['first_task', 3, '', 'days_3'] }).achievements).toEqual({ first_task: 0, days_3: 0 });
+  });
+
+  it('a damaged run counts 0, and the best is never below the current run', () => {
+    for (const bad of [null, 7, 'x', []]) expect(load({ clean: bad }).clean).toEqual({ run: 0, best: 0 });
+    expect(load({ clean: { run: -2, best: 'x' } }).clean).toEqual({ run: 0, best: 0 });
+    expect(load({ clean: { run: 6, best: 4 } }).clean).toEqual({ run: 6, best: 6 });
+    expect(load({ clean: { run: 2.5, best: 9 } }).clean).toEqual({ run: 0, best: 9 });
+  });
+
+  it('damaged days: a bad count is 0 (1 when the last day is known), a bad date is none', () => {
+    for (const bad of [null, 3, 'x', []]) expect(load({ days: bad }).days).toEqual({ n: 0, last: '' });
+    expect(load({ days: { n: -1, last: '2026-11-16' } }).days).toEqual({ n: 1, last: '2026-11-16' });
+    expect(load({ days: { n: 4, last: 'yesterday' } }).days).toEqual({ n: 4, last: '' });
+    expect(load({ days: { n: '5', last: 20261116 } }).days).toEqual({ n: 0, last: '' });
+  });
+
+  it('a damaged list of shown scenes keeps only its ids', () => {
+    expect(load({ achShown: 'first_task' }).achShown).toEqual([]);
+    expect(load({ achShown: ['first_task', 4, null, 'days_3'] }).achShown).toEqual(['first_task', 'days_3']);
+  });
+});

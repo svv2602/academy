@@ -4,7 +4,10 @@
  * settings); the progress of each world is a WorldState of its own under `worlds[<world id>]`.
  * Version 4 (LEARN-03, LEARN-15, R33): the skills of the ladder ("logic" split into four), a level the parent may fix
  * for each skill (`fixed`, in place of the one `difficulty`), the minutes played by day (`playMinutes`). The examples
- * with mistakes (`hard`, LEARN-11) came later without a new version: a save without them gets an empty list.
+ * with mistakes (`hard`, LEARN-11) came later without a new version: a save without them gets an empty list. So did the
+ * counters of the achievements (PLAY-08): the run of clean solves (`clean`), the days played (`days`) and the
+ * achievements whose scene was shown (`achShown`): optional, absent until first written (a save without them is read
+ * as empty ones, so the saves written before them and tools/e2e-saves.mjs stay as they are), a damaged one is mended.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -47,7 +50,23 @@ export interface Save {
   gear: Gear;
   /** The colour of her wings (PLAY-05), free like the dress and the hair: the petals take it, the butterfly a tint of it. */
   wingColor: string;
-  achievements: Record<string, number>;   // PLAY-08: none yet
+  /**
+   * The achievements received (PLAY-08), by id of src/game/achievements.ts: the time it came (ms, 0 = not known). Kept
+   * for ever: nothing in the game removes one (only "start again" of the parents' section clears the whole save).
+   */
+  achievements: Record<string, number>;
+  /** The achievements whose scene has been shown (PLAY-08): the others received wait for theirs. */
+  achShown?: string[];
+  /**
+   * The tasks solved in a row at the first try, of every skill (PLAY-08): `run` the current run, `best` the longest
+   * so far. Moved by recordTask (src/game/skills.ts); a mistake ends `run` only, `best` never goes down.
+   */
+  clean?: { run: number; best: number };
+  /**
+   * The days played (PLAY-08): `n` the days counted, `last` the local date (`YYYY-MM-DD`) of the last one. A day is
+   * counted at the first "Play" of a date other than `last` (noteDay, src/game/achievements.ts); `n` never goes down.
+   */
+  days?: { n: number; last: string };
   vol: { music: number; sfx: number; voice: number };
   // Graphics quality (TECH-04); a save without them gets the defaults.
   tier: Tier;                       // the tier the session runs on now, the next launch starts from it
@@ -234,6 +253,28 @@ function hardOf(x: unknown): Hard {
   return { ...h, n: count(h.n) && h.n >= last ? h.n : last, list };
 }
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * The achievements as stored. A damaged field is none; an id with a damaged time is kept with time 0, so a damaged
+ * value never takes a received achievement away (R51). A list of ids (the shape first proposed) gives each time 0.
+ */
+function achievementsOf(x: unknown): Record<string, number> {
+  if (Array.isArray(x)) return Object.fromEntries(x.filter((id): id is string => typeof id === 'string' && id.length > 0).map((id) => [id, 0]));
+  return Object.fromEntries(Object.entries(part(x)).map(([id, at]) => [id, typeof at === 'number' && Number.isFinite(at) && at >= 0 ? at : 0]));
+}
+/** The run of clean solves as stored: a damaged count is 0, and the best is never below the current run. */
+function cleanOf(x: unknown): NonNullable<Save['clean']> {
+  const c = part(x);
+  const run = count(c.run) ? c.run : 0;
+  return { ...c, run, best: Math.max(run, count(c.best) ? c.best : 0) };
+}
+/** The days played as stored: a damaged count is 0 (1 when a last day is known), a damaged date is none. */
+function daysOf(x: unknown): NonNullable<Save['days']> {
+  const d = part(x);
+  const last = typeof d.last === 'string' && DAY.test(d.last) ? d.last : '';
+  return { ...d, n: Math.max(count(d.n) ? d.n : 0, last ? 1 : 0), last };
+}
+
 /** A level within the levels of skill `id`; anything but a number gives its first level. */
 function levelOf(id: string, x: unknown) {
   return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : firstLevel(id);
@@ -270,7 +311,12 @@ function fromStored(s: Stored, d: Save): Save | null {
   const first = worlds[FIRST_WORLD];
   if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
   const out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
-    gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), hard: hardOf(s.hard), worlds } as Save;
+    gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), hard: hardOf(s.hard), worlds,
+    achievements: achievementsOf(s.achievements) } as Save;
+  // The counters of the achievements, when stored (absent: none yet); a damaged one is mended, not dropped.
+  if (s.clean !== undefined) out.clean = cleanOf(s.clean);
+  if (s.days !== undefined) out.days = daysOf(s.days);
+  if (s.achShown !== undefined) out.achShown = Array.isArray(s.achShown) ? (s.achShown as unknown[]).filter((id): id is string => typeof id === 'string') : [];
   // A damaged quality field must not switch the automatic lowering off (main.ts lowers only with pinTier null).
   if (!isTier(out.tier)) out.tier = d.tier;
   if (out.pinTier !== null && !isTier(out.pinTier)) out.pinTier = null;

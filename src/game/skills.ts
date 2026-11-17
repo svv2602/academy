@@ -43,6 +43,7 @@ export function levelFor(s: Save, skill: SkillId) {
  * `streak` counts the clean solves in a row (above 0) or the tasks in a row that ended at the second step (below 0).
  */
 export function recordTask(s: Save, skill: SkillId, wrong: number) {
+  countClean(s, wrong);
   const k = s.skills[skill];
   const [min, max] = LEVELS[skill];
   k.tasks++; k.errors += wrong;
@@ -57,4 +58,15 @@ export function recordTask(s: Save, skill: SkillId, wrong: number) {
   }
   // A level outside the skill's own (a damaged save) is brought back within them.
   k.level = withinLevels(skill, k.level);
+}
+
+/**
+ * The run of clean solves of every skill (PLAY-08, the achievement `clean_ten`): a task solved at the first try adds
+ * one, a task solved after a mistake ends the current run; the best run never goes down. A task closed by the child is
+ * not recorded at all (src/game/dialogue.ts calls recordTask for solved ones only), so it leaves the run as it is (R44).
+ */
+export function countClean(s: Pick<Save, 'clean'>, wrong: number) {
+  const c = (s.clean ??= { run: 0, best: 0 });
+  c.run = wrong === 0 ? c.run + 1 : 0;
+  c.best = Math.max(c.best, c.run);
 }
