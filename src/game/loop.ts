@@ -66,7 +66,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
 
   function frame() {
     requestAnimationFrame(frame);
-    const real = clock.getDelta(), dt = Math.min(real, 0.05);
+    const real = clock.getDelta(), dt = g.still ? 0 : Math.min(real, 0.05);
     const time = (uTime.value += dt);
     // The minutes played (R33): the real time of a seen frame once the game is started, a long gap (the page came back
     // from hidden, the tab slept) counted as one second at most. The usual saving writes it, not this frame.

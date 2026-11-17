@@ -84,6 +84,11 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * `closed`, `frames`) and its commands (`start`, `setProgress`, `ready`).
      */
     transition(p: number | null, progress?: number) { transition.freeze(p, progress); },
+    /**
+     * Frames with no game time while true (pictures that must match): the world, the creatures and the companions stand
+     * still. Everything on game time waits too - a change of world under it does not close until it is let go.
+     */
+    still(v: boolean) { g.still = v; },
     fade: transition,
     talk(id: string) { world.talk(id); },
     /** Does the right thing for whatever task is on screen; returns what it did. */

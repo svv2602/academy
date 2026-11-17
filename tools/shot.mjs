@@ -1987,11 +1987,45 @@ try {
         await g((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
         if (Math.abs((await g(() => __game.flyoverPlayer.elapsed)) - pts[MAGIC_POINT]) > 0.01) fail(`the camera did not stand on point ${MAGIC_POINT + 1} of the tour`);
         const frames = () => g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
-        const pic = async (m, n) => { await g((m) => __game.setMagic(m), m); await frames(); return (await page.screenshot({ path: `${out}/${tag}-${n}.png` })).toString('base64'); };
-        const p0 = await pic(0, 'magic-0'), p0b = await pic(0, 'magic-0-again'), p1 = await pic(1, 'magic-1');
+        // The pictures are of the game's canvas alone: the page over it (the cat's bubble fading in, the frame counter's text)
+        // is hidden while they are taken.
+        const canvasOnly = (on) => g((on) => {
+          const id = '__canvas-only';
+          if (!on) { document.getElementById(id)?.remove(); return; }
+          const st = document.createElement('style'); st.id = id;
+          st.textContent = 'body * { visibility: hidden !important; transition: none !important; } #c { visibility: visible !important; }';
+          document.head.append(st);
+        }, on);
+        const pic = async (m, n) => { await g((m) => __game.setMagic(m), m); await frames(); return (await page.screenshot(n ? { path: `${out}/${tag}-${n}.png` } : {})).toString('base64'); };
+        // The three pictures are of a still world (no game time: the butterflies, the creatures, a companion, the clouds and
+        // the water stand), so two pictures of the same magic differ by the magic alone - nothing that lives in the frame.
+        // The camera first settles on the point in frames of its own.
+        // That it holds is checked here: in it the game's time does not move while frames are drawn, and its first picture
+        // is the frame of just before it (no game time also means no camera or light gone wrong).
+        // The scene first comes to rest on the point: the camera stops moving (it follows the tour with a lag) - waited for
+        // by the game's clock.
+        // A scene of an achievement (PLAY-08) is not let in while the pictures are taken: it would take the camera.
+        const achHeld = await g(() => { window.__camPrev = null; const was = __game.ach.held; __game.ach.hold(); return was; });
+        const achBack = () => g((was) => { if (!was) __game.ach.release(); }, achHeld);
+        if (!(await gameUntil(() => {
+          const p = __game.camera.position.toArray(), w = window.__camPrev;
+          window.__camPrev = p;
+          return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
+        }, null, 10))) { await achBack(); fail(`the camera did not come to rest on point ${MAGIC_POINT + 1} of the tour in 10 s of game time`); }
+        await canvasOnly(true);
+        let pre, s0, p0, p0b, p1, s1;
+        try {
+          pre = await pic(0, null);
+          s0 = await g(() => { __game.still(true); return { time: __game.time, frame: __game.renderer.info.render.frame }; });
+          p0 = await pic(0, 'magic-0'); p0b = await pic(0, 'magic-0-again'); p1 = await pic(1, 'magic-1');
+          s1 = await g(() => ({ time: __game.time, frame: __game.renderer.info.render.frame, cam: __game.camera.position.toArray() }));
+        } finally { await g(() => __game.still(false)); await achBack(); await canvasOnly(false); }
+        if (s1.time !== s0.time) fail(`the still world went on: its game time moved from ${s0.time} to ${s1.time}`);
+        if (!(s1.frame - s0.frame >= 9)) fail(`the still world drew ${s1.frame - s0.frame} frames for three pictures`);
+        if (!s1.cam.every(Number.isFinite)) fail(`the camera of the still world is at ${s1.cam}`);
         await g(() => { __game.setMagic(null); __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
         // mean difference of the colours (0..1) over the whole picture and over its top fifth (the sky)
-        const d = await g(async ([a, b, c]) => {
+        const d = await g(async ([a, b, c, e]) => {
           const px = async (b64) => {
             const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
             const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
@@ -1999,7 +2033,7 @@ try {
             x.drawImage(bmp, 0, 0, cv.width, cv.height);
             return { w: cv.width, h: cv.height, d: x.getImageData(0, 0, cv.width, cv.height).data };
           };
-          const [A, B, C] = await Promise.all([a, b, c].map(px));
+          const [A, B, C, E] = await Promise.all([a, b, c, e].map(px));
           const diff = (P, Q, rows) => {
             let s = 0, n = 0;
             for (let y = 0; y < rows; y++) for (let x = 0; x < P.w; x++) {
@@ -2009,9 +2043,10 @@ try {
             return s / n / 255;
           };
           const sky = Math.round(A.h / 5);
-          return { all: diff(A, C, A.h), sky: diff(A, C, sky), same: diff(A, B, A.h) };
-        }, [p0, p0b, p1]);
-        const said = `magic 0 vs 1 differ by ${d.all.toFixed(4)} (the sky ${d.sky.toFixed(4)}), two pictures at 0 by ${d.same.toFixed(4)}`;
+          return { all: diff(A, C, A.h), sky: diff(A, C, sky), same: diff(A, B, A.h), before: diff(E, A, A.h) };
+        }, [p0, p0b, p1, pre]);
+        if (!(d.before < MAGIC_DIFF.all)) fail(`the still world's picture differs from the frame before it by ${d.before.toFixed(4)} (the threshold ${MAGIC_DIFF.all})`);
+        const said = `magic 0 vs 1 differ by ${d.all.toFixed(4)} (the sky ${d.sky.toFixed(4)}), two pictures at 0 by ${d.same.toFixed(4)}, the still frame from the one before by ${d.before.toFixed(4)}`;
         if (!(d.all > MAGIC_DIFF.all) || !(d.sky > MAGIC_DIFF.sky) || !(d.all > d.same * 3)) fail(`${said}: the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and 3 times the same magic`);
         await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
         // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way

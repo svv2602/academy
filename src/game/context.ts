@@ -77,6 +77,8 @@ export interface Game extends GameWorld {
   busy: boolean;
   /** A menu is open. */
   paused: boolean;
+  /** Debug (the walkthrough's pictures): frames are drawn with no game time - nothing moves, nothing ends. */
+  still: boolean;
   auto: Auto | null;
   camOverride: number | null;
   /** >0 while the shards merge into the crystal. */
@@ -210,7 +212,7 @@ export function createGame(o: {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
     get pets() { return pets!; },
-    busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
+    busy: false, paused: false, still: false, auto: null, camOverride: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),
