@@ -11,7 +11,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BANK, CORE, groupOf, isBank, isVoice, worldGroup } from './world-files.mjs';
+import { BANK, CORE, groupOf, isBank, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
 /** Bytes, as in docs/15-tech.md (12 MB and 1 MB, decimal - the same unit as tools/assets.mjs). */
 export const MAX_DIST = 12_000_000;
@@ -83,8 +83,15 @@ export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE,
   if (!files.length) problems.push(`${dir} holds no files`);
   // The bank is out of the limits only while the installation does not download it: its files must not be precached.
   const sw = join(dir, 'sw.js');
-  const cached = existsSync(sw) ? [...readFileSync(sw, 'utf8').matchAll(/url:\s*"([^"]+)"/g)].filter((m) => isBank(m[1])).length : 0;
+  const precached = existsSync(sw) ? [...readFileSync(sw, 'utf8').matchAll(/url:\s*"([^"]+)"/g)].map((m) => m[1]) : [];
+  const cached = precached.filter((url) => isBank(url)).length;
   if (cached) problems.push(`sw.js precaches ${cached} files of bank/: the bank is not part of the first load (vite.config.ts globIgnores)`);
+  // The same for a next world (TECH-09): it has a budget of its own only while the installation does not download it
+  // (the game brings it later, src/core/worldcache.ts).
+  for (const id of next) {
+    const own = precached.filter((url) => worldOf(url, [id]) === id).length;
+    if (own) problems.push(`sw.js precaches ${own} files of the world ${id}: a next world is not part of the first load (vite.config.ts globIgnores)`);
+  }
   const worlds = parts.map((w) => ({ id: w.id, total: sum(w.game), voice: sum(w.clips), files: w.files }));
   return { total, voice, bank, files: files.length, heaviest: files[0] ?? null, problems, first, worlds };
 }

@@ -3,6 +3,7 @@ import { setProgressHandler } from './core/assets';
 import { setMusic, setVolumes, volume } from './core/audio';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
+import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
 import { createGame } from './game/context';
 import { exposeDebug } from './game/debug';
@@ -13,7 +14,7 @@ import { pickWorld, type BuiltWorld } from './game/world';
 import { addStrings } from './ui/strings';
 import { el, initStart, showNotice } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
-import { DEFAULT_WORLD, WORLDS } from './worlds';
+import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
 
 const params = new URLSearchParams(location.search);
 // Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
@@ -79,5 +80,16 @@ async function boot() {
   // ---------- loop ----------
   startLoop(g, quality, w.frame);
 
-  if (debug) exposeDebug(g, w.debug);
+  // ---------- TECH-09: the next world is downloaded while this one is played ----------
+  // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of
+  // another world), one file at a time, and not at all when the browser saves data (src/core/worldcache.ts). A build
+  // with one world has no next one: nothing is asked for.
+  const worlds = createWorldCache();
+  el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); }, { once: true });
+
+  if (debug) {
+    exposeDebug(g, w.debug);
+    // The walkthrough of the cache (tools/worlds.mjs) reads the download and the cache through these.
+    Object.assign((window as unknown as { __game: object }).__game, { worlds });
+  }
 }

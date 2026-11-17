@@ -51,3 +51,75 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(src).toMatch(/import\.meta\.env\.MODE === 'probe' \? \[\(await import\('\.\/probe'\)\)\.probe\] : \[\]/);
   });
 });
+
+// A next world keeps its files in folders named after its id - public/models/<id>/, public/voice/<id>/,
+// public/story/<id>/ (TECH-09, tools/world-files.mjs) - and everything inside them is counted and cached as that
+// world's. The core and the first world lie in the same places (the packs of models): a world named like one of
+// their folders would take the files of the core for its own.
+describe('the folders of the worlds under public/ (TECH-09)', () => {
+  /** The folders of the core and the first world: the packs of models. Their voice and story frames have none. */
+  const CORE_FOLDERS: Record<string, readonly string[]> = {
+    models: ['animals_pack', 'extra', 'hero', 'items', 'medieval_village_pack', 'nature2', 'nature_pack', 'platformer_game_pack', 'rpg_items_pack'],
+    voice: [],
+    story: [],
+  };
+  // The files are only named, never loaded: the keys are their paths from the root of the project.
+  const FILES = Object.keys(import.meta.glob(['/public/models/*/**', '/public/voice/*/**', '/public/story/*/**']));
+  /** The folders that exist under public/<kind>/. */
+  const existing = (kind: string) => [...new Set(FILES.filter((p) => p.startsWith(`/public/${kind}/`)).map((p) => p.split('/')[3]))].sort();
+  const ids = Object.keys(RAW).filter((p) => p !== './index.ts').map((p) => p.split('/')[1]).sort();
+
+  it('the search finds the folders: the packs of models are there', () => {
+    expect(existing('models')).toContain('hero');
+    expect(FILES.length).toBeGreaterThan(50);
+  });
+
+  it.each(Object.keys(CORE_FOLDERS))('no world is named like a folder of the core under public/%s/', (kind) => {
+    expect(ids).toEqual(['fairy', 'probe']);
+    expect(ids.filter((id) => CORE_FOLDERS[kind].includes(id))).toEqual([]);
+  });
+
+  it.each(Object.keys(CORE_FOLDERS))('every folder under public/%s/ is a known folder of the core or the folder of a next world', async (kind) => {
+    const { DEFAULT_WORLD } = await registry('test');
+    // The first world lies as it always did, without a folder of its own (decision R54): a folder named after it,
+    // or a new pack not listed above, must be decided on here - it is the core's or a world's, never both.
+    const next = ids.filter((id) => id !== DEFAULT_WORLD);
+    expect(existing(kind).filter((name) => !CORE_FOLDERS[kind].includes(name) && !next.includes(name))).toEqual([]);
+    // The list above names only what exists: a folder that is gone must leave it.
+    expect(CORE_FOLDERS[kind].filter((name) => !existing(kind).includes(name))).toEqual([]);
+  });
+});
+
+describe('nextWorlds: the worlds to download while one is played (TECH-09)', () => {
+  const ORDER = ['fairy', 'ocean', 'space', 'ice'];
+
+  it('the worlds listed after the current one, then the ones before it, without the current and the first one', async () => {
+    const { nextWorlds } = await registry('test');
+    expect(nextWorlds('fairy', ORDER, 'fairy')).toEqual(['ocean', 'space', 'ice']);
+    expect(nextWorlds('ocean', ORDER, 'fairy')).toEqual(['space', 'ice']);
+    expect(nextWorlds('space', ORDER, 'fairy')).toEqual(['ice', 'ocean']);
+    expect(nextWorlds('ice', ORDER, 'fairy')).toEqual(['ocean', 'space']);
+  });
+
+  it('the first world is named, not taken from the order of the list', async () => {
+    const { nextWorlds } = await registry('test');
+    expect(nextWorlds('ocean', ORDER, 'space')).toEqual(['ice', 'fairy']);
+    expect(nextWorlds('space', ORDER, 'space')).toEqual(['ice', 'fairy', 'ocean']);
+  });
+
+  it('a world the registry does not list: every next world, in the order of the registry', async () => {
+    const { nextWorlds } = await registry('test');
+    expect(nextWorlds('nowhere', ORDER, 'fairy')).toEqual(['ocean', 'space', 'ice']);
+  });
+
+  it('the published game has one world: no next world', async () => {
+    const { nextWorlds } = await registry('production');
+    expect(nextWorlds('fairy')).toEqual([]);
+  });
+
+  it('the probe build: the probe world is the next one of the first world, and has no next one itself', async () => {
+    const { nextWorlds } = await registry('probe');
+    expect(nextWorlds('fairy')).toEqual(['probe']);
+    expect(nextWorlds('probe')).toEqual([]);
+  });
+});

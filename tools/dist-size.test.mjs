@@ -50,6 +50,25 @@ describe('the size budget of the build', () => {
     expect(checkDistSize(folder({ 'assets/bank.js': 900, 'b': 200 }), 1000, 1000, 1000).problems.join()).toContain('without voice/ and bank/');
   });
 
+  it('a next world has a budget of its own only while the installation does not download it: its files must not be precached (TECH-09)', () => {
+    const layout = { worlds: ['ocean', 'space'], first: 'fairy' };
+    const build = { 'a.glb': 900, 'models/ocean/reef.glb': 500, 'voice/ocean/hi.mp3': 300, 'story/ocean/1.webp': 100, 'models/space/s.glb': 200, 'worlds.json': 50 };
+    const entries = (urls) => `define(["./workbox-1"],(function(e){e.precacheAndRoute([${urls.map((u) => `{url:"${u}",revision:"1"}`).join(',')}],{})}));`;
+    // The list of the core and the first world, with the list of the worlds and code named after a world: nothing of a next world.
+    const clean = folder({ ...build, 'sw.js': 0 });
+    writeFileSync(join(clean, 'sw.js'), entries(['a.glb', 'worlds.json', 'assets/ocean-AbCd.js', 'models/ocean.glb', 'models/fairy/tree.glb']));
+    expect(checkDistSize(clean, 2000, 1000, 1000, layout).problems).toEqual([]);
+    // A file of a next world in the list - of its models, its voice or its story frames - is a problem, counted per world.
+    const cached = folder({ ...build, 'sw.js': 0 });
+    writeFileSync(join(cached, 'sw.js'), entries(['a.glb', 'models/ocean/reef.glb', 'voice/ocean/hi.mp3', 'story/ocean/1.webp', 'models/space/s.glb']));
+    expect(checkDistSize(cached, 2000, 1000, 1000, layout).problems).toEqual([
+      'sw.js precaches 3 files of the world ocean: a next world is not part of the first load (vite.config.ts globIgnores)',
+      'sw.js precaches 1 files of the world space: a next world is not part of the first load (vite.config.ts globIgnores)',
+    ]);
+    // Without next worlds the same folders are the first load's: nothing to report.
+    expect(checkDistSize(cached, 5000, 1000, 1000, { worlds: [] }).problems).toEqual([]);
+  });
+
   it('passes a build within both limits and names its heaviest file', () => {
     const r = checkDistSize(folder({ 'index.html': 900, 'assets/index.js': 800_000, 'models/hero/a.glb': 600_000 }));
     expect(r.problems).toEqual([]);

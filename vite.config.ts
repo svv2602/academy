@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { WORLDS_CACHE, buildWorlds, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
 // else. Sources without git (an archive) still build: the number is then the placeholder. tools/e2e.mjs works the
@@ -37,49 +38,69 @@ function probeFiles(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  base: './',
-  define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()) },
-  build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
-  plugins: [
-    ...(mode === PROBE_MODE ? [probeFiles()] : []),
-    VitePWA({
-      // A new version is taken at the next launch, never in the middle of a game (TECH-13): the new worker installs and
-      // waits until every page of the game is closed (registerType 'prompt', skipWaiting: false; the game never asks
-      // it to skip). clientsClaim: true lets the very first worker take the page that installed it, without that the
-      // offline walkthrough would wait for a controller. tools/update.mjs (the step "update" of npm run e2e) checks it.
-      registerType: 'prompt',
-      includeAssets: ['icon.svg'],
-      // Every file type the game page requests must be listed here, or the installed game breaks without network.
-      // The set is measured, not guessed: it is the types requested during the walkthroughs of `npm run e2e`
-      // (js, css, html, glb, mp3, svg, png, webp — the models reference external webp textures), and the
-      // desktop walkthrough of that command is played offline, so a missing type fails it. The largest file is
-      // under 1 MB (tools/assets.test.mjs holds the models to that); a file above the limit here would be left out
-      // of the cache with only a build warning.
-      // The bank of the old game's clips (public/bank/, tools/import_old_voice.py) is not part of the first load (R37):
-      // a clip of it is fetched when first played, never with the installation, and kept from then on (the cache
-      // "bank": the first answer in full is kept, later plays and plays without network are served from it, the byte
-      // ranges the player asks for cut from it). src/core/voice.ts `sayBank` downloads it in full before it plays and,
-      // without network, asks this cache first: a clip not kept yet gives way to the general question, no request leaves.
-      workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**'], maximumFileSizeToCacheInBytes: 4_000_000,
-        clientsClaim: true, skipWaiting: false,
-        runtimeCaching: [{
-          urlPattern: /\/bank\/[^/]+\.mp3$/, handler: 'CacheFirst',
-          options: { cacheName: 'bank', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 400 } },
-        }] },
-      manifest: {
-        name: 'Академія чарівних світів',
-        short_name: 'Академія',
-        lang: 'uk',
-        display: 'fullscreen',
-        orientation: 'landscape',
-        background_color: '#bfe6ff',
-        theme_color: '#8fd0ff',
-        icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-        ],
-      },
-    }),
-  ],
-}));
+// The next worlds of this build (TECH-09, decision Q14): every world of src/worlds/ after the first one; the probe
+// world only in its own mode. The installation caches the core and the first world; the folders of a next world
+// (models/<id>/, voice/<id>/, story/<id>/) stay out of the service worker's list, the build lists their files in
+// worlds.json (tools/vite-worlds.mjs) and the service worker keeps them in the cache "worlds": a file is put there
+// when the page first asks for it, and by the download in the background while the previous world is played
+// (src/core/worldcache.ts). A build without a next world - the published game today - gets none of this.
+export default defineConfig(({ mode }) => {
+  const next = buildWorlds(mode, PROBE_MODE);
+  const list = worldList(next);
+  const route = worldRoute(next);
+  return {
+    base: './',
+    define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()) },
+    build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
+    plugins: [
+      ...(mode === PROBE_MODE ? [probeFiles()] : []),
+      // After the plugin above: the list is made of the files it emits and of the ones under public/.
+      list,
+      VitePWA({
+        // A new version is taken at the next launch, never in the middle of a game (TECH-13): the new worker installs and
+        // waits until every page of the game is closed (registerType 'prompt', skipWaiting: false; the game never asks
+        // it to skip). clientsClaim: true lets the very first worker take the page that installed it, without that the
+        // offline walkthrough would wait for a controller. tools/update.mjs (the step "update" of npm run e2e) checks it.
+        registerType: 'prompt',
+        includeAssets: ['icon.svg'],
+        // Every file type the game page requests must be listed here, or the installed game breaks without network.
+        // The set is measured, not guessed: it is the types requested during the walkthroughs of `npm run e2e`
+        // (js, css, html, glb, mp3, svg, png, webp — the models reference external webp textures), and the
+        // desktop walkthrough of that command is played offline, so a missing type fails it. The largest file is
+        // under 1 MB (tools/assets.test.mjs holds the models to that); a file above the limit here would be left out
+        // of the cache with only a build warning.
+        // The bank of the old game's clips (public/bank/, tools/import_old_voice.py) is not part of the first load (R37):
+        // a clip of it is fetched when first played, never with the installation, and kept from then on (the cache
+        // "bank": the first answer in full is kept, later plays and plays without network are served from it, the byte
+        // ranges the player asks for cut from it). src/core/voice.ts `sayBank` downloads it in full before it plays and,
+        // without network, asks this cache first: a clip not kept yet gives way to the general question, no request leaves.
+        // A next world (TECH-09) is not part of the first load either: its folders are left out of the list, the list of
+        // its files (worlds.json) is added to it, and its files are kept in the cache "worlds" - the first answer in
+        // full, as for the bank; the game's download in the background fills the same cache under the same addresses.
+        workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**', ...worldGlobs(next)], maximumFileSizeToCacheInBytes: 4_000_000,
+          clientsClaim: true, skipWaiting: false,
+          manifestTransforms: [list.api.precache],
+          runtimeCaching: [{
+            urlPattern: /\/bank\/[^/]+\.mp3$/, handler: 'CacheFirst',
+            options: { cacheName: 'bank', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 400 } },
+          }, ...(route ? [{
+            urlPattern: route, handler: 'CacheFirst' as const,
+            options: { cacheName: WORLDS_CACHE, cacheableResponse: { statuses: [200] }, rangeRequests: true },
+          }] : [])] },
+        manifest: {
+          name: 'Академія чарівних світів',
+          short_name: 'Академія',
+          lang: 'uk',
+          display: 'fullscreen',
+          orientation: 'landscape',
+          background_color: '#bfe6ff',
+          theme_color: '#8fd0ff',
+          icons: [
+            { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          ],
+        },
+      }),
+    ],
+  };
+});

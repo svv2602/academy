@@ -3,12 +3,13 @@
 // builds are checked, and the probe world played, by `npm run e2e`.
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { PROBE, PROBE_DIST, PROBE_FILES, buildCommit, notAskedByPage, probeBuildProblems, probeFiles, probeLeft, publishedProblems } from './worlds.mjs';
+import { PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, buildCommit, listProblems, notAskedByPage, notDownloaded, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readList } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -139,6 +140,98 @@ describe('the page itself asks for the files of the probe world', () => {
   it('a file nobody asked for, or asked for by nobody known, is missed', () => {
     expect(notAskedByPage(files, [])).toEqual(files);
     expect(notAskedByPage(files, [{ path: '/models/probe/stump.glb', referer: '' }, { path: '/story/probe/sign.webp', referer: 'not a url' }])).toEqual(files);
+  });
+
+  it('a file only the download in the background asked for (by its fingerprint) was not loaded by the world', () => {
+    const asked = [{ path: '/models/probe/stump.glb', referer: page, search: '' }, { path: '/story/probe/sign.webp', referer: page, search: '?v=2115f5' }];
+    expect(notAskedByPage(files, asked)).toEqual(['story/probe/sign.webp']);
+    expect(notAskedByPage(files, [...asked, { path: '/story/probe/sign.webp', referer: page, search: '' }])).toEqual([]);
+  });
+});
+
+describe('the cache of the next world: what the server was asked for (TECH-09)', () => {
+  const page = 'http://127.0.0.1:4361/?debug', worker = 'http://127.0.0.1:4361/sw.js';
+
+  it('askedOfWorld: the requests for a file inside a folder of the world, by the page or the service worker, with or without a query', () => {
+    const own = [
+      { path: '/models/probe/stump.glb', referer: page, search: '' }, { path: '/story/probe/sign.webp', referer: worker, search: '' },
+      { path: '/voice/probe/hi.mp3', referer: page, search: '?v=1' },
+    ];
+    const other = [
+      { path: '/assets/probe-AbCd.js', referer: page, search: '' },      // the code of the world: every world's code is loaded with the registry
+      { path: '/models/probe.glb', referer: page, search: '' }, { path: '/models/hero/hero.glb', referer: page, search: '' },
+      { path: '/worlds.json', referer: page, search: '' }, { path: '/index.html', referer: '', search: '?debug&world=probe' },
+    ];
+    expect(askedOfWorld([...other, ...own], PROBE)).toEqual(own);
+    expect(askedOfWorld(other, PROBE)).toEqual([]);
+    expect(askedOfWorld(own, 'ocean')).toEqual([]);
+  });
+
+  it('notDownloaded: the files of the list never asked for by their fingerprint', () => {
+    const listed = [{ url: 'models/probe/stump.glb', size: 1, revision: 'aa' }, { url: 'story/probe/sign.webp', size: 1, revision: 'bb' }];
+    const asked = [{ path: '/models/probe/stump.glb', referer: page, search: '?v=aa' }, { path: '/story/probe/sign.webp', referer: page, search: '?v=bb' }];
+    expect(notDownloaded(listed, asked)).toEqual([]);
+    // Asked for plainly (the world loading its file), by another fingerprint, or not at all: not the download of this list.
+    expect(notDownloaded(listed, [asked[0], { path: '/story/probe/sign.webp', referer: page, search: '' }])).toEqual(['story/probe/sign.webp']);
+    expect(notDownloaded(listed, [asked[0], { path: '/story/probe/sign.webp', referer: page, search: '?v=aa' }])).toEqual(['story/probe/sign.webp']);
+    expect(notDownloaded(listed, [])).toEqual(['models/probe/stump.glb', 'story/probe/sign.webp']);
+  });
+});
+
+describe('the probe build lists the world for the game (worlds.json, TECH-09)', () => {
+  const FILES = { 'models/probe/stump.glb': 'a stump', 'story/probe/sign.webp': 'a sign' };
+  const files = Object.keys(FILES);
+  const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+  const listOf = (entries) => JSON.stringify({ cache: 'worlds', worlds: { probe: { revision: 'r', size: 0, files: entries.map(([url, text]) => ({ url, size: text.length, revision: sha256(text) })) } } });
+  const SW = 'define(["./workbox-1"],(function(e){e.precacheAndRoute([{url:"index.html",revision:"1"},{url:"worlds.json",revision:"2"}],{}),'
+    + 'e.registerRoute(/\\/(?:models|voice|story)\\/(?:probe)\\/[^?#]+$/,new e.CacheFirst({cacheName:"worlds",plugins:[]}),"GET")}));';
+  const build = (more = {}) => folder({ ...FILES, 'worlds.json': listOf(Object.entries(FILES)), 'sw.js': SW, ...more });
+
+  it('a build that lists every file with its size and fingerprint, precaches the list and has the route: no problems', () => {
+    expect(listProblems(build(), PROBE, files)).toEqual([]);
+    expect(readList(build()).worlds.probe.files.map((f) => f.url)).toEqual(files);
+  });
+
+  it('no list, or a list that is not JSON', () => {
+    const { 'worlds.json': _list, ...rest } = { ...FILES, 'worlds.json': '', 'sw.js': SW };
+    expect(readList(folder(rest))).toBeNull();
+    expect(listProblems(folder(rest), PROBE, files)).toEqual(['the build has no worlds.json to read: the game cannot tell which files the world "probe" has']);
+    expect(listProblems(build({ 'worlds.json': '<!doctype html>' }), PROBE, files).join()).toContain('has no worlds.json to read');
+  });
+
+  it('a list without the world', () => {
+    expect(listProblems(build({ 'worlds.json': '{"cache":"worlds","worlds":{}}' }), PROBE, files)).toEqual(['worlds.json does not list the world "probe"']);
+    expect(listProblems(build(), 'ocean', files)).toEqual(['worlds.json does not list the world "ocean"']);
+  });
+
+  it('a file of the world the list misses, and a listed one that is not the world\'s', () => {
+    const missed = listProblems(build({ 'worlds.json': listOf([['models/probe/stump.glb', 'a stump']]) }), PROBE, files);
+    expect(missed).toEqual(['worlds.json does not list story/probe/sign.webp of the world "probe"']);
+    const extra = listProblems(build({ 'models/probe/extra.glb': 'x', 'worlds.json': listOf([...Object.entries(FILES), ['models/probe/extra.glb', 'x']]) }), PROBE, files);
+    expect(extra).toEqual(['worlds.json lists models/probe/extra.glb, which is not a file of the world "probe"']);
+  });
+
+  it('a listed file the build does not have', () => {
+    const { 'story/probe/sign.webp': _gone, ...rest } = { ...FILES, 'worlds.json': listOf(Object.entries(FILES)), 'sw.js': SW };
+    expect(listProblems(folder(rest), PROBE, files)).toEqual(['worlds.json lists story/probe/sign.webp, but the build has no such file']);
+  });
+
+  it('a size or a fingerprint that is not the file\'s', () => {
+    const wrong = listProblems(build({ 'models/probe/stump.glb': 'another stump' }), PROBE, files);
+    expect(wrong).toEqual([
+      'worlds.json: models/probe/stump.glb is 13 bytes, the list says 7',
+      'worlds.json: the fingerprint of models/probe/stump.glb is not the SHA-256 of the file in the build',
+    ]);
+    // The same size, other bytes: only the fingerprint tells.
+    expect(listProblems(build({ 'story/probe/sign.webp': 'a SIGN' }), PROBE, files)).toEqual(['worlds.json: the fingerprint of story/probe/sign.webp is not the SHA-256 of the file in the build']);
+  });
+
+  it('a service worker that does not precache the list, or has no route into the cache the list names', () => {
+    const noList = SW.replace(',{url:"worlds.json",revision:"2"}', '');
+    expect(listProblems(build({ 'sw.js': noList }), PROBE, files)).toEqual(['sw.js does not precache worlds.json: the game could not read the list without network']);
+    expect(listProblems(build({ 'sw.js': SW.replace('cacheName:"worlds"', 'cacheName:"bank"') }), PROBE, files)).toEqual(['sw.js has no route into the cache "worlds" that worlds.json names']);
+    const { 'sw.js': _sw, ...rest } = { ...FILES, 'worlds.json': listOf(Object.entries(FILES)), 'sw.js': SW };
+    expect(listProblems(folder(rest), PROBE, files).length).toBe(2);
   });
 });
 

@@ -6,20 +6,37 @@
 //   2. The probe build is made anew: `vite build --mode probe --outDir dist-probe`. It must hold every file of
 //      worlds-test/probe/ at the same path (models/probe/…, story/probe/…), the world in its code (the same search
 //      as in 1 must find it there, or the search is blind) and the commit number of the sources.
+//      The build must also list the world for the game (worlds.json: its files with their sizes and fingerprints),
+//      keep its files out of the service worker's list and fit the size budget of a next world (tools/dist-size.mjs).
 //   3. dist-probe/ is served by a server of its own and the probe world is played by the walkthrough every world
 //      shares: tools/shot.mjs with E2E_WORLD=probe in the mobile size (pictures in shots-e2e/worlds-probe/).
 //   4. The page itself asked the server for every file of the probe world (a request of the service worker filling
-//      its cache does not count): a file of a world that the world never loads proves nothing about loading.
+//      its cache does not count, nor one of the download in the background): a file of a world that the world never
+//      loads proves nothing about loading.
+//   5. The cache of the next world (TECH-09), in a browser of its own with an empty cache, on the same server:
+//      "launch" - the first world is opened; until "Play" is pressed nobody asks the server for a file of the probe
+//      world and no download has started; "download" - "Play" is pressed, the game downloads the probe world in the
+//      background: the download ends with the world ready, the cache holds exactly the files of worlds.json, each
+//      asked for by its fingerprint; "offline" - the network is switched off, the probe world is opened: it is built
+//      from the cache (every file of it answered by the service worker, the server asked for nothing), "Play" works
+//      and its character gives a task - without a failed request, an error or a warning in the console. The browser's
+//      switch does not reach the requests the service worker makes itself: a file missing in the cache would still
+//      be fetched, so "the server was asked for nothing" is the check that the world came from the cache.
+//      Every wait is for an event or a state, with generous limits (E2E_SLOW multiplies them).
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of the walkthrough, default 600000).
 // Exit code: 0 — passed; 1 — a check failed (every failure is printed as "worlds: …"); 2 — bad arguments.
 import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createServer as createSocket } from 'node:net';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { WORLDS_LIST } from './vite-worlds.mjs';
+import { worldOf } from './world-files.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the probe world (src/worlds/probe/) and the mode of the build that lists it (vite.config.ts). */
@@ -100,10 +117,57 @@ export function probeBuildProblems(dir, from, files, commit) {
   return out;
 }
 
-/** The files of `files` the page itself never asked for: `asked` is [{ path, referer }] as the server saw them. */
+/**
+ * The files of `files` the page itself never asked for: `asked` is [{ path, referer, search }] as the server saw them.
+ * A request with a query does not count: the world asks for its files by their plain addresses, the download of the
+ * next world in the background (src/core/worldcache.ts) for `<file>?v=<fingerprint>` - it brings every file of the
+ * list, loaded by the world or not.
+ */
 export function notAskedByPage(files, asked) {
   const fromPage = (referer) => { try { return !!referer && !/\/sw\.js$/.test(new URL(referer).pathname); } catch { return false; } };
-  return files.filter((f) => !asked.some((r) => r.path === `/${f}` && fromPage(r.referer)));
+  return files.filter((f) => !asked.some((r) => r.path === `/${f}` && !r.search && fromPage(r.referer)));
+}
+
+/** The requests of `asked` for a file of the world `id` (inside its folders: models/<id>/, voice/<id>/, story/<id>/), by anyone. */
+export function askedOfWorld(asked, id) {
+  return asked.filter((r) => worldOf(r.path.replace(/^\//, ''), [id]) === id);
+}
+
+/** The files of `listed` ([{ url, revision }] of worlds.json) the download never asked the server for by their fingerprint. */
+export function notDownloaded(listed, asked) {
+  return listed.filter((f) => !asked.some((r) => r.path === `/${f.url}` && r.search === `?v=${f.revision}`)).map((f) => f.url);
+}
+
+/** worlds.json of the build `dir`, or null when it cannot be read. */
+export function readList(dir) {
+  try { return JSON.parse(readFileSync(join(dir, WORLDS_LIST), 'utf8')); } catch { return null; }
+}
+
+/**
+ * The build `dir` must list the world `id` for the game (worlds.json, tools/vite-worlds.mjs): exactly `files`, each
+ * with the size and the SHA-256 of the file in the build; the service worker must precache the list (the game reads
+ * it without network) and have a route into the cache the list names. Returns the problems, [] when it is right.
+ */
+export function listProblems(dir, id, files) {
+  const list = readList(dir);
+  if (!list) return [`the build has no ${WORLDS_LIST} to read: the game cannot tell which files the world "${id}" has`];
+  const listed = list.worlds?.[id]?.files;
+  if (!Array.isArray(listed)) return [`${WORLDS_LIST} does not list the world "${id}"`];
+  const out = [];
+  const urls = listed.map((f) => f.url);
+  for (const f of files) if (!urls.includes(f)) out.push(`${WORLDS_LIST} does not list ${f} of the world "${id}"`);
+  for (const u of urls) if (!files.includes(u)) out.push(`${WORLDS_LIST} lists ${u}, which is not a file of the world "${id}"`);
+  for (const f of listed) {
+    const built = join(dir, f.url);
+    if (!existsSync(built)) { out.push(`${WORLDS_LIST} lists ${f.url}, but the build has no such file`); continue; }
+    const bytes = readFileSync(built);
+    if (f.size !== bytes.length) out.push(`${WORLDS_LIST}: ${f.url} is ${bytes.length} bytes, the list says ${f.size}`);
+    if (f.revision !== createHash('sha256').update(bytes).digest('hex')) out.push(`${WORLDS_LIST}: the fingerprint of ${f.url} is not the SHA-256 of the file in the build`);
+  }
+  const sw = existsSync(join(dir, 'sw.js')) ? readFileSync(join(dir, 'sw.js'), 'utf8') : '';
+  if (![...sw.matchAll(/url:\s*"([^"]+)"/g)].some((m) => m[1] === WORLDS_LIST)) out.push(`sw.js does not precache ${WORLDS_LIST}: the game could not read the list without network`);
+  if (typeof list.cache !== 'string' || !sw.includes(`cacheName:"${list.cache}"`)) out.push(`sw.js has no route into the cache "${list.cache}" that ${WORLDS_LIST} names`);
+  return out;
 }
 
 // ---- the run itself: only when this file is the script, not when a test imports it ----
@@ -166,9 +230,13 @@ async function main() {
     rmSync(probeDist, { recursive: true, force: true });   // never play the build of an earlier run
     await vite('the probe build', '--mode', PROBE, '--outDir', PROBE_DIST);
     files = probeFiles(from);
-    const wrong = probeBuildProblems(probeDist, from, files, commit);
+    const size = checkDistSize(probeDist);
+    const wrong = [...probeBuildProblems(probeDist, from, files, commit), ...listProblems(probeDist, PROBE, files), ...size.problems.map((p) => `the size of the probe build: ${p}`)];
     for (const p of wrong) fail(p);
-    if (!wrong.length) console.log(`[worlds] the probe build: ${files.join(', ')}; the world is in its code; commit ${commit}`);
+    if (!wrong.length) {
+      console.log(`[worlds] the probe build: ${files.join(', ')}; the world is in its code; commit ${commit}; ${WORLDS_LIST} lists its files, sw.js precaches none of them`);
+      console.log(`[worlds] the size of the probe build: ${sizeSummary(size)}`);
+    }
   } catch (e) { fail(e.message); }
   if (problems.length) end();
 
@@ -178,14 +246,14 @@ async function main() {
     '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png',
     '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg',
   };
-  const asked = [];   // every request answered with a file: its path and who asked (the page or the service worker)
+  const asked = [];   // every request answered with a file: its path, its query and who asked (the page or the service worker)
   const server = createServer((req, res) => {
     let path;
     try { path = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
     if (path.endsWith('/')) path += 'index.html';
     const file = normalize(join(probeDist, path));
     if (!file.startsWith(probeDist + sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end(); return; }
-    asked.push({ path, referer: req.headers.referer ?? '' });
+    asked.push({ path, referer: req.headers.referer ?? '', search: new URL(req.url, 'http://x').search });
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(readFileSync(file));
   });
@@ -225,8 +293,132 @@ async function main() {
     }
   } catch (e) {
     fail(`${e.stack ?? e}`);
+  }
+  // ---- 5. the cache of the next world ----
+  try {
+    const summary = await cacheScenarios({ url, asked, list: readList(probeDist), fail });
+    if (summary) console.log(`[worlds] ${summary}`);
+  } catch (e) {
+    fail(`the cache of the world "${PROBE}": ${e.stack ?? e}`);
   } finally {
     server.close(); server.closeAllConnections();
   }
   end();
+}
+
+/**
+ * The scenarios of the cache of the next world (5 above) on the probe build served at `url`: `asked` is the server's
+ * record of requests, `list` worlds.json of the build. Every failure goes to `fail`; returns the line to print when
+ * all three scenarios came to their end without one ('' otherwise).
+ */
+async function cacheScenarios({ url, asked, list, fail: report }) {
+  let failures = 0;
+  const fail = (msg) => { failures++; report(msg); };
+  const { chromium } = await import('playwright-core');
+  const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+  const gl = process.env.E2E_GL || 'gl';
+  if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+  const slow = Number(process.env.E2E_SLOW || 1);
+  if (!(slow > 0)) throw new Error(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
+  const T = (ms) => Math.round(ms * slow);
+  const listed = list?.worlds?.[PROBE]?.files ?? [];
+  if (!listed.length) throw new Error(`${WORLDS_LIST} lists no file of the world "${PROBE}": there is nothing to download`);
+  const files = listed.map((f) => f.url).sort();
+  const origin = new URL(url).origin;
+  const q = process.env.Q ? `&q=${process.env.Q}` : '';
+  const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
+
+  // Chrome as in tools/update.mjs; a context of its own, so the cache starts empty.
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/google-chrome', headless: true,
+    args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+  });
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
+    /** The game's page: console errors and warnings, page errors, failed requests and HTTP errors are failures. */
+    const watch = (page, name) => {
+      page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`${name}: console ${m.type()}: ${m.text()}`); });
+      page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
+      page.on('requestfailed', (r) => fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`));
+      page.on('response', (r) => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
+    };
+    const who = (r) => `${r.path}${r.search} (asked by ${r.referer || 'nobody known'})`;
+
+    // ---- "launch": the first world, until "Play" ----
+    const from = asked.length;
+    const page = await ctx.newPage();
+    watch(page, 'launch');
+    await page.goto(`${url}?debug${q}`);
+    await page.locator('#play').waitFor({ state: 'visible', timeout: T(90000) });
+    // The service worker has installed (its whole list is in the cache) and taken the page: whatever the launch asks
+    // for, it has asked for by now.
+    const taken = await page.evaluate(async () => {
+      const sw = navigator.serviceWorker;
+      const reg = await sw.ready;
+      if (reg.active.state !== 'activated') await new Promise((r) => reg.active.addEventListener('statechange', function f() { if (reg.active.state === 'activated') { reg.active.removeEventListener('statechange', f); r(); } }));
+      if (!sw.controller) await new Promise((r) => sw.addEventListener('controllerchange', r, { once: true }));
+      return !!sw.controller;
+    });
+    if (!taken) throw new Error('launch: the service worker did not activate and take the page');
+    await page.waitForFunction(() => !!window.__game?.worlds, null, { timeout: T(30000) })
+      .catch(() => { throw new Error('launch: no window.__game.worlds - the game does not show the cache of worlds with ?debug'); });
+    const early = askedOfWorld(asked.slice(from), PROBE);
+    for (const r of early) fail(`launch: before "Play" the server was asked for a file of the world "${PROBE}": ${who(r)}`);
+    const before = await page.evaluate(async () => ({ state: __game.worlds.state(), status: await __game.worlds.status('probe'), kept: (await caches.keys()).includes('worlds') ? (await (await caches.open('worlds')).keys()).length : 0 }));
+    if (before.state !== null) fail(`launch: the download of the next world started before "Play": ${JSON.stringify(before.state)}`);
+    if (before.status !== 'none' || before.kept) fail(`launch: before "Play" the world "${PROBE}" is "${before.status}" with ${before.kept} file(s) in the cache "worlds", expected "none" and 0`);
+
+    // ---- "download": "Play" starts it; it ends with the world ready ----
+    await page.click('#play');
+    await page.waitForFunction(() => { const s = __game.worlds.state(); return !!s && !s.running; }, null, { timeout: T(60000) })
+      .catch(async () => { throw new Error(`download: after "Play" the download of the next world did not end (its state: ${JSON.stringify(await page.evaluate(() => __game.worlds.state()))})`); });
+    const after = await page.evaluate(async (name) => ({
+      state: __game.worlds.state(), status: await __game.worlds.status('probe'), cached: await __game.worlds.cached('probe'),
+      keys: (await (await caches.open(name)).keys()).map((r) => r.url).sort(),
+    }), list.cache);
+    const s = after.state;
+    if (s.world !== PROBE || s.status !== 'ready' || s.error !== null || s.done !== files.length || s.total !== files.length) {
+      fail(`download: expected the world "${PROBE}" ready with ${files.length} of ${files.length} files, the download ended as ${JSON.stringify(s)}`);
+    }
+    if (after.status !== 'ready') fail(`download: after the download the world "${PROBE}" is "${after.status}", expected "ready"`);
+    if (JSON.stringify(after.cached) !== JSON.stringify(files)) fail(`download: the cache holds ${JSON.stringify(after.cached)} of the world, ${WORLDS_LIST} lists ${JSON.stringify(files)}`);
+    const expected = files.map((f) => new URL(f, url).href).sort();
+    if (JSON.stringify(after.keys) !== JSON.stringify(expected)) fail(`download: the cache "${list.cache}" holds ${JSON.stringify(after.keys)}, expected ${JSON.stringify(expected)}`);
+    for (const f of notDownloaded(listed, asked.slice(from))) fail(`download: the server was never asked for ${f} by its fingerprint (?v=…)`);
+
+    // ---- "offline": the probe world from the cache ----
+    // The switch takes the network from the pages (navigator.onLine is false), not from the service worker's own
+    // requests: what proves the cache is that the server is asked for nothing from here on (`off`).
+    await ctx.setOffline(true);
+    const off = asked.length;
+    const page2 = await ctx.newPage();
+    watch(page2, 'offline');
+    const served = new Set();   // the files of the world the service worker answered
+    page2.on('response', (r) => {
+      const path = new URL(r.url()).pathname.replace(/^\//, '');
+      if (files.includes(path) && r.status() === 200 && r.fromServiceWorker()) served.add(path);
+    });
+    await page2.goto(`${url}?debug&world=${PROBE}${q}`);
+    await page2.locator('#play').waitFor({ state: 'visible', timeout: T(90000) })
+      .catch(() => { throw new Error(`offline: the world "${PROBE}" did not load without network ("Play" never appeared)`); });
+    await page2.waitForFunction(() => !!window.__game?.worlds && __game.npcs.length > 0, null, { timeout: T(30000) })
+      .catch(() => { throw new Error(`offline: the world "${PROBE}" was not built (no window.__game or no character)`); });
+    for (const f of files) if (!served.has(f)) fail(`offline: ${f} was not answered by the service worker: the world did not load its file from the cache`);
+    const offline = await page2.evaluate(() => __game.worlds.status('probe'));
+    if (offline !== 'ready') fail(`offline: the world "${PROBE}" is "${offline}" without network, expected "ready"`);
+    await page2.click('#play');
+    await page2.waitForFunction(() => !__game.busy, null, { timeout: T(60000) }).catch(() => fail('offline: the game stayed busy after "Play"'));
+    await page2.evaluate(() => __game.talk(__game.npcs[0].def.id));
+    await page2.locator('#task:not(.hidden)').waitFor({ timeout: T(30000) })
+      .catch(() => fail(`offline: the character of the world "${PROBE}" gave no task`));
+    const leaked = asked.slice(off);
+    if (leaked.length) fail(`offline: the server was asked for ${leaked.length} file(s) with the network switched off: ${leaked.slice(0, 5).map(who).join(', ')}`);
+    await ctx.close();
+    if (failures) return '';
+    return `the cache of the next world: nothing of "${PROBE}" asked for before "Play"; after it ${files.length} file(s) downloaded (${files.join(', ')}), the world ready; `
+      + 'without network the world was built from the cache and its character gave a task';
+  } finally {
+    await browser.close().catch(() => {});
+  }
 }
