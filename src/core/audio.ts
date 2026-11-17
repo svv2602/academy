@@ -77,16 +77,26 @@ export function sfx(kind: 'pop' | 'chime' | 'good' | 'soft' | 'fanfare' | 'jump'
 
 /** The notes of the world's music (`WorldDef.music`); null = the world has none and the bed stays silent. */
 let music: MusicParams | null = null;
-/** The world's music (ARCH-06): src/main.ts sets it before the first tap starts the sound. */
-export function setMusic(p: MusicParams | null) { music = p; }
+/** Fades out and takes apart the bed that plays now; null in silence. */
+let stopBed: (() => void) | null = null;
+/**
+ * The world's music (ARCH-06): src/main.ts sets it before the first tap starts the sound. TECH-15: a change of world
+ * sets it again - the bed that plays fades out at once (null leaves silence, the frame is closed), and the notes of
+ * the new world start a bed of their own.
+ */
+export function setMusic(p: MusicParams | null) { music = p; stopBed?.(); stopBed = null; startMusic(); }
+/** The notes of the bed that plays now, null in silence (window.__game.music reads it). */
+export const musicPlaying = (): MusicParams | null => (stopBed ? music : null);
 
 /** Slow bells over a quiet pad, on the notes of the world: endless, never repeats exactly, costs nothing to ship. */
 function startMusic() {
-  if (!ctx || !music) return;
+  if (!ctx || !music || stopBed) return;
   const c = ctx;
+  // Every note of this bed goes through `bed`: the notes already scheduled ahead fall silent with it.
+  const bed = c.createGain(); bed.connect(musicGain);
   const delay = c.createDelay(1); delay.delayTime.value = 0.42;
   const fb = c.createGain(); fb.gain.value = 0.35;
-  delay.connect(fb); fb.connect(delay); delay.connect(musicGain);
+  delay.connect(fb); fb.connect(delay); delay.connect(bed);
   const { scale, chords } = music;
   let next = c.currentTime + 0.3, bar = 0, idx = 4;
   const schedule = () => {
@@ -101,19 +111,25 @@ function startMusic() {
           g.gain.setValueAtTime(0, next);
           g.gain.linearRampToValueAtTime(0.16, next + 1.5);
           g.gain.linearRampToValueAtTime(0, next + 4.6);
-          o.connect(g); g.connect(musicGain); o.start(next); o.stop(next + 4.7);
+          o.connect(g); g.connect(bed); o.start(next); o.stop(next + 4.7);
         }
       }
       if (Math.random() < 0.62) {
         idx = Math.max(0, Math.min(scale.length - 1, idx + Math.floor(Math.random() * 5) - 2));
-        tone(scale[idx], next, 1.4, 'sine', 0.3, musicGain);
+        tone(scale[idx], next, 1.4, 'sine', 0.3, bed);
         tone(scale[idx], next, 1.4, 'sine', 0.18, delay);
       }
       next += 0.55; bar++;
     }
   };
   schedule();
-  setInterval(schedule, 400);
+  const timer = setInterval(schedule, 400);
+  stopBed = () => {
+    clearInterval(timer);
+    bed.gain.setValueAtTime(bed.gain.value, c.currentTime);
+    bed.gain.linearRampToValueAtTime(0, c.currentTime + 0.3);
+    setTimeout(() => { bed.disconnect(); delay.disconnect(); fb.disconnect(); }, 600);
+  };
 }
 
 export function setVolumes() {

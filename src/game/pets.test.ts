@@ -192,6 +192,7 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
     expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots\)/);
   });
   it('the game makes the pets of the world played, with the models of the shared load', () => {
-    expect(raw['./context.ts']).toMatch(/createPets\(g, \{\n\s*pet: o\.world\.pet, rigs: o\.shared\.petRigs,/);
+    // `g.world`, not the world of the launch: the pets are made anew for every world entered (TECH-15, src/game/travel.ts)
+    expect(raw['./context.ts']).toMatch(/createPets\(g, \{\n\s*pet: g\.world\.pet, rigs: o\.shared\.petRigs,/);
   });
 });

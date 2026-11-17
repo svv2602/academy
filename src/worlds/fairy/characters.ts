@@ -3,6 +3,7 @@ import { tint } from '../../core/assets';
 import { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
 import { createGear, type Gear } from '../../game/gear';
+import type { WorldScope } from '../../game/scope';
 import type { Npc as WorldNpc } from '../../game/world';
 import type { FairyLoads } from './load';
 import { QUESTS, type QuestDef } from './quests';
@@ -32,7 +33,7 @@ export interface Characters {
  * The heroine's wings and items, and the quest characters (ARCH-05). `searching` is read in every frame: while the stars are
  * searched for, the deer's mark is hidden.
  */
-export function createCharacters(g: Game, L: FairyLoads, searching: () => boolean): Characters {
+export function createCharacters(g: Game, L: FairyLoads, searching: () => boolean, scope: WorldScope): Characters {
   const { scene, hero, ws, ground, groundY } = g;
   const { uniRig, foxRig, kingRig, deerRig, queenRig, starGeo } = L;
   // Fairy wings: two translucent petals behind the shoulders.
@@ -48,6 +49,8 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
   });
   // The heroine's wings hang a little below her shoulders (as they did on the adult body: 1.08 under 1.17).
   const wings = addWings(hero.root, '#d8f6ff', L.heroRig.shoulder - 0.09, 0.8);
+  // TECH-15: the petals hang on the heroine, who stays when the world is left - the world takes its petals off her itself.
+  scope.own(() => { for (const w of wings) { hero.root.remove(w.mesh); w.mesh.material.dispose(); } wingGeo.dispose(); });
   // The petals are the item wings_petals, worn by default; the other items hang under her bones (./load.ts).
   const gear = createGear(L.heroRig, L.heroRig.gear, wings.map((w) => w.mesh), g.sparks);
 

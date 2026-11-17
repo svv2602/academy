@@ -578,20 +578,55 @@ describe('a world starts its handlers and timers through its scope (TECH-15)', (
   });
 });
 
-// ---------- the wiring: src/main.ts makes the scope and tells it what is the game's ----------
-const MAIN = (import.meta.glob('../main.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)['../main.ts'];
+describe('a world undoes what it keeps outside its scene (TECH-15): a second entry must not find it there', () => {
+  /** The folder of a world source: src/worlds/<id>/…; '' for the registry. */
+  const worldOf = (path: string) => /^src\/worlds\/([^/]+)\//.exec(path)?.[1] ?? '';
+  const index = (world: string) => WORLD_SOURCES.find((s) => s.path === `src/worlds/${world}/index.ts`)?.text ?? '';
 
-describe('src/main.ts gives the world its scope (TECH-15)', () => {
+  it('a list of the module (the colliders) is emptied through the scope', () => {
+    // The scope clears the scene, not an array a module holds: left alone, every entry would add each prop again.
+    const worlds = [...new Set(WORLD_SOURCES.filter((s) => /\bcolliders\.push\(/.test(s.text)).map((s) => worldOf(s.path)))].sort();
+    expect(worlds).toEqual(['fairy', 'probe']);
+    for (const w of worlds) expect(index(w), `src/worlds/${w}/index.ts`).toMatch(/scope\.own\(\(\) => \{ colliders\.length = 0; \}\)/);
+  });
+
+  it('the voices a world gives its characters are taken back through the scope', () => {
+    // The next world may set none (the probe world): a character of it must not speak with a voice of the world before.
+    const casting = WORLD_SOURCES.filter((s) => /\bsetCast\(/.test(s.text));
+    expect(casting.map((s) => s.path)).toContain('src/worlds/fairy/index.ts');
+    for (const s of casting) expect(s.text, s.path).toMatch(/scope\.own\(\(\) => setCast\(\{ narrator: '', cast: \{\} \}\)\)/);
+  });
+});
+
+// ---------- the wiring: a world gets its scope in one place (src/game/travel.ts `openWorld`), the first world and every next one ----------
+const RAW = import.meta.glob(['../main.ts', './travel.ts', './loop.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const MAIN = RAW['../main.ts'], TRAVEL = RAW['./travel.ts'], LOOP = RAW['./loop.ts'];
+/** The names of the calls made right inside `scope.shared(() => …)`, in the order of the source. */
+const sharedCalls = (src: string) => [...src.matchAll(/\bscope\.shared\(\(\) => (\w+(?:\.\w+)*)\(/g)].map((m) => m[1]);
+
+describe('a world is opened with a scope of its own (TECH-15)', () => {
   it('the scope is made before the world\'s sky', () => {
-    const made = MAIN.indexOf('createWorldScope(scene)'), sky = MAIN.indexOf('world.sky(');
+    const made = TRAVEL.indexOf('createWorldScope(scene)'), sky = TRAVEL.indexOf('world.sky(');
     expect(made).toBeGreaterThan(-1);
     expect(sky).toBeGreaterThan(made);
   });
 
   it('the sky, the load and the build of the world get the scope as their last argument', () => {
-    expect(MAIN).toMatch(/world\.sky\(scene, scope\)/);
-    expect(MAIN).toMatch(/world\.load\(scene, save, touch, scope\)/);
-    expect(MAIN).toMatch(/world\.build\(g, L, sky, scope\)/);
+    expect(TRAVEL).toMatch(/world\.sky\(scene, scope\)/);
+    expect(TRAVEL).toMatch(/world\.load\(scene, save, touch, scope\)/);
+    expect(TRAVEL).toMatch(/world\.build\(g, L, sky, scope\)/);
+  });
+
+  it('every world goes that one way: the calls of a world are made once, in openWorld, and src/main.ts opens its world with it', () => {
+    for (const call of ['createWorldScope(', 'world.sky(', 'world.load(', 'world.build(']) {
+      expect(TRAVEL.split(call), `${call} in src/game/travel.ts`).toHaveLength(2);
+      expect(MAIN.split(call), `${call} in src/main.ts`).toHaveLength(1);
+    }
+    expect(MAIN.match(/\bopenWorld\(world, scene\)/g)).toHaveLength(1);
+    // Before the quality tier is made: it needs the sun of the sky.
+    expect(MAIN.indexOf('openWorld(world, scene)')).toBeLessThan(MAIN.indexOf('createQuality('));
+    // The load of a world is recorded as the world's (src/core/assets.ts), or `release` would free nothing of it.
+    expect(TRAVEL).toMatch(/withScope\(world\.id, \(\) => world\.load\(/);
   });
 
   it('what the game adds to the scene itself is made inside shared(): the game\'s objects and the parts of the loop', () => {
@@ -603,9 +638,22 @@ describe('src/main.ts gives the world its scope (TECH-15)', () => {
   });
 
   it('nothing of the world is made inside shared(): its sky, its load and its build would stay in the scene for good', () => {
-    // Exactly the two calls above; a third one, around a call of the world, would mark the world's objects as the game's.
+    // Exactly the two calls above in src/main.ts, and one in the change of world: the game's part of the new world
+    // (`g.enter`). Another one, around a call of the world, would mark the world's objects as the game's.
     expect(MAIN.match(/\bscope\.shared\(/g)).toHaveLength(2);
-    expect([...MAIN.matchAll(/\bscope\.shared\(\(\) => (\w+(?:\.\w+)*)\(/g)].map((m) => m[1])).toEqual(['createGame', 'startLoop']);
-    for (const call of ['world.sky(', 'world.load(', 'world.build(']) expect(MAIN.split(call), call).toHaveLength(2);
+    expect(sharedCalls(MAIN)).toEqual(['createGame', 'startLoop']);
+    expect(TRAVEL.match(/\bscope\.shared\(/g)).toHaveLength(1);
+    expect(sharedCalls(TRAVEL)).toEqual(['g.enter']);
+  });
+
+  it('no frame is played inside shared(): startLoop only makes the parts of the loop, the first frame is played by run()', () => {
+    // A world may add to the scene in any frame (a star it drops, a number over a butterfly): that is the world's.
+    expect(LOOP.match(/\bframe\(\);/g), 'the frame is started in one place of src/game/loop.ts').toHaveLength(1);
+    expect(LOOP).toMatch(/run: \(\) => \{ g\.refreshHud\(\); frame\(\); \}/);
+    const made = MAIN.indexOf('scope.shared(() => startLoop('), run = MAIN.indexOf('loop.run()');
+    expect(made).toBeGreaterThan(-1);
+    expect(run).toBeGreaterThan(made);
+    expect(MAIN.match(/\bloop\.run\(\)/g)).toHaveLength(1);
+    expect(MAIN).not.toMatch(/shared\(\(\) => \{?[^)]*loop\.run\(/);
   });
 });

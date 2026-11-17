@@ -42,7 +42,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const { motes, updateClouds, starGeo } = L;
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
-  const characters = createCharacters(g, L, () => starSearch.search.active);
+  const characters = createCharacters(g, L, () => starSearch.search.active, scope);
   const { npcs, npc, starMat } = characters;
   const shrine = buildShrine(g, L, sky);
   // The magic of the world (WORLD-09): from the shards in the save; before the ambient butterflies (its own come first).
@@ -66,6 +66,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
   const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
+  scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
 
   // ---------- "sort" in the world (ARCH-09): a debug show only, opened by __game.worldSort() ----------
@@ -246,7 +247,9 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   strings,
   music: MUSIC,
   sky: buildSky,
-  load: loadFairy,
+  // TECH-15: the colliders are one list of the module (./terrain.ts) - the world empties it as it is left, else the
+  // next entry would add every prop a second time. Handed over before the load: the scenery blocks the ground in it.
+  load: (scene, save, touch, scope) => { scope.own(() => { colliders.length = 0; }); return loadFairy(scene, save, touch); },
   // The heroine's model is the game's (src/game/boot.ts): the parts of the world read it next to the world's own loads.
   build: (g, L, sky, scope) => buildFairy(g, { ...L, heroRig: g.heroRig }, sky, scope),
 };

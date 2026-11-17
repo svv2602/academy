@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { dropped, inTask, voiceLog } from '../core/audio';
+import { clipFor, dropped, inTask, musicPlaying, speaking, voiceLog } from '../core/audio';
 import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
 import { uTime } from '../core/materials';
@@ -23,17 +23,33 @@ export interface DebugExtras {
   cheatWorld(): string;
 }
 
+/** The change of world as window.__game shows it (src/game/travel.ts). */
+export interface DebugTravel { readonly world: string; readonly active: boolean; go(id: string): Promise<boolean> }
+
 /**
  * Test/debug hook (ARCH-11): window.__game, only with ?debug or on the development server. The walkthrough
  * (tools/shot.mjs) reads and writes these very objects, so they are handed out as they are, never copied; the flags
- * are getters over `g`, read at the moment of the question.
+ * are getters over `g`, read at the moment of the question. Returns what a change of world calls with the debug part
+ * of the new world: `npcs`, `talk`, `cheat` and the world's own names are then the new world's.
  */
-export function exposeDebug(g: Game, extras: DebugExtras) {
+export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): (next: DebugExtras) => void {
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
-  (window as unknown as Record<string, unknown>).__game = {
-    ...extras.more,
-    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: extras.npcs, voice: voiceLog, dropped, tuning,
+  let world = extras;
+  const game: Record<string, unknown> = {
+    hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: world.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
+    /**
+     * The change of world (TECH-15, src/game/travel.ts): `world` is the id of the world played, `travel(id)` changes
+     * it and settles when the frame is open again (true - in the world asked for, false - back in the one before),
+     * `transitioning` is true from the call to that moment.
+     */
+    get world() { return travel.world; },
+    get transitioning() { return travel.active; },
+    travel(id: string) { return travel.go(id); },
+    /** The sound for the walkthrough: the notes of the music that plays (null in silence), is a line sounding, which clip a speaker says a line with. */
+    get music() { return musicPlaying(); },
+    get speaking() { return speaking(); },
+    clipFor,
     /** The shards whose "go on" was decided (src/game/dialogue.ts): said, or not, once their thanks ended. */
     get shardsSettled() { return shardsSettled.n; },
     /** The planner of spoken lines: is a task open for it, and the line a tap on the bubble or the cat would repeat. */
@@ -69,12 +85,24 @@ export function exposeDebug(g: Game, extras: DebugExtras) {
      */
     transition(p: number | null, progress?: number) { transition.freeze(p, progress); },
     fade: transition,
-    talk(id: string) { extras.talk(id); },
+    talk(id: string) { world.talk(id); },
     /** Does the right thing for whatever task is on screen; returns what it did. */
     cheat() {
-      const done = extras.cheatWorld();
+      const done = world.cheatWorld();
       if (done) return done;
       return cheatTask() ? 'panel' : '';
     },
+  };
+  // The world's own names join the ones above, which win; a change of world takes the names of the world left away
+  // and lays in the new one's. The shared members stay the very same objects: the walkthrough keeps hold of them.
+  const shared = new Set(Object.keys(game));
+  const lay = (more: Record<string, unknown>) => { for (const [k, v] of Object.entries(more)) if (!shared.has(k)) game[k] = v; };
+  lay(world.more);
+  (window as unknown as Record<string, unknown>).__game = game;
+  return (next) => {
+    for (const k of Object.keys(world.more)) if (!shared.has(k)) delete game[k];
+    world = next;
+    game.npcs = next.npcs;
+    lay(next.more);
   };
 }

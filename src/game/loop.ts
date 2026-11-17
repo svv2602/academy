@@ -26,12 +26,27 @@ export interface WorldFrame {
   beforeRender(hp: THREE.Vector3): void;
 }
 
+/** The frame loop once made (TECH-15): started apart from its making, and its world's parts can be swapped. */
+export interface Loop {
+  /** The first frame, and every next one by itself. Once. */
+  run(): void;
+  /** The world's parts of the frame from the next frame on (a change of world, src/game/travel.ts). */
+  setWorld(frame: WorldFrame): void;
+  /** Settles when the next frame has been drawn to its end. */
+  drawn(): Promise<void>;
+}
+
 /**
  * The frame (ARCH-05). Its order is the game's behaviour: `canMove` is a snapshot of the start of the frame, while
  * `g.busy` and `g.started()` are read where they are used - a scene started by a tap or a spot in this frame holds
  * the rest of it at once.
+ *
+ * TECH-15: the parts every world is played with (the guide, the heroine in the frame with her tap ring, the cat, the
+ * camera) are made here, once for the session - call it inside `scope.shared()`, so they are not the world's. Nothing
+ * is drawn yet: `run()` plays the first frame, outside `shared()` - what a world adds to the scene in a frame is its own.
+ * `world` is the frame of the world played first.
  */
-export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
+export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   const { hero, cat, sparks } = g;
   // The beacon and the trail before the tap ring: the order they always joined the scene in.
   const guide = createGuide(g);
@@ -47,6 +62,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
     spots.length = 0; spots.push(...world.spots, ...g.pets.spots);
     return spots;
   };
+  const waiting: (() => void)[] = [];
 
   function frame() {
     requestAnimationFrame(frame);
@@ -80,7 +96,11 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): void {
 
     q.render(dt);
     q.meter(dt, g.persist);
+    for (const done of waiting.splice(0)) done();
   }
-  g.refreshHud();
-  frame();
+  return {
+    run: () => { g.refreshHud(); frame(); },
+    setWorld: (next) => { world = next; },
+    drawn: () => new Promise<void>((done) => { waiting.push(done); }),
+  };
 }

@@ -1,8 +1,8 @@
 // The probe world is a test world: the sources have it, the published game does not (TECH-15, TECH-09):
 //   node tools/worlds.mjs [distDir] [--only <part>[,<part>...]]
 // tools/e2e.mjs runs it as the step "worlds", once per run (with the mobile size, like "update"), on the dist/ it built.
-// The run has three parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5) and
-// "transition" (6). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
+// The run has four parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5),
+// "transition" (6) and "travel" (7). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
 // every part - each of them plays it. CI gives each part a job of its own (ARCH-16: a new scenario is a new part and a
 // new job, not more minutes in an old one); without --only everything is played, as tools/e2e.mjs does.
 //   1. The published build (distDir; without the argument `vite build` makes dist/ anew, as `npm run build` does) holds
@@ -37,6 +37,21 @@
 //      layer costs one draw call a frame (frames with and without it in turn) and is not drawn outside a transition;
 //      a transition started for real closes and opens in no less than 0.4 s of game time each and stays closed until
 //      the world is said to be ready. The waits are for states too.
+//   7. The change of world without a reload (TECH-15), in a browser of its own, on the first world of the same build.
+//      "there and back": a mark is left in `window`, a character of the first world is asked something, and while its
+//      line sounds `window.__game.travel('probe')` is called. Every frame of the change is recorded and read
+//      (`travelFramesProblems`): behind the closed frame no line sounds, no music plays, the interface is hidden and
+//      the controls are taken; the world changes only there. Then, in the probe world: the mark is alive (the page
+//      was not reloaded), the heroine stands at its spawn and walks, its character gives a task and the task is
+//      solved, the names of the first world are gone from window.__game, its voices too, its wings and butterflies are
+//      off the heroine and the flock, the music is the probe world's. Back through the spot "portal home" of the probe
+//      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
+//      heroine and in the flock as the first time), the heroine where she was left, she walks, a character gives a
+//      task and it is solved. After a reload of the page the progress of each world is in its own part of the save.
+//      "the load fails": in another browser the server answers 404 for every file of the probe world; the change is
+//      refused (false), the game is back in the first world with the message in the bubble, the heroine walks and a
+//      character gives a task; with the files back the change goes through. The console may hold only the 404s of
+//      those files and the game's one "could not load" there; anywhere else an error or a warning is a failure.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
@@ -61,7 +76,7 @@ export const PROBE_FILES = 'worlds-test/probe';
 /** The build of the probe world, next to dist/. */
 export const PROBE_DIST = 'dist-probe';
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel'];
 
 /**
  * Reads the arguments `[distDir] [--only <part>[,<part>...]]`: { dist, parts } - the folder as given (null: none) and
@@ -311,6 +326,32 @@ export function layerDifference(a, b) {
   return most;
 }
 
+/**
+ * The frames of one change of world, as the scenario recorded them (one entry a frame, from the call of `travel` to
+ * its end): { phase, closed, world, busy, going, speaking, line, music, shown } - the state of the transition, the id
+ * of the world played, the flags of the game, is a line sounding and which the bubble holds, the first note of the
+ * music that plays (null in silence) and the ids of the interface elements on the screen. `from` and `to` are the ids
+ * of the world left and of the world asked for (for a change that must fail, `to` is `from`).
+ * Returns the problems, [] when the change went as it must.
+ */
+export function travelFramesProblems(frames, from, to) {
+  const out = [];
+  const closed = frames.filter((f) => f.closed);
+  if (!closed.length) return [`the frame was never closed in ${frames.length} frame(s) of the change: the world changed in sight, or did not change`];
+  const first = frames.indexOf(closed[0]), last = frames.lastIndexOf(closed[closed.length - 1]);
+  const once = (list, say) => { if (list.length) out.push(`${say} (in ${list.length} frame(s), the first: ${JSON.stringify(list[0])})`); };
+  once(closed.filter((f) => f.speaking), 'a line still sounds behind the closed frame');
+  once(closed.filter((f) => f.line !== null), 'the bubble still holds a line behind the closed frame');
+  once(closed.filter((f) => f.music !== null), 'music plays behind the closed frame');
+  once(closed.filter((f) => f.shown.length), 'the interface is on the screen over the closed frame');
+  once(frames.filter((f) => f.going && !f.busy), 'the controls are free during the change');
+  once(frames.slice(0, first).filter((f) => f.world !== from), `the world played is not "${from}" before the frame has closed`);
+  once(frames.slice(last + 1).filter((f) => f.world !== to), `the world played is not "${to}" once the frame opens`);
+  once(frames.slice(first, last + 1).filter((f) => !f.closed), 'the frame opened and closed again during one change');
+  if (!frames.slice(last + 1).some((f) => f.phase === 'opening')) out.push('the frame did not open after it had closed: no frame of the opening was drawn');
+  return out;
+}
+
 // ---- the run itself: only when this file is the script, not when a test imports it ----
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
@@ -392,11 +433,13 @@ async function main() {
     '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg',
   };
   const asked = [];   // every request answered with a file: its path, its query and who asked (the page or the service worker)
+  let blocked = null;   // the id of a world whose files the server does not have for a while (the scenario "the load fails")
   const server = createServer((req, res) => {
     let path;
     try { path = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
     if (path.endsWith('/')) path += 'index.html';
     const file = normalize(join(probeDist, path));
+    if (blocked && worldOf(path.replace(/^\//, ''), [blocked]) === blocked) { res.writeHead(404).end(); return; }
     if (!file.startsWith(probeDist + sep) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404).end(); return; }
     asked.push({ path, referer: req.headers.referer ?? '', search: new URL(req.url, 'http://x').search });
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -453,8 +496,275 @@ async function main() {
   } catch (e) {
     fail(`the transition: ${e.stack ?? e}`);
   }
+  // ---- 7. the change of world without a reload ----
+  if (play('travel')) try {
+    const summary = await travelScenarios({ url, shots, fail, block: (id) => { blocked = id; } });
+    if (summary) console.log(`[worlds] ${summary}`);
+  } catch (e) {
+    fail(`the change of world: ${e.stack ?? e}`);
+  } finally {
+    blocked = null;
+  }
   server.close(); server.closeAllConnections();
   end();
+}
+
+/**
+ * The scenarios of the change of world (7 above) on the probe build served at `url`; the pictures go to `shots`.
+ * `block(id)` makes the server answer 404 for the files of the world `id` (null gives them back). Every failure goes
+ * to `fail`; returns the line to print when both scenarios came to their end without one ('' otherwise).
+ */
+async function travelScenarios({ url, shots, fail: report, block }) {
+  let failures = 0;
+  const fail = (msg) => { failures++; report(`the change of world: ${msg}`); };
+  const { chromium } = await import('playwright-core');
+  const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+  const gl = process.env.E2E_GL || 'gl';
+  if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+  const slow = Number(process.env.E2E_SLOW || 1);
+  if (!(slow > 0)) throw new Error(`bad E2E_SLOW="${process.env.E2E_SLOW}"`);
+  const T = (ms) => Math.round(ms * slow);
+  const origin = new URL(url).origin;
+  const q = process.env.Q ? `&q=${process.env.Q}` : '';
+  const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
+  const ofProbe = (u) => { try { return worldOf(new URL(u).pathname.replace(/^\//, ''), [PROBE]) === PROBE; } catch { return false; } };
+  const FIRST = 'fairy';
+  const started = Date.now();
+
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/google-chrome', headless: true,
+    args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+  });
+  try {
+    /**
+     * A page of the game in a context of its own (an empty cache and an empty save). `lost` - the files of the probe
+     * world are gone from the server: their 404s and the game's own word about the failed load are expected there,
+     * and only they.
+     */
+    const open = async (name, lost) => {
+      const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
+      const page = await ctx.newPage();
+      const expected = { notFound: 0, said: 0 };
+      page.on('console', (m) => {
+        if (m.type() !== 'error' && m.type() !== 'warning') return;
+        if (lost && m.type() === 'error' && /status of 404/.test(m.text()) && ofProbe(m.location().url)) { expected.notFound++; return; }
+        if (lost && m.type() === 'error' && m.text().startsWith('the game could not load:') && !expected.said++) return;
+        fail(`${name}: console ${m.type()}: ${m.text()}`);
+      });
+      page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
+      // A request answered 404 whose answer nobody reads to its end is reported as failed (aborted) by the browser.
+      page.on('requestfailed', (r) => { if (!(lost && ofProbe(r.url()))) fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`); });
+      page.on('response', (r) => { if (r.status() >= 400 && !(lost && r.status() === 404 && ofProbe(r.url()))) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
+      const g = (fn, arg) => page.evaluate(fn, arg);
+      const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); });
+      /** The game from "Play" on: the tour of the first entry is skipped the way a tap skips it, the heroine can walk. */
+      const start = async () => {
+        await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
+        await until(() => typeof window.__game?.travel === 'function' && __game.time > 0, null, 'no window.__game.travel - the game does not show the change of world with ?debug', 30000);
+        await page.click('#play');
+        await until(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, 'the game stayed busy after "Play"');
+      };
+      /** The heroine walks: "forward" is held until she has moved half a step, however slow the frames are. */
+      const walks = async () => {
+        const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        await page.keyboard.down('KeyW');
+        try {
+          await page.waitForFunction(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z) > 0.5, from, { timeout: T(15000) });
+          return true;
+        } catch { return false; } finally { await page.keyboard.up('KeyW'); }
+      };
+      /** What the game shows of the world played and of what every world shares. */
+      const state = () => g(() => ({
+        world: __game.world, busy: __game.busy, going: __game.transitioning, mark: window.__travelMark ?? null,
+        // The heroine and the cat kept with the mark: the very same objects, still in the scene.
+        same: !window.__travelKept ? null : ['hero', 'cat'].filter((k) => __game[k] !== window.__travelKept[k] || __game[k].root !== window.__travelKept[`${k}Root`] || __game[k].root.parent !== __game.scene),
+        at: [__game.hero.root.position.x, __game.hero.root.position.z].map((v) => Math.round(v * 100) / 100),
+        npcs: __game.npcs.map((n) => n.def.id), names: ['search', 'bf', 'worldSort', 'shopSign'].filter((k) => k in __game),
+        scene: __game.scene.children.length, onHero: __game.hero.root.children.length, flies: __game.flies.flies.length,
+        held: { geometries: __game.renderer.info.memory.geometries, textures: __game.renderer.info.memory.textures },
+        suns: __game.scene.children.filter((o) => o.isDirectionalLight).length,
+        // The sun as the quality tier sets it up: it casts shadows exactly when the tier has them, on a map of the tier's size.
+        sun: __game.scene.children.filter((o) => o.isDirectionalLight).map((s) => (s.castShadow !== __game.renderer.shadowMap.enabled
+          ? `it ${s.castShadow ? 'casts' : 'does not cast'} shadows, the tier ${__game.renderer.shadowMap.enabled ? 'has' : 'has none'}`
+          : s.castShadow && s.shadow.mapSize.x < 1024 ? `its shadow map is ${s.shadow.mapSize.x} px, the tier's is 1024 or more` : '')).join('; '),
+        music: __game.music ? __game.music.scale[0] : null, crystals: document.getElementById('crystals').textContent,
+        foxClip: __game.clipFor('npc_next', '🦊'), focus: __game.cam.focus !== null, inTask: __game.inTask,
+        shown: ['task', 'answers', 'answersClose', 'fanfare', 'start'].filter((id) => !document.getElementById(id).classList.contains('hidden')),
+        hud: ['hud', 'joy'].filter((id) => !document.getElementById(id).classList.contains('hidden')),
+      }));
+      /** Calls travel(id) with every frame of the change recorded; returns what it answered and the frames. */
+      const travel = (id) => g((to) => new Promise((res, rej) => {
+        const frames = [], ids = ['hud', 'joy', 'btnJump', 'btnAct', 'bubble', 'task', 'answers', 'answersClose', 'fanfare'];
+        let on = true;
+        // This callback runs after the game's frame of the same tick: it reads the frame just drawn.
+        const tick = () => {
+          if (!on) return;
+          const f = __game.fade, m = __game.music;
+          frames.push({ phase: f.phase, closed: f.closed, world: __game.world, busy: __game.busy, going: __game.transitioning, speaking: __game.speaking,
+            line: __game.line, music: m ? m.scale[0] : null, shown: ids.filter((i) => !document.getElementById(i).classList.contains('hidden')) });
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        __game.travel(to).then((ok) => { on = false; res({ ok, frames }); }, (e) => { on = false; rej(e); });
+      }), id);
+      /** A character of the world played is asked: its first task comes to the panel and is solved the way a child solves it. */
+      const solveWith = async (id, world) => {
+        const before = await g(([w, c]) => __game.save.worlds[w]?.quests?.[c] ?? 0, [world, id]);
+        await g((c) => __game.talk(c), id);
+        await page.locator('#task:not(.hidden)').waitFor({ timeout: T(60000) }).catch(() => { throw new Error(`${name}: the character "${id}" of the world "${world}" gave no task`); });
+        const how = await g(() => __game.cheat());
+        if (how !== 'panel') fail(`${name}: the task of "${id}" was not a panel task to solve (__game.cheat() returned "${how}")`);
+        await until(([w, c, n]) => (__game.save.worlds[w]?.quests?.[c] ?? 0) === n + 1, [world, id, before], `the solved task of "${id}" was not written to the part "${world}" of the save`);
+        // What follows the task - the next task of the chain, or the card of the part - is closed; then she is free.
+        await until(() => {
+          const shown = (i) => !document.getElementById(i).classList.contains('hidden');
+          if (shown('fanfare')) document.getElementById('fanfareOk').click();
+          else if (shown('task') && !document.getElementById('task').classList.contains('won')) document.getElementById('taskClose').click();
+          return !__game.busy && !shown('task') && !shown('fanfare');
+        }, null, `the conversation with "${id}" did not end after its task`);
+      };
+      return { ctx, page, g, until, start, walks, state, travel, solveWith, expected };
+    };
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+    // ---- "there and back" ----
+    {
+      const name = 'there and back';
+      const p = await open(name, false);
+      let loads = 0;
+      p.page.on('load', () => { loads++; });
+      await p.page.goto(`${url}?debug${q}`);
+      await p.start();
+      const mark = `mark-${Date.now()}`;
+      await p.g((m) => {
+        window.__travelMark = m;
+        window.__travelKept = { hero: __game.hero, heroRoot: __game.hero.root, cat: __game.cat, catRoot: __game.cat.root };
+        __game.teleport(1.5, 11);
+      }, mark);
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world`);
+      const home = await p.state();
+      if (home.world !== FIRST) fail(`${name}: the game started in the world "${home.world}", expected "${FIRST}"`);
+      if (home.foxClip === 'npc_next') fail(`${name}: the fox of the first world has no voice of its own (${home.foxClip}): the check of the voices after the change would be blind`);
+      if (home.music === null) fail(`${name}: no music plays in the first world after "Play": the check of the music would be blind`);
+      // A character of the first world is talking when the change is asked for: its line must be cut by the closed frame.
+      const clips = await p.g(() => { __game.talk('unicorn'); return __game.voice.clips; });
+      await p.until((n) => __game.speaking && __game.line === 'unicorn_hi' && __game.voice.clips > n, clips, 'the unicorn did not start its greeting (no clip sounds)');
+      const left = await p.g(() => [__game.hero.root.position.x, __game.hero.root.position.z].map((v) => Math.round(v * 100) / 100));
+      const there = await p.travel(PROBE);
+      if (there.ok !== true) fail(`${name}: __game.travel('${PROBE}') answered ${there.ok}, expected true`);
+      for (const x of travelFramesProblems(there.frames, FIRST, PROBE)) fail(`${name}, to "${PROBE}": ${x}`);
+      await p.until(() => !__game.busy, null, `the game stayed busy after the change to "${PROBE}"`);
+      const away = await p.state();
+      await p.page.screenshot({ path: join(root, shots, 'travel-probe.png') });
+      if (away.mark !== mark) fail(`${name}: the mark left in window is gone after the change (${away.mark}): the page was reloaded`);
+      if (away.world !== PROBE) fail(`${name}: after the change the world played is "${away.world}", expected "${PROBE}"`);
+      if (!same(away.same, [])) fail(`${name}: in the probe world these are not the objects of the first world, or have left the scene: ${JSON.stringify(away.same)} (the heroine and the cat are made once)`);
+      if (!same(away.at, [0, 6])) fail(`${name}: the heroine stands at ${away.at} in the probe world, expected its spawn 0,6`);
+      if (!same(away.npcs, ['friend'])) fail(`${name}: the characters of window.__game are ${JSON.stringify(away.npcs)} in the probe world, expected its own "friend"`);
+      if (away.names.length) fail(`${name}: window.__game still has the first world's own names in the probe world: ${away.names.join(', ')}`);
+      if (away.crystals !== '0/1') fail(`${name}: the counter of parts shows "${away.crystals}" in the probe world, expected "0/1"`);
+      if (away.music === null || away.music === home.music) fail(`${name}: the music in the probe world starts at ${away.music}, in the first world at ${home.music}: it is not the music of the new world`);
+      if (away.foxClip !== 'npc_next') fail(`${name}: a fox of the probe world would speak with the clip "${away.foxClip}": the voices of the first world were not taken back`);
+      if (!(away.onHero < home.onHero)) fail(`${name}: the heroine carries ${away.onHero} object(s) in the probe world and ${home.onHero} in the first one: the wings of the first world are still on her`);
+      if (away.flies !== 0) fail(`${name}: ${away.flies} butterflies of the first world fly in the probe world`);
+      if (away.suns !== 1) fail(`${name}: ${away.suns} suns in the scene of the probe world, expected one`);
+      if (away.sun) fail(`${name}: the sun of the probe world was not handed to the quality tier: ${away.sun}`);
+      // The small probe world after the big first one: what the renderer holds must have fallen, or the world left was not freed.
+      for (const k of ['geometries', 'textures']) {
+        if (!(away.held[k] < home.held[k] / 2)) fail(`${name}: the renderer holds ${away.held[k]} ${k} in the probe world and ${home.held[k]} in the first one: the world left was not freed`);
+      }
+      if (away.focus || away.inTask || away.shown.length) fail(`${name}: the conversation cut by the change left something behind: ${JSON.stringify({ focus: away.focus, inTask: away.inTask, shown: away.shown })}`);
+      if (!same(away.hud, ['hud', 'joy'])) fail(`${name}: after the change the counters and the stick are ${JSON.stringify(away.hud)}, expected both on the screen`);
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk in the probe world`);
+      const fairyThen = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
+      if (!same(JSON.parse(fairyThen).pos.map((v) => Math.round(v * 100) / 100), left)) fail(`${name}: the save holds ${JSON.parse(fairyThen).pos} as her place in the first world, she left it at ${left}: the game was not saved before the change`);
+      await p.solveWith('friend', PROBE);
+      const fairyNow = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
+      if (fairyNow !== fairyThen) fail(`${name}: a task solved in the probe world changed the part of the first world in the save: ${fairyThen} -> ${fairyNow}`);
+
+      // Back: the spot "portal home" of the probe world, by its action button.
+      await p.g(() => __game.teleport(7, 4.5));
+      await p.page.locator('#btnAct:not(.hidden)').waitFor({ timeout: T(30000) }).catch(() => { throw new Error(`${name}: no action button at the portal of the probe world`); });
+      await p.page.locator('#btnAct').dispatchEvent('pointerdown');
+      await p.until(() => __game.transitioning, null, 'the action button at the portal of the probe world did not start a change of world', 30000);
+      await p.until((w) => !__game.transitioning && __game.world === w && !__game.busy, FIRST, 'the portal of the probe world did not bring the game back to the first world', 240000);
+      const back = await p.state();
+      await p.page.screenshot({ path: join(root, shots, 'travel-back.png') });
+      if (back.mark !== mark) fail(`${name}: the mark left in window is gone after the way back (${back.mark}): the page was reloaded`);
+      if (!same(back.at, left)) fail(`${name}: back in the first world the heroine stands at ${back.at}, she was left at ${left}`);
+      if (!same(back.same, [])) fail(`${name}: back in the first world these are not the objects the game started with: ${JSON.stringify(back.same)}`);
+      for (const k of ['npcs', 'names', 'scene', 'onHero', 'flies', 'suns', 'sun', 'music', 'crystals', 'foxClip', 'hud']) {
+        if (!same(back[k], home[k])) fail(`${name}: the first world entered again differs from the first time in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
+      }
+      // Entered again, the first world may not hold more than it did (TECH-15 allows 10 % over five rounds; this is one).
+      for (const k of ['geometries', 'textures']) {
+        if (back.held[k] > home.held[k] * 1.1) fail(`${name}: the renderer holds ${back.held[k]} ${k} in the first world entered again, ${home.held[k]} the first time: more than 10 % over`);
+      }
+      if (back.focus || back.inTask || back.shown.length) fail(`${name}: back in the first world something is left on the screen: ${JSON.stringify({ focus: back.focus, inTask: back.inTask, shown: back.shown })}`);
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world after the way back`);
+      await p.solveWith('fox', FIRST);
+      const kept = await p.g((w) => __game.save.worlds[w].quests.friend, PROBE);
+      if (kept !== 1) fail(`${name}: back in the first world the save holds ${kept} for the task solved in the probe world, expected 1`);
+      if (loads !== 1) fail(`${name}: the page was loaded ${loads} time(s) during the changes of world, expected once`);
+
+      // After a reload the progress of each world is in its own part of the save, and the game starts in the first world.
+      await p.page.reload();
+      await p.page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
+      await p.until(() => !!window.__game?.save, null, 'no window.__game after the reload');
+      const after = await p.g(([a, b]) => ({ world: __game.world, mark: window.__travelMark ?? null, first: __game.save.worlds[a]?.quests, probe: __game.save.worlds[b]?.quests, stars: __game.save.stars }), [FIRST, PROBE]);
+      if (after.mark !== null) fail(`${name}: the mark in window survived a reload of the page: it proves nothing`);
+      if (after.world !== FIRST) fail(`${name}: after the reload the game starts in "${after.world}", expected "${FIRST}"`);
+      if (after.first?.fox !== 1 || after.probe?.friend !== 1) fail(`${name}: after the reload the save holds ${JSON.stringify(after.first)} for the first world and ${JSON.stringify(after.probe)} for the probe world, expected fox: 1 and friend: 1`);
+      if (after.stars !== 6) fail(`${name}: after the reload the save holds ${after.stars} stars, expected the 6 of the two tasks`);
+      await p.ctx.close();
+    }
+
+    // ---- "the load fails": the files of the probe world are not on the server ----
+    let notFound = 0;
+    {
+      const name = 'the load fails';
+      block(PROBE);
+      const p = await open(name, true);
+      await p.page.goto(`${url}?debug${q}`);
+      await p.start();
+      const mark = `mark-${Date.now()}`;
+      await p.g((m) => { window.__travelMark = m; __game.teleport(1.5, 11); }, mark);
+      await p.until(() => Math.abs(__game.hero.root.position.x - 1.5) < 0.01, null, 'the heroine was not moved');
+      const home = await p.state();
+      const refused = await p.travel(PROBE);
+      if (refused.ok !== false) fail(`${name}: __game.travel('${PROBE}') answered ${refused.ok} with the files of the world gone, expected false`);
+      for (const x of travelFramesProblems(refused.frames, FIRST, FIRST)) fail(`${name}: ${x}`);
+      const back = await p.state();
+      const said = await p.g(() => (document.getElementById('bubble').classList.contains('hidden') ? null : document.getElementById('bubbleText').textContent));
+      await p.page.screenshot({ path: join(root, shots, 'travel-failed.png') });
+      if (back.mark !== mark) fail(`${name}: the mark left in window is gone (${back.mark}): the page was reloaded`);
+      if (back.world !== FIRST || back.busy || back.going) fail(`${name}: after the failed change the game is in "${back.world}" (busy: ${back.busy}, changing: ${back.going}), expected the first world with the controls returned`);
+      for (const k of ['at', 'npcs', 'names', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'hud', 'shown']) {
+        if (!same(back[k], home[k])) fail(`${name}: the first world built again differs from before in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
+      }
+      if (!said || !/Не вдалося завантажити/.test(said)) fail(`${name}: the bubble does not say that the load failed: ${JSON.stringify(said)}`);
+      if (!p.expected.said) fail(`${name}: the game wrote nothing to the console about the failed load`);
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk after the failed change`);
+      await p.solveWith('fox', FIRST);
+      // With the files back the same change goes through: the failed one left nothing in its way.
+      block(null);
+      const again = await p.travel(PROBE);
+      if (again.ok !== true) fail(`${name}: with the files back __game.travel('${PROBE}') answered ${again.ok}, expected true`);
+      for (const x of travelFramesProblems(again.frames, FIRST, PROBE)) fail(`${name}, with the files back: ${x}`);
+      const away = await p.state();
+      if (away.world !== PROBE || !same(away.npcs, ['friend'])) fail(`${name}: with the files back the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
+      notFound = p.expected.notFound;
+      await p.ctx.close();
+    }
+    if (failures) return '';
+    return `the change of world: "${FIRST}" -> "${PROBE}" by __game.travel and back by the portal with no reload of the page; behind the closed frame no line, no music and no interface; `
+      + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) the game went back to "${FIRST}" and played on; `
+      + `${((Date.now() - started) / 1000).toFixed(0)} s; pictures: ${shots}/travel-*.png`;
+  } finally {
+    block(null);
+    await browser.close().catch(() => {});
+  }
 }
 
 /**

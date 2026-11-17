@@ -24,13 +24,22 @@ export interface Cam { yaw: number; pitch: number; dist: number; target: THREE.V
 /**
  * The world's part of the game (TECH-15): what `g` holds of the world being played. Everything else of `Game` is made
  * once, of the shared load (src/game/boot.ts), and belongs to no world; `worldPart` below is the one place this part
- * comes from.
+ * comes from. A change of world (`Game.enter`, src/game/travel.ts) swaps the whole part at once: read it through `g`
+ * every time, a copy taken once stays with the world that was left. Only `groundY` may be kept: it is one function
+ * for the whole session and reads the ground of the world played.
  */
 export interface GameWorld {
+  /** The id of the world being played (the key of its progress in the save). */
+  readonly worldId: string;
+  /**
+   * Which entry into a world this is, counted from 0: it changes the moment a world is left (`Game.leave`). What a
+   * world made (its stage, its task) keeps the number it was made with and stays out of the way once it differs.
+   */
+  readonly visit: number;
   /** The ground of the world being played (its relief and colliders): the shared code never reaches a world directly. */
   readonly ground: WorldGround;
   /**
-   * The world's part of the save (ARCH-07): `save.worlds[<id of the world played>]`, the same object for the whole session.
+   * The world's part of the save (ARCH-07): `save.worlds[<id of the world played>]`, the same object at every entry into it.
    * Readers and writers of a world's progress (quests, final, chest, stars taken, position) go through it; the shared
    * part (look, stars, skills, settings) stays on `save`.
    */
@@ -82,9 +91,28 @@ export interface Game extends GameWorld {
   above(p: THREE.Vector3, dy: number): THREE.Vector3;
   fault(): void;
   praise(): Promise<void>;
-  /** A task from its opening to its end, whichever way it ends: meanwhile only its own lines sound, and its end stops them. */
+  /**
+   * A task from its opening to its end, whichever way it ends: meanwhile only its own lines sound, and its end stops them.
+   * It is of the entry into the world it was read in: asked by a scene of a world that was left, it opens nothing and
+   * answers "closed".
+   */
   task(open: () => Promise<TaskResult>): Promise<TaskResult>;
   hooksFor(speaker: string): TaskHooks;
+  /**
+   * TECH-15: the world played is left (src/game/travel.ts, under the closed frame, before its scope is disposed). From
+   * here to the next `enter` no task opens, and what the left world still runs no longer touches the controls.
+   */
+  leave(): void;
+  /**
+   * TECH-15: `w` is the world played from now on (after its load, before its build). Everything `worldPart` makes of
+   * it replaces the world's part of `g`; the heroine stands where she was left in that world, else at its spawn.
+   */
+  enter(w: WorldEntry): void;
+  /**
+   * How a shared part of the game learns of a change of world: `fn('leave')` while the world left is still whole and
+   * `g` still holds its part, `fn('enter')` once `g` holds the part of the new one (before that world is built).
+   */
+  onWorld(fn: (now: 'leave' | 'enter') => void): void;
 }
 
 /**
@@ -106,10 +134,10 @@ export interface WorldEntry {
  * The world's part of the game, made of the world to play: its progress in the save, its ground, where the heroine
  * stands when it opens (where she was left, else the world's spawn) and the text of its counter.
  */
-function worldPart(save: Save, w: WorldEntry): GameWorld & { start: { x: number; z: number }; crystals: () => string } {
+export function worldPart(save: Save, w: WorldEntry): Omit<GameWorld, 'groundY' | 'visit'> & { start: { x: number; z: number }; crystals: () => string } {
   const ws = worldState(save, w.id);
   return {
-    ws, ground: w.ground, groundY: (x, z) => w.ground.height(x, z), world: w,
+    worldId: w.id, ws, ground: w.ground, world: w,
     start: { x: ws.pos?.[0] ?? w.spawn.x, z: ws.pos?.[1] ?? w.spawn.z }, crystals: w.crystals,
   };
 }
@@ -120,7 +148,13 @@ export function createGame(o: {
   debug: boolean; speech: Speech; rng: Rng; shared: Shared; world: WorldEntry;
 }): Game {
   const { scene, save, speech } = o;
-  const { ws, ground, groundY, world, start, crystals } = worldPart(save, o.world);
+  // TECH-15: the world's part, swapped whole by `enter` - nothing below keeps a field of it. `groundY` is the one
+  // function of the session (the camera, the cat, the guide and the butterflies keep it): it reads the ground played.
+  let part = worldPart(save, o.world);
+  let visit = 0, between = false;
+  const watchers: ((now: 'leave' | 'enter') => void)[] = [];
+  const groundY = (x: number, z: number) => part.ground.height(x, z);
+  const { start } = part;
   const sparks = new Sparks(scene);
   const flies = new Butterflies(scene, 96, groundY);
 
@@ -141,9 +175,15 @@ export function createGame(o: {
   const cam: Cam = { yaw: 0, pitch: 0.36, dist: tuning.camDist, target: new THREE.Vector3(), focus: null };
   cam.target.copy(hero.root.position);
 
-  const persist = () => { ws.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
-  const task = async (open: () => Promise<TaskResult>) => { beginTask(); try { return await open(); } finally { endTask(); } };
-  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', crystals()); };
+  const persist = () => { part.ws.pos = [hero.root.position.x, hero.root.position.z]; storeSave(save); };
+  // A task of the entry `mine`. Once its world is left it opens nothing, and one that was open at that moment does
+  // not end the silence the change of world keeps (src/game/travel.ts).
+  const live = (mine: number) => !between && mine === visit;
+  const taskOf = (mine: number) => async (open: () => Promise<TaskResult>): Promise<TaskResult> => {
+    if (!live(mine)) return { solved: false, wrong: 0 };
+    beginTask(); try { return await open(); } finally { if (live(mine)) endTask(); }
+  };
+  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', part.crystals()); };
   // The one writer of the stars (src/game/no-penalties.test.ts reads this line): it only ever adds.
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);
@@ -171,18 +211,37 @@ export function createGame(o: {
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
     get pets() { return pets!; },
     busy: false, paused: false, auto: null, camOverride: null, finale: 0, failNext: false,
-    // the world's part (GameWorld)
-    ground, ws, groundY, world,
+    // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
+    ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),
     persist, refreshHud, addStars, above,
     fault: () => { if (g.failNext) { g.failNext = false; throw new Error('broken on purpose by __game.failNext()'); } },
-    praise, task, hooksFor,
+    praise, task: taskOf(visit), hooksFor,
+    leave: () => { for (const fn of watchers) fn('leave'); between = true; visit++; },
+    enter: (w) => {
+      part = worldPart(save, w);
+      // All of it at once, not field by field: a field added to `worldPart` is swapped with no line here.
+      Object.assign(g, part, { task: taskOf(visit) });
+      between = false;
+      const { x, z } = part.start;
+      hero.root.position.set(x, groundY(x, z), z); hero.heading = Math.PI; hero.root.rotation.y = Math.PI;
+      cat.root.position.set(x + 1, groundY(x + 1, z + 0.6), z + 0.6);
+      cam.yaw = 0; cam.focus = null; cam.target.copy(hero.root.position);
+      g.auto = null;
+      // The pets of the world entered: its own pet at its place, the chosen one by the heroine (the ones of the world
+      // left were taken out with it, src/game/travel.ts).
+      pets?.dispose(); pets = petsOf();
+      for (const fn of watchers) fn('enter');
+    },
+    onWorld: (fn) => { watchers.push(fn); },
   };
   // The chain a pet waits for is read through `g` each time (the world played, its progress): nothing kept from now.
-  pets = createPets(g, {
-    pet: o.world.pet, rigs: o.shared.petRigs,
+  // TECH-15: the pets are made anew for every world entered (`enter` above): the pet of a world is its own.
+  const petsOf = (): PetsInWorld => createPets(g, {
+    pet: g.world.pet, rigs: o.shared.petRigs,
     chainDone: (id) => { const c = g.world.characters?.find((x) => x.id === id); return !!c && (g.ws.quests[c.id] ?? 0) >= c.steps.length; },
   });
+  pets = petsOf();
   return g;
 }
 
@@ -191,10 +250,14 @@ export function createGame(o: {
  * `afterRelease` is the world's part of the end of a scene (the bubble of the star search).
  */
 export function createStage(g: Game, afterRelease: () => void): Stage {
+  // TECH-15: a stage is of the entry into the world it was made in. Once that world is left, a scene of it that still
+  // runs starts nothing new and does not give the controls back: whoever changes the world does (src/game/travel.ts).
+  const mine = g.visit, left = () => g.visit !== mine;
   return {
-    busy: () => g.busy,
+    busy: () => g.busy || left(),
     take: () => { g.busy = true; g.auto = null; setAct(null); },
     release: () => {
+      if (left()) return;
       g.busy = false; g.cam.focus = null; g.finale = 0;
       g.hero.play('Idle');
       afterRelease();

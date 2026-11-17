@@ -6,6 +6,9 @@ import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
 import { loadFailed } from '../../game/boot';
 import { createGear } from '../../game/gear';
+import type { Spot } from '../../game/player';
+import type { WorldScope } from '../../game/scope';
+import { travel } from '../../game/travel';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
 import { strings } from './strings';
 
@@ -23,6 +26,8 @@ const SPAWN = { x: 0, z: 6 };
 /** The world's own files (worlds-test/probe/, copied into the probe build by vite.config.ts): a model and a picture. */
 const STUMP = { model: 'probe/stump', x: 5, z: -2 };
 const SIGN = { picture: 'story/probe/sign.webp', x: -4, z: -3 };
+/** The portal home (TECH-15): a ring to walk up to; its action button changes the world to `to` without a reload. */
+const PORTAL = { to: 'fairy', x: 7, z: 3 };
 
 const FRIENDS: readonly CharacterDef[] = [{ id: 'friend', emoji: '🦊', x: 0, z: -4, heading: 0, steps: ['add'], shard: '#ff9a5c' }];
 
@@ -88,8 +93,10 @@ async function loadProbe(scene: THREE.Scene, _save: Save, _touch: boolean) {
 }
 type ProbeLoads = NonNullable<Awaited<ReturnType<typeof loadProbe>>>;
 
-function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky): BuiltWorld {
+function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, hero, save, ws, flies, speech, groundY } = g;
+  // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
+  scope.own(() => { colliders.length = 0; });
   // The heroine's model is the game's: a world makes her items of it.
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
 
@@ -104,6 +111,11 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky): BuiltWorld {
   post.position.set(SIGN.x, 0.45, SIGN.z); post.castShadow = true;
   ground.block(SIGN.x, SIGN.z, 0.3);
   scene.add(stump, board, post);
+  // The portal home: a glowing ring standing on the meadow.
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.12, 10, 32), new THREE.MeshStandardMaterial({ color: '#c9a6ff', emissive: '#8a5cff', emissiveIntensity: 0.8, roughness: 0.4 }));
+  ring.position.set(PORTAL.x, 1.3, PORTAL.z); ring.castShadow = true;
+  scene.add(ring);
+  const portal = new THREE.Vector3(PORTAL.x, groundY(PORTAL.x, PORTAL.z), PORTAL.z);
 
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const npcs: Npc[] = FRIENDS.map((def) => {
@@ -124,7 +136,11 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky): BuiltWorld {
 
   return {
     frame: {
-      spots: npcs.map((n) => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+      spots: [
+        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+        // The portal home: the same `travel` the game changes the world with.
+        { pos: portal, r: 2.2, label: 'open', on: () => true, run: () => { void travel(PORTAL.to); } },
+      ],
       tap: () => false,
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time) => {

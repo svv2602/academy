@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
   PARTS, PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels,
+  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems,
 } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -356,8 +356,61 @@ describe('the pictures of the transition (TECH-15)', () => {
   });
 });
 
+describe('the frames of a change of world (TECH-15)', () => {
+  const frame = (o) => ({ phase: 'hold', closed: false, world: 'fairy', busy: true, going: true, speaking: false, line: null, music: null, shown: [], ...o });
+  /** A change as it must go: the world left while the frame closes, silence behind the closed frame, the new world as it opens. */
+  const good = (to = 'probe') => [
+    frame({ phase: 'closing', speaking: true, line: 'unicorn_hi', music: 261.6 }),
+    frame({ phase: 'closing', speaking: true, line: 'unicorn_hi', music: 261.6 }),
+    frame({ closed: true }), frame({ closed: true }), frame({ closed: true, world: to }), frame({ closed: true, world: to }),
+    frame({ phase: 'opening', world: to, music: 293.7, shown: ['hud', 'joy'] }),
+    frame({ phase: 'opening', world: to, music: 293.7, shown: ['hud', 'joy'] }),
+  ];
+  const change = (at, o) => good().map((f, i) => (i === at ? { ...f, ...o } : f));
+
+  it('a change that went as it must has no problem - to the world asked for, or back to the world left when the load failed', () => {
+    expect(travelFramesProblems(good(), 'fairy', 'probe')).toEqual([]);
+    expect(travelFramesProblems(good('fairy'), 'fairy', 'fairy')).toEqual([]);
+  });
+
+  it('the frame never closed: nothing else is read', () => {
+    expect(travelFramesProblems(good().map((f) => ({ ...f, closed: false })), 'fairy', 'probe')).toEqual([
+      'the frame was never closed in 8 frame(s) of the change: the world changed in sight, or did not change',
+    ]);
+    expect(travelFramesProblems([], 'fairy', 'probe')[0]).toMatch(/^the frame was never closed in 0 frame/);
+  });
+
+  it.each([
+    ['a line that still sounds', { speaking: true }, /^a line still sounds behind the closed frame \(in 1 frame\(s\), the first: \{/],
+    ['a line left in the bubble', { line: 'unicorn_hi' }, /^the bubble still holds a line behind the closed frame/],
+    ['the music of the world left', { music: 261.6 }, /^music plays behind the closed frame/],
+    ['a counter over the closed frame', { shown: ['hud'] }, /^the interface is on the screen over the closed frame/],
+    ['the controls given back too early', { busy: false }, /^the controls are free during the change/],
+  ])('behind the closed frame: %s is a problem', (_what, o, said) => {
+    const got = travelFramesProblems(change(3, o), 'fairy', 'probe');
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatch(said);
+  });
+
+  it('the same before the frame has closed is not: the line and the music of the world left sound until then', () => {
+    expect(travelFramesProblems(change(0, { speaking: true, line: 'unicorn_hi', music: 261.6, shown: ['bubble'] }), 'fairy', 'probe')).toEqual([]);
+  });
+
+  it('the world changes only behind the closed frame', () => {
+    expect(travelFramesProblems(change(1, { world: 'probe' }), 'fairy', 'probe')[0]).toMatch(/^the world played is not "fairy" before the frame has closed/);
+    expect(travelFramesProblems(change(6, { world: 'fairy' }), 'fairy', 'probe')[0]).toMatch(/^the world played is not "probe" once the frame opens/);
+    // a change that had to fail and did not: the game is in the world asked for
+    expect(travelFramesProblems(good(), 'fairy', 'fairy')[0]).toMatch(/^the world played is not "fairy" once the frame opens \(in 2 frame/);
+  });
+
+  it('the frame closes once and then opens', () => {
+    expect(travelFramesProblems(change(3, { closed: false }), 'fairy', 'probe')).toEqual([expect.stringMatching(/^the frame opened and closed again during one change/)]);
+    expect(travelFramesProblems(good().slice(0, 6), 'fairy', 'probe')).toEqual(['the frame did not open after it had closed: no frame of the opening was drawn']);
+  });
+});
+
 describe('node tools/worlds.mjs', () => {
-  const run = (...args) => spawnSync(process.execPath, [join(root, 'tools/worlds.mjs'), ...args], { cwd: root, encoding: 'utf8', timeout: 30000 });
+  const run =(...args) => spawnSync(process.execPath, [join(root, 'tools/worlds.mjs'), ...args], { cwd: root, encoding: 'utf8', timeout: 30000 });
 
   it('refuses a folder that is not a build, a flag and a second argument: exit code 2, nothing built', () => {
     for (const args of [[folder({ 'a.txt': 'x' })], ['--frobnicate'], ['dist', 'more']]) {
@@ -377,7 +430,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -387,12 +440,13 @@ describe('node tools/worlds.mjs', () => {
     expect(readArgs(['--only', 'cache', 'dist'])).toEqual({ dist: 'dist', parts: ['cache'] });
     expect(readArgs(['--only', 'transition,walk'])).toEqual({ dist: null, parts: ['walk', 'transition'] });
     expect(readArgs(['--only', 'cache,cache'])).toEqual({ dist: null, parts: ['cache'] });
+    expect(readArgs(['dist', '--only', 'travel,cache'])).toEqual({ dist: 'dist', parts: ['cache', 'travel'] });
   });
 
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -401,16 +455,19 @@ describe('node tools/worlds.mjs', () => {
     for (const bad of [['--only'], ['--only', 'x'], ['a', 'b'], ['-x']]) expect(readArgs(bad).parts).toBeUndefined();
   });
 
-  it('each part is played only when it is named: the walkthrough, the cache and the transition are behind play(<part>)', () => {
+  it('each part is played only when it is named: the walkthrough, the cache, the transition and the change of world are behind play(<part>)', () => {
     const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
     expect(src).toContain("const play = (part) => read.parts.includes(part);");
     expect(src).toMatch(/if \(play\('walk'\)\) try \{\n[^\n]*\n[^\n]*\n\s+const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)/);
     expect(src).toMatch(/if \(play\('cache'\)\) try \{\n\s+const summary = await cacheScenarios\(/);
     expect(src).toMatch(/if \(play\('transition'\)\) try \{\n\s+const summary = await transitionScenarios\(/);
+    expect(src).toMatch(/if \(play\('travel'\)\) try \{\n\s+const summary = await travelScenarios\(/);
+    // every part of PARTS is played somewhere: a part nobody plays would be a green job that checks nothing
+    for (const part of PARTS) expect(src.split(`if (play('${part}')) try {`), part).toHaveLength(2);
     expect(src).toMatch(/if \(!play\('walk'\)\) console\.log\([^\n]*\n\s+else try \{\n\s+if \(!args\[0\]\) await vite\('the published build'\);/);
     // the probe build is made for every part
     expect(src).toMatch(/\n {2}try \{\n\s+rmSync\(probeDist, [^\n]*\n\s+await vite\('the probe build'/);
-    for (const call of ['await cacheScenarios(', 'await transitionScenarios(', "join(root, 'tools/shot.mjs')"]) expect(src.split(call)).toHaveLength(2);
+    for (const call of ['await cacheScenarios(', 'await transitionScenarios(', 'await travelScenarios(', "join(root, 'tools/shot.mjs')"]) expect(src.split(call)).toHaveLength(2);
   });
 
   it('tools/e2e.mjs runs it as the step "worlds", after "update", on the dist/ it built', () => {

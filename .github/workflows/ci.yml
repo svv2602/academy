@@ -159,7 +159,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [walk, cache, transition]   # the parts of tools/worlds.mjs, a job each
+        part: [walk, cache, transition, travel]   # the parts of tools/worlds.mjs, a job each
     steps:
       # The same checkout as in "build": tools/worlds.mjs compares the commit in the build with the one of the sources.
       - uses: actions/checkout@v4

@@ -6,13 +6,13 @@ import { loadSave } from './core/save';
 import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
 import { loadShared } from './game/boot';
-import { createGame } from './game/context';
-import { createWorldScope } from './game/scope';
+import { createGame, type WorldEntry } from './game/context';
 import { exposeDebug } from './game/debug';
 import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
-import { initStartScreen } from './game/start';
-import { pickWorld, type BuiltWorld } from './game/world';
+import { enterWorld, initStartScreen } from './game/start';
+import { createTravel, openWorld, worldView, type Travel } from './game/travel';
+import { pickWorld, type WorldDef } from './game/world';
 import { addStrings } from './ui/strings';
 import { el, initStart, showNotice } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
@@ -50,12 +50,12 @@ if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 // ---------- renderer & quality tiers ----------
 const { renderer, scene, camera } = createRenderer(el.canvas);
 const touch = matchMedia('(pointer: coarse)').matches;
-// TECH-15: the scope of the world played owns what the world adds to the scene and subscribes to. It is made before
-// the world's sky, so the sky and the sun are the world's too; what the game adds itself is marked with shared().
-const scope = createWorldScope(scene);
-const sky = world.sky(scene, scope);
+// TECH-15: the world played first is opened the way every world travelled to is (src/game/travel.ts `openWorld`). Its
+// scope owns what the world adds to the scene and subscribes to; it is made before the world's sky, so the sky and
+// the sun are the world's too. What the game adds itself is marked with shared().
+const opened = openWorld(world, scene);
 // The tier, the launch counter and the frame meter (core/renderer.ts): the tier is chosen and stored right here.
-const quality = createQuality({ renderer, scene, camera, sun: sky.sun, save, param: params.get('q'), touch, debug });
+const quality = createQuality({ renderer, scene, camera, sun: opened.sky.sun, save, param: params.get('q'), touch, debug });
 addEventListener('resize', () => quality.apply());
 
 // ---------- boot ----------
@@ -67,26 +67,43 @@ void boot();
 async function boot() {
   // TECH-15: the shared load (the heroine with her items, the cat) and the load of the world run together under the one
   // loading bar. Either may fail (TECH-08): the notice with "try again" is on screen then, once, and nothing is built.
-  const [shared, L] = await Promise.all([loadShared(save), world.load(scene, save, touch, scope)]);
+  const [shared, L] = await Promise.all([loadShared(save), opened.load(save, touch)]);
   if (!shared || !L) return;
   const speech = createSpeech();
-  // The counter is read only once the world is built (the first frame, the start button, a reward).
-  let built: BuiltWorld | null = null;
+  // What the game is told of a world (WorldEntry) - the first one and every world travelled to. The one place: a field
+  // of a world's description that `g` needs is added to this literal. The counter is read only once the world is built
+  // (the first frame, the start button, a reward).
+  const entryOf = (world: WorldDef): WorldEntry => ({
+    id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '',
+    pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars,
+  });
   // shared(): the heroine, the cat, the sparks and the butterflies - and the guide and the tap ring of the loop below -
   // join the scene after the world's sky and load, and are not the world's.
-  const g = scope.shared(() => createGame({
+  const g = opened.scope.shared(() => createGame({
     scene, camera, renderer, save, touch, debug, speech, rng, shared,
-    world: { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => built?.hud() ?? '', pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars },
+    world: entryOf(world),
   }));
   applyLook = () => shared.heroRig.setLook(save);
+  // TECH-15: the change of world (src/game/travel.ts). The built world goes to the frame, the quality tier and
+  // window.__game through it - the first one below, every next one from `travel(<id>)`.
+  const travel: Travel = createTravel({
+    g, scene, save, touch, worlds: WORLDS, entryOf,
+    setFrame: (frame) => loop.setWorld(frame),
+    show: (built, sky) => { quality.setSun(sky.sun); showDebug?.(built.debug); },
+    drawn: () => loop.drawn(),
+    welcome: (first) => enterWorld(g, first),
+  });
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
-  const w = built = world.build(g, L, sky, scope);
+  const w = travel.begin(opened, L);
 
   // ---------- start screen & menus ----------
-  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, book: w.book, gear: w.gear });
+  // The book and the heroine's items are the ones of the world played at the moment they are asked for.
+  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, ...worldView(() => travel.built ?? w) });
 
   // ---------- loop ----------
-  scope.shared(() => startLoop(g, quality, w.frame));
+  // The parts of the loop every world shares are made inside shared(); the first frame is played outside it.
+  const loop = opened.scope.shared(() => startLoop(g, quality, w.frame));
+  loop.run();
 
   // ---------- TECH-09: the next world is downloaded while this one is played ----------
   // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of
@@ -95,9 +112,7 @@ async function boot() {
   const worlds = createWorldCache();
   el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); }, { once: true });
 
-  if (debug) {
-    exposeDebug(g, w.debug);
-    // The walkthrough of the cache (tools/worlds.mjs) reads the download and the cache through these.
-    Object.assign((window as unknown as { __game: object }).__game, { worlds });
-  }
+  const showDebug = debug ? exposeDebug(g, w.debug, travel) : null;
+  // The walkthrough of the cache (tools/worlds.mjs) reads the download and the cache through these.
+  if (debug) Object.assign((window as unknown as { __game: object }).__game, { worlds });
 }

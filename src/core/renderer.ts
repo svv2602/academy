@@ -33,6 +33,11 @@ export interface Quality {
   render(dt: number): void;
   /** The frame counter and the automatic fallback; call once a frame after `render`. */
   meter(dt: number, persist: () => void): void;
+  /**
+   * TECH-15: the sun of the world played from now on (a change of world; the sun of the world left is gone with its
+   * scope). It casts the shadows of the current tier, and every later `apply()` sets up this one.
+   */
+  setSun(sun: THREE.DirectionalLight): void;
 }
 
 /**
@@ -43,7 +48,8 @@ export function createQuality(o: {
   renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; sun: THREE.DirectionalLight;
   save: Save; param: string | null; touch: boolean; debug: boolean;
 }): Quality {
-  const { renderer, scene, camera, sun, save, touch, debug } = o;
+  const { renderer, scene, camera, save, touch, debug } = o;
+  let sun = o.sun;
   const start = startTier({ param: o.param, pinned: save.pinTier, saved: save.tier, launches: save.launches });
   let tier: Tier = start.tier;
   const byParam = start.by === 'param';         // ?q= fixes the tier for this page and leaves the remembered one alone
@@ -93,6 +99,9 @@ export function createQuality(o: {
   // fps meter + automatic quality fallback. The frames are measured with or without ?debug: the fallback needs them.
   function meter(dt: number, persist: () => void) {
     fpsT += dt; fpsN++; warm += dt;
+    // TECH-15: while the frame is closed for a change of world, a world is loaded and built behind it - slow frames
+    // that say nothing of the tier. The fallback starts over: no slow second is carried into the new world.
+    if (transition.active) { slow = 0; warm = 0; }
     if (fpsT >= 1) {
       const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
       if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
@@ -104,5 +113,11 @@ export function createQuality(o: {
     }
   }
 
-  return { get tier() { return tier; }, apply, applyPin, render, meter };
+  function setSun(next: THREE.DirectionalLight) {
+    sun = next;
+    sun.castShadow = tier > 0;
+    sun.shadow.mapSize.setScalar(tier === 2 ? 2048 : 1024);
+  }
+
+  return { get tier() { return tier; }, apply, applyPin, render, meter, setSun };
 }
