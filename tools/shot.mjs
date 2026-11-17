@@ -357,13 +357,17 @@ try {
     return false;
   };
   const silence = () => page.waitForFunction(() => !window.__started.some((a) => !a.paused && !a.ended), null, { timeout: T(20000) });
-  // The shown magic comes to `want` (within 0.001): true, or false once MAGIC_SETTLE s of game time have passed without.
-  const magicSettles = async (want) => {
+  // Waits for `pred(arg)` in the page while the game plays: true when it holds, false once `seconds` of game time have
+  // passed without it. What the game does in its own time is waited for by the game's clock; the wall clock is only the
+  // ceiling for a game that stopped altogether (the slow CI runner may take minutes of it for seconds of the game's).
+  const gameUntil = async (pred, arg, seconds) => {
     const t0 = await page.evaluate(() => __game.time);
-    const h = await page.waitForFunction(([w, t, lim]) => (Math.abs(__game.magic.value - w) <= 0.001 ? 'yes' : __game.time - t > lim ? 'no' : false),
-      [want, t0, MAGIC_SETTLE], { timeout: T(600000) });
+    const h = await page.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
+      null, { timeout: T(600000) });
     return (await h.jsonValue()) === 'yes';
   };
+  // The shown magic comes to `want` (within 0.001) in MAGIC_SETTLE s of game time.
+  const magicSettles = (want) => gameUntil((w) => Math.abs(__game.magic.value - w) <= 0.001, want, MAGIC_SETTLE);
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
   // finale once - to see that the heroine is not left standing. Excused is the text of that very scene only, only
   // while the scenario waits for it, and only once.
@@ -833,10 +837,11 @@ try {
         // the tour itself moves the camera: it leaves the first point by more than 2 m (waited for by the frames of the
         // game, not the clock: a player that holds the camera still never gets there)
         const cam0 = await g(() => __game.camera.position.toArray());
-        await page.waitForFunction((p) => __game.flyoverPlayer.active
-          && Math.hypot(__game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]) > 2,
-        cam0, { timeout: T(120000) }).catch(async () => fail(`the camera did not fly: still ${(await g((p) => Math.hypot(
-          __game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]), cam0)).toFixed(2)} m from where it started`));
+        if (!(await gameUntil((p) => __game.flyoverPlayer.active
+          && Math.hypot(__game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]) > 2, cam0, 4))) {
+          fail(`the camera did not fly in 4 s of game time: still ${(await g((p) => Math.hypot(
+            __game.camera.position.x - p[0], __game.camera.position.y - p[1], __game.camera.position.z - p[2]), cam0)).toFixed(2)} m from where it started`);
+        }
         // a tap anywhere ends it, long before its end
         const vp = page.viewportSize();
         await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
@@ -956,7 +961,7 @@ try {
         await visibility(false);
         if (!away.paused || away.ended) fail(`the line "${id}" did not pause (${away.ended ? 'it ended' : 'it went on sounding'})`);
         if (away.at > hiddenAt + 0.15) fail(`the line "${id}" went on ${(away.at - hiddenAt).toFixed(2)} s after the page was hidden`);
-        await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(5000) })
+        await page.waitForFunction((t) => { const a = window.__started.find((x) => x.__probe); return !a.paused && a.currentTime > t + 0.1 || a.ended; }, away.at, { timeout: T(15000) })
           .catch(() => fail(`the line "${id}" did not play on when the page was shown again`));
         console.log(`a hidden page: "${id}" paused at ${away.at.toFixed(2)} s and played on when shown${again ? ' (said again on a tap on the cat: the first was over before it was caught)' : ''}`);
       }
@@ -1925,8 +1930,7 @@ try {
         await page.waitForFunction(() => !__game.flyoverPlayer.active && !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the debug tour did not end'));
         // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way
         // (the whole way back takes seconds of game time - minutes of the clock on the slow CI runner)
-        await page.waitForFunction((w) => Math.abs(__game.magic.target - w) < 1e-9 && __game.magic.value < 1 - (1 - w) * 0.1, want, { timeout: T(30000) })
-          .catch(() => fail('the debug value did not let go of the magic'));
+        if (!(await gameUntil((w) => Math.abs(__game.magic.target - w) < 1e-9 && __game.magic.value < 1 - (1 - w) * 0.1, want, 2))) fail('the debug value did not let go of the magic in 2 s of game time');
         // the page loaded again (a second tab of the same address and storage: a reload of this one would drop the
         // watchers of the walkthrough) builds the world with the same magic, from its first frame
         const again = await (async () => {
