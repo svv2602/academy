@@ -21,6 +21,7 @@ import { createChestStars } from './chest-stars';
 import { FAIRY_FLYOVER } from './flyover-path';
 import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
+import { createMagic } from './magic';
 import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
@@ -42,6 +43,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
   const characters = createCharacters(g, L, () => starSearch.search.active);
   const { npcs, npc, starMat } = characters;
   const shrine = buildShrine(g, L, sky);
+  // The magic of the world (WORLD-09): from the shards in the save; before the ambient butterflies (its own come first).
+  const magic = createMagic(g, L, sky);
   const chestStars = createChestStars(g, L, starMat);
   const butterflies = createButterfliesTask(g);
   const { bf } = butterflies;
@@ -115,6 +118,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       chestStars.update(time, canMove);
       starSearch.update(dt, time);
       shrine.update(dt, time);
+      magic.update(dt);
     },
     goal,
     animate: (dt, time) => {
@@ -153,7 +157,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky): BuiltWorld {
       // the tour: `flyover()` plays it without marking anything, `flyoverPoints` are its points with the moment each is
       // passed, `flyoverPlayer` is its state (active, elapsed) with skip() and hold(i)
       flyover: () => { void tour(g, { record: false }); }, flyoverPlayer: flyover,
-      flyoverPoints: FAIRY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })) },
+      flyoverPoints: FAIRY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
+      // the magic of the world (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
+      magic, setMagic: (v: number | null) => magic.set(v) },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }
