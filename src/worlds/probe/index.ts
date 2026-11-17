@@ -152,7 +152,7 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky): BuiltWorld {
   };
 }
 
-/** The probe world: listed in src/worlds/index.ts for the probe build only. */
+/** The probe world: listed in src/worlds/index.ts for the probe build only (CI plays it in the job "worlds"). */
 export const probe: WorldDef<ProbeLoads, WorldSky> = {
   id: 'probe',
   spawn: SPAWN,
