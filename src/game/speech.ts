@@ -42,7 +42,7 @@ export function createSpeech(): Speech {
   };
   const line = (key: SpokenKey, pri: Priority, hold = 0, speaker = '🐱', text?: string) => {
     if (willSay(pri)) caption({ key, pri, hold, speaker, text });
-    return say(key, voiceText(key), pri);
+    return say(key, voiceText(key), pri, speaker);
   };
   /**
    * With the voice turned off in the parents' section (VOICE-09) the bubble is the only way to learn the question, so

@@ -851,8 +851,67 @@ describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
 // The queue of spoken lines is its own module (docs/14-architecture.md "src/core/ … voice"); audio.ts re-exports it, so
 // whoever imports the voice from audio.ts gets the very same functions and state.
 const SRC = import.meta.glob(['./audio.ts', './voice.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+describe('say: the clip of the voice of the speaker (VOICE-10)', () => {
+  /** A fresh module whose list of recorded clips also has `more` (the clips of a character's voice). */
+  async function loadWith(more: string[]) {
+    vi.doMock('./clips.json', () => ({ default: [...CLIPS, ...more] }));
+    const audio = await load(fakeSynth([UK]));
+    const { voices } = await import('../worlds/fairy/voices');
+    audio.setCast(voices);
+    return audio;
+  }
+  afterEach(() => { vi.doUnmock('./clips.json'); });
+
+  it("a character's line plays <key>@<voice>.mp3 of its voice in the table, the cat's line plays <key>.mp3", async () => {
+    const { say, stopVoice } = await loadWith([`${CLIP_A}@Leda`, `${CLIP_A}@Sulafat`]);
+    void say(CLIP_A, 'один', 'task', '🦊');
+    expect(FakeAudio.made[0].src.endsWith(`voice/${CLIP_A}@Leda.mp3`)).toBe(true);
+    stopVoice();
+    void say(CLIP_A, 'один', 'task', '👑');
+    expect(FakeAudio.made[1].src.endsWith(`voice/${CLIP_A}@Sulafat.mp3`)).toBe(true);   // the queen shares the unicorn's voice
+    stopVoice();
+    void say(CLIP_A, 'один', 'task', '🐱');
+    void say(CLIP_B, 'два', 'task');
+    expect(FakeAudio.made.slice(2).map((a) => a.src.split('/').pop())).toEqual([`${CLIP_A}.mp3`, `${CLIP_B}.mp3`]);
+  });
+
+  it("until its voice is recorded, a character says the line with the cat's clip, not with the synthesizer", async () => {
+    const synth = fakeSynth([UK]);
+    vi.doMock('./clips.json', () => ({ default: CLIPS }));
+    const audio = await load(synth);
+    audio.setCast((await import('../worlds/fairy/voices')).voices);
+    void audio.say(CLIP_A, 'один', 'task', '🍄');
+    expect(FakeAudio.made[0].src.endsWith(`voice/${CLIP_A}.mp3`)).toBe(true);
+    expect(audio.borrowed).toEqual([`${CLIP_A}@Orus`]);
+    expect(synth.spoken).toHaveLength(0);
+    expect(audio.clipFor(NO_CLIP_A, '🍄')).toBeNull();
+    expect(audio.clipFor(CLIP_A, '🐱')).toBe(CLIP_A);
+    expect(audio.borrowed).toHaveLength(1);              // the cat borrows nothing: his clip is his own
+  });
+
+  it('the speaker of a line of the game (src/game/speech.ts `line`) reaches the choice of the clip', async () => {
+    vi.doMock('../ui/ui', () => ({ bubble: () => {} }));
+    const { stopVoice } = await loadWith(['npc_next@Leda']);
+    const { createSpeech } = await import('../game/speech');
+    const speech = createSpeech();
+    void speech.line('npc_next', 'story', 0, '🦊');
+    expect(FakeAudio.made.at(-1)?.src.endsWith('voice/npc_next@Leda.mp3')).toBe(true);
+    stopVoice();
+    void speech.line('npc_next', 'story');
+    expect(FakeAudio.made.at(-1)?.src.endsWith('voice/npc_next.mp3')).toBe(true);
+    vi.doUnmock('../ui/ui');
+  });
+
+  it('a speaker the table lacks speaks with the narrator\'s clip', async () => {
+    const { clipFor } = await loadWith([`${CLIP_A}@Leda`]);
+    expect(clipFor(CLIP_A, '🐉')).toBe(CLIP_A);
+    expect(clipFor(CLIP_A)).toBe(CLIP_A);
+    expect(clipFor(CLIP_A, '🦊')).toBe(`${CLIP_A}@Leda`);
+  });
+});
+
 describe('the queue of spoken lines lives in src/core/voice.ts (R22)', () => {
-  const MOVED = ['CLIP_RETRIES', 'beginTask', 'dropped', 'endTask', 'inTask', 'mayStart', 'say', 'speaking', 'stopVoice', 'voiceLog', 'willSay'] as const;
+  const MOVED = ['CLIP_RETRIES', 'beginTask', 'borrowed', 'clipFor', 'dropped', 'endTask', 'inTask', 'mayStart', 'say', 'setCast', 'speaking', 'stopVoice', 'voiceLog', 'willSay'] as const;
 
   it('audio.ts hands on the queue of voice.ts, not a copy', async () => {
     const audio = await load(null);
