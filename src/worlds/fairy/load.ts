@@ -3,6 +3,7 @@ import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { loadFailed, type HeroModel } from '../../game/boot';
 import { buildAdult } from '../../game/hero';
+import type { CreatureModels } from './creatures';
 import { buildGrass, buildScenery } from './scenery';
 import { buildClouds, buildMotes, buildRainbow, buildWater } from './sky';
 import { buildTerrain } from './terrain';
@@ -25,6 +26,8 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
     staticGeo('rpg_items_pack/Crystal2', 1), staticGeo('platformer_game_pack/Star', 0.7),
     rig('animals_pack/Horse_White', 2.0, true), rig('animals_pack/Fox', 0.8, true), rig('extra/mushking', 1.25, true),
     rig('animals_pack/Deer', 1.55, true), buildAdult({ dress: '#ffd54f', hair: '#f5d16b' }, 1.72, 1.1),
+    // The creatures of no task (./creatures.ts): a bird, a clownfish and a river fish, drawn as instances.
+    staticGeo('creatures/bird', 0.6), staticGeo('creatures/clownfish', 0.4), staticGeo('creatures/fish', 0.3),
   ]).catch((e: unknown) => {
     // TECH-08: a model failed even after its repeats (src/core/assets.ts). "Try again" reloads the page rather than
     // building again here: the terrain, the water, the grass and part of the props are in the scene already, and a
@@ -33,8 +36,9 @@ export async function loadFairy(scene: THREE.Scene, save: Save, touch: boolean) 
     return null;
   });
   if (!loads) return null;
-  const [, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig] = loads;
-  return { rainbowAlpha, motes, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig };
+  const [, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig, birdGeo, clownGeo, fishGeo] = loads;
+  const creatureModels: CreatureModels = { bird: birdGeo, fish: [clownGeo, fishGeo] };
+  return { rainbowAlpha, motes, updateClouds, chestRig, crystalGeo, starGeo, uniRig, foxRig, kingRig, deerRig, queenRig, creatureModels };
 }
 
 /** What `loadFairy` loads: the world's own. The heroine and the cat are loaded once, for every world (src/game/boot.ts). */
