@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ACTIONS, COUNTS, HOVER, REACTION, createHerd, flowerSpots, treeTops, type Creature, type Habitat, type Kind, type State } from './creatures';
+import { ACTIONS, CALM, COUNTS, HOVER, REACTION, bodyHeight, createHerd, fairyGeometry, flowerSpots, treeTops, type Creature, type Habitat, type Kind, type State } from './creatures';
 import { PATCH, POND, WATER_Y, height, pathDist } from './terrain';
 
 const KINDS: Kind[] = ['fairy', 'bird', 'fish'];
@@ -134,5 +134,42 @@ describe('a tap on a creature (PLAY-12)', () => {
     const hit = h.tap((c) => (c === a ? 40 : c === b ? 20 : 1e9), 70);
     expect(hit).toBe(b);
     expect(a.taps).toBe(0);
+  });
+});
+
+describe('a creature held still (debug, the walkthrough)', () => {
+  for (const k of KINDS) {
+    it(`a ${k} held stays at its point, calm, until a tap; its reaction starts there and it comes back`, () => {
+      const h = createHerd(habitat());
+      const c = h.all.find((x) => x.kind === k)!;
+      const at = new THREE.Vector3(1, 2, 3);
+      h.hold(c, at);
+      run(h, 20, () => { expect(c.pos.distanceTo(at)).toBeLessThan(1e-6); expect(c.state).toBe(CALM[k]); });
+      const hit = h.tap((x) => (x === c ? 0 : 1e9), 10);
+      expect(hit).toBe(c);
+      expect(c.state).toBe(REACTION[k]);
+      run(h, 3);
+      expect(c.state).toBe(CALM[k]);
+      expect(c.pos.distanceTo(at)).toBeLessThan(1e-6);
+      h.hold(c, null);
+      const seen = new Set<State>();
+      run(h, 60, () => seen.add(c.state));
+      expect([...seen].sort()).toEqual([...ACTIONS[k]].sort());
+    });
+  }
+});
+
+describe('a tap on a creature is measured from the middle of its drawn body (PLAY-12)', () => {
+  it('the height is the middle of the model box times the size it is drawn at', () => {
+    const box = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);      // stands on y = 0, its middle at 0.5
+    expect(bodyHeight(box)).toBeCloseTo(0.5, 6);
+    expect(bodyHeight(box, 2)).toBeCloseTo(1, 6);
+    expect(bodyHeight(new THREE.BoxGeometry(1, 1, 1))).toBeCloseTo(0, 6);  // centred: no offset
+  });
+
+  it('the fairy, drawn 1.8 times larger, has her middle well above the point she hovers on', () => {
+    const h = bodyHeight(fairyGeometry(), 1.8);
+    expect(h).toBeGreaterThan(0.15);
+    expect(h).toBeLessThan(0.4);
   });
 });
