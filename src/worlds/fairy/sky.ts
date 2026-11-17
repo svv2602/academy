@@ -2,8 +2,18 @@ import * as THREE from 'three';
 import { staticGeo } from '../../core/assets';
 import { mulberry32 } from '../../core/util';
 import { uTime } from '../../core/materials';
+import type { MagicCount, MagicGlow } from './magic';
 import { POND, WATER_Y, height } from './terrain';
 
+/**
+ * The sky, the haze and the light of the kingdom with no magic back (as it always looked before the crystal was whole)
+ * and with all of it (./magic.ts, WORLD-09): warmer and brighter, never darker than without.
+ */
+export const SKY_LOOK = {
+  fog: ['#d9ecf7', '#f9e0f0'], fogFar: [300, 380], hemi: [1.25, 1.55], sun: [2.6, 3.0],
+} as const;
+
+/** The sky (its shader's `uGlow` is the magic of the world), the haze and the two lights. */
 export function buildSky(scene: THREE.Scene) {
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(400, 24, 16),
@@ -15,29 +25,32 @@ export function buildSky(scene: THREE.Scene) {
         varying vec3 vDir; uniform float uGlow;
         void main(){
           float h = clamp(vDir.y, -0.1, 1.0);
-          vec3 horizon = mix(vec3(1.0, 0.86, 0.80), vec3(1.0, 0.90, 0.72), uGlow);
-          vec3 mid = vec3(0.62, 0.84, 1.0), top = vec3(0.30, 0.58, 0.98);
+          vec3 horizon = mix(vec3(1.0, 0.86, 0.80), vec3(1.0, 0.86, 0.90), uGlow);
+          vec3 mid = mix(vec3(0.62, 0.84, 1.0), vec3(0.86, 0.80, 1.0), uGlow);
+          vec3 top = mix(vec3(0.30, 0.58, 0.98), vec3(0.42, 0.56, 1.0), uGlow);
           vec3 c = mix(horizon, mid, smoothstep(0.0, 0.28, h));
           c = mix(c, top, smoothstep(0.25, 0.95, h));
           vec3 sunDir = normalize(vec3(0.45, 0.62, 0.35));
           float s = max(dot(normalize(vDir), sunDir), 0.0);
-          c += vec3(1.0, 0.9, 0.7) * (pow(s, 600.0) * 3.0 + pow(s, 12.0) * 0.28);
+          c += vec3(1.0, 0.9, 0.7) * (pow(s, 600.0) * 3.0 + pow(s, 12.0) * (0.28 + 0.3 * uGlow));
+          c += vec3(1.0, 0.82, 0.55) * uGlow * 0.12 * (1.0 - smoothstep(0.0, 0.35, h));
           gl_FragColor = vec4(c, 1.0);
         }`,
     }),
   );
   sky.renderOrder = -10;
   scene.add(sky);
-  scene.fog = new THREE.Fog('#d9ecf7', 70, 300);
+  const fog = new THREE.Fog(SKY_LOOK.fog[0], 70, SKY_LOOK.fogFar[0]);
+  scene.fog = fog;
 
-  const hemi = new THREE.HemisphereLight('#d6ecff', '#d2dcae', 1.25);
-  const sun = new THREE.DirectionalLight('#fff1d6', 2.6);
+  const hemi = new THREE.HemisphereLight('#d6ecff', '#d2dcae', SKY_LOOK.hemi[0]);
+  const sun = new THREE.DirectionalLight('#fff1d6', SKY_LOOK.sun[0]);
   sun.castShadow = true;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   const cam = sun.shadow.camera;
   cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26; cam.near = 1; cam.far = 120;
   scene.add(hemi, sun, sun.target);
-  return { sky, sun, hemi, sunOffset: new THREE.Vector3(0.45, 0.62, 0.35).multiplyScalar(60) };
+  return { sky, sun, hemi, fog, sunOffset: new THREE.Vector3(0.45, 0.62, 0.35).multiplyScalar(60) };
 }
 
 export function buildWater(scene: THREE.Scene) {
@@ -107,11 +120,18 @@ export function buildRainbow(scene: THREE.Scene) {
   return mat.uniforms.uAlpha;
 }
 
-/** Floating motes of light that always surround the player (wrapped in the shader, no CPU work). */
+/** How many more motes, for every one of before, the magic of the world (./magic.ts) lights. */
+export const MAGIC_MOTES = 0.7;
+
+/**
+ * Floating motes of light that always surround the player (wrapped in the shader, no CPU work). `count` of them are
+ * drawn with no magic; the buffer holds MAGIC_MOTES times more after them, drawn as the magic comes back.
+ */
 export function buildMotes(scene: THREE.Scene, count: number) {
   const rnd = mulberry32(11);
-  const pos = new Float32Array(count * 3), seed = new Float32Array(count);
-  for (let i = 0; i < count; i++) {
+  const all = count + Math.round(count * MAGIC_MOTES);
+  const pos = new Float32Array(all * 3), seed = new Float32Array(all);
+  for (let i = 0; i < all; i++) {
     pos[i * 3] = rnd() * 60; pos[i * 3 + 1] = 0.3 + rnd() * 5; pos[i * 3 + 2] = rnd() * 60; seed[i] = rnd() * 100;
   }
   const geo = new THREE.BufferGeometry();
@@ -142,8 +162,10 @@ export function buildMotes(scene: THREE.Scene, count: number) {
         gl_FragColor = vec4(vec3(1.0, 0.95, 0.7) * a * a * vA, 1.0);
       }`,
   });
+  geo.setDrawRange(0, count);
   const pts = new THREE.Points(geo, mat);
   pts.frustumCulled = false;
+  pts.userData.magicCount = { base: count, full: all } satisfies MagicCount;
   scene.add(pts);
   return { uCenter, uScale: mat.uniforms.uScale };
 }
@@ -152,6 +174,7 @@ export function buildMotes(scene: THREE.Scene, count: number) {
 export async function buildClouds(scene: THREE.Scene) {
   const geos = await Promise.all([1, 2, 3].map((i) => staticGeo(`platformer_game_pack/Cloud_${i}`, 5)));
   const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffe9f2', emissiveIntensity: 0.35, roughness: 1, fog: false });
+  mat.userData.magicGlow = { base: 0.35, full: 0.6 } satisfies MagicGlow;       // lit from within by the magic
   const rnd = mulberry32(8);
   const clouds = Array.from({ length: 16 }, (_, i) => {
     const mesh = new THREE.Mesh(geos[i % 3], mat);

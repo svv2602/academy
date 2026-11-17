@@ -15,24 +15,32 @@ export function updateRanged(px: number, pz: number) {
   for (const r of ranged) r.mesh.visible = Math.hypot(r.x - px, r.z - pz) < r.range * drawRange;
 }
 
+/** A mesh of one ground cell and which of the placements (their indices, in their order) it holds. */
+export interface Cell { mesh: THREE.InstancedMesh; idx: number[] }
+
 /**
  * Adds instances grouped into ground cells, so three.js can frustum-cull whole groups (also in the shadow pass).
  * With `range`, cells are small and vanish beyond that distance: ground clutter is invisible from afar anyway.
+ * Returns the cells: a cell keeps the order of `all`, so drawing only the first `mesh.count` of it draws a front part.
  */
-export function instanced(scene: THREE.Scene, height: Height, geo: THREE.BufferGeometry, mat: THREE.Material, all: Placement[], shadow: boolean, tints?: THREE.Color[], depth?: THREE.Material, range = 0) {
+export function instanced(scene: THREE.Scene, height: Height, geo: THREE.BufferGeometry, mat: THREE.Material, all: Placement[], shadow: boolean, tints?: THREE.Color[], depth?: THREE.Material, range = 0): Cell[] {
   const cells = new Map<string, number[]>();
   const size = range ? SMALL_CELL : CELL;
   all.forEach((it, i) => {
     const k = `${Math.floor(it.x / size)},${Math.floor(it.z / size)}`;
     (cells.get(k) ?? cells.set(k, []).get(k)!).push(i);
   });
+  const out: Cell[] = [];
   for (const [k, idx] of cells) {
     const mesh = instancedCell(scene, height, geo, mat, idx.map((i) => all[i]), shadow, tints && idx.map((i) => tints[i]), depth);
-    if (mesh && range) {
+    if (!mesh) continue;
+    out.push({ mesh, idx });
+    if (range) {
       const [cx, cz] = k.split(',').map(Number);
       ranged.push({ mesh, x: (cx + 0.5) * size, z: (cz + 0.5) * size, range: range + size * 0.7 });
     }
   }
+  return out;
 }
 
 function instancedCell(scene: THREE.Scene, height: Height, geo: THREE.BufferGeometry, mat: THREE.Material, items: Placement[], shadow: boolean, tints?: THREE.Color[], depth?: THREE.Material) {
@@ -52,8 +60,9 @@ function instancedCell(scene: THREE.Scene, height: Height, geo: THREE.BufferGeom
   return mesh;
 }
 
-/** Instances every part of a textured model at the same placements. */
-export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[], items: Placement[], sway: number, shadow: boolean, range = 0) {
+/** Instances every part of a textured model at the same placements; returns the cells of every part. */
+export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[], items: Placement[], sway: number, shadow: boolean, range = 0): Cell[] {
+  const out: Cell[] = [];
   for (const p of parts) {
     const key = `${p.map?.uuid}|${p.cutout}|${sway}`;
     let mat = partMats.get(key);
@@ -72,7 +81,8 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
       partMats.set(key, mat);
     }
     const depth = p.cutout && shadow ? new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: p.map, alphaTest: 0.5 }) : undefined;
-    instanced(scene, height, p.geo, mat, items, shadow, undefined, depth, range);
+    out.push(...instanced(scene, height, p.geo, mat, items, shadow, undefined, depth, range));
   }
+  return out;
 }
 const partMats = new Map<string, THREE.MeshStandardMaterial>();
