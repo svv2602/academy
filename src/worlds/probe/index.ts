@@ -10,6 +10,7 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { travel } from '../../game/travel';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
+import { PET_AT, SECRET, createItems } from './items';
 import { strings } from './strings';
 
 /**
@@ -17,7 +18,8 @@ import { strings } from './strings';
  * made with `--mode probe` (src/worlds/index.ts), and `npm run e2e` plays it there (the step "worlds",
  * tools/worlds.mjs). It is the smallest world the shared code can play: a flat meadow, a sky of its own, one character
  * with one panel task, and two files of its own in the folders of its world (worlds-test/probe/: a model and a
- * picture) - what the loading, the cache and the release of a world are tried on.
+ * picture) - what the loading, the cache and the release of a world are tried on. It also has one point of every kind
+ * of the world template (ARCH-16, ./items.ts and the pet below): what the description of a world is tried on.
  */
 
 /** m: the radius of the meadow; a walker stays a step inside it. */
@@ -133,6 +135,9 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
 
   const stage = createStage(g, () => speech.caption(null));
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks: {} });
+  // One point of every kind of the world template: the secret in the stump, the part it hides, the cutscene of the
+  // signboard, the tour and the finale. The pet is declared below; the game shows it.
+  const items = createItems(g, stage, scope, { stump: STUMP, sign: SIGN, picture: board.position, taps: window });
 
   return {
     frame: {
@@ -140,10 +145,12 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
         // The portal home: the same `travel` the game changes the world with.
         { pos: portal, r: 2.2, label: 'open', on: () => true, run: () => { void travel(PORTAL.to); } },
+        ...items.spots,
       ],
       tap: () => false,
       afterMove: (time, grounded) => gear.update(time, grounded),
-      update: (dt, time) => {
+      update: (dt, time, canMove) => {
+        items.update(dt, time, canMove);
         const hp = hero.root.position;
         for (const n of npcs) {
           n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
@@ -157,7 +164,8 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
-    debug: { npcs, more: {}, talk: (id) => { const n = npcs.find((x) => x.def.id === id); if (n) void talk(n); }, cheatWorld: () => '' },
+    // `flyoverPlayer`: the state of the tour with skip() and hold(i), under the name the first world gives its own.
+    debug: { npcs, more: { flyoverPlayer: items.tour }, talk: (id) => { const n = npcs.find((x) => x.def.id === id); if (n) void talk(n); }, cheatWorld: () => '' },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
       stats: () => [{ icon: '⭐', label: 'col_stars', value: String(save.stars) }],
@@ -165,6 +173,7 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
     lines: LINES,
     hud: () => `${done()}/${npcs.length}`,
     gear,
+    items: items.items,
   };
 }
 
@@ -174,6 +183,9 @@ export const probe: WorldDef<ProbeLoads, WorldSky> = {
   spawn: SPAWN,
   ground,
   characters: FRIENDS,
+  // The fawn of the core's catalog of pets (src/game/pets.ts), found here in this world's own part of the save.
+  pet: { species: 'fawn', at: PET_AT, after: FRIENDS[0].id },
+  secrets: [SECRET],
   strings,
   music: MUSIC,
   sky: buildSky,

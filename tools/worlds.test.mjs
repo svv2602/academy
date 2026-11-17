@@ -12,6 +12,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   PARTS, PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
   probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems,
+  ITEM_KINDS, ONE_OF_EACH, descriptionProblems, marksProblems, nextItem,
 } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -406,6 +407,118 @@ describe('the frames of a change of world (TECH-15)', () => {
   it('the frame closes once and then opens', () => {
     expect(travelFramesProblems(change(3, { closed: false }), 'fairy', 'probe')).toEqual([expect.stringMatching(/^the frame opened and closed again during one change/)]);
     expect(travelFramesProblems(good().slice(0, 6), 'fairy', 'probe')).toEqual(['the frame did not open after it had closed: no frame of the opening was drawn']);
+  });
+});
+
+describe('the description of a world as the scenarios read it (ARCH-16)', () => {
+  const item = (kind, id, o = {}) => ({ kind, id, at: { x: 1, z: 2 }, how: 'act', after: [], done: false, active: false, ...o });
+  /** The description of a test world: one item of every kind, the part in the secret, the finale after everything. */
+  const items = (o = {}) => [
+    item('chain', 'friend'), item('pet', 'pet', { after: ['friend'] }), item('flyover', 'toured', { at: null, how: 'auto' }),
+    item('secret', 'hollow'), item('part', 'gem', { how: 'walk', after: ['hollow'] }), item('scene', 'story'),
+    item('finale', 'final', { after: ['friend', 'pet', 'toured', 'hollow', 'gem', 'story'] }),
+  ].map((i) => ({ ...i, ...o[i.id] }));
+  const seen = (list = items(), o = {}) => ({ items: list, missing: [], problems: [], ...o });
+  const one = (list) => { expect(list, list.join('; ')).toHaveLength(1); return list[0]; };
+
+  it('the kinds are the ones of src/game/world.ts, and a test world needs one of each', () => {
+    const src = readFileSync(join(root, 'src/game/world.ts'), 'utf8');
+    const union = /export type WorldItemKind = ([^;]+);/.exec(src)[1].split('|').map((k) => k.trim().replace(/'/g, ''));
+    expect([...ITEM_KINDS].sort()).toEqual(union.sort());
+    expect(ONE_OF_EACH).toEqual({ chain: 1, secret: 1, part: 1, scene: 1, flyover: 1, pet: 1, finale: 1 });
+  });
+
+  it('a whole description of the one shape has no problem', () => {
+    expect(descriptionProblems(seen())).toEqual([]);
+    expect(descriptionProblems(seen(items({ friend: { done: true }, toured: { done: true, active: true } })))).toEqual([]);
+  });
+
+  it('no description at all: a world that hands in none, or a game that does not show it', () => {
+    expect(one(descriptionProblems({ items: null, missing: null, problems: null }))).toContain('null: the world hands in no description');
+    expect(one(descriptionProblems({ items: undefined }))).toContain('window.__game.items is undefined');
+  });
+
+  it.each(ITEM_KINDS.map((k) => [k]))('a kind that is not there, or is there twice: %s', (kind) => {
+    const without = items().filter((i) => i.kind !== kind);
+    expect(one(descriptionProblems(seen(without)))).toBe(`0 items of kind "${kind}", a test world has one of every kind`);
+    const twice = [...items(), item(kind, 'second')];
+    expect(one(descriptionProblems(seen(twice)))).toBe(`2 items of kind "${kind}" (${items().find((i) => i.kind === kind).id}, second), a test world has one of every kind`);
+  });
+
+  it('an item that is not of the shape: each field is named', () => {
+    const broken = { kind: 'riddle', id: '', at: { x: 1 }, how: 'look', after: 'friend', done: () => true };
+    const lines = descriptionProblems(seen([...items(), broken]));
+    expect(one(lines)).toBe('the item 7 ("") is not of the shape of an item: kind "riddle", id "", at {"x":1}, how "look", after "friend", done undefined, active undefined');
+    expect(one(descriptionProblems(seen([...items(), null])))).toBe('the item 7 is null, not an item');
+    // a place may be absent (the item starts by itself), never half there
+    expect(descriptionProblems(seen(items({ story: { at: null } })))).toEqual([]);
+    expect(one(descriptionProblems(seen(items({ story: { at: { x: 1, z: NaN } } }))))).toContain('at {"x":1,"z":null}');
+  });
+
+  it('what the game itself finds lacking or disagreeing is passed on', () => {
+    const lacks = 'template point 6 "Необязательные секреты" (docs/13-worlds.md): 0 item(s) of kind "secret" - the secrets, at least 1 needed';
+    expect(one(descriptionProblems(seen(items(), { missing: [lacks] })))).toBe(`the description lacks a point of the world template: ${lacks}`);
+    expect(one(descriptionProblems(seen(items(), { problems: ['"well" of the world\'s secrets has no item of kind "secret"'] })))).toContain('disagrees with what the world declares: "well"');
+    expect(one(descriptionProblems(seen(items(), { missing: null })))).toContain('window.__game.missing() answered null');
+    expect(one(descriptionProblems(seen(items(), { problems: undefined })))).toContain('window.__game.itemProblems is undefined');
+  });
+
+  it('the marks: the id of an item is the name of its mark in the world\'s part of the save', () => {
+    const all = items(Object.fromEntries(items().map((i) => [i.id, { done: true }])));
+    const world = { quests: { friend: 1 }, final: true, flags: { pet: true, toured: true, hollow: true, gem: true, story: true } };
+    expect(marksProblems(all, world)).toEqual([]);
+    expect(marksProblems(items(), { quests: {}, final: false, flags: {} })).toEqual([]);
+    expect(marksProblems(items(), null), 'a new game has no part of the save yet').toEqual([]);
+    // a step of a chain that is not finished yet is not a mark of "done"
+    expect(marksProblems(items(), { quests: { friend: 1 }, final: false, flags: {} })).toEqual([]);
+  });
+
+  it('the marks: an item done without its mark, under another name, or not done with it', () => {
+    const all = items(Object.fromEntries(items().map((i) => [i.id, { done: true }])));
+    const world = () => ({ quests: { friend: 1 }, final: true, flags: { pet: true, toured: true, hollow: true, gem: true, story: true } });
+    const w1 = world(); delete w1.flags.hollow; w1.flags.secret = true;
+    expect(one(marksProblems(all, w1))).toBe('the item "hollow" (secret) is done, but its mark "flags.hollow" is undefined in the stored save');
+    const w2 = world(); w2.final = false; w2.flags.final = true;
+    expect(one(marksProblems(all, w2))).toBe('the item "final" (finale) is done, but its mark "final" is false in the stored save');
+    const w3 = world(); w3.quests = {};
+    expect(one(marksProblems(all, w3))).toBe('the item "friend" (chain) is done, but its mark "quests.friend" is undefined in the stored save');
+    expect(marksProblems(all, null)).toHaveLength(7);
+    expect(one(marksProblems(items(), { quests: {}, final: false, flags: { gem: true } }))).toBe('the item "gem" (part) is not done, but its mark "flags.gem" is set in the stored save');
+    expect(one(marksProblems(items(), { quests: {}, final: true, flags: {} }))).toBe('the item "final" (finale) is not done, but its mark "final" is set in the stored save');
+  });
+
+  it('the next item: the order of the list, but never before what it comes after', () => {
+    const order = [];
+    let list = items({ toured: { done: true } });
+    for (let next = nextItem(list); next; next = nextItem(list)) {
+      expect(next.stuck).toBeUndefined();
+      order.push(next.id);
+      list = list.map((i) => (i.id === next.id ? { ...i, done: true } : i));
+    }
+    expect(order).toEqual(['friend', 'pet', 'hollow', 'gem', 'story', 'final']);
+    expect(nextItem(list)).toBeNull();
+    // the part stands before its secret in the list: the secret is still done first
+    const swapped = [item('part', 'gem', { after: ['hollow'] }), item('secret', 'hollow')];
+    expect(nextItem(swapped).id).toBe('hollow');
+    expect(nextItem(swapped.map((i) => (i.id === 'hollow' ? { ...i, done: true } : i))).id).toBe('gem');
+  });
+
+  it('the next item: nothing can be done - each undone item waits for one that is not done or not there', () => {
+    expect(nextItem([item('part', 'gem', { after: ['attic'] })])).toEqual({ stuck: ['gem'] });
+    expect(nextItem([item('part', 'gem', { after: ['key'] }), item('part', 'key', { after: ['gem'] })])).toEqual({ stuck: ['gem', 'key'] });
+  });
+
+  it('the scenario of the description is played in the part "walk"; the change of world reads the description of the world played', () => {
+    const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
+    expect(src.split('await describedScenario(')).toHaveLength(2);
+    expect(src).toMatch(/if \(play\('walk'\)\) try \{\n(?:(?!\n {2}\}).*\n)*? {4}const summary = await describedScenario\(\{ url, shots, fail \}\);\n/);
+    // every check of the description the scenario makes is one of the functions above
+    for (const call of ['descriptionProblems(first)', 'descriptionProblems(last)', 'descriptionProblems(again)', 'marksProblems(last.items, await stored())', 'marksProblems(again.items, await stored())', 'nextItem(items)']) expect(src, call).toContain(call);
+    const travel = src.slice(src.indexOf('async function travelScenarios('), src.indexOf('async function transitionScenarios('));
+    expect(travel).toContain("described: Array.isArray(__game.items)");
+    expect(travel).toContain('if (home.described !== null) fail(');
+    expect(travel).toContain("for (const k of ['npcs', 'names', 'described', ");
+    expect(travel).toMatch(/if \(!same\(kinds, \[\.\.\.ITEM_KINDS\]\.sort\(\)\) \|\| !away\.described\.includes\('chain friend'\)\) fail\(/);
   });
 });
 
