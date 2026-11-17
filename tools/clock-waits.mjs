@@ -19,11 +19,7 @@ export const CLOCK_REASONS = {
   'quiet-window': 'a window in which nothing may happen (no request, no error) on a page with no game running',
   helper: 'the definition of a wait helper (T, wait, gameUntil): the places that call it carry their own reason',
   'moves-to-world-pass': 'inside playWorld of tools/shot.mjs, which the walk of a world by its description takes over (tools/world-pass.mjs) with its own waits',
-  'pending-part-2': 'a bare pause that part 2 of the clean-up turns into a wait for a sign of the game or the page',
 };
-
-/** How many waits are still marked `pending-part-2`: the number may only go down (part 2 brings it to 0). */
-export const PENDING = 58;
 
 /** How many waits are marked `moves-to-world-pass`: they leave with playWorld; the number may only go down. */
 export const MOVING = 18;
