@@ -1717,7 +1717,14 @@ try {
         while ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
           const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
           if (step !== at) { at = step; t0 = Date.now(); } /* clock: stuck-guard */
-          if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (no step for ${Math.round(T(stuckMs) / 1000)} s at step ${step + 1})`); /* clock: stuck-guard */
+          if (Date.now() - t0 > T(stuckMs)) {   /* clock: stuck-guard */
+            // what holds the chain: the task on screen, what the cheat would reach first, the planner and the line
+            const held = await g(() => ({ task: !document.querySelector('#task').classList.contains('hidden') ? document.querySelector('#taskStage').className : null,
+              shown: document.querySelector('#taskStage').dataset.shown ?? null, pulse: document.querySelectorAll('#task .pulse').length,
+              world: __game.worldTask.state, bf: { active: __game.bf.active, demo: __game.bf.demo }, search: __game.search.active,
+              busy: __game.busy, inTask: __game.inTask, line: __game.line, speaking: __game.speaking, ach: __game.ach.scene })).catch((e) => String(e));
+            throw new Error(`quest stuck: ${q.id} (no step for ${Math.round(T(stuckMs) / 1000)} s at step ${step + 1}): ${JSON.stringify(held)}`); /* clock: stuck-guard */
+          }
           await starsKept(`in the quest "${q.id}"`);
           // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
           if (!crystalsWrong && !(await g(() => __game.busy))) {

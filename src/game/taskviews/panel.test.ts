@@ -217,3 +217,21 @@ describe('the shows are drawn', () => {
     ]) expect(rules).toMatch(rule);
   });
 });
+
+describe('a right answer always ends the task', () => {
+  it('even when its sound throws: the card closes, the task resolves solved, and a second tap changes nothing', async () => {
+    const { hooks } = listen();
+    let sounds = 0;
+    const throwing: TaskHooks = { ...hooks, good: () => { sounds++; throw new Error('no audio'); } };
+    const done = showTask(generate('pattern', 1, createRng('right-throws')), throwing);
+    expect(root().classList.contains('hidden')).toBe(false);
+    expect(cheatTask()).toBe(true);
+    expect(sounds).toBe(1);
+    expect(root().classList.contains('won')).toBe(true);
+    cheatTask();
+    expect(sounds).toBe(1);
+    vi.advanceTimersByTime(1100);
+    await expect(done).resolves.toEqual({ solved: true, wrong: 0 });
+    expect(root().classList.contains('hidden')).toBe(true);
+  });
+});

@@ -132,7 +132,9 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     const finish = (solved: boolean) => { c.alive = false; current = null; root.classList.add('hidden'); resolve({ solved, wrong: c.wrongs }); };
     const c: PanelCtx = {
       stage, opts, hooks, wrongs: 0, alive: true, own: -1, hint: null, cheat: () => {},
-      right() { if (!c.alive) return; c.alive = false; hooks.good(); root.classList.add('won'); setTimeout(() => finish(true), 1100); },
+      // The end is set before the sound: whatever the sound does, a right answer always ends the task (a panel left up
+      // with its answer taken and no end - the walkthrough's "quest stuck" - was the one way a chain could stand still).
+      right() { if (!c.alive) return; c.alive = false; root.classList.add('won'); setTimeout(() => finish(true), 1100); try { hooks.good(); } catch { /* no sound */ } },
       wrong(e) {
         if (!c.alive) return;
         const round = ++c.wrongs;
