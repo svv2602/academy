@@ -8,9 +8,13 @@ import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
+import { giftState } from '../ui/welcome';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
+
+/** The key of the tab's storage that keeps the walkthrough's lever of the gift (`__game.gift`) over a reload. */
+export const GIFT_HOLD = 'amw-gift-hold';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -38,6 +42,8 @@ export interface DebugBuilt { items?(): readonly WorldItem[] }
  * of the new world: `npcs`, `talk`, `cheat` and the world's own names are then the new world's.
  */
 export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): (next: DebugExtras) => void {
+  // The walkthrough's lever of the gift of the day, pulled in this tab before (window.__game.gift below).
+  try { giftState.held = sessionStorage.getItem(GIFT_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
   // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
@@ -92,6 +98,16 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       get plays() { return played.n; },
       /** The stop points over since the page loaded, by place ('finale', 'book', ...). */
       get over() { return { ...over }; },
+    },
+    /**
+     * The gift of the day (PLAY-21, src/ui/welcome.ts): `hold()` - no gift, the meeting is the same-day welcome back,
+     * `release()` - the gift by the clock again, `held` - whether it is pulled. The walkthrough's own lever (R61: the saves
+     * of its pieces do not depend on the real date), never the game's; it lasts for the tab (sessionStorage), reloads too.
+     */
+    gift: {
+      get held() { return giftState.held; },
+      hold() { giftState.held = true; try { sessionStorage.setItem(GIFT_HOLD, '1'); } catch { /* ignore */ } },
+      release() { giftState.held = false; try { sessionStorage.removeItem(GIFT_HOLD); } catch { /* ignore */ } },
     },
     /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
     get time() { return uTime.value; },

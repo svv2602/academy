@@ -4,6 +4,7 @@ import { clearSave } from '../core/save';
 import '../ui/session';   // PLAY-20: the cat's offer of a break joins the stop points (its card and the sleeping cat)
 import { initShop } from '../ui/shop';
 import { el, initBook } from '../ui/ui';
+import { firstDay, meet } from '../ui/welcome';   // PLAY-21: the cat's meeting on a new day
 import type { Game } from './context';
 import { tour } from './flyover';
 import { atPlay } from './stops';
@@ -18,8 +19,8 @@ import type { BookInfo, WorldLines } from './world';
 export async function enterWorld(g: Game, first: boolean): Promise<void> {
   // WORLD-13: the opening scene of a new save goes here, before the tour.
   await tour(g);
-  if (first) void g.speech.line('go_next', 'hint', 6000);
-  else await g.speech.line('welcome_back', 'hint', 5000);
+  if (first) { firstDay(g); void g.speech.line('go_next', 'hint', 6000); }   // PLAY-21: the first day is marked, no star
+  else await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
 }
 
 /**

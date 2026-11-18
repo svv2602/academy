@@ -164,7 +164,7 @@ const S = sameKeys({
     // cat's lines above); the buttons and the parents' rows here
     break_yes: 'До завтра 🌙', break_no: 'Ще пограю ▶',
     p_break: 'Перерва в грі', p_break_hint: 'Через цей час кіт запропонує продовжити завтра — після завдання, не посеред нього. Дитина може відмовитися; тоді кіт нагадає не раніше ніж за 10 хвилин.',
-    br10: '10 хв', br15: '15 хв', br20: '20 хв', br30: '30 хв', br_off: 'Вимкнено',
+    br10: '10 хв', br15: '15 хв', br20: '20 хв', br30: '30 хв', br_off: 'Вимкнено', gift_caption: 'Подарунок дня: +1 ⭐',
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
@@ -303,7 +303,7 @@ const S = sameKeys({
     // --- the cat's offer of a break (PLAY-20): the buttons and the parents' rows (the lines are with the spoken ones)
     break_yes: 'До завтра 🌙', break_no: 'Ещё поиграю ▶',
     p_break: 'Перерыв в игре', p_break_hint: 'Через это время кот предложит продолжить завтра — после задания, не посреди него. Ребёнок может отказаться; тогда кот напомнит не раньше чем через 10 минут.',
-    br10: '10 мин', br15: '15 мин', br20: '20 мин', br30: '30 мин', br_off: 'Выключено',
+    br10: '10 мин', br15: '15 мин', br20: '20 мин', br30: '30 мин', br_off: 'Выключено', gift_caption: 'Подарок дня: +1 ⭐',
   },
 });
 /** The shared table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */

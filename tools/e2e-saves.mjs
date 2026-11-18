@@ -35,6 +35,7 @@ export const BLOCKS = [
   'parents',        // the gate, the version, the voice slider, the quality button
   'achievements',   // the set of achievements the piece earned; the scene of one at a stop point, ended by one tap (PLAY-08)
   'break',          // the cat's offer of a break at a stop point: "play on" in one tap, "till tomorrow", the sleeping cat, "Continue" (PLAY-20)
+  'welcome',        // the cat's meeting on a new day: "where we stopped" by a tap on the cat, a hello and one star, the same day welcome back (PLAY-21)
   'code',           // the save as a code: copied, loaded on a game started again, the same game after the reload, the previous one given back (PLAY-16)
   'leave',          // leaving the page saves the spot; after the reload she wears what the shop sold
   'looks',          // the four looks of the start screen, then the hair alone in the fitting room (PLAY-06)
@@ -123,7 +124,7 @@ export const GROUPS = {
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'achievements', 'break', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
