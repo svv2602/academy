@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_TURN, attemptName, lastAttempts, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
+import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_ALL, TRY_ALL_MAX, TRY_LIMITS, TRY_TURN, attemptName, lastAttempts, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
 import { PARTS } from './worlds.mjs';
@@ -966,7 +966,7 @@ describe('tools/ci-pieces.mjs tryPlan: the name of a trial branch says what to t
   const C = `1a2b3c4${'d'.repeat(33)}`;
   it('a piece of the walkthrough in a size, N times, with the network or without', () => {
     expect(tryPlan('try/mobile/world2/x5/net/1a2b3c4', C)).toEqual({
-      size: 'mobile', piece: 'world2', n: 5, offline: false, probe: false, title: 'world2 mobile x5',
+      size: 'mobile', piece: 'world2', n: 5, offline: false, probe: false, all: false, runMs: 1080000, minutes: 25, title: 'world2 mobile x5',
       matrix: { include: [{ turn: 1 }, { turn: 2 }, { turn: 3 }, { turn: 4 }, { turn: 5 }] },
     });
     expect(tryPlan('try/desktop/shop/x1/offline/1a2b3c4dddd', C)).toMatchObject({ size: 'desktop', piece: 'shop', n: 1, offline: true, probe: false, title: 'shop desktop x1 offline' });
@@ -1041,6 +1041,45 @@ describe('tools/ci-pieces.mjs tryResult and turnError: k of N and the text of ev
   });
 });
 
+describe('tools/ci-pieces.mjs tryPlan: the whole walkthrough of a size as a trial', () => {
+  const C = `1a2b3c4${'d'.repeat(33)}`;
+  it('"all" is the whole walkthrough of any of the four sizes, with limits of its own', () => {
+    expect(tryPlan('try/mobile/all/x1/net/1a2b3c4', C)).toEqual({
+      size: 'mobile', piece: 'all', n: 1, offline: false, probe: false, all: true, runMs: 1800000, minutes: 40, title: 'all mobile x1',
+      matrix: { include: [{ turn: 1 }] },
+    });
+    for (const size of SIZES) expect(tryPlan(`try/${size}/all/x${TRY_ALL_MAX}/offline/1a2b3c4`, C)).toMatchObject({ size, all: true, offline: true, n: TRY_ALL_MAX, ...TRY_LIMITS.all });
+    expect(TRY_ALL).toBe('all');
+    // the limits are the piece's parameter: a piece and a part of the probe world keep the gate's, the whole walk is longer
+    expect(TRY_LIMITS.piece).toEqual({ runMs: 1080000, minutes: 25 });
+    expect(TRY_LIMITS.all.runMs).toBeGreaterThan(TRY_LIMITS.piece.runMs);
+    expect(TRY_LIMITS.all.minutes * 60000).toBeGreaterThan(TRY_LIMITS.all.runMs);
+    for (const part of PARTS) expect(tryPlan(`try/probe/${part}/x1/net/1a2b3c4`, C)).toMatchObject({ all: false, ...TRY_LIMITS.piece });
+    expect(PIECES).not.toContain(TRY_ALL);
+  });
+
+  it('it is long: no more than a few turns at once; the probe world has no "all"', () => {
+    expect(tryPlan(`try/mobile/all/x${TRY_ALL_MAX + 1}/net/1a2b3c4`, C).error).toContain(`the whole walkthrough is played x1..x${TRY_ALL_MAX} at most`);
+    expect(tryPlan('try/probe/all/x1/net/1a2b3c4', C).error).toContain('unknown part of the probe world "all"');
+    expect(tryPlan('try/mobile/everything/x1/net/1a2b3c4', C).error).toContain(`or all (the whole walkthrough, x1..x${TRY_ALL_MAX})`);
+  });
+
+  it('the command hands the limits to the workflow and says what will be played', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ci-try-all-'));
+    try {
+      const out = join(dir, 'out');
+      const r = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/desktop/all/x2/offline/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toContain('[ci] trial: all desktop x2 offline (the whole walkthrough in the size desktop, without the network, 2 time(s); a walkthrough within 30 min, a turn within 40 min)');
+      const written = readFileSync(out, 'utf8');
+      for (const line of ['size=desktop', 'piece=all', 'n=2', 'offline=true', 'probe=false', 'all=true', 'run_ms=1800000', 'minutes=40']) expect(written.split('\n'), line).toContain(line);
+      const piece = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/mobile/shop/x1/net/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
+      expect(piece.stdout).toContain('(the piece "shop" in the size mobile, with the network, 1 time(s); a walkthrough within 18 min, a turn within 25 min)');
+      expect(readFileSync(out, 'utf8')).toContain('all=false\nrun_ms=1080000\nminutes=25\n');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }, 60000);
+});
+
 describe('.github/workflows/try.yml: a trial is not the gate', () => {
   const t = workflow('try.yml');
   it('runs on a push to try/** and on nothing else; ci.yml does not run there', () => {
@@ -1066,7 +1105,7 @@ describe('.github/workflows/try.yml: a trial is not the gate', () => {
     expect(plan).toContain('TRY_COMMIT: ${{ github.sha }}');
     expect(plan).toContain('run: node tools/ci-pieces.mjs try "$TRY_BRANCH" "$TRY_COMMIT"');
     expect(plan).not.toContain('continue-on-error');
-    for (const out of ['size', 'piece', 'n', 'offline', 'probe', 'title', 'matrix']) expect(plan).toContain(`      ${out}: \${{ steps.read.outputs.${out} }}`);
+    for (const out of ['size', 'piece', 'n', 'offline', 'probe', 'all', 'run_ms', 'minutes', 'title', 'matrix']) expect(plan).toContain(`      ${out}: \${{ steps.read.outputs.${out} }}`);
   });
 
   it('one build, N turns of it at once, each to its end, played as the gate plays', () => {
@@ -1078,6 +1117,13 @@ describe('.github/workflows/try.yml: a trial is not the gate', () => {
     expect(turn).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
     expect(turn).toContain("          E2E_NET: ${{ needs.plan.outputs.offline == 'true' && 'offline' || 'net' }}\n");
     expect(turn).toContain('npm run e2e -- --skip-build --mode "$TRY_SIZE" --only "$TRY_PIECE" 2>&1 | tee try.log');
+    // the whole walkthrough of a size: the same command without a piece, chosen by what the name of the branch said
+    expect(turn).toContain('          elif [ "$TRY_ALL" = true ]; then\n            npm run e2e -- --skip-build --mode "$TRY_SIZE" 2>&1 | tee try.log\n');
+    expect(turn).toContain('          TRY_ALL: ${{ needs.plan.outputs.all }}\n');
+    // the limits come from the plan (TRY_LIMITS), not from a number written here
+    expect(key(turn, 'timeout-minutes')).toBe('${{ fromJSON(needs.plan.outputs.minutes) }}');
+    expect(turn).toContain('          E2E_RUN_TIMEOUT_MS: ${{ needs.plan.outputs.run_ms }}\n');
+    expect(turn).not.toMatch(/E2E_RUN_TIMEOUT_MS: '?\d/);
     expect(turn).toContain('node tools/worlds.mjs dist --only "$TRY_PIECE" 2>&1 | tee try.log');
     expect(turn).toContain('set -o pipefail');
     // what was read from the name of the branch reaches the shell as variables, never as text of the script

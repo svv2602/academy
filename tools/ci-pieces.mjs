@@ -246,38 +246,51 @@ export function rests({ sha, runId, before }, { runs, jobsOf, beforeRuns }) {
 /** The size that means "a part of the probe world" in the name of a trial branch. */
 export const TRY_PROBE = 'probe';
 export const TRY_MAX = 10;
+/** The piece that means "the whole walkthrough of a size, in one session" in the name of a trial branch. */
+export const TRY_ALL = 'all';
+/** The whole walkthrough is long: at most this many turns of it at once. */
+export const TRY_ALL_MAX = 3;
+/**
+ * The limits of a turn, by what is played: `runMs` - of one walkthrough process (E2E_RUN_TIMEOUT_MS), `minutes` - of
+ * the job that plays it. A piece and a part of the probe world keep the limits of the gate (ci.yml); the whole
+ * walkthrough is the four pieces in one session and has limits of its own.
+ */
+export const TRY_LIMITS = { piece: { runMs: 1_080_000, minutes: 25 }, all: { runMs: 1_800_000, minutes: 40 } };
 /** The kinds of what the jobs leave for the job that sums them up (the names: `attemptName`). */
 export const RESULTS = 'results', TRY_TURN = 'try-turn';
 /**
  * A trial branch is try/<size>/<piece>/x<N>/<net|offline>/<the first 7 or more characters of its commit>:
  *   size - one of the four screen sizes, or "probe" (a part of the probe world, tools/worlds.mjs);
- *   piece - a piece of the world of that size (tools/e2e-saves.mjs PIECES), or a part of the probe world;
+ *   piece - a piece of the world of that size (tools/e2e-saves.mjs PIECES), "all" - the whole walkthrough of that
+ *           size in one session, as `npm run e2e -- --mode <size>` plays it (x1..x3), or a part of the probe world;
  *   N - how many times it is played at once, 1..10;  net | offline - played with the network or without
  *   (a part of the probe world has its own network scenarios: only "net").
- * Returns { size, piece, n, offline, probe, title, matrix } or { error } - a name that cannot be read is an error
+ * Returns { size, piece, n, offline, probe, all, runMs, minutes, title, matrix } (the limits: TRY_LIMITS) or { error } - a name that cannot be read is an error
  * with the reason, never "play everything": a trial nobody asked for proves nothing.
  */
 export function tryPlan(branch, commit) {
   const shape = `try/<${[...SIZES, TRY_PROBE].join('|')}>/<piece>/x<1..${TRY_MAX}>/<net|offline>/<commit, 7 characters or more>`;
   // what the name holds is printed like a file name: it is written by whoever pushed the branch
-  const bad = (why) => ({ error: `the trial branch "${shown(String(branch ?? ''))}": ${shown(why)}. The name is ${shape}; pieces: ${PIECES.join(', ')}; parts of the probe world: ${PARTS.join(', ')}` });
+  const bad = (why) => ({ error: `the trial branch "${shown(String(branch ?? ''))}": ${shown(why)}. The name is ${shape}; pieces: ${PIECES.join(', ')}, or ${TRY_ALL} (the whole walkthrough, x1..x${TRY_ALL_MAX}); parts of the probe world: ${PARTS.join(', ')}` });
   const parts = String(branch ?? '').split('/');
   if (parts[0] !== 'try') return bad('is not a trial branch (try/...)');
   if (parts.length !== 6) return bad(`has ${parts.length - 1} parts after "try", not 5`);
   const [, size, piece, times, net, sha] = parts;
   const probe = size === TRY_PROBE;
   if (!probe && !SIZES.includes(size)) return bad(`unknown size "${size}"`);
-  if (probe ? !PARTS.includes(piece) : !PIECES.includes(piece)) return bad(probe ? `unknown part of the probe world "${piece}"` : `unknown piece "${piece}"`);
+  const all = piece === TRY_ALL;   // the probe world has no such part: the check below refuses it
+  if (probe ? !PARTS.includes(piece) : !all && !PIECES.includes(piece)) return bad(probe ? `unknown part of the probe world "${piece}"` : `unknown piece "${piece}"`);
   const m = /^x([1-9]\d?)$/.exec(times);
   const n = m ? Number(m[1]) : 0;
   if (!m || n > TRY_MAX) return bad(`"${times}" is not x1..x${TRY_MAX}`);
+  if (all && n > TRY_ALL_MAX) return bad(`"${times}": the whole walkthrough is played x1..x${TRY_ALL_MAX} at most`);
   if (net !== 'net' && net !== 'offline') return bad(`"${net}" is neither "net" nor "offline"`);
   if (probe && net !== 'net') return bad('a part of the probe world is played with "net" only (it switches the network itself)');
   if (!/^[0-9a-f]{7,64}$/.test(sha)) return bad(`"${sha}" is not the beginning of a commit (7 or more of 0-9a-f)`);
   if (!COMMIT.test(String(commit ?? ''))) return bad('the commit of the branch is not known');
   if (!commit.startsWith(sha)) return bad(`names the commit ${sha}, but points at ${short(commit)}`);
   return {
-    size, piece, n, offline: net === 'offline', probe,
+    size, piece, n, offline: net === 'offline', probe, all, ...(all ? TRY_LIMITS.all : TRY_LIMITS.piece),
     title: `${piece} ${size} x${n}${net === 'offline' ? ' offline' : ''}`,
     matrix: { include: Array.from({ length: n }, (_, i) => ({ turn: i + 1 })) },
   };
@@ -408,8 +421,9 @@ function main(argv, env) {
   if (cmd === 'try' && rest.length === 2) {
     const t = tryPlan(rest[0], rest[1]);
     if (t.error) { console.error(`[ci] ${t.error}`); return 1; }
-    console.log(`[ci] trial: ${t.title} (${t.probe ? `the part "${t.piece}" of the probe world` : `the piece "${t.piece}" in the size ${t.size}, ${t.offline ? 'without the network' : 'with the network'}`}, ${t.n} time(s))`);
-    if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `size=${t.size}\npiece=${t.piece}\nn=${t.n}\noffline=${t.offline ? 'true' : 'false'}\nprobe=${t.probe ? 'true' : 'false'}\ntitle=${t.title}\nmatrix=${JSON.stringify(t.matrix)}\n`);
+    const what = t.probe ? `the part "${t.piece}" of the probe world` : `${t.all ? 'the whole walkthrough' : `the piece "${t.piece}"`} in the size ${t.size}, ${t.offline ? 'without the network' : 'with the network'}`;
+    console.log(`[ci] trial: ${t.title} (${what}, ${t.n} time(s); a walkthrough within ${t.runMs / 60000} min, a turn within ${t.minutes} min)`);
+    if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `size=${t.size}\npiece=${t.piece}\nn=${t.n}\noffline=${t.offline ? 'true' : 'false'}\nprobe=${t.probe ? 'true' : 'false'}\nall=${t.all ? 'true' : 'false'}\nrun_ms=${t.runMs}\nminutes=${t.minutes}\ntitle=${t.title}\nmatrix=${JSON.stringify(t.matrix)}\n`);
     return 0;
   }
   if (cmd === 'try-turn' && rest.length === 3) {
