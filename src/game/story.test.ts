@@ -30,6 +30,29 @@ const files = (s: Shot) => [`${s.image}.webp`, `${s.image}_depth.webp`];
 const size = (f: string) => statSync(join(PUBLIC, f)).size;
 const intro = FAIRY_STORIES.find((s) => s.id === 'story_intro')!, crystal = FAIRY_STORIES.find((s) => s.id === 'story_crystal')!;
 const shots = FAIRY_STORIES.flatMap((s) => s.shots);
+/** WORLD-13, the script of a frame: its line at most 12 words, recorded no faster than 2.2 words a second of its clip. */
+const LINE_WORDS = 12, LINE_PACE = 2.2;
+
+/**
+ * The length of an MP3 clip in seconds, by its frames (an ID3v2 tag before them is skipped): MPEG-1/2/2.5 Layer III,
+ * what tools/gen_voice.py writes. A frame that does not parse ends the count.
+ */
+function mp3Seconds(b: Buffer): number {
+  const KBPS = { 1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], 2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160] };
+  const RATE = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] } as Record<number, number[]>;
+  let at = 0, seconds = 0;
+  if (b.toString('latin1', 0, 3) === 'ID3') at = 10 + ((b[6] & 0x7f) << 21 | (b[7] & 0x7f) << 14 | (b[8] & 0x7f) << 7 | (b[9] & 0x7f));
+  while (at + 4 <= b.length) {
+    if (b[at] !== 0xff || (b[at + 1] & 0xe0) !== 0xe0) break;
+    const version = (b[at + 1] >> 3) & 3, layer = (b[at + 1] >> 1) & 3;
+    const kbps = (version === 3 ? KBPS[1] : KBPS[2])[b[at + 2] >> 4], rate = RATE[version]?.[(b[at + 2] >> 2) & 3];
+    if (layer !== 1 || !kbps || !rate) break;
+    const samples = version === 3 ? 1152 : 576, padding = (b[at + 2] >> 1) & 1;
+    seconds += samples / rate;
+    at += Math.floor((samples / 8) * kbps * 1000 / rate) + padding;
+  }
+  return seconds;
+}
 
 describe('the cut-scenes of the first world (WORLD-13)', () => {
   it('an introduction of 4-6 frames and a return of the crystal of 2-3, their ids the flags of the save', () => {
@@ -77,6 +100,28 @@ describe('the cut-scenes of the first world (WORLD-13)', () => {
       expect([f.format, f.width, f.height], s.image).toEqual(['webp', 960, 536]);
       expect([d.format, d.width, d.height], `${s.image}_depth`).toEqual(['webp', 480, 268]);
     }
+  });
+
+  it('the line of a frame: at most 12 words, recorded no faster than 2.2 words a second of its clip', () => {
+    const { uk } = strings.table as Record<'uk', Record<string, string>>;
+    const left: string[] = [];
+    for (const s of shots) {
+      const words = uk[s.line].split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+      const seconds = mp3Seconds(readFileSync(join(PUBLIC, 'voice', `${s.line}.mp3`)));
+      if (words > LINE_WORDS) left.push(`${s.line}: ${words} words`);
+      if (words / seconds > LINE_PACE) left.push(`${s.line}: ${(words / seconds).toFixed(2)} words a second (${words} in ${seconds.toFixed(2)} s)`);
+    }
+    expect(left).toEqual([]);
+  });
+
+  it('the length of a clip is read from its frames', () => {
+    // frames of MPEG-1 Layer III at 32 kbit/s and 44.1 kHz: 1152 samples, 104 bytes each; an ID3v2 tag before them is skipped
+    const header = Buffer.from([0xff, 0xfb, 0x10, 0x00]);   // MPEG-1 L3, 32 kbit/s, 44.1 kHz, no padding
+    const frame = Buffer.concat([header, Buffer.alloc(104 - 4)]);
+    const n = Math.round(44100 / 1152);
+    expect(mp3Seconds(Buffer.concat(Array.from({ length: n }, () => frame)))).toBeCloseTo((n * 1152) / 44100, 6);
+    const tagged = Buffer.concat([Buffer.from([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 10]), Buffer.alloc(10), frame]);
+    expect(mp3Seconds(tagged)).toBeCloseTo(1152 / 44100, 6);
   });
 
   it('every file of a frame and of its depth map has its entry in CREDITS.md', () => {
