@@ -4943,5 +4943,13 @@
   "style": "warm",
   "voice": "Charon",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "need_net": {
+  "text": "Щоб відкрити цей портал, потрібен інтернет. Попроси дорослих увімкнути його.",
+  "heard": "Щоб відкрити цей портал, потрібен інтернет. Попроси дорослих увімкнути його.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
