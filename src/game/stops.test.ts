@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
 import { check, type AchContext, type AchievementId } from './achievements';
-import { achContext, achievementStop, atPlay, mayStop, onPoint, onStop, setScreen, stopPoint, worldFacts, type StopHost } from './stops';
+import { achContext, achievementStop, atPlay, mayStop, onPoint, onStop, over, setScreen, stopPoint, worldFacts, type StopHost } from './stops';
 
 const CTX: AchContext = {
   worlds: [{ id: 'w1', groundStars: [0, 1], quests: [{ id: 'a', steps: [1, 2] }], chest: 'chest', secrets: ['chest'] }],
@@ -122,6 +122,17 @@ describe('stop points and the achievements\' scene (PLAY-08, R43)', () => {
     await stopPoint('book', host(s));
     await stopPoint('part', host(s, { busy: true }));
     expect(s.achievements[id]).toBe(5);
+  });
+
+  it('the end of the finale is a stop point of its own, outside a conversation: counted over whether it came in or not', async () => {
+    const s = defaultSave(), scenes: string[] = [];
+    off.push(onStop((_, w) => { scenes.push(w); }));
+    const before = over.finale ?? 0;
+    await stopPoint('finale', host(s, { busy: true }));             // the heroine still busy: skipped, still over
+    expect([scenes, (over.finale ?? 0) - before]).toEqual([[], 1]);
+    await stopPoint('finale', host(s));
+    expect([scenes, (over.finale ?? 0) - before]).toEqual([['finale'], 2]);
+    expect(mayStop(host(s, { busy: true }), 'finale')).toBe(false);
   });
 
   it('"Play" counts the day once per date and is a stop point', async () => {

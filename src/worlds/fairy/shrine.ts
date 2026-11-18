@@ -4,6 +4,7 @@ import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
 import type { WorldScope } from '../../game/scope';
 import { playScene, type Stage } from '../../game/stage';
+import { stopPoint } from '../../game/stops';
 import type { buildSky } from './sky';
 import { fanfare } from '../../ui/ui';
 import { t } from '../../ui/strings';
@@ -93,7 +94,9 @@ export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readon
       await fanfare('final_title', t('final_text'));
       cat.play('Idle'); hero.play('Idle'); npcs.forEach((n) => n.actor.play('Idle'));
       // After the scene (its end clears the bubble) and after the final words: a hint does not cut the story off.
-      onward = () => { void words.then(() => line('free', 'hint', 6000)); };
+      // The last words, then "free", then a stop point (PLAY-08): the achievement of the artifact restored has its scene
+      // right after the finale, not at whatever point comes next.
+      onward = () => { void words.then(() => line('free', 'hint', 6000)).then(() => stopPoint('finale', g)); };
     });
     onward();
   };
