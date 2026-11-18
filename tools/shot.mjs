@@ -2635,8 +2635,12 @@ try {
       if (has('achievements')) {
         const fail = (what) => { throw new Error(`achievements: ${what}`); };
         // The piece's own set, and the achievements whose counters depend on how the tasks happened to go (ten in a row at
-        // the first try, fifty tasks, days played): expected exactly when the save's own counters say they are earned.
-        const by = await g(() => {
+        // the first try, fifty tasks, days played): expected exactly when the save's own counters say they are earned. The
+        // numbers are those of the card PLAY-08 (docs/12-gameplay.md), written here, not taken from the game's code. Only the
+        // pieces whose tasks go by chance (finale, shop, the whole walk) are given them: world1 and world2 make a mistake at
+        // the first meeting of every kind, so their sets stay fixed - a counter that counted wrong turns them red.
+        const CHANCE = !group || only === 'finale' || only === 'shop';
+        const by = !CHANCE ? {} : await g(() => {
           const s = __game.save, solved = Object.values(s.skills).reduce((n, k) => n + (k.tasks || 0), 0);
           return { clean_ten: (s.clean?.best ?? 0) >= 10, fifty_tasks: solved >= 50, days_3: (s.days?.n ?? 0) >= 3, days_5: (s.days?.n ?? 0) >= 5 };
         });
