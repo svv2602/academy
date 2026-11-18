@@ -67,6 +67,7 @@ import { gameWaits } from './game-wait.mjs';
 import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
 import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
+import { playWorld } from './world-pass.mjs';
 
 const [url = 'http://localhost:5173/', out = 'shots', mode = 'desktop'] = process.argv.slice(2);
 const GL_ARGS = {
@@ -684,154 +685,6 @@ try {
     }
   };
 
-  // ---- E2E_WORLD=<id>: any world of the registry, played through its characters (ARCH-06) ----
-  // What every world has: characters with chains of tasks, the counter "<done>/<characters>", the stars, its part of the
-  // save under worlds.<id>, the book of its parts. The first world's own scenarios are not played here.
-  const playWorld = async () => {
-    const fail = (what) => { throw new Error(`world "${worldId}": ${what}`); };
-    const stored = () => g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
-    const kept = JSON.stringify(FAIRY_KEPT);
-    await wait(1500); await shot('00-start'); await checkLinks('start screen'); /* clock: moves-to-world-pass */
-    await page.click('#play');
-    if (level) await page.evaluate((d) => { for (const k of Object.keys(__game.save.fixed)) __game.save.fixed[k] = d; }, Number(level));
-    await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(20000) }) /* clock: moves-to-world-pass */
-      .catch(() => fail('no line after "play"'));
-    // "play" stores the save: the world played has its part in it - the proof that ?world= picked this world
-    {
-      const s0 = await stored();
-      if (!s0.worlds?.[worldId]) fail(`the game does not play it: the save has no worlds.${worldId} after "play" (worlds: ${Object.keys(s0.worlds ?? {}).join(', ') || 'none'})`);
-      if (JSON.stringify(s0.worlds.fairy) !== kept) fail(`worlds.fairy changed at the start: ${JSON.stringify(s0.worlds.fairy)}, was ${kept}`);
-      if (s0.stars !== STARS_KEPT) fail(`the save starts with ${s0.stars} stars, not the ${STARS_KEPT} it was given`);
-    }
-    await wait(3000); await shot('01-spawn'); /* clock: moves-to-world-pass */
-    // the stars never go down, and a star won is stored in the same frame (as in the first world)
-    await g(() => {
-      const w = window.__stars = { last: __game.save.stars, drops: [], unsaved: [], frames: 0, buy: null, bought: [] };
-      const look = () => {
-        const n = __game.save.stars;
-        // The one way down: a purchase the walkthrough announced (window.__stars.buy), exactly its price, the thing in
-        // the save's purchases, stored at once. Any other drop is an error.
-        const b = w.buy, st = n !== w.last ? JSON.parse(localStorage.getItem('amw-save') || '{}') : null;
-        if (n < w.last && b && w.last - n === b.price && __game.save.owned.includes(b.id) && st.stars === n && st.owned?.includes(b.id)) { w.bought.push(`${b.id} ${w.last} -> ${n}`); w.buy = null; }
-        else if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
-        if (n > w.last) { if (st.stars !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${st.stars}`); }
-        w.last = n; w.frames++; requestAnimationFrame(look);
-      };
-      look();
-    });
-    let starDrops = 0, starUnsaved = 0;
-    const starsKept = async (where) => {
-      const w = await g(() => ({ drops: window.__stars.drops, unsaved: window.__stars.unsaved, frames: window.__stars.frames }));
-      for (const d of w.drops.slice(starDrops)) errors.push(`stars: ${mode}: the number of stars went down ${where}: ${d}`);
-      for (const d of w.unsaved.slice(starUnsaved)) errors.push(`stars: ${mode}: stars won ${where} were not stored at once: ${d}`);
-      starDrops = w.drops.length; starUnsaved = w.unsaved.length;
-      return w.frames;
-    };
-    const npcs = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z, steps: n.def.steps.length })));
-    if (!npcs.length) fail('__game.npcs is empty');
-    const step = (id) => g(([w, c]) => __game.save.worlds[w]?.quests?.[c] ?? 0, [worldId, id]);
-    const seenTypes = new Set();
-    let done = 0;
-    for (const q of npcs) {
-      const t0 = Date.now(), starsBefore = await g(() => __game.save.stars); /* clock: moves-to-world-pass */
-      while ((await step(q.id)) < q.steps || await g(() => __game.busy)) {
-        if (Date.now() - t0 > T(stuckMs)) throw new Error(`quest stuck: ${q.id} (world "${worldId}")`); /* clock: moves-to-world-pass */
-        if (await fanfareUp(`world "${worldId}"`)) {
-          await shot(`shard-${q.id}`);
-          await tapOn('#fanfareOk').catch((e) => fail(`the button of the part cannot be pressed: ${why(e)}`));
-          await wait(500); continue; /* clock: moves-to-world-pass */
-        }
-        if (await g(() => !document.querySelector('#task').classList.contains('hidden') && !__game.inTask)) errors.push(`world "${worldId}": a task is open, but the planner of spoken lines does not know it`);
-        if (await visible('#task')) {
-          const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
-          if (!seenTypes.has(type)) { seenTypes.add(type); await wait(type === 'simon' ? 5500 : 900); await shot(`task-${type}`); if (QUESTIONS[type]) await checkQuestion(type); } /* clock: moves-to-world-pass */
-          if (!(await g(() => __game.cheat()))) fail(`__game.cheat() did nothing for the "${type}" task of "${q.id}"`);
-          await wait(1500); continue; /* clock: moves-to-world-pass */
-        }
-        // a task of the world itself (in the foreground or the background): the world's cheat does its right move
-        const how = await g(() => __game.cheat());
-        if (how) { if (!seenTypes.has(how)) { seenTypes.add(how); await shot(`task-${how}`); } await wait(700); continue; } /* clock: moves-to-world-pass */
-        if (!(await g(() => __game.busy))) {
-          await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
-          await wait(400); /* clock: moves-to-world-pass */
-          await act();
-        }
-        await wait(600); /* clock: moves-to-world-pass */
-      }
-      done++;
-      await starsKept(`in the chain of "${q.id}"`);
-      const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, stars: __game.save.stars }));
-      if (c.hud !== `${done}/${npcs.length}`) errors.push(`crystals: ${mode} ${worldId}: the counter shows ${c.hud} with ${done} of ${npcs.length} chains done`);
-      if (!(c.stars > starsBefore)) errors.push(`stars: ${mode} ${worldId}: the chain of "${q.id}" gave no stars (${starsBefore} -> ${c.stars})`);
-      console.log(`chain done: ${q.id} (${q.steps} steps), ${((Date.now() - t0) / 1000).toFixed(0)}s, counter ${c.hud}, stars ${starsBefore} -> ${c.stars}`); /* clock: moves-to-world-pass */
-    }
-    await page.waitForFunction(() => !__game.busy, null, { timeout: T(30000) }).catch(() => fail('the last scene did not end')); /* clock: moves-to-world-pass */
-    // the book: one part per character, lit for every chain done, the stars of the save
-    await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
-    await wait(500); await shot('30-book'); await checkLinks('collection book'); /* clock: moves-to-world-pass */
-    {
-      const b = await g(() => {
-        const parts = [...document.querySelectorAll('#shards .shard')];
-        return { parts: parts.length, got: parts.filter((e) => e.classList.contains('got')).length, stars: __game.save.stars, stats: document.querySelector('#colStats')?.textContent ?? '' };
-      });
-      const left = [];
-      if (b.parts !== npcs.length) left.push(`${b.parts} parts for ${npcs.length} characters`);
-      if (b.got !== done) left.push(`${b.got} parts lit, ${done} chains done`);
-      if (!b.stats.includes(String(b.stars))) left.push(`the stars ${b.stars} are not in "${b.stats}"`);
-      if (left.length) errors.push(`book: ${mode} ${worldId}: ${left.join('; ')}`);
-      else console.log(`book: ${b.got} of ${b.parts} parts, ${b.stars} stars`);
-    }
-    await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
-    // the checks every world shares: the voice, the planner of spoken lines, the frame counter
-    {
-      const frames = await starsKept(`by the end of the world "${worldId}"`);
-      if (!frames) errors.push(`stars: ${mode}: the watch of the stars saw no frame`);
-      const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
-      console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
-      if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
-      voiceUsed = await checkVoice('at the end');
-      await checkBank();
-      const lost = [...new Set(voice.dropped)].filter((id) => id !== 'go_next');
-      console.log(`lines turned away by the planner: ${voice.dropped.join(' ') || 'none'}`);
-      if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
-      const counter = await page.textContent('#fps').catch(() => null);
-      if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
-      console.log('task types seen:', [...seenTypes].join(' '));
-    }
-    // a reload: the progress is the world's own, under worlds.<id>; the first world's is as it was
-    const before = await g(() => __game.save.stars);
-    await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: moves-to-world-pass */
-    {
-      const s1 = await stored(), w = s1.worlds?.[worldId], left = [];
-      for (const q of npcs) if ((w?.quests?.[q.id] ?? 0) < q.steps) left.push(`the chain of "${q.id}" is at ${w?.quests?.[q.id] ?? 0} of ${q.steps} in worlds.${worldId}`);
-      if (JSON.stringify(s1.worlds?.fairy) !== kept) left.push(`worlds.fairy changed: ${JSON.stringify(s1.worlds?.fairy)}, was ${kept}`);
-      for (const k of ['quests', 'final', 'starsTaken', 'chestOpen', 'flags', 'pos']) if (k in s1) left.push(`"${k}" is on top of the save, not under worlds.<id>`);
-      if (s1.stars !== before) left.push(`${s1.stars} stars stored, ${before} in the game`);
-      if (left.length) errors.push(`reload: ${mode} ${worldId}: ${left.join('; ')}`);
-      else console.log(`reload: worlds.${worldId} ${JSON.stringify(w.quests)}, worlds.fairy as it was, ${s1.stars} stars`);
-    }
-    await wait(1500); await shot('40-start-again'); /* clock: moves-to-world-pass */
-    // "start again": the save of a new player, every world of it cleared
-    {
-      const had = await stored();
-      await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tapOn('#restart')]).catch((e) => fail(`start again: the button did not reload the game: ${why(e)}`)); /* clock: moves-to-world-pass */
-      await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: moves-to-world-pass */
-      const now = await stored(), left = [];
-      if (now.stars) left.push(`${now.stars} stars`);
-      if (now.played) left.push('"played"');
-      for (const [id, w = {}] of Object.entries(now.worlds ?? {})) {
-        if (w.final) left.push(`the final (${id})`);
-        if (Object.keys(w.quests ?? {}).length) left.push(`quests ${JSON.stringify(w.quests)} (${id})`);
-        if (w.starsTaken?.length) left.push(`stars taken ${JSON.stringify(w.starsTaken)} (${id})`);
-        if (Object.values(w.flags ?? {}).some(Boolean)) left.push(`flags ${JSON.stringify(w.flags)} (${id})`);
-      }
-      if (await visible('#restart')) left.push('the "start again" button of a returning player');
-      if (left.length) fail(`start again: after the reload the old progress is back: ${left.join(', ')}`);
-      console.log(`start again: ${had.stars} stars and worlds ${Object.keys(had.worlds ?? {}).join(', ')} cleared, the start screen of a new player`);
-    }
-    console.log(`world "${worldId}": ${npcs.length} characters, ${done} chains done`);
-  };
-
   try {
     // ---- without ?debug (ARCH-11): the published game has no window.__game, no frame counter and no tuning panel ----
     // A context of its own: its save and its service worker never reach the walkthrough. Its page must not report errors either.
@@ -883,7 +736,7 @@ try {
       await page.reload();
       await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
     }
-    if (worldId) await playWorld();
+    if (worldId) voiceUsed = await playWorld({ page, g, T, shot, tapOn, act, why, visible, gameUntil, fanfareUp, closeBook, checkLinks, checkQuestion, checkVoice, checkBank, errors, QUESTIONS, mode, touch, level, stuckMs, worldId, kept: { fairy: FAIRY_KEPT }, stars: STARS_KEPT });
     else {
       await calm(); await shot('00-start'); await checkLinks('start screen');
       let catRepeated = false;      // a tap on the cat repeated a line
