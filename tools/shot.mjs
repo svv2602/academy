@@ -2315,7 +2315,7 @@ try {
           await until((id) => !document.querySelector(`#book${{ secrets: 'Secrets', pets: 'Pets', ach: 'Ach' }[id]}`).classList.contains('hidden'), tb, `the tab ${tb} does not open`);
           await shot(`30-book-${when}-${tb}`);
         }
-        // the choice of a pet (R20): a pet is marked found for the check (no world places one yet), chosen by a tap -
+        // the choice of a pet (R20): a pet is marked found for the check (the block does not walk to the fawn), chosen by a tap -
         // save.pet and the stored save -, then left at home again and the mark taken back
         await g(() => { __game.save.worlds.fairy.flags.pet = true; });
         await tap('#bookTabs [data-tab=pets]');
