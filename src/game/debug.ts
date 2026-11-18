@@ -55,6 +55,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   const game: Record<string, unknown> = {
     hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: world.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
+    /** The pet that follows the heroine (PLAY-09), null when none: its actor, for the measure of the feet (tools/feet.mjs). */
+    get pet() { return g.pets.follower; },
     /**
      * The change of world (TECH-15, src/game/travel.ts): `world` is the id of the world played, `travel(id)` changes
      * it and settles when the frame is open again (true - in the world asked for, false - back in the one before),
