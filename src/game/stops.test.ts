@@ -157,6 +157,7 @@ describe('stop points and the achievements\' scene (PLAY-08, R43)', () => {
     const src = Object.values(import.meta.glob('./dialogue.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0];
     expect(src).toMatch(/await praise\(\); await stopPoint\('task'\); \}/);
     expect(src).toMatch(/await praise\(\);\n.*\n\s*if \(k < q\.steps\.length - 1\) \{ await stopPoint\('task'\);/);
-    expect(src).toMatch(/await fanfare\(lines\.partTitle[^\n]*\n\s*cat\.play\('Idle'\);\n\s*await stopPoint\('part'\);/);
+    // after the card of a part; after the last one, once "every shard is back" has been said
+    expect(src).toMatch(/await fanfare\(lines\.partTitle[^\n]*\n\s*cat\.play\('Idle'\);\n[^\n]*\n\s*if \(count === characters\.length\) \{ await line\(lines\.allParts, 'story'\); await stopPoint\('part'\);[^\n]*\n\s*await stopPoint\('part'\);/);
   });
 });
