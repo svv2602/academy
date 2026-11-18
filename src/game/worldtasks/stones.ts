@@ -44,7 +44,7 @@ const HOP = 0.45;         // s of game time a stone takes to hop onto its place
 const STREAM_W = 0.6;     // m: the stream is this much wider than the row of places, on each side
 
 /** A number drawn on a small canvas (no file, no font file); null where there is no canvas (a unit test). */
-function numberTexture(n: number): THREE.Texture | null {
+export function numberTexture(n: number): THREE.Texture | null {
   const c = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   const x = c?.getContext?.('2d');
   if (!c || !x) return null;

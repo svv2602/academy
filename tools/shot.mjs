@@ -1572,11 +1572,12 @@ try {
           __game.save.worlds.fairy.quests[id] = 2; __game.talk(id);     // one go: no frame sees the counter of crystals out of step
           return { said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, found: __game.search.found, settled: __game.shardsSettled };
         }, other.id);
-        await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20).catch(() => fail(`the last task of "${other.id}" did not open`));
-        // __game.cheat() walks onto a star while the search is on: the panel task is solved with the search put aside for
-        // that one synchronous call (no frame runs in between)
+        // the last step is a task on the card or one played in the world (the unicorn's "compare": the two glades)
+        await gameFor(() => !!document.querySelector('#task:not(.hidden)') || !!__game.worldTask.state, null, 20).catch(() => fail(`the last task of "${other.id}" did not open`));
+        // __game.cheat() walks onto a star while the search is on: the task is solved with the search put aside for that one
+        // synchronous call (no frame runs in between)
         const how = await g(() => { const s = __game.search; s.active = false; try { return __game.cheat(); } finally { s.active = true; } });
-        if (how !== 'panel') fail(`the last task of "${other.id}" was not solved (${how || 'nothing done'})`);
+        if (how !== 'panel' && how !== 'world task') fail(`the last task of "${other.id}" was not solved (${how || 'nothing done'})`);
         await fanfareCard(30, 'a shard during the search').catch(() => fail(`no shard of "${other.id}" after its last task`));
         await tapOn('#fanfareOk').catch((e) => fail(`the button of the shard cannot be pressed: ${why(e)}`));
         await gameFor(() => !__game.busy, null, 15).catch(() => fail('the scene of the shard did not end'));
@@ -1627,11 +1628,12 @@ try {
         console.log(`"${type}" closed with the cross (${q.id}, step ${step + 1}): nothing recorded, the heroine walks`);
       };
       // ---- a step of a chain played in the world (PLAY-01, src/game/worldtasks/): the frame's door, real taps once ----
-      // First meeting of the kind: closed with its cross (as the panel's tasks). Then, once: its picture; on the narrow
-      // phone a real tap on the screen at a wrong thing and at the right one (projected from the door's targets: the move is
-      // counted, the heroine does not walk, the tap takes the thing aimed at - its reach against the nearest other thing
-      // on the screen is logged); three wrong moves through the door, each showing its rung of the hint. Then solved.
-      const KIND_TYPE = { sort: 'sort', stones: 'order' };
+      // First meeting of the kind: closed with its cross (as the panel's tasks). Then, once: its picture; three wrong moves
+      // through the door, each showing its rung of the hint; on the narrow phone then a real tap on the screen at a wrong
+      // thing and at the right one (projected from the door's targets: the move is counted, the heroine does not walk, the
+      // tap takes the thing aimed at - its reach against the nearest other thing on the screen is logged). Then what is
+      // left is solved through the door.
+      const KIND_TYPE = { sort: 'sort', stones: 'order', glades: 'compare' };
       // What a real tap can take now, on the screen: each thing's point there, whether it is the right move, and whether it is
       // free to tap (on the screen and not under the bubble or a button).
       const targetsOnScreen = () => g(() => {
@@ -1690,8 +1692,7 @@ try {
           // every thing to tap is free on the screen, in every size (the places it goes to may lie under the bubble)
           const blocked = (await targetsOnScreen()).all.filter((a) => !a.free);
           if (blocked.length) errors.push(`world task: ${mode}: "${st.kind}": ${blocked.length} thing(s) to tap under ${[...new Set(blocked.map((a) => a.under))].join(', ')}: ${JSON.stringify(blocked.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
-          if (mode === 'mobile-portrait') await realTaps(st.kind);
-          // up to three wrong moves in all (a real one above counts): each shows the rung of its round, the third the last
+          // three wrong moves through the door: each shows the rung of its round, the third the last
           for (let k = 1; k <= 3; k++) {
             const w0 = await g(() => __game.worldTask.state?.wrongs ?? 0);
             if (w0 >= 3) break;
@@ -1704,8 +1705,11 @@ try {
           const end = await g(() => __game.worldTask.state);
           if (end && end.wrongs >= 3 && end.rung === 3) mistakes.add(type);   // the three rungs of its hint were seen
           console.log(`world task "${st.kind}" (${q.id}): pictured, three wrong moves through the door, each its rung of the hint`);
+          // then real taps on the narrow phone: a wrong thing, then the right one - which ends a task of one answer (the glades)
+          if (mode === 'mobile-portrait') await realTaps(st.kind);
         }
-        if ((await g(() => __game.cheat())) !== 'world task') errors.push(`world task: ${mode}: the cheat did not solve "${st.kind}" through the door`);
+        // what is left of it, solved through the door (none: a real right tap has ended it)
+        if (await g(() => !!__game.worldTask.state && __game.worldTask.state.phase !== 'solved') && (await g(() => __game.cheat())) !== 'world task') errors.push(`world task: ${mode}: the cheat did not solve "${st.kind}" through the door`);
         await gameFor(() => !window.__game.worldTask.state, null, 15).catch(() => errors.push(`world task: ${mode}: "${st.kind}" did not end once solved`));
       };
       let crystalsWrong = false;

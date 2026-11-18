@@ -19,6 +19,8 @@ import { showSortInWorld } from '../../game/worldtasks/sort';
 import { showStonesInWorld } from '../../game/worldtasks/stones';
 import type { WorldTaskShow } from '../../game/worldtasks/core';
 import { generate as generateOrder } from '../../game/tasks/order';
+import { DIGITS, generate as generateCompare } from '../../game/tasks/compare';
+import { showGladesInWorld } from '../../game/worldtasks/glades';
 import { typeOf } from '../../game/tasks';
 import type { BookInfo, BuiltWorld, MusicParams, Npc, WorldDef, WorldGround, WorldItem, WorldLines, WorldTask } from '../../game/world';
 import { openShop } from '../../ui/shop';
@@ -40,7 +42,7 @@ import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
 import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
-import { SPAWN, colliders, height, raycastGround, resolve } from './terrain';
+import { CRYSTAL, PATCH, POND, SPAWN, colliders, height, pathDist, raycastGround, resolve } from './terrain';
 import { voices } from './voices';
 
 /**
@@ -124,8 +126,43 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       return playInWorld(n, show);
     },
   };
+  // "compare" of the unicorn's and the queen's chains: two glades of flowers before the character (from level 4 the
+  // groups are digits and the signs: those stay on the card)
+  const compareStep: WorldTask = {
+    skill: 'compare', inWorld: (level) => typeOf('compare', level) === 'compare' && !DIGITS(level),
+    run: (n, level) => {
+      const at = gladesAt(n);
+      const show = showGladesInWorld(scene, generateCompare(level, g.rng), at, g.hooksFor(n.def.emoji), { groundY: g.groundY, reach: g.touch ? 80 : 56, scope });
+      return playInWorld(n, show);
+    },
+  };
+  /**
+   * Where the two glades lie by a character: on clear ground - off the path and its stones, out of the pond, away from
+   * props, the butterflies' bed and the crystal - so that nothing of the world lies among the flowers being counted; the
+   * nearest ring around the character that has such ground (from GLADES_AT out), and on it the clearest place. Seen side
+   * by side, looking towards the character.
+   */
+  function gladesAt(n: Npc) {
+    const margin = (x: number, z: number) => Math.min(pathDist(x, z) - 2.2, Math.hypot(x - POND.x, z - POND.z) - POND.r - 1.5,
+      Math.hypot(x - PATCH.x, z - PATCH.z) - 3, Math.hypot(x - CRYSTAL.x, z - CRYSTAL.z) - 2,
+      ...colliders.map((c) => Math.hypot(x - c.x, z - c.z) - c.r - 1.2));
+    for (const d of [GLADES_AT, 5, 6.5, 8, 9.5]) {
+      let best: { x: number; z: number; facing: number } | null = null, bm = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = n.def.heading + (k * Math.PI) / 8, x = n.pos.x + Math.sin(a) * d, z = n.pos.z + Math.cos(a) * d;
+        const sx = Math.cos(a), sz = -Math.sin(a);
+        // the whole footprint: both glades side by side and their depth
+        let m = Infinity;
+        for (const s of [-2.4, -1.2, 0, 1.2, 2.4]) for (const t of [-1, 0, 1]) m = Math.min(m, margin(x + sx * s + Math.sin(a) * t, z + sz * s + Math.cos(a) * t));
+        if (m > bm) { bm = m; best = { x, z, facing: a + Math.PI }; }
+      }
+      if (best) return best;
+    }
+    const h = n.def.heading;
+    return { x: n.pos.x + Math.sin(h) * GLADES_AT, z: n.pos.z + Math.cos(h) * GLADES_AT, facing: h + Math.PI };
+  }
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
-  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep]]);
+  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep], ['compare', compareStep]]);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
   scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -292,6 +329,8 @@ function shopBadge(): THREE.Sprite {
 
 /** m: the middle of the arc of the debug "sort" in front of the deer. */
 const SORT_ARC = 2.5;
+/** m before a character where the middle between the two glades of "compare" lies. */
+const GLADES_AT = 3.6;
 /** m from a character to the near bank of the stream of its stones (PLAY-01). */
 const STONES_AT = 4.5;
 
