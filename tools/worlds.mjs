@@ -66,10 +66,25 @@
 //      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
 //      heroine and in the flock as the first time), the heroine where she was left, she walks, a character gives a
 //      task and it is solved. After a reload of the page the progress of each world is in its own part of the save.
-//      "the load fails": in another browser the server answers 404 for every file of the probe world; the change is
-//      refused (false), the game is back in the first world with the message in the bubble, the heroine walks and a
-//      character gives a task; with the files back the change goes through. The console may hold only the 404s of
-//      those files and the game's one "could not load" there; anywhere else an error or a warning is a failure.
+//      Every change asks the gate of the world first (src/game/gate.ts, wired by src/main.ts): a world that is not
+//      downloaded is let in "from the network" and downloaded in full behind the closed frame.
+//      "the files are gone": in another browser the server answers 404 for every file of the probe world; the network
+//      answers, the download does not make the world ready: the change answers false, the game is back in the first
+//      world and the cat says that the network is needed by its recorded clip, the heroine walks and a character
+//      gives a task; with the files back the change goes through. The console may hold only the 404s of those files
+//      (and the game's one "could not load"); anywhere else an error or a warning is a failure.
+//      "the closed portal" (R07, R12): in a browser that saves data (no download in the background) the probe world is
+//      not in the cache and the network is off: the change is refused before the frame closes - no frame of the layer
+//      is drawn, the controls stay free - the cat says "need_net" by its clip (not the synthesizer), the heroine walks,
+//      a character gives a task; "open from the cache": downloaded with the network, the world is entered without it.
+//      "Without network" is always the server's count after OFFLINE_MARK (`askedOffline`): none of the world's files.
+//      "rounds" (TECH-15, R10, R19, R20, R22): in a browser that saves data, ROUNDS times "first world -> probe world
+//      -> back"; the first change is by the network and must leave the world "ready" in the cache, its voice too, and
+//      the middle of its closing is pictured (travel-mid.png, the game's clock stopped, not the debug stop of the
+//      layer). After each round the garbage is collected and the heap in use, the geometries, the textures and the
+//      programs of the renderer are read and printed (`readRound`, the same as tools/worlds-phone.mjs on the phone);
+//      after the last none may be more than ROUND_GROWTH over the first. Then the network goes off, the page is
+//      reloaded: the progress of both worlds is where it was, and the probe world opens from the cache.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
@@ -444,6 +459,67 @@ export function travelFramesProblems(frames, from, to) {
   return out;
 }
 
+// ---- the rounds "first world -> probe world -> back" (TECH-15, R10, R19): the same on this machine and on the phone ----
+/** The world the game starts in (src/worlds/index.ts DEFAULT_WORLD), where every round begins and ends. */
+export const FIRST_WORLD = 'fairy';
+/** How many rounds are played in a row. */
+export const ROUNDS = 5;
+/** How much each number after the last round may be over the same number after the first: 10 % (TECH-15). */
+export const ROUND_GROWTH = 0.1;
+/** What is read after a round: the bytes of the JavaScript heap in use, the geometries, textures and shader programs the renderer holds. */
+export const ROUND_KEYS = ['heap', 'geometries', 'textures', 'programs'];
+
+/**
+ * The numbers after the rounds, [{ round, heap, geometries, textures, programs }] in order: ROUNDS of them, each read,
+ * and each number after the last round at most ROUND_GROWTH over the same after the first. Returns the problems.
+ */
+export function roundProblems(rounds) {
+  if (rounds.length !== ROUNDS) return [`${rounds.length} round(s) were read, expected ${ROUNDS}`];
+  const out = [];
+  const [a, z] = [rounds[0], rounds[rounds.length - 1]];
+  for (const k of ROUND_KEYS) {
+    const bad = rounds.find((r) => !(Number.isFinite(r[k]) && r[k] > 0));
+    if (bad) { out.push(`"${k}" was not read after round ${bad.round} (${bad[k]}): nothing to compare`); continue; }
+    if (z[k] > a[k] * (1 + ROUND_GROWTH)) out.push(`after round ${z.round} "${k}" is ${z[k]}, after round ${a.round} it was ${a[k]}: ${(((z[k] / a[k]) - 1) * 100).toFixed(1)} % more, at most ${ROUND_GROWTH * 100} % is allowed - the worlds left are not freed`);
+  }
+  return out;
+}
+
+/** One line of the log for the numbers after a round. */
+export function roundLine(r) {
+  return `round ${r.round}: heap ${(r.heap / 1048576).toFixed(2)} MB, geometries ${r.geometries}, textures ${r.textures}, programs ${r.programs}`;
+}
+
+/**
+ * The numbers after a round, on `page` of the game with ?debug and `cdp`, a CDP session of that page: the garbage is
+ * collected first (twice: what the first frees may let the second free more), then the heap in use is read, then what
+ * the renderer holds. A tab in the background draws nothing: the phone's script keeps its tab in front.
+ */
+export async function readRound(page, cdp, round) {
+  for (let i = 0; i < 2; i++) await cdp.send('HeapProfiler.collectGarbage');
+  const { usedSize } = await cdp.send('Runtime.getHeapUsage');
+  const held = await page.evaluate(() => {
+    const info = window.__game.renderer.info;
+    return { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0 };
+  });
+  return { round, heap: usedSize, ...held };
+}
+
+/**
+ * One round: `window.__game.travel` to the probe world, its tour skipped the way a tap skips it, and back to the first
+ * world, each change settled and the heroine free. `until(fn, arg, what)` waits for a state of the page (each caller
+ * its own limits). A change that does not answer true is a problem: returned, never guessed around.
+ */
+export async function playRound(page, until) {
+  const out = [];
+  for (const to of [PROBE, FIRST_WORLD]) {
+    const ok = await page.evaluate((id) => window.__game.travel(id), to);
+    if (ok !== true) { out.push(`__game.travel('${to}') answered ${ok}, expected true`); break; }
+    await until(() => { const g = window.__game; if (g.flyoverPlayer?.active) g.flyoverPlayer.skip(); return !g.busy && !g.transitioning && !g.flyoverPlayer?.active; }, null, `the game stayed busy after the change to "${to}"`);
+  }
+  return out;
+}
+
 // ---- the run itself: only when this file is the script, not when a test imports it ----
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
 
@@ -528,7 +604,7 @@ async function main() {
     '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg',
   };
   const asked = [];   // every request answered with a file: its path, its query and who asked (the page or the service worker)
-  let blocked = null;   // the id of a world whose files the server does not have for a while (the scenario "the load fails")
+  let blocked = null;   // the id of a world whose files the server does not have for a while (the scenario "the files are gone")
   const server = createServer((req, res) => {
     let path;
     try { path = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
@@ -614,7 +690,7 @@ async function main() {
   }
   // ---- 7. the change of world without a reload ----
   if (play('travel')) try {
-    const summary = await travelScenarios({ url, shots, fail, block: (id) => { blocked = id; } });
+    const summary = await travelScenarios({ url, shots, asked, list: readList(probeDist), fail, block: (id) => { blocked = id; } });
     if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`the change of world: ${e.stack ?? e}`);
@@ -627,10 +703,11 @@ async function main() {
 
 /**
  * The scenarios of the change of world (7 above) on the probe build served at `url`; the pictures go to `shots`.
- * `block(id)` makes the server answer 404 for the files of the world `id` (null gives them back). Every failure goes
- * to `fail`; returns the line to print when both scenarios came to their end without one ('' otherwise).
+ * `asked` is the server's record of requests, `list` worlds.json of the build. `block(id)` makes the server answer 404
+ * for the files of the world `id` (null gives them back). Every failure goes to `fail`; returns the line to print when
+ * every scenario came to its end without one ('' otherwise).
  */
-async function travelScenarios({ url, shots, fail: report, block }) {
+async function travelScenarios({ url, shots, asked, list, fail: report, block }) {
   let failures = 0;
   const fail = (msg) => { failures++; report(`the change of world: ${msg}`); };
   const { chromium } = await import('playwright-core');
@@ -644,9 +721,13 @@ async function travelScenarios({ url, shots, fail: report, block }) {
   const q = process.env.Q ? `&q=${process.env.Q}` : '';
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
   const ofProbe = (u) => { try { return worldOf(new URL(u).pathname.replace(/^\//, ''), [PROBE]) === PROBE; } catch { return false; } };
-  const FIRST = 'fairy';
+  const FIRST = FIRST_WORLD;
+  const files = (list?.worlds?.[PROBE]?.files ?? []).map((f) => f.url).sort();
+  if (!files.some(isVoice)) throw new Error(`${WORLDS_LIST} lists no clip of the voice of the world "${PROBE}": "ready" would be tried without the voice of the world`);
   // The probe world's own spoken line (the greeting of its character) and its clip, in the folder of the world.
   const HI = `${PROBE}_hi`, HI_CLIP = `${PROBE}/${PROBE}_hi`;
+  // The cat's line at a portal that stays closed (src/main.ts `refuse`); its clip is one of the core.
+  const NEED_NET = 'need_net';
   const started = Date.now();
 
   const browser = await chromium.launch({
@@ -657,11 +738,13 @@ async function travelScenarios({ url, shots, fail: report, block }) {
     /**
      * A page of the game in a context of its own (an empty cache and an empty save). `lost` - the files of the probe
      * world are gone from the server: their 404s and the game's own word about the failed load are expected there,
-     * and only they.
+     * and only they. `saving` - the browser asks to save data (navigator.connection.saveData): "Play" downloads no next
+     * world in the background, so only the change of world itself can bring the probe world into the cache.
      */
-    const open = async (name, lost) => {
+    const open = async (name, lost, saving = false) => {
       const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
       await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
+      if (saving) await ctx.addInitScript(() => { Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true }); });
       const page = await ctx.newPage();
       const expected = { notFound: 0, said: 0 };
       page.on('console', (m) => {
@@ -672,7 +755,16 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       });
       page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
       // A request answered 404 whose answer nobody reads to its end is reported as failed (aborted) by the browser.
-      page.on('requestfailed', (r) => { if (!(lost && ofProbe(r.url()))) fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`); });
+      // So is the gate's probe of the network (src/game/gate.ts `probeNetwork`: HEAD with cache "no-store") after its
+      // answer has come - seen 2026-11-18: fetch resolves with 200, the request is reported net::ERR_ABORTED, with the
+      // service worker or without it; HEAD without "no-store" and GET with it are not. An answered probe is no failure;
+      // one with no answer, or another than 200, still is.
+      const answeredProbe = async (r) => r.method() === 'HEAD' && /\/icon\.svg\?net=/.test(r.url()) && (await r.response().catch(() => null))?.status() === 200;
+      page.on('requestfailed', async (r) => {
+        if (lost && ofProbe(r.url())) return;
+        if (await answeredProbe(r)) return;
+        fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`);
+      });
       page.on('response', (r) => { if (r.status() >= 400 && !(lost && r.status() === 404 && ofProbe(r.url()))) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
       const g = (fn, arg) => page.evaluate(fn, arg);
       const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); });
@@ -897,10 +989,39 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       await p.ctx.close();
     }
 
-    // ---- "the load fails": the files of the probe world are not on the server ----
+    /**
+     * The cat says that the network is needed (the refusal of the gate, src/main.ts): the line "need_net" is on and
+     * a clip has started since `clips` clips were counted - its recorded clip of the core, never the synthesizer.
+     */
+    const saidNeedNet = async (p, name, clips) => {
+      await p.until(([k, n]) => __game.line === k && __game.voice.clips > n, [NEED_NET, clips], `the cat did not say "${NEED_NET}" by a clip`, 30000)
+        .catch((e) => fail(e.message));
+      const v = await p.g((k) => ({ synth: __game.voice.synth.includes(k), clip: __game.clipFor(k) }), NEED_NET);
+      if (v.synth) fail(`${name}: the line "${NEED_NET}" was left to the synthesizer: its recorded clip did not sound`);
+      if (v.clip !== NEED_NET) fail(`${name}: the line "${NEED_NET}" has the clip "${v.clip}", expected the clip of the core voice/${NEED_NET}.mp3`);
+    };
+    /** The server is told the network goes off now (OFFLINE_MARK), then the network of the context is switched off. */
+    const offline = async (p) => {
+      await p.g((path) => fetch(path, { cache: 'no-store' }).then(() => true), OFFLINE_MARK);
+      await p.ctx.setOffline(true);
+    };
+    /** Nothing of the probe world was asked of the server since the last mark: what the page had, it had from its cache. */
+    const noneAsked = (name, what) => {
+      const off = askedOffline(asked, PROBE);
+      if (!off.marked) fail(`${name}: the server was never told the network went off (${OFFLINE_MARK}): what was asked without network is not known`);
+      for (const f of off.late) fail(`${name}: ${what}: with the network switched off the server was still asked for ${f}`);
+    };
+    /** The service worker has taken the page: without it nothing of the game is there without network. */
+    const taken = (p, name) => p.until(() => !!navigator.serviceWorker?.controller, null, `${name}: the service worker did not take the page`);
+    /** The tour of a first entry is skipped the way a tap skips it; the heroine is free. */
+    const settled = (p, to) => p.until(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.transitioning && !__game.flyoverPlayer?.active; }, null, `the game stayed busy after the change to "${to}"`);
+
+    // ---- "the files are gone": the files of the probe world are not on the server ----
+    // The network answers, so the gate lets the world in "from the network"; its download gets 404s, the world is not
+    // ready - and the game is back in the first world, the cat saying that the network is needed.
     let notFound = 0;
     {
-      const name = 'the load fails';
+      const name = 'the files are gone';
       block(PROBE);
       const p = await open(name, true);
       await p.page.goto(`${url}?debug${q}`);
@@ -909,19 +1030,20 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       await p.g((m) => { window.__travelMark = m; __game.teleport(1.5, 11); }, mark);
       await p.until(() => Math.abs(__game.hero.root.position.x - 1.5) < 0.01, null, 'the heroine was not moved');
       const home = await p.state();
+      const clipsBefore = await p.g(() => __game.voice.clips);
       const refused = await p.travel(PROBE);
       if (refused.ok !== false) fail(`${name}: __game.travel('${PROBE}') answered ${refused.ok} with the files of the world gone, expected false`);
       for (const x of travelFramesProblems(refused.frames, FIRST, FIRST)) fail(`${name}: ${x}`);
       const back = await p.state();
-      const said = await p.g(() => (document.getElementById('bubble').classList.contains('hidden') ? null : document.getElementById('bubbleText').textContent));
+      await saidNeedNet(p, name, clipsBefore);
       await p.page.screenshot({ path: join(root, shots, 'travel-failed.png') });
       if (back.mark !== mark) fail(`${name}: the mark left in window is gone (${back.mark}): the page was reloaded`);
       if (back.world !== FIRST || back.busy || back.going) fail(`${name}: after the failed change the game is in "${back.world}" (busy: ${back.busy}, changing: ${back.going}), expected the first world with the controls returned`);
       for (const k of ['at', 'npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'ownClip', 'sharedClip', 'hud', 'shown']) {
         if (!same(back[k], home[k])) fail(`${name}: the first world built again differs from before in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
       }
-      if (!said || !/Не вдалося завантажити/.test(said)) fail(`${name}: the bubble does not say that the load failed: ${JSON.stringify(said)}`);
-      if (!p.expected.said) fail(`${name}: the game wrote nothing to the console about the failed load`);
+      const downloaded = await p.g((id) => __game.worlds.status(id), PROBE);
+      if (downloaded === 'ready') fail(`${name}: the probe world is "ready" with its files gone from the server: the check is blind`);
       if (!(await p.walks())) fail(`${name}: the heroine does not walk after the failed change`);
       await p.solveWith('fox', FIRST);
       // With the files back the same change goes through: the failed one left nothing in its way.
@@ -934,10 +1056,142 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       notFound = p.expected.notFound;
       await p.ctx.close();
     }
+
+    // ---- "the closed portal", then "open from the cache" (R07, R12) ----
+    // The probe world is not in the cache (a new browser; the browser saves data, so "Play" downloads nothing in the
+    // background) and there is no network: the change is refused before the frame closes - the cat says the network
+    // is needed by its recorded clip, the heroine walks, the game goes on in the first world. Then the world is
+    // downloaded with the network, the network goes off again, and the change goes through from the cache. "Without
+    // network" is the server's count after the mark: the browser's switch does not reach the service worker's requests.
+    {
+      const name = 'the closed portal';
+      const p = await open(name, false, true);
+      await p.page.goto(`${url}?debug${q}`);
+      await p.start();
+      await taken(p, name);
+      const before = await p.g((id) => __game.worlds.status(id), PROBE);
+      if (before !== 'none') fail(`${name}: the probe world is "${before}" before the change, expected "none": the closed portal is tried on a world in the cache`);
+      await offline(p);
+      const home = await p.state();
+      const layer = await p.g(() => ({ clips: __game.voice.clips, frames: __game.fade.frames }));
+      const refused = await p.travel(PROBE);
+      if (refused.ok !== false) fail(`${name}: without network and without the cache __game.travel('${PROBE}') answered ${refused.ok}, expected false`);
+      // While the gate is asked the heroine stands (the controls are taken); the frame is never touched.
+      const shut = refused.frames.filter((f) => f.phase !== 'idle' || f.closed || f.world !== FIRST);
+      if (shut.length) fail(`${name}: the refused change touched the frame: ${JSON.stringify(shut[0])} (in ${shut.length} of ${refused.frames.length} frames)`);
+      const after = await p.g(() => ({ frames: __game.fade.frames, phase: __game.fade.phase, going: __game.transitioning }));
+      if (after.frames !== layer.frames || after.phase !== 'idle' || after.going) fail(`${name}: the layer of the transition was drawn for a refused change (${layer.frames} -> ${after.frames} frames of it, phase ${after.phase}, changing: ${after.going})`);
+      await saidNeedNet(p, name, layer.clips);
+      await p.page.screenshot({ path: join(root, shots, 'travel-closed.png') });
+      const back = await p.state();
+      if (back.world !== FIRST || back.busy || back.going) fail(`${name}: after the refusal the game is in "${back.world}" (busy: ${back.busy}, changing: ${back.going}), expected the first world with the controls free`);
+      for (const k of ['at', 'npcs', 'names', 'scene', 'onHero', 'flies', 'music', 'hud']) {
+        if (!same(back[k], home[k])) fail(`${name}: the first world differs after the refusal in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
+      }
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk after the refusal`);
+      await p.solveWith('fox', FIRST);
+      noneAsked(name, 'the closed portal');
+      const still = await p.g((id) => __game.worlds.status(id), PROBE);
+      if (still !== 'none') fail(`${name}: after the refusal the probe world is "${still}", expected "none"`);
+
+      // "open from the cache": downloaded with the network, entered without it
+      const name2 = 'open from the cache';
+      await p.ctx.setOffline(false);
+      const got = await p.g((id) => __game.worlds.download(id), PROBE);
+      if (got.status !== 'ready') fail(`${name2}: the download of the probe world ended as ${JSON.stringify(got)}, expected "ready"`);
+      await offline(p);
+      const there = await p.travel(PROBE);
+      if (there.ok !== true) fail(`${name2}: without network, the world in the cache, __game.travel('${PROBE}') answered ${there.ok}, expected true`);
+      for (const x of travelFramesProblems(there.frames, FIRST, PROBE)) fail(`${name2}: ${x}`);
+      await settled(p, PROBE);
+      const away = await p.state();
+      if (away.world !== PROBE || !same(away.npcs, ['friend'])) fail(`${name2}: the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
+      if (!(await p.walks())) fail(`${name2}: the heroine does not walk in the probe world entered without network`);
+      noneAsked(name2, 'the probe world entered from the cache');
+      await p.ctx.close();
+    }
+
+    // ---- "rounds": five times "first world -> probe world -> back" (TECH-15, R10, R19, R20, R22) ----
+    // A new browser that saves data: the first change brings the probe world from the network, and only the change
+    // itself can make it "ready". After each round the garbage is collected and the heap, the geometries, the
+    // textures and the programs of the renderer are read; after the fifth none may be more than 10 % over the first.
+    // The middle of the closing of the first change is pictured, in the size of a phone (R22). Then the network goes
+    // off and the page is reloaded: the progress of both worlds is where it was, and the probe world opens from the
+    // cache - the server asked for none of its files.
+    const rounds = [];
+    {
+      const name = 'rounds';
+      const p = await open(name, false, true);
+      await p.page.goto(`${url}?debug${q}`);
+      await p.start();
+      await taken(p, name);
+      const cdp = await p.ctx.newCDPSession(p.page);
+      const before = await p.g((id) => __game.worlds.status(id), PROBE);
+      if (before !== 'none') fail(`${name}: the probe world is "${before}" before the first change, expected "none": the entry by the network is tried on a world in the cache`);
+      await p.solveWith('fox', FIRST);
+      // She walks up to the change, as to a portal: the camera follows her again after the close-up of the task (the
+      // iris closes on the heroine where the camera shows her at its start).
+      if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world`);
+      // The first change, by the network; caught in the middle of its closing by the game's own clock (`still`, not the
+      // debug stop of the layer): the picture is of a change that really runs.
+      const mid = await p.g((to) => new Promise((res) => {
+        window.__roundGoing = __game.travel(to);
+        const f = __game.fade;
+        const tick = () => {
+          if (f.phase === 'closing' && f.uniforms.uCover.value >= 0.45) { __game.still(true); res(f.uniforms.uCover.value); return; }
+          if (!__game.transitioning) { res(null); return; }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }), PROBE);
+      if (mid === null) fail(`${name}: the middle of the closing of the first change was never drawn`);
+      else {
+        const size = await p.g(() => [innerWidth, innerHeight]);
+        await p.page.screenshot({ path: join(root, shots, 'travel-mid.png') });
+        console.log(`[worlds] the middle of a real change of world, ${size.join('x')} (the phone lying): the frame ${(mid * 100).toFixed(0)} % covered - ${shots}/travel-mid.png`);
+        if (!(mid < 0.75)) fail(`${name}: the frame was ${mid} covered when the middle of the closing was pictured`);
+      }
+      await p.g(() => { __game.still(false); });
+      const first = await p.g(() => window.__roundGoing);
+      if (first !== true) fail(`${name}: the first change to "${PROBE}", by the network, answered ${first}, expected true`);
+      // The entry by the network has brought the whole world into the cache, its voice too (README of K, 1 and 2).
+      const kept = await p.g(async (id) => ({ status: await __game.worlds.status(id), cached: await __game.worlds.cached(id) }), PROBE);
+      if (kept.status !== 'ready' || !same(kept.cached, files)) fail(`${name}: after the entry by the network the probe world is "${kept.status}" with ${JSON.stringify(kept.cached)} in the cache, expected "ready" with ${JSON.stringify(files)}`);
+      await settled(p, PROBE);
+      await p.solveWith('friend', PROBE);
+      const home = await p.g((id) => __game.travel(id), FIRST);
+      if (home !== true) fail(`${name}: the way back to "${FIRST}" answered ${home}, expected true`);
+      await settled(p, FIRST);
+      rounds.push(await readRound(p.page, cdp, 1));
+      console.log(`[worlds] ${name}: ${roundLine(rounds[0])}`);
+      for (let n = 2; n <= ROUNDS; n++) {
+        for (const x of await playRound(p.page, p.until)) fail(`${name}, round ${n}: ${x}`);
+        rounds.push(await readRound(p.page, cdp, n));
+        console.log(`[worlds] ${name}: ${roundLine(rounds[rounds.length - 1])}`);
+      }
+      for (const x of roundProblems(rounds)) fail(`${name}: ${x}`);
+      // The progress of both worlds after a reload, without network; the probe world opens from the cache.
+      const progress = () => p.g(([a, b]) => JSON.stringify({ first: __game.save.worlds[a]?.quests ?? null, probe: __game.save.worlds[b]?.quests ?? null, stars: __game.save.stars }), [FIRST, PROBE]);
+      const was = await progress();
+      if (!/"fox":1/.test(was) || !/"friend":1/.test(was)) fail(`${name}: before the reload the save holds ${was}, expected the tasks of "fox" and "friend": the check of the progress would be blind`);
+      await offline(p);
+      await p.page.reload();
+      await p.page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });   /* clock: page-load */
+      await p.until(() => !!window.__game?.save, null, 'no window.__game after the reload');
+      const now = await progress();
+      if (now !== was) fail(`${name}: after the reload the progress is ${now}, before it it was ${was}`);
+      await p.start();
+      const again = await p.travel(PROBE);
+      if (again.ok !== true) fail(`${name}: after the reload, without network, __game.travel('${PROBE}') answered ${again.ok}: the entry by the network did not leave the world ready in the cache`);
+      noneAsked(name, 'the probe world entered again after the reload');
+      await p.ctx.close();
+    }
     if (failures) return '';
     return `the change of world: "${FIRST}" -> "${PROBE}" by __game.travel and back by the portal with no reload of the page; behind the closed frame no line, no music and no interface; `
       + `the line "${HI}" has its clip ${HI_CLIP} only while "${PROBE}" plays and was said by it; `
-      + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) the game went back to "${FIRST}" and played on; `
+      + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) its download failed, the game went back to "${FIRST}", the cat said "${NEED_NET}" by its clip and the game played on; `
+      + `without network and cache the portal stayed closed (the frame never closed, "${NEED_NET}" by its clip, the heroine walked, a task was solved, the server asked for nothing of "${PROBE}"), and once downloaded "${PROBE}" opened without network; `
+      + `${ROUNDS} rounds there and back (${rounds.map((r) => `${(r.heap / 1048576).toFixed(1)} MB/${r.geometries}g/${r.textures}t/${r.programs}p`).join(', ')}), the last within ${ROUND_GROWTH * 100} % of the first; the progress of both worlds after a reload without network, "${PROBE}" opened from the cache; `
       + `${((Date.now() - started) / 1000).toFixed(0)} s; pictures: ${shots}/travel-*.png`;
   } finally {
     block(null);

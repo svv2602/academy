@@ -8,6 +8,7 @@ import { createQuality, createRenderer } from './core/renderer';
 import { loadShared } from './game/boot';
 import { createGame, type WorldEntry } from './game/context';
 import { exposeDebug } from './game/debug';
+import { createGate, probeNetwork } from './game/gate';
 import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
 import { enterWorld, initStartScreen } from './game/start';
@@ -84,6 +85,14 @@ async function boot() {
     world: entryOf(world),
   }));
   applyLook = () => shared.heroRig.setLook(save);
+  // TECH-09: the cache of the next worlds and the gate every change of world asks (src/game/gate.ts): a world that
+  // is not downloaded, without network, is refused and the cat says that the network is needed (its clip is in the core).
+  const worlds = createWorldCache();
+  const refuse = () => { void g.speech.line('need_net', 'hint'); };
+  const gate = createGate({
+    worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),
+    online: () => navigator.onLine, probe: () => probeNetwork(), refuse,
+  });
   // TECH-15: the change of world (src/game/travel.ts). The built world goes to the frame, the quality tier and
   // window.__game through it - the first one below, every next one from `travel(<id>)`.
   const travel: Travel = createTravel({
@@ -92,6 +101,7 @@ async function boot() {
     show: (built, sky) => { quality.setSun(sky.sun); showDebug?.(built.debug); },
     drawn: () => loop.drawn(),
     welcome: (first) => enterWorld(g, first),
+    gate, cache: worlds, refuse,
   });
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
   const w = travel.begin(opened, L);
@@ -109,7 +119,6 @@ async function boot() {
   // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of
   // another world), one file at a time, and not at all when the browser saves data (src/core/worldcache.ts). A build
   // with one world has no next one: nothing is asked for.
-  const worlds = createWorldCache();
   el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); }, { once: true });
 
   const showDebug = debug ? exposeDebug(g, w.debug, travel) : null;

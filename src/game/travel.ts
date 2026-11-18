@@ -2,10 +2,12 @@ import type * as THREE from 'three';
 import { release, resetProgress, setProgressHandler, withScope } from '../core/assets';
 import { beginTask, endTask, setMusic } from '../core/audio';
 import type { Save } from '../core/save';
+import type { WorldCache } from '../core/worldcache';
 import { wearSaved } from '../ui/shop';
 import { bubble, el, hideAnswers, setAct, showNotice } from '../ui/ui';
 import type { Game, WorldEntry } from './context';
 import { flyoverOf, setTour, type WorldTour } from './flyover';
+import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import { createWorldScope, type WorldScope } from './scope';
@@ -23,21 +25,28 @@ import type { BookInfo, BuiltWorld, WorldDef, WorldSky } from './world';
  * quality tier and its part of window.__game.
  *
  * The order of one change (`go`):
+ *  0. the gate of the world (src/game/gate.ts) is asked, with the frame open and the heroine standing: a world that is
+ *     not downloaded, without network, is refused right there - the frame never closes, the gate has had the cat say
+ *     why, the controls come back and the game goes on in the world played;
  *  1. the controls are taken, a task that is open is closed by its own button, the world played is left (`g.leave`:
  *     a scene of it that still runs can no longer take the controls or give them back), the counters and the stick hide;
  *  2. the frame closes (src/game/transition.ts) - the rest happens behind it, between two frames;
  *  3. the voice and the music fall silent and stay so, the game is saved;
  *  4. the world left is taken out: its scope is disposed, THEN its models are released, the heroine's items get back
  *     what the world changed of them, the flock is emptied, the tour is forgotten;
- *  5. the new world is opened under the loading ring: its scope, its sky, its load (the ring follows it), then
- *     `g.enter` and its build. If any of that fails, what it left is taken out the same way and the world left is
- *     opened again - its files are in the browser's cache - so the game is never without a world;
+ *  5. a world the gate lets in "from the network" is first downloaded in full into the cache of worlds
+ *     (src/core/worldcache.ts `download`) under the loading ring: what the page asks for while a world is played is
+ *     not all of it (a clip of a line not said, a picture of a scene not shown), and a world left "partial" would be
+ *     refused next time without network. Then the new world is opened under the ring: its scope, its sky, its load
+ *     (the ring follows it), then `g.enter` and its build. If the download does not make the world ready, or any of
+ *     the opening fails, what it left is taken out the same way and the world left is opened again - its files are in
+ *     the browser's cache - so the game is never without a world;
  *  6. the built world is handed to whoever shows it, one frame of it is drawn behind the closed frame (its shaders
  *     compile there), the frame opens, the controls come back, and the entry into the world goes on as after "play"
- *     (src/game/start.ts `enterWorld`: the tour of a world not visited yet, then the cat's line).
+ *     (src/game/start.ts `enterWorld`: the tour of a world not visited yet, then the cat's line) - or, when the
+ *     download did not make the world ready, the cat says that the network is needed (`refuse`).
  *
  * The first world of a session is opened and built through the same two functions (`openWorld`, `begin`) by src/main.ts.
- * The gate of a world (src/game/gate.ts) is not asked here: whoever calls `travel` decides whether the world may be entered.
  */
 
 /** A world being opened: its scope, its sky, and its load and its build bound to them. */
@@ -112,6 +121,9 @@ export const NO_WORLD: WorldFrame = {
  */
 const NO_TOUR: WorldTour = { path: { points: [], seconds: 0, line: 'go_next' }, visited: () => true, mark: () => {} };
 
+/** The part of the loading ring the download of a world takes; the load of the world from the cache fills the rest. */
+export const DOWNLOAD_SHARE = 0.8;
+
 /** What the change of world needs of the game (src/main.ts wires it). */
 export interface TravelHost {
   g: Game; scene: THREE.Scene; save: Save; touch: boolean;
@@ -127,6 +139,12 @@ export interface TravelHost {
   drawn(): Promise<void>;
   /** The entry into the world once its frame is open (src/game/start.ts `enterWorld`); `first` - she has not been in it yet. */
   welcome(first: boolean): Promise<void>;
+  /** The gate of the worlds (src/game/gate.ts): asked for every change, before anything of it is done. */
+  gate: Gate;
+  /** The cache of the worlds (src/core/worldcache.ts): a world let in "from the network" is downloaded through it in full. */
+  cache: Pick<WorldCache, 'download' | 'state'>;
+  /** What a world that could not be had after all does - the same as a refusal of the gate: the cat's line. */
+  refuse(): void;
 }
 
 export interface Travel {
@@ -140,8 +158,8 @@ export interface Travel {
   begin(first: Opening, loads: unknown): BuiltWorld;
   /**
    * Changes the world. Settles when the frame is open again and the heroine can walk: true - in the world asked for,
-   * false - not (its load failed and the game is back in the world before; a change is already on; it is the world
-   * played). An id the registry does not know is an error.
+   * false - not (the gate refused it and the frame never closed; its download or its load failed and the game is back
+   * in the world before; a change is already on; it is the world played). An id the registry does not know is an error.
    */
   go(id: string): Promise<boolean>;
 }
@@ -240,12 +258,37 @@ export function createTravel(host: TravelHost): Travel {
     return { x: v.x * 0.5 + 0.5, y: -v.y * 0.5 + 0.5 };
   }
 
+  /**
+   * Downloads the world `id` in full into the cache of worlds, the loading ring following the files that came (up to
+   * DOWNLOAD_SHARE of it). True when the world is ready; a failure of the network or of the storage is false.
+   */
+  async function download(id: string): Promise<boolean> {
+    let over = false;
+    const going = host.cache.download(id).then((d) => d.status === 'ready' || d.status === 'core', () => false);
+    void going.then(() => { over = true; });
+    while (!over) {
+      const s = host.cache.state();
+      if (s?.world === id && s.total > 0) transition.setProgress(DOWNLOAD_SHARE * s.done / s.total);
+      await Promise.race([host.drawn(), going]);
+    }
+    const ready = await going;
+    if (ready) transition.setProgress(DOWNLOAD_SHARE);
+    return ready;
+  }
+
   async function go(id: string): Promise<boolean> {
     const next = host.worlds.find((w) => w.id === id);
     if (!next) throw new Error(`travel: no world "${id}" in the registry (src/worlds/index.ts)`);
     const was = current;
     if (active || !was || was.opening.world.id === id) return false;
     active = true;
+
+    // ---- 0. the gate: the heroine stands while it is asked (no step away from the portal, at most the time limit of
+    // its probe of the network); refused, nothing of the change is done - the frame stays open, she walks again ----
+    const free = !g.busy;
+    g.busy = true;
+    const gate = await host.gate.canEnter(id);
+    if (!gate.enter) { if (free) g.busy = false; active = false; return false; }
 
     // ---- 1. the controls are taken, the scenes of the world end, the world is left ----
     g.busy = true; g.auto = null; setAct(null);
@@ -265,10 +308,13 @@ export function createTravel(host: TravelHost): Travel {
     current = null;
     host.setFrame(NO_WORLD);
     close(was.opening, was.undo);
-    // ---- 5. the new world under the loading ring; if it cannot be opened, the world left again ----
-    setProgressHandler((f) => transition.setProgress(f));
+    // ---- 5. the new world under the loading ring (downloaded first when it comes from the network); if it cannot
+    // be had or opened, the world left again ----
     const first = save.worlds[id]?.pos == null;
-    let now = await open(next);
+    const fetched = gate.from === 'network' ? await download(id) : true;
+    const base = gate.from === 'network' ? DOWNLOAD_SHARE : 0;
+    setProgressHandler((f) => transition.setProgress(base + (1 - base) * f));
+    let now = fetched ? await open(next) : null;
     const arrived = now !== null;
     if (!now) now = await open(was.opening.world);
     if (!now) {
@@ -299,7 +345,10 @@ export function createTravel(host: TravelHost): Travel {
     await transition.whenDone();
     g.busy = false;
     active = false;
-    if (!arrived) {
+    if (!fetched) {
+      // Back in the world before: the world could not be downloaded - as without network, the cat says so.
+      host.refuse();
+    } else if (!arrived) {
       // Back in the world before. The world's load has said why on the start screen, which the game covers: the
       // same text goes to the bubble (text only, it is for the grown-ups), and the start screen gets its panel back.
       el.notice.classList.add('hidden'); el.setup.classList.remove('hidden');

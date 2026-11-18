@@ -2,7 +2,9 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Save } from '../core/save';
+import type { WorldDownload } from '../core/worldcache';
 import type { Game, WorldEntry } from './context';
+import type { Gate, GateAnswer } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { Stage } from './stage';
@@ -128,8 +130,34 @@ function fakeWorld(id: string, o: { height?: number; music?: number; tour?: bool
   return w;
 }
 
+/**
+ * The gate and the cache of worlds as the change of world sees them: `answer` - what the gate answers (asked worlds in
+ * `asked`); `download` - how a download ends (its files come one a frame, `total` of them); each call is logged.
+ */
+function fakeDoor(o: { answer?: (id: string) => GateAnswer | Promise<GateAnswer>; download?: (id: string) => WorldDownload['status'] | Promise<never>; total?: number } = {}) {
+  const asked: string[] = [], downloads: string[] = [];
+  let state: WorldDownload | null = null;
+  const refused: number[] = [];
+  const gate: Gate = { canEnter: async (id) => { asked.push(id); log.push(`gate ${id}`); return (o.answer ?? (() => ({ enter: true, from: 'cache' } as const)))(id); } };
+  const cache = {
+    state: () => state,
+    async download(id: string): Promise<WorldDownload> {
+      downloads.push(id); log.push(`download ${id}`);
+      const total = o.total ?? 4;
+      const s: WorldDownload = state = { world: id, status: 'none', done: 0, total, running: true, error: null };
+      for (let i = 0; i < total; i++) { await new Promise((r) => setTimeout(r, 0)); s.done++; }
+      const end = await (o.download ?? (() => 'ready' as const))(id);
+      log.push(`downloaded ${id}: ${end}`);
+      s.status = end; s.running = false; s.error = end === 'ready' ? null : 'network';
+      return s;
+    },
+  };
+  return { gate, cache, asked, downloads, refused, refuse: () => { refused.push(1); log.push('refuse'); } };
+}
+
 /** A game on the stand-in worlds, started in the first of them the way src/main.ts starts it. */
-async function setup(worlds: FakeWorld[], o: { started?: boolean } = {}) {
+async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnType<typeof fakeDoor> } = {}) {
+  const door = o.door ?? fakeDoor();
   vi.resetModules();   // the transition and the installed travel are one per page
   const [{ createGame, createStage, worldPart }, T, { transition }, flyover, { loadSave }] = await Promise.all([
     import('./context'), import('./travel'), import('./transition'), import('./flyover'), import('../core/save'),
@@ -173,6 +201,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean } = {}) {
     show: (built, sky) => { log.push('show'); shown.push({ built, sky }); },
     drawn: () => new Promise<void>((done) => { log.push('a frame behind the closed frame'); waiting.push(done); }),
     welcome: (first) => { welcomed.push(first); return Promise.resolve(); },
+    gate: door.gate, cache: door.cache, refuse: door.refuse,
   });
   travel.begin(opened, L);
   // A part of the loop, made inside shared() like the guide and the tap ring.
@@ -194,10 +223,12 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean } = {}) {
     if (!done) throw new Error('the change of world did not come to its end in 3000 frames');
     return p;
   }
-  return { T, g, scene, save, travel, transition, flyover, worldPart, entries, frames, shown, welcomed, ring, heroRig, speech, play };
+  return { T, g, scene, save, travel, transition, flyover, worldPart, entries, frames, shown, welcomed, ring, heroRig, speech, play, door };
 }
 
 const names = (scene: THREE.Scene) => scene.children.map((c) => c.name).filter(Boolean).sort();
+/** The gate is asked first: the change takes the controls and ends the scenes once it has answered (the next task). */
+const gated = () => new Promise((r) => setTimeout(r, 0));
 let error: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   localStorage.clear();
@@ -223,8 +254,8 @@ describe('travel: the order of a change of world (TECH-15)', () => {
     let closedAt = -1;
     void transition.whenClosed().then(() => { closedAt = log.length; });
     expect(await play(travel.go('b'))).toBe(true);
-    // Nothing of the change but leaving happens before the frame has closed.
-    expect(log.slice(0, closedAt)).toEqual(['leave']);
+    // Nothing of the change but the gate and leaving happens before the frame has closed; the gate is asked first.
+    expect(log.slice(0, closedAt)).toEqual(['gate b', 'leave']);
     // (After "ready" the frame stays closed for as many frames as the loading ring needs to fade out: one or more.)
     expect(log.slice(closedAt).filter((l, i, all) => l !== all[i - 1])).toEqual([
       'endTask', 'beginTask', 'music off', 'save',
@@ -518,6 +549,7 @@ describe('travel: a scene of the world left is interrupted', () => {
     $('taskClose').onclick = () => closed.push('the panel task');
     $('answersClose').onclick = () => closed.push('the task in the world');
     const going = travel.go('b');
+    await gated();
     // Each open task was closed by its own button at once, while its world was still whole.
     expect(closed).toEqual(['the panel task', 'the task in the world']);
     expect(log).not.toContain('own of a');
@@ -536,6 +568,7 @@ describe('travel: a scene of the world left is interrupted', () => {
     const old = a.builds[0].stage;
     old.take();
     const going = travel.go('b');
+    await gated();
     // Its `finally` runs while the frame closes: the controls stay with the change.
     old.release();
     expect(g.busy).toBe(true);
@@ -562,6 +595,7 @@ describe('travel: a scene of the world left is interrupted', () => {
     const open = taskOfA(() => new Promise<TaskResult>((r) => { solve = r; }));
     expect(log).toEqual(['beginTask']);
     const going = travel.go('b');
+    await gated();
     // Between the worlds no task opens, whoever asks.
     const opener = vi.fn(() => Promise.resolve({ solved: true, wrong: 0 }));
     expect(await g.task(opener)).toEqual({ solved: false, wrong: 0 });
@@ -585,6 +619,7 @@ describe('travel: a scene of the world left is interrupted', () => {
     const flying = flyover.tour(g);
     expect(player.active).toBe(true);
     const going = travel.go('b');
+    await gated();
     expect(player.active).toBe(false);
     expect(await flying).toBe(true);
     await play(going);
@@ -720,6 +755,157 @@ describe('travel: the entry into the world, the watchers, the refusals', () => {
     vi.resetModules();
     const { travel } = await import('./travel');
     expect(await travel('b')).toBe(false);
+  });
+});
+
+describe('travel: the gate of a world (TECH-09, R07, R12)', () => {
+  it('a refusal changes nothing: the frame never closes, the controls stay free, the world played stays, nothing is left or saved', async () => {
+    const a = fakeWorld('a', { music: 111 }), b = fakeWorld('b', { music: 222 });
+    const door = fakeDoor({ answer: () => ({ enter: false }) });
+    const { travel, play, g, transition, scene, save, welcomed } = await setup([a, b], { door });
+    const persist = vi.spyOn(g, 'persist'), leave = vi.spyOn(g, 'leave');
+    const before = names(scene);
+    const seen: string[] = [];
+    expect(await play(travel.go('b'), () => { seen.push(`${transition.phase} ${g.busy}`); })).toBe(false);
+    expect(door.asked).toEqual(['b']);
+    expect(log).toEqual(['gate b']);
+    // the frame never left "idle"; while the gate was asked the heroine stood, then the controls came back
+    expect(new Set(seen.map((s) => s.split(' ')[0]))).toEqual(new Set(['idle']));
+    expect(transition.phase).toBe('idle');
+    expect(travel.world).toBe('a');
+    expect(travel.active).toBe(false);
+    expect(travel.built).toBe(a.builds[0].built);
+    expect(names(scene)).toEqual(before);
+    expect(g.ws).toBe(save.worlds.a);
+    expect(g.busy).toBe(false);
+    expect(persist).not.toHaveBeenCalled();
+    expect(leave).not.toHaveBeenCalled();
+    expect(b.builds).toHaveLength(0);
+    expect(door.downloads).toEqual([]);
+    // The change of world says nothing itself: the gate has had the cat say why (src/main.ts hands it the line).
+    expect(door.refused).toEqual([]);
+    expect(welcomed).toEqual([]);
+    expect(hidden('bubble')).toBe(true);
+  });
+
+  it('while the gate is asked the change is on (a second knock is no second change) and the frame is still open', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    let open: (x: GateAnswer) => void = () => {};
+    const door = fakeDoor({ answer: () => new Promise<GateAnswer>((r) => { open = r; }) });
+    const { travel, play, g, transition } = await setup([a, b], { door });
+    const going = travel.go('b');
+    expect(travel.active).toBe(true);
+    expect(await travel.go('b')).toBe(false);
+    for (let i = 0; i < 5; i++) { transition.frame(0.05); await new Promise((r) => setTimeout(r, 0)); }
+    expect(transition.phase).toBe('idle');
+    expect(g.busy).toBe(true);                   // she stands at the portal while it is asked
+    expect(log).toEqual(['gate b']);             // and nothing else of the change is done yet
+    expect(door.asked).toEqual(['b']);
+    open({ enter: true, from: 'cache' });
+    expect(await play(going)).toBe(true);
+    expect(travel.world).toBe('b');
+  });
+
+  it('a refusal while a scene holds the controls leaves them with the scene', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: false }) });
+    const { travel, play, g } = await setup([a, b], { door });
+    g.busy = true;
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(g.busy).toBe(true);
+    expect(travel.active).toBe(false);
+  });
+
+  it('a world in the cache is entered at once: nothing is downloaded', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'cache' }) });
+    const { travel, play } = await setup([a, b], { door });
+    expect(await play(travel.go('b'))).toBe(true);
+    expect(door.downloads).toEqual([]);
+    expect(log).not.toContain('download b');
+  });
+
+  it('a world from the network is downloaded in full behind the closed frame, under the ring, before it is opened', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'network' }), total: 5 });
+    const { travel, play, transition, T, g } = await setup([a, b], { door });
+    const rings: number[] = [];
+    vi.spyOn(transition, 'setProgress').mockImplementation((f) => { rings.push(f); });
+    let closedAt = -1;
+    void transition.whenClosed().then(() => { closedAt = log.length; });
+    expect(await play(travel.go('b'))).toBe(true);
+    expect(door.downloads).toEqual(['b']);
+    // the download is behind the closed frame, after the world left is out, and ends before the new world is opened
+    const at = (l: string) => log.indexOf(l);
+    expect(at('download b')).toBeGreaterThanOrEqual(closedAt);
+    expect(at('release a')).toBeLessThan(at('download b'));
+    expect(at('downloaded b: ready')).toBeLessThan(at('sky b'));
+    expect(at('downloaded b: ready')).toBeLessThan(at('load b'));
+    // the ring follows the files that came, up to its share, then the load fills the rest; it never goes back
+    const downloaded = rings.filter((f) => f <= T.DOWNLOAD_SHARE);
+    expect(downloaded.length).toBeGreaterThan(1);
+    expect(Math.max(...downloaded)).toBeCloseTo(T.DOWNLOAD_SHARE, 5);
+    expect(rings).toEqual([...rings].sort((x, y) => x - y));
+    expect(rings.at(-1)).toBeCloseTo(T.DOWNLOAD_SHARE + (1 - T.DOWNLOAD_SHARE) * 0.5, 5);   // the load of b says 0.5
+    expect(travel.world).toBe('b');
+    expect(g.busy).toBe(false);
+    expect(door.refused).toEqual([]);
+  });
+
+  it.each([['partial'], ['none'], ['a rejection']] as const)('a download that ends %s: back in the world left, and the cat says the network is needed - not the message of a failed load', async (end) => {
+    const a = fakeWorld('a', { music: 111 }), b = fakeWorld('b', { music: 222 });
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'network' }), download: () => (end === 'a rejection' ? Promise.reject(new Error('no room')) : end) });
+    const { travel, play, g, scene, save, welcomed } = await setup([a, b], { door });
+    g.hero.root.position.set(3, 0, 4);
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(travel.world).toBe('a');
+    expect(b.builds).toHaveLength(0);
+    expect(log).not.toContain('load b');
+    expect(a.builds).toHaveLength(2);
+    expect(names(scene)).toEqual(['a friend', 'a land', 'a sky', 'a sun', 'the tap ring']);
+    expect(g.ws).toBe(save.worlds.a);
+    expect(g.hero.root.position.toArray()).toEqual([3, 0, 4]);
+    expect(g.busy).toBe(false);
+    expect(travel.active).toBe(false);
+    // once, after the frame is open again (the line is heard over the world played, not over the closed frame)
+    expect(door.refused).toEqual([1]);
+    expect(log.indexOf('refuse')).toBeGreaterThan(log.lastIndexOf('build a'));
+    expect(log.at(-1)).toBe('refuse');
+    expect(hidden('bubble')).toBe(true);
+    expect(welcomed).toEqual([]);
+    // the next knock is asked again: once the world can be had, it is entered
+    door.gate.canEnter = async () => ({ enter: true, from: 'cache' });
+    expect(await play(travel.go('b'))).toBe(true);
+    expect(travel.world).toBe('b');
+  });
+
+  it('the world played is asked about by nobody: a change to it and a change during a change never reach the gate', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor();
+    const { travel, play } = await setup([a, b], { door });
+    expect(await travel.go('a')).toBe(false);
+    const going = travel.go('b');
+    expect(await travel.go('b')).toBe(false);
+    expect(await play(going)).toBe(true);
+    expect(door.asked).toEqual(['b']);
+  });
+});
+
+describe('src/main.ts hands the change of world its gate', () => {
+  const MAIN = (import.meta.glob('../main.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)['../main.ts'];
+  it('the cache of worlds is made before the change of world, and the gate, the cache and the refusal are handed to it', () => {
+    expect(MAIN.match(/\bcreateWorldCache\(\)/g)).toHaveLength(1);
+    expect(MAIN.indexOf('createWorldCache()')).toBeLessThan(MAIN.indexOf('createTravel({'));
+    expect(MAIN.indexOf('createGate({')).toBeLessThan(MAIN.indexOf('createTravel({'));
+    const args = MAIN.slice(MAIN.indexOf('createTravel({'), MAIN.indexOf('\n  });', MAIN.indexOf('createTravel({')));
+    expect(args).toContain('gate, cache: worlds, refuse,');
+  });
+
+  it('the gate asks the cache of worlds, the page and the network; a refusal is the cat\'s recorded line "need_net"', () => {
+    const gate = MAIN.slice(MAIN.indexOf('createGate({'), MAIN.indexOf('\n  });', MAIN.indexOf('createGate({')));
+    expect(gate).toContain('worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),');
+    expect(gate).toContain('online: () => navigator.onLine, probe: () => probeNetwork(), refuse,');
+    expect(MAIN).toContain("const refuse = () => { void g.speech.line('need_net', 'hint'); };");
   });
 });
 

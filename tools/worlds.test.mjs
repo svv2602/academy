@@ -3,6 +3,7 @@
 // builds are checked, and the probe world played, by `npm run e2e`.
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:net';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,9 +13,10 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
-  OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems, walkEnv, worldVoiceProblems,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUND_GROWTH, ROUND_KEYS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
+import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -607,6 +609,193 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(travel).toContain("for (const k of ['npcs', 'names', 'described', ");
     expect(travel).toMatch(/if \(!same\(kinds, \[\.\.\.ITEM_KINDS\]\.sort\(\)\) \|\| !away\.described\.includes\('chain friend'\)\) fail\(/);
   });
+});
+
+describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', () => {
+  const MB = 1048576;
+  const round = (n, o = {}) => ({ round: n, heap: 40 * MB, geometries: 300, textures: 120, programs: 60, ...o });
+  const five = (last = {}) => [1, 2, 3, 4].map((n) => round(n)).concat(round(5, last));
+
+  it('five rounds, the numbers of the requirement: the heap, the geometries, the textures, the programs, at most 10 % over', () => {
+    expect(ROUNDS).toBe(5);
+    expect(ROUND_GROWTH).toBe(0.1);
+    expect(ROUND_KEYS).toEqual(['heap', 'geometries', 'textures', 'programs']);
+    expect(FIRST_WORLD).toBe('fairy');
+  });
+
+  it('the last round within 10 % of the first, each number: no problem - exactly 10 % over is still within', () => {
+    expect(roundProblems(five())).toEqual([]);
+    expect(roundProblems(five({ heap: 44 * MB, geometries: 330, textures: 132, programs: 66 }))).toEqual([]);
+    // the rule is the last against the first: a round in the middle that held more and let it go is no problem
+    const mid = five(); mid[2] = round(3, { heap: 60 * MB });
+    expect(roundProblems(mid)).toEqual([]);
+  });
+
+  it.each(ROUND_KEYS)('"%s" more than 10 % over after the last round is a problem that names it', (k) => {
+    const first = round(1)[k];
+    const left = roundProblems(five({ [k]: Math.ceil(first * 1.1) + 1 }));
+    expect(left).toHaveLength(1);
+    expect(left[0]).toContain(`after round 5 "${k}" is`);
+    expect(left[0]).toContain('at most 10 % is allowed');
+  });
+
+  it('a number not read after a round, or not five rounds, is a problem: never a quiet pass', () => {
+    expect(roundProblems(five().slice(0, 4))).toEqual(['4 round(s) were read, expected 5']);
+    expect(roundProblems([])).toEqual(['0 round(s) were read, expected 5']);
+    const lost = five(); lost[1] = round(2, { programs: undefined });
+    expect(roundProblems(lost)).toEqual(['"programs" was not read after round 2 (undefined): nothing to compare']);
+    expect(roundProblems(five({ heap: 0 }))[0]).toContain('"heap" was not read after round 5');
+  });
+
+  it('a line of the log for each round: the heap in MB and the three counts of the renderer', () => {
+    expect(roundLine(round(3, { heap: 41.5 * MB }))).toBe('round 3: heap 41.50 MB, geometries 300, textures 120, programs 60');
+  });
+
+  it('readRound: the garbage is collected (twice) before the heap is read, then the renderer is read', async () => {
+    const calls = [];
+    const cdp = { send: async (m) => { calls.push(m); return m === 'Runtime.getHeapUsage' ? { usedSize: 1234, totalSize: 9999 } : {}; } };
+    const was = globalThis.window;
+    globalThis.window = { __game: { renderer: { info: { memory: { geometries: 7, textures: 3 }, programs: [1, 2] } } } };
+    try {
+      const page = { evaluate: async (fn, arg) => { calls.push('renderer'); return fn(arg); } };
+      expect(await readRound(page, cdp, 2)).toEqual({ round: 2, heap: 1234, geometries: 7, textures: 3, programs: 2 });
+    } finally { globalThis.window = was; }
+    expect(calls).toEqual(['HeapProfiler.collectGarbage', 'HeapProfiler.collectGarbage', 'Runtime.getHeapUsage', 'renderer']);
+  });
+
+  it('playRound: to the probe world and back by __game.travel, the game settled after each; a change that is not true stops the round', async () => {
+    const went = [], waited = [];
+    const page = (answers) => ({ evaluate: async (fn, id) => { went.push(id); return answers.shift(); } });
+    const until = async (_fn, _arg, what) => { waited.push(what); };
+    expect(await playRound(page([true, true]), until)).toEqual([]);
+    expect(went).toEqual([PROBE, FIRST_WORLD]);
+    expect(waited).toEqual([`the game stayed busy after the change to "${PROBE}"`, `the game stayed busy after the change to "${FIRST_WORLD}"`]);
+    went.length = 0;
+    expect(await playRound(page([false, true]), until)).toEqual([`__game.travel('${PROBE}') answered false, expected true`]);
+    expect(went).toEqual([PROBE]);
+  });
+});
+
+describe('the scenarios of the gate in the part "travel" (R07, R12, README of checklist K)', () => {
+  const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
+  const travel = src.slice(src.indexOf('async function travelScenarios('), src.indexOf('async function transitionScenarios('));
+  const block = (start) => travel.slice(travel.indexOf(start), travel.indexOf('\n    }\n', travel.indexOf(start)));
+
+  it('the cat\'s line is checked by its recorded clip: on, a clip started, not left to the synthesizer, the clip of the core', () => {
+    const said = travel.slice(travel.indexOf('const saidNeedNet = async'), travel.indexOf('const offline = async'));
+    expect(said).toContain('__game.line === k && __game.voice.clips > n');
+    expect(said).toContain('if (v.synth) fail(');
+    expect(said).toContain('__game.voice.synth.includes(k)');
+    expect(said).toContain('if (v.clip !== NEED_NET) fail(');
+    expect(travel).toContain("const NEED_NET = 'need_net';");
+  });
+
+  it('"without network" is the server\'s count after the mark, in every scenario that goes offline', () => {
+    const off = travel.slice(travel.indexOf('const offline = async'), travel.indexOf('const noneAsked = '));
+    const told = off.indexOf("await p.g((path) => fetch(path, { cache: 'no-store' }).then(() => true), OFFLINE_MARK);");
+    expect(told).toBeGreaterThanOrEqual(0);
+    expect(told).toBeLessThan(off.indexOf('await p.ctx.setOffline(true);'));
+    expect(travel).toContain('const off = askedOffline(asked, PROBE);');
+    expect(travel.split('setOffline(true)')).toHaveLength(2);   // the switch only in `offline`, never without the mark
+    for (const what of ["noneAsked(name, 'the closed portal');", "noneAsked(name2, 'the probe world entered from the cache');", "noneAsked(name, 'the probe world entered again after the reload');"]) {
+      expect(travel.split(what), what).toHaveLength(2);
+    }
+  });
+
+  it('the closed portal: a browser that saves data, a world not in the cache, refused without a frame of the layer, the cat, the heroine walks, a task', () => {
+    const closed = block("const name = 'the closed portal';");
+    expect(closed).toContain('const p = await open(name, false, true);');
+    expect(closed).toContain("if (before !== 'none') fail(");
+    expect(closed.indexOf('await offline(p);')).toBeLessThan(closed.indexOf('const refused = await p.travel(PROBE);'));
+    expect(closed).toContain('if (refused.ok !== false) fail(');
+    expect(closed).toContain('if (after.frames !== layer.frames || after.phase !== \'idle\' || after.going) fail(');
+    expect(closed).toContain('await saidNeedNet(p, name, layer.clips);');
+    expect(closed).toContain('if (!(await p.walks())) fail(');
+    expect(closed).toContain("await p.solveWith('fox', FIRST);");
+    expect(closed).toContain('if (there.ok !== true) fail(');
+  });
+
+  it('the rounds: by the network first, ready with its voice, five rounds read and compared, the progress after a reload without network, entered from the cache', () => {
+    const rounds = block("const name = 'rounds';");
+    expect(rounds).toContain('const p = await open(name, false, true);');
+    expect(rounds).toContain("if (kept.status !== 'ready' || !same(kept.cached, files)) fail(");
+    expect(rounds).toContain('rounds.push(await readRound(p.page, cdp, 1));');
+    expect(rounds).toContain('for (const x of await playRound(p.page, p.until)) fail(');
+    expect(rounds).toContain('for (const x of roundProblems(rounds)) fail(');
+    expect(rounds).toContain('if (now !== was) fail(');
+    expect(rounds.indexOf('await offline(p);')).toBeLessThan(rounds.indexOf('await p.page.reload();'));
+    expect(rounds).toContain('if (again.ok !== true) fail(');
+    // the picture of the middle of a real change: the game's clock stopped, not the debug stop of the layer
+    expect(rounds).toContain("await p.page.screenshot({ path: join(root, shots, 'travel-mid.png') });");
+    expect(rounds).toContain('__game.still(true)');
+    expect(rounds).not.toContain('__game.transition(');
+    // the voice of the world is among the files the cache must hold
+    expect(travel).toContain('if (!files.some(isVoice)) throw new Error(');
+  });
+
+  it('the files gone: the download fails, the cat says the network is needed by its clip', () => {
+    const gone = block("const name = 'the files are gone';");
+    expect(gone).toContain('await saidNeedNet(p, name, clipsBefore);');
+    expect(gone).toContain('for (const x of travelFramesProblems(refused.frames, FIRST, FIRST)) fail(');
+  });
+});
+
+describe('node tools/worlds-phone.mjs: the same rounds on the phone (R21)', () => {
+  const phone = readFileSync(join(root, 'tools/worlds-phone.mjs'), 'utf8');
+
+  it('plays the rounds and reads the numbers with the functions of the scenario "rounds", and compares them the same way', () => {
+    expect(phone).toContain("import { FIRST_WORLD, PROBE, PROBE_DIST, ROUNDS, playRound, readRound, roundLine, roundProblems } from './worlds.mjs';");
+    expect(phone).toContain('const wrong = await playRound(page, until);');
+    expect(phone).toContain('rounds.push(await readRound(page, cdp, n));');
+    expect(phone).toContain('problems.push(...roundProblems(rounds));');
+  });
+
+  it('touches only a tab of its own, keeps it in front, and puts the storage back; the copy never goes to a file', () => {
+    expect(phone).toContain('const page = await ctx.newPage();');
+    expect(phone).toContain('await page.bringToFront();');
+    expect(phone).toContain('await page.close().catch(() => {});');
+    expect(phone).not.toMatch(/writeFileSync|appendFileSync|createWriteStream/);
+    expect('amw-save').toMatch(SAVE_KEYS); expect('amw-save-prev').toMatch(SAVE_KEYS); expect('amw-save-v3').toMatch(SAVE_KEYS);
+    expect('other').not.toMatch(SAVE_KEYS);
+  });
+
+  it('readPhoneArgs: the address of the phone, the port and the build, each once; a mistake is said', () => {
+    expect(readPhoneArgs([])).toEqual({ cdp: PHONE_CDP, port: PHONE_PORT, dist: PROBE_DIST });
+    expect(PHONE_PORT).toBe(4373);
+    expect(readPhoneArgs(['--cdp', 'http://127.0.0.1:9444/x', '--port', '4380', '--dist', 'other'])).toEqual({ cdp: 'http://127.0.0.1:9444', port: 4380, dist: 'other' });
+    expect(readPhoneArgs(['--port', '0']).error).toBe('bad --port "0"');
+    expect(readPhoneArgs(['--port']).error).toBe('--port needs a value');
+    expect(readPhoneArgs(['--cdp', 'ws://x']).error).toContain('bad --cdp');
+    expect(readPhoneArgs(['--port', '1', '--port', '2']).error).toBe('--port is given twice');
+    expect(readPhoneArgs(['phone']).error).toBe('unknown argument "phone"');
+  });
+
+  it('phoneProblem: only Chrome on a phone is driven - a Chrome of this machine is refused', () => {
+    const android = { Browser: 'Chrome/131.0', 'Android-Package': 'com.android.chrome', 'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S901B) Chrome/131.0 Mobile', webSocketDebuggerUrl: 'ws://127.0.0.1:9333/devtools/browser' };
+    expect(phoneProblem(android)).toBeNull();
+    expect(phoneProblem({ ...android, 'Android-Package': undefined })).toBeNull();
+    expect(phoneProblem({ Browser: 'Chrome/131.0', 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) Chrome/131.0', webSocketDebuggerUrl: 'ws://x' })).toContain('not Chrome on a phone');
+    expect(phoneProblem(null)).toContain('did not answer');
+    expect(phoneProblem({ ...android, webSocketDebuggerUrl: undefined })).toContain('webSocketDebuggerUrl');
+    expect(phoneHelp('http://127.0.0.1:9333', 4373)).toContain('adb forward tcp:9333 localabstract:chrome_devtools_remote');
+    expect(phoneHelp('http://127.0.0.1:9333', 4373)).toContain('adb reverse tcp:4373 tcp:4373');
+  });
+
+  it('without a phone: exit code 3 and how to connect it, nothing served or opened', async () => {
+    // A port nothing listens on: taken and given back, so no phone (and no Chrome) can be at it.
+    const port = await new Promise((ok) => { const s = createServer().listen(0, '127.0.0.1', () => { const n = s.address().port; s.close(() => ok(n)); }); });
+    const r = spawnSync(process.execPath, [join(root, 'tools/worlds-phone.mjs'), '--cdp', `http://127.0.0.1:${port}`, '--port', '1'], { cwd: root, encoding: 'utf8', timeout: 30000 });
+    expect(r.status).toBe(3);
+    expect(r.stderr).toContain(`no phone: nothing answers as Chrome on a phone at http://127.0.0.1:${port}.`);
+    expect(r.stderr).toContain('adb reverse tcp:1 tcp:1');
+    expect(r.stdout).not.toContain('served on');
+  }, 30000);
+
+  it('a bad argument: exit code 2 and the usage', () => {
+    const r = spawnSync(process.execPath, [join(root, 'tools/worlds-phone.mjs'), '--frobnicate'], { cwd: root, encoding: 'utf8', timeout: 30000 });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('Usage: node tools/worlds-phone.mjs');
+  }, 30000);
 });
 
 describe('node tools/worlds.mjs', () => {
