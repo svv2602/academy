@@ -5256,5 +5256,69 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_intro_1": {
+  "text": "Це Королівство фей. Тут усе сяє завдяки Кристалу світла.",
+  "heard": "Це королівство фей. Тут усе сяє завдяки кристалу світла.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_intro_2": {
+  "text": "Ой! Кристал розлетівся на пʼять уламків, і чари почали тьмяніти.",
+  "heard": "Ой, кристал розлетівся на п'ять уламків, і чари почали тьмяніти!",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_intro_3": {
+  "text": "Не сумуй! Уламки бережуть пʼятеро друзів. Кожен чекає на допомогу.",
+  "heard": "Не сумуй! Уламки бережуть п'ятеро друзів. Кожен чекає на допомогу.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_intro_4": {
+  "text": "А ось і ти, Хранителько! Я твій кіт-помічник, я буду поруч.",
+  "heard": "А ось і ти, Хранителько! Я твій кіт-помічник, я буду поруч!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_intro_5": {
+  "text": "Ходімо збирати уламки! Біжи за іскорками — вони покажуть дорогу.",
+  "heard": "Ходімо збирати уламки! Біжи за іскорками, вони покажуть дорогу.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_crystal_1": {
+  "text": "Ми зібрали всі уламки! Дивись, як вони сяють над ставком.",
+  "heard": "Ми зібрали всі уламки. Дивись, як вони сяють над ставком!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_crystal_2": {
+  "text": "Уламки зʼєдналися! Кристал світла знову цілий і сяє.",
+  "heard": "Уламки з’єдналися, кристал світла знову цілий і сяє!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "story_crystal_3": {
+  "text": "Королівство знову розквітло! А вдалині на нас чекає Велике Древо.",
+  "heard": "Королівство знову розквітла, а вдалині на нас чекає велике дерево!",
+  "score": 0.976,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
