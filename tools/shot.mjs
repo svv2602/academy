@@ -2662,13 +2662,15 @@ try {
           if (!m) fail(`the counter beside the fawn cannot be read: "${cost.counter}"`);
           const [maxTris, maxCalls] = PET_BUDGET[m[1]];
           if (+m[2] > maxTris || +m[3] > maxCalls) fail(`over the budget of TECH-06 with the fawn (${m[1]}): ${m[2]}k triangles of ${maxTris}k, ${m[3]} calls of ${maxCalls}`);
-          // The paws of the pet (src/game/stride.ts): four times she runs two seconds of game time, there and back, and
-          // stops; every frame the way the pet's clip takes a standing paw back (its pace times the clip's speed over the
+          // The paws of the pet (src/game/stride.ts), in the sizes of a phone only (the desktop runner draws ≈ 3 frames a
+          // second: the runs took minutes there; the code of the pace is the same in every size): twice she runs two
+          // seconds of game time, there and back, and stops; every frame the way the pet's clip takes a standing paw back (its pace times the clip's speed over the
           // ground, measured by tools/feet.mjs: Walk 0.24, Gallop 1.04 m/s) is set against the way the pet went. What is
           // not covered slides. Read from the pace, not from the paws: a slow machine draws fewer frames than a paw
           // stands. Measured 2026-11-18 (the block "finale"): 0.91 of its way with the pace by the distance (the walk
           // only), 0.081 with the pace by its speed and the gallop, 0.053 drawn by program; the bound is half way.
           const PET_SLIDE = 0.5, PET_GROUND = { Walk: 0.24, Gallop: 1.04 };
+          if (mode === 'mobile' || mode === 'mobile-portrait') {
           await g(() => {
             const log = window.__paceLog = [];
             const tick = () => {
@@ -2678,7 +2680,7 @@ try {
             };
             window.__paceStop = false; requestAnimationFrame(tick);
           });
-          for (const key of ['ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown']) {
+          for (const key of ['ArrowUp', 'ArrowDown']) {
             await page.keyboard.down(key); await gameUntil(() => false, null, 2); await page.keyboard.up(key);
             await gameUntil(() => false, null, 1.5);
           }
@@ -2698,6 +2700,7 @@ try {
           console.log(`pet: its paws slide ${paws.share} of its way (${paws.frames} frames moving; clips ${paws.clips}; at most ${PET_SLIDE})`);
           if (paws.frames < 20) fail(`the paws of the pet: too few frames moving to judge (${paws.frames})`);
           if (paws.share > PET_SLIDE) fail(`the paws of the pet slide ${paws.share} of its way, more than ${PET_SLIDE}`);
+          }
           // ---- a reload: the page loaded again (a second tab of the same address and storage, as the block "magic" does:
           // a reload of this one would drop the watchers of the walkthrough) plays from the save, the fawn after her ----
           const p2 = await page.context().newPage();
