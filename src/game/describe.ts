@@ -19,6 +19,7 @@ export const KINDS: readonly WorldItemKind[] = ['chain', 'part', 'scene', 'final
 /** What the description reads of a world: WorldDef fits, and so does what the game holds of the world played (`g.world`). */
 export interface Declared {
   readonly characters?: readonly CharacterDef[]; readonly pet?: WorldDef['pet']; readonly secrets?: readonly string[];
+  readonly worldTasks?: readonly string[];
 }
 /** The marks of a world: its part of the save (WorldState, src/core/save.ts). */
 export interface Marks { quests: Record<string, number>; flags: Record<string, boolean>; final: boolean }
@@ -39,19 +40,28 @@ export function marked(ws: Marks, item: Omit<WorldItem, 'done'>): WorldItem {
   return { ...item, done: item.kind === 'finale' ? () => ws.final === true : () => ws.flags[item.id] === true };
 }
 
+/** The numbers of the steps of `c` that the world plays as a task in the world (WorldDef.worldTasks), in order. */
+export function inWorldSteps(c: Pick<CharacterDef, 'steps'>, worldTasks: readonly string[] = []): number[] {
+  return c.steps.flatMap((s, k) => (worldTasks.includes(s) ? [k] : []));
+}
+
 /**
  * The items a world does not write: a chain for each of its characters, in their order, and its pet.
  * A chain is done when its character has no step left (the rule of src/game/dialogue.ts); the heroine stands in front
- * of the character. The pet stands where the world put it and comes after the chain the world names (src/game/pets.ts
+ * of the character; the steps the world plays in the world are named on it (`inWorld`), only when it has some. The pet stands where the world put it and comes after the chain the world names (src/game/pets.ts
  * shows it and gives it its action spot).
  */
 export function declared(g: Described): WorldItem[] {
   const { world, ws } = g;
-  const out = (world.characters ?? []).map((c): WorldItem => ({
-    kind: 'chain', id: c.id, how: 'act',
-    at: { x: c.x + Math.sin(c.heading) * TALK_AT, z: c.z + Math.cos(c.heading) * TALK_AT },
-    done: () => (ws.quests[c.id] ?? 0) >= c.steps.length,
-  }));
+  const out = (world.characters ?? []).map((c): WorldItem => {
+    const inWorld = inWorldSteps(c, world.worldTasks);
+    return {
+      kind: 'chain', id: c.id, how: 'act',
+      at: { x: c.x + Math.sin(c.heading) * TALK_AT, z: c.z + Math.cos(c.heading) * TALK_AT },
+      done: () => (ws.quests[c.id] ?? 0) >= c.steps.length,
+      ...(inWorld.length ? { inWorld } : {}),
+    };
+  });
   const pet = world.pet;
   if (pet) {
     out.push(marked(ws, {
@@ -77,7 +87,8 @@ export function ready(item: Pick<WorldItem, 'after'>, items: readonly WorldItem[
  * ids are unique; `after` names items of the list; an item done by the action button or by walking has a place, one
  * that plays by itself tells when it is on (`active`); the chains are the world's characters one to one; the secrets
  * are the world's `secrets` one to one; there is a pet exactly when the world declares one, under the id of its flag
- * and at the declared place.
+ * and at the declared place; every task the world declares to play in the world (`worldTasks`) is a step of some
+ * character, and each chain names exactly its steps of them (`inWorld`) - a walkthrough would not find the others.
  */
 export function problems(world: Declared, items: readonly WorldItem[]): string[] {
   const out: string[] = [];
@@ -97,6 +108,16 @@ export function problems(world: Declared, items: readonly WorldItem[]): string[]
     for (const h of have) if (!names.includes(h)) out.push(`the item "${h}" of kind "${kind}" is not in the world's ${field}`);
   };
   oneToOne('chain', (world.characters ?? []).map((c) => c.id), 'characters');
+  const tasks = world.worldTasks ?? [];
+  for (const id of new Set(tasks)) {
+    if (!(world.characters ?? []).some((c) => c.steps.includes(id))) out.push(`the task in the world "${id}" of the world's worldTasks is no step of any character`);
+  }
+  for (const c of world.characters ?? []) {
+    const chain = items.find((i) => i.kind === 'chain' && i.id === c.id);
+    if (!chain) continue;
+    const want = inWorldSteps(c, tasks), have = [...(chain.inWorld ?? [])];
+    if (JSON.stringify(have) !== JSON.stringify(want)) out.push(`the chain "${c.id}" names the steps ${JSON.stringify(have)} as played in the world, the world's worldTasks make them ${JSON.stringify(want)}`);
+  }
   oneToOne('secret', world.secrets ?? [], 'secrets');
   const pets = items.filter((i) => i.kind === 'pet');
   if (!world.pet) for (const p of pets) out.push(`the item "${p.id}" of kind "pet": the world declares no pet`);
@@ -158,11 +179,14 @@ export function missing(items: readonly { kind: WorldItemKind }[], need: Need = 
 export interface ItemState {
   kind: WorldItemKind; id: string; at: { x: number; z: number } | null; how: WorldItem['how']; after: string[];
   done: boolean; active: boolean;
+  /** A chain with steps played in the world: their numbers (WorldItem.inWorld); absent otherwise. */
+  inWorld?: number[];
 }
 
 export function look(items: readonly WorldItem[]): ItemState[] {
   return items.map((i) => ({
     kind: i.kind, id: i.id, at: i.at ? { x: i.at.x, z: i.at.z } : null, how: i.how, after: [...(i.after ?? [])],
     done: i.done(), active: i.active?.() ?? false,
+    ...(i.inWorld ? { inWorld: [...i.inWorld] } : {}),
   }));
 }

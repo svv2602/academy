@@ -22,10 +22,17 @@
 //        tap  - a tap in the middle of the screen (after standing at `at`, or once it is on by itself);
 //      then it is driven to its end: a panel task is pictured, its question checked and solved (__game.cheat), a task
 //      of the world itself is solved the same way, the card of a part is pictured and closed, what plays is waited for
-//      by its `active`. An item that does not get done fails with its id: the action tried twice with its mark in
+//      by its `active`. A task played in the world (PLAY-01) on a step the chain names in `inWorld` is played through
+//      the debug door of the task (__game.worldTask, src/game/worldtasks/core.ts), whatever its kind, in the steps of
+//      WORLD_TASK_STEPS: a) it is open, waiting, with no mistake and no hint (a card there instead fails); b) one wrong
+//      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1; c) closed - nothing is
+//      recorded (the world's part of the save in memory and stored, the stars, the skills: as at its opening), the
+//      heroine walks; d) the action again opens the same task anew; e) solved - the step is stored, 3 stars, one task
+//      more in one skill. A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
 //      the save unchanged, no action button at its place, no start, or `active` that never ends. Once, before the first
 //      item, the order is tried: at the place of an item that comes after an undone one nothing can be done yet;
-//   5. the end: every item done, each mark in the stored save under the id of its item, the book (a part for every
+//   5. the end: every item done, each mark in the stored save under the id of its item, every step a chain names in
+//      `inWorld` met and played as a task in the world, the book (a part for every
 //      chain, lit for the chains done), the voice (no line left to the synthesizer, the planner turned away only what
 //      it may), the frame counter;
 //   6. a reload: every item still done, the progress under worlds.<id>, the part of the world the save started with
@@ -97,6 +104,7 @@ export function descriptionProblems(seen) {
     if (!point(i.at)) wrong.push(`at ${JSON.stringify(i.at)}`);
     if (!HOWS.includes(i.how)) wrong.push(`how ${JSON.stringify(i.how)}`);
     if (!Array.isArray(i.after) || i.after.some((a) => typeof a !== 'string')) wrong.push(`after ${JSON.stringify(i.after)}`);
+    if (i.inWorld !== undefined && (i.kind !== 'chain' || !Array.isArray(i.inWorld) || i.inWorld.some((k) => !Number.isInteger(k) || k < 0))) wrong.push(`inWorld ${JSON.stringify(i.inWorld)}`);
     if (typeof i.done !== 'boolean') wrong.push(`done ${JSON.stringify(i.done)}`);
     if (typeof i.active !== 'boolean') wrong.push(`active ${JSON.stringify(i.active)}`);
     if (wrong.length) out.push(`the item ${n} ("${i.id}") is not of the shape of an item: ${wrong.join(', ')}`);
@@ -265,7 +273,7 @@ export function restartProblems(stored, restart) {
 /**
  * The report of a pass (E2E_WORLD_OUT) against what its caller asked for (`want`: { world, size, offline, kinds }): the
  * pass came to its end, in that world and size, with the network as asked, and did an item of every kind of `kinds`.
- * Returns the problems, [] when it is right.
+ * With `want.inWorld` the pass also played a task in the world (`report.worldTasks`). Returns the problems, [] when it is right.
  */
 export function reportProblems(report, want) {
   if (!report) return ['it left no report of the pass: it did not come to the end of the description'];
@@ -275,7 +283,105 @@ export function reportProblems(report, want) {
   if (report.online !== !want.offline) out.push(`it was played ${report.online ? 'with' : 'without'} the network, the ${want.size} size is played ${want.offline ? 'without' : 'with'} it`);
   const did = (report.items ?? []).filter((i) => (report.order ?? []).includes(i.id));
   for (const k of want.kinds) if (!did.some((i) => i.kind === k)) out.push(`no item of kind "${k}" was done by the pass`);
+  if (want.inWorld && !(report.worldTasks ?? []).length) out.push('no task in the world was played by the pass: the world declares one');
   return out;
+}
+
+/**
+ * The play of a task in the world on a step a chain declares (R97), in order: a) `open` - it is open and waits; b)
+ * `wrong` - one wrong move and its course; c) `close` - the close button, nothing recorded, the heroine walks; d)
+ * `again` - the action again, the same task anew; e) `solve` - solved through the door, the step recorded.
+ */
+export const WORLD_TASK_STEPS = ['open', 'wrong', 'close', 'again', 'solve'];
+/** Stars a step of a chain gives (src/game/dialogue.ts): the same with or without mistakes. */
+export const STEP_STARS = 3;
+
+/**
+ * The step of the chain `item` a task in the world has opened at (`part`: the world's part of the save as the game holds
+ * it - the step done so far is the one playing): { step, error }. `error`: the description does not declare that step
+ * as played in the world (`inWorld`), or the item is no chain - null when it does.
+ */
+export function worldStepOf(item, part, kind) {
+  const step = Number(part?.quests?.[item?.id] ?? 0);
+  if (!item || item.kind !== 'chain') return { step, error: `a task in the world ("${kind}") is open ${item ? `in the item "${item.id}" (${item.kind})` : 'between the items'}, and only a step of a chain plays one` };
+  const declared = item.inWorld ?? [];
+  if (!declared.includes(step)) {
+    return { step, error: `a task in the world ("${kind}") opened at step ${step + 1} of the chain "${item.id}", which its description does not declare (inWorld: ${JSON.stringify(declared)}) - world.worldTasks does not name it` };
+  }
+  return { step, error: null };
+}
+
+/** a) and d): the task just opened (`state`: __game.worldTask.state) waits for input, with no mistake, no hint and nothing kept. */
+export function openProblems(state, kind) {
+  if (!state) return ['no task in the world is open'];
+  const out = [];
+  if (kind && state.kind !== kind) out.push(`the task is "${state.kind}", not the "${kind}" opened before`);
+  if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input"`);
+  if (state.wrongs !== 0) out.push(`${state.wrongs} wrong move(s) at its start`);
+  if (state.rung !== 0) out.push(`the rung ${state.rung} of the hint at its start`);
+  if (!Array.isArray(state.progress) || state.progress.length) out.push(`it starts in a middle: ${JSON.stringify(state.progress)}`);
+  return out;
+}
+
+/**
+ * b): after one wrong move and its course (`state`), the lines said since it (`voice`: { started - the lines whose
+ * clips were started, synth - the lines left to the synthesizer, line - the line the bubble holds, muted }): one
+ * mistake, waiting again, the first rung of the hint; "try again" and the hint by their clips.
+ */
+export function wrongProblems(state, voice) {
+  if (!state) return ['the task in the world is not open after a wrong move'];
+  const out = [];
+  if (state.wrongs !== 1) out.push(`${state.wrongs} wrong moves counted for one`);
+  if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input" again`);
+  if (state.rung !== 1) out.push(`the rung of the hint is ${state.rung}, not 1`);
+  const started = [...new Set(voice.started)];
+  if (voice.synth.length) out.push(`lines left to the synthesizer: ${voice.synth.join(' ')}`);
+  if (started.length < 2) out.push(`the clips of "try again" and of the hint were not both started (started: ${started.join(' ') || 'none'})`);
+  else if (!voice.muted && !started.includes(voice.line)) out.push(`the bubble holds "${voice.line}", whose clip was not started (started: ${started.join(' ')})`);
+  return out;
+}
+
+/** What a step of a task records, in memory and in the stored save: the world's part (but where she stands), the stars, the skills. */
+export const RECORD = (id) => {
+  const part = (w) => { const { pos, ...rest } = w ?? {}; return rest; };
+  const st = JSON.parse(localStorage.getItem('amw-save') || '{}'), s = window.__game.save;
+  return {
+    state: window.__game.worldTask.state,
+    held: JSON.stringify({ part: part(s.worlds[id]), stars: s.stars, skills: s.skills }),
+    stored: JSON.stringify({ part: part(st.worlds?.[id]), stars: st.stars, skills: st.skills }),
+  };
+};
+
+/** c): closed (`after`) - no task open, and in memory and in the stored save exactly what was there when it opened (`before`). */
+export function closeProblems(before, after) {
+  const out = [];
+  if (after.state) out.push(`the task is still open after its close button: ${JSON.stringify(after.state)}`);
+  if (after.held !== before.held) out.push(`the game holds ${after.held}, at its opening ${before.held}`);
+  if (after.stored !== before.stored) out.push(`the stored save holds ${after.stored}, at its opening ${before.stored}`);
+  return out;
+}
+
+/**
+ * e): solved (`after`) - no task open; in memory and in the stored save the chain `id` is at step `step` + 1, STEP_STARS
+ * more stars, one task more in exactly one skill, the rest of the record as at the opening (`before`).
+ */
+export function solveProblems(before, after, id, step) {
+  if (after.state) return [`the task is still open after solve(): ${JSON.stringify(after.state)}`];
+  const out = [];
+  for (const where of ['held', 'stored']) {
+    const was = JSON.parse(before[where]), now = JSON.parse(after[where]), name = where === 'held' ? 'the game' : 'the stored save';
+    if (now.part?.quests?.[id] !== step + 1) out.push(`${name} holds the chain "${id}" at ${JSON.stringify(now.part?.quests?.[id])}, not ${step + 1}`);
+    if (now.stars !== was.stars + STEP_STARS) out.push(`${name} holds ${now.stars} stars, ${was.stars} + ${STEP_STARS} expected`);
+    const grew = Object.keys(now.skills ?? {}).filter((k) => now.skills[k].tasks !== was.skills?.[k]?.tasks);
+    const one = grew.length === 1 && now.skills[grew[0]].tasks === was.skills[grew[0]].tasks + 1;
+    if (!one) out.push(`${name}: the tasks of the skills changed in ${grew.map((k) => `${k} ${was.skills?.[k]?.tasks} -> ${now.skills[k].tasks}`).join(', ') || 'none'}, one task more in one skill expected`);
+  }
+  return out;
+}
+
+/** The steps the chains of `items` declare as played in the world that the pass did not meet (`met`: "<id> <step>"), as "<id> <step>". */
+export function unmetWorldSteps(items, met) {
+  return items.filter((i) => i.kind === 'chain').flatMap((i) => (i.inWorld ?? []).map((k) => `${i.id} ${k}`)).filter((k) => !met.includes(k));
 }
 
 // ---- in the page: each function is sent as it is, so it reads nothing but the page ----
@@ -290,13 +396,14 @@ const LOOK = (need) => ({
  * a panel task that waits for its answer; 'won' - one that is solved and on its way out; 'on' - the item is on (for
  * null: any item); 'busy' - the game holds the controls; 'over' - the item is done and nothing is going on, or what
  * goes on is another item that has come on (for null: nothing is going on); 'idle' - nothing is going on and the item
- * is not done.
+ * is not done; 'world' - a task played in the world is open (src/game/worldtasks/core.ts).
  */
 const STATE = (id) => {
   const shown = (e) => !document.getElementById(e).classList.contains('hidden');
   const items = window.__game.items ?? [], it = items.find((x) => x.id === id);
   if (shown('fanfare')) return 'card';
   if (shown('task')) return document.getElementById('task').classList.contains('won') ? 'won' : 'task';
+  if (window.__game.worldTask?.state) return 'world';
   if (it ? it.active : items.some((x) => x.active)) return 'on';
   if (it && it.done && items.some((x) => x.active)) return 'over';
   if (window.__game.busy) return 'busy';
@@ -356,6 +463,14 @@ export async function playWorld(h, o = {}) {
   const stand = async (at) => { await g(([x, z]) => window.__game.teleport(x, z), [at.x, at.z]); await gameSeconds(SETTLES); };
   const button = () => gameUntil(() => !document.getElementById('btnAct').classList.contains('hidden'), null, REACTS);
   const tapScreen = () => { const v = page.viewportSize(); return touch ? page.touchscreen.tap(v.width / 2, v.height / 2) : page.mouse.click(v.width / 2, v.height / 2); };
+  // The heroine walks: "forward" is held until she has moved half a step in 3 s of game time (as in tools/shot.mjs).
+  const walks = async () => {
+    const from = await g(() => [window.__game.hero.root.position.x, window.__game.hero.root.position.z]);
+    await page.keyboard.down('KeyW');
+    try {
+      return await gameUntil(([x, z]) => Math.hypot(window.__game.hero.root.position.x - x, window.__game.hero.root.position.z - z) > 0.5, from, 3);
+    } finally { await page.keyboard.up('KeyW'); }
+  };
 
   // ---- 1. the start screen ----
   await shows('the start screen');
@@ -405,6 +520,62 @@ export async function playWorld(h, o = {}) {
 
   // ---- 4. the items ----
   const seenTypes = new Set();
+  /** The steps of chains played as a task in the world, "<id> <step>", in the order the pass met them. */
+  const metWorld = [];
+  const worldState = () => g(() => window.__game.worldTask.state);
+  /**
+   * A task in the world is open in `item` (src/game/worldtasks/core.ts): it must be at a step the chain declares
+   * (`inWorld`), and it is played in the steps of WORLD_TASK_STEPS through the debug door (__game.worldTask), whatever
+   * its kind. `again` is the item's action. Every failure names the chain and the step.
+   */
+  const playWorldTask = async (item, where, again) => {
+    const first = await worldState();
+    const { step, error } = worldStepOf(item, await partNow(), first?.kind);
+    if (error) fail(`${where}: ${error}`);
+    const key = `${item.id} ${step}`;
+    if (metWorld.includes(key)) fail(`${where}: the task in the world of step ${step + 1} is open again after it was solved`);
+    const name = `${where}, step ${step + 1}, the task in the world "${first.kind}"`;
+    const bad = (what, list) => { if (list.length) fail(`world task: ${mode} ${name}: ${what}: ${list.join('; ')}`); };
+    let before = null;
+    const played = [];
+    for (const st of WORLD_TASK_STEPS) {
+      if (st === 'open') {
+        bad('a) open', openProblems(await worldState(), first.kind));
+        before = await g(RECORD, worldId);
+        await shot(`world-task-${first.kind}`);
+      } else if (st === 'wrong') {
+        const v0 = await g(() => ({ starts: { ...(window.__starts ?? {}) }, synth: window.__game.voice.synth.length }));
+        if (!(await g(() => window.__game.worldTask.wrong()))) fail(`world task: ${mode} ${name}: b) no wrong move can be made through the door`);
+        // the course of the mistake: "try again" and the hint are said to their end, then the rung shows
+        if (!(await gameUntil(() => { const t = window.__game.worldTask.state; return !t || (t.phase === 'input' && t.rung >= 1); }, null, PLAYS))) {
+          fail(`world task: ${mode} ${name}: b) the course of the wrong move did not come back to input on rung 1 in ${PLAYS} s of game time: ${JSON.stringify(await worldState())}`);
+        }
+        const voice = await g((was) => ({
+          started: Object.keys(window.__starts ?? {}).filter((k) => window.__starts[k] > (was.starts[k] ?? 0)),
+          synth: window.__game.voice.synth.slice(was.synth), line: window.__game.line, muted: window.__game.save.vol.voice === 0,
+        }), v0);
+        bad('b) a wrong move', wrongProblems(await worldState(), voice));
+        await shot(`world-task-${first.kind}-hint1`);
+      } else if (st === 'close') {
+        if (!(await g(() => window.__game.worldTask.close()))) fail(`world task: ${mode} ${name}: c) the door found no task to close`);
+        if (!(await gameUntil(() => !window.__game.worldTask.state && !window.__game.busy, null, REACTS))) fail(`world task: ${mode} ${name}: c) after its close button the task or its scene is still on`);
+        bad('c) closed', closeProblems(before, await g(RECORD, worldId)));
+        if (!(await walks())) fail(`world task: ${mode} ${name}: c) closed: the heroine does not walk`);
+      } else if (st === 'again') {
+        await again();
+        if (!(await gameUntil(() => !!window.__game.worldTask.state, null, STARTS))) fail(`world task: ${mode} ${name}: d) the action again did not open the task in ${STARTS} s of game time`);
+        bad('d) opened again', openProblems(await worldState(), first.kind));
+      } else if (st === 'solve') {
+        if (!(await g(() => window.__game.worldTask.solve()))) fail(`world task: ${mode} ${name}: e) the door found no task to solve`);
+        const recorded = ([w, id, k]) => !window.__game.worldTask.state && (window.__game.save.worlds[w]?.quests?.[id] ?? 0) > k;
+        if (!(await gameUntil(recorded, [worldId, item.id, step], STARTS))) fail(`world task: ${mode} ${name}: e) solved, but the task did not end with its step recorded in ${STARTS} s of game time`);
+        bad('e) solved', solveProblems(before, await g(RECORD, worldId), item.id, step));
+      }
+      played.push(st);
+    }
+    metWorld.push(key);
+    console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, a wrong move on rung 1 with its clips, closed with nothing recorded and the heroine walking, opened anew, solved and recorded`);
+  };
   /** The card of the fanfare that is up: an achievement's scene is closed by `fanfareUp`, the block's own is pictured and closed here. */
   const closeCard = async (where, picture) => {
     if (!(await fanfareUp(where))) return;
@@ -446,7 +617,13 @@ export async function playWorld(h, o = {}) {
       if (s === 'card') {
         if (++cards > 20) fail(`${where}: the card of the fanfare does not close`);
         await closeCard(where, () => picture(`card-${id}`));
+      } else if (s === 'world') {
+        await playWorldTask(item, where, again);
       } else if (s === 'task') {
+        // a step the chain declares as played in the world must not come as a card
+        if (item?.kind === 'chain' && worldStepOf(item, await partNow(), 'card').error === null) {
+          fail(`${where}: a card instead of the task in the world declared at step ${Number((await partNow())?.quests?.[item.id] ?? 0) + 1} (inWorld: ${JSON.stringify(item.inWorld)})`);
+        }
         if (++cheats > 5) fail(`${where}: __game.cheat() does not solve its task`);
         await solveTask(where);
         if (await leaves(id, 'task', 5)) cheats = 0;        // won, or gone
@@ -548,6 +725,12 @@ export async function playWorld(h, o = {}) {
   for (const p of descriptionProblems(last)) errors.push(`description: ${mode} ${worldId}: at the end: ${p}`);
   for (const p of marksProblems(last.items, (await stored()).worlds?.[worldId] ?? null)) errors.push(`description: ${mode} ${worldId}: at the end: ${p}`);
   const chains = last.items.filter((i) => i.kind === 'chain'), chainsDone = chains.filter((i) => i.done).length;
+  // every step declared as played in the world was met as one (a step played as a card, or by another way, was not)
+  {
+    const unmet = unmetWorldSteps(last.items, metWorld);
+    if (unmet.length) errors.push(`world task: ${mode} ${worldId}: steps declared as tasks in the world that the pass never met as one: ${unmet.map((k) => { const [id, n] = k.split(' '); return `"${id}" step ${Number(n) + 1}`; }).join(', ')}`);
+    console.log(`tasks in the world: ${metWorld.length ? metWorld.join(', ') : 'none'} of the declared ${chains.flatMap((i) => (i.inWorld ?? []).map((k) => `${i.id} ${k}`)).join(', ') || 'none'}`);
+  }
   // the book: one part per character, lit for every chain done, the stars of the save
   await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
   await page.waitForFunction(() => !document.querySelector('#book').classList.contains('hidden'), null, { timeout: T(15000) }).catch(() => fail('the book did not open')); /* clock: input-event */
@@ -610,6 +793,6 @@ export async function playWorld(h, o = {}) {
   const onTheWay = last.items.filter((i) => !did.includes(i.id)).map((i) => i.id);
   console.log(`world "${worldId}": ${last.items.length} items of its description done in the order ${did.join(', ')}${onTheWay.length ? ` (done on the way: ${onTheWay.join(', ')})` : ''}; `
     + `${chainsDone} of ${chains.length} chains; ${((Date.now() - started) / 1000).toFixed(0)}s`); /* clock: log-time */
-  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did }) + '\n');
+  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did, worldTasks: metWorld }) + '\n');
   return voiceUsed;
 }

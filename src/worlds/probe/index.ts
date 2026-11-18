@@ -10,17 +10,20 @@ import { createGear } from '../../game/gear';
 import { swimming, type Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { travel } from '../../game/travel';
-import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
+import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky, WorldTask } from '../../game/world';
+import { worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import CLIPS from './clips.json';
 import { PET_AT, SECRET, createItems } from './items';
 import { strings } from './strings';
+import { TALLY, tallyTask } from './tally';
 
 /**
  * The probe world: a test world (TECH-15), never part of the published game. The registry lists it only in a build
  * made with `--mode probe` (src/worlds/index.ts), and `npm run e2e` plays it there (the step "worlds",
- * tools/worlds.mjs). It is the smallest world the shared code can play: a flat meadow, a sky of its own, one character
- * with one panel task, and three files of its own in the folders of its world (worlds-test/probe/: a model, a
- * picture and a clip of the voice) - what the loading, the cache and the release of a world are tried on. It also has
+ * tools/worlds.mjs). It is the smallest world the shared code can play: a flat meadow, a sky of its own, a character
+ * with one panel task and one with a task in the world (./tally.ts, on the shared frame), and three files of its own
+ * in the folders of its world (worlds-test/probe/: a model, a picture and a clip of the voice) - what the loading, the cache and the release of a world are tried on. It also has
  * one point of every kind of the world template (ARCH-16, ./items.ts and the pet below): what the description of a
  * world is tried on. And it is a water world (WorldDef.move): the heroine swims here, with the swimming clips the
  * world brings in a file of its own (worlds-test/probe/models/probe/swim.glb) - what a water world is tried on.
@@ -37,8 +40,17 @@ const PORTAL = { to: 'fairy', x: 7, z: 3 };
 /** The heroine's clips of this world (tools/pack_world_clips.mjs): Swim_Fwd_Loop and Swim_Idle_Loop of the UAL, CC0. */
 const SWIM_CLIPS = 'probe/swim';
 
-/** The character greets with the world's one spoken line of its own: its clip lies in the folder of the world (./clips.json). */
-const FRIENDS: readonly CharacterDef[] = [{ id: 'friend', emoji: '🦊', x: 0, z: -4, heading: 0, steps: ['add'], shard: '#ff9a5c', hi: 'probe_hi' }];
+/**
+ * The first character greets with the world's one spoken line of its own: its clip lies in the folder of the world
+ * (./clips.json). The second one, the same fox of the core's models, gives the world's task in the world (`tally`):
+ * it says only the core's recorded lines.
+ */
+const FRIENDS: readonly CharacterDef[] = [
+  { id: 'friend', emoji: '🦊', x: 0, z: -4, heading: 0, steps: ['add'], shard: '#ff9a5c', hi: 'probe_hi' },
+  { id: 'kit', emoji: '🦊', x: -3, z: -8, heading: 0, steps: [TALLY], shard: '#7fc8ff' },
+];
+/** The steps of the chains played as a task in the world (WorldDef.worldTasks): its description names them. */
+const WORLD_TASKS: readonly string[] = [TALLY];
 
 /** The lines of the shared conversation: the recorded shared ones (the world's own line is the greeting above). */
 const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'probe_part', partText: 'probe_count' };
@@ -90,15 +102,16 @@ async function loadProbe(scene: THREE.Scene, _save: Save, _touch: boolean) {
   meadow.rotation.x = -Math.PI / 2; meadow.receiveShadow = true;
   scene.add(meadow);
   const loads = await Promise.all([
-    rig('animals_pack/Fox', 0.8, true), staticGeo('platformer_game_pack/Star', 0.7),
+    // one rig per character: an actor moves the very model of its rig (the file is loaded once)
+    Promise.all(FRIENDS.map(() => rig('animals_pack/Fox', 0.8, true))), staticGeo('platformer_game_pack/Star', 0.7),
     staticGeo(STUMP.model, 0.7), new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}${SIGN.picture}`), gltf(SWIM_CLIPS),
   ]).catch((e: unknown) => {
     loadFailed(e);
     return null;
   });
   if (!loads) return null;
-  const [foxRig, starGeo, stumpGeo, signMap, swim] = loads;
-  return { foxRig, starGeo, stumpGeo, signMap, swim };
+  const [foxRigs, starGeo, stumpGeo, signMap, swim] = loads;
+  return { foxRigs, starGeo, stumpGeo, signMap, swim };
 }
 type ProbeLoads = NonNullable<Awaited<ReturnType<typeof loadProbe>>>;
 
@@ -131,8 +144,8 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
   const portal = new THREE.Vector3(PORTAL.x, groundY(PORTAL.x, PORTAL.z), PORTAL.z);
 
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
-  const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(L.foxRig);
+  const npcs: Npc[] = FRIENDS.map((def, i) => {
+    const actor = new Actor(L.foxRigs[i]);
     const pos = new THREE.Vector3(def.x, groundY(def.x, def.z), def.z);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     actor.play('Idle');
@@ -145,7 +158,13 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
   const done = () => npcs.filter(finished).length;
 
   const stage = createStage(g, () => speech.caption(null));
-  const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks: {} });
+  // The task in the world (PLAY-01): opened in its frame by the shared player, its taps and its time from the frame below.
+  const player = worldTaskPlayer(g, scope);
+  const tasks: Record<string, WorldTask> = { [TALLY]: tallyTask(g, player, scope) };
+  // What the world declares to play in the world must be a task of its conversation, or the step would go to the panel.
+  const wrong = worldTaskProblems(probe.worldTasks, tasks);
+  if (wrong.length) throw new Error(`the probe world: ${wrong.join('; ')}`);
+  const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   // One point of every kind of the world template: the secret in the stump, the part it hides, the cutscene of the
   // signboard, the tour and the finale. The pet is declared below; the game shows it.
   const items = createItems(g, stage, scope, { stump: STUMP, sign: SIGN, picture: board.position, taps: window });
@@ -158,7 +177,7 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
         { pos: portal, r: 2.2, label: 'open', on: () => true, run: () => { void travel(PORTAL.to); } },
         ...items.spots,
       ],
-      tap: () => false,
+      tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         items.update(dt, time, canMove);
@@ -171,12 +190,12 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
         }
       },
       goal: () => npcs.find((n) => !finished(n))?.pos ?? null,
-      animate: (_dt, time) => flies.update(time),
+      animate: (_dt, time) => { flies.update(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
     // `flyoverPlayer`: the state of the tour with skip() and hold(i), under the name the first world gives its own.
-    debug: { npcs, more: { flyoverPlayer: items.tour }, talk: (id) => { const n = npcs.find((x) => x.def.id === id); if (n) void talk(n); }, cheatWorld: () => '' },
+    debug: { npcs, more: { flyoverPlayer: items.tour }, talk: (id) => { const n = npcs.find((x) => x.def.id === id); if (n) void talk(n); }, cheatWorld: () => (worldTaskDoor(g).solve() ? 'world task' : '') },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
       stats: () => [{ icon: '⭐', label: 'col_stars', value: String(save.stars) }],
@@ -194,6 +213,7 @@ export const probe: WorldDef<ProbeLoads, WorldSky> = {
   spawn: SPAWN,
   ground,
   characters: FRIENDS,
+  worldTasks: WORLD_TASKS,
   // The fawn of the core's catalog of pets (src/game/pets.ts), found here in this world's own part of the save.
   pet: { species: 'fawn', at: PET_AT, after: FRIENDS[0].id },
   // A test world: it borrows the pet of the first world (src/game/pets.ts petProblems allows it here only).

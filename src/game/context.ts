@@ -138,6 +138,8 @@ export interface WorldEntry {
   secrets?: WorldDef['secrets']; chest?: WorldDef['chest']; groundStars?: WorldDef['groundStars'];
   /** How the heroine moves there (WorldDef.move): src/game/player.ts reads it; absent - she walks. */
   move?: WorldDef['move'];
+  /** The steps it plays as tasks in the world (WorldDef.worldTasks): its description names them (src/game/describe.ts). */
+  worldTasks?: WorldDef['worldTasks'];
 }
 
 /**
