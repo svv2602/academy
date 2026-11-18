@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { clamp } from '../core/util';
 import type { Game } from './context';
+import { CAT_PACE_MAX, GROUND, pace, speedometer } from './stride';
 
 /** The cat in the frame (ARCH-05; the cat itself is made by createGame): it keeps to the heroine's side. */
 export function createCompanion(g: Game): { update(dt: number): void } {
   const { hero, cat, groundY } = g;
   const v = new THREE.Vector3();
+  const real = speedometer();   // the cat's speed over the ground as it is
   return {
     update: (dt) => {
       const hp = hero.root.position, cp = cat.root.position;
@@ -18,9 +19,11 @@ export function createCompanion(g: Game): { update(dt: number): void } {
       if (cd > 0.45) {
         const cs = Math.min(7, cd * 3.2) * dt;
         cp.x += ((v.x - cp.x) / cd) * Math.min(cs, cd); cp.z += ((v.z - cp.z) / cd) * Math.min(cs, cd);
+        const speed = real(cp.x, cp.z, dt);
         cat.face(Math.atan2(v.x - cp.x, v.z - cp.z), dt);
-        if (!g.busy) cat.play('Walk', 0.15, clamp(cd * 1.2, 0.8, 2.2));
-      } else { if (!g.busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
+        // the pace by the speed it goes at (src/game/stride.ts); at the heroine's run it is held to CAT_PACE_MAX
+        if (!g.busy) cat.play('Walk', 0.15, pace(speed, GROUND.catWalk, CAT_PACE_MAX));
+      } else { real(cp.x, cp.z, dt); if (!g.busy) cat.play('Idle', 0.3); cat.face(hero.heading, dt, 4); }
       cp.y = groundY(cp.x, cp.z);
     },
   };

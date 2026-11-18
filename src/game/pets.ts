@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import type { Rig } from '../core/assets';
 import { sfx } from '../core/audio';
 import type { Save } from '../core/save';
-import { clamp } from '../core/util';
 import type { SpokenKey } from '../ui/strings';
 import { Actor } from './actor';
 import type { Game } from './context';
 import type { Spot } from './player';
+import { GROUND, PET_WALK_MAX, pace, speedometer } from './stride';
 import type { WorldDef } from './world';
 
 /**
@@ -18,8 +18,14 @@ import type { WorldDef } from './world';
  * The models are of the core (R23, R46): the shared load (src/game/boot.ts) brings the model of every species once.
  */
 
-/** A kind of pet: its id (what `save.pet` holds), the world it is found in, its model of the core and its height (m). */
-export interface PetSpecies { readonly id: string; readonly world: string; readonly model: string; readonly height: number }
+/**
+ * A kind of pet: its id (what `save.pet` holds), the world it is found in, its model of the core, its height (m) and the
+ * speeds over the ground of its walk and, if it has one, of its run at a pace of 1 (src/game/stride.ts, tools/feet.mjs).
+ */
+export interface PetSpecies {
+  readonly id: string; readonly world: string; readonly model: string; readonly height: number;
+  readonly walk: number; readonly run?: { readonly clip: string; readonly ground: number };
+}
 
 /** The pet of a world as the world describes it (WorldDef.pet). */
 export type WorldPet = NonNullable<WorldDef['pet']>;
@@ -31,7 +37,7 @@ export const PET_FLAG = 'pet';
 export const PETS: readonly PetSpecies[] = [
   // R57 (Q1): the fawn of the first world: the model of its grown-up made small. A model file of the core, not a world's name:
   // src/game/shared-code.test.ts allows this one exact string in this file only.
-  { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85 },
+  { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85, walk: GROUND.fawnWalk, run: { clip: 'Gallop', ground: GROUND.fawnGallop } },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
@@ -168,6 +174,7 @@ export function createPets(g: PetHost, o: {
   const ready = () => !o.pet?.after || o.chainDone(o.pet.after);
   const place = new THREE.Vector3();
   let follower: Actor | null = null, followed: string | null = null, waiting: Actor | null = null;
+  const real = speedometer();   // the follower's speed over the ground as it is
   let gone = false;
 
   const spots: Spot[] = [];
@@ -234,9 +241,14 @@ export function createPets(g: PetHost, o: {
           const d = followStep(p, place, g.cat.root.position, dt);
           g.ground.resolve(p, 0.3);
           const moved = Math.hypot(p.x - x0, p.z - z0);
+          const speed = real(p.x, p.z, dt);
           if (d > NEAR && moved > 1e-4) {
             follower.face(Math.atan2(p.x - x0, p.z - z0), dt);
-            follower.play('Walk', 0.15, clamp(d * 1.2, 0.8, 2.2));
+            // the pace by the speed it goes at (src/game/stride.ts); too fast for its walk, it runs if it can
+            const kind = petSpecies(followed);
+            const run = kind?.run && follower.has(kind.run.clip) && speed / kind.walk > PET_WALK_MAX ? kind.run : null;
+            if (run) follower.play(run.clip, 0.2, pace(speed, run.ground));
+            else follower.play('Walk', 0.15, pace(speed, kind?.walk ?? GROUND.fawnWalk, PET_WALK_MAX));
           } else { follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
         }
         p.y = g.groundY(p.x, p.z);

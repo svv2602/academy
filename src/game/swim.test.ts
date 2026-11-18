@@ -144,11 +144,14 @@ describe('the frame of the heroine in a water world (player.ts)', () => {
     expect(input.jump, 'the press is used up, not kept for the shore').toBe(false);
   });
 
+  // a stick pushed for a walk: below the run threshold (src/core/tuning.ts runFrom), whatever it is set to
+  const WALKING = (tuning.runFrom / tuning.speed) * 0.8;
+
   it('swims when she moves, at walking and at running speed', () => {
     const p = makeGame({ kind: 'swim', height: 0.6 });
-    input.moveY = 0.3;
+    input.moveY = WALKING;
     const slow = frames(p, 10);
-    expect(tuning.speed * 0.3).toBeLessThan(tuning.runFrom);
+    expect(tuning.speed * WALKING).toBeLessThan(tuning.runFrom);
     expect(slow.clips.at(-1)).toBe('Swim');
     input.moveY = 1;
     expect(frames(p, 10).clips.at(-1)).toBe('Swim');
@@ -175,14 +178,14 @@ describe('the frame of the heroine in a water world (player.ts)', () => {
     expect(ys.at(-1), 'and she lands').toBeCloseTo(0.25, 6);
     expect(clips).toContain('Jump');
     expect(clips.at(-1)).toBe('Idle');
-    input.moveY = 0.3;
+    input.moveY = WALKING;
     expect(frames(p, 5).clips.at(-1)).toBe('Walk');
   });
 
   it('the swap ends with the water: in a world that walks Walk is Walk though Swim is still lent', () => {
     const p = makeGame(undefined);
     p.hero.rename(SWIM_NAMES);
-    input.moveY = 0.3;
+    input.moveY = WALKING;
     expect(frames(p, 3).clips.at(-1)).toBe('Walk');
   });
 });

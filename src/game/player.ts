@@ -6,6 +6,7 @@ import { el, setAct } from '../ui/ui';
 import { catTap } from '../ui/welcome';
 import { SWIM_NAMES } from './hero';
 import { createRipple } from './ripple';
+import { GROUND, pace, speedometer } from './stride';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
 import type { WorldFrame } from './loop';
@@ -33,6 +34,7 @@ export const swimming = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind 
 export function createPlayer(g: Game): Player {
   const { hero, cat, cam, camera, touch, groundY, started } = g;
   let vy = 0, grounded = true;
+  const real = speedometer();   // her speed over the ground as it is (a wall stops her, the pace too)
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
   const ripple = createRipple(g.scene);
 
@@ -102,9 +104,11 @@ export function createPlayer(g: Game): Player {
         if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
       }
       input.jump = false;
+      const v = real(hp.x, hp.z, dt);
       if (!g.busy) {
         if (!grounded) hero.play('Jump', 0.12);
-        else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, speed > tuning.runFrom ? speed / 4.2 : speed / 1.5);
+        // the clip by the speed asked for, its pace by the speed she goes at (src/game/stride.ts)
+        else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, pace(v, speed > tuning.runFrom ? GROUND.heroRun : GROUND.heroWalk));
         else hero.play('Idle', 0.25);
       }
       return mag;

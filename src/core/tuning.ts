@@ -7,7 +7,7 @@ export const TUNING_DEFAULTS = {
   lookX: 0.006,     // camera turn (yaw) per dragged pixel, radians
   lookY: 0.004,     // camera tilt (pitch) per dragged pixel, radians
   speed: 5.4,       // the heroine's top speed, m/s
-  runFrom: 2.6,     // m/s: faster than this she runs, slower - walks
+  runFrom: 1.3,     // m/s: faster than this she runs, slower - walks (2026-11-18: at 2.6 her walk, its pace by her speed, blurred)
   joyRadius: 56,    // px: how far the joystick knob goes from where the finger landed
   joyZone: 0.4,     // share of the window width, from the left, where a touch starts the joystick
   camDist: 6.2,     // camera distance behind the heroine in a landscape window (portrait: the same proportion of 8)

@@ -8,9 +8,9 @@ afterEach(() => resetTuning());
 
 describe('tuning values (ARCH-14)', () => {
   it('defaults are the numbers the game had before the panel', () => {
-    // src/main.ts: look 0.006 / 0.004 per pixel, speed 5.4, run above 2.6, camera 6.2 (portrait 8);
+    // src/main.ts: look 0.006 / 0.004 per pixel, speed 5.4, run above 1.3, camera 6.2 (portrait 8);
     // src/core/input.ts: joystick radius 56 px, joystick zone the left 40 % of the window.
-    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 2.6, joyRadius: 56, joyZone: 0.4, camDist: 6.2 });
+    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 1.3, joyRadius: 56, joyZone: 0.4, camDist: 6.2 });
     expect(tuning).toEqual(TUNING_DEFAULTS);
     expect(camDistance(16 / 9)).toBe(6.2);
     expect(camDistance(390 / 844)).toBe(8);
@@ -42,7 +42,7 @@ describe('tuning values (ARCH-14)', () => {
 
   it('the text to copy holds all seven current values', () => {
     expect(tuningText().split('\n')).toEqual([
-      'lookX = 0.006', 'lookY = 0.004', 'speed = 5.4', 'runFrom = 2.6', 'joyRadius = 56', 'joyZone = 0.4', 'camDist = 6.2',
+      'lookX = 0.006', 'lookY = 0.004', 'speed = 5.4', 'runFrom = 1.3', 'joyRadius = 56', 'joyZone = 0.4', 'camDist = 6.2',
     ]);
     setTuning('speed', 3.1);
     setTuning('joyZone', 0.55);
