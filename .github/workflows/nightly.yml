@@ -1,0 +1,56 @@
+name: Nightly
+# The whole walkthrough of the phone's size in one session, once a day, on dev (ARCH-15): what piles up over a session
+# is seen by no piece of the gate, and a fault of that kind is better found the next morning than on the day of a
+# publication (pages.yml plays the same walkthrough before every publication). Nothing is published, and there is no
+# job "check": a night run leaves no status a protection of a branch could take.
+# A schedule runs from the default branch (main): this file starts working with the first publication that holds it,
+# and it checks out dev itself. By hand: Actions > Nightly > Run workflow.
+on:
+  schedule:
+    - cron: '30 1 * * *'     # 03:30 in Kyiv in winter (UTC+2), before anybody plays the day's changes
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+jobs:
+  session:
+    name: walkthrough mobile, the whole session (dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check and build
+        run: npm run build
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # Played as pages.yml plays it: software rendering, the lowest fixed tier, the limits of tools/ci-pieces.mjs TRY_LIMITS.all.
+      - name: Walkthrough
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+          E2E_RUN_TIMEOUT_MS: '2400000'
+          E2E_WORLDS: '0'
+        run: |
+          set -o pipefail
+          echo "dev at $(git rev-parse --short HEAD)"
+          npm run e2e -- --skip-build --mode mobile 2>&1 | tee e2e.log
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-failure-a${{ github.run_attempt }}
+          path: |
+            shots-e2e/
+            e2e.log
+          if-no-files-found: ignore
+          retention-days: 7

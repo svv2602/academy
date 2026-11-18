@@ -144,8 +144,51 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # The whole walkthrough of the phone's size in one session (ARCH-15): what piles up over a session - the queue of the
+  # scenes of the achievements, the counters, the order of the scenes - is seen by no piece, each of which starts from a
+  # save of its own. Its limits are those of a trial of the whole walkthrough (tools/ci-pieces.mjs TRY_LIMITS.all).
+  session:
+    name: walkthrough mobile, the whole session
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: The build of this run
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      - name: Walkthrough
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+          E2E_RUN_TIMEOUT_MS: '2400000'
+          E2E_WORLDS: '0'
+        run: |
+          set -o pipefail
+          npm run e2e -- --skip-build --mode mobile 2>&1 | tee e2e.log
+      - name: Upload screenshots and log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: session-failure-a${{ github.run_attempt }}
+          path: |
+            shots-e2e/
+            e2e.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   check:
-    needs: [build, walk, worlds]
+    needs: [build, walk, worlds, session]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -153,8 +196,8 @@ jobs:
       - name: Every job passed
         shell: bash
         run: |
-          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}; probe world: ${{ needs.worlds.result }}"
-          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success && test "${{ needs.worlds.result }}" = success
+          echo "unit tests and build: ${{ needs.build.result }}; walkthroughs: ${{ needs.walk.result }}; probe world: ${{ needs.worlds.result }}; the whole session: ${{ needs.session.result }}"
+          test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success && test "${{ needs.worlds.result }}" = success && test "${{ needs.session.result }}" = success
       - uses: actions/checkout@v4
         if: ${{ !cancelled() }}
       - uses: actions/setup-node@v4

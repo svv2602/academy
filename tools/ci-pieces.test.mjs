@@ -727,7 +727,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
   const pages = workflow('pages.yml');
 
   it('has no plan: the jobs are build, walk, worlds, check and deploy, and nothing asks tools/ci-pieces.mjs', () => {
-    expect(Object.keys(pages.jobs)).toEqual(['build', 'walk', 'worlds', 'check', 'deploy']);
+    expect(Object.keys(pages.jobs)).toEqual(['build', 'walk', 'worlds', 'session', 'check', 'deploy']);
     expect(pages.text).not.toContain('needs.plan');
     expect([...pages.text.matchAll(/ci-pieces\.mjs (\w[\w-]*)/g)].map((m) => m[1])).toEqual(['results']);   // lays out the last attempts; never plans
     expect(pages.text).not.toContain('fromJSON');
@@ -761,9 +761,9 @@ describe('.github/workflows/pages.yml: before a publication everything is played
   it('check: keeps its name, runs when the others failed, needs all three to have succeeded and every piece combined', () => {
     const check = pages.jobs.check;
     expect(hasKey(check, 'name')).toBe(false);
-    expect(key(check, 'needs')).toBe('[build, walk, worlds]');
+    expect(key(check, 'needs')).toBe('[build, walk, worlds, session]');
     expect(key(check, 'if')).toBe('${{ !cancelled() }}');
-    expect(check).toContain('test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success && test "${{ needs.worlds.result }}" = success\n');
+    expect(check).toContain('test "${{ needs.build.result }}" = success && test "${{ needs.walk.result }}" = success && test "${{ needs.worlds.result }}" = success && test "${{ needs.session.result }}" = success\n');
     expect(check).toContain(`        run: node tools/e2e.mjs --combine e2e-results --only ${PIECES.join(',')}\n`);
     expect(check).not.toContain('|| true');
     const verdictStep = check.slice(check.indexOf('- name: Every job passed'), check.indexOf('- uses: actions/checkout@v4'));
@@ -772,6 +772,24 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     const combine = check.slice(check.indexOf('- name: Checks over all sizes'));
     expect(combine).toContain('        if: ${{ !cancelled() }}\n');
     expect(combine).not.toContain('continue-on-error');
+  });
+
+  it('session: the whole walkthrough of the phone in one session, with the limits of a trial of it, and "check" waits for it', () => {
+    const session = pages.jobs.session;
+    expect(key(session, 'needs')).toBe('build');
+    expect(hasKey(session, 'if')).toBe(false);
+    expect(session).not.toContain('continue-on-error');
+    // one command, no piece: the whole walkthrough of the size, as a trial "all" plays it
+    expect(session).toContain('npm run e2e -- --skip-build --mode mobile 2>&1 | tee e2e.log\n');
+    expect(session).not.toContain('--only');
+    expect(session).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
+    expect(session).toContain("          E2E_WORLDS: '0'\n");
+    expect(session).toContain('set -o pipefail');
+    // the limits are those of tools/ci-pieces.mjs: one number, held here so
+    expect(key(session, 'timeout-minutes')).toBe(String(TRY_LIMITS.all.minutes));
+    expect(session).toContain(`          E2E_RUN_TIMEOUT_MS: '${TRY_LIMITS.all.runMs}'\n`);
+    // it leaves no results for --combine: the sixteen pieces are what it combines
+    expect(session).not.toContain('name: results-');
   });
 
   it('deploy: only after "check"', () => {
@@ -1045,7 +1063,7 @@ describe('tools/ci-pieces.mjs tryPlan: the whole walkthrough of a size as a tria
   const C = `1a2b3c4${'d'.repeat(33)}`;
   it('"all" is the whole walkthrough of any of the four sizes, with limits of its own', () => {
     expect(tryPlan('try/mobile/all/x1/net/1a2b3c4', C)).toEqual({
-      size: 'mobile', piece: 'all', n: 1, offline: false, probe: false, all: true, runMs: 1800000, minutes: 40, title: 'all mobile x1',
+      size: 'mobile', piece: 'all', n: 1, offline: false, probe: false, all: true, runMs: 2400000, minutes: 50, title: 'all mobile x1',
       matrix: { include: [{ turn: 1 }] },
     });
     for (const size of SIZES) expect(tryPlan(`try/${size}/all/x${TRY_ALL_MAX}/offline/1a2b3c4`, C)).toMatchObject({ size, all: true, offline: true, n: TRY_ALL_MAX, ...TRY_LIMITS.all });
@@ -1070,14 +1088,33 @@ describe('tools/ci-pieces.mjs tryPlan: the whole walkthrough of a size as a tria
       const out = join(dir, 'out');
       const r = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/desktop/all/x2/offline/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
       expect(r.status, r.stderr).toBe(0);
-      expect(r.stdout).toContain('[ci] trial: all desktop x2 offline (the whole walkthrough in the size desktop, without the network, 2 time(s); a walkthrough within 30 min, a turn within 40 min)');
+      expect(r.stdout).toContain('[ci] trial: all desktop x2 offline (the whole walkthrough in the size desktop, without the network, 2 time(s); a walkthrough within 40 min, a turn within 50 min)');
       const written = readFileSync(out, 'utf8');
-      for (const line of ['size=desktop', 'piece=all', 'n=2', 'offline=true', 'probe=false', 'all=true', 'run_ms=1800000', 'minutes=40']) expect(written.split('\n'), line).toContain(line);
+      for (const line of ['size=desktop', 'piece=all', 'n=2', 'offline=true', 'probe=false', 'all=true', 'run_ms=2400000', 'minutes=50']) expect(written.split('\n'), line).toContain(line);
       const piece = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/mobile/shop/x1/net/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
       expect(piece.stdout).toContain('(the piece "shop" in the size mobile, with the network, 1 time(s); a walkthrough within 18 min, a turn within 25 min)');
       expect(readFileSync(out, 'utf8')).toContain('all=false\nrun_ms=1080000\nminutes=25\n');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }, 60000);
+});
+
+describe('.github/workflows/nightly.yml: the whole session of the phone once a day on dev', () => {
+  const night = workflow('nightly.yml');
+  it('runs on a schedule and by hand, plays dev, publishes nothing and leaves no status "check"', () => {
+    expect(night.text).toMatch(/\non:\n  schedule:\n    - cron: '[0-9]+ [0-9]+ \* \* \*'\n  workflow_dispatch:\npermissions:\n  contents: read\n/);
+    expect(Object.keys(night.jobs)).toEqual(['session']);
+    expect(night.text).not.toMatch(/name: ['"]?check['"]?$/m);
+    expect(night.text).not.toContain('pages');
+    expect(night.jobs.session).toContain('      - uses: actions/checkout@v4\n        with:\n          ref: dev\n');
+  });
+  it('plays what the job "session" of pages.yml plays, with the same limit of the walkthrough', () => {
+    const play = (job) => job.slice(job.indexOf('      - name: Walkthrough'), job.indexOf('      - name: Upload screenshots and log'))
+      .replace(/^ {10}echo "dev at .*\n/m, '');
+    expect(play(night.jobs.session)).toBe(play(workflow('pages.yml').jobs.session).replace(/^ {6}- name: Walkthrough\n/, '      - name: Walkthrough\n'));
+    expect(night.jobs.session).toContain(`          E2E_RUN_TIMEOUT_MS: '${TRY_LIMITS.all.runMs}'\n`);
+    // its own build comes before the walkthrough: the job is longer than the walkthrough by it
+    expect(Number(key(night.jobs.session, 'timeout-minutes'))).toBeGreaterThan(TRY_LIMITS.all.minutes);
+  });
 });
 
 describe('.github/workflows/try.yml: a trial is not the gate', () => {

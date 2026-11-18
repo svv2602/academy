@@ -255,7 +255,9 @@ export const TRY_ALL_MAX = 3;
  * the job that plays it. A piece and a part of the probe world keep the limits of the gate (ci.yml); the whole
  * walkthrough is the four pieces in one session and has limits of its own.
  */
-export const TRY_LIMITS = { piece: { runMs: 1_080_000, minutes: 25 }, all: { runMs: 1_800_000, minutes: 40 } };
+export const TRY_LIMITS = { piece: { runMs: 1_080_000, minutes: 25 }, all: { runMs: 2_400_000, minutes: 50 } };
+// The whole walkthrough of the phone's size took 1494 s on the runner (trial 44231962833); 40 minutes leave room for a
+// slow runner. pages.yml (the job "session") and nightly.yml play it with these very limits - their tests hold them so.
 /** The kinds of what the jobs leave for the job that sums them up (the names: `attemptName`). */
 export const RESULTS = 'results', TRY_TURN = 'try-turn';
 /**
