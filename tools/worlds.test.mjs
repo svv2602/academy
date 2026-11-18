@@ -629,7 +629,7 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
   it('the change of world reads the description of the world played', () => {
     const travel = src.slice(src.indexOf('async function travelScenarios('), src.indexOf('async function transitionScenarios('));
     expect(travel).toContain("described: Array.isArray(__game.items)");
-    expect(travel).toContain('if (home.described !== null) fail(');
+    expect(travel).toContain("if (!Array.isArray(home.described) || !home.described.includes('secret chest')) fail(");
     expect(travel).toContain("for (const k of ['npcs', 'names', 'described', ");
     expect(travel).toMatch(/if \(!same\(kinds, \[\.\.\.ITEM_KINDS\]\.sort\(\)\) \|\| !away\.described\.includes\('chain friend'\)\) fail\(/);
   });

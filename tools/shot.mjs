@@ -115,7 +115,7 @@ const offlineMark = process.env.E2E_OFFLINE_MARK || '';
 if (offlineMark && !/^\/[\w./-]+$/.test(offlineMark)) usage(`bad E2E_OFFLINE_MARK="${offlineMark}": expected a path of the server, like /offline-mark`);
 const worldId = process.env.E2E_WORLD || '';
 if (worldId && !/^[a-z][a-z0-9_-]*$/.test(worldId)) usage(`bad E2E_WORLD="${worldId}": expected the id of a world of src/worlds/index.ts`);
-if (worldId === 'fairy') usage('E2E_WORLD=fairy: the first world is played by the full scenario - leave E2E_WORLD unset');
+if (worldId === 'fairy') usage('E2E_WORLD=fairy: the first world is played by the full scenario (its description still lacks points of the template, __game.missing()) - leave E2E_WORLD unset');
 // E2E_ONLY: one group of the first world. `has(block)` says whether a block is played (every block without a group);
 // `plays(friend)` whether a friend's chain is.
 const only = process.env.E2E_ONLY || '';
@@ -896,6 +896,18 @@ try {
         if (left.length) storyFail(`${id}: ${left.join('; ')}`);
         return shown;
       };
+      // ---- the description of the first world (ARCH-16): its items agree with what it declares; of the template it lacks
+      // only what is not built yet - the parts of the artifact in the world and two of the three secrets ----
+      {
+        const d = await g(() => ({ items: __game.items?.map((i) => `${i.kind} ${i.id}`) ?? null, problems: __game.itemProblems, lacks: __game.missing() }));
+        const left = [];
+        if (!d.items) left.push('the first world hands in no description');
+        else for (const want of ['flyover toured', 'scene story_intro', 'secret chest', 'finale final', 'scene story_crystal', 'pet pet']) if (!d.items.includes(want)) left.push(`no item "${want}"`);
+        if (d.problems?.length) left.push(...d.problems);
+        for (const l of d.lacks ?? []) if (!/"(part|secret)"/.test(l)) left.push(`lacks: ${l}`);
+        if (left.length) errors.push(`description: ${mode}: ${left.join('; ')}`);
+        else console.log(`description: ${d.items.length} items of the first world, no disagreement with its declaration; it lacks ${d.lacks.length ? d.lacks.map((l) => /"(\w+)"/.exec(l)[1]).join(' and ') : 'nothing'}`);
+      }
       if (has('story')) {
         // the sheets of the scenes for the customer (WORLD-13): the frames in their order, each with its line, next to their pictures
         if (mode === 'mobile' && !groupSave) console.log(`the cut-scenes: the sheets ${(await storySheets(out)).map((p) => p.split('/').pop()).join(', ')}`);
@@ -2500,7 +2512,7 @@ try {
       // action button there finds it (the world's flag `pet` and the species in save.pets, both stored at once), the book
       // chooses it (left at home, then chosen again), it walks after her, and after a reload it walks after her from the
       // first frames. Where it waits is the game's, not written here: the waiting fawn's own place, and the item `pet` of
-      // the world description (__game.items) when the world hands one in (the first world hands in none yet: null).
+      // the world description (__game.items).
       // Waits by the game's clock (gameUntil) or by an event only (R49). The scenes of the achievements wait for the
       // whole block (the book's close is a stop point): the walkthrough's lever, given back as it was.
       if (has('pet')) {

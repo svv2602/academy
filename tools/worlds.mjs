@@ -61,8 +61,8 @@
 //      off the heroine and the flock, the music is the probe world's. The world's own line has its clip in the folder
 //      of the world only while the probe world plays (`__game.clipFor`): none before the change, none after the way
 //      back - the list of a world is taken back when it is left. window.__game.items is the description of the
-//      world played: null in the first world (it hands in none), the probe world's after the change (its tour of the
-//      first entry is on), and null again once the game is back in the first world. Back through the spot "portal home" of the probe
+//      world played: the first world's in the first world, the probe world's after the change (its tour of the
+//      first entry is on), and the first world's again, the same, once the game is back in the first world. Back through the spot "portal home" of the probe
 //      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
 //      heroine and in the flock as the first time), the heroine where she was left, she walks, a character gives a
 //      task and it is solved. After a reload of the page the progress of each world is in its own part of the save.
@@ -1057,7 +1057,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       if (home.world !== FIRST) fail(`${name}: the game started in the world "${home.world}", expected "${FIRST}"`);
       if (home.foxClip === 'npc_next') fail(`${name}: the fox of the first world has no voice of its own (${home.foxClip}): the check of the voices after the change would be blind`);
       if (home.music === null) fail(`${name}: no music plays in the first world after "Play": the check of the music would be blind`);
-      if (home.described !== null) fail(`${name}: the first world hands in no items of a description, yet window.__game.items is ${JSON.stringify(home.described)} there, expected null`);
+      if (!Array.isArray(home.described) || !home.described.includes('secret chest')) fail(`${name}: window.__game.items in the first world is ${JSON.stringify(home.described)}, expected its description (the secret "chest" among its items): the check of the description after the way back would be blind`);
       if (home.ownClip !== null) fail(`${name}: before any change of world the game finds the clip "${home.ownClip}" for the line "${HI}" of the probe world: no world has handed in its clips yet`);
       if (home.sharedClip !== 'npc_next') fail(`${name}: the shared line "npc_next" has the clip "${home.sharedClip}" in the first world: the check of the clips after the change would be blind`);
       // The book before the change: a part for every character of the first world, the secrets of the first world.

@@ -4,6 +4,7 @@ import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
+import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
 import { playStory, setStories } from '../../game/story';
 import type { DebugExtras } from '../../game/debug';
@@ -19,7 +20,7 @@ import { showStonesInWorld } from '../../game/worldtasks/stones';
 import type { WorldTaskShow } from '../../game/worldtasks/core';
 import { generate as generateOrder } from '../../game/tasks/order';
 import { typeOf } from '../../game/tasks';
-import type { BookInfo, BuiltWorld, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
+import type { BookInfo, BuiltWorld, MusicParams, Npc, WorldDef, WorldGround, WorldItem, WorldLines, WorldTask } from '../../game/world';
 import { openShop } from '../../ui/shop';
 import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
@@ -227,6 +228,18 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       return '';
     },
   };
+  // The world's own items of its description (ARCH-16, src/game/describe.ts): the chains of the friends and the pet are
+  // made of the declaration; here what the game has anyway - the chest, the two cut-scenes, the tour, the finale. The id
+  // of each is the name of its mark in the world's flags (the finale's mark is ws.final).
+  // the heroine stands in front of the chest, inside its action spot (2.2 m)
+  const chestRot = chestStars.chest.root.rotation.y, chestAt = chestStars.chest.root.position;
+  const items: readonly WorldItem[] = [
+    marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => flyover.active }),
+    marked(ws, { kind: 'scene', id: 'story_intro', how: 'auto', active: () => story.active && story.id === 'story_intro' }),
+    marked(ws, { kind: 'secret', id: 'chest', how: 'act', at: { x: chestAt.x + Math.sin(chestRot) * 1.3, z: chestAt.z + Math.cos(chestRot) * 1.3 } }),
+    marked(ws, { kind: 'finale', id: 'final', how: 'act', at: { x: shrine.pos.x, z: shrine.pos.z }, after: QUESTS.map((q) => q.id) }),
+    marked(ws, { kind: 'scene', id: 'story_crystal', how: 'auto', after: ['final'], active: () => story.active && story.id === 'story_crystal' }),
+  ];
   // What the book shows of this world (src/ui/ui.ts draws it): a shard per friend, then the stars and the chest.
   const book: BookInfo = {
     parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: (ws.quests[q.id] ?? 0) >= 3 })),
@@ -235,7 +248,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       { icon: '🎁', label: 'col_chest', value: ws.flags.chest ? '✔' : '?' },
     ],
   };
-  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}`, gear: characters.gear };
+  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}`, gear: characters.gear, items: () => items };
 }
 
 type FairySky = ReturnType<typeof buildSky>;
