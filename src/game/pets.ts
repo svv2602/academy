@@ -13,6 +13,8 @@ import type { WorldDef } from './world';
  * The pets (PLAY-09): one to find in each world (R18), and the one chosen walks after the heroine with the cat (R19).
  * The pet of a world is the item `pet` of the world description (R22): its done mark is `ws.flags.pet` of that world,
  * read from the save every time; where it stands and after which chain it shows itself is the world's (WorldDef.pet).
+ * Which pets are found is the save's own list (`save.pets`), written by the find in whatever world it was made: a
+ * species that waits in a world other than the one of its catalog entry is found there too.
  * The models are of the core (R23, R46): the shared load (src/game/boot.ts) brings the model of every species once.
  */
 
@@ -71,9 +73,13 @@ const flagsOf = (save: Save, world: string): Record<string, unknown> | null => {
   return typeof f === 'object' && f !== null ? f as Record<string, unknown> : null;
 };
 
-/** The ids of the pets found so far, in the order of PETS: read from the flag `pet` of each pet's world. */
+/**
+ * The ids of the pets found so far, in the order of PETS: the species of `save.pets` (written by the find, in the world
+ * where it was made), and for a save written before that list the flag `pet` of each pet's own world.
+ */
 export function foundPets(save: Save): string[] {
-  return PETS.filter((p) => flagsOf(save, p.world)?.[PET_FLAG] === true).map((p) => p.id);
+  const listed = Array.isArray(save.pets) ? save.pets : [];
+  return PETS.filter((p) => listed.includes(p.id) || flagsOf(save, p.world)?.[PET_FLAG] === true).map((p) => p.id);
 }
 
 /** Chooses the pet that walks after the heroine (null: none). A pet not found yet, or unknown, is refused: false. */
@@ -84,11 +90,13 @@ export function choosePet(save: Save, id: string | null): boolean {
 }
 
 /**
- * Marks the pet of a world found: the world's flag `pet` (in its part of the save), and the first pet found is chosen
- * by itself. A pet found before stays as it is, the choice too.
+ * Marks the pet of a world found: the world's flag `pet` (in its part of the save, its done mark), the species in the
+ * save's list of pets found, and the first pet found is chosen by itself. A pet found before stays as it is, the choice too.
  */
 export function markFound(save: Save, ws: { flags: Record<string, boolean> }, species: PetSpecies): void {
   ws.flags[PET_FLAG] = true;
+  const listed = Array.isArray(save.pets) ? save.pets : (save.pets = []);
+  if (!listed.includes(species.id)) listed.push(species.id);
   if (!petSpecies(save.pet)) save.pet = species.id;
 }
 
@@ -149,6 +157,8 @@ export function createPets(g: PetHost, o: {
       const rig = o.rigs[s.id];
       if (!rig) return null;
       actors.set(s.id, a = new Actor(rig));
+      // Named for the walkthrough (tools/shot.mjs, block "pet"): it finds the pet in the scene by this name.
+      a.root.name = `pet:${s.id}`;
       a.play('Idle');
     }
     return a;
@@ -200,6 +210,7 @@ export function createPets(g: PetHost, o: {
       const shown = a === nextFollower || a === nextWaiting;
       if (shown && !a.root.parent) g.scene.add(a.root);
       else if (!shown && a.root.parent) g.scene.remove(a.root);
+      a.root.userData.follows = a === nextFollower;
     }
     follower = nextFollower; waiting = nextWaiting; followed = g.save.pet ?? null;
   };

@@ -254,6 +254,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   secrets: ['chest'],
   chest: 'chest',
   groundStars: 8,
+  pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,
   music: MUSIC,

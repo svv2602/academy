@@ -2222,6 +2222,107 @@ try {
         // without the shop (which opens from the book) the book is closed again
         if (!listed('shop')) await closeBook().catch((e) => { throw new Error(`book: it cannot be closed: ${why(e)}`); });
       }
+      // ---- the pet of the first world (PLAY-09, R18-R22): the fawn waits at its place once the deer's chain is done; the
+      // action button there finds it (the world's flag `pet` and the species in save.pets, both stored at once), the book
+      // chooses it (left at home, then chosen again), it walks after her, and after a reload it walks after her from the
+      // first frames. Where it waits is the game's, not written here: the waiting fawn's own place, and the item `pet` of
+      // the world description (__game.items) when the world hands one in (the first world hands in none yet: null).
+      // Waits by the game's clock (gameUntil) or by an event only (R49). The scenes of the achievements wait for the
+      // whole block (the book's close is a stop point): the walkthrough's lever, given back as it was.
+      if (has('pet')) {
+        const fail = (what) => { throw new Error(`pet: ${what}`); };
+        const FOLLOW_M = 2;   // the pet after her: within this of the heroine (its place is 1.1 m behind her, on her left)
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const until = async (pred, arg, what, seconds = 8) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        // the pet in the scene as the game names it (src/game/pets.ts): where it stands, does it follow, how far from her
+        const petNow = `() => {
+          const o = __game.scene.getObjectByName('pet:fawn'), h = __game.hero.root.position;
+          return o && o.parent ? { x: o.position.x, y: o.position.y, z: o.position.z, follows: o.userData.follows === true, d: Math.hypot(o.position.x - h.x, o.position.z - h.z) } : null;
+        }`;
+        // the fawn walks after her, within `m` of her, and the controls are hers (it stands while a scene runs)
+        const after = `(m) => { const p = (${petNow})(); return !!p && p.follows && p.d <= m && !__game.busy; }`;
+        await holdAchDuring(async () => {
+          const item = await g(() => __game.items?.find((i) => i.kind === 'pet') ?? null);
+          if (item?.done === true || await g(() => __game.save.worlds.fairy.flags.pet === true)) fail('the pet is found before the block (the flag "pet" of the world is set)');
+          // waiting at its place (the deer's chain is done in this piece), not following
+          const w = await g(`(${petNow})()`);
+          if (!w || w.follows) fail(`no fawn waits in the world after the deer's chain: ${JSON.stringify(w)}`);
+          const at = { x: w.x, z: w.z };
+          if (item && (!item.at || Math.hypot(item.at.x - at.x, item.at.z - at.z) > 0.01)) fail(`the fawn waits at ${at.x}, ${at.z}, the world description puts it at ${JSON.stringify(item.at)}`);
+          // 1.7 m south-west of it (with the camera turn 0 "forward" is -z): the fawn stands before her on the right,
+          // not hidden behind her; the deer (its own spot "talk") is more than 5 m away
+          await g((p) => { __game.teleport(p.x - 1.2, p.z + 1.2); __game.cam.yaw = 0; }, at);
+          await until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 'no action button beside the fawn');
+          const label = await page.textContent('#btnAct');
+          // on screen: its point inside the window (R49), once the camera has come after her (the game's clock)
+          const onScreen = (p) => {
+            const v = new __game.THREE.Vector3(p.x, p.y + 0.4, p.z).project(__game.camera);
+            const x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight;
+            return v.z < 1 && x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight;
+          };
+          if (!(await gameUntil(onScreen, w, 4))) {
+            const s = await g((p) => { const v = new __game.THREE.Vector3(p.x, p.y + 0.4, p.z).project(__game.camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, z: v.z, w: innerWidth, h: innerHeight }; }, w);
+            fail(`the waiting fawn is outside the window after 4 s of game time: ${JSON.stringify(s)}`);
+          }
+          await shot('pet-waiting');
+          await act();
+          await until(() => __game.save.worlds.fairy.flags.pet === true && (__game.save.pets ?? []).includes('fawn'), null, 'the action button did not find the fawn: no flag "pet" or no "fawn" in save.pets');
+          const stored = await g(() => { const s = JSON.parse(localStorage.getItem('amw-save') || '{}'); return { flag: s.worlds?.fairy?.flags?.pet, pets: s.pets }; });
+          if (stored.flag !== true || !stored.pets?.includes('fawn')) fail(`the find is not stored: ${JSON.stringify(stored)}`);
+          if (item && !(await g(() => __game.items?.find((i) => i.kind === 'pet')?.done))) fail('the item "pet" of the world description is not done after the find');
+          // the first pet found is chosen by itself and walks after her at once
+          await until(after, FOLLOW_M, 'the fawn found does not walk after her');
+          // the book: the fawn found (no silhouette) and chosen; "no pet" leaves it at home, a tap on it chooses it again
+          await tap('#btnBook');
+          await tap('#bookTabs [data-tab=pets]');
+          await until(() => !!document.querySelector('#pets [data-pet=fawn].sel:not(.sil)'), null, 'the book does not show the fawn found and chosen');
+          await tap('#pets [data-pet=none]');
+          await until(() => __game.save.pet === null && JSON.parse(localStorage.getItem('amw-save') || '{}').pet === null && !__game.scene.getObjectByName('pet:fawn')?.parent,
+            null, '"no pet" did not leave the fawn at home');
+          await tap('#pets [data-pet=fawn]');
+          await until(() => __game.save.pet === 'fawn' && JSON.parse(localStorage.getItem('amw-save') || '{}').pet === 'fawn'
+            && document.querySelector('#pets [data-pet=fawn]').classList.contains('sel'), null, 'a tap on the fawn in the book did not choose it');
+          await tap('#bookTabs [data-tab=shelf]');
+          await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+          // after her: she walks off, the fawn comes after
+          if (!(await walks())) fail('the heroine does not walk after the book');
+          await until(after, FOLLOW_M, 'the fawn chosen does not walk after her');
+          await shot('pet');
+          // the cost of the fawn in the frame (TECH-06): its own triangles, and the counter with it beside her
+          const cost = await g(() => {
+            let tris = 0, meshes = 0;
+            __game.scene.getObjectByName('pet:fawn').traverse((o) => {
+              if (!o.isMesh) return;
+              meshes++; tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+            });
+            return { tris: Math.round(tris), meshes, counter: document.querySelector('#fps')?.textContent ?? '' };
+          });
+          console.log(`pet: the fawn draws ${cost.tris} triangles in ${cost.meshes} meshes; the counter beside it: ${cost.counter}`);
+          // ---- a reload: the page loaded again (a second tab of the same address and storage, as the block "magic" does:
+          // a reload of this one would drop the watchers of the walkthrough) plays from the save, the fawn after her ----
+          const p2 = await page.context().newPage();
+          try {
+            const until2 = async (pred, arg, what, seconds = 10) => {
+              const t0 = await p2.evaluate(() => __game.time);
+              const h = await p2.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
+                null, { timeout: T(600000) /* clock: ceiling */ });
+              if ((await h.jsonValue()) !== 'yes') fail(`after the reload: ${what} (in ${seconds} s of game time)`);
+            };
+            await p2.goto(page.url());
+            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) /* clock: page-load */ });
+            await p2.waitForFunction(() => !!window.__game?.ach, null, { timeout: T(30000) /* clock: page-load */ }).catch(() => fail('no __game in the page loaded again'));
+            // the scenes of its "play" would hold her (and the fawn stands while one runs): they wait there too
+            await p2.evaluate(() => __game.ach.hold());
+            await p2.click('#play');
+            await until2(after, FOLLOW_M, 'the fawn does not walk after her');
+            // she is put 5 m east: the fawn comes after her
+            const from = await p2.evaluate(() => { const h = __game.hero.root.position; __game.teleport(h.x + 5, h.z); return __game.scene.getObjectByName('pet:fawn').position.x; });
+            await until2(`(a) => (${after})(a[0]) && __game.scene.getObjectByName('pet:fawn').position.x - a[1] > 3`, [FOLLOW_M, from], 'the fawn does not come after her when she has gone 5 m');
+            const r = await p2.evaluate(`(${petNow})()`);
+            console.log(`pet: "${label}" at ${at.x}, ${at.z} found the fawn (flag "pet", save.pets), chosen in the book; after the reload it walks after her (${r.d.toFixed(2)} m)`);
+          } finally { await p2.close().catch(() => {}); }
+        });
+      }
       // ---- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book, opened in the middle of the game ----
       // A tap on a thing puts it on at once; one tried on and not bought comes off when the screen closes; a thing she
       // cannot afford has "N ⭐ more" (no red) and buys nothing; a purchase takes exactly the price (the watch of the

@@ -29,6 +29,7 @@ export const BLOCKS = [
   'finale',         // a finished quest replayed, the finale broken on purpose, then played
   'magic-crystal',  // the crystal restored brings the magic to 1 (WORLD-09)
   'book',           // the collection book against the save
+  'pet',            // the pet of the first world: found by the action button, chosen in the book, after her after a reload (PLAY-09)
   'shop',           // the shop and the fitting room (PLAY-04, PLAY-05)
   'shop-sign',      // the signboard of the shop
   'parents',        // the gate, the version, the voice slider, the quality button
@@ -103,14 +104,15 @@ export const GROUPS = {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
     friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'creatures', 'magic', 'achievements'], ach: ACH_BASE,
   },
-  // the deer: its star search with everything around it; then the finale, the book, the parents' section, "start again"
+  // the deer: its star search with everything around it; then the finale, the book, the fawn that waits after the
+  // deer's chain (found, chosen, after her after a reload), the parents' section, "start again"
   finale: {
     // Six examples with mistakes (LEARN-11), so that the parents' section has more than its five hardest to show (PLAY-15):
     // addition and take away only - the deer's chain has neither, so none of them comes back in place of its steps.
     save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'parents', 'achievements', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
+    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'pet', 'parents', 'achievements', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the

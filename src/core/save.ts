@@ -8,7 +8,8 @@
  * counters of the achievements (PLAY-08): the run of clean solves (`clean`), the days played (`days`) and the
  * achievements whose scene was shown (`achShown`): optional, absent until first written (a save without them is read
  * as empty ones, so the saves written before them and tools/e2e-saves.mjs stay as they are), a damaged one is mended.
- * So did the pet walking after the heroine (`pet`, PLAY-09): absent until first chosen, a damaged or unknown one is none.
+ * So did the pet walking after the heroine (`pet`, PLAY-09): absent until first chosen, a damaged or unknown one is none;
+ * and the pets found (`pets`, PLAY-09): absent until the first find, a damaged list keeps only its ids.
  * So did the rhythm of a session (PLAY-20, PLAY-21): the minutes before a break (`breakMin`), the date of the last gift
  * of the day (`gift`) and the current session of play (`session`): optional, absent until first written, a damaged one mended.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
@@ -74,9 +75,15 @@ export interface Save {
   days?: { n: number; last: string };
   /**
    * The pet walking after the heroine (PLAY-09): an id of src/game/pets.ts, null or absent = none. Which pets are found
-   * is not here: each is the flag `pet` of its world (`worlds[<id>].flags.pet`).
+   * is `pets` below (and, for a save written before it, the flag `pet` of each pet's own world).
    */
   pet?: string | null;
+  /**
+   * The species of the pets found (PLAY-09), in the order found: written by the find (markFound, src/game/pets.ts) in
+   * whatever world it was made. The world's own done mark stays its flag `pet` (`worlds[<id>].flags.pet`, R22). Absent
+   * until the first find; ids of a later version are kept.
+   */
+  pets?: string[];
   /**
    * The minutes of play after which the cat offers a break (PLAY-20, R33), chosen by the parent: one of BREAK_CHOICES,
    * 0 = off. Absent = BREAK_DEFAULT; a damaged value is BREAK_DEFAULT too.
@@ -357,6 +364,8 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.days !== undefined) out.days = daysOf(s.days);
   // The pet chosen, when stored: anything but the id of a known pet is none.
   if (s.pet !== undefined) out.pet = typeof s.pet === 'string' && PET_IDS.includes(s.pet) ? s.pet : null;
+  // The pets found, when stored: a damaged list keeps only its ids, each once (an unknown one is a later version's).
+  if (s.pets !== undefined) out.pets = Array.isArray(s.pets) ? [...new Set((s.pets as unknown[]).filter((id): id is string => typeof id === 'string' && id !== ''))] : [];
   // The rhythm of a session (PLAY-20, PLAY-21), when stored: a damaged choice is the default, a damaged date none.
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
