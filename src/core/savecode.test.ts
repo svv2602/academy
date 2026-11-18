@@ -37,7 +37,7 @@ function played(): Save {
   s.fixed.sub = 2; s.playMinutes = { '2026-11-17': 12, '2026-11-18': 5 };
   s.hard = { n: 9, list: [{ k: 'add:8+5', l: 2, e: 2, c: 0, at: 7 }] };
   s.owned = ['wand_star']; s.gear.wand = 'wand_star'; s.achievements = { first_task: 1763400000000 };
-  s.clean = { run: 2, best: 4 }; s.days = { n: 2, last: '2026-11-18' }; s.breakMin = 15;
+  s.clean = { run: 2, best: 4 }; s.days = { n: 2, last: '2026-11-18' }; s.breakMin = 15; s.session = { min: 14, last: 1763400000000, quiet: 0 };
   const w = worldState(s, 'fairy');
   w.quests = { q1: 3, q2: 1 }; w.starsTaken = [1, 4]; w.flags = { chest: true }; w.pos = [3.5, -2];
   s.vol = { music: 0.1, sfx: 0.2, voice: 0.3 }; s.tier = 0; s.pinTier = 1; s.launches = 41;
@@ -58,11 +58,11 @@ describe('the save as a code (PLAY-16)', () => {
     expect(await fromCode(`  ${code.slice(0, 20)}\n${code.slice(20)} `)).toEqual(r);
   });
 
-  it('holds the state of the game only: no graphics tier, volumes or launches (R60)', async () => {
+  it('holds the state of the game only: no graphics tier, volumes, launches or session (R60)', async () => {
     const s = played();
     const r = await fromCode(await toCode(s));
     if (!r.ok) throw new Error(r.reason);
-    for (const k of ['tier', 'pinTier', 'vol', 'launches']) expect(r.save).not.toHaveProperty(k);
+    for (const k of ['tier', 'pinTier', 'vol', 'launches', 'session']) expect(r.save).not.toHaveProperty(k);
     expect(r.save).toMatchObject({ name: 'Зоряна', stars: 37, later: { kept: [1, 2] }, worlds: { fairy: { quests: { q1: 3, q2: 1 } } } });
   });
 

@@ -3090,7 +3090,7 @@ try {
             const bytes = Buffer.from(payload, 'base64url');
             inCode = JSON.parse((prefix === 'amw1z' ? inflateRawSync(bytes) : bytes).toString('utf8'));
           } catch (e) { fail(`the payload of the code cannot be read: ${e.message}`); }
-          const device = ['tier', 'pinTier', 'vol', 'launches'].filter((k) => k in inCode);
+          const device = ['tier', 'pinTier', 'vol', 'launches', 'session'].filter((k) => k in inCode);
           if (device.length) errors.push(`code: ${mode}: the code carries the settings of the device: ${device.join(', ')}`);
           if (game(inCode) !== game(had)) fail('the code does not hold the game of the walk');
           if (prefix === 'amw1z') console.log(`code: ${code.length} signs pack ${JSON.stringify(inCode).length} of the save's JSON`);
