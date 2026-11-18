@@ -664,14 +664,20 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
     expect(roundProblems(five({ kinds: [...KINDS, 'leak:a', 'leak:b'] }))).toEqual([]);
     // three new kinds: a problem that says how many, of how many, and which
     const left = roundProblems(five({ kinds: [...KINDS, 'leak:a', 'leak:b', 'leak:c'] }));
-    expect(left).toEqual(['after round 5 the renderer holds 3 kind(s) of shader program it did not hold in rounds 1 and 2 (20 kinds then; at most 10 % new is allowed): leak:a, leak:b, leak:c']);
+    expect(left).toEqual(['after round 5 the renderer holds 3 kind(s) of shader program no round before held (rounds 1-4: 20 kinds; at most 10 % new is allowed): leak:a, leak:b, leak:c']);
     // the second round renumbers the sources of the materials of their own once: its kinds are known, not new (CI 44287659093)
     const renumbered = KINDS.slice(0, 12).concat(['32:x', '34:y', '36:z', '39:w', '41:v', '43:u', '4:t', '4:s']);
     const settled = [1, 2, 3, 4, 5].map((n) => round(n, n === 1 ? {} : { kinds: renumbered }));
     expect(roundProblems(settled)).toEqual([]);
-    // what the second round knows counts: a kind first seen in round 3 and kept is new
-    const late = [1, 2, 3, 4, 5].map((n) => round(n, n < 3 ? {} : { kinds: [...KINDS, 'a:1', 'b:2', 'c:3'] }));
-    expect(roundProblems(late)).toHaveLength(1);
+    // the trial 44308695672: both first rounds in the smaller state, the other state's kinds in round 3 - no growth
+    const state = ['physical:1', 'physical:2', 'physical:3'];
+    const swung = [1, 2, 3, 4, 5].map((n) => round(n, n === 3 || n === 5 ? { kinds: [...KINDS, ...state] } : {}));
+    expect(roundProblems(swung)).toEqual([]);
+    // a kind that no round before the last held is new, whenever it came: a leak brings one more every round
+    const leak = [1, 2, 3, 4, 5].map((n) => round(n, { kinds: [...KINDS, ...Array.from({ length: n }, (_, i) => `leak:${i}`)] }));
+    expect(roundProblems(leak)).toEqual([]);   // one new kind of 24 in round 5: within 10 %
+    const fast = [1, 2, 3, 4, 5].map((n) => round(n, { kinds: [...KINDS, ...Array.from({ length: 5 * n }, (_, i) => `leak:${i}`)] }));
+    expect(roundProblems(fast)).toEqual(['after round 5 the renderer holds 5 kind(s) of shader program no round before held (rounds 1-4: 40 kinds; at most 10 % new is allowed): leak:20, leak:21, leak:22, leak:23, leak:24']);
     // kinds the first round held and the last did not are no growth
     expect(roundProblems(five({ kinds: KINDS.slice(5) }))).toEqual([]);
   });

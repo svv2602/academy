@@ -474,7 +474,10 @@ export const ROUND_KEYS = ['heap', 'geometries', 'textures'];
  * 47 or 58 programs after a round, the same kinds of program every time), so a count read at one moment swings by a
  * quarter while nothing leaks. A program that leaks is a kind that was never there before: the kinds of each round are
  * every program the renderer held in any frame of it (`watchPrograms`), and the last round may bring at most
- * ROUND_GROWTH new kinds over the first two together (the first round enters by the network and may hold fewer). A
+ * ROUND_GROWTH new kinds over all the rounds before it. Not over the first two only: the renderer keeps some kinds
+ * only in one of its two states (the count of 47 or 58), and on the CI runner both of the first two rounds can fall
+ * in the smaller one (trial 44308695672) - the kinds of the other state then look new while nothing grows. A leak
+ * brings kinds no round before has held; a state seen in any earlier round is no leak. A
  * program of a material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its shaders when they
  * were first compiled, and a world entered again compiles them under new numbers: those numbers are left out of the
  * kind (`watchPrograms`), or every round would bring "new" kinds of the very same materials.
@@ -492,9 +495,9 @@ export function roundProblems(rounds) {
   const lost = rounds.find((r) => !Array.isArray(r[ROUND_KINDS]) || !r[ROUND_KINDS].length);
   if (lost) out.push(`the kinds of the shader programs were not read after round ${lost.round}: nothing to compare`);
   else {
-    const b = rounds[1], known = new Set([...a[ROUND_KINDS], ...b[ROUND_KINDS]]), fresh = z[ROUND_KINDS].filter((k) => !known.has(k));
+    const before = rounds.slice(0, -1), known = new Set(before.flatMap((r) => r[ROUND_KINDS])), fresh = z[ROUND_KINDS].filter((k) => !known.has(k));
     if (fresh.length > known.size * ROUND_GROWTH) {
-      out.push(`after round ${z.round} the renderer holds ${fresh.length} kind(s) of shader program it did not hold in rounds ${a.round} and ${b.round} (${known.size} kinds then; at most ${ROUND_GROWTH * 100} % new is allowed): ${fresh.join(', ')}`);
+      out.push(`after round ${z.round} the renderer holds ${fresh.length} kind(s) of shader program no round before held (rounds ${a.round}-${before[before.length - 1].round}: ${known.size} kinds; at most ${ROUND_GROWTH * 100} % new is allowed): ${fresh.join(', ')}`);
     }
   }
   for (const k of ROUND_KEYS) {
