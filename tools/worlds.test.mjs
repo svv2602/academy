@@ -10,7 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
   probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems, walkEnv,
 } from './worlds.mjs';
 
@@ -421,10 +421,13 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     const phone = walkEnv({ PATH: '/bin', E2E_GL: 'swiftshader', E2E_ONLY: 'shop', E2E_OFFLINE: '1', E2E_MUTE: '1' }, WALKS[0], o);
     expect(phone).toEqual({
       PATH: '/bin', E2E_GL: 'swiftshader', E2E_WORLD: PROBE, E2E_WORLD_NEED: 'one', E2E_WORLD_OUT: 'p.json', E2E_ONLY: '', E2E_OFFLINE: '0', E2E_MUTE: '0',
-      E2E_COMMIT: 'abc1234', E2E_VOICE_OUT: 'v.json', E2E_MODELS_OUT: 'm.json', E2E_LEVEL: '3',
+      E2E_OFFLINE_MARK: '', E2E_COMMIT: 'abc1234', E2E_VOICE_OUT: 'v.json', E2E_MODELS_OUT: 'm.json', E2E_LEVEL: '3',
     });
     const desk = walkEnv({ E2E_OFFLINE: '0' }, WALKS[1], o);
     expect(desk.E2E_OFFLINE).toBe('1');
+    // only the walkthrough without network tells the server when the network goes; a mark of the caller is not kept
+    expect(desk.E2E_OFFLINE_MARK).toBe(OFFLINE_MARK);
+    expect(walkEnv({ E2E_OFFLINE_MARK: '/other' }, WALKS[0], o).E2E_OFFLINE_MARK).toBe('');
     expect(desk.E2E_LEVEL, 'the computer plays the adaptive level, as in the first world').toBe('');
     // E2E_LEVEL of the caller sets one level for both
     expect(WALKS.map((w) => walkEnv({ E2E_LEVEL: '5' }, w, o).E2E_LEVEL)).toEqual(['5', '5']);
@@ -441,6 +444,47 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(walk).toContain('const from = asked.length, t0 = Date.now();');
     expect(walk).toContain('const mine = asked.slice(from);');
     expect(walk).toContain('const missed = notAskedByPage(files, mine);');
+    // without network: nothing of the world is asked of the server after the mark, and the mark must have come
+    expect(walk).toContain('const off = walk.offline ? askedOffline(mine, PROBE) : { marked: true, late: [] };');
+    expect(walk).toMatch(/if \(!off\.marked\) fail\(`\$\{name\}: the walkthrough never said it switched the network off/);
+    expect(walk).toMatch(/for \(const f of off\.late\) fail\(`\$\{name\}: with the network switched off the server was still asked for \$\{f\}/);
+    expect(walk).toContain('if (voice && !wrong.length && !missed.length && off.marked && !off.late.length) {');
+    // the server of this script answers the mark itself and notes it among the requests
+    expect(src).toContain("if (path === OFFLINE_MARK) { asked.push({ path, referer: req.headers.referer ?? '', search: '' }); res.writeHead(204, { 'Cache-Control': 'no-store' }).end(); return; }");
+  });
+
+  it('what was asked without network: the requests for a file of the world after the mark', () => {
+    const r = (path, referer = 'http://localhost:4350/?debug&world=probe') => ({ path, referer, search: '' });
+    const sw = 'http://localhost:4350/sw.js';
+    expect(OFFLINE_MARK).toBe('/offline-mark');
+    // the world came from the cache: the page and the download asked before the mark, nobody after it
+    const fromCache = [r('/index.html'), r(`/models/${PROBE}/stump.glb`), r(`/story/${PROBE}/sign.webp`), r(`/models/${PROBE}/stump.glb`, sw), r(OFFLINE_MARK), r('/sw.js'), r('/voice/go_next.mp3', sw)];
+    expect(askedOffline(fromCache, PROBE)).toEqual({ marked: true, late: [] });
+    // the world was never in the cache: the worker went to the server for it with the network switched off
+    const leaked = [r(`/models/${PROBE}/stump.glb`), r(OFFLINE_MARK), r(`/models/${PROBE}/stump.glb`, sw), r(`/story/${PROBE}/sign.webp`, sw)];
+    expect(askedOffline(leaked, PROBE)).toEqual({ marked: true, late: [`/models/${PROBE}/stump.glb`, `/story/${PROBE}/sign.webp`] });
+    // no mark: nothing can be said, and that is told apart from "nothing late"
+    expect(askedOffline([r(`/models/${PROBE}/stump.glb`)], PROBE)).toEqual({ marked: false, late: [] });
+    // a file merely named after the world, or of another world, is not the world's
+    expect(askedOffline([r(OFFLINE_MARK), r(`/models/${PROBE}.glb`, sw), r('/models/forest/tree.glb', sw)], PROBE).late).toEqual([]);
+    // a second walkthrough in the same list: its own mark counts
+    expect(askedOffline([r(OFFLINE_MARK), r(`/models/${PROBE}/stump.glb`, sw), r(OFFLINE_MARK)], PROBE).late).toEqual([]);
+  });
+
+  it('tools/shot.mjs: before the network is switched off the world is brought into the cache "worlds", and the server is told', () => {
+    const shot = readFileSync(join(root, 'tools/shot.mjs'), 'utf8');
+    const block = /\n {4}if \(offline\) \{\n((?: {6}.*\n)+?) {4}\}\n/.exec(shot)[1];
+    const order = ['cachedFiles = await waitForOfflineCache();', 'if (worldId) worldFiles = await cacheWorld(worldId);', 'if (offlineMark) await g((path) => fetch(path', 'await ctx.setOffline(true);', 'await page.reload();'];
+    const at = order.map((line) => block.indexOf(line));
+    expect(at.every((n) => n >= 0), JSON.stringify(at)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    // the world's own download and its end, not the clock; a world that is not ready fails by its name
+    const fn = shot.slice(shot.indexOf('const cacheWorld = async (id) => {'), shot.indexOf('\n  try {', shot.indexOf('const cacheWorld = async (id) => {')));
+    expect(fn).toContain("if (await cache.status(w) === 'core') return { status: 'core', files: 0 };");
+    expect(fn).toContain('const d = await cache.download(w);');
+    expect(fn).toContain("if (st.status !== 'core' && st.status !== 'ready') {");
+    expect(fn).toContain('without network it cannot be entered - its files are not in the cache "worlds"');
+    expect(fn).not.toMatch(/\bT\(|waitForTimeout|Date\.now/);
   });
 
   it('the description is played by the shared walkthrough alone: no scenario of its own is left here', () => {

@@ -104,6 +104,7 @@ export const WALKS = [{ size: 'mobile', offline: false, level: '3' }, { size: 'd
 export function walkEnv(base, walk, o) {
   return {
     ...base, E2E_WORLD: PROBE, E2E_WORLD_NEED: 'one', E2E_WORLD_OUT: o.passOut, E2E_ONLY: '', E2E_OFFLINE: walk.offline ? '1' : '0', E2E_MUTE: '0',
+    E2E_OFFLINE_MARK: walk.offline ? OFFLINE_MARK : '',
     E2E_COMMIT: o.commit, E2E_VOICE_OUT: o.voiceOut, E2E_MODELS_OUT: o.modelsOut, E2E_LEVEL: base.E2E_LEVEL || walk.level,
   };
 }
@@ -215,6 +216,24 @@ export function notAskedByPage(files, asked) {
 /** The requests of `asked` for a file of the world `id` (inside its folders: models/<id>/, voice/<id>/, story/<id>/), by anyone. */
 export function askedOfWorld(asked, id) {
   return asked.filter((r) => worldOf(r.path.replace(/^\//, ''), [id]) === id);
+}
+
+/**
+ * The path a walkthrough without network asks the server for right before it switches the network off
+ * (tools/shot.mjs, E2E_OFFLINE_MARK). No file of the build: the server of this script answers it itself.
+ */
+export const OFFLINE_MARK = '/offline-mark';
+
+/**
+ * What the server was asked for without network: the requests of `asked` for a file of the world `id` that came after
+ * the mark. A world played without network is built from the cache "worlds" alone, so there must be none - on a
+ * machine where the service worker's own requests slip past the switch of the browser they reach the server, and a
+ * world that was never in the cache looks played all the same. Returns { marked, late }: `marked` - the mark was
+ * asked for at all; `late` - the paths asked for after it (after the last one, if there are several).
+ */
+export function askedOffline(asked, id, mark = OFFLINE_MARK) {
+  const at = asked.map((r) => r.path).lastIndexOf(mark);
+  return { marked: at >= 0, late: at < 0 ? [] : askedOfWorld(asked.slice(at + 1), id).map((r) => r.path) };
 }
 
 /** The files of `listed` ([{ url, revision }] of worlds.json) the download never asked the server for by their fingerprint. */
@@ -467,6 +486,8 @@ async function main() {
   const server = createServer((req, res) => {
     let path;
     try { path = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
+    // the mark of a walkthrough without network: noted in its place among the requests, answered with nothing
+    if (path === OFFLINE_MARK) { asked.push({ path, referer: req.headers.referer ?? '', search: '' }); res.writeHead(204, { 'Cache-Control': 'no-store' }).end(); return; }
     if (path.endsWith('/')) path += 'index.html';
     const file = normalize(join(probeDist, path));
     if (blocked && worldOf(path.replace(/^\//, ''), [blocked]) === blocked) { res.writeHead(404).end(); return; }
@@ -513,10 +534,14 @@ async function main() {
       const mine = asked.slice(from);
       const missed = notAskedByPage(files, mine);
       for (const f of missed) fail(`${name}: the page never asked for ${f}: the world does not load its own file`);
-      if (voice && !wrong.length && !missed.length) {
+      // ---- without network the world is built from the cache alone: nothing of it is asked of the server any more ----
+      const off = walk.offline ? askedOffline(mine, PROBE) : { marked: true, late: [] };
+      if (!off.marked) fail(`${name}: the walkthrough never said it switched the network off (the server was not asked for ${OFFLINE_MARK}): what was asked without network is not known`);
+      for (const f of off.late) fail(`${name}: with the network switched off the server was still asked for ${f}: the world was not built from the cache "worlds"`);
+      if (voice && !wrong.length && !missed.length && off.marked && !off.late.length) {
         console.log(`[worlds] the world "${PROBE}" played by its description in the ${walk.size} size ${walk.offline ? 'without network' : 'with the network'}: `
           + `${pass.items.length} items, one of every kind (${pass.items.map((i) => `${i.kind} ${i.id}`).join(', ')}), done in the order ${pass.order.join(', ')}; `
-          + `${voice.loud} of ${voice.clips} clips with a volume; the page asked for ${files.join(', ')} (the server was asked for the files of the world ${askedOfWorld(mine, PROBE).length} times); `
+          + `${voice.loud} of ${voice.clips} clips with a volume; the page asked for ${files.join(', ')} (the server was asked for the files of the world ${askedOfWorld(mine, PROBE).length} times${walk.offline ? ', none of them with the network switched off' : ''}); `
           + `${((Date.now() - t0) / 1000).toFixed(0)} s`);
       }
     }

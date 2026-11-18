@@ -47,6 +47,8 @@
 //                           default: with the voice
 //   E2E_VOICE_OUT=<file>    write {"mute", "clips", "loud"}: was the voice off, how many clips were started and how
 //                           many of them with a volume above zero
+//   E2E_OFFLINE_MARK=<path> with E2E_OFFLINE=1: ask the server for this path right before the network is switched
+//                           off, so that whoever serves the game knows what was asked for after it (tools/worlds.mjs)
 //   E2E_COMMIT=<text>       the commit number the parents' section must show (tools/e2e.mjs: git rev-parse --short HEAD,
 //                           or "no-git"); default: only the form of the version line is checked
 //   E2E_WORLD=<id>          play another world of the registry (src/worlds/index.ts) instead of the first one, with
@@ -102,6 +104,8 @@ if (!['', '0', '1'].includes(process.env.E2E_MUTE ?? '')) usage(`bad E2E_MUTE="$
 const mute = process.env.E2E_MUTE === '1';
 const voiceOut = process.env.E2E_VOICE_OUT || '';
 const commit = process.env.E2E_COMMIT || '';
+const offlineMark = process.env.E2E_OFFLINE_MARK || '';
+if (offlineMark && !/^\/[\w./-]+$/.test(offlineMark)) usage(`bad E2E_OFFLINE_MARK="${offlineMark}": expected a path of the server, like /offline-mark`);
 const worldId = process.env.E2E_WORLD || '';
 if (worldId && !/^[a-z][a-z0-9_-]*$/.test(worldId)) usage(`bad E2E_WORLD="${worldId}": expected the id of a world of src/worlds/index.ts`);
 if (worldId === 'fairy') usage('E2E_WORLD=fairy: the first world is played by the full scenario - leave E2E_WORLD unset');
@@ -189,6 +193,7 @@ const origins = new Set();
 const models = new Set();   // model files requested by the page, as paths under the site root: models/…
 let networkOff = false;   // the offline walkthrough has switched the network off
 let cachedFiles = null;     // offline run: how many files of the precache list were found in the cache
+let worldFiles = null;      // offline run of another world: how many of its files the cache "worlds" held by then
 let voiceUsed = null;       // { clips, loud }: voice clips started in the walkthrough, and those of them with a volume
 const taskLog = [];        // the tasks met, in order (see __logTask below)
 try {
@@ -684,6 +689,25 @@ try {
       await page.waitForTimeout(250); /* clock: page-load */
     }
   };
+  // A next world (TECH-09) is no part of the installation: without network the game can enter it only when its files
+  // are in the cache "worlds". A page opened straight in that world does not put them there (its first requests are
+  // made before the service worker controls it, and the download in the background brings the worlds after the one
+  // played), so the walkthrough brings them the way the game does - its own download - and waits for its end, not for
+  // the clock. A world that is not ready then fails here, by its name, and not later as "the game could not load".
+  // Returns how many files of the world the cache holds (0: the world of the installation, nothing to bring).
+  const cacheWorld = async (id) => {
+    const st = await g(async (w) => {
+      const cache = window.__game.worlds;
+      if (!cache) return { why: 'the game does not show its cache of worlds with ?debug (no window.__game.worlds)' };
+      if (await cache.status(w) === 'core') return { status: 'core', files: 0 };
+      const d = await cache.download(w);
+      return { status: await cache.status(w), files: (await cache.cached(w)).length, why: d.error ? `its download ended with "${d.error}"` : `${d.done} of ${d.total} file(s) downloaded` };
+    }, id);
+    if (st.status !== 'core' && st.status !== 'ready') {
+      throw new Error(`world "${id}": without network it cannot be entered - its files are not in the cache "worlds" (${st.status ? `status "${st.status}", ` : ''}${st.why})`);
+    }
+    return st.files;
+  };
 
   try {
     // ---- without ?debug (ARCH-11): the published game has no window.__game, no frame counter and no tuning panel ----
@@ -731,6 +755,9 @@ try {
     await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
     if (offline) {
       cachedFiles = await waitForOfflineCache();
+      if (worldId) worldFiles = await cacheWorld(worldId);
+      // the last request of this page that may reach the server: what is asked for after it was asked without network
+      if (offlineMark) await g((path) => fetch(path, { cache: 'no-store' }).then((r) => r.status), offlineMark).catch((e) => { throw new Error(`offline: the mark ${offlineMark} could not be asked for: ${why(e)}`); });
       await ctx.setOffline(true);
       networkOff = true;
       await page.reload();
@@ -2741,7 +2768,7 @@ if (modelsOut) writeFileSync(modelsOut, JSON.stringify([...models].sort(), null,
 // Written only by a walkthrough that reached its end with the voice checked: tools/e2e.mjs reads who played in silence.
 // With E2E_ONLY it also names the group, so that a group played as the whole world (or the other way round) is noticed.
 if (voiceOut && voiceUsed) writeFileSync(voiceOut, JSON.stringify({ mute, clips: voiceUsed.clips, loud: voiceUsed.loud, ...(only ? { group: only } : {}) }) + '\n');
-console.log(`offline: ${offline ? `yes, files in the cache: ${cachedFiles ?? 'unknown (the network was never switched off)'}` : 'no'}`);
+console.log(`offline: ${offline ? `yes, files in the cache: ${cachedFiles ?? 'unknown (the network was never switched off)'}${worldFiles ? `, of the world "${worldId}" in the cache "worlds": ${worldFiles}` : ''}` : 'no'}`);
 console.log(`model files requested by the page: ${models.size}`);
 console.log(`requests: ${nRequests}, origins: ${origins.size}` + (cancelled.length ? `, cancelled by the browser: ${cancelled.length}` : ''));
 // the tolerated cancellations stay visible: which requests they were
