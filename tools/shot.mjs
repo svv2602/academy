@@ -2930,6 +2930,18 @@ try {
           await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
           await g(() => __game.ach.hold());
           const s = await g(() => ({ held: __game.gift.held, stars: __game.save.stars, gift: __game.save.gift ?? null }));
+          // the caption of the gift is caught the moment it shows (an event: on a slow machine it can be gone before a look
+          // from here) - its text and whether it is inside the window then
+          await g(() => {
+            window.__giftShown = null;
+            const look = () => {
+              const c = document.getElementById('giftCaption');
+              if (window.__giftShown || !c || c.classList.contains('hidden')) return;
+              const r = c.getBoundingClientRect();
+              window.__giftShown = { text: c.textContent, inside: r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+            };
+            new MutationObserver(look).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+          });
           await page.click('#play'); await calm();
           return s;
         };
@@ -2966,11 +2978,10 @@ try {
           const hello = (await startedOf(HELLOS))[0];
           if (!(await gameUntil((k) => k.some((x) => (window.__starts[x] ?? 0) > 0), GIFTS, 20))) fail(`a new day: no line of the gift after "${hello}" (the line: ${await g(() => __game.line)})`);
           const giftLine = (await startedOf(GIFTS))[0];
+          await gameUntil(() => !!window.__giftShown, null, 10).catch(() => {});   // reported below if never shown
           const s1 = await g(() => {
-            const c = document.querySelector('#giftCaption'), r = c?.getBoundingClientRect();
             return { stars: __game.save.stars, hud: document.querySelector('#stars').textContent, gift: __game.save.gift,
-              stored: JSON.parse(localStorage.getItem('amw-save') || '{}'), caption: c && !c.classList.contains('hidden') ? c.textContent : null,
-              inside: !!r && r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+              stored: JSON.parse(localStorage.getItem('amw-save') || '{}'), caption: window.__giftShown?.text ?? null, inside: !!window.__giftShown?.inside };
           });
           await shot('42-welcome');
           if (s1.stars !== s0.stars + 1) left.push(`a new day gave ${s1.stars - s0.stars} stars, not one (${s0.stars} -> ${s1.stars})`);
