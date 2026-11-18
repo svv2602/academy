@@ -11,10 +11,14 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { levelFor } from '../../game/skills';
 import { playScene } from '../../game/stage';
-import { generate as generateSort } from '../../game/tasks/sort';
-import { setWorldTask, worldTaskDoor } from '../../game/worldtasks/core';
-import { showSortInWorld, type WorldSort } from '../../game/worldtasks/sort';
-import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
+import { generate as generateSort, type SortSpec } from '../../game/tasks/sort';
+import { setWorldTask, taskFrame, worldTaskDoor } from '../../game/worldtasks/core';
+import { showSortInWorld } from '../../game/worldtasks/sort';
+import { showStonesInWorld } from '../../game/worldtasks/stones';
+import type { WorldTaskShow } from '../../game/worldtasks/core';
+import { generate as generateOrder } from '../../game/tasks/order';
+import { typeOf } from '../../game/tasks';
+import type { BookInfo, BuiltWorld, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
 import { openShop } from '../../ui/shop';
 import { el, hideAnswers, showClose } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
@@ -67,31 +71,62 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   });
   const restoreCrystal = createFinale(g, stage, shrine, npcs, scope);
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
+  // ---------- tasks played in the world (PLAY-01, src/game/worldtasks/): steps of the chains, on the shared frame ----------
+  // One task at a time: the frame tapes it and steps it, the debug door of the walkthrough reaches it.
+  const sorting = { active: false, colors: [] as string[] };     // window.__game reads this very object
+  let worldShow: WorldTaskShow | null = null;
+  /** Opens a task in the world before `n`: the heroine stands `stand` m before its middle, facing it; the camera looks at it. */
+  const playInWorld = async (_n: Npc, show: WorldTaskShow) => {
+    worldShow = show;
+    setWorldTask(g, show);
+    // the frame of the task (src/game/worldtasks/core.ts): the camera over it as over a table, the heroine beside it
+    const { cam, stand } = taskFrame(show, camera);
+    hero.root.position.set(stand.x, g.groundY(stand.x, stand.z), stand.z); hero.heading = stand.facing; hero.root.rotation.y = hero.heading;
+    g.camTask = cam;
+    showClose(() => show.close());
+    try { return await show.done; } finally { hideAnswers(); sorting.active = false; worldShow = null; setWorldTask(g, null); g.camTask = null; }
+  };
+  scope.own(() => { g.camTask = null; });   // a world left in the middle of a task takes its frame away
+  /** The arc of the pedestals before the deer (or any character `n`). */
+  const sortAt = (n: Npc) => {
+    const h = n.def.heading;
+    return { at: { x: n.pos.x + Math.sin(h) * SORT_ARC, z: n.pos.z + Math.cos(h) * SORT_ARC, facing: h } };
+  };
+  const openSort = (n: Npc, spec: SortSpec) => {
+    const { at } = sortAt(n);
+    const show = showSortInWorld(scene, spec, at, g.hooksFor(n.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60, scope });
+    Object.assign(sorting, { active: true, colors: show.pedestals.map((p) => p.userData.color as string) });
+    return show;
+  };
+  // "sort" of the deer's chain: the crystals on the pedestals (every level of "classify" plays it)
+  const sortStep: WorldTask = {
+    skill: 'classify', inWorld: () => true,
+    run: (n, level) => playInWorld(n, openSort(n, generateSort(level, g.rng))),
+  };
+  // "order" of the mushroom king's chain: the stones across a stream before him (its level 4, the neighbours of a
+  // number, stays on the card: `typeOf`)
+  const orderStep: WorldTask = {
+    skill: 'series', inWorld: (level) => typeOf('order', level) === 'order',
+    run: (n, level) => {
+      const h = n.def.heading, d = STONES_AT;
+      // the near bank before the character; the stream crosses towards it
+      const at = { x: n.pos.x + Math.sin(h) * d, z: n.pos.z + Math.cos(h) * d, facing: h + Math.PI };
+      const show = showStonesInWorld(scene, generateOrder(level, g.rng), at, g.hooksFor(n.def.emoji), { groundY: g.groundY, reach: g.touch ? 70 : 46, scope });
+      return playInWorld(n, show);
+    },
+  };
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
-  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch]]);
+  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep]]);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
   scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
   const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
 
-  // ---------- "sort" in the world (ARCH-09): a debug show only, opened by __game.worldSort() ----------
-  // The deer's chain keeps its "sort" on the panel (moving it into the world is PLAY-01). The show records nothing:
-  // no skill, no stars, no step of a chain. Its task comes from a randomness of its own, so the seeded tasks of the
-  // game (?seed=) stay the same with or without it.
-  const sorting = { active: false, colors: [] as string[] };     // window.__game reads this very object
-  let sortShow: WorldSort | null = null;
+  // ---------- "sort" in the world as a debug show (__game.worldSort()): the walkthrough's look at it outside a chain ----------
+  // It records nothing: no skill, no stars, no step of a chain. Its task comes from a randomness of its own, so the
+  // seeded tasks of the game (?seed=) stay the same with or without it.
   const worldSort = () => playScene(stage, 'world sort', async () => {
-    const deer = npc('deer'), h = deer.def.heading;
-    const at = { x: deer.pos.x + Math.sin(h) * SORT_ARC, z: deer.pos.z + Math.cos(h) * SORT_ARC, facing: h };
-    // The heroine stands in front of the arc, facing the deer.
-    const hx = at.x + Math.sin(h) * 3, hz = at.z + Math.cos(h) * 3;
-    hero.root.position.set(hx, g.groundY(hx, hz), hz); hero.heading = h + Math.PI; hero.root.rotation.y = hero.heading;
-    const spec = generateSort(levelFor(save, 'classify'), createRng(null));
-    const show = sortShow = showSortInWorld(scene, spec, at, g.hooksFor(deer.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60, scope });
-    setWorldTask(g, show);   // the debug door of the walkthrough reaches it (src/game/worldtasks/core.ts)
-    Object.assign(sorting, { active: true, colors: show.pedestals.map((p) => p.userData.color as string) });
-    g.cam.focus = g.above(show.center, 1);
-    showClose(() => show.close());
-    try { await g.task(() => show.done); } finally { hideAnswers(); sorting.active = false; sortShow = null; setWorldTask(g, null); }
+    const deer = npc('deer'), show = openSort(deer, generateSort(levelFor(save, 'classify'), createRng(null)));
+    await g.task(() => playInWorld(deer, show));
   });
 
   // ---------- the shop's signboard (R10, R19): the mushroom is in the scenery, its badge floats over the cap ----------
@@ -121,7 +156,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     spots,
     // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
     // A tap no task took may be a creature's (its reaction; nothing recorded).
-    tap: (screenDist) => butterflies.tap(screenDist) || (sortShow?.tap(screenDist) ?? false) || creatures.tap(screenDist),
+    tap: (screenDist) => butterflies.tap(screenDist) || (worldShow?.tap(screenDist) ?? false) || creatures.tap(screenDist),
     afterMove: (time, grounded) => characters.wings(time, grounded),
     // The characters, then the collectibles, then the shrine: the order they were always updated in.
     update: (dt, time, canMove) => {
@@ -137,7 +172,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       chestStars.animate(dt);
       flies.update(time);
       butterflies.bob(time);
-      sortShow?.update(time);
+      worldShow?.update(time);
       badge.position.y = sign.y + SIGN_H + 0.7 + Math.sin(time * 2) * 0.08;
       updateClouds(dt);
     },
@@ -227,6 +262,8 @@ function shopBadge(): THREE.Sprite {
 
 /** m: the middle of the arc of the debug "sort" in front of the deer. */
 const SORT_ARC = 2.5;
+/** m from a character to the near bank of the stream of its stones (PLAY-01). */
+const STONES_AT = 4.5;
 
 /** The lines of the shared conversation (src/game/dialogue.ts) this world says. */
 const LINES: WorldLines = { intro: 'intro', partGiven: 'npc_done', allParts: 'all_shards', partTitle: 'shard_title', partText: 'shard_text' };

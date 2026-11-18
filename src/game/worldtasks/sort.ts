@@ -69,7 +69,10 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
 
   const crystalMat = new THREE.MeshStandardMaterial({ roughness: 0.25, emissiveIntensity: 0.5 });
   const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), crystalMat);
-  crystal.position.copy(center).y += 1.5;
+  // The crystal floats over the middle of the pedestals (not over the arc's centre behind them, where the character stands
+  // and it would look carried on its back).
+  const over = pedestals.reduce((v, p) => v.add(p.position), new THREE.Vector3()).divideScalar(pedestals.length).setY(center.y);
+  crystal.position.copy(over).y += 1.5;
   group.add(crystal);
   const showCrystal = () => {
     const color = queue[st.pos] ?? null;
@@ -78,6 +81,8 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
     if (color) { crystalMat.color.set(SORT_COLORS[color] ?? '#ffffff'); crystalMat.emissive.set(SORT_COLORS[color] ?? '#ffffff'); }
   };
   showCrystal();
+  // where a frame looks: the middle of the pedestals, at half the height of the crystal over them
+  const look = over.clone().setY(over.y + 0.8);
   scene.add(group);
   hooks.prompt(spec.prompt);
 
@@ -114,7 +119,11 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
   const solve = () => { for (const color of sort.solution(spec, st)) { const p = pedestals.find((x) => x.userData.color === color); if (p) pick(p); } };
 
   return {
-    kind: 'sort', done: core.done, pedestals, crystal, center,
+    kind: 'sort', done: core.done, pedestals, crystal, facing: at.facing + Math.PI,
+    // the frame looks between the pedestals and the crystal floating over the arc: both are on the screen
+    center: look,
+    // across the view: the arc's pedestals left and right of its middle; along it: the arc's bow and the crystal over it
+    extent: { side: Math.max(...pedestals.map((p) => Math.abs((p.position.x - look.x) * Math.cos(at.facing) - (p.position.z - look.z) * Math.sin(at.facing)))) + 0.6, depth: RADIUS * 0.5 + 1.2 },
     tap: (screenDist) => {
       if (!core.alive) return false;
       let best: THREE.Mesh | null = null, bd = o.reach;
@@ -133,11 +142,13 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
       return true;
     },
     close: () => core.close(),
-    state: () => ({ kind: 'sort', phase: core.phase, wrongs: core.wrongs, rung: core.rung, progress: [] }),
+    state: () => ({ kind: 'sort', phase: core.phase, wrongs: core.wrongs, moves: st.pos, rung: core.rung, progress: [] }),
+    reach: o.reach,
+    targets: () => (core.alive ? pedestals.map((p) => ({ pos: p.position.clone().setY(p.position.y + TOP), right: p.userData.color === queue[st.pos] })) : []),
     progress: () => [],
     resume: () => {},
     update: (time) => {
-      crystal.position.y = center.y + 1.5 + Math.sin(time * 2.4) * 0.08;
+      crystal.position.y = over.y + 1.5 + Math.sin(time * 2.4) * 0.08;
       crystal.rotation.y = time * 1.5;
       if (trying?.from === -1) trying.from = time;
       const at = trying ? Math.floor((time - trying.from) / 0.6) : -1;

@@ -52,6 +52,8 @@ export interface WorldTask {
   skill: SkillId;
   /** Foreground (like the butterflies): the conversation waits for it. */
   run?(n: Npc, level: number): Promise<TaskResult>;
+  /** Whether `run` plays the step on this level (a task in the world, PLAY-01); false - the card plays it. Unset: always. */
+  inWorld?(level: number): boolean;
   /** Background (like the star search): the conversation ends, `done` moves the chain on (and gives its stars). */
   start?(n: Npc, done: () => void): void;
   /** A background task is running. */

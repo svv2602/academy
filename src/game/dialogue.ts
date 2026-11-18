@@ -84,7 +84,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
           return;
         }
         const skill = wt ? wt.skill : skillOf(step as PanelStep), level = levelFor(save, skill);
-        const res = await task(() => wt?.run ? wt.run(n, level) : plan.runTask(typeOf(step as PanelStep, level), level, hooksFor(q.emoji), g.rng));
+        const inWorld = !!wt?.run && (wt.inWorld?.(level) ?? true);   // a task in the world plays some levels only (PLAY-01)
+        const res = await task(() => inWorld ? wt!.run!(n, level) : plan.runTask(typeOf(step as PanelStep, level), level, hooksFor(q.emoji), g.rng));
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         ws.quests[q.id] = k + 1;

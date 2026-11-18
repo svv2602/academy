@@ -385,6 +385,16 @@ try {
   };
   // `s` seconds of game time - for a check that needs the game to have run a while (the heroine would have walked by now).
   const gameSeconds = (s) => gameUntil(() => false, null, s);
+  // The camera has come to rest (it stops moving between two looks; it glides in game time): before a picture or a tap
+  // that depends on where things are on the screen. False after `s` s of game time still moving.
+  const cameraRests = async (s = 10) => {
+    await g(() => { window.__camPrev = null; });
+    return gameUntil(() => {
+      const p = __game.camera.position.toArray(), w = window.__camPrev;
+      window.__camPrev = p;
+      return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 1e-3;
+    }, null, s);
+  };
   // The shown magic comes to `want` (within 0.001) in MAGIC_SETTLE s of game time.
   const magicSettles = (want) => gameUntil((w) => Math.abs(__game.magic.value - w) <= 0.001, want, MAGIC_SETTLE);
   // The only errors the scenario expects: it breaks a scene on purpose (__game.failNext) - a conversation once and the
@@ -1432,15 +1442,16 @@ try {
       // bubble), the save is the same (skills, quests, stars), and the heroine walks. The loop below talks to the same
       // character again; the second meeting is the usual one (picture, deliberate mistake, hint, answer).
       const closed = new Map();     // task type -> { quest, step } when it was closed
-      const closeTask = async (q, type) => {
+      const closeTask = async (q, type, button = '#taskClose') => {
         const fail = (what) => { throw new Error(`closing the "${type}" task: ${what}`); };
         const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
         const before = await saved();
-        await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
+        await tapOn(button).catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
         await gameFor(() => !__game.busy, null, 10).catch(() => fail('the closed task did not give the controls back'));
         await framesDrawn(2);
         const left = await held();
         if (await visible('#task')) left.push('the task is still on screen');
+        if (await g(() => !!window.__game.worldTask?.state)) left.push('the task in the world is still open');
         if (await g(() => __game.inTask)) left.push('the planner of spoken lines still thinks a task is open');
         if (await sounding()) left.push('a spoken line is still sounding');
         const after = await saved();
@@ -1450,6 +1461,88 @@ try {
         if (!(await walks())) fail('the heroine does not walk');
         closed.set(type, { quest: q.id, step });
         console.log(`"${type}" closed with the cross (${q.id}, step ${step + 1}): nothing recorded, the heroine walks`);
+      };
+      // ---- a step of a chain played in the world (PLAY-01, src/game/worldtasks/): the frame's door, real taps once ----
+      // First meeting of the kind: closed with its cross (as the panel's tasks). Then, once: its picture; on the narrow
+      // phone a real tap on the screen at a wrong thing and at the right one (projected from the door's targets: the move is
+      // counted, the heroine does not walk, the tap takes the thing aimed at - its reach against the nearest other thing
+      // on the screen is logged); three wrong moves through the door, each showing its rung of the hint. Then solved.
+      const KIND_TYPE = { sort: 'sort', stones: 'order' };
+      // What a real tap can take now, on the screen: each thing's point there, whether it is the right move, and whether it is
+      // free to tap (on the screen and not under the bubble or a button).
+      const targetsOnScreen = () => g(() => {
+          const t = __game.worldTask.targets(), V = __game.THREE.Vector3;
+          const px = (p) => {
+            const s = new V(...p).project(__game.camera), x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+            const under = s.z < 1 && x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+            // the tuning button is of ?debug only (ARCH-11): the published game has none, so it does not count
+            const debugOnly = !!under?.closest?.('#tuneBtn');
+            return { x, y, z: s.z, free: under?.id === 'c' || debugOnly, under: under ? under.id || under.localName : 'off the screen' };
+          };
+          return { reach: t.reach, all: t.all.map((o) => ({ ...px(o.pos), right: o.right })) };
+        });
+      const realTaps = async (kind) => {
+        const fail = (what) => { throw new Error(`a real tap on "${kind}": ${what}`); };
+        const at = () => g(() => {
+          const t = __game.worldTask.targets(), V = __game.THREE.Vector3;
+          const px = (p) => {
+            const s = new V(...p).project(__game.camera), x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+            const under = s.z < 1 && x >= 0 && y >= 0 && x < innerWidth && y < innerHeight ? document.elementFromPoint(x, y) : null;
+            return { x, y, z: s.z, free: under?.id === 'c' };     // on the screen and not under a button
+          };
+          return { reach: t.reach, all: t.all.map((o) => ({ ...px(o.pos), right: o.right })) };
+        });
+        const near = (all, a) => Math.min(...all.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.y - b.y)));
+        const tapAt = async (a) => { await (touch ? page.touchscreen.tap(a.x, a.y) : page.mouse.click(a.x, a.y)); };
+        const hp = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        // the camera first comes to rest on the task (it glides there in game time)
+        await cameraRests();
+        let t = await at();
+        const hidden = t.all.filter((a) => !a.free);
+        if (hidden.length) errors.push(`world task: ${mode}: "${kind}": ${hidden.length} of ${t.all.length} things cannot be tapped (off the screen or under a button): ${JSON.stringify(hidden.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
+        const bad = t.all.find((a) => !a.right && a.free), good = t.all.find((a) => a.right && a.free);
+        if (!bad || !good) fail(`no wrong and right thing free to tap on the screen: ${JSON.stringify(t.all)}`);
+        const gaps = { bad: near(t.all, bad), good: near(t.all, good) };
+        const s0 = await g(() => __game.worldTask.state);
+        await tapAt(bad);
+        await gameFor((n) => __game.worldTask.state?.wrongs === n + 1, s0.wrongs, 5).catch(async () => fail(`a tap at a wrong thing (${Math.round(bad.x)},${Math.round(bad.y)}) was not taken as a wrong move: ${JSON.stringify(await g(() => __game.worldTask.state))}`));
+        await gameFor(() => __game.worldTask.state?.phase === 'input', null, 30).catch(() => {});
+        t = await at();
+        const good2 = t.all.find((a) => a.right && a.free);
+        await tapAt(good2);
+        await gameFor((n) => (__game.worldTask.state?.moves ?? n + 1) > n || !__game.worldTask.state, s0.moves, 5).catch(async () => fail(`a tap at the right thing (${Math.round(good2.x)},${Math.round(good2.y)}) was not taken: ${JSON.stringify(await g(() => __game.worldTask.state))}`));
+        await gameSeconds(0.1);
+        const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), hp);
+        if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m after the taps`);
+        if (Math.min(gaps.bad, gaps.good) <= t.reach) errors.push(`world task: ${mode}: "${kind}": the reach of a tap (${t.reach} px) is not less than the gap to the nearest other thing (${Math.round(Math.min(gaps.bad, gaps.good))} px): a tap may take the neighbour`);
+        console.log(`world task "${kind}": real taps - a wrong one and a right one taken; the reach ${t.reach} px, the nearest other thing ${Math.round(gaps.bad)} / ${Math.round(gaps.good)} px away on the screen`);
+      };
+      const worldStep = async (q, st) => {
+        const type = KIND_TYPE[st.kind] ?? st.kind;
+        if (!closed.has(type)) { await closeTask(q, type, '#answersClose'); return; }
+        if (!seen.has(type)) {
+          seen.add(type);
+          await cameraRests(); await calm(); await shot(`task-world-${st.kind}`);
+          // every thing to tap is free on the screen, in every size (the places it goes to may lie under the bubble)
+          const blocked = (await targetsOnScreen()).all.filter((a) => !a.free);
+          if (blocked.length) errors.push(`world task: ${mode}: "${st.kind}": ${blocked.length} thing(s) to tap under ${[...new Set(blocked.map((a) => a.under))].join(', ')}: ${JSON.stringify(blocked.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
+          if (mode === 'mobile-portrait') await realTaps(st.kind);
+          // up to three wrong moves in all (a real one above counts): each shows the rung of its round, the third the last
+          for (let k = 1; k <= 3; k++) {
+            const w0 = await g(() => __game.worldTask.state?.wrongs ?? 0);
+            if (w0 >= 3) break;
+            if (!(await g(() => __game.worldTask.wrong()))) break;
+            await gameFor((n) => __game.worldTask.state?.wrongs === n + 1 && __game.worldTask.state?.phase === 'input', w0, 30)
+              .catch(async () => errors.push(`world task: ${mode}: "${st.kind}": wrong move ${k} through the door did not run its course: ${JSON.stringify(await g(() => __game.worldTask.state))}`));
+            const rung = await g(() => __game.worldTask.state?.rung ?? 0);
+            if (rung !== w0 + 1) errors.push(`world task: ${mode}: "${st.kind}": after wrong move ${w0 + 1} the hint shows rung ${rung}`);
+          }
+          const end = await g(() => __game.worldTask.state);
+          if (end && end.wrongs >= 3 && end.rung === 3) mistakes.add(type);   // the three rungs of its hint were seen
+          console.log(`world task "${st.kind}" (${q.id}): pictured, three wrong moves through the door, each its rung of the hint`);
+        }
+        if ((await g(() => __game.cheat())) !== 'world task') errors.push(`world task: ${mode}: the cheat did not solve "${st.kind}" through the door`);
+        await gameFor(() => !window.__game.worldTask.state, null, 15).catch(() => errors.push(`world task: ${mode}: "${st.kind}" did not end once solved`));
       };
       let crystalsWrong = false;
       for (const q of quests.filter((x) => plays(x.id))) {
@@ -1515,6 +1608,10 @@ try {
             await framesDrawn(1); continue;   // the loop reads the game again: a frame is its pace
           }
           { const wrong = await unplanned(); if (wrong) errors.push(wrong); }
+          {
+            const st = await g(() => window.__game.worldTask?.state ?? null);
+            if (st && (st.phase === 'input' || st.phase === 'mistake')) { await worldStep(q, st); continue; }
+          }
           if (await visible('#task')) {
             const type = await g(() => document.querySelector('#taskStage').className.split(' t-')[1].split(' ')[0]);
             if (!closed.has(type)) { await closeTask(q, type); continue; }
@@ -1732,7 +1829,7 @@ try {
           if (left.length) fail(`${how}: ${left.join('; ')}`);
         };
         await open();
-        await calm(); await shot('task-world-sort');
+        await cameraRests(); await calm(); await shot('task-world-sort');
         const pedestals = await g(() => __game.sorting.colors.length);
         if (pedestals < 2) fail(`${pedestals} pedestals on the arc`);
         await tapOn('#answersClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));

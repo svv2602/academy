@@ -9,7 +9,10 @@ export function createCompanion(g: Game): { update(dt: number): void } {
   return {
     update: (dt) => {
       const hp = hero.root.position, cp = cat.root.position;
-      v.set(hp.x + Math.cos(hero.heading) * 0.9 - Math.sin(hero.heading) * 0.6, 0, hp.z - Math.sin(hero.heading) * 0.9 - Math.cos(hero.heading) * 0.6);
+      // beside the heroine; during a task in the world, at the place its frame gives (off the task, src/game/worldtasks/core.ts)
+      const at = g.camTask?.catAt;
+      if (at) v.set(at.x, 0, at.z);
+      else v.set(hp.x + Math.cos(hero.heading) * 0.9 - Math.sin(hero.heading) * 0.6, 0, hp.z - Math.sin(hero.heading) * 0.9 - Math.cos(hero.heading) * 0.6);
       const cd = Math.hypot(v.x - cp.x, v.z - cp.z);
       // g.busy is read live: a scene started earlier in this frame already holds the cat's clips.
       if (cd > 0.45) {

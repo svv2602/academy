@@ -81,6 +81,12 @@ export interface Game extends GameWorld {
   still: boolean;
   auto: Auto | null;
   camOverride: number | null;
+  /**
+   * The frame of a task played in the world (src/game/worldtasks/core.ts `taskFrame`): the camera looks at `target` from
+   * `yaw`, `pitch` and `dist`, gliding there by the game's clock and back once it is null. `catAt`: where the cat sits
+   * meanwhile (beside the heroine, off the task).
+   */
+  camTask: { target: THREE.Vector3; yaw: number; pitch: number; dist: number; catAt: THREE.Vector3 } | null;
   /** >0 while the shards merge into the crystal. */
   finale: number;
   /** Test hook (__game.failNext): the next scene breaks once. */
@@ -212,7 +218,7 @@ export function createGame(o: {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
     get pets() { return pets!; },
-    busy: false, paused: false, still: false, auto: null, camOverride: null, finale: 0, failNext: false,
+    busy: false, paused: false, still: false, auto: null, camOverride: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),

@@ -33,6 +33,8 @@ export interface WorldTaskState {
   readonly phase: WorldTaskPhase;
   /** Wrong moves so far. */
   readonly wrongs: number;
+  /** Right moves so far (a thing put on its place, a crystal on its pedestal). */
+  readonly moves: number;
   /** The rung of the hint shown (the round of the mistake whose steps are on screen); 0 - none. */
   readonly rung: number;
   /** The middle of the task as the world would store it. */
@@ -46,8 +48,19 @@ export interface WorldTaskShow {
   readonly done: Promise<TaskResult>;
   /** Where the camera looks. */
   readonly center: THREE.Vector3;
+  /** The direction the child looks across the task (radians, 0 = +z): the camera and the heroine stand behind it. */
+  readonly facing: number;
+  /**
+   * How far from `center` everything to tap lies, in m: `side` - across the view (left and right), `depth` - along it.
+   * The camera stands back far enough to show all of it (`side` in the width of the screen, `depth` in its height).
+   */
+  readonly extent: { side: number; depth: number };
   /** A tap while the task is open takes it, even one that hits nothing (true). */
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
+  /** The farthest a tap may land from a thing on the screen, in pixels. */
+  readonly reach: number;
+  /** The things a tap can take now, where a tap is measured from, and whether taking it is the right move. */
+  targets(): { pos: THREE.Vector3; right: boolean }[];
   /** Solves the task through the same handler a tap goes through. */
   solve(): void;
   /** Makes one wrong move through the same handler a tap goes through; false when no wrong move is possible now. */
@@ -122,6 +135,27 @@ export function taskCore(scope: WorldScope, hooks: Pick<TaskHooks, 'wrong' | 'hi
   };
 }
 
+/** How steeply a task in the world is looked at: from above, as a table (rad over the horizon). */
+export const FRAME_PITCH = 0.8;
+
+/**
+ * The frame of a task in the world, from its geometry alone (any kind, the twelve of worlds 2-5 too): the camera looks at
+ * its middle along `facing` from FRAME_PITCH, far enough for `extent.side` to fit the width of the screen and `extent.depth`
+ * (seen at that slant) its height, with a margin; the heroine stands beside the task, facing it, the cat beyond her.
+ */
+export function taskFrame(show: Pick<WorldTaskShow, 'center' | 'facing' | 'extent'>, camera: { fov: number; aspect: number }) {
+  const v = (camera.fov * Math.PI) / 360, h = Math.atan(Math.tan(v) * camera.aspect);
+  const { side, depth } = show.extent;
+  const dist = Math.max(3.5, Math.max(side / Math.tan(h), (depth * Math.sin(FRAME_PITCH)) / Math.tan(v)) * 1.25);
+  const fx = Math.sin(show.facing), fz = Math.cos(show.facing), sx = Math.cos(show.facing), sz = -Math.sin(show.facing);
+  const c = show.center, out = side + 0.9;
+  const stand = { x: c.x + sx * out - fx * depth * 0.5, z: c.z + sz * out - fz * depth * 0.5 };
+  const facing = Math.atan2(c.x - stand.x, c.z - stand.z);
+  const target = c.clone();
+  const catAt = target.clone().set(stand.x + sx * 0.8, c.y, stand.z + sz * 0.8);
+  return { cam: { target, yaw: show.facing + Math.PI, pitch: FRAME_PITCH, dist, catAt }, stand: { ...stand, facing } };
+}
+
 /** The task open in the world now, for the debug door (one at a time: a scene holds the heroine meanwhile). */
 const open = new WeakMap<object, WorldTaskShow>();
 
@@ -144,5 +178,7 @@ export function worldTaskDoor(g: object) {
     close: () => { const s = cur(); if (!s) return false; s.close(); return true; },
     /** Where the open task stands; null - none is open. */
     get state(): WorldTaskState | null { return cur()?.state() ?? null; },
+    /** What a real tap on the screen can take now (the walkthrough projects them): [x, y, z] and right or not; the reach in px. */
+    targets: () => { const s = cur(); return s ? { reach: s.reach, all: s.targets().map((t) => ({ pos: t.pos.toArray(), right: t.right })) } : null; },
   };
 }

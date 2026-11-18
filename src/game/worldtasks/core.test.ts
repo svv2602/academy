@@ -78,13 +78,15 @@ describe('the debug door of the walkthrough (__game.worldTask)', () => {
     expect(door.wrong()).toBe(false);
     const calls: string[] = [];
     const show = {
-      kind: 'test', center: new THREE.Vector3(), done: new Promise(() => {}),
-      tap: () => true, update: () => {}, progress: () => [2], resume: () => {},
+      kind: 'test', center: new THREE.Vector3(), facing: 0, extent: { side: 1, depth: 1 }, done: new Promise(() => {}),
+      tap: () => true, update: () => {}, progress: () => [2], resume: () => {}, reach: 70,
+      targets: () => [{ pos: new THREE.Vector3(1, 2, 3), right: true }],
       solve: () => { calls.push('solve'); }, wrong: () => { calls.push('wrong'); return true; }, close: () => { calls.push('close'); },
-      state: () => ({ kind: 'test', phase: 'input', wrongs: 0, rung: 0, progress: [2] }),
+      state: () => ({ kind: 'test', phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [2] }),
     } as WorldTaskShow;
     setWorldTask(g, show);
-    expect(door.state).toEqual({ kind: 'test', phase: 'input', wrongs: 0, rung: 0, progress: [2] });
+    expect(door.state).toEqual({ kind: 'test', phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [2] });
+    expect(door.targets()).toEqual({ reach: 70, all: [{ pos: [1, 2, 3], right: true }] });
     expect(door.wrong()).toBe(true);
     expect(door.solve()).toBe(true);
     expect(door.close()).toBe(true);
