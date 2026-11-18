@@ -29,7 +29,7 @@ export interface WorldState {
 export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)
   played: boolean;
-  name: string;                 // how the cat addresses the child; never leaves the device
+  name: string;                 // how the cat addresses the child; never leaves the customer's devices (the transfer code of PLAY-16 carries it between them, decision 2026-11-17)
   // A hairstyle of an older save stays in it, unread (TECH-14). `wings` (version 1 to 3) is unread too and written back
   // as it is: whether she wears wings, and which, is `gear.wings`.
   dress: string; hair: string; wings: boolean;
