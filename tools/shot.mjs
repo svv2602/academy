@@ -2440,6 +2440,15 @@ try {
             return { tris: Math.round(tris), meshes, counter: document.querySelector('#fps')?.textContent ?? '' };
           });
           console.log(`pet: the fawn draws ${cost.tris} triangles in ${cost.meshes} meshes; the counter beside it: ${cost.counter}`);
+          // The budget (TECH-06, R21): with the fawn beside her the counter stays within the heaviest point measured for
+          // TECH-06 at that level - docs/perf.md, «Замер на компьютере», the mushroom king: q1 1024k triangles / 428 calls,
+          // q2 1115k / 500 (the S22 holds 60 frames there); q0 is held to q1's. Frames per second are not judged: the
+          // runner draws by program.
+          const PET_BUDGET = { q0: [1024, 428], q1: [1024, 428], q2: [1115, 500] };
+          const m = /· (q[0-2]) · (\d+)k tris · (\d+) calls/.exec(cost.counter);
+          if (!m) fail(`the counter beside the fawn cannot be read: "${cost.counter}"`);
+          const [maxTris, maxCalls] = PET_BUDGET[m[1]];
+          if (+m[2] > maxTris || +m[3] > maxCalls) fail(`over the budget of TECH-06 with the fawn (${m[1]}): ${m[2]}k triangles of ${maxTris}k, ${m[3]} calls of ${maxCalls}`);
           // ---- a reload: the page loaded again (a second tab of the same address and storage, as the block "magic" does:
           // a reload of this one would drop the watchers of the walkthrough) plays from the save, the fawn after her ----
           const p2 = await page.context().newPage();
