@@ -1,7 +1,7 @@
 // The size budget of the build (docs/15-tech.md, "Бюджет" and TECH-09), counted per part of the build (tools/world-files.mjs).
 // The first load is the core with the first world (the service worker caches it with the installation): the game - code
-// and models - at most 12 MB, the recorded voice (dist/voice/) at most 4 MB of its own (decision 2026-11-16: the voice
-// must not crowd out the worlds, nor they the voice). Every next world (decision Q14) has a budget of its own: at most
+// and models - at most 12 MB, the recorded voice (dist/voice/) at most 5 MB of its own (decision 2026-11-16: the voice
+// must not crowd out the worlds, nor they the voice; 4 MB raised to 5 on 2026-11-18 for the cat's lines of stage 4). Every next world (decision Q14) has a budget of its own: at most
 // 8 MB of models and story frames (dist/models/<id>/, dist/story/<id>/) and 3 MB of voice (dist/voice/<id>/).
 // One file is at most 1 MB, whatever it belongs to.
 // The bank of the old game's clips (dist/bank/, tools/import_old_voice.py) is not part of the first load (R37: the
@@ -17,7 +17,7 @@ import { BANK, CORE, groupOf, isBank, isVoice, worldGroup, worldOf } from './wor
 export const MAX_DIST = 12_000_000;
 export const MAX_DIST_FILE = 1_000_000;
 /** The recorded voice of the first load: the clips under dist/voice/, a budget of its own. */
-export const MAX_VOICE = 4_000_000;
+export const MAX_VOICE = 5_000_000;
 /** A next world: its models and story frames together, and its voice apart (TECH-09). */
 export const MAX_WORLD = 8_000_000;
 export const MAX_WORLD_VOICE = 3_000_000;
