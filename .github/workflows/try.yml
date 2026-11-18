@@ -6,6 +6,8 @@ name: Try
 #   try/mobile/world2/x5/net/1a2b3c4      the piece world2 in the phone's size, five times, with the network
 #   try/desktop/shop/x3/offline/1a2b3c4   the piece shop in the computer's size, three times, without the network
 #   try/probe/travel/x5/net/1a2b3c4       the part "travel" of the probe world (tools/worlds.mjs), five times
+#   try/mobile/all/x1/net/1a2b3c4         the whole walkthrough of the phone's size in one session, as
+#                                         `npm run e2e -- --mode mobile` plays it (x1..x3; limits of its own)
 # The last part is the beginning of the commit the branch points at, so every trial has a name of its own. More turns
 # on the same commit: run the whole run again (gh run rerun <id>).
 # A trial is NOT the gate: this file has no job named "check" on purpose, so a trial leaves no status "check" on the
@@ -32,6 +34,9 @@ jobs:
       n: ${{ steps.read.outputs.n }}
       offline: ${{ steps.read.outputs.offline }}
       probe: ${{ steps.read.outputs.probe }}
+      all: ${{ steps.read.outputs.all }}           # the whole walkthrough of the size, not a piece
+      run_ms: ${{ steps.read.outputs.run_ms }}     # the limit of one walkthrough process
+      minutes: ${{ steps.read.outputs.minutes }}   # the limit of a turn (the job)
       title: ${{ steps.read.outputs.title }}
       matrix: ${{ steps.read.outputs.matrix }}     # {"include":[{"turn":1},…]}
     steps:
@@ -72,7 +77,8 @@ jobs:
     name: try ${{ needs.plan.outputs.title }}, turn ${{ matrix.turn }}
     needs: [plan, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # A piece keeps the limits of the gate; the whole walkthrough has its own (tools/ci-pieces.mjs TRY_LIMITS).
+    timeout-minutes: ${{ fromJSON(needs.plan.outputs.minutes) }}
     strategy:
       fail-fast: false        # every turn is played to its end: the answer is "k of N"
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -98,16 +104,19 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          E2E_RUN_TIMEOUT_MS: '1080000'
+          E2E_RUN_TIMEOUT_MS: ${{ needs.plan.outputs.run_ms }}
           E2E_WORLDS: '0'
           E2E_NET: ${{ needs.plan.outputs.offline == 'true' && 'offline' || 'net' }}
           TRY_SIZE: ${{ needs.plan.outputs.size }}
           TRY_PIECE: ${{ needs.plan.outputs.piece }}
           TRY_PROBE: ${{ needs.plan.outputs.probe }}
+          TRY_ALL: ${{ needs.plan.outputs.all }}
         run: |
           set -o pipefail
           if [ "$TRY_PROBE" = true ]; then
             node tools/worlds.mjs dist --only "$TRY_PIECE" 2>&1 | tee try.log
+          elif [ "$TRY_ALL" = true ]; then
+            npm run e2e -- --skip-build --mode "$TRY_SIZE" 2>&1 | tee try.log
           else
             npm run e2e -- --skip-build --mode "$TRY_SIZE" --only "$TRY_PIECE" 2>&1 | tee try.log
           fi
