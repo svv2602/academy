@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { checkDistSize } from './dist-size.mjs';
+import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
   OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
@@ -345,7 +345,7 @@ describe('the voice of the probe world in the probe build (worlds.json, sw.js, t
     expect(coreVoiceBytes(dir)).toBe(8);
     // the sources: what docs/15-tech.md budgets as the voice of the first load, under its limit
     expect(coreVoiceBytes()).toBeGreaterThan(1_000_000);
-    expect(coreVoiceBytes()).toBeLessThanOrEqual(4_000_000);
+    expect(coreVoiceBytes()).toBeLessThanOrEqual(MAX_VOICE);   // the limit of tools/dist-size.mjs, not a copy of it
   });
 
   it('the run checks the voice of the probe build, and the scenarios check the clip where it is asked for', () => {
