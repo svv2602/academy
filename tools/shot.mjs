@@ -52,13 +52,18 @@
 //   E2E_COMMIT=<text>       the commit number the parents' section must show (tools/e2e.mjs: git rev-parse --short HEAD,
 //                           or "no-git"); default: only the form of the version line is checked
 //   E2E_WORLD=<id>          play another world of the registry (src/worlds/index.ts) instead of the first one, with
-//                           ?world=<id>: the save starts with progress of the first world in worlds.fairy, every chain
-//                           of every character is played (a teleport, the action button, __game.cheat() for each task),
-//                           with a picture and a layout check of each screen; the counter is "<done>/<characters>", the
-//                           stars grow and are stored at once; after a reload the progress is in worlds.<id> and
-//                           worlds.fairy is as it was. Then the checks every world shares (voice, planner, book, frame
-//                           counter, "start again"). The scenarios of the first world (deer, butterflies, finale, book
-//                           of shards, order of the friends) are not played. Default: the first world, its full scenario
+//                           ?world=<id>, by its description (tools/world-pass.mjs, ARCH-16): the items of
+//                           window.__game.items - the chains of its characters, its secrets, the parts of the artifact
+//                           that lie in it, its cutscenes, its tour, its pet, its finale - are done the way each says
+//                           (the action button, walking there, a tap, by itself), in the order of "after". Before
+//                           "play" the description is checked against the world template (docs/13-worlds.md): a point
+//                           that lacks fails with its number and name; an item that does not get done fails with its
+//                           id. Every screen is pictured with the layout check; the voice, the planner, the book, the
+//                           stars, the save (the progress under worlds.<id>, worlds.fairy as it was), a reload and
+//                           "start again" are checked as in the first world. With E2E_OFFLINE=1 the world is brought
+//                           into the cache "worlds" before the network is switched off. E2E_WORLD_NEED=one|template
+//                           and E2E_WORLD_OUT=<file>: see tools/world-pass.mjs. The scenarios of the first world are
+//                           not played. Default: the first world, its full scenario
 //   E2E_ONLY=<group>        play one group of tools/e2e-saves.mjs instead of the whole world: the page starts from the
 //                           group's save (written once in the tab before the game loads; with E2E_MUTE=1 it holds the
 //                           voice volume 0), "play" is pressed, the game must hold that save, and only the chains of the

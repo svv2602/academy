@@ -369,7 +369,7 @@ async function worlds() {
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist')], 1500000);
   if (timedOut) throw new Error('killed after 1500000 ms');
   if (code !== 0) throw new Error(`tools/worlds.mjs exited with ${signal ?? `code ${code}`} — see "worlds:" above`);
-  return 'dist/ holds nothing of the probe world; dist-probe/ built with its files and this commit, the probe world played in the mobile size';
+  return 'dist/ holds nothing of the probe world; dist-probe/ built with its files and this commit; the probe world played by its description (the mobile size with the network, the desktop size without it), its cache, the transition and the change of world checked';
 }
 // With all four sizes (the way CI runs) one size must have been played in silence, by the report of each of its
 // walkthroughs (with --only: of every group of it; checkPlayed makes sure the groups of a size are the whole world).
