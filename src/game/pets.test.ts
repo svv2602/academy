@@ -22,12 +22,12 @@ const TEST_PET: WorldPet = { species: FAWN.id, at: { x: 10, z: -4 }, after: 'owl
 
 const fakeRig = (): Rig => ({ root: new THREE.Group(), model: new THREE.Object3D(), clips: new Map() });
 
-function host(save: Save = defaultSave()) {
+function host(save: Save = defaultSave(), world = WORLD) {
   const scene = new THREE.Scene();
   const hero = new Actor(fakeRig()), cat = new Actor(fakeRig());
   cat.root.position.set(1, 0, 0.6);
   const g = {
-    scene, save, ws: worldState(save, WORLD), hero, cat, busy: false,
+    scene, save, ws: worldState(save, world), hero, cat, busy: false,
     groundY: () => 0, ground: { resolve: () => {} }, persist: vi.fn(), sparks: { burst: vi.fn() },
     speech: { line: vi.fn() }, above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy),
   } as unknown as PetHost & { busy: boolean; persist: ReturnType<typeof vi.fn> };
@@ -46,6 +46,19 @@ describe('the catalog of pets (PLAY-09, R18, R57)', () => {
 
   it('every world that declares a pet: its species is in the catalog, of that world, and its `after` is one of its characters', () => {
     expect(WORLDS.flatMap((w) => petProblems(w))).toEqual([]);
+  });
+
+  it('every world\'s pet stands farther from the character it comes after than that one\'s talk spot reaches: one button, not two', () => {
+    // TALK_R: the radius of a character's spot "talk" (src/worlds/fairy/index.ts, `r: 3.0`); the pet's own covers PET_SPOT_R.
+    const TALK_R = 3.0;
+    const near = WORLDS.flatMap((w) => {
+      const c = w.pet?.after === undefined ? undefined : w.characters.find((x) => x.id === w.pet!.after);
+      const d = c && w.pet ? Math.hypot(w.pet.at.x - c.x, w.pet.at.z - c.z) : Infinity;
+      return d > TALK_R ? [] : [`${w.id}: the pet at ${w.pet!.at.x},${w.pet!.at.z} is ${d.toFixed(2)} m from "${c!.id}"`];
+    });
+    expect(near).toEqual([]);
+    // the first world declares its pet (PLAY-09): the fawn, after the deer's chain
+    expect(WORLDS.find((w) => w.id === FAWN.world)?.pet).toMatchObject({ species: FAWN.id, after: 'deer' });
   });
 
   it('the check catches an unknown species, one of another world, and an `after` that names no character', () => {
@@ -69,6 +82,43 @@ describe('found and chosen (R22: the mark is ws.flags.pet of the world)', () => 
     const other = defaultSave();
     worldState(other, WORLD).flags.pet = true;
     expect(foundPets(other)).toEqual([FAWN.id]);
+  });
+
+  it('found is the save\'s list of species found (`save.pets`); a save written before the list keeps the flag rule', () => {
+    const save = defaultSave();
+    markFound(save, worldState(save, WORLD), FAWN);
+    markFound(save, worldState(save, WORLD), FAWN);
+    expect(save.pets).toEqual([FAWN.id]);
+    const listed = defaultSave();
+    listed.pets = [FAWN.id, 'owl'];
+    expect(foundPets(listed)).toEqual([FAWN.id]);
+    const before = defaultSave();
+    worldState(before, WORLD).flags.pet = true;
+    expect(['pets' in before, foundPets(before)]).toEqual([false, [FAWN.id]]);
+  });
+
+  it('a second world: the fawn found in the world "probe" is found and chosen, and walks after her in the first world after a reload', () => {
+    const save = defaultSave();
+    const g = host(save, 'probe');
+    const pets = createPets(g, { pet: TEST_PET, rigs: rigs(), chainDone: () => true });
+    pets.spots[0].run();
+    // the done mark is the probe world's own flag; the catalog's world (the first one) holds nothing
+    expect(save.worlds.probe.flags[PET_FLAG]).toBe(true);
+    expect(save.worlds[WORLD]).toBeUndefined();
+    expect(save.pets).toEqual([FAWN.id]);
+    expect(foundPets(save)).toEqual([FAWN.id]);
+    pets.update(0.016);
+    expect(pets.follower).not.toBeNull();
+    // left at home, chosen again in the book
+    expect(choosePet(save, null)).toBe(true);
+    expect(choosePet(save, FAWN.id)).toBe(true);
+    // the save read anew, the first world entered (it has no pet of its own here): the fawn follows from the first frame
+    const again = JSON.parse(JSON.stringify(save)) as Save;
+    const g2 = host(again);
+    const p2 = createPets(g2, { rigs: rigs(), chainDone: () => false });
+    expect(p2.follower!.root.parent).toBe(g2.scene);
+    expect(p2.follower!.root.name).toBe(`pet:${FAWN.id}`);
+    expect(p2.follower!.root.userData.follows).toBe(true);
   });
 
   it('a pet chosen before stays chosen when another one is found', () => {

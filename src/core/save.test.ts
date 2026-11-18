@@ -363,14 +363,14 @@ describe('version 4: read and write keep what this code does not know', () => {
   });
 
   it('a save of a later version keeps its number and its fields through a load and a store', () => {
-    storage.setItem(KEY, JSON.stringify({ ...v4WithUnknowns(), v: 5, pets: { owl: true } }));
+    storage.setItem(KEY, JSON.stringify({ ...v4WithUnknowns(), v: 5, familiars: { owl: true } }));
     const s = loadSave();
     expect(s.v).toBe(5);
     worldState(s, 'fairy');
     storeSave(s);
     const stored = JSON.parse(storage.data.get(KEY)!);
     expect(stored.v).toBe(5);
-    expect(stored).toEqual({ ...v4WithUnknowns(), v: 5, pets: { owl: true } });
+    expect(stored).toEqual({ ...v4WithUnknowns(), v: 5, familiars: { owl: true } });
   });
 
   it('a save of a much later version is not thrown away (the old rule gave the default save and wrote it over)', () => {
@@ -1069,7 +1069,7 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
 
   it('read and write: they survive a store and a load, with fields this code does not know in each and on top', () => {
     const fields = { achievements: { first_task: 5, later_one: 8 }, achShown: ['first_task', 'later_one'],
-      clean: { run: 3, best: 11, perSkill: { add: 2 } }, days: { n: 4, last: '2026-11-16', list: ['x'] }, pets: { owl: true } };
+      clean: { run: 3, best: 11, perSkill: { add: 2 } }, days: { n: 4, last: '2026-11-16', list: ['x'] }, familiars: { owl: true } };
     storeSave({ ...load(fields) });
     const s = loadSave();
     expect(s).toMatchObject(fields);
@@ -1131,6 +1131,37 @@ describe('the pet chosen (PLAY-09): a field of version 4 without a new version (
   it('read and write: the pet and the flag of its world survive a store and a load, next to a field this code does not know', () => {
     const p = PETS[0];
     const fields = { pet: p.id, petLater: { hat: 'red' }, worlds: { [p.world]: { ...defaultWorld(), flags: { pet: true, later: true } } } };
+    storeSave({ ...load(fields) });
+    const s = loadSave();
+    expect(s).toMatchObject(fields);
+    expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
+  });
+});
+
+describe('the pets found (PLAY-09): `pets`, a field of version 4 without a new version (R45)', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none; a version 4 save written before the field opens as it was, without it', () => {
+    expect('pets' in defaultSave()).toBe(false);
+    const s = load({ stars: 5 });
+    expect([s.v, s.stars, 'pets' in s]).toEqual([4, 5, false]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+  });
+
+  it('the species found are kept in their order; a damaged list keeps only its ids, each once; one that is no list is none', () => {
+    expect(load({ pets: PETS.map((p) => p.id) }).pets).toEqual(PETS.map((p) => p.id));
+    expect(load({ pets: ['fawn', 3, null, '', 'fawn', 'owl', {}] }).pets).toEqual(['fawn', 'owl']);
+    for (const bad of [null, 'fawn', 5, true, { fawn: true }]) {
+      const s = load({ pets: bad, stars: 7 });
+      expect([s.pets, s.stars], JSON.stringify(bad)).toEqual([[], 7]);
+    }
+  });
+
+  it('read and write: the list survives a store and a load, an id of a later version in it and a field this code does not know next to it', () => {
+    const fields = { pets: ['fawn', 'owl'], pet: 'fawn', petsLater: { owl: { hat: 'red' } } };
     storeSave({ ...load(fields) });
     const s = loadSave();
     expect(s).toMatchObject(fields);
