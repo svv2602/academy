@@ -2634,7 +2634,13 @@ try {
       // shows the first of it, one scene and one only.
       if (has('achievements')) {
         const fail = (what) => { throw new Error(`achievements: ${what}`); };
-        const want = [...(group ? group.ach : ACH_WHOLE)].sort();
+        // The piece's own set, and the achievements whose counters depend on how the tasks happened to go (ten in a row at
+        // the first try, fifty tasks, days played): expected exactly when the save's own counters say they are earned.
+        const by = await g(() => {
+          const s = __game.save, solved = Object.values(s.skills).reduce((n, k) => n + (k.tasks || 0), 0);
+          return { clean_ten: (s.clean?.best ?? 0) >= 10, fifty_tasks: solved >= 50, days_3: (s.days?.n ?? 0) >= 3, days_5: (s.days?.n ?? 0) >= 5 };
+        });
+        const want = [...new Set([...(group ? group.ach : ACH_WHOLE), ...Object.keys(by).filter((k) => by[k])])].sort();
         achWant = want;
         // a scene of the point before (the closed book of the block "book") may still be on: it is closed first
         for (;;) {
@@ -2741,7 +2747,9 @@ try {
         await holdAchDuring(async () => {
           if (await stored('amw-save-before-code')) fail('a game replaced by a code is kept before the block');
           // the volume of the music this device plays with: the code must not carry it to the other one (R60)
-          await g(() => { __game.save.vol.music = 0.35; });
+          // a made-up name when the walk has none (the whole walkthrough starts as a new player who typed none): the name is
+          // what the code carries between the customer's devices and has to be checked
+          await g(() => { __game.save.vol.music = 0.35; if (!__game.save.name) __game.save.name = 'Мірабелла'; });
           const had = await g(() => __game.save);
           if (!had.name) fail('the save of the walk has no name: the name going with the code goes unchecked');
           const first = await openCode('the game of the walk');
