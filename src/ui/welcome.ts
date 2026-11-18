@@ -80,8 +80,9 @@ function showCaption() {
   }
   node.textContent = giftCaption();
   node.classList.remove('hidden');
-  const shown = node;
-  setTimeout(() => shown.classList.add('hidden'), CAPTION_MS);
+  const shown = node, since = Date.now();
+  // hidden once the line of the gift is over, and not before CAPTION_MS
+  return () => { setTimeout(() => shown.classList.add('hidden'), Math.max(0, CAPTION_MS - (Date.now() - since))); };
 }
 
 /** What the meeting needs of the game. */
@@ -99,8 +100,9 @@ export async function meet(g: Host, now = Date.now()): Promise<void> {
   rememberHello(hello);
   await g.speech.line(hello, 'hint', HOLD_MS);
   g.addStars(1, g.above(g.cat.root.position, 0.8));   // the one star of the day (dailyGift gave 1)
-  showCaption();
+  const hide = showCaption();
   await g.speech.line(pickOther(GIFTS, null), 'hint', HOLD_MS);
+  hide();
 }
 
 /**

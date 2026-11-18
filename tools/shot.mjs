@@ -913,7 +913,8 @@ try {
         // The line said after "play" (the cat's welcome on a world visited before) is caught by its own clip: listeners of
         // the page on that clip hide the page the moment its time has gone past 0.3 s while it plays - by the sound itself,
         // not by a check from here (the welcome lasts under 3 s; on the CI runner it can be over before a check from here
-        // comes). If it is over before it is caught, a tap on the cat says it once more (VOICE-08) and that one is caught.
+        // comes). If it is over before it is caught, a tap on the cat says a line (VOICE-08: the same one while its bubble is
+        // up; with the bubble gone, where we stopped - PLAY-21) and the clip of that one is caught.
         const said = await g(() => __game.line);
         if (!said) fail('the game remembers no line after "play"');
         await g((key) => {
@@ -929,7 +930,7 @@ try {
           const check = (a) => { if (!a.paused && !a.ended && a.currentTime > 0.3) hide(a); };
           const watch = () => {
             for (const a of window.__started) {
-              if (window.__clip(a) !== key || st.seen.has(a)) continue;
+              if (st.seen.has(a) || (!st.any && window.__clip(a) !== st.key)) continue;
               st.seen.add(a);
               for (const ev of ['timeupdate', 'playing']) a.addEventListener(ev, () => check(a));
               check(a);
@@ -950,6 +951,8 @@ try {
               return { x, y, under: under ? under.id || under.localName : 'nothing' };
             });
             if (cat.under !== 'c') fail(`"${said}" was not heard sounding, and the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
+            // the line of the tap is caught whatever it is: every clip started so far is set aside
+            await g(() => { const st = window.__hideCatch; for (const a of window.__started) st.seen.add(a); st.any = true; });
             await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
             again = true;
           }
@@ -2956,12 +2959,16 @@ try {
           const s0 = await replay();
           if (s0.held) fail('the lever of the gift is still pulled after the reload');
           if (s0.gift !== '2000-01-01') fail(`the save did not keep the date of the last gift over the reload: ${s0.gift}`);
-          if (!(await gameUntil((h) => h.includes(__game.line), HELLOS, 15))) fail(`a new day: the cat said "${await g(() => __game.line)}", not a hello`);
-          const hello = await g(() => __game.line);
-          if (!(await gameUntil((k) => k.includes(__game.line), GIFTS, 20))) fail(`a new day: no line of the gift after "${hello}" (the line: ${await g(() => __game.line)})`);
+          // the lines are caught by their clips started on this page (an event: a slow machine may be past a line before a
+          // look at the line of the moment; with no voice the clips start too, at volume 0)
+          const startedOf = (keys) => g((k) => k.filter((x) => (window.__starts[x] ?? 0) > 0), keys);
+          if (!(await gameUntil((h) => h.some((k) => (window.__starts[k] ?? 0) > 0), HELLOS, 15))) fail(`a new day: no hello was started (the line: ${await g(() => __game.line)})`);
+          const hello = (await startedOf(HELLOS))[0];
+          if (!(await gameUntil((k) => k.some((x) => (window.__starts[x] ?? 0) > 0), GIFTS, 20))) fail(`a new day: no line of the gift after "${hello}" (the line: ${await g(() => __game.line)})`);
+          const giftLine = (await startedOf(GIFTS))[0];
           const s1 = await g(() => {
             const c = document.querySelector('#giftCaption'), r = c?.getBoundingClientRect();
-            return { line: __game.line, stars: __game.save.stars, hud: document.querySelector('#stars').textContent, gift: __game.save.gift,
+            return { stars: __game.save.stars, hud: document.querySelector('#stars').textContent, gift: __game.save.gift,
               stored: JSON.parse(localStorage.getItem('amw-save') || '{}'), caption: c && !c.classList.contains('hidden') ? c.textContent : null,
               inside: !!r && r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
           });
@@ -2973,22 +2980,22 @@ try {
           if (!s1.caption || !s1.caption.includes('+1 ⭐')) left.push(`no caption of the gift ("+1 ⭐"): ${s1.caption}`);
           else if (!s1.inside) left.push(`${mode}: the caption of the gift is not inside the window`);
           await gameFor(() => !__game.speaking, null, 20).catch(() => left.push('the meeting did not fall silent'));
-          const v1 = await g(([h, k]) => ({ hello: window.__starts[h] ?? 0, gift: window.__starts[k] ?? 0, dropped: [...__game.dropped], synth: [...__game.voice.synth] }), [hello, s1.line]);
-          if (!v1.hello || !v1.gift) left.push(`a line of the meeting was not heard: ${hello} ${v1.hello}, ${s1.line} ${v1.gift}`);
+          const v1 = await g(([h, k]) => ({ hello: window.__starts[h] ?? 0, gift: window.__starts[k] ?? 0, dropped: [...__game.dropped], synth: [...__game.voice.synth] }), [hello, giftLine]);
+          if (!v1.hello || !v1.gift) left.push(`a line of the meeting was not heard: ${hello} ${v1.hello}, ${giftLine} ${v1.gift}`);
           const lost = v1.dropped.filter((k) => [...HELLOS, ...GIFTS, ...LEFTS, 'welcome_back'].includes(k));
           if (lost.length) left.push(`the planner turned the meeting's lines away: ${lost.join(', ')}`);
           const synth = v1.synth.filter((k) => [...HELLOS, ...GIFTS].includes(k));
           if (synth.length) errors.push(`no recorded clip for: ${synth.join(', ')} (python3 tools/gen_voice.py)`);
           // ---- the same day again: the old welcome back, no star ----
           const s2 = await replay();
-          if (!(await gameUntil(() => __game.line === 'welcome_back', null, 15))) left.push(`the same day: the cat said "${await g(() => __game.line)}", not "welcome_back"`);
+          if (!(await gameUntil(() => (window.__starts.welcome_back ?? 0) > 0, null, 15))) left.push(`the same day: no "welcome_back" was started (the line: ${await g(() => __game.line)})`);
           await rest();
           const s3 = await g(([h, k]) => ({ stars: __game.save.stars, gift: __game.save.gift, said: [...h, ...k].filter((x) => window.__starts[x]) }), [HELLOS, GIFTS]);
           if (s3.stars !== s2.stars || s2.stars !== s1.stars) left.push(`the same day gave stars: ${s1.stars} -> ${s2.stars} -> ${s3.stars}`);
           if (s3.gift !== s1.gift) left.push(`the same day changed the date of the gift: ${s1.gift} -> ${s3.gift}`);
           if (s3.said.length) left.push(`the same day the cat said ${s3.said.join(', ')}`);
           if (!(await walks())) left.push('the heroine does not walk after the meeting');
-          if (!left.length) console.log(`welcome: a tap on the cat said "${want}"; a new day: "${hello}", "${s1.line}", +1 star (${s0.stars} -> ${s1.stars}), the caption "${s1.caption}"; the same day: welcome back, no star`);
+          if (!left.length) console.log(`welcome: a tap on the cat said "${want}"; a new day: "${hello}", "${giftLine}", +1 star (${s0.stars} -> ${s1.stars}), the caption "${s1.caption}"; the same day: welcome back, no star`);
           await g(() => __game.gift.hold());
         });
         if (left.length) errors.push(`welcome: ${mode}: ${left.join('; ')}`);
