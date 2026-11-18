@@ -136,6 +136,8 @@ export interface WorldEntry {
   characters?: readonly CharacterDef[];
   /** The world's secrets, chest and ground stars (WorldDef): what its achievements count (src/ui/achieve.ts). */
   secrets?: WorldDef['secrets']; chest?: WorldDef['chest']; groundStars?: WorldDef['groundStars'];
+  /** How the heroine moves there (WorldDef.move): src/game/player.ts reads it; absent - she walks. */
+  move?: WorldDef['move'];
 }
 
 /**

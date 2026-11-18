@@ -138,6 +138,18 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly strings: WorldStrings;
   readonly music?: MusicParams;
   /**
+   * How the heroine moves in the world; absent - she walks (gravity, the jump). `swim`: she swims `height` m above the
+   * ground - no gravity, no jump, the swimming clips Swim and Float for walking and standing (src/game/player.ts). The
+   * world brings those clips in a file of its own and lends them to her (src/game/hero.ts `worldClips`, Actor.lend).
+   */
+  readonly move?: { readonly kind: 'swim'; readonly height: number };
+  /**
+   * A test world (the probe world, TECH-15): never in the published game. It may declare the pet of another world -
+   * the catalog of pets (src/game/pets.ts PETS) holds the species of the real worlds only, and a test world must have
+   * a pet all the same (the template of a world asks for one).
+   */
+  readonly test?: boolean;
+  /**
    * Before the quality tier is made: it needs the sun. `scope` (TECH-15, src/game/scope.ts), here and below, is the
    * owner of what the world adds to the scene and subscribes to: the world's handlers and timers go through it.
    */

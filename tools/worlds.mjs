@@ -66,6 +66,12 @@
 //      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
 //      heroine and in the flock as the first time), the heroine where she was left, she walks, a character gives a
 //      task and it is solved. After a reload of the page the progress of each world is in its own part of the save.
+//      The probe world is a water world (WorldDef.move, kind "swim"): there the heroine keeps the height it declares
+//      above the ground, stands in the clip Float and moves in the clip Swim (lent by the world from its own file, the
+//      pelvis scaled as in the shared clips), the jump lifts her not and plays no Jump, there is no jump button, and the
+//      wand she wears (put on in the first world, by the save) is hidden; back in the first world she walks and JUMPS
+//      (her height rises and falls back, the clip Jump), the button and the wand are there again, the swimming clips
+//      are gone (travel-swim-back.png, travel-swim-side.png: she swims, seen from behind and from the side).
 //      Every change asks the gate of the world first (src/game/gate.ts, wired by src/main.ts): a world that is not
 //      downloaded is let in "from the network" and downloaded in full behind the closed frame.
 //      "the files are gone": in another browser the server answers 404 for every file of the probe world; the network
@@ -151,6 +157,19 @@ export function readArgs(args) {
     else dist = a;
   }
   return { dist, parts: PARTS.filter((x) => !only || only.includes(x)) };
+}
+
+/**
+ * The height of the pelvis in the first key of the clip `clip` of the .glb `file`, as packed: the heroine's copies of
+ * clips scale it (src/game/hero.ts), the change of world reads her copies against it.
+ */
+export async function pelvisKey(file, clip) {
+  const { createIO } = await import('./assets.mjs');
+  const doc = await (await createIO()).read(file);
+  const ch = doc.getRoot().listAnimations().find((a) => a.getName() === clip)?.listChannels()
+    .find((c) => c.getTargetNode()?.getName() === 'pelvis' && c.getTargetPath() === 'translation');
+  if (!ch) throw new Error(`${file}: no translation of the pelvis in the clip "${clip}"`);
+  return ch.getSampler().getOutput().getElement(0, [])[2];   // the UAL skeleton stands along z
 }
 
 /** Every file under `dir`, as paths relative to it with "/" between the folders, sorted. */
@@ -917,18 +936,87 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
     {
       const name = 'there and back';
       const p = await open(name, false);
+      /** The height the probe world swims at (src/worlds/probe/index.ts `move`) and the free wand she wears there. */
+      const SWIM = 0.6, WAND = 'wand_flower';
+      /**
+       * The heroine as the water changes her: her height above the ground under her, her clip, the swimming clips she
+       * has, the jump button, the wand (seen or not, and what the save has her wear), how many petals on her are seen,
+       * and the pelvis in the first key of her Idle and Float.
+       */
+      const heroine = () => p.g((wand) => {
+        const h = __game.hero, hp = h.root.position, y = hp.y;
+        __game.teleport(hp.x, hp.z);                      // the ground under her, read in the same task: she is put back
+        const ground = hp.y; hp.y = y;
+        const key = (n) => h.actions.get(n)?.getClip().tracks.find((t) => t.name === 'pelvis.position')?.values[2] ?? null;
+        return {
+          above: y - ground, clip: h.current, lent: ['Swim', 'Float'].filter((n) => h.has(n)),
+          jumpButton: !document.getElementById('btnJump').classList.contains('hidden'),
+          wand: h.model.getObjectByName(wand)?.visible ?? null, worn: __game.save.gear.wand,
+          petals: h.root.children.filter((o) => o !== h.model && o.visible).length, pelvis: { Idle: key('Idle'), Float: key('Float') },
+        };
+      }, WAND);
+      /**
+       * Space is pressed with her standing; for 1.2 s of game time her height against the height she started at is
+       * followed: how far she rose, how far below it she went, where she ended, which clips played.
+       */
+      const jumpSample = async () => {
+        await p.g(() => {
+          const h = __game.hero, from = h.root.position.y, s = window.__jumpSample = { t0: __game.time, rise: 0, fall: 0, end: 0, clips: [], over: false };
+          const tick = () => {
+            const dy = h.root.position.y - from;
+            s.rise = Math.max(s.rise, dy); s.fall = Math.max(s.fall, -dy); s.end = Math.abs(dy);
+            if (!s.clips.includes(h.current)) s.clips.push(h.current);
+            if (__game.time - s.t0 > 1.2) s.over = true; else requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        });
+        await p.page.keyboard.press('Space');
+        await p.until(() => window.__jumpSample.over, null, 'the game time did not run on after the jump');
+        return p.g(() => window.__jumpSample);
+      };
+      /**
+       * She swims: "forward" is held until she has moved half a step in the clip Swim at the height of the water; then
+       * the game is held still and she is pictured from behind (the camera follows her) and from the side.
+       */
+      const swims = async () => {
+        const from = await p.g(() => [__game.hero.root.position.x, __game.hero.root.position.z, __game.hero.root.position.y]);
+        await p.page.keyboard.down('KeyW');
+        try {
+          await p.until(([x, z, y]) => {
+            const h = __game.hero, hp = h.root.position;
+            return h.current === 'Swim' && Math.hypot(hp.x - x, hp.z - z) > 0.5 && Math.abs(hp.y - y) < 0.01;
+          }, from, 'the heroine did not swim forward', 15000);
+          await p.g(() => __game.still(true));
+          const drawn = () => p.g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          await drawn();
+          await p.page.screenshot({ path: join(root, shots, 'travel-swim-back.png') });
+          const heading = await p.g(() => { const h = __game.hero, was = h.heading; h.heading = __game.cam.yaw + Math.PI / 2; h.root.rotation.y = h.heading; return was; });
+          await drawn();
+          await p.page.screenshot({ path: join(root, shots, 'travel-swim-side.png') });
+          await p.g((was) => { const h = __game.hero; h.heading = was; h.root.rotation.y = was; }, heading);
+          return true;
+        } catch { return false; } finally {
+          await p.g(() => __game.still(false));
+          await p.page.keyboard.up('KeyW');
+          await p.until(() => __game.hero.current === 'Float', null, 'she did not stand in Float again after swimming').catch(() => fail(`${name}: after swimming the heroine does not stand in the clip Float again`));
+        }
+      };
       let loads = 0;
       p.page.on('load', () => { loads++; });
       await p.page.goto(`${url}?debug${q}`);
       await p.start();
       const mark = `mark-${Date.now()}`;
-      await p.g((m) => {
+      await p.g(([m, wand]) => {
         window.__travelMark = m;
         window.__travelKept = { hero: __game.hero, heroRoot: __game.hero.root, cat: __game.cat, catRoot: __game.cat.root };
         __game.teleport(1.5, 11);
-      }, mark);
+        // A wand she wears by the save (a free one): the probe world puts it on too - and hides it in the water.
+        __game.save.gear.wand = wand; __game.gear.set('wand', wand);
+      }, [mark, WAND]);
       if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world`);
       const home = await p.state();
+      const dry = await heroine();
+      if (!dry.wand || !dry.petals || dry.lent.length || !dry.jumpButton) fail(`${name}: in the first world before the change the wand "${WAND}" is ${dry.wand ? 'seen' : 'not seen'}, ${dry.petals} petal(s) are seen, the swimming clips lent are ${JSON.stringify(dry.lent)}, the jump button is ${dry.jumpButton ? 'shown' : 'hidden'}: the checks of the water would be blind`);
       if (home.world !== FIRST) fail(`${name}: the game started in the world "${home.world}", expected "${FIRST}"`);
       if (home.foxClip === 'npc_next') fail(`${name}: the fox of the first world has no voice of its own (${home.foxClip}): the check of the voices after the change would be blind`);
       if (home.music === null) fail(`${name}: no music plays in the first world after "Play": the check of the music would be blind`);
@@ -977,7 +1065,20 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       }
       if (away.focus || away.inTask || away.shown.length) fail(`${name}: the conversation cut by the change left something behind: ${JSON.stringify({ focus: away.focus, inTask: away.inTask, shown: away.shown })}`);
       if (!same(away.hud, ['hud', 'joy'])) fail(`${name}: after the change the counters and the stick are ${JSON.stringify(away.hud)}, expected both on the screen`);
-      if (!(await p.walks())) fail(`${name}: the heroine does not walk in the probe world`);
+      // ---- the water world (R85, R86, R88): the height, the clips, no jump, the wand hidden ----
+      const wet = await heroine();
+      if (Math.abs(wet.above - SWIM) > 0.01) fail(`${name}: in the probe world the heroine is ${wet.above.toFixed(3)} m above the ground, the world declares ${SWIM} m to swim at`);
+      if (wet.clip !== 'Float') fail(`${name}: standing in the water of the probe world she plays "${wet.clip}", expected "Float"`);
+      if (!same(wet.lent, ['Swim', 'Float'])) fail(`${name}: in the probe world the heroine has the swimming clips ${JSON.stringify(wet.lent)}, expected Swim and Float lent by the world`);
+      if (wet.jumpButton) fail(`${name}: the jump button is on the screen in the water of the probe world`);
+      if (wet.wand !== false || wet.petals !== 0 || wet.worn !== WAND) fail(`${name}: in the water the wand "${wet.worn}" (worn by the save: "${WAND}") is ${wet.wand ? 'seen' : 'hidden'} and ${wet.petals} petal(s) are seen, expected the wand worn and hidden, no petal seen`);
+      // Her copies of the world's clips have the pelvis scaled as her copies of the shared ones (src/game/hero.ts).
+      const packed = { idle: await pelvisKey(join(root, 'models-src/hero/anims.glb'), 'Idle_Loop'), float: await pelvisKey(join(root, PROBE_FILES, 'models/probe/swim.glb'), 'Swim_Idle_Loop') };
+      const scale = { shared: wet.pelvis.Idle / packed.idle, world: wet.pelvis.Float / packed.float };
+      if (!(Math.abs(scale.shared - 1) > 0.01) || !(Math.abs(scale.world - scale.shared) < 1e-4)) fail(`${name}: the pelvis of the heroine's clips is scaled ${scale.shared.toFixed(4)} in Idle and ${scale.world.toFixed(4)} in Float of the world: the clips of a world go through the scaling of the shared ones`);
+      const jumped = await jumpSample();
+      if (jumped.rise > 0.01 || jumped.fall > 0.01 || jumped.clips.includes('Jump')) fail(`${name}: the jump in the water of the probe world moved her ${jumped.rise.toFixed(3)} m up and ${jumped.fall.toFixed(3)} m down, with the clips ${JSON.stringify(jumped.clips)}: in the water there is no jump`);
+      if (!(await swims())) fail(`${name}: the heroine does not swim in the probe world (the clip Swim at the height of the water while she moves)`);
       const fairyThen = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
       if (!same(JSON.parse(fairyThen).pos.map((v) => Math.round(v * 100) / 100), left)) fail(`${name}: the save holds ${JSON.parse(fairyThen).pos} as her place in the first world, she left it at ${left}: the game was not saved before the change`);
       await p.solveWith('friend', PROBE);
@@ -1020,6 +1121,12 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       const backBook = await p.book();
       if (!same(backBook, homeBook)) fail(`${name}: back in the first world the book shows ${JSON.stringify(backBook)}, before the change it showed ${JSON.stringify(homeBook)}`);
       if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world after the way back`);
+      // ---- out of the water (R89): she walks (above) and JUMPS, her wand, her petals and the jump button are back ----
+      await p.until(() => __game.hero.current === 'Idle', null, 'back in the first world the heroine does not stand in Idle');
+      const ashore = await heroine();
+      if (Math.abs(ashore.above) > 0.01 || ashore.lent.length || !ashore.jumpButton || !ashore.wand || ashore.petals !== dry.petals) fail(`${name}: back in the first world she is ${ashore.above.toFixed(3)} m above the ground, the swimming clips lent are ${JSON.stringify(ashore.lent)}, the jump button is ${ashore.jumpButton ? 'shown' : 'hidden'}, the wand "${WAND}" is ${ashore.wand ? 'seen' : 'not seen'}, ${ashore.petals} petal(s) are seen (${dry.petals} before the change)`);
+      const jump = await jumpSample();
+      if (!(jump.rise > 0.5) || !jump.clips.includes('Jump') || jump.end > 0.01) fail(`${name}: back in the first world the jump lifted her ${jump.rise.toFixed(3)} m, ended ${jump.end.toFixed(3)} m above the ground, with the clips ${JSON.stringify(jump.clips)}: expected up, the clip Jump, and down again`);
       await p.solveWith('fox', FIRST);
       const kept = await p.g((w) => __game.save.worlds[w].quests.friend, PROBE);
       if (kept !== 1) fail(`${name}: back in the first world the save holds ${kept} for the task solved in the probe world, expected 1`);

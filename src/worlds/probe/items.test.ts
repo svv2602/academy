@@ -98,10 +98,10 @@ describe('the probe world describes itself (ARCH-16, R28)', () => {
     const species = petSpecies(probe.pet!.species);
     expect(species, 'the species is not in PETS').toBeDefined();
     expect(PETS).toContain(species);
-    // The one rule the probe world breaks on purpose: the species is of the first world (the catalog has no pet of a
-    // test world). src/game/pets.test.ts runs the check over the registry of the tests, where this world is not listed.
-    expect(petProblems(probe)).toEqual([`${probe.id}: the pet species "${species!.id}" is of the world "${species!.world}"`]);
-    expect(petProblems({ ...probe, id: species!.world })).toEqual([]);
+    // The species is of the first world (the catalog has no pet of a test world): allowed, the probe world is a test one.
+    expect(probe.test).toBe(true);
+    expect(petProblems(probe)).toEqual([]);
+    expect(petProblems({ ...probe, test: undefined })).toEqual([`${probe.id}: the pet species "${species!.id}" is of the world "${species!.world}"`]);
   });
 
   it('the finale comes after every other item; the part after the secret it lies in', () => {

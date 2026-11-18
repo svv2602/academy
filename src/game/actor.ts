@@ -9,6 +9,8 @@ export class Actor {
   private mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
   private current = '';
+  /** Names played by other clips (`rename`): null - every name plays its own clip. */
+  private names: Readonly<Record<string, string>> | null = null;
   heading = 0;
 
   constructor(rig: Rig) {
@@ -20,7 +22,39 @@ export class Actor {
 
   has(name: string) { return this.actions.has(name); }
 
+  /**
+   * Clips of a world (src/game/hero.ts `worldClips`) join this character's own for as long as the world is played: the
+   * returned function takes them back (a world hands it to its scope). A name the character already has is an error -
+   * a world adds clips, it never replaces the shared ones.
+   */
+  lend(clips: ReadonlyMap<string, THREE.AnimationClip>): () => void {
+    for (const name of clips.keys()) if (this.actions.has(name)) throw new Error(`actor: the clip "${name}" is there already`);
+    for (const [name, clip] of clips) this.actions.set(name, this.mixer.clipAction(clip));
+    return () => {
+      for (const [name, clip] of clips) {
+        if (this.actions.get(name)?.getClip() !== clip) continue;
+        this.actions.get(name)!.stop();
+        this.mixer.uncacheClip(clip);
+        this.actions.delete(name);
+        if (this.current === name) this.current = '';
+      }
+    };
+  }
+
+  /**
+   * The one point where a name is swapped for another clip (the heroine in the water: Idle -> Float, src/game/hero.ts
+   * `SWIM_NAMES`): every `play`, `once` and `pose` goes through it. A name whose clip the character does not have plays as
+   * it is. Null: no swap.
+   */
+  rename(names: Readonly<Record<string, string>> | null) { this.names = names; }
+
+  private named(name: string) {
+    const to = this.names?.[name];
+    return to !== undefined && this.actions.has(to) ? to : name;
+  }
+
   play(name: string, fade = 0.2, speed = 1) {
+    name = this.named(name);
     const next = this.actions.get(name);
     if (!next) return;
     next.timeScale = speed;
@@ -33,6 +67,7 @@ export class Actor {
 
   /** Plays a clip once, then returns to `then`. */
   once(name: string, then: string) {
+    name = this.named(name);
     const a = this.actions.get(name);
     if (!a) return;
     const prev = this.actions.get(this.current);
@@ -50,6 +85,7 @@ export class Actor {
 
   /** Jumps straight to the last frame of a clip (for restoring saved state). */
   pose(name: string) {
+    name = this.named(name);
     const a = this.actions.get(name);
     if (!a) return;
     a.reset().setLoop(THREE.LoopOnce, 1).play();

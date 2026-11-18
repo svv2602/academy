@@ -14,7 +14,7 @@ import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
   FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
+  pelvisKey, playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
 
@@ -364,7 +364,7 @@ describe('the voice of the probe world in the probe build (worlds.json, sw.js, t
 describe('the probe world in the sources', () => {
   it('its files lie outside public/, in folders of their world, with a note where they come from', () => {
     const files = probeFiles();
-    expect(files).toEqual(['models/probe/stump.glb', 'story/probe/sign.webp', 'voice/probe/probe_hi.mp3']);
+    expect(files).toEqual(['models/probe/stump.glb', 'models/probe/swim.glb', 'story/probe/sign.webp', 'voice/probe/probe_hi.mp3']);
     expect(existsSync(join(root, PROBE_FILES, 'README.md'))).toBe(true);
     for (const f of files) expect(existsSync(join(root, 'public', f)), `public/${f}`).toBe(false);
     expect(existsSync(join(root, 'public/models', PROBE))).toBe(false);
@@ -385,6 +385,30 @@ describe('the probe world in the sources', () => {
     expect(JSON.parse(readFileSync(join(root, 'src/worlds/probe/clips.json'), 'utf8'))).toEqual(['probe_hi']);
     expect(readFileSync(join(root, '.gitignore'), 'utf8').split('\n')).toContain(PROBE_DIST);
   });
+
+  it('is a water world: it declares the swim, loads its clips of the heroine with its load and lends them through its scope', () => {
+    const src = readFileSync(join(root, 'src/worlds/probe/index.ts'), 'utf8');
+    expect(src).toMatch(/\n {2}move: \{ kind: 'swim', height: \d+(\.\d+)? \},\n/);
+    expect(src).toContain("const SWIM_CLIPS = 'probe/swim';");          // models/probe/swim.glb
+    expect(src).toContain('gltf(SWIM_CLIPS),');
+    expect(src).toContain('scope.own(hero.lend(g.heroRig.worldClips(L.swim)));');
+    // in the water her wand and petals are hidden: the gear of the world is told when she swims
+    expect(src).toContain('createGear(g.heroRig, g.heroRig.gear, [], g.sparks, () => swimming(g));');
+    // the clips of the file: the two swimming clips of the UAL and nothing else (tools/pack_world_clips.mjs)
+    const glb = readFileSync(join(root, PROBE_FILES, 'models/probe/swim.glb'));
+    const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8'));
+    expect((json.animations ?? []).map((a) => a.name).sort()).toEqual(['Swim_Fwd_Loop', 'Swim_Idle_Loop']);
+    expect(json.meshes ?? [], 'clips only').toEqual([]);
+    expect(json.skins ?? []).toEqual([]);
+  });
+
+  it('pelvisKey reads the pelvis of the first key of a clip, as packed (compressed or not); a clip without one is an error', async () => {
+    const idle = await pelvisKey(join(root, 'models-src/hero/anims.glb'), 'Idle_Loop');
+    const float = await pelvisKey(join(root, PROBE_FILES, 'models/probe/swim.glb'), 'Swim_Idle_Loop');
+    // the UAL standing poses: the pelvis about a metre up
+    for (const y of [idle, float]) { expect(y).toBeGreaterThan(0.5); expect(y).toBeLessThan(1.5); }
+    await expect(pelvisKey(join(root, PROBE_FILES, 'models/probe/swim.glb'), 'Idle_Loop')).rejects.toThrow(/no translation of the pelvis/);
+  }, 30_000);
 
   it('vite.config.ts gives the build the files of the world only in the mode of the probe build', () => {
     const cfg = readFileSync(join(root, 'vite.config.ts'), 'utf8');

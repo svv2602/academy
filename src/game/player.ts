@@ -4,6 +4,7 @@ import { input } from '../core/input';
 import { tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
 import { catTap } from '../ui/welcome';
+import { SWIM_NAMES } from './hero';
 import { createRipple } from './ripple';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
@@ -20,6 +21,9 @@ export interface Player {
   prompt(canMove: boolean, spots: readonly Spot[]): void;
   fadeRing(dt: number): void;
 }
+
+/** The world played has the heroine swim (WorldDef.move): the one test of the mode, for the frame and for her items. */
+export const swimming = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind === 'swim';
 
 /**
  * The heroine in the frame (ARCH-05): taps, walking, the jump, the action prompt and the ring where a tap landed.
@@ -86,11 +90,18 @@ export function createPlayer(g: Game): Player {
         hero.face(Math.atan2(mx, mz), dt);
         g.ground.resolve(hp, 0.4);
       } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
-      if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
-      input.jump = false;
       const ground = groundY(hp.x, hp.z);
-      vy -= 17 * dt; hp.y += vy * dt;
-      if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
+      // In the water (WorldDef.move): no gravity and no jump, she keeps her height above the ground; standing, walking
+      // and running are played by the swimming clips (the swap is the heroine's own, Actor.rename).
+      const swim = swimming(g);
+      hero.rename(swim ? SWIM_NAMES : null);
+      if (swim) { vy = 0; grounded = true; hp.y = ground + g.world.move!.height; }
+      else {
+        if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
+        vy -= 17 * dt; hp.y += vy * dt;
+        if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
+      }
+      input.jump = false;
       if (!g.busy) {
         if (!grounded) hero.play('Jump', 0.12);
         else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, speed > tuning.runFrom ? speed / 4.2 : speed / 1.5);
@@ -104,7 +115,7 @@ export function createPlayer(g: Game): Player {
       let near: Spot | null = null;
       if (canMove) for (const s of spots) if (s.on() && Math.hypot(s.pos.x - hp.x, s.pos.z - hp.z) < s.r) near = s;
       setAct(near ? near.label : null);
-      el.btnJump.classList.toggle('hidden', !canMove);
+      el.btnJump.classList.toggle('hidden', !canMove || swimming(g));
       if (input.act && near) near.run();
       input.act = false;
     },

@@ -8,6 +8,7 @@ copied. `npm test` keeps `public/models` equal to `tools/models-used.json`, so n
 | File | What it is | Source |
 |---|---|---|
 | `models/probe/stump.glb` | the world's own model, put into the scene with `staticGeo('probe/stump', …)` | a byte-for-byte copy of `public/models/nature_pack/TreeStump_Moss.glb` (Quaternius, Ultimate Nature pack, CC0 1.0 — see `CREDITS.md`); no external textures |
+| `models/probe/swim.glb` | the heroine's clips of this water world (`WorldDef.move`), loaded with `gltf('probe/swim')` and lent to her under the names `Swim` and `Float`; clips only, no mesh | `Swim_Fwd_Loop` and `Swim_Idle_Loop` of Quaternius "Universal Animation Library" (`UAL1.glb`, CC0 1.0 — the source of the heroine's clips, see `CREDITS.md`), cut and compressed by `node tools/pack_world_clips.mjs <UAL1.glb> worlds-test/probe/models/probe/swim.glb Swim_Fwd_Loop Swim_Idle_Loop`; the source is not in the repository |
 | `story/probe/sign.webp` | the picture on the world's signboard, loaded as a texture | drawn for this world: a few plain SVG shapes turned into WebP with `sharp`, 256×128; no outside source |
 | `voice/probe/probe_hi.mp3` | the clip of the world's one spoken line of its own, the greeting of its character (`probe_hi` in `src/worlds/probe/strings.ts`); listed in `src/worlds/probe/clips.json` | a byte-for-byte copy of `public/voice/h_count.mp3`, the clip of the shared line `h_count` («Порахуймо разом!», intonation `warm`, the narrator's voice): nothing was recorded for it |
 
