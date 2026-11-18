@@ -25,6 +25,7 @@ export const BLOCKS = [
   'broken-talk',    // a conversation broken on purpose (PLAY-03)
   'tuning',         // the tuning panel (ARCH-14)
   'collisions',     // the heroine does not walk through a character
+  'secrets',        // the chest, the glade behind the waterfall, the fairy house and its room: each found once
   'creatures',      // the creatures of no task: both actions of each kind pictured, a tap on each - its own reaction
   'magic',          // the magic of the world from the shards; a point of the tour pictured at magic 0 and 1, a reload (WORLD-09)
   'finale',         // a finished quest replayed, the finale broken on purpose, then played
@@ -86,13 +87,13 @@ function played({ done, stars, tasks, final = false }) {
  * play. The first task, a task tried again after a mistake and the first shard come with any chain - from the play
  * itself or from the save's quests and skills (each skill with a mistake, see `skill`). "All skills" needs the
  * composition of a number, which only the deer's chain trains (the saves hold none of it); the artifact is the crystal
- * restored - in the finale, or in the shop's save. Neither the chest nor every star on the ground is taken by the
- * walkthrough, so the secret, the stars and three secrets are never earned; one day, under fifty tasks, a mistake in
- * every run of clean solves.
+ * restored - in the finale, or in the shop's save. The block "secrets" (the piece world2) finds the chest and the two
+ * other secrets: the chest and three secrets. Not every star on the ground is taken by the walkthrough, so those stars
+ * are never earned; one day, under fifty tasks, a mistake in every run of clean solves.
  */
 const ACH_BASE = ['first_shard', 'first_task', 'try_again'];
 /** The whole world from no save (no group): every piece's. */
-export const ACH_WHOLE = [...ACH_BASE, 'all_skills', 'first_artifact'];
+export const ACH_WHOLE = [...ACH_BASE, 'secret_chest', 'three_secrets', 'all_skills', 'first_artifact'];
 
 /**
  * The groups: the save each starts from (null: no save, a new player), the friends whose chains it plays, the blocks,
@@ -103,10 +104,10 @@ export const GROUPS = {
   // friends 1-2 from no save: the published game without ?debug, the introduction of the cut-scenes, the tour of the world, a hidden page, the introduction, the cat
   world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'story', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'], ach: ACH_BASE },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
-  // the collisions, the creatures, the magic of four shards - none of them needs the finished world
+  // the collisions, the three secrets, the creatures, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
-    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'creatures', 'magic', 'achievements'], ach: ACH_BASE,
+    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'secrets', 'creatures', 'magic', 'achievements'], ach: [...ACH_BASE, 'secret_chest', 'three_secrets'],
   },
   // the deer: its star search with everything around it; then the finale and the return of the crystal (a save played:
   // no introduction), the book and its scene shown again, the fawn that waits after the deer's chain (found, chosen,

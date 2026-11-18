@@ -36,6 +36,7 @@ import { QUESTS, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
 import { buildSky } from './sky';
+import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
 import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
@@ -59,6 +60,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // the wind of the plants is shared by every world: back to as it always swayed when this one is left
   scope.own(() => { uSway.value = 1; });
   const chestStars = createChestStars(g, L, starMat);
+  // the two other secrets: the glade behind the waterfall, the fairy house and its room (./secrets.ts)
+  const secrets = createSecrets(g, scope);
   const butterflies = createButterfliesTask(g, scope);
   const { bf } = butterflies;
   // The creatures of no task (PLAY-11, PLAY-12): fairies, birds, fish - after everything above, so the trees are there.
@@ -147,6 +150,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
+    ...secrets.spots,
   ];
 
   /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
@@ -168,6 +172,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     update: (dt, time, canMove) => {
       characters.update(dt, time);
       chestStars.update(time, canMove);
+      secrets.update(dt, time, canMove);
       starSearch.update(dt, time);
       shrine.update(dt, time);
       creatures.update(dt);
@@ -217,6 +222,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       flyoverPoints: FAIRY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
       // the magic of the world (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
       magic, setMagic: (v: number | null) => magic.set(v),
+      // the two other secrets (./secrets.ts): the doors of the house outside and inside, is she in the room, where each is found
+      secrets: { doorOut: secrets.doorOut, doorIn: secrets.doorIn, inRoom: secrets.inRoom, gladeAt: secrets.gladeAt, boxAt: secrets.boxAt },
       // the cut-scenes (WORLD-13): their player (active, id, index, elapsed, pass, fading, log; play(id) shows one without
       // marking it, next(), skip(), hold(u), flat)
       story },
@@ -229,7 +236,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     },
   };
   // The world's own items of its description (ARCH-16, src/game/describe.ts): the chains of the friends and the pet are
-  // made of the declaration; here what the game has anyway - the chest, the two cut-scenes, the tour, the finale. The id
+  // made of the declaration; here what the game has anyway - the three secrets, the two cut-scenes, the tour, the finale. The id
   // of each is the name of its mark in the world's flags (the finale's mark is ws.final).
   // the heroine stands in front of the chest, inside its action spot (2.2 m)
   const chestRot = chestStars.chest.root.rotation.y, chestAt = chestStars.chest.root.position;
@@ -237,6 +244,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => flyover.active }),
     marked(ws, { kind: 'scene', id: 'story_intro', how: 'auto', active: () => story.active && story.id === 'story_intro' }),
     marked(ws, { kind: 'secret', id: 'chest', how: 'act', at: { x: chestAt.x + Math.sin(chestRot) * 1.3, z: chestAt.z + Math.cos(chestRot) * 1.3 } }),
+    marked(ws, { kind: 'secret', id: GLADE_FLAG, how: 'walk', at: secrets.gladeAt }),
+    marked(ws, { kind: 'secret', id: HOUSE_FLAG, how: 'act', at: secrets.boxAt }),
     marked(ws, { kind: 'finale', id: 'final', how: 'act', at: { x: shrine.pos.x, z: shrine.pos.z }, after: QUESTS.map((q) => q.id) }),
     marked(ws, { kind: 'scene', id: 'story_crystal', how: 'auto', after: ['final'], active: () => story.active && story.id === 'story_crystal' }),
   ];
@@ -309,7 +318,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   spawn: SPAWN,
   ground,
   characters: FRIENDS,
-  secrets: ['chest'],
+  secrets: ['chest', 'glade', 'house'],
   chest: 'chest',
   groundStars: 8,
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },

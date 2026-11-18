@@ -5320,5 +5320,21 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "secret_glade": {
+  "text": "Таємна галявина за водоспадом! Тут ростуть чарівні квіти.",
+  "heard": "Таємна галявина за водоспадом. Тут ростуть чарівні квіти.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "secret_house": {
+  "text": "Це скринька феї з музикою! Дякую, що завітала.",
+  "heard": "Це скринька феї з музикою. Дякую, що завітала.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

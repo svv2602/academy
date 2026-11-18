@@ -16,6 +16,10 @@ const uk = {
   count_hint: 'Торкайся кожного метелика, і ми порахуємо разом.',
   pick_number: 'Скільки метеликів? Обери число.',
   chest: 'Ого, таємна скриня! У ній зірочки!', crystal_name: 'Кристал світла',
+  // --- the two other secrets (PLAY-10, ./secrets.ts): the glade behind the waterfall, the fairy house and its room
+  secret_glade: 'Таємна галявина за водоспадом! Тут ростуть чарівні квіти.',
+  secret_house: 'Це скринька феї з музикою! Дякую, що завітала.',
+  house_in: 'Зайти', house_out: 'Вийти', house_look: 'Роздивитися',
   free: 'Гуляй королівством! Тут ще багато таємниць.',
   // --- the story
   unicorn_hi: 'Мої метелики розлетілися! Допоможи їх порахувати.',
@@ -49,6 +53,9 @@ const ru: Record<keyof typeof uk, string> = {
   count_hint: 'Касайся каждой бабочки, и мы посчитаем вместе.',
   pick_number: 'Сколько бабочек? Выбери число.',
   chest: 'Ого, тайный сундук! В нём звёздочки!', crystal_name: 'Кристалл света',
+  secret_glade: 'Тайная поляна за водопадом! Здесь растут волшебные цветы.',
+  secret_house: 'Это шкатулка феи с музыкой! Спасибо, что заглянула.',
+  house_in: 'Зайти', house_out: 'Выйти', house_look: 'Рассмотреть',
   free: 'Гуляй по королевству! Здесь ещё много тайн.',
   unicorn_hi: 'Мои бабочки разлетелись! Помоги их посчитать.',
   fox_hi: 'Привет! Я лисичка. Разгадаешь мои хитрые загадки?',
@@ -73,7 +80,7 @@ const ru: Record<keyof typeof uk, string> = {
 
 /** The lines of this world the game speaks, with the intonation of their recording (as `SPOKEN` in src/ui/strings.ts). */
 const spoken = {
-  intro: 'joy', tour: 'joy', chest: 'joy', free: 'warm',
+  intro: 'joy', tour: 'joy', chest: 'joy', free: 'warm', secret_glade: 'joy', secret_house: 'warm',
   unicorn_hi: 'warm', fox_hi: 'warm', mushking_hi: 'warm', deer_hi: 'warm', queen_hi: 'warm',
   npc_done: 'joy', t_stars: 'warm', t_stars_back: 'joy', all_shards: 'joy', final_text: 'joy',
   story_intro_1: 'warm', story_intro_2: 'calm', story_intro_3: 'warm', story_intro_4: 'joy', story_intro_5: 'joy',

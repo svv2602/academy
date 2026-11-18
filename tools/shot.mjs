@@ -2143,6 +2143,71 @@ try {
         if (!(moved < 2.2)) fail(`she did not walk towards "${at.id}" (still ${moved.toFixed(2)} m away)`);
         console.log(`collisions: she stopped ${near.toFixed(2)} m from the middle of "${at.id}"`);
       }
+      // ---- the three secrets of the first world (PLAY-10, R03, R04; src/worlds/fairy/secrets.ts): the chest by the action
+      // button; the glade walked into through its waterfall - "forward" held from the valley until its flag is set, so the
+      // curtain is no wall; the house - its door, the music box in the room, the door back out. Each is the world's flag
+      // and its stars once (the chest 5, the others 3); coming back gives nothing. Where each one is found is the game's
+      // (the items "secret" of __game.items). The scenes of the achievements it earns wait for the block.
+      if (has('secrets')) {
+        const fail = (what) => { throw new Error(`secrets: ${what}`); };
+        const until = async (pred, arg, what, seconds = 8) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        const state = () => g(() => ({ flags: { ...__game.save.worlds.fairy.flags }, stars: __game.save.stars, busy: __game.busy, room: __game.secrets.inRoom() }));
+        const at = Object.fromEntries((await g(() => __game.items.filter((i) => i.kind === 'secret').map((i) => [i.id, i.at]))));
+        if (Object.keys(at).sort().join() !== 'chest,glade,house') fail(`the secrets of the description are ${Object.keys(at).join(', ')}`);
+        await holdAchDuring(async () => {
+          const s0 = await state();
+          if (s0.flags.chest || s0.flags.glade || s0.flags.house) fail(`a secret is found before the block: ${JSON.stringify(s0.flags)}`);
+          // the chest
+          await g((p) => __game.teleport(p.x, p.z), at.chest); await framesDrawn(2);
+          await act();
+          await until(() => __game.save.worlds.fairy.flags.chest === true, null, 'the action button at the chest did not open it');
+          // the glade: from 9 m out in the valley, the camera behind her, "forward" until the flag
+          const from = await g((p) => {
+            const f = Math.atan2(-p.x, -p.z), x = p.x + Math.sin(f) * 9, z = p.z + Math.cos(f) * 9;
+            __game.teleport(x, z); __game.hero.heading = f + Math.PI; __game.cam.yaw = f;
+            return { x, z };
+          }, at.glade);
+          await framesDrawn(2);
+          await page.keyboard.down('KeyW');
+          try { await until(() => __game.save.worlds.fairy.flags.glade === true, null, 'walking in through the waterfall did not find the glade', 12); }
+          finally { await page.keyboard.up('KeyW'); }
+          const walked = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), from);
+          // the house: in through its door, the music box, out again
+          const doorOut = await g(() => [__game.secrets.doorOut.x, __game.secrets.doorOut.z]);
+          await g((p) => __game.teleport(p[0], p[1]), doorOut); await framesDrawn(2);
+          await act();
+          await until(() => __game.secrets.inRoom() && !__game.busy, null, 'the door of the house did not lead into the room');
+          await shot('secrets-room');
+          await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2);
+          await act();
+          await until(() => __game.save.worlds.fairy.flags.house === true, null, 'the action button at the music box found nothing');
+          const doorIn = await g(() => [__game.secrets.doorIn.x, __game.secrets.doorIn.z]);
+          await g((p) => __game.teleport(p[0], p[1]), doorIn); await framesDrawn(2);
+          await act();
+          await until(() => !__game.secrets.inRoom() && !__game.busy, null, 'the door inside did not lead out of the room');
+          const s1 = await state();
+          if (s1.stars !== s0.stars + 5 + 3 + 3) fail(`the three secrets gave ${s1.stars - s0.stars} stars, not 5 + 3 + 3`);
+          // again: nothing more
+          await g((p) => __game.teleport(p.x, p.z), at.glade); await gameSeconds(1);
+          await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2); await act(); await gameSeconds(1);
+          const s2 = await state();
+          if (s2.stars !== s1.stars) fail(`coming back to the secrets gave ${s2.stars - s1.stars} stars more`);
+          await g((p) => { __game.teleport(p[0], p[1]); }, doorIn); await framesDrawn(2); await act();
+          await until(() => !__game.secrets.inRoom() && !__game.busy, null, 'the door inside did not lead out the second time');
+          // the book: the tab of the secrets shows the three found; closing it is a stop point - the achievements of the
+          // secrets are granted there (their scenes wait for the end of the block)
+          await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`)); await calm();
+          await tapOn('#bookTabs [data-tab=secrets]').catch((e) => fail(`the tab of the secrets cannot be pressed: ${why(e)}`));
+          await until(() => !document.querySelector('#bookSecrets').classList.contains('hidden'), null, 'the tab of the secrets does not open');
+          const marks = await g(() => [...document.querySelectorAll('#secrets .secret')].map((e) => `${e.dataset.flag}${e.classList.contains('got') ? '+' : '-'}`));
+          if (marks.join() !== 'chest+,glade+,house+') fail(`the book shows the secrets ${marks.join(', ')}, not the three found`);
+          await shot('secrets-book');
+          await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
+          await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+          await until(() => ['secret_chest', 'three_secrets'].every((k) => k in __game.save.achievements), null, 'closing the book did not grant "the chest" and "three secrets"');
+          console.log(`secrets: the chest, the glade (walked ${walked.toFixed(1)} m in through the waterfall) and the house (the room, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
+        });
+      }
       // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----
       // Each kind (fairy, bird, fish) is pictured in both of its actions, framed by the camera (__game.cam.focus is the
       // creature's own position, so the camera follows it); the change of action is waited for in game time. Then a tap

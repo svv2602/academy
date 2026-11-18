@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { fbm, lerp, smoothstep, vnoise } from '../../core/util';
-import { CASTLE, POND, WORLD_R } from './layout';
+import { CASTLE, POND, ROOM, WORLD_R } from './layout';
 
 /** The layout of the Fairy Kingdom lives in ./layout.ts; re-exported for the scenery and the sky. */
 export { CASTLE, CHEST, CRYSTAL, PATCH, POND, SPAWN, UNICORN, WORLD_R } from './layout';
@@ -19,7 +19,11 @@ export function pathDist(x: number, z: number) {
   return best + (vnoise(x * 0.5, z * 0.5) - 0.5) * 0.9;
 }
 
+/** Inside the room of the house (./secrets.ts): its floor and walls, not the valley's relief. */
+export const inRoom = (x: number, z: number) => Math.abs(x - ROOM.x) < ROOM.half + 2 && Math.abs(z - ROOM.z) < ROOM.half + 2;
+
 export function height(x: number, z: number) {
+  if (inRoom(x, z)) return ROOM.y;
   let h = (fbm(x * 0.028 + 7.3, z * 0.028 + 2.1) - 0.5) * 6 + (fbm(x * 0.12, z * 0.12, 2) - 0.5) * 0.5;
   const d = Math.hypot(x, z);
   const rim = smoothstep(WORLD_R - 6, WORLD_R + 40, d);
@@ -111,6 +115,12 @@ export function resolve(p: { x: number; z: number }, radius: number) {
       const d = Math.sqrt(d2);
       p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min;
     }
+  }
+  // the room of the house: its walls, not the valley's rim
+  if (inRoom(p.x, p.z)) {
+    const m = ROOM.half - radius;
+    p.x = Math.min(ROOM.x + m, Math.max(ROOM.x - m, p.x)); p.z = Math.min(ROOM.z + m, Math.max(ROOM.z - m, p.z));
+    return;
   }
   const dp = Math.hypot(p.x - POND.x, p.z - POND.z), wade = POND.r - 1.3;
   if (dp < wade) { p.x = POND.x + ((p.x - POND.x) / dp) * wade; p.z = POND.z + ((p.z - POND.z) / dp) * wade; }
