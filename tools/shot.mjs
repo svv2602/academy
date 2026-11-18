@@ -240,6 +240,9 @@ try {
     if (sessionStorage.getItem('e2e-gift')) return;
     sessionStorage.setItem('e2e-gift', '1');
     sessionStorage.setItem('amw-gift-hold', '1');
+    // the break too (PLAY-20): its minutes are real time, a slow machine would meet the card in another block; only the
+    // block "break" lets it go
+    sessionStorage.setItem('amw-break-hold', '1');
   });
   const page = await ctx.newPage();
   // The voice is played by Audio elements that are not in the document: every one that was started is remembered
@@ -2839,6 +2842,7 @@ try {
             .catch(() => fail('the game did not come to rest before the block'));
           const s0 = await g(() => ({ stars: __game.save.stars, min: __game.save.session?.min ?? null }));
           if (s0.min === null) fail('the save has no session after minutes of play');
+          await g(() => __game.brk.release());   // the walkthrough's lever of the break, pulled from its first page on
           // before its minutes, no card
           await g(() => { __game.save.breakMin = 30; __game.save.session.min = 1; });
           const over0 = await g(() => __game.ach.over.task ?? 0);
@@ -2892,7 +2896,7 @@ try {
           if (s3.stars !== s0.stars) left.push(`the break took stars: ${s0.stars} -> ${s3.stars}`);
           if (!(await walks())) left.push('the heroine does not walk after "Continue"');
           // the parent's choice and the minutes as the walk found them (the quiet stays: no offer in the blocks after this one)
-          await g((m) => { delete __game.save.breakMin; __game.save.session.min = m; }, s0.min);
+          await g((m) => { delete __game.save.breakMin; __game.save.session.min = m; __game.brk.hold(); }, s0.min);
         });
         if (left.length) errors.push(`break: ${mode}: ${left.join('; ')}`);
         else console.log('break: the card at the point, "play on" in one tap, the quiet, another line, "till tomorrow" saved, the sleeping cat, "Continue" in one tap');

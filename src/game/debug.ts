@@ -8,6 +8,7 @@ import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
+import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
@@ -15,6 +16,8 @@ import type { WorldItem } from './world';
 
 /** The key of the tab's storage that keeps the walkthrough's lever of the gift (`__game.gift`) over a reload. */
 export const GIFT_HOLD = 'amw-gift-hold';
+/** The same for the walkthrough's lever of the break (`__game.brk`). */
+export const BREAK_HOLD = 'amw-break-hold';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -44,6 +47,7 @@ export interface DebugBuilt { items?(): readonly WorldItem[] }
 export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): (next: DebugExtras) => void {
   // The walkthrough's lever of the gift of the day, pulled in this tab before (window.__game.gift below).
   try { giftState.held = sessionStorage.getItem(GIFT_HOLD) === '1'; } catch { /* ignore */ }
+  try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
   // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
@@ -104,6 +108,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * `release()` - the gift by the clock again, `held` - whether it is pulled. The walkthrough's own lever (R61: the saves
      * of its pieces do not depend on the real date), never the game's; it lasts for the tab (sessionStorage), reloads too.
      */
+    /** The break (PLAY-20, src/ui/session.ts): `hold()` - no card at the points, `release()` - the card when its minutes come. */
+    brk: {
+      get held() { return breakHold.held; },
+      hold() { breakHold.held = true; try { sessionStorage.setItem(BREAK_HOLD, '1'); } catch { /* ignore */ } },
+      release() { breakHold.held = false; try { sessionStorage.removeItem(BREAK_HOLD); } catch { /* ignore */ } },
+    },
     gift: {
       get held() { return giftState.held; },
       hold() { giftState.held = true; try { sessionStorage.setItem(GIFT_HOLD, '1'); } catch { /* ignore */ } },

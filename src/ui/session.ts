@@ -46,6 +46,13 @@ const hide = (node: HTMLElement, v: boolean) => node.classList.toggle('hidden', 
 /** The offer said last in this page (a reload may repeat it: the rule is only "not twice in a row"). */
 let lastOffer: SpokenKey | null = null;
 
+/**
+ * The walkthrough's lever of the break (window.__game.brk, ?debug only, src/game/debug.ts): while it is pulled no card
+ * comes - the minutes of a session are the real time of its frames, and a slow machine would meet the offer at a point
+ * of its own in the middle of another block. Only the block "break" lets it go.
+ */
+export const breakHold = { held: false };
+
 /** One tap of one of `ids`: resolves with its id; the other handlers are taken off. */
 function oneTap(ids: readonly string[]): Promise<string> {
   return new Promise((res) => {
@@ -56,7 +63,7 @@ function oneTap(ids: readonly string[]): Promise<string> {
 
 /** The card at a stop point when an offer waits; otherwise nothing. */
 export async function breakCard(g: Host, _where: StopWhere): Promise<void> {
-  if (breakState.offer === null) return;
+  if (breakState.offer === null || breakHold.held) return;
   const key = pickOther(OFFERS, lastOffer); lastOffer = key;
   const card = $('breakCard');
   $('breakSay').textContent = t(key);

@@ -77,6 +77,15 @@ describe('the card at a stop point (R31, R32)', () => {
     expect(shown('breakCard')).toBe(false);
   });
 
+  it('the walkthrough\'s lever held: no card at the minute of the break', async () => {
+    mod.breakHold.held = true;
+    try {
+      const { g } = game();
+      await stops.stopPoint('task', g);
+      expect(shown('breakCard')).toBe(false);
+    } finally { mod.breakHold.held = false; }
+  });
+
   it('"play on": one tap closes it, the cat answers (a spoken line of the bubble), nothing is taken, the quiet is stored', async () => {
     const { g, save, saved, said } = game();
     const stars = save.stars = 7;
