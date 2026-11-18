@@ -303,6 +303,16 @@ function watch<T>(p: Promise<T>) {
 }
 
 describe('probeNetwork: one real request tells whether the network is there', () => {
+  it('reads the answer to its end before it answers: an answer left unread is reported by Chrome as an aborted request', async () => {
+    let read = 0;
+    const fetchOne = async () => ({ ok: true, status: 200, arrayBuffer: async () => { read++; return new ArrayBuffer(0); } }) as unknown as Response;
+    expect(await probeNetwork(1000, probeEnv(fetchOne, { stamp: () => 'r' }))).toBe(true);
+    expect(read).toBe(1);
+    // an answer that breaks off while it is read is no network
+    const broken = async () => ({ ok: true, status: 200, arrayBuffer: async () => { throw new TypeError('network error'); } }) as unknown as Response;
+    expect(await probeNetwork(1000, probeEnv(broken, { stamp: () => 'r' }))).toBe(false);
+  });
+
   it('asks the head of a file of the build, past the installed files and the HTTP cache', async () => {
     const s = server(200);
     expect(await probeNetwork(1000, probeEnv(s.fetch, { stamp: () => 'abc' }))).toBe(true);

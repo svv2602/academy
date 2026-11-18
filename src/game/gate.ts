@@ -113,7 +113,9 @@ function pageProbeEnv(): ProbeEnv {
 /**
  * The real check of the network for the page (`GateEnv.probe`): one HEAD request of a file of the build. The address
  * carries a parameter of its own every time and the request forbids the HTTP cache, so neither the files the service
- * worker installed nor a copy kept on the way can answer for the server. It is cut off after `timeoutMs`. Only a
+ * worker installed nor a copy kept on the way can answer for the server. The answer is read to its end, though a HEAD
+ * has no body: an answer left unread is reported by Chrome as an aborted request (net::ERR_ABORTED, seen 2026-11-18),
+ * which the walkthroughs rightly count as a failed request. It is cut off after `timeoutMs`. Only a
  * successful answer is true; an error status, no answer, the time running out or an exception is false - it never
  * rejects. Call it only when the page believes it is online: a request that fails is an error in the console.
  */
@@ -125,7 +127,7 @@ export async function probeNetwork(timeoutMs: number = PROBE_TIMEOUT_MS, env: Pr
   try {
     const url = new URL(PROBE_FILE, env.base);
     url.searchParams.set('net', env.stamp());
-    const asked = env.fetch(url.href, { method: 'HEAD', cache: 'no-store', signal: abort.signal }).then((res) => res.ok);
+    const asked = env.fetch(url.href, { method: 'HEAD', cache: 'no-store', signal: abort.signal }).then(async (res) => { await res.arrayBuffer(); return res.ok; });
     return await Promise.race([asked, late]);
   } catch {
     return false;

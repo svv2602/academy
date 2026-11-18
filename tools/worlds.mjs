@@ -808,14 +808,9 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       });
       page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
       // A request answered 404 whose answer nobody reads to its end is reported as failed (aborted) by the browser.
-      // So is the gate's probe of the network (src/game/gate.ts `probeNetwork`: HEAD with cache "no-store") after its
-      // answer has come - seen 2026-11-18: fetch resolves with 200, the request is reported net::ERR_ABORTED, with the
-      // service worker or without it; HEAD without "no-store" and GET with it are not. An answered probe is no failure;
-      // one with no answer, or another than 200, still is.
-      const answeredProbe = async (r) => r.method() === 'HEAD' && /\/icon\.svg\?net=/.test(r.url()) && (await r.response().catch(() => null))?.status() === 200;
+      // The gate's probe of the network is no exception: every failed request of it is a failure.
       page.on('requestfailed', async (r) => {
         if (lost && ofProbe(r.url())) return;
-        if (await answeredProbe(r)) return;
         fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`);
       });
       page.on('response', (r) => { if (r.status() >= 400 && !(lost && r.status() === 404 && ofProbe(r.url()))) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
