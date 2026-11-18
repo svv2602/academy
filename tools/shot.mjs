@@ -73,6 +73,7 @@ import { chromium } from 'playwright-core';
 import { gameWaits } from './game-wait.mjs';
 import { createHash } from 'crypto';
 import { mkdirSync, writeFileSync } from 'fs';
+import { inflateRawSync } from 'zlib';
 import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
 
@@ -2680,6 +2681,155 @@ try {
         if (!achPictured) left.push('no scene came in this run: the card of an achievement was not measured');
         if (left.length) errors.push(`achievements: ${mode}: ${left.join('; ')}`);
         else console.log(`achievements: ${want.join(', ')}; shown ${achSeen.join(', ')}; ${now.queue.length} wait in the queue${now.queue.length ? ` (${now.queue.join(', ')})` : ''}`);
+      }
+      // ---- the save as a code (PLAY-16): the one place where the packing and the clipboard run in a real browser ----
+      // "Move the game" of the parents' section: the code is copied (the clipboard granted to this block only), checked
+      // here in node (its prefix, its sum, no setting of the device in it) and pasted into a game started again with
+      // "reset progress"; two taps load it and the page reloads with the same game - stars, shards, look, name -, the
+      // device's own volumes kept. Then "give the previous game back" (two taps): the game of before the code (the new one)
+      // comes back and the button stays, the two swapped; once more, and the walk goes on with its own game. The code
+      // itself is never printed: its length and its prefix only. Played after "achievements": its reloads would start
+      // the page's own logs (the voice, the watch of the stars) that the checks at the end of the world read.
+      if (has('code')) {
+        const fail = (what) => { throw new Error(`code: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        // what a tap's own (async) handler does to the page
+        const handled = (pred, arg, what) => page.waitForFunction(pred, arg, { timeout: T(15000) }).catch(() => fail(what)); /* clock: input-event */
+        const stored = (key = 'amw-save') => g((k) => JSON.parse(localStorage.getItem(k) ?? 'null'), key);
+        // the game a save holds (what a code must carry); not the minutes of play or the spot, which move as she plays
+        const game = (s) => s && JSON.stringify({ stars: s.stars, name: s.name, dress: s.dress, hair: s.hair, wingColor: s.wingColor, gear: s.gear,
+          owned: s.owned, pet: s.pet ?? null, pets: s.pets ?? null, achievements: Object.keys(s.achievements ?? {}).sort(), skills: s.skills, hard: s.hard,
+          fairy: s.worlds?.fairy && { quests: s.worlds.fairy.quests, final: s.worlds.fairy.final, flags: s.worlds.fairy.flags, starsTaken: s.worlds.fairy.starsTaken } });
+        const isNew = (s) => !!s && !s.stars && !Object.keys(s.worlds?.fairy?.quests ?? {}).length && !s.worlds?.fairy?.final;
+        // a tap that reloads the page (the game's own location.reload()), then the start screen of the page loaded again;
+        // its scenes wait (a reloaded page starts free)
+        const reloadBy = async (sel, what) => {
+          await Promise.all([page.waitForEvent('load', { timeout: T(90000) }), tap(sel)]).catch((e) => fail(`${what} did not reload the page: ${e.message}`)); /* clock: page-load */
+          await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
+          await page.waitForFunction(() => !!window.__game?.ach, null, { timeout: T(30000) }).catch(() => fail(`no __game after ${what}`)); /* clock: page-load */
+          await g(() => __game.ach.hold());
+        };
+        // "play" and into the world (a new player's tour skipped: it is the block "flyover"'s)
+        const enter = async (what) => {
+          await tap('#play');
+          await page.waitForFunction(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden'),
+            null, { timeout: T(90000) }).catch(() => fail(`${what}: the game did not start after "play"`)); /* clock: page-load */
+          await g(() => __game.flyoverPlayer?.skip());
+        };
+        // the book, the gate answered from the screen, "move the game" (the one of its two buttons this size shows)
+        const openCode = async (what) => {
+          await tap('#btnBook'); await calm();
+          await tap('#btnParents'); await calm();
+          const q = await page.textContent('#gateQ'), m = /(\d+) × (\d+)/.exec(q);
+          if (!m) fail(`${what}: no multiplication in the gate "${q}"`);
+          await page.fill('#gateA', String(Number(m[1]) * Number(m[2]))); await calm();
+          if (!(await visible('#pBody'))) fail(`${what}: the answer did not open the section`);
+          const id = await g(() => [...document.querySelectorAll('#pBody .pcodebtn')].find((b) => b.offsetWidth > 0 && b.offsetHeight > 0)?.id);
+          if (!id) fail(`${what}: no "move the game" button is shown`);
+          await tap(`#${id}`); await calm();
+          if (!(await g(() => !!document.querySelector('#pCodeCopy') && !!document.querySelector('#pCodeIn')))) fail(`${what}: "move the game" did not show the code`);
+          return { restore: await g(() => document.querySelector('#pCodeRestore')?.textContent ?? null) };
+        };
+        // two taps of a button that asks to be sure: the first changes its words, the second reloads
+        const twice = async (sel, what) => {
+          const was = await page.textContent(sel);
+          await tap(sel);
+          await handled((a) => document.querySelector(a[0])?.textContent !== a[1], [sel, was], `${what}: the first tap did not ask to be sure`);
+          if (await g(() => document.querySelector('#pCodeMsg')?.classList.contains('bad'))) fail(`${what}: refused - "${await page.textContent('#pCodeMsg')}"`);
+          await reloadBy(sel, `the second tap of ${what}`);
+        };
+        await holdAchDuring(async () => {
+          if (await stored('amw-save-before-code')) fail('a game replaced by a code is kept before the block');
+          // the volume of the music this device plays with: the code must not carry it to the other one (R60)
+          await g(() => { __game.save.vol.music = 0.35; });
+          const had = await g(() => __game.save);
+          if (!had.name) fail('the save of the walk has no name: the name going with the code goes unchecked');
+          const first = await openCode('the game of the walk');
+          if (first.restore !== null) fail('"give the previous game back" is shown before any code was loaded');
+          // ---- copied: the field and the clipboard ----
+          const clip = await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin }).then(() => true, (e) => `not granted: ${e.message}`);
+          await tap('#pCodeCopy');
+          await handled(() => document.querySelector('#pCodeOut').value.length > 0 && document.querySelector('#pCodeMsg').textContent !== '', null, '"copy the code" put no code into the field');
+          const out = await g(async () => ({ code: document.querySelector('#pCodeOut').value, msg: document.querySelector('#pCodeMsg').textContent,
+            packs: typeof CompressionStream === 'function' && typeof DecompressionStream === 'function',
+            board: await navigator.clipboard.readText().then((t) => ({ text: t }), (e) => ({ err: String(e) })) }));
+          const code = out.code;
+          await shot('parents-code');
+          // the clipboard: written by the game ("copied"), and what it holds is the field's code
+          let board = 'not checked';
+          if (clip !== true) console.log(`code: the clipboard ${clip}: it is not checked, the code is taken from the field`);
+          else if (out.board.err) errors.push(`code: ${mode}: the clipboard cannot be read back: ${out.board.err}`);
+          else if (out.board.text !== code) errors.push(`code: ${mode}: the clipboard holds ${out.board.text.length} signs, not the code of the field (${code.length}); the message is "${out.msg}"`);
+          else board = 'the code of the field';
+          // ---- the code itself, read here: amw1z (packed) / amw1, the payload, the FNV-1a sum of both ----
+          const parts = code.split('.'), [prefix, payload, sum] = parts;
+          console.log(`code: ${code.length} signs, prefix ${prefix}; the clipboard: ${board}; the message "${out.msg}"`);
+          if (parts.length !== 3 || !['amw1z', 'amw1'].includes(prefix)) fail(`the code is not of the shape <amw1z|amw1>.<payload>.<sum> (prefix "${prefix}", ${parts.length} parts)`);
+          if (prefix !== 'amw1z') {
+            if (out.packs) errors.push(`code: ${mode}: the browser packs (CompressionStream), but the code is not packed: prefix ${prefix}`);
+            else console.log(`code: this browser cannot pack: prefix ${prefix}`);
+          }
+          let h = 0x811c9dc5;
+          for (const c of `${prefix}.${payload}`) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193); }
+          if ((h >>> 0).toString(16).padStart(8, '0') !== sum) fail('the sum of the code is not the FNV-1a of its prefix and payload');
+          let inCode;
+          try {
+            const bytes = Buffer.from(payload, 'base64url');
+            inCode = JSON.parse((prefix === 'amw1z' ? inflateRawSync(bytes) : bytes).toString('utf8'));
+          } catch (e) { fail(`the payload of the code cannot be read: ${e.message}`); }
+          const device = ['tier', 'pinTier', 'vol', 'launches'].filter((k) => k in inCode);
+          if (device.length) errors.push(`code: ${mode}: the code carries the settings of the device: ${device.join(', ')}`);
+          if (game(inCode) !== game(had)) fail('the code does not hold the game of the walk');
+          if (prefix === 'amw1z') console.log(`code: ${code.length} signs pack ${JSON.stringify(inCode).length} of the save's JSON`);
+          // ---- a game started again: "reset progress", two taps ----
+          await tap('#pCodeBack'); await calm();
+          await twice('#pReset', '"reset progress"');
+          const fresh = await g(() => __game.save);
+          if (!isNew(fresh) || fresh.name) fail(`"reset progress" left a game: ${fresh.stars} stars, quests ${JSON.stringify(fresh.worlds?.fairy?.quests)}, a name ${fresh.name ? 'kept' : 'none'}`);
+          if (fresh.vol.music === had.vol.music) fail('the volume of the music the walk set survived "reset progress": the device\'s own settings go unchecked');
+          await enter('the game started again');
+          const second = await openCode('the game started again');
+          if (second.restore !== null) fail('"give the previous game back" is shown in a game started again, before a code');
+          // ---- pasted (from the clipboard where it was checked, typed in the field otherwise) and loaded ----
+          await page.focus('#pCodeIn');
+          let how = 'typed into the field';
+          if (board !== 'not checked') {
+            await page.keyboard.press('ControlOrMeta+V');
+            if ((await g(() => document.querySelector('#pCodeIn').value)) === code) how = 'pasted from the clipboard';
+          }
+          if (how !== 'pasted from the clipboard') await page.fill('#pCodeIn', code);
+          await calm();
+          await twice('#pCodeLoad', '"load"');
+          const back = { mem: await g(() => __game.save), kept: await stored('amw-save'), before: await stored('amw-save-before-code') };
+          const left = [];
+          if (game(back.mem) !== game(had)) left.push('the game after the reload is not the one of the code');
+          if (game(back.kept) !== game(had)) left.push('the stored save is not the one of the code');
+          if (JSON.stringify(back.mem.vol) !== JSON.stringify(fresh.vol)) left.push(`the volumes ${JSON.stringify(back.mem.vol)} are not the device's own ${JSON.stringify(fresh.vol)}`);
+          if (back.mem.pinTier !== fresh.pinTier) left.push(`the pinned quality ${back.mem.pinTier} is not the device's own ${fresh.pinTier}`);
+          if (!isNew(back.before)) left.push('the game the code replaced (the new one) is not kept to be given back');
+          if (left.length) fail(`after "load" and the reload: ${left.join('; ')}`);
+          await enter('the game of the code');
+          const worn = await g(() => ({ head: __game.gear.get('head'), wand: __game.gear.get('wand'), wings: __game.gear.get('wings'), trail: __game.gear.get('trail') }));
+          for (const k of Object.keys(worn)) if ((worn[k] ?? null) !== (had.gear[k] ?? null)) left.push(`she wears ${worn[k]} as ${k}, the code has ${had.gear[k]}`);
+          if (left.length) fail(`the look after the code: ${left.join('; ')}`);
+          console.log(`code: ${how}; after the reload ${had.stars} stars, quests ${JSON.stringify(had.worlds.fairy.quests)}, final ${had.worlds.fairy.final}, the look and the name of the code; the volumes are the device's`);
+          // ---- "give the previous game back": the new game, and the button again (the two swapped); once more: the walk's ----
+          const third = await openCode('the game of the code');
+          if (third.restore === null) fail('no "give the previous game back" after a code was loaded');
+          await shot('parents-code-restore');
+          await twice('#pCodeRestore', '"give the previous game back"');
+          const prev = { mem: await g(() => __game.save), before: await stored('amw-save-before-code') };
+          if (!isNew(prev.mem)) fail(`"give the previous game back" did not give back the game started again: ${prev.mem.stars} stars, quests ${JSON.stringify(prev.mem.worlds?.fairy?.quests)}`);
+          if (game(prev.before) !== game(had)) fail('"give the previous game back" did not keep the game of the code in its place: the two are not swapped');
+          await enter('the game given back');
+          const fourth = await openCode('the game given back');
+          if (fourth.restore === null) fail('no "give the previous game back" after the previous game was given back');
+          await twice('#pCodeRestore', '"give the previous game back" once more');
+          const again = await g(() => __game.save);
+          if (game(again) !== game(had)) fail('the second "give the previous game back" did not bring the game of the code back');
+          await enter('the game of the walk again');
+          console.log('code: "give the previous game back" gave the game started again, the button stayed; once more - the game of the code');
+        }).finally(() => page.context().clearPermissions().catch(() => {}));
       }
       if (has('leave')) {
         // the start screen of a returning player: the saved game adds the "start again" button
