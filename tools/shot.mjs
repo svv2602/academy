@@ -2789,6 +2789,91 @@ try {
         if (left.length) errors.push(`achievements: ${mode}: ${left.join('; ')}`);
         else console.log(`achievements: ${want.join(', ')}; shown ${achSeen.join(', ')}; ${now.queue.length} wait in the queue${now.queue.length ? ` (${now.queue.join(', ')})` : ''}`);
       }
+      // ---- the cat's offer of a break (PLAY-20, R31-R36): at a stop point after a task, once the session has its minutes ----
+      // The minutes come by the debug door (the save as it is: the parent's 10 minutes, the session at them), the point by
+      // __game.ach.stop('task'); the achievements' scenes are held for the block. "Play on": one tap, the card goes, the cat
+      // answers in the bubble, nothing is taken, the quiet is stored. Then a second offer at the end of the quiet - another
+      // line of the cat - and "till tomorrow": the save written at once, the start screen with the cat asleep, and the point
+      // waits for "Continue"; one tap of it and the game goes on. Every card and button is checked inside the window.
+      if (has('break')) {
+        const fail = (what) => { throw new Error(`break: ${what}`); };
+        const left = [];
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const inWindow = (sels) => g((ss) => ss.filter((s) => {
+          const e = document.querySelector(s), r = e?.getBoundingClientRect();
+          return !e || e.classList.contains('hidden') || !(r.width > 0 && r.height > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight);
+        }), sels);
+        const cardShown = () => !document.querySelector('#breakCard').classList.contains('hidden');
+        // a point now, at the minute of the break: the subscriber of the stop points shows the card (not awaited: it waits for a tap)
+        const offer = async (min) => {
+          const before = await g(() => __game.ach.over.task ?? 0);
+          await g((m) => { __game.save.breakMin = 10; __game.save.session.min = m; void __game.ach.stop('task'); }, min);
+          await gameFor(cardShown, null, 10).catch(() => fail(`no card at the stop point after a task, the session at ${min} min of 10`));
+          return before;
+        };
+        await holdAchDuring(async () => {
+          await gameFor(() => !__game.busy && !__game.inTask && document.querySelector('#fanfare').classList.contains('hidden'), null, 30)
+            .catch(() => fail('the game did not come to rest before the block'));
+          const s0 = await g(() => ({ stars: __game.save.stars, min: __game.save.session?.min ?? null }));
+          if (s0.min === null) fail('the save has no session after minutes of play');
+          // before its minutes, no card
+          await g(() => { __game.save.breakMin = 30; __game.save.session.min = 1; });
+          const over0 = await g(() => __game.ach.over.task ?? 0);
+          await g(() => __game.ach.stop('task'));
+          if (await g(cardShown)) left.push('a card came before the minutes of the break');
+          if ((await g(() => __game.ach.over.task ?? 0)) !== over0 + 1) left.push('the point before the minutes did not end at once');
+          // ---- "play on" ----
+          const before1 = await offer(10);
+          const first = await g(() => document.querySelector('#breakSay').textContent);
+          await shot('41-break');
+          const out1 = await inWindow(['#breakCard .card', '#breakYes', '#breakNo', '#breakSay']);
+          if (out1.length) left.push(`${mode}: not inside the window: ${out1.join(', ')}`);
+          if (!first) left.push('the card has no line of the cat');
+          await tap('#breakNo'); await calm();
+          await gameFor((n) => (__game.ach.over.task ?? 0) === n + 1, before1, 10).catch(() => left.push('"play on" did not end the stop point'));
+          const s1 = await g(() => ({ card: !document.querySelector('#breakCard').classList.contains('hidden'), bubble: document.querySelector('#bubble').classList.contains('hidden') ? '' : document.querySelector('#bubbleText').textContent,
+            quiet: __game.save.session.quiet, min: __game.save.session.min, stars: __game.save.stars, start: !document.querySelector('#start').classList.contains('hidden') }));
+          if (s1.card) left.push('"play on" did not close the card');
+          if (s1.start) left.push('"play on" showed the start screen');
+          // the answer is a spoken line now (its clip, then its subtitle in the bubble): waited for by the game, not at once
+          if (!s1.bubble && !(await gameUntil(() => ['break_more_1', 'break_more_2', 'break_more_3'].includes(__game.line), null, 5))) left.push('the cat did not answer "play on" (no line break_more_* said)');
+          if (!(s1.quiet >= s1.min + 9.9)) left.push(`after "play on" the quiet is ${s1.quiet}, not 10 minutes after ${s1.min}`);
+          if (s1.stars !== s0.stars) left.push(`"play on" took stars: ${s0.stars} -> ${s1.stars}`);
+          if (!(await walks())) left.push('the heroine does not walk after "play on"');
+          // in the quiet, no card
+          await g(() => { __game.save.session.min = __game.save.session.quiet - 1; });
+          await g(() => __game.ach.stop('task'));
+          if (await g(cardShown)) left.push('a card came in the quiet after "play on"');
+          // ---- "till tomorrow" ----
+          const before2 = await offer(s1.quiet + 0.5);
+          const second = await g(() => document.querySelector('#breakSay').textContent);
+          if (second === first) left.push(`the cat said the same offer twice in a row: "${first}"`);
+          await tap('#breakYes');
+          await gameFor(() => !document.querySelector('#start').classList.contains('hidden') && !document.querySelector('#sleep').classList.contains('hidden'), null, 10)
+            .catch(() => fail('"till tomorrow" did not show the start screen with the sleeping cat'));
+          await calm();
+          const s2 = await g(() => ({ stored: JSON.parse(localStorage.getItem('amw-save') || '{}').session ?? null, quiet: __game.save.session.quiet,
+            hud: !document.querySelector('#hud').classList.contains('hidden'), setup: !document.querySelector('#setup').classList.contains('hidden'),
+            say: document.querySelector('#sleepSay').textContent, wake: document.querySelector('#wake').textContent, over: __game.ach.over.task ?? 0 }));
+          await shot('41-sleep');
+          const out2 = await inWindow(['#sleep', '#wake', '#sleepSay']);
+          if (out2.length) left.push(`${mode}: not inside the window on the start screen: ${out2.join(', ')}`);
+          if (!s2.stored || s2.stored.quiet !== s2.quiet) left.push(`"till tomorrow" did not write the save at once (stored ${JSON.stringify(s2.stored)}, the quiet ${s2.quiet})`);
+          if (s2.hud || s2.setup) left.push('the start screen of the sleeping cat shows the game\'s buttons or the setup');
+          if (!s2.say || !s2.wake) left.push('the sleeping cat has no line or no "Continue"');
+          if (s2.over !== before2) left.push('the stop point ended before "Continue": what comes after it would come under the sleeping cat');
+          await tap('#wake'); await calm();
+          await gameFor((n) => (__game.ach.over.task ?? 0) === n + 1, before2, 10).catch(() => left.push('"Continue" did not end the stop point'));
+          const s3 = await g(() => ({ start: !document.querySelector('#start').classList.contains('hidden'), hud: !document.querySelector('#hud').classList.contains('hidden'), stars: __game.save.stars }));
+          if (s3.start || !s3.hud) left.push('"Continue" did not bring the game back with one tap');
+          if (s3.stars !== s0.stars) left.push(`the break took stars: ${s0.stars} -> ${s3.stars}`);
+          if (!(await walks())) left.push('the heroine does not walk after "Continue"');
+          // the parent's choice and the minutes as the walk found them (the quiet stays: no offer in the blocks after this one)
+          await g((m) => { delete __game.save.breakMin; __game.save.session.min = m; }, s0.min);
+        });
+        if (left.length) errors.push(`break: ${mode}: ${left.join('; ')}`);
+        else console.log('break: the card at the point, "play on" in one tap, the quiet, another line, "till tomorrow" saved, the sleeping cat, "Continue" in one tap');
+      }
       // ---- the save as a code (PLAY-16): the one place where the packing and the clipboard run in a real browser ----
       // "Move the game" of the parents' section: the code is copied (the clipboard granted to this block only), checked
       // here in node (its prefix, its sum, no setting of the device in it) and pasted into a game started again with

@@ -1,6 +1,7 @@
 import type { Save } from '../core/save';
 import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
 import { lastDays } from '../game/playtime';
+import { breakMinutes } from '../game/session';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
 import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
@@ -144,6 +145,11 @@ export function nextFixed(skill: SkillId, fixed: number) {
 
 /** The order the quality button of the parents' section steps through: automatic (null), then high to plain. */
 const QUALITY_STEPS: Save['pinTier'][] = [null, 2, 1, 0];
+/** The order the break button of the parents' section steps through (PLAY-20, R33): 10, 15, 20, 30 minutes, then off. */
+export const BREAK_STEPS = [10, 15, 20, 30, 0] as const;
+/** The break the parents' section shows for the save, and the one its button sets next. */
+export const breakLabel = (m: number): Key => (m === 0 ? 'br_off' : (`br${m}` as Key));
+export const nextBreak = (m: number): number => BREAK_STEPS[(BREAK_STEPS.indexOf(m as (typeof BREAK_STEPS)[number]) + 1) % BREAK_STEPS.length];
 
 /**
  * Collection book + the parents' section behind an "adult" gate. The book shows what the world gives (`book`): its parts,
@@ -197,6 +203,7 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
+      <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
       <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pReset">${t('p_reset')}</button></div>
       <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span></div></div></div>`;
@@ -207,6 +214,8 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     // Graphics quality (TECH-04): one button that steps through automatic, high, medium, plain - four buttons would not
     // fit the phone held sideways. A pinned tier applies at once and the game no longer lowers it by itself.
     $('pQuality').addEventListener('click', () => { save.pinTier = QUALITY_STEPS[(QUALITY_STEPS.indexOf(save.pinTier) + 1) % QUALITY_STEPS.length]; on.change(); renderParents(); });
+    // The break (PLAY-20, R33): one button like the quality's - five buttons would not fit the phone held sideways.
+    $('pBreak').addEventListener('click', () => { save.breakMin = nextBreak(breakMinutes(save)); on.change(); renderParents(); });
     $('pBody').querySelectorAll<HTMLInputElement>('[data-v]').forEach((r) => r.addEventListener('input', () => { save.vol[r.dataset.v as 'music'] = Number(r.value); on.change(); }));
     const reset = $('pReset'); let armed = false;
     reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });

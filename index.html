@@ -78,6 +78,16 @@
     </div>
   </div>
 
+  <!-- The cat's offer of a break (PLAY-20, src/ui/session.ts): at a stop point, after a task or a part; one tap of either
+       button ends it, the game is never closed. -->
+  <div id="breakCard" class="hidden">
+    <div class="card break-card">
+      <div class="break-cat" aria-hidden="true">🐱</div>
+      <p id="breakSay"></p>
+      <div class="break-btns"><button id="breakYes" class="big"></button><button id="breakNo" class="big"></button></div>
+    </div>
+  </div>
+
   <div id="start">
     <div class="panel">
       <h1 id="title"></h1>
@@ -94,6 +104,8 @@
         <button id="play" class="big"></button>
         <button id="restart" class="link hidden"></button>
       </div>
+      <!-- "Till tomorrow" (R36): the cat asleep in place of the setup, one tap of "Continue" back into the game. -->
+      <div id="sleep" class="hidden"><div class="sleep-cat" aria-hidden="true">🐱<span>💤</span></div><p id="sleepSay"></p><button id="wake" class="big"></button></div>
       <div id="langs"><button data-lang="uk">UA</button><button data-lang="ru">RU</button></div>
     </div>
   </div>

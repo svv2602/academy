@@ -160,6 +160,11 @@ const S = sameKeys({
     book_no_pet: 'Без улюбленця', pet_fawn: 'Оленятко',
     // --- the four ready looks of the start screen (PLAY-06, src/game/looks.ts); not spoken
     looks: 'Образ', look_fairy: 'Фея', look_princess: 'Принцеса', look_elf: 'Ельфійка', look_witch: 'Чарівниця',
+    // --- the cat's offer of a break (PLAY-20, src/ui/session.ts): its ten lines are spoken (with the batch 2 of the
+    // cat's lines above); the buttons and the parents' rows here
+    break_yes: 'До завтра 🌙', break_no: 'Ще пограю ▶',
+    p_break: 'Перерва в грі', p_break_hint: 'Через цей час кіт запропонує продовжити завтра — після завдання, не посеред нього. Дитина може відмовитися; тоді кіт нагадає не раніше ніж за 10 хвилин.',
+    br10: '10 хв', br15: '15 хв', br20: '20 хв', br30: '30 хв', br_off: 'Вимкнено',
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
@@ -295,6 +300,10 @@ const S = sameKeys({
     book_no_pet: 'Без любимца', pet_fawn: 'Оленёнок',
     // --- the four ready looks of the start screen (PLAY-06, src/game/looks.ts); not spoken
     looks: 'Образ', look_fairy: 'Фея', look_princess: 'Принцесса', look_elf: 'Эльфийка', look_witch: 'Волшебница',
+    // --- the cat's offer of a break (PLAY-20): the buttons and the parents' rows (the lines are with the spoken ones)
+    break_yes: 'До завтра 🌙', break_no: 'Ещё поиграю ▶',
+    p_break: 'Перерыв в игре', p_break_hint: 'Через это время кот предложит продолжить завтра — после задания, не посреди него. Ребёнок может отказаться; тогда кот напомнит не раньше чем через 10 минут.',
+    br10: '10 мин', br15: '15 мин', br20: '20 мин', br30: '30 мин', br_off: 'Выключено',
   },
 });
 /** The shared table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */

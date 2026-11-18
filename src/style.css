@@ -251,6 +251,9 @@ button.it { min-width: 44px; min-height: 44px; }
   .ptab :is(th, td):first-child { width: 36%; } .ptab :is(th, td):nth-child(2) { width: 24%; } .ptab :is(th, td):nth-child(3) { width: 18%; }
   .ptime { font-size: 13px; } .pdays { font-size: 12px; } .pdays b { font-size: 11px; } #pBody .pnote { font-size: 11px; margin-top: 2px; }
   .pset .prow { margin: 2px 0; gap: 4px 8px; font-size: 14px; } .pvol label { font-size: 12px; } .prow.pvol { flex-wrap: nowrap; } .prow.pvol input[type=range] { width: 64px; }
+  /* The version goes up to the free left end of the title's line ("close" holds the right one): the column of the settings
+     has the height of a line more for the break (PLAY-20). */
+  #pVersion { position: absolute; top: 18px; left: 18px; max-width: 30%; text-align: left; font-size: 11px; line-height: 1.3; }
 }
 @media (max-aspect-ratio: 5/4) {
   .sheet { padding-left: 12px; padding-right: 12px; }
@@ -264,11 +267,13 @@ button.it { min-width: 44px; min-height: 44px; }
   .pset .prow { margin: 2px 0; font-size: 14px; flex-wrap: nowrap; } .pset .pvol, #pVersion { grid-column: 1 / -1; } .pset .preset { grid-row: 1; grid-column: 2; }
   .pset .prow > span { min-width: 0; } .pdays { font-size: 11px; gap: 2px; }
   .pcrow { grid-template-columns: minmax(0, 1fr); gap: 4px; } .pcode textarea { min-height: 64px; }
-  /* Two buttons side by side do not fit the half of 390 px beside the quality (one was cut off, the quality ran into the
-     other): "reset" keeps that half, "move the game" takes the free half of the last line, beside the version. */
+  /* Two buttons in one half of 390 px do not fit (one was cut off, the quality ran into the other): the quality and the
+     break share the first line, "reset" and "move the game" a line of their own, half each, the version a thin last line. */
   .pcoderow { display: none; } .preset .pcodebtn { display: inline-block; }
   .pset .preset { display: contents; } .pset .preset button { padding: 4px 8px; line-height: 1.15; justify-self: center; }
-  .pset #pReset { grid-row: 1; grid-column: 2; } .pset .pvol { grid-row: 2; } .pset #pCodeUp { grid-row: 3; grid-column: 2; } .pset #pVersion { grid-row: 3; grid-column: 1; }
+  .pset .pbreak { grid-row: 1; grid-column: 2; } .pset .pbreak button { white-space: nowrap; } .pset .pvol { grid-row: 2; } .pset #pReset { grid-row: 3; grid-column: 1; } .pset #pCodeUp { grid-row: 3; grid-column: 2; }
+  /* the version: small, in the free bottom right corner of the card, beside "close" (a line of its own did not fit) */
+  #pVersion { position: absolute; right: 12px; bottom: 18px; max-width: 24%; font-size: 10px; line-height: 1.25; text-align: right; }
   .ptab :is(th, td):first-child { width: 37%; } .ptab :is(th, td):nth-child(3) { width: 18%; }
 }
 /* ---------- the shop and the fitting room (PLAY-04, PLAY-05) ----------
@@ -354,4 +359,26 @@ button.it { min-width: 44px; min-height: 44px; }
   .ach-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .ach { min-height: 58px; }
   #book .big.small { padding: 6px 14px; font-size: 18px; }
+}
+
+/* The cat's offer of a break (PLAY-20, src/ui/session.ts): the card over the game, two big buttons side by side - one
+   under the other when they do not fit; "till tomorrow" calm, "play on" the game's own pink. */
+#breakCard { position: fixed; inset: 0; display: grid; place-items: center; padding: 8px max(16px, env(safe-area-inset-left));
+  background: radial-gradient(rgba(255,255,255,.4), rgba(150,120,230,.45)); animation: fade .4s; }
+.break-card { max-width: min(92vw, 640px); }
+.break-cat { font-size: clamp(48px, 12vh, 96px); line-height: 1.2; animation: float 2.4s ease-in-out infinite; position: relative; }
+.break-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 16px; }
+.break-btns .big { padding: 10px 30px; font-size: clamp(22px, 3.4vw, 30px); }
+#breakYes { background: linear-gradient(#a99bff, #7d68f0); box-shadow: 0 7px 0 #5a46c9; }
+#breakYes:active { box-shadow: 0 2px 0 #5a46c9; }
+/* "Till tomorrow" (R36): the cat asleep on the start screen, in place of the setup. */
+#sleep { text-align: center; }
+.sleep-cat { font-size: clamp(60px, 15vh, 120px); line-height: 1.15; filter: saturate(.75); }
+.sleep-cat span { display: inline-block; font-size: .42em; vertical-align: top; animation: float 3s ease-in-out infinite; }
+#sleepSay { margin: 4px 0 0; font-size: clamp(17px, 2.6vw, 24px); font-weight: 600; color: #6b4a8a; }
+@media (max-height: 480px) {
+  .break-card { padding: 10px 22px 14px; }
+  .break-cat { font-size: 46px; } .break-card p { font-size: 18px; }
+  .break-btns .big { margin-top: 10px; padding: 6px 24px; font-size: 22px; }
+  .sleep-cat { font-size: 56px; } #sleepSay { font-size: 17px; }
 }
