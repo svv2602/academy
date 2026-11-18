@@ -15,7 +15,8 @@ import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
 import { achGame } from './achieve';
 import { heroCloseup } from './shop';
-import { t, tf, type Key } from './strings';
+import { say } from '../core/audio';
+import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -83,11 +84,12 @@ let tab: Tab = 'shelf';
 let pickedPlace = -1;
 let pickedAch: string | null = null;
 
-/** The line of the cat on the free side, over the heroine: a subtitle only (`shelf_first` is not recorded yet). */
-function sayLine(key: Key | null) {
+/** The line of the cat on the free side, over the heroine: its text there and its clip (no bubble under the book). */
+function sayLine(key: SpokenKey | null) {
   const box = $('bookSay');
   $('bookSayText').textContent = key ? t(key) : '';
   box.classList.toggle('quiet', !key);
+  if (key) void say(key, voiceText(key), 'story');
 }
 
 function renderTabs(save: Save) {
@@ -142,7 +144,8 @@ function renderSecrets(world: WorldEntry | null, ws: { flags: Record<string, boo
 function renderPets(save: Save, persist: () => void) {
   const found = foundPets(save), box = $('pets');
   box.innerHTML = '';
-  const pick = (id: string | null) => { if (choosePet(save, id)) persist(); renderPets(save, persist); };
+  // A pet chosen (not "none"): the cat says so - its line by the heroine, over the book.
+  const pick = (id: string | null) => { if (choosePet(save, id)) { persist(); if (id) sayLine('pet_chosen'); } renderPets(save, persist); };
   for (const p of PETS) {
     const got = found.includes(p.id);
     const b = button('tile pet' + (got ? '' : ' sil') + (got && save.pet === p.id ? ' sel' : ''),

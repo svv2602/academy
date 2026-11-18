@@ -55,7 +55,7 @@ export function petProblems(w: { id: string; pet?: WorldPet; characters: readonl
  * The line of the cat when a pet is found (a subtitle, said by the voice once recorded). Null until the runner adds
  * the key to src/ui/strings.ts: until then the find is marked by the sparks and the sound only.
  */
-export const FOUND_LINE: SpokenKey | null = null;
+export const FOUND_LINE: SpokenKey | null = 'pet_found';
 
 /** The radius of the action spot around the place of a pet: it covers `at` (R22, rule 3). */
 export const PET_SPOT_R = 2.2;

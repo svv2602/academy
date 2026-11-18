@@ -1,18 +1,17 @@
 /**
  * The scene of an achievement received (PLAY-08, R03): the card of the fanfare (#fanfare) with the achievement's own
- * sign in place of the crystal and its name, the heroine and the cat dance, the cat's line as a subtitle only (its voice
- * comes once it is recorded). One tap on the button ends it. It runs at a stop point (src/game/stops.ts): never over a
+ * sign in place of the crystal and its name, the heroine and the cat dance, the cat's own line of the
+ * achievement, spoken with its subtitle. One tap on the button ends it. It runs at a stop point (src/game/stops.ts): never over a
  * task, a question, a hint or the card of a part.
  */
 import { inTask, sfx } from '../core/audio';
-import { pick } from '../core/util';
 import { ACHIEVEMENTS, check, unshown, type AchContext, type AchievementId } from '../game/achievements';
 import type { Game } from '../game/context';
 import { achievementStop, bindStops, onPoint, onStop, setScreen, worldContext } from '../game/stops';
 import { isSkillStep } from '../game/tasks/index';
 import { SKILL } from '../game/taskviews/panel';
 import type { SkillId } from '../game/skills';
-import { PRAISE, t, type Key } from './strings';
+import { t, type Key, type SpokenKey } from './strings';
 import { el, fanfare } from './ui';
 
 /**
@@ -51,8 +50,8 @@ async function scene(g: Game, id: AchievementId) {
   el.fanfare.classList.add('ach');
   sfx('fanfare');
   g.hero.play('Dance'); g.cat.play('Dance');
-  // The cat's line: its subtitle only, no voice yet.
-  g.speech.caption({ key: pick(PRAISE), pri: 'story', hold: 0, speaker: '🐱' });
+  // The cat's own line of the achievement, spoken (batch 1 of stage 4), with its subtitle.
+  void g.speech.line(`ach_${id}` as SpokenKey, 'story');
   achState.scene = id; achState.log.push(id);
   try {
     await fanfare('ach_title', t(`ach_${id}_t` as Key), '#ffd95e');
