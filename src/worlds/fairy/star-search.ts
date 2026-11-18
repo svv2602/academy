@@ -86,10 +86,12 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
             sparks.burst(it.mesh.position, '#ffe066', 26); sfx('chime');
             const n = ++search.found;
             const k = tapKey(n)!;   // at most 5 stars
-            if (n < 5) void say(k, voiceText(k), 'task');
+            // A number cuts off whatever sounds (the deer's question too) and has the story's rank, not the task's: no task
+            // is open during the search, and a conversation started right after a star (its "again" is a story line) would
+            // be turned away by a number of a higher rank.
+            if (n < 5) { stopVoice(); void say(k, voiceText(k), 'story'); }
             searchCaption();
-            // The last number is heard to the end before the praise (see finishSearch). It cuts off whatever sounds, as
-            // every number does, but has the story's rank: a conversation started at this moment is not turned away.
+            // The last number is heard to the end before the praise (see finishSearch).
             if (n === 5) { stopVoice(); finishSearch(say(k, voiceText(k), 'story')); }
           }
         }
