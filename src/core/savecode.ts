@@ -13,8 +13,11 @@
  */
 import { clearSave, type Save } from './save';
 
-/** The fields of a save that belong to the device, not to the game (R60): never put into a code. */
-export const DEVICE_FIELDS = ['tier', 'pinTier', 'vol', 'launches'] as const;
+/**
+ * The fields of a save that belong to the device, not to the game (R60): never put into a code. The session (PLAY-20)
+ * too: its minutes are those of this device's play, the other device counts its own.
+ */
+export const DEVICE_FIELDS = ['tier', 'pinTier', 'vol', 'launches', 'session'] as const;
 
 const PACKED = 'amw1z';
 const PLAIN = 'amw1';
