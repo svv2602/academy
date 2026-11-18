@@ -34,6 +34,7 @@ export const BLOCKS = [
   'shop-sign',      // the signboard of the shop
   'parents',        // the gate, the version, the voice slider, the quality button
   'achievements',   // the set of achievements the piece earned; the scene of one at a stop point, ended by one tap (PLAY-08)
+  'code',           // the save as a code: copied, loaded on a game started again, the same game after the reload, the previous one given back (PLAY-16)
   'leave',          // leaving the page saves the spot; after the reload she wears what the shop sold
   'looks',          // the four looks of the start screen, then the hair alone in the fitting room (PLAY-06)
   'start-again',    // "start again" clears the save
@@ -105,14 +106,16 @@ export const GROUPS = {
     friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'creatures', 'magic', 'achievements'], ach: ACH_BASE,
   },
   // the deer: its star search with everything around it; then the finale, the book, the fawn that waits after the
-  // deer's chain (found, chosen, after her after a reload), the parents' section, "start again"
+  // deer's chain (found, chosen, after her after a reload), the parents' section, the save moved by a code, "start again"
   finale: {
     // Six examples with mistakes (LEARN-11), so that the parents' section has more than its five hardest to show (PLAY-15):
     // addition and take away only - the deer's chain has neither, so none of them comes back in place of its steps.
+    // A made-up name and a look of her own (not a new player's): the block "code" sees them come back through a code.
     save: () => ({ ...played({ done: ['unicorn', 'fox', 'mushking', 'queen'], stars: 20, tasks: { count: 2, add: 1, sub: 2, compare: 2, series: 2, pattern: 1, memory: 1, classify: 1 } }),
+      name: 'Мірабелла', dress: '#5cc8ff', hair: '#f5d16b',
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'pet', 'parents', 'achievements', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
+    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'pet', 'parents', 'achievements', 'code', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the
