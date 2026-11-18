@@ -794,6 +794,8 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
      */
     const open = async (name, lost, saving = false) => {
       const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      // R61: the gift of a new day (PLAY-21) is held, as in tools/shot.mjs: the stars counted here are the tasks' alone.
+      await ctx.addInitScript(() => sessionStorage.setItem('amw-gift-hold', '1'));
       await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
       if (saving) await ctx.addInitScript(() => { Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true }); });
       const page = await ctx.newPage();
@@ -1277,6 +1279,7 @@ async function transitionScenarios({ url, shots, fail: report }) {
     const times = {};
     for (const q of [2, 0]) {
       const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await ctx.addInitScript(() => sessionStorage.setItem('amw-gift-hold', '1'));
       await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
       const page = await ctx.newPage();
       page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`q${q}: console ${m.type()}: ${m.text()}`); });
@@ -1424,6 +1427,7 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
   });
   try {
     const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await ctx.addInitScript(() => sessionStorage.setItem('amw-gift-hold', '1'));
     await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
     /** The game's page: console errors and warnings, page errors, failed requests and HTTP errors are failures. */
     const watch = (page, name) => {

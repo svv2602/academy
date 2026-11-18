@@ -232,6 +232,15 @@ try {
   });
   ctx.on('response', (r) => { if (r.status() >= 400) errors.push(`request failed: ${r.url()} (HTTP ${r.status()})`); });
 
+  // R61: the gift of the day (PLAY-21) is held in every tab of the walkthrough from its first page on - the saves of the
+  // pieces (tools/e2e-saves.mjs) then play the same whatever the real date, and "play" brings the same-day welcome back.
+  // The walkthrough's own lever (__game.gift, ?debug only: the game reads it from the tab's storage); only the block
+  // "welcome" lets it go, and pulls it again. Once per tab: a reload keeps what the block left.
+  await ctx.addInitScript(() => {
+    if (sessionStorage.getItem('e2e-gift')) return;
+    sessionStorage.setItem('e2e-gift', '1');
+    sessionStorage.setItem('amw-gift-hold', '1');
+  });
   const page = await ctx.newPage();
   // The voice is played by Audio elements that are not in the document: every one that was started is remembered
   // (the last few), so that the scenario can tell whether a spoken line is sounding.
@@ -964,25 +973,39 @@ try {
       // ---- a tap on the cat says the line of the bubble once more, and the heroine does not walk to the cat (VOICE-08) ----
       if (has('cat')) {
         const fail = (what) => { throw new Error(`a tap on the cat: ${what}`); };
+        // One tap on the cat in silence: `key` - the line it must say (its clip started once more, the subtitle shown).
+        const tapCat = async (want) => {
+          const cat = await g((w) => {
+            const key = w ?? __game.line, p = __game.cat.root.position, hp = __game.hero.root.position;
+            const s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+            const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+            const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
+            return { key, x, y, under: under ? under.id || under.localName : 'nothing', n: window.__starts[key] ?? 0, at: [hp.x, hp.z] };
+          }, want);
+          if (!cat.key) fail('the game remembers no line after the introduction');
+          if (cat.under !== 'c') fail(`the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
+          await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
+          await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [cat.key, cat.n], { timeout: T(5000) }) /* clock: audio */
+            .catch(async () => fail(`the clip "${cat.key}" was not started again (the line: ${await g(() => __game.line)})`));
+          await gameSeconds(0.1);   // a tap taken as a walk would have moved her by now
+          const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), cat.at);
+          if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m instead of standing`);
+          if (!(await visible('#bubble'))) fail(`"${cat.key}" is said without its subtitle`);
+          return cat.key;
+        };
         await silence().catch(() => fail('the voice did not fall silent after the introduction'));
-        const cat = await g(() => {
-          const key = __game.line, p = __game.cat.root.position, hp = __game.hero.root.position;
-          const s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
-          const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
-          const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
-          return { key, x, y, under: under ? under.id || under.localName : 'nothing', n: window.__starts[key] ?? 0, at: [hp.x, hp.z] };
-        });
-        if (!cat.key) fail('the game remembers no line after the introduction');
-        if (cat.under !== 'c') fail(`the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
-        await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y));
-        await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [cat.key, cat.n], { timeout: T(5000) }) /* clock: audio */
-          .catch(() => fail(`the clip "${cat.key}" was not started again`));
-        await gameSeconds(0.1);   // a tap taken as a walk would have moved her by now
-        const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), cat.at);
-        if (moved > 0.2) fail(`the heroine walked ${moved.toFixed(2)} m instead of standing`);
-        if (!(await visible('#bubble'))) fail(`"${cat.key}" is said again without its subtitle`);
-        console.log(`a tap on the cat: "${cat.key}" is said again, the heroine stands`);
-        catRepeated = true;
+        // PLAY-21: with the bubble empty (its timer hid the last line) a tap says where we stopped - in the new world of
+        // this piece "left_new_world" -; with a line in the bubble the tap repeats it (VOICE-08).
+        if (!(await visible('#bubble'))) {
+          const stopped = await tapCat('left_new_world');
+          console.log(`a tap on the cat with the bubble empty: "${stopped}" (where we stopped)`);
+          await silence().catch(() => fail(`the voice did not fall silent after "${stopped}"`));
+        }
+        if (await visible('#bubble')) {
+          const key = await tapCat(null);
+          console.log(`a tap on the cat: "${key}" is said again, the heroine stands`);
+          catRepeated = true;
+        }
       }
 
       // ---- the heroine (TECH-14): one child model on the game skeleton. In every clip of hers the lowest foot bone
@@ -2873,6 +2896,98 @@ try {
         });
         if (left.length) errors.push(`break: ${mode}: ${left.join('; ')}`);
         else console.log('break: the card at the point, "play on" in one tap, the quiet, another line, "till tomorrow" saved, the sleeping cat, "Continue" in one tap');
+      }
+      // ---- the cat's meeting on a new day (PLAY-21, R37, R40, R44, R61) ----
+      // A tap on the cat with the bubble empty: "where we stopped", the line of the state of the world (the save of the
+      // piece: the friends done, the crystal restored or not). Then the walkthrough's lever of the gift is let go and the
+      // date of the last gift put on a day long past (a fixed one, never "yesterday" by the real clock): after a reload
+      // "play" brings a hello, one star by the game's own adding, the line of the gift and its caption, every line with
+      // its clip. A second launch the same day: the old welcome back, no star. The lever is pulled again for what follows.
+      if (has('welcome')) {
+        const fail = (what) => { throw new Error(`welcome: ${what}`); };
+        const left = [];
+        const HELLOS = ['hello_1', 'hello_2', 'hello_3', 'hello_4', 'hello_5'], GIFTS = ['gift_star_1', 'gift_star_2'];
+        const LEFTS = ['left_new_world', 'left_mid_chain', 'left_between', 'left_before_final', 'left_after_artifact'];
+        // what the state of the world asks for (e4-texts.md §3), from the save of the page
+        const wantLeft = () => g(() => {
+          const w = __game.save.worlds.fairy, q = Object.values(w.quests), n = __game.npcs.length;
+          if (w.final) return 'left_after_artifact';
+          if (q.filter((v) => v >= 3).length >= n) return 'left_before_final';
+          if (q.some((v) => v > 0 && v < 3)) return 'left_mid_chain';
+          return q.some((v) => v >= 3) ? 'left_between' : 'left_new_world';
+        });
+        const rest = () => gameFor(() => !__game.busy && !__game.inTask && !__game.speaking && __game.ach.scene === null
+          && document.querySelector('#fanfare').classList.contains('hidden'), null, 30).catch(() => fail('the game did not come to rest'));
+        // "play" on the start screen of a reload, the achievements' scenes of its stop point held (the page's own lever is new)
+        const replay = async () => {
+          await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
+          await g(() => __game.ach.hold());
+          const s = await g(() => ({ held: __game.gift.held, stars: __game.save.stars, gift: __game.save.gift ?? null }));
+          await page.click('#play'); await calm();
+          return s;
+        };
+        await holdAchDuring(async () => {
+          await rest();
+          // ---- "where we stopped": a tap on the cat with the bubble empty ----
+          await gameFor(() => document.querySelector('#bubble').classList.contains('hidden') && !__game.speaking, null, 30)
+            .catch(() => fail('the bubble did not empty before the tap on the cat'));
+          const want = await wantLeft();
+          const cat = await g(() => {
+            const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+            const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
+            const under = s.z < 1 && x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight ? document.elementFromPoint(x, y) : null;
+            return { x, y, under: under ? under.id || under.localName : 'nothing' };
+          });
+          if (cat.under !== 'c') fail(`the cat cannot be tapped at ${Math.round(cat.x)},${Math.round(cat.y)}: there is "${cat.under}"`);
+          const n0 = await g((k) => window.__starts[k] ?? 0, want);
+          await (touch ? page.touchscreen.tap(cat.x, cat.y) : page.mouse.click(cat.x, cat.y)); await calm();
+          await page.waitForFunction(([k, n]) => (window.__starts[k] ?? 0) === n + 1, [want, n0], { timeout: T(5000) }) /* clock: audio */
+            .catch(async () => left.push(`a tap on the cat with the bubble empty did not say "${want}" (the line: ${await g(() => __game.line)})`));
+          const said = await g(() => ({ line: __game.line, bubble: !document.querySelector('#bubble').classList.contains('hidden') }));
+          if (said.line !== want) left.push(`a tap on the cat says "${said.line}", the state of the world asks for "${want}"`);
+          else if (!said.bubble) left.push(`"${want}" is said without its subtitle`);
+          await silence().catch(() => {});
+          // ---- a new day: the lever let go, the last gift long ago (stored by the page's own save on leaving) ----
+          await g(() => { __game.gift.release(); __game.save.gift = '2000-01-01'; });
+          const s0 = await replay();
+          if (s0.held) fail('the lever of the gift is still pulled after the reload');
+          if (s0.gift !== '2000-01-01') fail(`the save did not keep the date of the last gift over the reload: ${s0.gift}`);
+          if (!(await gameUntil((h) => h.includes(__game.line), HELLOS, 15))) fail(`a new day: the cat said "${await g(() => __game.line)}", not a hello`);
+          const hello = await g(() => __game.line);
+          if (!(await gameUntil((k) => k.includes(__game.line), GIFTS, 20))) fail(`a new day: no line of the gift after "${hello}" (the line: ${await g(() => __game.line)})`);
+          const s1 = await g(() => {
+            const c = document.querySelector('#giftCaption'), r = c?.getBoundingClientRect();
+            return { line: __game.line, stars: __game.save.stars, hud: document.querySelector('#stars').textContent, gift: __game.save.gift,
+              stored: JSON.parse(localStorage.getItem('amw-save') || '{}'), caption: c && !c.classList.contains('hidden') ? c.textContent : null,
+              inside: !!r && r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+          });
+          await shot('42-welcome');
+          if (s1.stars !== s0.stars + 1) left.push(`a new day gave ${s1.stars - s0.stars} stars, not one (${s0.stars} -> ${s1.stars})`);
+          if (s1.hud !== String(s1.stars)) left.push(`the counter shows ${s1.hud}, the save ${s1.stars}`);
+          if (s1.stored.stars !== s1.stars || s1.stored.gift !== s1.gift) left.push(`the gift is not stored: ${s1.stored.stars} stars, the day ${s1.stored.gift}`);
+          if (!/^\d{4}-\d\d-\d\d$/.test(s1.gift ?? '') || s1.gift === '2000-01-01') left.push(`the date of the gift is not a new one: ${s1.gift}`);
+          if (!s1.caption || !s1.caption.includes('+1 ⭐')) left.push(`no caption of the gift ("+1 ⭐"): ${s1.caption}`);
+          else if (!s1.inside) left.push(`${mode}: the caption of the gift is not inside the window`);
+          await gameFor(() => !__game.speaking, null, 20).catch(() => left.push('the meeting did not fall silent'));
+          const v1 = await g(([h, k]) => ({ hello: window.__starts[h] ?? 0, gift: window.__starts[k] ?? 0, dropped: [...__game.dropped], synth: [...__game.voice.synth] }), [hello, s1.line]);
+          if (!v1.hello || !v1.gift) left.push(`a line of the meeting was not heard: ${hello} ${v1.hello}, ${s1.line} ${v1.gift}`);
+          const lost = v1.dropped.filter((k) => [...HELLOS, ...GIFTS, ...LEFTS, 'welcome_back'].includes(k));
+          if (lost.length) left.push(`the planner turned the meeting's lines away: ${lost.join(', ')}`);
+          const synth = v1.synth.filter((k) => [...HELLOS, ...GIFTS].includes(k));
+          if (synth.length) errors.push(`no recorded clip for: ${synth.join(', ')} (python3 tools/gen_voice.py)`);
+          // ---- the same day again: the old welcome back, no star ----
+          const s2 = await replay();
+          if (!(await gameUntil(() => __game.line === 'welcome_back', null, 15))) left.push(`the same day: the cat said "${await g(() => __game.line)}", not "welcome_back"`);
+          await rest();
+          const s3 = await g(([h, k]) => ({ stars: __game.save.stars, gift: __game.save.gift, said: [...h, ...k].filter((x) => window.__starts[x]) }), [HELLOS, GIFTS]);
+          if (s3.stars !== s2.stars || s2.stars !== s1.stars) left.push(`the same day gave stars: ${s1.stars} -> ${s2.stars} -> ${s3.stars}`);
+          if (s3.gift !== s1.gift) left.push(`the same day changed the date of the gift: ${s1.gift} -> ${s3.gift}`);
+          if (s3.said.length) left.push(`the same day the cat said ${s3.said.join(', ')}`);
+          if (!(await walks())) left.push('the heroine does not walk after the meeting');
+          if (!left.length) console.log(`welcome: a tap on the cat said "${want}"; a new day: "${hello}", "${s1.line}", +1 star (${s0.stars} -> ${s1.stars}), the caption "${s1.caption}"; the same day: welcome back, no star`);
+          await g(() => __game.gift.hold());
+        });
+        if (left.length) errors.push(`welcome: ${mode}: ${left.join('; ')}`);
       }
       // ---- the save as a code (PLAY-16): the one place where the packing and the clipboard run in a real browser ----
       // "Move the game" of the parents' section: the code is copied (the clipboard granted to this block only), checked

@@ -3,6 +3,7 @@ import { sfx } from '../core/audio';
 import { input } from '../core/input';
 import { tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
+import { catTap } from '../ui/welcome';
 import { createRipple } from './ripple';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
@@ -26,7 +27,7 @@ export interface Player {
  * start a scene (playScene -> take) in the middle of the frame.
  */
 export function createPlayer(g: Game): Player {
-  const { hero, cat, cam, camera, touch, groundY, started, speech } = g;
+  const { hero, cat, cam, camera, touch, groundY, started } = g;
   let vy = 0, grounded = true;
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
   const ripple = createRipple(g.scene);
@@ -44,8 +45,9 @@ export function createPlayer(g: Game): Player {
           let spot: Spot | null = null;
           for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
           if (spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
-          // A tap on the cat asks it to say its line again, not to walk to it. (In the butterflies task the cat is out of the frame.)
-          else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) speech.repeat();
+          // A tap on the cat asks it to say its line again - or, with the bubble empty, where we stopped (PLAY-21) -,
+          // not to walk to it. (In the butterflies task the cat is out of the frame.)
+          else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) catTap(g);
           else {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
             if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {
