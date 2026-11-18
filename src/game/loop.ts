@@ -9,6 +9,7 @@ import { createGuide } from './guide';
 import { createPlayer, type Spot } from './player';
 import { tickPlayTime } from './playtime';
 import { tickSession } from './session';
+import { storyOf } from './story';
 
 /**
  * The seam between the frame and the world (ARCH-05): the world's own parts of a frame, called at fixed places in it.
@@ -96,8 +97,12 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     camera.update(dt, time, mag);
     world.beforeRender(hp);
 
-    q.render(dt);
-    q.meter(dt, g.persist);
+    // A cut-scene covers the whole screen with its own canvas (./story.ts): the world under it is neither drawn nor
+    // measured - drawing both lost frames on the S22, and the quality would be judged by the scene's frames.
+    if (storyOf(g)?.active !== true) {
+      q.render(dt);
+      q.meter(dt, g.persist);
+    }
     for (const done of waiting.splice(0)) done();
   }
   return {

@@ -161,10 +161,10 @@ interface Cur { shot: Shot; frame: Frame; shown: ShownFrame; elapsed: number }
 
 const base = import.meta.env.BASE_URL;
 
-/** Loads an image; null when it fails. */
+/** Loads an image and decodes it off the frame (a first draw would decode it there); null when it fails. */
 const loadImage = (src: string) => new Promise<HTMLImageElement | null>((resolve) => {
   const i = new Image();
-  i.onload = () => resolve(i);
+  i.onload = () => { void (i.decode?.() ?? Promise.resolve()).catch(() => {}).then(() => resolve(i)); };
   i.onerror = () => resolve(null);
   i.src = src;
 });
@@ -291,6 +291,8 @@ export function createStoryPlayer(g: Game, stories: readonly StoryDef[], scope: 
           const x = new THREE.Texture(i);
           if (color) x.colorSpace = THREE.SRGBColorSpace;
           x.minFilter = THREE.LinearFilter; x.generateMipmaps = false; x.needsUpdate = true;
+          // uploaded now, while an earlier frame plays: not on the frame where it first shows (a lost frame on a phone)
+          renderer.initTexture(x);
           return x;
         };
         let focus = 0.5;
@@ -441,6 +443,8 @@ export function createStoryPlayer(g: Game, stories: readonly StoryDef[], scope: 
       const ended = new Promise<'end' | 'skip'>((resolve) => {
         done = (how) => { hide.forEach((e, i) => e.classList.toggle('hidden', was[i])); g.busy = false; resolve(how); };
       });
+      // every frame of the scene loads and uploads from the start (a scene is 2-6 frames of ~100 KB)
+      for (const s of story.shots) void load(s);
       void show(0);
       return ended;
     },
