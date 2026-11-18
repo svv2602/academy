@@ -18,11 +18,7 @@ export const CLOCK_REASONS = {
   'no-debug': 'the published game without ?debug: there is no window.__game, so no game clock to read',
   'quiet-window': 'a window in which nothing may happen (no request, no error) on a page with no game running',
   helper: 'the definition of a wait helper (T, wait, gameUntil): the places that call it carry their own reason',
-  'moves-to-world-pass': 'inside playWorld of tools/shot.mjs, which the walk of a world by its description takes over (tools/world-pass.mjs) with its own waits',
 };
-
-/** How many waits are marked `moves-to-world-pass`: they leave with playWorld; the number may only go down. */
-export const MOVING = 0;
 
 /**
  * Files of another stream whose waits are only listed here, not marked: the number of their unmarked waits may only go

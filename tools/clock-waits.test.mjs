@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { CLOCK_REASONS, FOREIGN, MOVING } from './clock-waits.mjs';
+import { CLOCK_REASONS, FOREIGN } from './clock-waits.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -50,10 +50,6 @@ describe('the waits by the wall clock in the walkthroughs (tools/clock-waits.mjs
     expect(bad).toEqual([]);
   });
 
-  it('no more waits are left to the walk of a world by its description than were counted', () => {
-    expect(all.filter((w) => w.key === 'moves-to-world-pass').length).toBeLessThanOrEqual(MOVING);
-  });
-
   it('the listed files of another stream get no new unmarked wait', () => {
     for (const [file, n] of Object.entries(FOREIGN)) {
       expect(all.filter((w) => w.file === file && !(w.key in CLOCK_REASONS)).length, file).toBeLessThanOrEqual(n);
@@ -62,7 +58,7 @@ describe('the waits by the wall clock in the walkthroughs (tools/clock-waits.mjs
 
   it('every reason is used, so the list says what the walkthroughs really do', () => {
     const used = new Set(all.map((w) => w.key));
-    const unused = Object.keys(CLOCK_REASONS).filter((k) => !used.has(k) && !(k === 'moves-to-world-pass' && MOVING === 0));
+    const unused = Object.keys(CLOCK_REASONS).filter((k) => !used.has(k));
     expect(unused).toEqual([]);
   });
 });
