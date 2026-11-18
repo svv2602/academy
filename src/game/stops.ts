@@ -57,8 +57,20 @@ export function mayStop(g: StopHost, where: StopWhere): boolean {
 }
 
 /** A stop point: the subscribers, in order, if it may come in now. `g` defaults to the bound game. */
+/**
+ * What is due at every point, allowed to come in or not (`onPoint`): the achievements earned are granted - silently, into
+ * the queue -, so that a point skipped (the heroine busy, a card or the book open) never loses one; their scenes wait for
+ * a point that may come in.
+ */
+const silent: ((g: StopHost) => void)[] = [];
+export function onPoint(fn: (g: StopHost) => void): () => void {
+  silent.push(fn);
+  return () => { const at = silent.indexOf(fn); if (at >= 0) silent.splice(at, 1); };
+}
+
 export async function stopPoint(where: StopWhere, g: StopHost | null = host): Promise<void> {
   if (!g) return;
+  for (const fn of silent) fn(g);
   for (const fn of subscribers) {
     if (!mayStop(g, where)) return;
     await fn(g, where);
