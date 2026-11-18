@@ -264,8 +264,11 @@ button.it { min-width: 44px; min-height: 44px; }
   .pset .prow { margin: 2px 0; font-size: 14px; flex-wrap: nowrap; } .pset .pvol, #pVersion { grid-column: 1 / -1; } .pset .preset { grid-row: 1; grid-column: 2; }
   .pset .prow > span { min-width: 0; } .pdays { font-size: 11px; gap: 2px; }
   .pcrow { grid-template-columns: minmax(0, 1fr); gap: 4px; } .pcode textarea { min-height: 64px; }
-  /* "move the game" beside "reset" (the line of the quality has the height of two lines anyway), not a line of its own under the tables. */
-  .pcoderow { display: none; } .preset .pcodebtn { display: inline-block; } .pset .preset { gap: 6px; } .pset .preset button { padding: 4px 8px; line-height: 1.15; }
+  /* Two buttons side by side do not fit the half of 390 px beside the quality (one was cut off, the quality ran into the
+     other): "reset" keeps that half, "move the game" takes the free half of the last line, beside the version. */
+  .pcoderow { display: none; } .preset .pcodebtn { display: inline-block; }
+  .pset .preset { display: contents; } .pset .preset button { padding: 4px 8px; line-height: 1.15; justify-self: center; }
+  .pset #pReset { grid-row: 1; grid-column: 2; } .pset .pvol { grid-row: 2; } .pset #pCodeUp { grid-row: 3; grid-column: 2; } .pset #pVersion { grid-row: 3; grid-column: 1; }
   .ptab :is(th, td):first-child { width: 37%; } .ptab :is(th, td):nth-child(3) { width: 18%; }
 }
 /* ---------- the shop and the fitting room (PLAY-04, PLAY-05) ----------
