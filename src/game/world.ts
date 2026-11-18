@@ -107,6 +107,12 @@ export interface WorldItem {
   done(): boolean;
   /** On screen or running right now (a cutscene, the tour, the finale): the walkthrough waits for its end by this, not by the clock. */
   active?(): boolean;
+  /**
+   * A chain only: the numbers of its steps (from 0) played as a task in the world (WorldDef.worldTasks), not on the
+   * panel. The walkthrough plays each of them through the debug door of the task (src/game/worldtasks/core.ts), and a
+   * task in the world on a step not named here is a failure. Absent: no step of the chain is played in the world.
+   */
+  inWorld?: readonly number[];
 }
 
 /**
@@ -131,6 +137,13 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * ARCH-16) must be exactly these.
    */
   readonly secrets?: readonly string[];
+  /**
+   * PLAY-01, ARCH-16: the ids of the steps of the chains that are played as a task in the world (the world's `tasks`
+   * with `run`), so that the description can say so (WorldItem.inWorld) and the walkthrough can find them. Each must be
+   * a step of some character; absent - the world declares none (its chains are played by the panel, or by a scenario
+   * of its own).
+   */
+  readonly worldTasks?: readonly string[];
   /** PLAY-08 (`secret_chest`): the flag of the world's chest, one of `secrets`. */
   readonly chest?: string;
   /** PLAY-08 (`all_world_stars`): how many stars lie on the world's ground (ids 0 to n - 1 in ws.starsTaken); a search's are not. */

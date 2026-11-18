@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  KINDS, ONE_EACH, PET_ITEM, TALK_AT, TEMPLATE, TEMPLATE_ROWS, declared, describeWorld, look, marked, missing, problems, ready,
+  KINDS, ONE_EACH, PET_ITEM, TALK_AT, TEMPLATE, TEMPLATE_ROWS, declared, describeWorld, inWorldSteps, look, marked, missing, problems, ready,
   type Declared, type Marks,
 } from './describe';
 import type { CharacterDef, WorldItem, WorldItemKind } from './world';
@@ -80,6 +80,48 @@ describe('the items made of what a world declares', () => {
 
   it('the whole description: the declared items first, then the world\'s own in its order', () => {
     expect(whole().map((i) => i.id)).toEqual(['owl', 'hedgehog', 'pet', 'toured', 'cave', 'well', 'gem', 'opening', 'final']);
+  });
+});
+
+describe('the steps a world plays as a task in the world (WorldDef.worldTasks)', () => {
+  /** The owl plays its second step in the world, the hedgehog a step of its own there twice. */
+  const TASKS: Declared = { ...WORLD, characters: [OWL, character('hedgehog', { steps: ['add', 'stones', 'stones'] })], worldTasks: ['sub', 'stones'] };
+
+  it('a chain names the numbers of its steps the world plays in the world, from 0 and in order; a chain with none names nothing', () => {
+    const [owl, hedgehog] = declared({ world: TASKS, ws: marks() });
+    expect(owl.inWorld).toEqual([1]);
+    expect(hedgehog.inWorld).toEqual([1, 2]);
+    expect(inWorldSteps(OWL, ['count', 'add'])).toEqual([0, 2]);
+    // a world that declares none (the first world) has chains without the field: its description is as it was
+    for (const c of declared({ world: WORLD, ws: marks() }).filter((i) => i.kind === 'chain')) expect('inWorld' in c, c.id).toBe(false);
+    expect('inWorld' in declared({ world: { ...TASKS, worldTasks: ['count'] }, ws: marks() })[1]).toBe(false);
+  });
+
+  it('as window.__game shows it: a plain list on the chain, a copy', () => {
+    const items = describeWorld({ world: TASKS, ws: marks() }, own(marks()));
+    const seen = look(items);
+    expect(seen[1]).toMatchObject({ kind: 'chain', id: 'hedgehog', inWorld: [1, 2] });
+    expect('inWorld' in seen.find((i) => i.id === 'cave')!).toBe(false);
+    seen[1].inWorld!.push(9);
+    expect(items[1].inWorld).toEqual([1, 2]);
+  });
+
+  it('a declared task that is no step of any character is a problem, by its id', () => {
+    const ws = marks();
+    expect(problems(TASKS, describeWorld({ world: TASKS, ws }, own(ws)))).toEqual([]);
+    const odd = { ...TASKS, worldTasks: ['sub', 'stones', 'bridge'] };
+    expect(problems(odd, describeWorld({ world: odd, ws }, own(ws)))).toEqual(['the task in the world "bridge" of the world\'s worldTasks is no step of any character']);
+  });
+
+  it('a chain that names other steps than the declaration makes is a problem: the walkthrough would miss them', () => {
+    const ws = marks();
+    const items = describeWorld({ world: TASKS, ws }, own(ws));
+    const lost = items.map((i) => (i.id === 'owl' ? { ...i, inWorld: undefined } : i));
+    expect(problems(TASKS, lost)).toEqual(['the chain "owl" names the steps [] as played in the world, the world\'s worldTasks make them [1]']);
+    const extra = items.map((i) => (i.id === 'hedgehog' ? { ...i, inWorld: [0, 1, 2] } : i));
+    expect(problems(TASKS, extra)).toEqual(['the chain "hedgehog" names the steps [0,1,2] as played in the world, the world\'s worldTasks make them [1,2]']);
+    // the same description against the world without its declaration: the named steps are not the world's
+    expect(problems({ ...TASKS, worldTasks: undefined }, items).map((p) => p.split(' names')[0])).toEqual(['the chain "owl"', 'the chain "hedgehog"']);
   });
 });
 

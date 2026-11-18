@@ -9,8 +9,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, TRIES, bookProblems, descriptionProblems, heldBack, itemName, markOf, marksProblems, nextItem, nextStep,
-  planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, startProblems, voiceProblems,
+  HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
+  marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
+  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
 import { gameWaits } from './game-wait.mjs';
@@ -247,6 +248,86 @@ describe('the checks of the save, the book, the voice and the report (ARCH-06, A
   });
 });
 
+describe('a task played in the world on a step a chain declares (PLAY-01, R97)', () => {
+  const chain = (o = {}) => item('chain', 'hare', { inWorld: [1], ...o });
+  const st = (o = {}) => ({ kind: 'tally', phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [], ...o });
+  const rec2 = (part, stars, skills) => JSON.stringify({ part, stars, skills });
+  const was = rec2({ quests: { hare: 1 }, flags: {} }, 5, { compare: { tasks: 2 }, add: { tasks: 4 } });
+  const rec = (o = {}) => ({ state: null, held: was, stored: was, ...o });
+
+  it('is played in five steps, in this order: open, a wrong move, closed, opened anew, solved', () => {
+    expect(WORLD_TASK_STEPS).toEqual(['open', 'wrong', 'close', 'again', 'solve']);
+    expect(STEP_STARS).toBe(3);
+  });
+
+  it('the step it opened at must be one the chain names in `inWorld`; anywhere else it fails with the id of the chain', () => {
+    expect(worldStepOf(chain(), { quests: { hare: 1 } }, 'tally')).toEqual({ step: 1, error: null });
+    expect(worldStepOf(chain({ inWorld: [0, 2] }), { quests: { hare: 1 } }, 'tally').error).toBe('a task in the world ("tally") opened at step 2 of the chain "hare", which its description does not declare (inWorld: [0,2]) - world.worldTasks does not name it');
+    expect(worldStepOf(chain({ inWorld: undefined }), { quests: {} }, 'tally').error).toContain('at step 1 of the chain "hare", which its description does not declare (inWorld: [])');
+    expect(worldStepOf(item('secret', 'well'), null, 'tally').error).toBe('a task in the world ("tally") is open in the item "well" (secret), and only a step of a chain plays one');
+    expect(worldStepOf(null, null, 'tally').error).toBe('a task in the world ("tally") is open between the items, and only a step of a chain plays one');
+  });
+
+  it('a) and d): open, waiting for input, no mistake, no hint, nothing kept; opened anew it is the same kind', () => {
+    expect(openProblems(st())).toEqual([]);
+    expect(openProblems(st(), 'tally')).toEqual([]);
+    expect(openProblems(null)).toEqual(['no task in the world is open']);
+    expect(openProblems(st({ phase: 'mistake', wrongs: 1, rung: 1, progress: [2] }), 'stones')).toEqual([
+      'the task is "tally", not the "stones" opened before', 'its phase is "mistake", not "input"', '1 wrong move(s) at its start', 'the rung 1 of the hint at its start', 'it starts in a middle: [2]']);
+  });
+
+  it('b) one wrong move: counted once, waiting again on rung 1, "try again" and the hint by their clips', () => {
+    const voice = (o = {}) => ({ started: ['try_again_1', 'h_count'], synth: [], line: 'h_count', muted: false, ...o });
+    expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice())).toEqual([]);
+    expect(wrongProblems(null, voice())).toEqual(['the task in the world is not open after a wrong move']);
+    expect(wrongProblems(st({ wrongs: 2, rung: 0, phase: 'mistake' }), voice())).toEqual(['2 wrong moves counted for one', 'its phase is "mistake", not "input" again', 'the rung of the hint is 0, not 1']);
+    expect(one(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_again_1', 'x'], synth: ['h_count'], line: 'x' })))).toBe('lines left to the synthesizer: h_count');
+    expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_again_1'] }))).toEqual(['the clips of "try again" and of the hint were not both started (started: try_again_1)']);
+    expect(one(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ line: 'h_other' })))).toBe('the bubble holds "h_other", whose clip was not started (started: try_again_1 h_count)');
+    // without the voice the bubble keeps the question: only the clips are asked for
+    expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ line: 't_compare_more', muted: true }))).toEqual([]);
+  });
+
+  it('c) closed: no task open, in memory and in the stored save just what was there at its opening', () => {
+    const before = rec({ state: st() });
+    expect(closeProblems(before, rec())).toEqual([]);
+    const more = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 3 }, add: { tasks: 4 } });
+    expect(closeProblems(before, rec({ held: more, stored: more })).map((p) => p.split(' holds')[0])).toEqual(['the game', 'the stored save']);
+    expect(one(closeProblems(before, rec({ state: st() })))).toContain('the task is still open after its close button');
+  });
+
+  it('e) solved: the step stored, 3 stars more, one task more in exactly one skill - in memory and in the stored save', () => {
+    const before = rec();
+    const now = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 3 }, add: { tasks: 4 } });
+    expect(solveProblems(before, rec({ held: now, stored: now }), 'hare', 1)).toEqual([]);
+    expect(one(solveProblems(before, rec({ state: st({ phase: 'solved' }), held: now, stored: now }), 'hare', 1))).toContain('the task is still open after solve()');
+    expect(solveProblems(before, rec({ held: now }), 'hare', 1)).toEqual(['the stored save holds the chain "hare" at 1, not 2', 'the stored save holds 5 stars, 5 + 3 expected', 'the stored save: the tasks of the skills changed in none, one task more in one skill expected']);
+    const two = rec2({ quests: { hare: 2 } }, 8, { compare: { tasks: 3 }, add: { tasks: 5 } });
+    expect(solveProblems(before, rec({ held: two, stored: two }), 'hare', 1)[0]).toBe('the game: the tasks of the skills changed in compare 2 -> 3, add 4 -> 5, one task more in one skill expected');
+  });
+
+  it('a step declared but never met as a task in the world is named at the end', () => {
+    const list = [chain({ inWorld: [0, 2] }), item('chain', 'owl'), item('secret', 'well')];
+    expect(unmetWorldSteps(list, ['hare 0'])).toEqual(['hare 2']);
+    expect(unmetWorldSteps(list, ['hare 0', 'hare 2'])).toEqual([]);
+    expect(unmetWorldSteps(items(), [])).toEqual([]);
+  });
+
+  it('the description: `inWorld` is a list of step numbers on a chain only', () => {
+    const seen = (list) => descriptionProblems({ items: list, missing: [], problems: [] });
+    expect(seen([chain({ inWorld: [0, 3] })])).toEqual([]);
+    expect(seen([chain({ inWorld: [-1] }), item('secret', 'well', { inWorld: [0] }), chain({ id: 'x', inWorld: 'all' })]).map((p) => p.split(': ')[1])).toEqual(['inWorld [-1]', 'inWorld [0]', 'inWorld "all"']);
+  });
+
+  it('the report: a pass that played no task in the world fails where one is declared', () => {
+    const report = { world: 'w', size: 'mobile', online: true, items: [], order: [], worldTasks: [] };
+    const want = { world: 'w', size: 'mobile', offline: false, kinds: [] };
+    expect(reportProblems(report, want)).toEqual([]);
+    expect(reportProblems(report, { ...want, inWorld: true })).toEqual(['no task in the world was played by the pass: the world declares one']);
+    expect(reportProblems({ ...report, worldTasks: ['hare 0'] }, { ...want, inWorld: true })).toEqual([]);
+  });
+});
+
 // ---- the pass itself, on a stand-in page ----
 const WORLD = 'meadow';
 /** The part of another world the save starts with: the pass must leave it exactly as it is. */
@@ -272,7 +353,7 @@ function standIn(o = {}) {
   const defs = (o.defs ?? ((d) => d))(DEFS());
   const fault = o.fault ?? {};
   const storage = new Map([['amw-save', JSON.stringify({ v: 3, stars: STARS, worlds: { other: KEPT } })]]);
-  const log = { shots: [], links: [], questions: [], taps: [], presses: 0, achievements: [], missingAsked: [], frames: 0, cheats: 0, teleports: [] };
+  const log = { shots: [], links: [], questions: [], taps: [], presses: 0, achievements: [], missingAsked: [], frames: 0, cheats: 0, teleports: [], door: [] };
   const errors = [];
   const sim = { online: true, onLoad: null };
 
@@ -293,6 +374,9 @@ function standIn(o = {}) {
 
   // ---- the game ----
   let save, ws, time, started, busy, hero, timers, raf, input, line, inTask, searchLeft, tapsLeft, forgot = false;
+  /** The task in the world open now (a chain's step in `opens`), else null: { d, kind, phase, wrongs, rung, progress }. */
+  let wt = null;
+  const starts = (key) => { globalThis.__starts[key] = (globalThis.__starts[key] ?? 0) + 1; };
   const on = new Set();           // the ids of the items that are on
   let heldStars = null;       // the fault "stars not stored at once": what the stored save still says
   const persist = () => {
@@ -317,10 +401,11 @@ function standIn(o = {}) {
     if (fault.starsUnstored) { heldStars = save.stars; after(0.2, () => { heldStars = null; persist(); }); }
     save.stars += n; persist();
   };
-  /** A conversation: a greeting, a task, and the card of the part once the chain is finished. */
+  /** A conversation: a greeting, a task (on the panel, or in the world at a step of `opens`), and the card of the part once the chain is finished. */
   const talk = (d) => {
     busy = true; say('npc_hi');
     after(0.3, () => {
+      if ((d.opens ?? []).includes(ws.quests[d.id] ?? 0)) { wt = { d, kind: d.world, phase: 'input', wrongs: fault.openWrong ? 1 : 0, rung: 0, progress: [] }; say('t_compare_more'); return; }
       els.taskStage.className = `t-stage t-${d.task ?? 'add'}`;
       if (fault.watch) els.taskStage.classList.add('watch');
       els.task.classList.remove('hidden', 'won');
@@ -337,9 +422,10 @@ function standIn(o = {}) {
     step(d, was);
   };
   const step = (d, was) => {
+    if (!was && d.world && !fault.noSkill) save.skills.compare.tasks++;
     win(fault.noStars ? 0 : was ? 1 : 3);
     if (fault.touchesOther === 'chain') save.worlds.other.quests.elder = 3;
-    if (!was) { ws.quests[d.id] = (ws.quests[d.id] ?? 0) + 1; persist(); }
+    if (!was) { ws.quests[d.id] = (ws.quests[d.id] ?? 0) + (fault.skipsStep === d.id ? 2 : 1); persist(); }
     hud();
     if (was || !marked(d)) { busy = false; return; }
     if (fault.achievement) { els.fanfare.classList.add('ach'); els.fanfareTitle.textContent = 'achievement'; show('fanfare'); return; }
@@ -367,6 +453,7 @@ function standIn(o = {}) {
     time += 0.05;
     for (const cb of raf.splice(0)) cb();
     for (const t of timers.filter((x) => x.at <= time)) { timers.splice(timers.indexOf(t), 1); t.fn(); }
+    if (input.walk && started && !busy && !fault.frozen) hero = { x: hero.x, z: hero.z - 0.1 };
     if (started && !busy) {
       for (const d of defs) if (d.how === 'walk' && d.at && !done(d) && ready(d) && Math.hypot(hero.x - d.at.x, hero.z - d.at.z) < 0.9) mark(d);
       // an item that plays by itself and comes after others starts once they are done
@@ -381,7 +468,36 @@ function standIn(o = {}) {
   const game = () => ({
     get items() {
       if (fault.noDescription) return null;
-      return defs.map((d) => ({ kind: d.kind, id: d.id, at: d.at ?? null, how: d.how, after: [...(d.after ?? [])], done: done(d), active: on.has(d.id) }));
+      return defs.map((d) => ({ kind: d.kind, id: d.id, at: d.at ?? null, how: d.how, after: [...(d.after ?? [])], done: done(d), active: on.has(d.id), ...(d.inWorld ? { inWorld: [...d.inWorld] } : {}) }));
+    },
+    get hero() { return { root: { position: hero } }; },
+    /** The debug door of the task in the world (src/game/worldtasks/core.ts): its calls are logged in `log.door`. */
+    worldTask: {
+      get state() { return wt && { kind: wt.kind, phase: wt.phase, wrongs: wt.wrongs, moves: 0, rung: wt.rung, progress: [...wt.progress] }; },
+      wrong() {
+        if (!wt) return false;
+        log.door.push('wrong');
+        const t = wt;
+        t.wrongs++; t.phase = 'mistake'; starts('try_again_1'); say('try_again_1');
+        after(1, () => { if (fault.hintSynth) globalThis.__game.voice.synth.push('h_count'); else starts('h_count'); say('h_count'); t.rung = fault.noRung ? 0 : 1; t.phase = 'input'; });
+        return true;
+      },
+      close() {
+        if (!wt) return false;
+        log.door.push('close');
+        wt = null;
+        if (fault.closeRecords) win(3);
+        busy = false;
+        return true;
+      },
+      solve() {
+        if (!wt) return false;
+        log.door.push('solve');
+        const { d } = wt;
+        wt = null;
+        step(d, false);
+        return true;
+      },
     },
     missing(need) { log.missingAsked.push(need); return fault.missing ?? []; },
     get itemProblems() { return fault.itemProblems ?? []; },
@@ -413,9 +529,10 @@ function standIn(o = {}) {
   /** A page load: the game reads the stored save and shows its start screen. */
   const boot = () => {
     const st = JSON.parse(storage.get('amw-save') ?? '{}');
-    save = { stars: 0, played: false, fixed: { add: 0, sub: 0 }, vol: { voice: 1 }, worlds: {}, ...st };
+    save = { stars: 0, played: false, fixed: { add: 0, sub: 0 }, vol: { voice: 1 }, worlds: {}, skills: { compare: { tasks: 0 }, add: { tasks: 0 } }, ...st };
     ws = save.worlds[WORLD] ??= { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
-    time = 0; started = false; busy = false; hero = { x: 0, z: 6 }; timers = []; raf = []; input = { act: false }; line = null; inTask = false; searchLeft = 0; tapsLeft = 0;
+    time = 0; started = false; busy = false; hero = { x: 0, z: 6 }; timers = []; raf = []; input = { act: false, walk: false }; line = null; inTask = false; searchLeft = 0; tapsLeft = 0; wt = null;
+    globalThis.__starts = {};
     on.clear();
     for (const id of ['bubble', 'task', 'fanfare', 'btnAct', 'book', 'restart']) el(id, true);
     for (const id of ['play', 'taskStage', 'fanfareTitle', 'fanfareOk', 'crystals', 'colStats', 'bubbleText', 'fps']) el(id, false);
@@ -423,6 +540,7 @@ function standIn(o = {}) {
     els.fps.textContent = fault.fps ?? '60 fps · q2 · 54k tris · 58 calls';
     delete globalThis.__stars;
     globalThis.__game = game();
+    globalThis.__game.voice.synth = [...globalThis.__game.voice.synth];
     hud();
   };
   const play = () => {
@@ -465,6 +583,7 @@ function standIn(o = {}) {
     viewportSize: () => ({ width: 844, height: 390 }),
     touchscreen: { tap: async (x, y) => { tapScreen(x, y); tapAt(); } },
     mouse: { click: async (x, y) => { log.taps.push(`mouse ${x},${y}`); tapScreen(x, y); tapAt(); } },
+    keyboard: { down: async (k) => { if (k === 'KeyW') input.walk = true; }, up: async (k) => { if (k === 'KeyW') input.walk = false; } },
   };
 
   // ---- the helpers of tools/shot.mjs ----
@@ -550,7 +669,7 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     // the report of the pass: what tools/worlds.mjs reads
     expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8'))).toEqual({
       world: 'meadow', size: 'mobile', online: true, need: 'one item of every kind',
-      items: DEFS().map((d) => ({ kind: d.kind, id: d.id, how: d.how })), order: ['toured', 'owl', 'pet', 'well', 'key', 'tale', 'final'],
+      items: DEFS().map((d) => ({ kind: d.kind, id: d.id, how: d.how })), order: ['toured', 'owl', 'pet', 'well', 'key', 'tale', 'final'], worldTasks: [],
     });
     // the character of a chain of two steps is talked to twice; the other four buttons once each
     expect(r.log.presses).toBe(6);
@@ -558,6 +677,59 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     expect(r.log.missingAsked[0]).toEqual(ONE_OF_EACH);
     // after "start again" the save is the one of a new player
     expect(r.stored()).toEqual({});
+  });
+
+  /** A second character whose one step is a task in the world: declared (`inWorld`) and opened by the game (`opens`). */
+  const hare = (o = {}) => (d) => {
+    const out = [...d];
+    out.splice(1, 0, { kind: 'chain', id: 'hare', how: 'act', at: { x: 3, z: -6 }, steps: 1, world: 'tally', opens: [0], inWorld: [0], ...o });
+    out.find((x) => x.kind === 'finale').after.push('hare');
+    return out;
+  };
+
+  it('a task in the world on a declared step: open, a wrong move, closed, opened anew, solved - through the door, in game time', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'world-pass-')); dirs.push(dir);
+    const r = await pass({ defs: hare() }, { need: 'one', out: join(dir, 'pass.json') });
+    expect(r.thrown).toBeNull();
+    expect(r.errors).toEqual([]);
+    expect(r.log.door).toEqual(['wrong', 'close', 'solve']);
+    expect(r.printed).toContain('world task: hare step 1 "tally": open, wrong, close, again, solve - opened waiting, a wrong move on rung 1 with its clips, closed with nothing recorded and the heroine walking, opened anew, solved and recorded');
+    expect(r.printed).toContain('tasks in the world: hare 0 of the declared hare 0');
+    expect(r.printed.filter((l) => l.startsWith('chain done: hare')).map((l) => l.replace(/, \d+s/, ''))).toEqual(['chain done: hare (1 steps), counter 2/2, stars 13 -> 16']);
+    // its action pressed twice (opened, then opened anew), pictured open and on its first rung
+    expect(r.log.presses).toBe(8);
+    expect(r.log.shots).toEqual(expect.arrayContaining(['world-task-tally', 'world-task-tally-hint1']));
+    expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8')).worldTasks).toEqual(['hare 0']);
+  });
+
+  it('a task in the world on a step the description does not declare fails with the id of the chain', async () => {
+    const r = await pass({ defs: hare({ inWorld: undefined }) });
+    expect(r.thrown).toContain('a task in the world ("tally") opened at step 1 of the chain "hare", which its description does not declare (inWorld: [])');
+    expect(r.log.door).toEqual([]);
+  });
+
+  it('a card where the chain declares a task in the world fails', async () => {
+    const r = await pass({ defs: hare({ opens: [] }) });
+    expect(r.thrown).toContain('the item "hare" (chain, done by "act" at 3,-6): a card instead of the task in the world declared at step 1 (inWorld: [0])');
+  });
+
+  it('a declared step the pass never met as a task in the world is a failure at the end', async () => {
+    // the panel step before it moves the chain two steps on: the step declared in the world is never played
+    const r = await pass({ defs: hare({ steps: 2, inWorld: [1], opens: [1] }), fault: { skipsStep: 'hare' } });
+    expect(r.thrown).toBeNull();
+    expect(r.errors).toEqual(['world task: mobile meadow: steps declared as tasks in the world that the pass never met as one: "hare" step 2']);
+  });
+
+  it.each([
+    ['openWrong', 'a) open: 1 wrong move(s) at its start'],
+    ['hintSynth', 'b) a wrong move: lines left to the synthesizer: h_count'],
+    ['noRung', 'b) the course of the wrong move did not come back to input on rung 1'],
+    ['closeRecords', 'c) closed: the game holds'],
+    ['frozen', 'c) closed: the heroine does not walk'],
+    ['noSkill', 'e) solved: the game: the tasks of the skills changed in none'],
+  ])('a task in the world that breaks the rule "%s" fails with its chain, its step and the letter of the step', async (name, text) => {
+    const r = await pass({ defs: hare(), fault: { [name]: true } });
+    expect(r.thrown).toContain(`world task: mobile the item "hare" (chain, done by "act" at 3,-6), step 1, the task in the world "tally": ${text}`);
   });
 
   it('every screen of the pass is a picture - the layout check of tools/shot.mjs: the start, what plays, each item at its place, a task, a card, the book', async () => {
@@ -814,7 +986,7 @@ describe('tools/world-pass.mjs in the sources (R34, ARCH-16)', () => {
     const names = new Set(['fairy', 'probe', 'fawn']);
     for (const m of probe.matchAll(/id: '([a-z_]+)'/g)) names.add(m[1]);
     for (const m of /export const SECRET = '(\w+)', PART = '(\w+)', SCENE = '(\w+)', TOUR = '(\w+)'/.exec(probe).slice(1)) names.add(m);
-    expect([...names].sort()).toEqual(['fairy', 'fawn', 'friend', 'gem', 'hollow', 'probe', 'story', 'toured']);
+    expect([...names].sort()).toEqual(['fairy', 'fawn', 'friend', 'gem', 'hollow', 'kit', 'probe', 'story', 'toured']);
     for (const n of names) expect(src, n).not.toMatch(new RegExp(`['"\`]${n}['"\`]|\\b${n}_|worlds\\.${n}\\b`));
     // a place comes from the description: the only numbers handed to the game's teleport are the item's own
     expect(code.match(/teleport\([^)]*\)/g)).toEqual(['teleport(x, z)']);
