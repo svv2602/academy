@@ -44,11 +44,27 @@ let narratorVoice: string | null = null;
 /**
  * The world hands in its table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). A line of a character is
  * then played from `voice/<key>@<voice>.mp3`, a line of the narrator (or of a speaker the table lacks) from `<key>.mp3`.
+ * A next world hands in the list of its own clips beside it (`worldClips`).
  */
 export function setCast(table: { narrator: string; cast: Record<string, { emoji: string; voice: string }> }) {
   voiceOf.clear();
   for (const c of Object.values(table.cast)) voiceOf.set(c.emoji, c.voice);
   narratorVoice = table.cast[table.narrator]?.voice ?? null;
+}
+/** The recorded clips of the world that plays, if it has a voice of its own: its id (the folder `voice/<id>/`) and their names. */
+let worldVoice: { id: string; clips: ReadonlySet<string> } | null = null;
+/**
+ * A next world hands in the list of its own recorded clips (src/worlds/<id>/clips.json, written by tools/gen_voice.py):
+ * the names as the core's list has them, `<key>` and `<key>@<voice>`, without the folder. Its clips lie in
+ * `voice/<id>/` and come with the world, not with the installation (TECH-09). The first world hands in none: its clips
+ * are the core's. Returns what takes the list back: the world gives it to its scope (`scope.own(worldClips(...))`),
+ * so a world that is left no longer answers for a line (R81). Taking back the list of a world that is not the one
+ * handed in last does nothing.
+ */
+export function worldClips(id: string, names: readonly string[]): () => void {
+  const mine = { id, clips: new Set(names) };
+  worldVoice = mine;
+  return () => { if (worldVoice === mine) worldVoice = null; };
 }
 /**
  * The clips a character said with the narrator's clip of the same key, its own (`<key>@<voice>`) not recorded yet:
@@ -56,11 +72,24 @@ export function setCast(table: { narrator: string; cast: Record<string, { emoji:
  * For the walkthrough and the debug overlay.
  */
 export const borrowed: string[] = [];
-/** Which recorded clip says line `id` by `speaker`: the speaker's own voice, else the narrator's clip; null if none. */
+/**
+ * Which recorded clip says line `id` by `speaker`; null if none. The world that plays is asked first, then the core:
+ * the world's clip in the speaker's own voice, the world's clip of the narrator, the core's clip in the speaker's
+ * voice, the core's clip of the narrator. A clip of the world is named with its folder, `<id>/<name>` - the address
+ * of every clip is `voice/<clip>.mp3`; a clip of the core is named as it always was.
+ */
 export function clipFor(id: string, speaker?: string): string | null {
   const voice = speaker === undefined ? undefined : voiceOf.get(speaker);
-  if (voice !== undefined && voice !== narratorVoice) {
-    const mine = `${id}@${voice}`;
+  const mine = voice !== undefined && voice !== narratorVoice ? `${id}@${voice}` : null;
+  if (worldVoice) {
+    const { id: world, clips } = worldVoice;
+    if (mine !== null && clips.has(mine)) return `${world}/${mine}`;
+    if (clips.has(id)) {
+      if (mine !== null) borrowed.push(`${world}/${mine}`);
+      return `${world}/${id}`;
+    }
+  }
+  if (mine !== null) {
     if (recorded.has(mine)) return mine;
     if (recorded.has(id)) borrowed.push(mine);
   }
@@ -201,7 +230,10 @@ function begin(priority: Priority, body: (finish: () => void, live: () => boolea
   }) as Spoken;
 }
 
-/** A line of the list: its recorded clip, or the device's synthesizer when there is none or it fails to load. */
+/**
+ * A line of the list: its recorded clip - of the world that plays (`voice/<id>/<name>.mp3`) or of the core
+ * (`voice/<name>.mp3`), see `clipFor` - or the device's synthesizer when there is none or it fails to load.
+ */
 function sound(id: SpokenKey, text: string, finish: () => void, live: () => boolean, speaker?: string) {
   const clip = clipFor(id, speaker);
   if (clip === null) { voiceLog.synth.push(id); speak(text, finish, live); return; }

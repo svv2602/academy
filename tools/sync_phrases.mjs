@@ -6,27 +6,33 @@
  * (src/ui/strings-bank.ts): one entry per key marked as spoken, Ukrainian text
  * with the name placeholder cut out, plus the intonation and the speaker. The speakers and their voices come from each
  * world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10): a line a character says in its own voice
- * is listed again as `<key>@<voice>`. Nothing is typed into the JSON by hand.
+ * is listed again as `<key>@<voice>`. A line of a world other than the first one (DEFAULT_WORLD of
+ * src/worlds/index.ts) is the voice of that world (TECH-09) and has a fourth field, the id of its world: its clip lies
+ * in the folder of the world (`voice/<id>/`), and tools/gen_voice.py names it `<id>/<key>`. Every other row has three
+ * fields. Nothing is typed into the JSON by hand.
  *
  *   npm run voice:sync              rewrite voice/phrases.json
  *   npm run voice:sync -- --check   change nothing; exit 1 and list the differences if the file is out of date
+ *   --out=<file>                    the list to write or to check instead of voice/phrases.json (the tests)
  *
  * Needs Node 22.18+ : the strings files are imported as they are, Node strips the types.
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceWorlds } from './dist-size.mjs';
 
-const OUT = fileURLToPath(new URL('../voice/phrases.json', import.meta.url));
 const WORLDS = fileURLToPath(new URL('../src/worlds/', import.meta.url));
-const SHOWN = 'voice/phrases.json';
 
 const args = process.argv.slice(2);
-const unknown = args.filter((a) => a !== '--check');
-if (unknown.length > 0) {
-  console.error(`[voice:sync] unknown argument: ${unknown.join(' ')}\nusage: node tools/sync_phrases.mjs [--check]`);
+const given = args.filter((a) => a.startsWith('--out=')).map((a) => a.slice('--out='.length));
+const unknown = args.filter((a) => a !== '--check' && !(a.startsWith('--out=') && a.length > '--out='.length));
+if (unknown.length > 0 || given.length > 1) {
+  console.error(`[voice:sync] unknown argument: ${(unknown.length ? unknown : args.filter((a) => a.startsWith('--out='))).join(' ')}\nusage: node tools/sync_phrases.mjs [--check] [--out=<file>]`);
   process.exit(2);
 }
 const check = args.includes('--check');
+const OUT = given[0] ?? fileURLToPath(new URL('../voice/phrases.json', import.meta.url));
+const SHOWN = given[0] ?? 'voice/phrases.json';
 
 /** A failed build must never leave a half-made list behind: report, exit, write nothing. */
 function fail(message) {
@@ -72,7 +78,9 @@ let list;
 try {
   const { recordingList } = await import('../src/ui/strings.ts');
   const { bank } = await import('../src/ui/strings-bank.ts');
-  list = recordingList(await worldStrings(), bank, await worldVoices());
+  // The first world, read as text (tools/dist-size.mjs): the registry itself is not imported - it brings Three.js.
+  const { first } = sourceWorlds();
+  list = recordingList(await worldStrings(), bank, await worldVoices(), first);
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));
 }

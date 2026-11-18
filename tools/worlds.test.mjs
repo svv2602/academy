@@ -9,9 +9,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
+import { checkDistSize } from './dist-size.mjs';
+import { listWorlds } from './vite-worlds.mjs';
 import {
-  OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems, walkEnv,
+  OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -264,19 +266,121 @@ describe('the probe build lists the world for the game (worlds.json, TECH-09)', 
   });
 });
 
+// TECH-09, R64/R79: the voice of a next world is a part of the world - listed for its download, out of the
+// installation, counted apart from the voice of the core.
+describe('the voice of the probe world in the probe build (worlds.json, sw.js, the size)', () => {
+  const CLIP = 'voice/probe/probe_hi.mp3';
+  const CORE = { 'voice/hello.mp3': 'a clip of the core', 'voice/bye@Leda.mp3': 'another one' };
+  const WORLD_FILES = { 'models/probe/stump.glb': 'a stump', [CLIP]: 'the clip of the world' };
+  const files = Object.keys(WORLD_FILES).sort();
+  const core = Object.values(CORE).join('').length;
+  const listOf = (entries) => JSON.stringify({ cache: 'worlds', worlds: { probe: { revision: 'r', size: 0, files: entries.map(([url, text]) => ({ url, size: text.length, revision: 'x' })) } } });
+  const SW = 'precacheAndRoute([{url:"index.html",revision:"1"},{url:"voice/hello.mp3",revision:"2"},{url:"voice/bye@Leda.mp3",revision:"3"},{url:"worlds.json",revision:"4"}])';
+  const build = (more = {}) => folder({ 'index.html': '<!doctype html>', ...CORE, ...WORLD_FILES, 'worlds.json': listOf(Object.entries(WORLD_FILES)), 'sw.js': SW, ...more });
+  /** The size of a build as tools/dist-size.mjs counts it, with "probe" as its one next world. */
+  const sizeOf = (dir, worlds = [PROBE]) => checkDistSize(dir, undefined, undefined, undefined, { worlds, first: 'fairy' });
+  const problems = (dir, o = {}) => worldVoiceProblems(dir, PROBE, o.files ?? files, o.size ?? sizeOf(dir), o.core ?? core);
+
+  it('a clip in voice/<id>/, listed with its size, not precached, counted as the world\'s voice, the core\'s voice untouched: no problems', () => {
+    const dir = build();
+    expect(problems(dir)).toEqual([]);
+    expect(sizeOf(dir).worlds).toEqual([{ id: PROBE, total: 'a stump'.length, voice: 'the clip of the world'.length, files: 2 }]);
+    expect(sizeOf(dir).voice).toBe(core);
+  });
+
+  it('a world without a clip of its own: its voice is tried on nothing', () => {
+    expect(problems(build(), { files: ['models/probe/stump.glb'] })).toEqual(['the world "probe" has no clip of its own in voice/probe/: the voice of a next world is tried on nothing']);
+    // a clip of the core, or of another world, is not this world's
+    expect(problems(build(), { files: ['voice/hello.mp3', 'voice/lake/x.mp3'] })).toHaveLength(1);
+  });
+
+  it('a clip of the world in the list of the installation', () => {
+    const dir = build({ 'sw.js': SW.replace('{url:"worlds.json"', `{url:"${CLIP}",revision:"5"},{url:"worlds.json"`) });
+    expect(problems(dir)).toEqual([`sw.js precaches ${CLIP}: the voice of a next world is not part of the installation`]);
+  });
+
+  it('a clip worlds.json does not list, or lists with a size that is not the file\'s', () => {
+    const noClip = build({ 'worlds.json': listOf([['models/probe/stump.glb', 'a stump']]) });
+    expect(problems(noClip)).toEqual([`worlds.json does not list the clip ${CLIP}: the game would not download it with the world "probe"`]);
+    const wrongSize = build({ 'worlds.json': listOf([['models/probe/stump.glb', 'a stump'], [CLIP, 'x']]) });
+    expect(problems(wrongSize)).toEqual([`worlds.json says the clip ${CLIP} is 1 bytes, in the build it is ${'the clip of the world'.length}`]);
+    const empty = build({ [CLIP]: '', 'worlds.json': listOf([['models/probe/stump.glb', 'a stump'], [CLIP, '']]) });
+    expect(problems(empty)).toContain(`worlds.json says the clip ${CLIP} is 0 bytes, in the build it is 0`);
+    expect(problems(build({ 'worlds.json': 'not json' }))).toHaveLength(1);
+  });
+
+  it('a clip of the world counted with the voice of the core: the world is not a next world for the size', () => {
+    const dir = build();
+    const out = problems(dir, { size: sizeOf(dir, []) });
+    expect(out).toEqual([
+      `the voice of the world "probe" is counted as 0 bytes, its 1 clip(s) are ${'the clip of the world'.length}: the clips of voice/probe/ are not counted apart from the core`,
+      `the voice of the core is ${core + 'the clip of the world'.length} bytes in the build, the clips of public/voice are ${core}: a clip of the world "probe" is counted with the core, or a clip of the core is not in the build`,
+    ]);
+  });
+
+  it('the voice of the core must be the clips of public/voice, byte for byte: one clip less, or one more, is seen', () => {
+    const dir = build();
+    expect(problems(dir, { core: core + 1 })).toHaveLength(1);
+    expect(problems(dir, { core: core - 1 })[0]).toMatch(/^the voice of the core is \d+ bytes in the build, the clips of public\/voice are \d+/);
+  });
+
+  it('a file in the folder of the voice that is not a clip', () => {
+    const dir = build({ 'voice/probe/notes.txt': 'x', 'worlds.json': listOf([...Object.entries(WORLD_FILES), ['voice/probe/notes.txt', 'x']]) });
+    expect(problems(dir, { files: [...files, 'voice/probe/notes.txt'] })).toEqual(['voice/probe/notes.txt is in the folder of the voice of the world "probe" and is not a clip (.mp3)']);
+  });
+
+  it('the clip is one of the files the world is downloaded with: in its list and in its size (R69: "ready" waits for the voice too)', () => {
+    // src/core/worldcache.ts calls a world ready when every file of its list is in the cache; the list is made here.
+    const bytes = (files) => Object.entries(files).map(([path, text]) => ({ path, bytes: Buffer.from(text) }));
+    const list = listWorlds(bytes({ ...CORE, ...WORLD_FILES }), [PROBE]);
+    expect(list.worlds.probe.files.map((f) => f.url)).toEqual(['models/probe/stump.glb', CLIP]);
+    expect(list.worlds.probe.files.find((f) => f.url === CLIP).size).toBe('the clip of the world'.length);
+    expect(list.worlds.probe.size).toBe('a stump'.length + 'the clip of the world'.length);
+    // the clips of the core are in no world's list
+    expect(JSON.stringify(list)).not.toContain('voice/hello.mp3');
+  });
+
+  it('coreVoiceBytes: the clips of the folder itself, not of the folders of the worlds inside it', () => {
+    const dir = folder({ 'a.mp3': '12345', 'b@Leda.mp3': '123', 'lake/c.mp3': '1234567', 'notes.txt': '12' });
+    expect(coreVoiceBytes(dir)).toBe(8);
+    // the sources: what docs/15-tech.md budgets as the voice of the first load, under its limit
+    expect(coreVoiceBytes()).toBeGreaterThan(1_000_000);
+    expect(coreVoiceBytes()).toBeLessThanOrEqual(4_000_000);
+  });
+
+  it('the run checks the voice of the probe build, and the scenarios check the clip where it is asked for', () => {
+    const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
+    expect(src).toContain('...worldVoiceProblems(probeDist, PROBE, files, size, core).map((p) => `the voice of the probe world: ${p}`)');
+    // the cache: the clip is answered by the service worker, and the line is not left to the synthesizer
+    expect(src).toContain('for (const f of clips) if (!served.has(f)) fail(`offline: ${f} was not answered by the service worker');
+    expect(src).toContain('if (synth.includes(hi.key)) fail(');
+    // the change of world: the clip only while the world plays
+    for (const check of ['if (home.ownClip !== null) fail(', 'if (away.ownClip !== HI_CLIP) fail(', 'if (back.ownClip !== null) fail(', 'if (greeting.synth) fail(']) expect(src.split(check), check).toHaveLength(2);
+  });
+});
+
 describe('the probe world in the sources', () => {
   it('its files lie outside public/, in folders of their world, with a note where they come from', () => {
     const files = probeFiles();
-    expect(files).toEqual(['models/probe/stump.glb', 'story/probe/sign.webp']);
+    expect(files).toEqual(['models/probe/stump.glb', 'story/probe/sign.webp', 'voice/probe/probe_hi.mp3']);
     expect(existsSync(join(root, PROBE_FILES, 'README.md'))).toBe(true);
     for (const f of files) expect(existsSync(join(root, 'public', f)), `public/${f}`).toBe(false);
     expect(existsSync(join(root, 'public/models', PROBE))).toBe(false);
+    expect(existsSync(join(root, 'public/voice', PROBE))).toBe(false);
+    // the note says where each file comes from
+    const note = readFileSync(join(root, PROBE_FILES, 'README.md'), 'utf8');
+    for (const f of files) expect(note, f).toContain(`\`${f}\``);
   });
 
   it('the world asks for exactly these files, and git ignores the folder of its build', () => {
     const src = readFileSync(join(root, 'src/worlds/probe/index.ts'), 'utf8');
     expect(src).toContain("model: 'probe/stump'");            // src/core/assets.ts: models/<path>.glb
     expect(src).toContain("picture: 'story/probe/sign.webp'");
+    // its clip: the greeting of its character is the world's own line, and the world hands the list of its clips to
+    // the voice for as long as it plays (src/core/voice.ts asks for voice/<id>/<name>.mp3)
+    expect(src).toContain("hi: 'probe_hi'");
+    expect(src).toContain('scope.own(worldClips(probe.id, CLIPS));');
+    expect(JSON.parse(readFileSync(join(root, 'src/worlds/probe/clips.json'), 'utf8'))).toEqual(['probe_hi']);
     expect(readFileSync(join(root, '.gitignore'), 'utf8').split('\n')).toContain(PROBE_DIST);
   });
 
@@ -443,7 +547,9 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     // the page asked for the files of the world in this very run, not in the one before it
     expect(walk).toContain('const from = asked.length, t0 = Date.now();');
     expect(walk).toContain('const mine = asked.slice(from);');
-    expect(walk).toContain('const missed = notAskedByPage(files, mine);');
+    // with the network every file of the world, its clip too; without it the clip is said from the cache, unheard by the server
+    expect(walk).toContain('const due = walk.offline ? files.filter((f) => !isVoice(f)) : files;');
+    expect(walk).toContain('const missed = notAskedByPage(due, mine);');
     // without network: nothing of the world is asked of the server after the mark, and the mark must have come
     expect(walk).toContain('const off = walk.offline ? askedOffline(mine, PROBE) : { marked: true, late: [] };');
     expect(walk).toMatch(/if \(!off\.marked\) fail\(`\$\{name\}: the walkthrough never said it switched the network off/);

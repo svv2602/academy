@@ -13,6 +13,9 @@ Where the clips go:
 Every imported clip gets its check record in voice/qa.json: the text, what the old game's transcription heard and its
 score, and `from` - so tools/gen_voice.py finds the clip up to date and never sends it to the paid service again.
 A clip that tools/gen_voice.py has recorded since (its record has no `from`) is left as it is.
+The voice of a next world (TECH-09, R73) is none of this script's business: the folders of clips inside public/voice
+(public/voice/<id>/), the lists src/worlds/<id>/clips.json and the records `<id>/<key>` of voice/qa.json stay as they
+are, whatever their keys look like - only the files of public/voice itself are read, listed or removed.
 
   python3 tools/import_old_voice.py --exclude ~/.config/academy/private-words.txt [--audio DIR] [--texts FILE]
          [--qa FILE] [--only=cat,cat] [--check] [--sample N]
@@ -174,18 +177,21 @@ def main(argv=None):
         if not dst.exists() or dst.read_bytes() != src.read_bytes():
             writes.append((dst, src.read_bytes()))
     for folder, d in dirs.items():
+        # The files of the folder itself: a clip of a next world lies one folder deeper and is never removed here.
         for f in sorted(d.glob('*.mp3')) if d.exists() else []:
             cat = category(f.stem)
             # The bank folder is this script's own; in public/voice only a clip of a category it imports is its business.
             if f.stem not in take and (cat in only or (folder == 'bank' and cat is None)):
                 removes.append(f)
+    # A record `<id>/<key>` of a next world's clip is of no category, with `from` or without: it is kept.
     new_qa = {k: v for k, v in qa.items() if not ('from' in v and category(k) in only and k not in take)}
     for key in sorted(ours, key=lambda k: (list(CATEGORIES).index(take[k][0]), k)):
         new_qa[key] = take[key][3]
     qa_text = json.dumps(new_qa, ensure_ascii=False, indent=1) + '\n'
     qa_change = not qa_path.exists() or qa_path.read_text() != qa_text
 
-    # src/core/clips.json is the list of public/voice, as tools/gen_voice.py writes it.
+    # src/core/clips.json is the list of public/voice, as tools/gen_voice.py writes it: without the folders of the
+    # next worlds inside it - their clips are listed by the worlds (src/worlds/<id>/clips.json), not by the core.
     after = {f.stem for f in dirs['voice'].glob('*.mp3') if not f.name.endswith('.tmp.mp3')} if dirs['voice'].exists() else set()
     after |= {k for k in ours if take[k][1] == 'voice'}
     after -= {f.stem for f in removes if f.parent == dirs['voice']}

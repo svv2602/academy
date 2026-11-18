@@ -19,6 +19,9 @@ const worlds = Object.keys(files).sort().map((p) => files[p].strings);
 /** Each world's table "character - voice" (VOICE-10), as tools/sync_phrases.mjs reads them. */
 const castFiles = import.meta.glob<{ voices: Parameters<typeof recordingList>[2][number] }>('../worlds/*/voices.ts', { eager: true });
 const casts = Object.keys(castFiles).sort().map((p) => castFiles[p].voices);
+/** The first world - the one the installation brings - read from the registry as text, as tools/sync_phrases.mjs reads it. */
+const registry = import.meta.glob<string>('../worlds/index.ts', { query: '?raw', import: 'default', eager: true });
+const FIRST = /\bDEFAULT_WORLD\b[^=\n]*=\s*['"]([^'"]+)['"]/.exec(registry['../worlds/index.ts'])?.[1] ?? '';
 // What src/main.ts does before the start screen: the game reads the worlds' texts through `t` and `voiceText`; the first
 // world (in the order of the folders) is the one played here.
 const played = worlds[0];
@@ -99,7 +102,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(t('subtitle')).toBe(played.table.ru.subtitle);
     setLang('uk');
     const other: WorldStrings = { id: 'other', table: { uk: { subtitle: 'Інший світ', other_x: 'х' }, ru: { subtitle: 'Другой мир', other_x: 'х' } }, spoken: {} };
-    expect(() => recordingList([...worlds, other], bank, casts)).not.toThrow();
+    expect(() => recordingList([...worlds, other], bank, casts, FIRST)).not.toThrow();
     addStrings(other, false);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // A second world played is an error: one subtitle on the start screen.
@@ -107,7 +110,7 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     expect(() => addStrings(third, true)).toThrow(/"third".*subtitle/);
     expect(t('subtitle')).toBe(played.table.uk.subtitle);
     // Never spoken: marking it for recording is an error.
-    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }], bank, casts)).toThrow(/subtitle/);
+    expect(() => recordingList([{ ...third, spoken: { subtitle: 'warm' } }], bank, casts, FIRST)).toThrow(/subtitle/);
   });
 
   it.each(worlds.map((w) => [w.id, w] as const))('%s: each spoken line is in its table, with a known intonation', (_, w) => {
@@ -119,15 +122,15 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
     const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: 'в', [key]: 'а' }, ru: { subtitle: 'г', [key]: 'б' } }, spoken: {} });
     expect(() => addStrings(clash('x', 'play'), false)).toThrow(/"x".*play/);
     expect(() => addStrings(worlds[0], false)).toThrow(new RegExp(`"${worlds[0].id}"`));
-    expect(() => recordingList([clash('x', 'play')], bank, casts)).toThrow(/"x".*play/);
-    expect(() => recordingList([...worlds, ...worlds], bank, casts)).toThrow(new RegExp(`"${worlds[0].id}"`));
+    expect(() => recordingList([clash('x', 'play')], bank, casts, FIRST)).toThrow(/"x".*play/);
+    expect(() => recordingList([...worlds, ...worlds], bank, casts, FIRST)).toThrow(new RegExp(`"${worlds[0].id}"`));
     // A refused world adds nothing.
     expect(t('play')).toBe('Грати');
   });
 
   it('refuses a spoken line without a Ukrainian text', () => {
     const w: WorldStrings = { id: 'x', table: { uk: { subtitle: 'а' }, ru: { subtitle: 'б' } }, spoken: { nothing_here: 'warm' } };
-    expect(() => recordingList([w], bank, casts)).toThrow(/nothing_here/);
+    expect(() => recordingList([w], bank, casts, FIRST)).toThrow(/nothing_here/);
   });
 });
 
@@ -251,9 +254,9 @@ describe('lines to record (voice/phrases.json)', () => {
   });
 
   it('is what `npm run voice:sync` builds from the game texts', () => {
-    expect(file).toEqual(recordingList(worlds, bank, casts));
+    expect(file).toEqual(recordingList(worlds, bank, casts, FIRST));
     // The order too: the file is written in the order of the list.
-    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank, casts)));
+    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank, casts, FIRST)));
   });
 
   it('has a subtitle in every language for each spoken line', () => {
@@ -266,7 +269,8 @@ describe('lines to record (voice/phrases.json)', () => {
   it('gives every line a text and a known intonation', () => {
     const styles: readonly string[] = VOICE_STYLES;
     const bad = Object.entries(file)
-      .filter(([, v]) => !(Array.isArray(v) && v.length === 3 && typeof v[0] === 'string' && typeof v[2] === 'string' && v[0].trim() !== '' && styles.includes(v[1])))
+      .filter(([, v]) => !(Array.isArray(v) && (v.length === 3 || (v.length === 4 && typeof v[3] === 'string' && v[3] !== '')) && typeof v[0] === 'string'
+        && typeof v[2] === 'string' && v[0].trim() !== '' && styles.includes(v[1])))
       .map(([k]) => k);
     expect(bad).toEqual([]);
   });
@@ -302,8 +306,8 @@ describe('lines to record (voice/phrases.json)', () => {
     expect(t('intro')).toContain('Зоряна');
     expect(voiceText('intro')).toContain('Зоряна');
     // …the list for recording is built the same and matches the committed file.
-    expect(JSON.stringify(recordingList(worlds, bank, casts))).not.toContain('Зоряна');
-    expect(recordingList(worlds, bank, casts)).toEqual(file);
+    expect(JSON.stringify(recordingList(worlds, bank, casts, FIRST))).not.toContain('Зоряна');
+    expect(recordingList(worlds, bank, casts, FIRST)).toEqual(file);
     expect(JSON.stringify(file)).not.toContain('Зоряна');
   });
 
@@ -312,6 +316,94 @@ describe('lines to record (voice/phrases.json)', () => {
     // @ts-expect-error 'ok' is a button label, it is not in SPOKEN
     expect(voiceText('ok')).toBe(STRINGS.uk.ok);
     expect(Object.keys(SPOKEN)).not.toContain('ok');
+  });
+});
+
+// TECH-09, R67/R68/R76/R78: the voice of a next world is only what its own strings.ts marks as spoken; such a line
+// carries the id of its world as a fourth field. The shared lines, the first world's and the bank's are the core's.
+describe('the world of a line to record (the voice of a next world)', () => {
+  const file: Record<string, unknown[]> = phrases;
+  /** A made-up next world with two lines of its own, and its table of voices: the heron speaks with Leda. */
+  const lake: WorldStrings = {
+    id: 'lake', table: { uk: { subtitle: 'Озеро', lake_hi: 'Ось і озеро!', heron_hi: 'Привіт! Я чапля.' }, ru: { subtitle: 'Озеро', lake_hi: 'Вот и озеро!', heron_hi: 'Привет! Я цапля.' } },
+    spoken: { lake_hi: 'joy', heron_hi: 'warm' },
+  };
+  const lakeCast = { id: 'lake', narrator: 'cat', cast: { cat: { emoji: '🐱', voice: 'Puck' }, heron: { emoji: '🪿', voice: 'Leda' } }, voiced: ['own', 'npc_next'] };
+  /** A made-up first world with one line, so the lists below hold both kinds of world and nothing of the real ones. */
+  const home: WorldStrings = { id: 'home', table: { uk: { subtitle: 'Дім', home_hi: 'Ми вдома!' }, ru: { subtitle: 'Дом', home_hi: 'Мы дома!' } }, spoken: { home_hi: 'joy' } };
+
+  it('the registry names the first world, and it is one of the worlds', () => {
+    expect(FIRST).not.toBe('');
+    expect(worlds.map((w) => w.id)).toContain(FIRST);
+  });
+
+  it('a line of a next world, and each of its voices, has the id of its world as the fourth field', () => {
+    const list = recordingList([home, lake], bank, [lakeCast], 'home');
+    expect(list.lake_hi).toEqual(['Ось і озеро!', 'joy', 'cat', 'lake']);
+    expect(list.heron_hi).toEqual(['Привіт! Я чапля.', 'warm', 'cat', 'lake']);
+    expect(list['heron_hi@Leda']).toEqual(['Привіт! Я чапля.', 'warm', 'heron', 'lake']);
+  });
+
+  it('the first world\'s lines, the shared ones and the bank\'s have no world: three fields, as they always had', () => {
+    const list = recordingList([home, lake], bank, [lakeCast], 'home');
+    expect(list.home_hi).toEqual(['Ми вдома!', 'joy', 'cat']);
+    expect(list.npc_next).toHaveLength(3);
+    expect(Object.keys(bank.spoken).filter((k) => list[k].length !== 3)).toEqual([]);
+    const withWorld = Object.keys(list).filter((k) => list[k].length !== 3);
+    expect(withWorld).toEqual(['lake_hi', 'heron_hi', 'heron_hi@Leda']);
+  });
+
+  it('a shared line in the voice of a character of a next world is still the core\'s: no world (R67)', () => {
+    const list = recordingList([home, lake], bank, [lakeCast], 'home');
+    expect(list['npc_next@Leda']).toEqual([list.npc_next[0], list.npc_next[1], 'heron']);
+  });
+
+  it('which world is the first one is what the caller says, not the order of the list', () => {
+    const list = recordingList([home, lake], bank, [lakeCast], 'lake');
+    expect(list.home_hi).toEqual(['Ми вдома!', 'joy', 'cat', 'home']);
+    expect(list.lake_hi).toHaveLength(3);
+    expect(list['heron_hi@Leda']).toHaveLength(3);
+    expect(list['npc_next@Leda']).toHaveLength(3);
+  });
+
+  it('the committed list: only the lines a next world marks as spoken have a world, and it is their own', () => {
+    const next = worlds.filter((w) => w.id !== FIRST);
+    const expected = Object.fromEntries(next.flatMap((w) => Object.keys(w.spoken).map((k) => [k, w.id])));
+    const got = Object.fromEntries(Object.entries(file).filter(([, row]) => row.length > 3).map(([k, row]) => [k.split('@')[0], row[3]]));
+    expect(got).toEqual(expected);
+    // Not vacuous: a next world with a line of its own is there (the probe world).
+    expect(Object.keys(expected).length).toBeGreaterThan(0);
+    const first = worlds.find((w) => w.id === FIRST);
+    expect(Object.keys(first?.spoken ?? {}).length).toBeGreaterThan(0);
+    expect(Object.keys(first?.spoken ?? {}).filter((k) => file[k].length !== 3)).toEqual([]);
+  });
+
+  it('no shared line has a world, in the narrator\'s voice or in a character\'s: its clip is the core\'s (R78)', () => {
+    // the committed list, the list built from the game's texts, and a list with a made-up next world that has voices
+    for (const list of [file, recordingList(worlds, bank, casts, FIRST), recordingList([home, lake], bank, [lakeCast], 'home')]) {
+      const shared = Object.keys(list).filter((k) => Object.hasOwn(SPOKEN, k.split('@')[0]));
+      expect(shared.length).toBeGreaterThan(Object.keys(SPOKEN).length);   // the voices of the characters are among them
+      expect(shared.filter((k) => list[k].length !== 3)).toEqual([]);
+    }
+  });
+
+  it('the keys are one set for the whole game: a key two tables share is refused, whichever worlds they are of (R82)', () => {
+    const world = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: id, [key]: 'а' }, ru: { subtitle: id, [key]: 'б' } }, spoken: { [key]: 'warm' } });
+    const homeCast = { id: 'home', narrator: 'cat', cast: { cat: { emoji: '🐱', voice: 'Puck' } }, voiced: [] };
+    const once = /these strings already exist \(one key, one clip\)/;
+    // two next worlds: their clips would lie in two folders, the key is refused all the same
+    expect(() => recordingList([home, world('a', 'same_hi'), world('b', 'same_hi')], bank, [homeCast], 'home')).toThrow(once);
+    expect(() => recordingList([home, world('a', 'same_hi'), world('b', 'same_hi')], bank, [homeCast], 'home')).toThrow(/"b".*same_hi/);
+    // a next world and the first one, the shared table, the bank
+    expect(() => recordingList([home, world('a', 'home_hi')], bank, [homeCast], 'home')).toThrow(/"a".*home_hi/);
+    expect(() => recordingList([home, world('a', 'npc_next')], bank, [homeCast], 'home')).toThrow(/"a".*npc_next/);
+    const banked = Object.keys(bank.spoken)[0];
+    expect(() => recordingList([home, world('a', banked)], bank, [homeCast], 'home')).toThrow(new RegExp(`the bank.*${banked}`));
+    // the game refuses it too, before it plays
+    expect(() => addStrings(world('a', 'npc_next'), false)).toThrow(once);
+    // and in the committed list every key is there once, with or without a world
+    const text = JSON.stringify(phrases);
+    expect(Object.keys(file).filter((k) => text.split(`"${k}":`).length !== 2)).toEqual([]);
   });
 });
 

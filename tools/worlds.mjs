@@ -8,10 +8,13 @@
 //   1. The published build (distDir; without the argument `vite build` makes dist/ anew, as `npm run build` does) holds
 //      nothing of the probe world: no file under a folder "probe", no chunk of it, none of its marks in the code.
 //   2. The probe build is made anew: `vite build --mode probe --outDir dist-probe`. It must hold every file of
-//      worlds-test/probe/ at the same path (models/probe/…, story/probe/…), the world in its code (the same search
-//      as in 1 must find it there, or the search is blind) and the commit number of the sources.
+//      worlds-test/probe/ at the same path (models/probe/…, voice/probe/…, story/probe/…), the world in its code (the
+//      same search as in 1 must find it there, or the search is blind) and the commit number of the sources.
 //      The build must also list the world for the game (worlds.json: its files with their sizes and fingerprints),
 //      keep its files out of the service worker's list and fit the size budget of a next world (tools/dist-size.mjs).
+//      The voice of the world (`worldVoiceProblems`): it has a clip of its own under voice/probe/, listed in worlds.json
+//      with its size, not in the list of the installation, counted as the voice of the world - and the voice of the
+//      core is byte for byte the clips of public/voice.
 //   3. dist-probe/ is served by a server of its own and the probe world is played by the walkthrough every world
 //      shares - tools/shot.mjs with E2E_WORLD=probe, which plays a world by its description alone
 //      (tools/world-pass.mjs, ARCH-16): window.__game.items - one item of every kind of the world template (a chain, a
@@ -32,7 +35,9 @@
 //      background: the download ends with the world ready, the cache holds exactly the files of worlds.json, each
 //      asked for by its fingerprint; "offline" - the network is switched off, the probe world is opened: it is built
 //      from the cache (every file of it answered by the service worker, the server asked for nothing), "Play" works
-//      and its character gives a task - without a failed request, an error or a warning in the console. The browser's
+//      and its character gives a task - without a failed request, an error or a warning in the console. Before the
+//      task the character greets with the world's own line: its clip is one of the world's own folder, it is answered
+//      by the service worker and the line is not left to the synthesizer. The browser's
 //      switch does not reach the requests the service worker makes itself: a file missing in the cache would still
 //      be fetched, so "the server was asked for nothing" is the check that the world came from the cache.
 //      Every wait is for an event or a state, with generous limits (E2E_SLOW multiplies them).
@@ -53,7 +58,9 @@
 //      the controls are taken; the world changes only there. Then, in the probe world: the mark is alive (the page
 //      was not reloaded), the heroine stands at its spawn and walks, its character gives a task and the task is
 //      solved, the names of the first world are gone from window.__game, its voices too, its wings and butterflies are
-//      off the heroine and the flock, the music is the probe world's. window.__game.items is the description of the
+//      off the heroine and the flock, the music is the probe world's. The world's own line has its clip in the folder
+//      of the world only while the probe world plays (`__game.clipFor`): none before the change, none after the way
+//      back - the list of a world is taken back when it is left. window.__game.items is the description of the
 //      world played: null in the first world (it hands in none), the probe world's after the change (its tour of the
 //      first entry is on), and null again once the game is back in the first world. Back through the spot "portal home" of the probe
 //      world (the action button): the first world is there again, not doubled (as many objects in the scene, on the
@@ -77,7 +84,7 @@ import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { WORLDS_LIST } from './vite-worlds.mjs';
-import { worldOf } from './world-files.mjs';
+import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -286,6 +293,42 @@ export function listProblems(dir, id, files) {
   return out;
 }
 
+/** The bytes of the voice of the core in the sources: the clips of public/voice itself, without the folders inside it. */
+export function coreVoiceBytes(dir = join(root, 'public/voice')) {
+  return readdirSync(dir, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith('.mp3')).reduce((sum, f) => sum + statSync(join(dir, f.name)).size, 0);
+}
+
+/**
+ * The voice of the next world `id` in the build `dir` (TECH-09, R64, R79): `files` are the files of the world, `size`
+ * what tools/dist-size.mjs counted in the build (`checkDistSize`), `core` the bytes of the voice of the core in the
+ * sources (`coreVoiceBytes`). The world must have a clip of its own in voice/<id>/ - or its voice is tried on nothing;
+ * every clip must be listed in worlds.json with its size (the game downloads the world by that list) and stay out of
+ * the list of the installation (sw.js); the clips must be counted as the voice of the world, and the voice of the
+ * core must be exactly `core` - no clip of the world among it. Returns the problems, [] when it is right.
+ */
+export function worldVoiceProblems(dir, id, files, size, core) {
+  const clips = files.filter((f) => isVoice(f) && worldOf(f, [id]) === id);
+  if (!clips.length) return [`the world "${id}" has no clip of its own in voice/${id}/: the voice of a next world is tried on nothing`];
+  const out = [];
+  const sw = existsSync(join(dir, 'sw.js')) ? readFileSync(join(dir, 'sw.js'), 'utf8') : '';
+  const precached = [...sw.matchAll(/url:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const listed = readList(dir)?.worlds?.[id]?.files ?? [];
+  let bytes = 0;
+  for (const f of clips) {
+    if (!f.endsWith('.mp3')) out.push(`${f} is in the folder of the voice of the world "${id}" and is not a clip (.mp3)`);
+    if (precached.includes(f)) out.push(`sw.js precaches ${f}: the voice of a next world is not part of the installation`);
+    const built = existsSync(join(dir, f)) ? statSync(join(dir, f)).size : 0;
+    bytes += built;
+    const entry = listed.find((x) => x.url === f);
+    if (!entry) out.push(`${WORLDS_LIST} does not list the clip ${f}: the game would not download it with the world "${id}"`);
+    else if (!(entry.size > 0) || entry.size !== built) out.push(`${WORLDS_LIST} says the clip ${f} is ${entry.size} bytes, in the build it is ${built}`);
+  }
+  const counted = size.worlds?.find((w) => w.id === id)?.voice ?? 0;
+  if (counted !== bytes) out.push(`the voice of the world "${id}" is counted as ${counted} bytes, its ${clips.length} clip(s) are ${bytes}: the clips of voice/${id}/ are not counted apart from the core`);
+  if (size.voice !== core) out.push(`the voice of the core is ${size.voice} bytes in the build, the clips of public/voice are ${core}: a clip of the world "${id}" is counted with the core, or a clip of the core is not in the build`);
+  return out;
+}
+
 // ---- pictures of the transition, as raw pixels: { data (RGBA), width, height } ----
 const at = (img, x, y) => {
   const i = (Math.min(img.height - 1, Math.max(0, Math.round(y))) * img.width + Math.min(img.width - 1, Math.max(0, Math.round(x)))) * 4;
@@ -466,11 +509,14 @@ async function main() {
     await vite('the probe build', '--mode', PROBE, '--outDir', PROBE_DIST);
     files = probeFiles(from);
     const size = checkDistSize(probeDist);
-    const wrong = [...probeBuildProblems(probeDist, from, files, commit), ...listProblems(probeDist, PROBE, files), ...size.problems.map((p) => `the size of the probe build: ${p}`)];
+    const core = coreVoiceBytes();
+    const wrong = [...probeBuildProblems(probeDist, from, files, commit), ...listProblems(probeDist, PROBE, files), ...size.problems.map((p) => `the size of the probe build: ${p}`),
+      ...worldVoiceProblems(probeDist, PROBE, files, size, core).map((p) => `the voice of the probe world: ${p}`)];
     for (const p of wrong) fail(p);
     if (!wrong.length) {
       console.log(`[worlds] the probe build: ${files.join(', ')}; the world is in its code; commit ${commit}; ${WORLDS_LIST} lists its files, sw.js precaches none of them`);
       console.log(`[worlds] the size of the probe build: ${sizeSummary(size)}`);
+      console.log(`[worlds] the voice of the probe world: ${files.filter(isVoice).join(', ')} - ${size.worlds.find((w) => w.id === PROBE).voice} bytes, listed in ${WORLDS_LIST}, not in the installation; the voice of the core: ${size.voice} bytes, as in public/voice (${core})`);
     }
   } catch (e) { fail(e.message); }
   if (problems.length) end();
@@ -532,7 +578,11 @@ async function main() {
       for (const p of wrong) fail(`${name}: ${p}`);
       // ---- 4. the page asked for every file of the world ----
       const mine = asked.slice(from);
-      const missed = notAskedByPage(files, mine);
+      // A clip of the world's voice is asked for when its line is said. Without network that is after the switch: the
+      // cache answers and the server never hears of it - there the pass itself fails on a line left to the
+      // synthesizer, and the part "cache" checks that the service worker answered the clip.
+      const due = walk.offline ? files.filter((f) => !isVoice(f)) : files;
+      const missed = notAskedByPage(due, mine);
       for (const f of missed) fail(`${name}: the page never asked for ${f}: the world does not load its own file`);
       // ---- without network the world is built from the cache alone: nothing of it is asked of the server any more ----
       const off = walk.offline ? askedOffline(mine, PROBE) : { marked: true, late: [] };
@@ -541,7 +591,7 @@ async function main() {
       if (voice && !wrong.length && !missed.length && off.marked && !off.late.length) {
         console.log(`[worlds] the world "${PROBE}" played by its description in the ${walk.size} size ${walk.offline ? 'without network' : 'with the network'}: `
           + `${pass.items.length} items, one of every kind (${pass.items.map((i) => `${i.kind} ${i.id}`).join(', ')}), done in the order ${pass.order.join(', ')}; `
-          + `${voice.loud} of ${voice.clips} clips with a volume; the page asked for ${files.join(', ')} (the server was asked for the files of the world ${askedOfWorld(mine, PROBE).length} times${walk.offline ? ', none of them with the network switched off' : ''}); `
+          + `${voice.loud} of ${voice.clips} clips with a volume; the page asked for ${due.join(', ')}${due.length < files.length ? ` and was answered ${files.filter((f) => !due.includes(f)).join(', ')} from the cache` : ''} (the server was asked for the files of the world ${askedOfWorld(mine, PROBE).length} times${walk.offline ? ', none of them with the network switched off' : ''}); `
           + `${((Date.now() - t0) / 1000).toFixed(0)} s`);
       }
     }
@@ -595,6 +645,8 @@ async function travelScenarios({ url, shots, fail: report, block }) {
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
   const ofProbe = (u) => { try { return worldOf(new URL(u).pathname.replace(/^\//, ''), [PROBE]) === PROBE; } catch { return false; } };
   const FIRST = 'fairy';
+  // The probe world's own spoken line (the greeting of its character) and its clip, in the folder of the world.
+  const HI = `${PROBE}_hi`, HI_CLIP = `${PROBE}/${PROBE}_hi`;
   const started = Date.now();
 
   const browser = await chromium.launch({
@@ -641,7 +693,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
         } catch { return false; } finally { await page.keyboard.up('KeyW'); }
       };
       /** What the game shows of the world played and of what every world shares. */
-      const state = () => g(() => ({
+      const state = () => g((hi) => ({
         world: __game.world, busy: __game.busy, going: __game.transitioning, mark: window.__travelMark ?? null,
         // The heroine and the cat kept with the mark: the very same objects, still in the scene.
         same: !window.__travelKept ? null : ['hero', 'cat'].filter((k) => __game[k] !== window.__travelKept[k] || __game[k].root !== window.__travelKept[`${k}Root`] || __game[k].root.parent !== __game.scene),
@@ -658,9 +710,11 @@ async function travelScenarios({ url, shots, fail: report, block }) {
           : s.castShadow && s.shadow.mapSize.x < 1024 ? `its shadow map is ${s.shadow.mapSize.x} px, the tier's is 1024 or more` : '')).join('; '),
         music: __game.music ? __game.music.scale[0] : null, crystals: document.getElementById('crystals').textContent,
         foxClip: __game.clipFor('npc_next', '🦊'), focus: __game.cam.focus !== null, inTask: __game.inTask,
+        // The clip of the probe world's own line (null: none) and of a shared line of the narrator, as the game finds them now.
+        ownClip: __game.clipFor(hi), sharedClip: __game.clipFor('npc_next'),
         shown: ['task', 'answers', 'answersClose', 'fanfare', 'start'].filter((id) => !document.getElementById(id).classList.contains('hidden')),
         hud: ['hud', 'joy'].filter((id) => !document.getElementById(id).classList.contains('hidden')),
-      }));
+      }), HI);
       /** Calls travel(id) with every frame of the change recorded; returns what it answered and the frames. */
       const travel = (id) => g((to) => new Promise((res, rej) => {
         const frames = [], ids = ['hud', 'joy', 'btnJump', 'btnAct', 'bubble', 'task', 'answers', 'answersClose', 'fanfare'];
@@ -739,6 +793,8 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (home.foxClip === 'npc_next') fail(`${name}: the fox of the first world has no voice of its own (${home.foxClip}): the check of the voices after the change would be blind`);
       if (home.music === null) fail(`${name}: no music plays in the first world after "Play": the check of the music would be blind`);
       if (home.described !== null) fail(`${name}: the first world hands in no items of a description, yet window.__game.items is ${JSON.stringify(home.described)} there, expected null`);
+      if (home.ownClip !== null) fail(`${name}: before any change of world the game finds the clip "${home.ownClip}" for the line "${HI}" of the probe world: no world has handed in its clips yet`);
+      if (home.sharedClip !== 'npc_next') fail(`${name}: the shared line "npc_next" has the clip "${home.sharedClip}" in the first world: the check of the clips after the change would be blind`);
       // The book before the change: a part for every character of the first world, the secrets of the first world.
       const homeBook = await p.book();
       if (homeBook.parts !== home.npcs.length || !homeBook.secrets.length) fail(`${name}: the book of the first world shows ${homeBook.parts} parts for its ${home.npcs.length} characters and the secrets ${JSON.stringify(homeBook.secrets)}: the check of the book after the change would be blind`);
@@ -769,6 +825,8 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (away.crystals !== '0/1') fail(`${name}: the counter of parts shows "${away.crystals}" in the probe world, expected "0/1"`);
       if (away.music === null || away.music === home.music) fail(`${name}: the music in the probe world starts at ${away.music}, in the first world at ${home.music}: it is not the music of the new world`);
       if (away.foxClip !== 'npc_next') fail(`${name}: a fox of the probe world would speak with the clip "${away.foxClip}": the voices of the first world were not taken back`);
+      if (away.ownClip !== HI_CLIP) fail(`${name}: in the probe world its own line "${HI}" has the clip "${away.ownClip}", expected "${HI_CLIP}" - the clip in the folder of the world`);
+      if (away.sharedClip !== home.sharedClip) fail(`${name}: in the probe world the shared line "npc_next" has the clip "${away.sharedClip}", in the first world "${home.sharedClip}": the clips of the core are lost with the world's own list`);
       if (!(away.onHero < home.onHero)) fail(`${name}: the heroine carries ${away.onHero} object(s) in the probe world and ${home.onHero} in the first one: the wings of the first world are still on her`);
       if (away.flies !== 0) fail(`${name}: ${away.flies} butterflies of the first world fly in the probe world`);
       if (away.suns !== 1) fail(`${name}: ${away.suns} suns in the scene of the probe world, expected one`);
@@ -783,6 +841,10 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       const fairyThen = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
       if (!same(JSON.parse(fairyThen).pos.map((v) => Math.round(v * 100) / 100), left)) fail(`${name}: the save holds ${JSON.parse(fairyThen).pos} as her place in the first world, she left it at ${left}: the game was not saved before the change`);
       await p.solveWith('friend', PROBE);
+      // The character greeted with the world's own line before its task: said by its clip, not left to the synthesizer.
+      const greeting = await p.g((hi) => ({ hi: __game.npcs[0].def.hi ?? null, synth: __game.voice.synth.includes(hi) }), HI);
+      if (greeting.hi !== HI) fail(`${name}: the character of the probe world greets with "${greeting.hi}", expected the world's own line "${HI}"`);
+      if (greeting.synth) fail(`${name}: the line "${HI}" of the probe world was left to the synthesizer: its clip ${HI_CLIP}.mp3 did not sound`);
       const chain = await p.g(() => __game.items?.find((i) => i.kind === 'chain') ?? null);
       if (chain?.id !== 'friend' || chain.done !== true) fail(`${name}: with the task of "friend" solved the chain of the description is ${JSON.stringify(chain)}, expected it done`);
       // The book in the probe world is the book of the probe world: the part of its one character, lit by the chain
@@ -805,7 +867,9 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       if (back.mark !== mark) fail(`${name}: the mark left in window is gone after the way back (${back.mark}): the page was reloaded`);
       if (!same(back.at, left)) fail(`${name}: back in the first world the heroine stands at ${back.at}, she was left at ${left}`);
       if (!same(back.same, [])) fail(`${name}: back in the first world these are not the objects the game started with: ${JSON.stringify(back.same)}`);
-      for (const k of ['npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'sun', 'music', 'crystals', 'foxClip', 'hud']) {
+      // R81: the list of the probe world's clips is taken back with the world - its line has no clip here again.
+      if (back.ownClip !== null) fail(`${name}: back in the first world the line "${HI}" of the probe world still has the clip "${back.ownClip}": the list of the world left was not taken back`);
+      for (const k of ['npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'sun', 'music', 'crystals', 'foxClip', 'ownClip', 'sharedClip', 'hud']) {
         if (!same(back[k], home[k])) fail(`${name}: the first world entered again differs from the first time in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
       }
       // Entered again, the first world may not hold more than it did (TECH-15 allows 10 % over five rounds; this is one).
@@ -853,7 +917,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
       await p.page.screenshot({ path: join(root, shots, 'travel-failed.png') });
       if (back.mark !== mark) fail(`${name}: the mark left in window is gone (${back.mark}): the page was reloaded`);
       if (back.world !== FIRST || back.busy || back.going) fail(`${name}: after the failed change the game is in "${back.world}" (busy: ${back.busy}, changing: ${back.going}), expected the first world with the controls returned`);
-      for (const k of ['at', 'npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'hud', 'shown']) {
+      for (const k of ['at', 'npcs', 'names', 'described', 'scene', 'onHero', 'flies', 'suns', 'music', 'crystals', 'foxClip', 'ownClip', 'sharedClip', 'hud', 'shown']) {
         if (!same(back[k], home[k])) fail(`${name}: the first world built again differs from before in "${k}": ${JSON.stringify(home[k])} then, ${JSON.stringify(back[k])} now`);
       }
       if (!said || !/Не вдалося завантажити/.test(said)) fail(`${name}: the bubble does not say that the load failed: ${JSON.stringify(said)}`);
@@ -872,6 +936,7 @@ async function travelScenarios({ url, shots, fail: report, block }) {
     }
     if (failures) return '';
     return `the change of world: "${FIRST}" -> "${PROBE}" by __game.travel and back by the portal with no reload of the page; behind the closed frame no line, no music and no interface; `
+      + `the line "${HI}" has its clip ${HI_CLIP} only while "${PROBE}" plays and was said by it; `
       + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) the game went back to "${FIRST}" and played on; `
       + `${((Date.now() - started) / 1000).toFixed(0)} s; pictures: ${shots}/travel-*.png`;
   } finally {
@@ -1039,6 +1104,9 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
   const listed = list?.worlds?.[PROBE]?.files ?? [];
   if (!listed.length) throw new Error(`${WORLDS_LIST} lists no file of the world "${PROBE}": there is nothing to download`);
   const files = listed.map((f) => f.url).sort();
+  // The clips of the world's voice are asked for when a line is said, the rest of its files when the world is built.
+  const clips = files.filter(isVoice), built = files.filter((f) => !isVoice(f));
+  if (!clips.length) throw new Error(`${WORLDS_LIST} lists no clip of the voice of the world "${PROBE}" (voice/${PROBE}/): the voice of a next world is tried on nothing`);
   const origin = new URL(url).origin;
   const q = process.env.Q ? `&q=${process.env.Q}` : '';
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
@@ -1113,29 +1181,36 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
     const served = new Set();   // the files of the world the service worker answered
     page2.on('response', (r) => {
       const path = new URL(r.url()).pathname.replace(/^\//, '');
-      if (files.includes(path) && r.status() === 200 && r.fromServiceWorker()) served.add(path);
+      // A clip is asked for by byte ranges: the service worker cuts them from the file it keeps (206).
+      if (files.includes(path) && (r.status() === 200 || (r.status() === 206 && isVoice(path))) && r.fromServiceWorker()) served.add(path);
     });
     await page2.goto(`${url}?debug&world=${PROBE}${q}`);
     await page2.locator('#play').waitFor({ state: 'visible', timeout: T(90000) })
       .catch(() => { throw new Error(`offline: the world "${PROBE}" did not load without network ("Play" never appeared)`); });
     await page2.waitForFunction(() => !!window.__game?.worlds && __game.npcs.length > 0, null, { timeout: T(30000) })
       .catch(() => { throw new Error(`offline: the world "${PROBE}" was not built (no window.__game or no character)`); });
-    for (const f of files) if (!served.has(f)) fail(`offline: ${f} was not answered by the service worker: the world did not load its file from the cache`);
+    for (const f of built) if (!served.has(f)) fail(`offline: ${f} was not answered by the service worker: the world did not load its file from the cache`);
     const offline = await page2.evaluate(() => __game.worlds.status('probe'));
     if (offline !== 'ready') fail(`offline: the world "${PROBE}" is "${offline}" without network, expected "ready"`);
     await page2.click('#play');
     // The first entry into the world plays its tour: it is ended the way a tap ends it.
     await page2.waitForFunction(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, { timeout: T(60000) })
       .catch(() => fail('offline: the game stayed busy after "Play"'));
-    await page2.evaluate(() => __game.talk(__game.npcs[0].def.id));
+    // The character greets with the world's own line, then gives its task: the clip of the greeting is one of the
+    // world's own folder, and by the time the task is there the line has been said.
+    const hi = await page2.evaluate(() => { const d = __game.npcs[0].def; __game.talk(d.id); return { key: d.hi ?? null, clip: d.hi ? __game.clipFor(d.hi, d.emoji) : null }; });
+    if (hi.clip === null || !clips.includes(`voice/${hi.clip}.mp3`)) fail(`offline: the greeting "${hi.key}" of the character has the clip "${hi.clip}", expected one of the world's own folder: ${clips.join(', ')}`);
     await page2.locator('#task:not(.hidden)').waitFor({ timeout: T(30000) })
       .catch(() => fail(`offline: the character of the world "${PROBE}" gave no task`));
+    const synth = await page2.evaluate(() => [...__game.voice.synth]);
+    if (synth.includes(hi.key)) fail(`offline: the line "${hi.key}" was left to the synthesizer: its clip did not sound from the cache`);
+    for (const f of clips) if (!served.has(f)) fail(`offline: ${f} was not answered by the service worker: the line of the world was not said by its clip from the cache`);
     const leaked = askedWithoutNetwork(asked.slice(off));
     if (leaked.length) fail(`offline: the server was asked for ${leaked.length} file(s) with the network switched off: ${leaked.slice(0, 5).map(who).join(', ')}`);
     await ctx.close();
     if (failures) return '';
     return `the cache of the next world: nothing of "${PROBE}" asked for before "Play"; after it ${files.length} file(s) downloaded (${files.join(', ')}), the world ready; `
-      + 'without network the world was built from the cache and its character gave a task';
+      + `without network the world was built from the cache, its character greeted by the clip ${clips.join(', ')} from the cache and gave a task`;
   } finally {
     await browser.close().catch(() => {});
   }

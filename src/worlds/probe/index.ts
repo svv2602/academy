@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
+import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
@@ -10,6 +11,7 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { travel } from '../../game/travel';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
+import CLIPS from './clips.json';
 import { PET_AT, SECRET, createItems } from './items';
 import { strings } from './strings';
 
@@ -17,9 +19,10 @@ import { strings } from './strings';
  * The probe world: a test world (TECH-15), never part of the published game. The registry lists it only in a build
  * made with `--mode probe` (src/worlds/index.ts), and `npm run e2e` plays it there (the step "worlds",
  * tools/worlds.mjs). It is the smallest world the shared code can play: a flat meadow, a sky of its own, one character
- * with one panel task, and two files of its own in the folders of its world (worlds-test/probe/: a model and a
- * picture) - what the loading, the cache and the release of a world are tried on. It also has one point of every kind
- * of the world template (ARCH-16, ./items.ts and the pet below): what the description of a world is tried on.
+ * with one panel task, and three files of its own in the folders of its world (worlds-test/probe/: a model, a
+ * picture and a clip of the voice) - what the loading, the cache and the release of a world are tried on. It also has
+ * one point of every kind of the world template (ARCH-16, ./items.ts and the pet below): what the description of a
+ * world is tried on.
  */
 
 /** m: the radius of the meadow; a walker stays a step inside it. */
@@ -31,9 +34,10 @@ const SIGN = { picture: 'story/probe/sign.webp', x: -4, z: -3 };
 /** The portal home (TECH-15): a ring to walk up to; its action button changes the world to `to` without a reload. */
 const PORTAL = { to: 'fairy', x: 7, z: 3 };
 
-const FRIENDS: readonly CharacterDef[] = [{ id: 'friend', emoji: '🦊', x: 0, z: -4, heading: 0, steps: ['add'], shard: '#ff9a5c' }];
+/** The character greets with the world's one spoken line of its own: its clip lies in the folder of the world (./clips.json). */
+const FRIENDS: readonly CharacterDef[] = [{ id: 'friend', emoji: '🦊', x: 0, z: -4, heading: 0, steps: ['add'], shard: '#ff9a5c', hi: 'probe_hi' }];
 
-/** The lines of the shared conversation: the recorded shared ones, the world has no spoken line of its own. */
+/** The lines of the shared conversation: the recorded shared ones (the world's own line is the greeting above). */
 const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'probe_part', partText: 'probe_count' };
 
 const MUSIC: MusicParams = {
@@ -99,6 +103,8 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
   const { scene, hero, save, ws, flies, speech, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
+  // The voice of the world (TECH-09): its own clips are in voice/probe/; the list is taken back as the world is left.
+  scope.own(worldClips(probe.id, CLIPS));
   // The heroine's model is the game's: a world makes her items of it.
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
 

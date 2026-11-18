@@ -4951,5 +4951,14 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "probe/probe_hi": {
+  "text": "Порахуймо разом!",
+  "heard": "Порахуймо разом.",
+  "score": 1.0,
+  "style": "warm",
+  "model": "gemini-2.5-flash-preview-tts",
+  "voice": "Puck",
+  "from": "copy of h_count (public/voice/h_count.mp3)"
  }
 }

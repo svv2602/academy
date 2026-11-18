@@ -159,12 +159,61 @@ describe('tools/import_old_voice.py', { timeout: 60_000 }, () => {
     expect(r.err).toContain('lines of the game already: q_sub_5_1');
     expect(files(join(f.repo, 'public/bank'))).toEqual([]);
   });
+
+  // TECH-09, R73: the voice of a next world lies in folders of its world; the import knows only the core's.
+  it('leaves the clips of the next worlds, their lists and their check records as they are', () => {
+    const f = setup();
+    // The world "lake" (public/voice/lake/) and the test world "trial" (worlds-test/trial/voice/trial/). A clip of
+    // each is named like a category of the import, and the record of the trial's is a copy marked `from`, as the import
+    // marks its own: neither the name nor the mark makes them the import's.
+    const WORLD = {
+      'public/voice/lake/lake_hi.mp3': 'mp3 of lake_hi', 'public/voice/lake/praise_9.mp3': 'mp3 of the lake\'s praise',
+      'public/voice/lake/heron_hi@Leda.mp3': 'mp3 of the heron', 'worlds-test/trial/voice/trial/praise_8.mp3': 'mp3 of the trial\'s praise',
+      'src/worlds/lake/clips.json': '["heron_hi@Leda", "lake_hi", "praise_9"]', 'src/worlds/trial/clips.json': '["praise_8"]',
+    };
+    for (const [path, text] of Object.entries(WORLD)) { mkdirSync(join(f.repo, path, '..'), { recursive: true }); writeFileSync(join(f.repo, path), text); }
+    const rec = (text, more = {}) => ({ text, heard: text, score: 1, style: 'warm', model: 'gemini-2.5-flash-preview-tts', voice: 'Puck', ...more });
+    const mine = {
+      'lake/lake_hi': rec('Ось і озеро!'), 'lake/praise_9': rec('Чудове озеро!'), 'lake/heron_hi@Leda': rec('Я чапля.', { voice: 'Leda' }),
+      'trial/praise_8': rec('Молодець!', { from: 'copy of praise_0 (public/voice/praise_0.mp3)' }),
+    };
+    writeFileSync(join(f.repo, 'voice/qa.json'), JSON.stringify({ ...json(join(f.repo, 'voice/qa.json')), ...mine }, null, 1) + '\n');
+    writeFileSync(join(f.repo, 'voice/phrases.json'), JSON.stringify({ intro: ['Привіт!', 'joy', 'cat'], lake_hi: ['Ось і озеро!', 'warm', 'cat', 'lake'],
+      praise_9: ['Чудове озеро!', 'warm', 'cat', 'lake'], 'heron_hi@Leda': ['Я чапля.', 'warm', 'heron', 'lake'], praise_8: ['Молодець!', 'warm', 'cat', 'trial'] }));
+
+    const r = run(f, '--exclude', f.words);
+    expect(r.code, r.err).toBe(0);
+    expect(r.out).toContain('0 removed');
+    // the list of the core: public/voice itself, nothing of the folders inside it
+    expect(json(join(f.repo, 'src/core/clips.json'))).toEqual(['intro', 'praise_0', 'tap_11']);
+    expect(files(join(f.repo, 'public/voice'))).toEqual(['intro.mp3', 'lake', 'praise_0.mp3', 'tap_11.mp3']);
+    // every file of the worlds byte for byte, and their records as they were
+    for (const [path, text] of Object.entries(WORLD)) expect(readFileSync(join(f.repo, path), 'utf8'), path).toBe(text);
+    const qa = json(join(f.repo, 'voice/qa.json'));
+    for (const [k, v] of Object.entries(mine)) expect(qa[k], k).toEqual(v);
+    expect(qa.praise_0.from).toBe('old game');
+    // a second run changes nothing, with the worlds there
+    const watched = [...Object.keys(WORLD), 'voice/qa.json', 'src/core/clips.json'];
+    const before = watched.map((p) => [readFileSync(join(f.repo, p), 'utf8'), statSync(join(f.repo, p)).mtimeMs]);
+    const check = run(f, '--exclude', f.words, '--check');
+    expect({ code: check.code, err: check.err }).toEqual({ code: 0, err: '' });
+    expect(check.out).toContain('changes: 0 clips written, 0 removed, voice/qa.json unchanged, src/core/clips.json unchanged');
+    expect(run(f, '--exclude', f.words).out).toContain('changes: 0 clips written');
+    expect(watched.map((p) => [readFileSync(join(f.repo, p), 'utf8'), statSync(join(f.repo, p)).mtimeMs])).toEqual(before);
+    // even an import of the one category the lake's clip is named like takes nothing of the world
+    const praise = run(f, '--exclude', f.words, '--only=praise');
+    expect(praise.out).toContain('changes: 0 clips written, 0 removed, voice/qa.json unchanged');
+    expect(existsSync(join(f.repo, 'public/voice/lake/praise_9.mp3'))).toBe(true);
+    expect(json(join(f.repo, 'voice/qa.json'))['lake/praise_9']).toEqual(mine['lake/praise_9']);
+  });
 });
 
 // The import committed to the repository (run by hand from the old game, see the top of this file).
 describe('the imported clips in the repository', () => {
   const qa = json(join(root, 'voice/qa.json'));
-  const imported = Object.keys(qa).filter((k) => 'from' in qa[k]);
+  // A record `<world>/<key>` is a clip of a next world (TECH-09), not of the old game, even when it says `from`: the
+  // clip of the probe world is a copy of a clip of the core (tools/gen_voice.test.mjs holds it to its source).
+  const imported = Object.keys(qa).filter((k) => 'from' in qa[k] && !k.includes('/'));
   const where = (k) => (/^(tap|praise|try)_/.test(k) ? 'public/voice' : 'public/bank');
 
   it('every clip of public/bank and every imported clip of public/voice has its check record, heard back as its text', () => {

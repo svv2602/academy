@@ -218,8 +218,9 @@ describe('each item of the probe world can be done in the game', () => {
 
   it('the tour: the shared one with the path of the meadow - played once, marked as it starts, on while it flies', async () => {
     expect(pathProblems(PROBE_FLYOVER)).toEqual([]);
-    // its line is a shared recorded one: the probe world has no spoken line of its own
-    expect(probe.strings.spoken).toEqual({});
+    // its line is a shared recorded one: the world's one spoken line of its own is the greeting of its character
+    expect(probe.strings.spoken).toEqual({ probe_hi: 'warm' });
+    expect(probe.characters.map((c) => c.hi)).toEqual(['probe_hi']);
     expect(SPOKEN[PROBE_FLYOVER.line as keyof typeof SPOKEN]).toBeTruthy();
     expect(STRINGS.uk[PROBE_FLYOVER.line as keyof typeof STRINGS.uk]).toBeTruthy();
     const { g, ws, enter } = host();

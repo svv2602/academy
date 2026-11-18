@@ -5,6 +5,14 @@ A row is `key: [text, intonation, speaker]` (`npm run voice:sync` builds it from
 character says in its own voice is `<key>@<voice>.mp3` (VOICE-10). The voice is the one the key names, so a voice is
 set once, in the table, never per line.
 
+The voice of a next world (TECH-09, R64-R80): a row with a fourth field, `key: [text, intonation, speaker, world]`, is
+a line of that world's own strings. Its clip is named `<world>/<key>` here - in the output, in `--only`, in
+voice/qa.json - and lies in the folder of its world: public/voice/<world>/<key>.mp3, or, for a test world (one with
+a folder worlds-test/<world>/), worlds-test/<world>/voice/<world>/<key>.mp3. A row of three fields is a clip of the
+core, named by its key and kept in public/voice/ as ever. After a recording the lists the game reads are written:
+src/core/clips.json (public/voice/*.mp3) and src/worlds/<world>/clips.json for every world that has a folder of clips
+(the names without the folder).
+
 Two models (R33): `--model old` (default) is gemini-2.5-flash-preview-tts, the style prompt goes in front of the text,
 as every clip so far was recorded; `--model new` is gemini-3.8-flash-tts, which reads such a prompt aloud: the style
 goes in a field of its own and the text of the request is only the line.
@@ -13,6 +21,7 @@ only when something is recorded).
 The Gemini key is read from ~/.config/academy/gemini.env (a line `GEMINI_API_KEY=...`; ACADEMY_GEMINI_ENV names
 another file). The service is paid: a line is sent only if it has no clip yet or its text or intonation changed.
 Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new]
+`--only` takes the names above; a plain key works for a line of a world too (the keys are one set for the whole game).
 """
 import base64
 import difflib
@@ -76,6 +85,41 @@ def gemini_key(path):
             if m and m.group(1).strip().strip('"\''):
                 return m.group(1).strip().strip('"\'')
     sys.exit(f'gen_voice: nothing was sent. No GEMINI_API_KEY in {path}.')
+
+
+def clip_name(key, row):
+    """The name of the clip of a row of voice/phrases.json: `<world>/<key>` for a line of a next world, else the key."""
+    return f'{row[3]}/{key}' if len(row) > 3 else key
+
+
+def world_audio(audio, world):
+    """The folder of the clips of a next world. `audio` is public/voice of the repository: a published world keeps
+    its clips in public/voice/<world>/, a test world (worlds-test/<world>/ exists) in worlds-test/<world>/voice/<world>/."""
+    test = audio.parent.parent / 'worlds-test' / world
+    return test / 'voice' / world if test.is_dir() else audio / world
+
+
+def clip_file(audio, cid):
+    """Where the clip `cid` lies: a clip of the core in `audio`, a clip of a world (`<world>/<name>`) in its folder."""
+    if '/' not in cid:
+        return audio / f'{cid}.mp3'
+    world, name = cid.split('/', 1)
+    return world_audio(audio, world) / f'{name}.mp3'
+
+
+def world_folders(audio):
+    """{world: folder} for every world that has a folder of clips: under public/voice/ and under worlds-test/."""
+    out = {d.name: d for d in sorted(audio.iterdir()) if d.is_dir()} if audio.is_dir() else {}
+    tests = audio.parent.parent / 'worlds-test'
+    for d in sorted(tests.iterdir()) if tests.is_dir() else []:
+        if (d / 'voice' / d.name).is_dir():
+            out[d.name] = d / 'voice' / d.name
+    return out
+
+
+def recorded(folder):
+    """The names of the clips of a folder, without the files of the folders inside it, sorted."""
+    return sorted(p.stem for p in folder.glob('*.mp3') if not p.name.endswith('.tmp.mp3'))
 
 
 def voice_of(cid):
@@ -186,9 +230,12 @@ def stale(cid, text, style, qa, audio, bank=None, model=None):
 
     A clip of the bank of the old game (public/bank/, tools/import_old_voice.py, VOICE-07) lies in `bank`, not in
     `audio`; it is found there and never sent to the paid service while its text and intonation stay the same.
+
+    A clip of a next world (`<world>/<key>`, R72) is looked for in the folder of its world and by its own record:
+    a clip of the core with the same key, or its record, does not make it recorded.
     """
     done = qa.get(cid)
-    here = (audio / f'{cid}.mp3').exists() or (bank is not None and (bank / f'{cid}.mp3').exists())
+    here = clip_file(audio, cid).exists() or (bank is not None and (bank / f'{cid}.mp3').exists())
     fresh = here and done and done.get('text') == text and done.get('style') == style
     if fresh and model is not None:
         fresh = done.get('model') == model and done.get('voice') == voice_of(cid)
@@ -219,7 +266,8 @@ class Recorder:
         self.audio, self.key, self.model, self.transcribe = audio, key, model, transcribe
 
     def job(self, cid, text, style, strict=False):
-        out = self.audio / f'{cid}.mp3'
+        out = clip_file(self.audio, cid)
+        out.parent.mkdir(parents=True, exist_ok=True)
         tmp = out.with_suffix('.tmp.mp3')
         best = None
         for _ in range(3):
@@ -238,7 +286,7 @@ class Recorder:
 
     def record(self, cid, text, style, qa):
         """Records one line and returns its check record. Never leaves a worse clip than the one it found."""
-        clip = self.audio / f'{cid}.mp3'
+        clip = clip_file(self.audio, cid)
         before = None if stale(cid, text, style, qa, self.audio) else (qa[cid], clip.read_bytes())
         res = self.job(cid, text, style)
         if res['score'] < GOOD:
@@ -260,19 +308,28 @@ def main():
     model = MODELS.get(arg('model', 'old')) or sys.exit('gen_voice: nothing was sent. --model is old or new.')
     for cid in phrases:
         voice_of(cid)
+    # The lines by the names of their clips: `<world>/<key>` for the voice of a next world, the key for the rest.
+    lines = {clip_name(key, row): row for key, row in phrases.items()}
     qa_path = ROOT / 'voice' / 'qa.json'
     qa = json.loads(qa_path.read_text()) if qa_path.exists() else {}
     only = arg('only')
     only = only.split(',') if only else None
-    if only and set(only) - set(phrases):
-        sys.exit('gen_voice: nothing was sent. Not in voice/phrases.json: ' + ' '.join(sorted(set(only) - set(phrases))))
+    if only:
+        # A name of a clip, or a plain key: the keys are one set for the whole game, so a key names one line (R75).
+        only = [o if o in lines or o not in phrases else clip_name(o, phrases[o]) for o in only]
+        unknown = sorted(set(only) - set(lines))
+        if unknown:
+            # A key under another world's name: say what the line is called.
+            named = [f'{o} (it is {clip_name(o.split("/", 1)[1], phrases[o.split("/", 1)[1]])})' if '/' in o and o.split('/', 1)[1] in phrases else o
+                     for o in unknown]
+            sys.exit('gen_voice: nothing was sent. Not in voice/phrases.json: ' + ' '.join(named))
     # A recorded clip is never recorded again just because the other model is chosen (VOICE-14): only a missing clip
     # or a changed text or intonation is sent; --only / --force record a line anew on purpose.
-    todo = [(cid, row[0], row[1]) for cid, row in phrases.items()
+    todo = [(cid, row[0], row[1]) for cid, row in lines.items()
             if (cid in only if only else '--force' in sys.argv or stale(cid, row[0], row[1], qa, audio, bank))]
-    other = [cid for cid, row in phrases.items()
+    other = [cid for cid, row in lines.items()
              if not stale(cid, row[0], row[1], qa, audio, bank) and stale(cid, row[0], row[1], qa, audio, bank, model)]
-    print(f'{len(todo)} of {len(phrases)} lines to record, model {model}: ' + ' '.join(cid for cid, *_ in todo), flush=True)
+    print(f'{len(todo)} of {len(lines)} lines to record, model {model}: ' + ' '.join(cid for cid, *_ in todo), flush=True)
     if other:
         print(f'{len(other)} recorded clips are of another model or voice and are kept (not recorded again)', flush=True)
     by_voice = {}
@@ -309,9 +366,16 @@ def main():
             qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=1) + '\n')
 
     # The game only requests clips listed here; everything else falls back to on-device speech or subtitles.
-    clips = sorted(p.stem for p in audio.glob('*.mp3') if not p.name.endswith('.tmp.mp3'))
-    (ROOT / 'src' / 'core' / 'clips.json').write_text(json.dumps(clips))
-    low = sorted((v['score'], k) for k, v in qa.items() if k in phrases and v['score'] < GOOD)
+    # The core's list is public/voice/ itself, without the folders of the worlds inside it.
+    (ROOT / 'src' / 'core' / 'clips.json').write_text(json.dumps(recorded(audio)))
+    # A next world's own list (R80): the names without the folder; the world hands it to the voice while it plays.
+    for world, folder in world_folders(audio).items():
+        src = ROOT / 'src' / 'worlds' / world
+        if not src.is_dir():
+            print(f'SKIP  {folder.relative_to(ROOT)}: there is no world src/worlds/{world}, its list of clips is not written', flush=True)
+            continue
+        (src / 'clips.json').write_text(json.dumps(recorded(folder)))
+    low = sorted((v['score'], k) for k, v in qa.items() if k in lines and v['score'] < GOOD)
     for score, cid in low:
         print(f"LOW   {score:.2f} {cid}: «{qa[cid]['text']}» -> «{qa[cid]['heard']}»")
     if failed or low:

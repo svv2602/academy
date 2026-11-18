@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
+import { sourceWorlds } from './dist-size.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = mkdtempSync(join(tmpdir(), 'gen-voice-'));
@@ -25,7 +26,8 @@ function py(code, env = {}) {
   }
 }
 
-describe('tools/gen_voice.py: the service\'s rate limits (VOICE-14)', () => {
+// Each test starts python3 once or more: on a loaded machine the default 5 s is not enough.
+describe('tools/gen_voice.py: the service\'s rate limits (VOICE-14)', { timeout: 60_000 }, () => {
   it('waits as long as a 429 asks, and a spent daily quota stops the run instead of being asked again', () => {
     const r = py(`
 out = [v.retry_delay(429, {}, '{"error": {"details": [{"retryDelay": "41s"}]}}'),
@@ -59,7 +61,7 @@ except v.QuotaStop:
   });
 });
 
-describe('tools/gen_voice.py: what is sent to the paid voice service', () => {
+describe('tools/gen_voice.py: what is sent to the paid voice service', { timeout: 60_000 }, () => {
   it('a line is recorded again when its clip is missing, or its text or intonation changed', () => {
     writeFileSync(join(tmp, 'kept.mp3'), 'x');
     const qa = { kept: { text: 'Привіт!', style: 'warm', score: 1 }, lost: { text: 'Привіт!', style: 'warm', score: 1 } };
@@ -110,7 +112,7 @@ print(json.dumps([v.stale('q_add_1_2', 'Скільки буде один плю�
   });
 });
 
-describe('tools/gen_voice.py: the voice and the model of a request (VOICE-10, R33)', () => {
+describe('tools/gen_voice.py: the voice and the model of a request (VOICE-10, R33)', { timeout: 60_000 }, () => {
   /** Builds the request of one line; a stand-in replaces the network, so nothing is ever sent. */
   const request = (cid, text, style, model) => {
     const r = py(`
@@ -200,16 +202,237 @@ print(json.dumps({'calls': calls, 'res': res, 'strict': v.style_prompt('Leda', '
   });
 });
 
+// TECH-09, R64-R80: the clips of a next world lie in the folder of their world, apart from the voice of the core, and
+// are counted by the pair (world, key). Everything here runs on a made-up tree in a temporary folder, with a stand-in
+// in place of the voice service and of the transcription: nothing is sent, nothing is paid for.
+describe('tools/gen_voice.py: the voice of a next world (TECH-09)', { timeout: 60_000 }, () => {
+  // A line of the core, two lines of the published world "lake" (one also in a character's voice), a line of the test
+  // world "trial" (it has a folder worlds-test/trial/).
+  const PHRASES = {
+    hello: ['Привіт!', 'joy', 'cat'],
+    lake_hi: ['Ось і озеро!', 'joy', 'cat', 'lake'],
+    heron_hi: ['Я чапля.', 'warm', 'cat', 'lake'],
+    'heron_hi@Leda': ['Я чапля.', 'warm', 'heron', 'lake'],
+    trial_hi: ['Це проба.', 'warm', 'cat', 'trial'],
+  };
+  const NAMES = ['hello', 'lake/lake_hi', 'lake/heron_hi', 'lake/heron_hi@Leda', 'trial/trial_hi'];
+  let n = 0;
+  /** A made-up repository: the list of lines, the folders of the two worlds, an empty public/voice. */
+  function tree(phrases = PHRASES) {
+    const dir = join(tmp, `tree-${++n}`);
+    for (const d of ['voice', 'public/voice', 'src/core', 'src/worlds/lake', 'src/worlds/trial', 'worlds-test/trial']) mkdirSync(join(dir, d), { recursive: true });
+    writeFileSync(join(dir, 'voice/phrases.json'), JSON.stringify(phrases));
+    writeFileSync(join(dir, 'key.env'), 'GEMINI_API_KEY=stand-in\n');
+    return dir;
+  }
+  /**
+   * Runs main() of tools/gen_voice.py on the tree `dir`. The voice service is a stand-in that answers with the text it
+   * was sent, the "clip" is that text, and the transcription - a stand-in module - reads it back: no request leaves.
+   */
+  function run(dir, ...argv) { return runDeaf([], dir, ...argv); }
+  /** The same, with a transcription that hears something else in the clips whose text has one of the words `deaf`. */
+  function runDeaf(deaf, dir, ...argv) {
+    const r = py(`
+import base64, types
+v.ROOT = pathlib.Path(${JSON.stringify(dir)})
+v.KEY_FILE = v.ROOT / 'key.env'
+v.PACE = 0
+sent = []
+def post(url, body, key):
+    sent.append(body['contents'][0]['parts'][0]['text'].split('\\n')[-1])
+    return {'candidates': [{'content': {'parts': [{'inlineData': {'data': base64.b64encode(sent[-1].encode()).decode()}}]}}]}
+v.post = post
+v.encode = lambda pcm, out: pathlib.Path(out).write_bytes(pcm)
+stand_in = types.ModuleType('gen_audio')
+deaf = json.loads(${JSON.stringify(JSON.stringify(deaf))})
+heard = lambda text: 'зовсім інше' if any(w in text for w in deaf) else text
+stand_in.transcribe = lambda path: heard(pathlib.Path(path).read_bytes().decode())
+sys.modules['gen_audio'] = stand_in
+sys.argv = ['gen_voice.py'] + json.loads(${JSON.stringify(JSON.stringify(argv))})
+try:
+    v.main()
+finally:
+    print('SENT ' + json.dumps(sent, ensure_ascii=False))`);
+    const lines = r.out.split('\n');
+    return { ...r, lines, sent: JSON.parse(lines.find((l) => l.startsWith('SENT '))?.slice(5) ?? '[]') };
+  }
+  const json = (dir, path) => JSON.parse(readFileSync(join(dir, path), 'utf8'));
+  /** Every file under `dir`/`path`, with the folders inside it, sorted. */
+  const under = (dir, path) => (existsSync(join(dir, path)) ? readdirSync(join(dir, path), { recursive: true, withFileTypes: true }).filter((f) => f.isFile())
+    .map((f) => join(f.parentPath, f.name).slice(join(dir, path).length + 1)).sort() : []);
+
+  it('a clip of a world is written into the folder of its world, a clip of the core into public/voice as ever', () => {
+    const dir = tree();
+    const r = run(dir);
+    expect(r.code, r.err).toBe(0);
+    expect(r.lines[0]).toBe(`5 of 5 lines to record, model gemini-2.5-flash-preview-tts: ${NAMES.join(' ')}`);
+    expect(r.sent).toEqual(['Привіт!', 'Ось і озеро!', 'Я чапля.', 'Я чапля.', 'Це проба.']);
+    // a published world: public/voice/<id>/; a test world: worlds-test/<id>/voice/<id>/
+    expect(under(dir, 'public/voice')).toEqual(['hello.mp3', 'lake/heron_hi.mp3', 'lake/heron_hi@Leda.mp3', 'lake/lake_hi.mp3']);
+    expect(under(dir, 'worlds-test/trial')).toEqual(['voice/trial/trial_hi.mp3']);
+    expect(readFileSync(join(dir, 'public/voice/lake/lake_hi.mp3'), 'utf8')).toBe('Ось і озеро!');
+  });
+
+  it('the check record of a clip is kept under the name <world>/<key> (R72), in the voice its key names', () => {
+    const dir = tree();
+    run(dir);
+    const qa = json(dir, 'voice/qa.json');
+    expect(Object.keys(qa)).toEqual(NAMES);
+    expect(qa['lake/lake_hi']).toEqual({ text: 'Ось і озеро!', heard: 'Ось і озеро!', score: 1, style: 'joy', voice: 'Puck', model: 'gemini-2.5-flash-preview-tts' });
+    expect(qa['lake/heron_hi@Leda']).toMatchObject({ text: 'Я чапля.', style: 'warm', voice: 'Leda' });
+    expect(qa.hello).toMatchObject({ text: 'Привіт!', voice: 'Puck' });
+  });
+
+  it('writes the list of the core and the list of every world that has a folder of clips: names without the folder, sorted', () => {
+    const dir = tree();
+    run(dir);
+    expect(readFileSync(join(dir, 'src/core/clips.json'), 'utf8')).toBe('["hello"]');
+    expect(readFileSync(join(dir, 'src/worlds/lake/clips.json'), 'utf8')).toBe('["heron_hi", "heron_hi@Leda", "lake_hi"]');
+    expect(readFileSync(join(dir, 'src/worlds/trial/clips.json'), 'utf8')).toBe('["trial_hi"]');
+    // a folder of clips that is no world of the sources gets no list, and the run says so
+    mkdirSync(join(dir, 'public/voice/nowhere'), { recursive: true });
+    writeFileSync(join(dir, 'public/voice/nowhere/x.mp3'), 'x');
+    const again = run(dir);
+    expect(again.code, again.err).toBe(0);
+    expect(again.out).toContain('SKIP  public/voice/nowhere: there is no world src/worlds/nowhere');
+    expect(existsSync(join(dir, 'src/worlds/nowhere'))).toBe(false);
+    expect(json(dir, 'src/core/clips.json')).toEqual(['hello']);
+  });
+
+  it('a clip of a world that does not sound like its text is reported by its name, like a clip of the core', () => {
+    const dir = tree();
+    const r = runDeaf(['озеро', 'Привіт'], dir);
+    expect(r.code).not.toBe(0);
+    expect(r.out).toContain('LOW   0.');
+    expect(r.out.split('\n').filter((l) => l.startsWith('LOW')).map((l) => l.split(' ').filter(Boolean)[2])).toEqual(['hello:', 'lake/lake_hi:']);
+    expect(r.err).toContain('gen_voice: not recorded: none; do not sound like their text: hello lake/lake_hi. Run again with --only=<id>,<id>.');
+    // the clips that were heard well are kept, and the lists are written all the same
+    expect(json(dir, 'voice/qa.json')['lake/lake_hi'].score).toBeLessThan(0.85);
+    expect(json(dir, 'src/worlds/lake/clips.json')).toEqual(['heron_hi', 'heron_hi@Leda', 'lake_hi']);
+  });
+
+  it('a second run sends nothing: every clip is found where it lies, by its own record', () => {
+    const dir = tree();
+    run(dir);
+    const again = run(dir);
+    expect(again.lines[0]).toBe('0 of 5 lines to record, model gemini-2.5-flash-preview-tts: ');
+    expect(again.sent).toEqual([]);
+    // a clip of a world that is gone is recorded again, alone
+    rmSync(join(dir, 'worlds-test/trial/voice/trial/trial_hi.mp3'));
+    const third = run(dir);
+    expect(third.lines[0]).toBe('1 of 5 lines to record, model gemini-2.5-flash-preview-tts: trial/trial_hi');
+    expect(third.sent).toEqual(['Це проба.']);
+  });
+
+  it('"recorded already?" goes by the pair: a clip of the core with the same key, and its record, is not the world\'s clip', () => {
+    const dir = tree({ lake_hi: PHRASES.lake_hi });
+    const audio = join(dir, 'public/voice');
+    writeFileSync(join(audio, 'lake_hi.mp3'), 'the core has a clip of this name');
+    const rec = { text: 'Ось і озеро!', style: 'joy', score: 1 };
+    const stale = (qa) => {
+      const r = py(`
+audio, qa = pathlib.Path(${JSON.stringify(audio)}), json.loads(${JSON.stringify(JSON.stringify(qa))})
+print(json.dumps([v.stale('lake/lake_hi', 'Ось і озеро!', 'joy', qa, audio), v.stale('lake_hi', 'Ось і озеро!', 'joy', qa, audio)]))`);
+      expect(r.code, r.err).toBe(0);
+      return JSON.parse(r.out);
+    };
+    // only the core's clip and record: the world's line is not recorded
+    expect(stale({ lake_hi: rec })).toEqual([true, false]);
+    // the world's record without its clip, and its clip without its record
+    expect(stale({ 'lake/lake_hi': rec })).toEqual([true, true]);
+    mkdirSync(join(audio, 'lake'), { recursive: true });
+    writeFileSync(join(audio, 'lake/lake_hi.mp3'), 'x');
+    expect(stale({ lake_hi: rec })).toEqual([true, false]);
+    expect(stale({ 'lake/lake_hi': rec })).toEqual([false, true]);
+    // and the whole run agrees: with the core's clip and record there, the line of the world is still sent
+    writeFileSync(join(dir, 'voice/qa.json'), JSON.stringify({ lake_hi: rec }));
+    rmSync(join(audio, 'lake'), { recursive: true });
+    expect(run(dir, '--dry-run').lines[0]).toBe('1 of 1 lines to record, model gemini-2.5-flash-preview-tts: lake/lake_hi');
+  });
+
+  it('a clip of a test world is looked for in worlds-test/<id>/voice/<id>/, not in public/voice/<id>/', () => {
+    const dir = tree();
+    const r = py(`
+audio = pathlib.Path(${JSON.stringify(join(dir, 'public/voice'))})
+print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) for n in ['hello', 'lake/lake_hi', 'lake/heron_hi@Leda', 'trial/trial_hi']]))`);
+    expect(r.code, r.err).toBe(0);
+    expect(JSON.parse(r.out)).toEqual(['public/voice/hello.mp3', 'public/voice/lake/lake_hi.mp3', 'public/voice/lake/heron_hi@Leda.mp3', 'worlds-test/trial/voice/trial/trial_hi.mp3']);
+  });
+
+  it('--only takes <world>/<key> and the plain key alike (R75): the same line, the same clip', () => {
+    for (const only of ['lake/lake_hi', 'lake_hi']) {
+      const dir = tree();
+      const r = run(dir, `--only=${only}`);
+      expect(r.code, r.err).toBe(0);
+      expect(r.lines[0], only).toBe('1 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/lake_hi');
+      expect(r.sent, only).toEqual(['Ось і озеро!']);
+      expect(under(dir, 'public/voice'), only).toEqual(['lake/lake_hi.mp3']);
+      expect(Object.keys(json(dir, 'voice/qa.json')), only).toEqual(['lake/lake_hi']);
+    }
+    // several at once, of the core and of worlds, in either form; a voice of a character by its full name
+    const dir = tree();
+    const r = run(dir, '--only=hello,trial_hi,lake/heron_hi@Leda');
+    expect(r.lines[0]).toBe('3 of 5 lines to record, model gemini-2.5-flash-preview-tts: hello lake/heron_hi@Leda trial/trial_hi');
+    expect(r.lines).toContain('by voice (model gemini-2.5-flash-preview-tts): Puck 2, Leda 1');
+  });
+
+  it('--only with the name of another world, or of no line, sends nothing and names the line', () => {
+    const dir = tree();
+    const wrong = run(dir, '--only=trial/lake_hi');
+    expect(wrong.code).not.toBe(0);
+    expect(wrong.err).toContain('gen_voice: nothing was sent. Not in voice/phrases.json: trial/lake_hi (it is lake/lake_hi)');
+    const core = run(dir, '--only=lake/hello,nope');
+    expect(core.err).toContain('gen_voice: nothing was sent. Not in voice/phrases.json: lake/hello (it is hello) nope');
+    for (const r of [wrong, core]) expect(r.sent).toEqual([]);
+    expect(under(dir, 'public/voice')).toEqual([]);
+    expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
+  });
+
+  it('--dry-run takes the same names, sends nothing and writes nothing - no clip, no record, no list', () => {
+    const dir = tree();
+    for (const [argv, first] of [[[], `5 of 5 lines to record, model gemini-2.5-flash-preview-tts: ${NAMES.join(' ')}`],
+      [['--only=lake/lake_hi'], '1 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/lake_hi'],
+      [['--only=trial_hi'], '1 of 5 lines to record, model gemini-2.5-flash-preview-tts: trial/trial_hi']]) {
+      const r = run(dir, '--dry-run', ...argv);
+      expect(r.code, r.err).toBe(0);
+      expect(r.lines[0]).toBe(first);
+      expect(r.sent).toEqual([]);
+    }
+    expect(under(dir, 'public/voice')).toEqual([]);
+    expect(under(dir, 'worlds-test')).toEqual([]);
+    expect(under(dir, 'src')).toEqual([]);
+    expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
+  });
+
+  it('a command of the core says what it always said: the key alone, no folder', () => {
+    // the real list of the repository; nothing is sent (--dry-run), no key is read
+    const run = (...argv) => execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--dry-run', ...argv],
+      { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
+    const total = Object.keys(JSON.parse(readFileSync(join(root, 'voice/phrases.json'), 'utf8'))).length;
+    expect(run('--only=welcome_back')).toBe(`1 of ${total} lines to record, model gemini-2.5-flash-preview-tts: welcome_back\nby voice (model gemini-2.5-flash-preview-tts): Puck 1\n`);
+    expect(run('--only=npc_next@Leda,unicorn_hi').split('\n')[0]).toBe(`2 of ${total} lines to record, model gemini-2.5-flash-preview-tts: npc_next@Leda unicorn_hi`);
+  });
+});
+
 describe('recorded clips', () => {
   const phrases = JSON.parse(readFileSync(join(root, 'voice/phrases.json'), 'utf8'));
   const qa = JSON.parse(readFileSync(join(root, 'voice/qa.json'), 'utf8'));
   const clips = JSON.parse(readFileSync(join(root, 'src/core/clips.json'), 'utf8'));
   const HOW = 'Record it: python3 tools/gen_voice.py (paid service, the key is in ~/.config/academy/gemini.env).';
 
+  // The voice of a next world (TECH-09): a row with a fourth field. Its clip is named `<world>/<key>` in voice/qa.json
+  // and lies where the game asks for it: public/voice/<world>/, or worlds-test/<world>/voice/<world>/ for a test world;
+  // the game finds it by the world's own list, src/worlds/<world>/clips.json.
+  const worldOf = (key) => phrases[key]?.[3] ?? null;
+  const nameOf = (key) => (worldOf(key) ? `${worldOf(key)}/${key}` : key);
+  const worldDir = (id) => (existsSync(join(root, 'worlds-test', id)) ? join(root, 'worlds-test', id, 'voice', id) : join(root, 'public/voice', id));
+  const worldList = (id) => (existsSync(join(root, 'src/worlds', id, 'clips.json')) ? JSON.parse(readFileSync(join(root, 'src/worlds', id, 'clips.json'), 'utf8')) : null);
+  const inWorld = (key) => existsSync(join(worldDir(worldOf(key)), `${key}.mp3`)) && (worldList(worldOf(key)) ?? []).includes(key);
   // A line's clip is in public/voice (the first load, listed in clips.json) or in public/bank (the bank of the old game,
   // VOICE-07: imported, marked `from` in voice/qa.json, never listed in clips.json - the game does not ask for it yet).
   const inBank = (key) => existsSync(join(root, 'public/bank', `${key}.mp3`));
-  const hasClip = (key) => (inBank(key) ? !clips.includes(key) && !!qa[key]?.from : existsSync(join(root, 'public/voice', `${key}.mp3`)) && clips.includes(key));
+  const inCore = (key) => (inBank(key) ? !clips.includes(key) && !!qa[key]?.from : existsSync(join(root, 'public/voice', `${key}.mp3`)) && clips.includes(key));
+  const hasClip = (key) => (worldOf(key) ? inWorld(key) : inCore(key));
 
   // VOICE-10: the voices of the characters are listed for recording (`<key>@<voice>`) before they are recorded. Until
   // the runner records a voice, its lines may lack their clip - while the cat's clip of the same key is up to date, so
@@ -220,8 +443,10 @@ describe('recorded clips', () => {
   // VOICE-14: every clip says which model and which voice made it; the voice is the one its key names.
   const MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-3.8-flash-tts'];
   const voiceOf = (key) => (key.includes('@') ? key.split('@')[1] : 'Puck');
-  const upToDate = (key, text, style) => hasClip(key) && qa[key]?.text === text && qa[key]?.style === style
-    && MODELS.includes(qa[key]?.model) && qa[key]?.voice === voiceOf(key);
+  const upToDate = (key, text, style) => {
+    const rec = qa[nameOf(key)];
+    return hasClip(key) && rec?.text === text && rec?.style === style && MODELS.includes(rec?.model) && rec?.voice === voiceOf(key);
+  };
   const waits = (key) => AWAITING.includes(key.split('@')[1]) && !upToDate(key, ...phrases[key]);
 
   it('every line of voice/phrases.json has a clip recorded from exactly its text and intonation', () => {
@@ -252,13 +477,69 @@ describe('recorded clips', () => {
   });
 
   it('every clip was heard back as its text (voice/qa.json has no score below 0.85)', () => {
-    const low = Object.keys(phrases).filter((key) => !waits(key) && !(qa[key]?.score >= 0.85)).map((key) => `${key} ${qa[key]?.score}`);
+    const low = Object.keys(phrases).filter((key) => !waits(key) && !(qa[nameOf(key)]?.score >= 0.85)).map((key) => `${nameOf(key)} ${qa[nameOf(key)]?.score}`);
     expect(low, `clips that do not sound like their text: ${low.join(', ')}. ${HOW}`).toEqual([]);
   });
 
+  // The worlds of the sources (one folder each) and the first of them, as tools/dist-size.mjs reads them.
+  const { first, worlds: next } = sourceWorlds();
+
   it('src/core/clips.json lists exactly the files of public/voice', () => {
-    const files = readdirSync(join(root, 'public/voice')).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)).sort();
+    const here = readdirSync(join(root, 'public/voice'), { withFileTypes: true });
+    const files = here.filter((f) => f.isFile() && f.name.endsWith('.mp3')).map((f) => f.name.slice(0, -4)).sort();
     expect(clips, 'clips.json and the .mp3 files of public/voice differ (python3 tools/gen_voice.py rewrites the list)').toEqual(files);
-    expect(readdirSync(join(root, 'public/voice')).filter((f) => !f.endsWith('.mp3') || f.endsWith('.tmp.mp3')), 'stray files in public/voice').toEqual([]);
+    expect(clips.filter((k) => k.includes('/')), 'the list of the core names no clip of a world').toEqual([]);
+    // Besides its clips public/voice holds only the folders of the next worlds (voice/<id>/, TECH-09).
+    const stray = here.filter((f) => (f.isDirectory() ? !next.includes(f.name) : !f.name.endsWith('.mp3') || f.name.endsWith('.tmp.mp3'))).map((f) => f.name);
+    expect(stray, 'stray files in public/voice').toEqual([]);
+  });
+
+  it('every line of a next world has its clip in the folder of its world, and no line of the core or the first world has a world', () => {
+    const withWorld = Object.keys(phrases).filter((k) => worldOf(k));
+    expect(withWorld.filter((k) => !next.includes(worldOf(k))), 'lines of a world that is no next world of src/worlds').toEqual([]);
+    expect(withWorld.filter((k) => worldOf(k) === first)).toEqual([]);
+    expect(withWorld.filter((k) => !existsSync(join(worldDir(worldOf(k)), `${k}.mp3`))), `lines of a world without a clip in its folder. ${HOW}`).toEqual([]);
+    // a clip of a world is no clip of the core: the installation does not bring it
+    expect(withWorld.filter((k) => clips.includes(k) || existsSync(join(root, 'public/voice', `${k}.mp3`)))).toEqual([]);
+    // not vacuous: the probe world has a line of its own
+    expect(withWorld.length).toBeGreaterThan(0);
+  });
+
+  it('src/worlds/<id>/clips.json lists exactly the files of the folder of that world\'s clips', () => {
+    let lists = 0;
+    for (const id of next) {
+      const dir = worldDir(id), list = worldList(id);
+      const here = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [];
+      if (list === null && !here.length) continue;          // a world with no voice of its own
+      lists++;
+      expect(list, `${id}: clips.json and the .mp3 files of its folder differ (python3 tools/gen_voice.py rewrites the list)`)
+        .toEqual(here.filter((f) => f.isFile() && f.name.endsWith('.mp3') && !f.name.endsWith('.tmp.mp3')).map((f) => f.name.slice(0, -4)).sort());
+      expect(list.filter((k) => k.includes('/')), `${id}: the names of its list carry no folder`).toEqual([]);
+      expect(here.filter((f) => !f.isFile() || !f.name.endsWith('.mp3') || f.name.endsWith('.tmp.mp3')).map((f) => f.name), `stray files in the folder of the clips of ${id}`).toEqual([]);
+      // every clip of the folder is a line of this world: a clip nobody speaks would be dead weight of its download
+      expect(list.filter((k) => worldOf(k) !== id), `${id}: clips that are no line of this world in voice/phrases.json`).toEqual([]);
+    }
+    expect(lists, 'no next world has a list of clips: the check is blind').toBeGreaterThan(0);
+    // the first world keeps its clips with the core: no list and no folder of its own
+    expect(worldList(first)).toBeNull();
+    expect(existsSync(join(root, 'public/voice', first))).toBe(false);
+  });
+
+  it('the clip of the probe world is a copy of the shared line it takes its text from: nothing was recorded for it (R79)', () => {
+    const rec = qa['probe/probe_hi'];
+    const donor = /^copy of ([a-z0-9_]+) \(public\/voice\/\1\.mp3\)$/.exec(rec?.from ?? '')?.[1];
+    expect(donor, 'voice/qa.json: the record of probe/probe_hi says where the clip was taken from').toBeTruthy();
+    // the donor is a shared line of the narrator, recorded and heard back well; the same text and intonation
+    expect(phrases[donor]).toHaveLength(3);
+    expect(donor.includes('@')).toBe(false);
+    expect(phrases.probe_hi).toEqual([phrases[donor][0], phrases[donor][1], phrases[donor][2], 'probe']);
+    expect(qa[donor].score).toBeGreaterThanOrEqual(0.85);
+    const { from, ...copied } = rec;
+    expect(copied, 'the record is the donor\'s, with `from` added').toEqual(qa[donor]);
+    expect(from).toContain(donor);
+    // byte for byte the donor's clip
+    const clip = readFileSync(join(root, 'worlds-test/probe/voice/probe/probe_hi.mp3'));
+    expect(clip.equals(readFileSync(join(root, 'public/voice', `${donor}.mp3`))), 'worlds-test/probe/README.md says how to make the copy again').toBe(true);
+    expect(worldList('probe')).toEqual(['probe_hi']);
   });
 });

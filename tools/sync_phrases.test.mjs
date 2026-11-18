@@ -1,15 +1,20 @@
 // voice/phrases.json is what `npm run voice:sync` builds from the shared strings and the strings of every world
 // (VOICE-04, ARCH-12). CI has no voice:sync step, so the check runs here: the script itself, as a developer runs it.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, existsSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { sourceWorlds } from './dist-size.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sync = (...args) => spawnSync(process.execPath, [join(root, 'tools/sync_phrases.mjs'), ...args], { cwd: root, encoding: 'utf8' });
+const tmp = mkdtempSync(join(tmpdir(), 'sync-phrases-'));
+afterAll(() => { rmSync(tmp, { recursive: true, force: true }); });
 
-describe('npm run voice:sync -- --check', () => {
+// Each test starts node once or more: on a loaded machine the default 5 s is not enough.
+describe('npm run voice:sync -- --check', { timeout: 60_000 }, () => {
   it('finds voice/phrases.json up to date and changes nothing', () => {
     const before = readFileSync(join(root, 'voice/phrases.json'), 'utf8');
     const run = sync('--check');
@@ -38,6 +43,70 @@ describe('npm run voice:sync -- --check', () => {
     const run = sync('--frobnicate');
     expect(run.status).toBe(2);
     expect(run.stderr).toMatch(/unknown argument: --frobnicate/);
+    // --out without a file, and --out given twice: nothing is written anywhere
+    const a = join(tmp, 'twice-a.json'), b = join(tmp, 'twice-b.json');
+    for (const bad of [['--out='], [`--out=${a}`, `--out=${b}`]]) {
+      const run = sync(...bad);
+      expect([run.status, /unknown argument: --out=/.test(run.stderr)], bad.join(' ')).toEqual([2, true]);
+    }
+    expect([existsSync(a), existsSync(b)]).toEqual([false, false]);
+  });
+});
+
+// TECH-09, R67/R68/R76: a line of a world other than the first one is the voice of that world - its row has a fourth
+// field, the id of the world. The rows of the shared lines, of the first world and of the bank stay as they were.
+describe('the world of a line (the voice of a next world)', { timeout: 60_000 }, () => {
+  const text = readFileSync(join(root, 'voice/phrases.json'), 'utf8');
+  const file = JSON.parse(text);
+  const { first, worlds: next } = sourceWorlds();
+  const spokenOf = async (id) => (existsSync(join(root, 'src/worlds', id, 'strings.ts')) ? Object.keys((await import(`../src/worlds/${id}/strings.ts`)).strings.spoken) : []);
+  const withWorld = Object.keys(file).filter((k) => file[k].length > 3);
+
+  it('a row with a world is a line of that next world\'s own strings.ts, and every such line has one', async () => {
+    const expected = {};
+    for (const id of next) for (const k of await spokenOf(id)) expected[k] = id;
+    expect(Object.fromEntries(withWorld.map((k) => [k.split('@')[0], file[k][3]]))).toEqual(expected);
+    expect(withWorld.length, 'no next world has a line of its own: the check is blind').toBeGreaterThan(0);
+    expect(withWorld.filter((k) => file[k].length !== 4)).toEqual([]);
+    // the probe world: its one line, in the narrator's voice
+    expect(file.probe_hi).toEqual(['Порахуймо разом!', 'warm', 'cat', 'probe']);
+  });
+
+  it('the first world\'s lines and the shared ones - also in the voice of a character - have no world', async () => {
+    const mine = await spokenOf(first);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.filter((k) => file[k]?.length !== 3)).toEqual([]);
+    expect(Object.keys(file).filter((k) => k.includes('@') && mine.includes(k.split('@')[0]) && file[k].length !== 3)).toEqual([]);
+    for (const k of ['npc_next', 'npc_next@Leda', 'npc_again@Orus', 't_count@Charon', 'welcome_back', 'q_add_1_2']) expect(file[k], k).toHaveLength(3);
+    expect(withWorld.filter((k) => file[k][3] === first)).toEqual([]);
+  });
+
+  it('a row of the first world or of the core is written as it always was: three values, nothing after the speaker', () => {
+    const rows = text.split('\n').filter((line) => line.startsWith(' "'));
+    expect(rows).toHaveLength(Object.keys(file).length);
+    expect(rows.filter((line) => !/^ "[^"]+": \["(?:[^"\\]|\\.)*", "(?:warm|joy|calm)", "[a-z]+"(?:, "[a-z0-9_-]+")?\],?$/.test(line))).toEqual([]);
+    expect(rows.filter((line) => /"(?:warm|joy|calm)", "[a-z]+", "[^"]+"\],?$/.test(line)).map((line) => line.split('"')[1])).toEqual(withWorld);
+  });
+
+  it('--check names the line whose world differs: one that lost it, and one of the first world that got one', () => {
+    const lost = join(tmp, 'lost.json'), given = join(tmp, 'given.json');
+    writeFileSync(lost, text.replace(', "cat", "probe"]', ', "cat"]'));
+    writeFileSync(given, text.replace(/("unicorn_hi": \[[^\]]*)\]/, `$1, "${first}"]`));
+    expect(readFileSync(lost, 'utf8')).not.toBe(text);
+    expect(readFileSync(given, 'utf8')).not.toBe(text);
+    const a = sync('--check', `--out=${lost}`);
+    expect(a.status).toBe(1);
+    expect(a.stderr).toContain('is out of date:');
+    expect(a.stderr.split('\n').filter((line) => line.startsWith('  '))).toEqual(['  changed: probe_hi']);
+    const b = sync('--check', `--out=${given}`);
+    expect(b.status).toBe(1);
+    expect(b.stderr.split('\n').filter((line) => line.startsWith('  '))).toEqual(['  changed: unicorn_hi']);
+    // --check wrote nothing; without it the file given is written, and the list of the repository is not touched
+    expect(readFileSync(lost, 'utf8')).not.toBe(text);
+    const c = sync(`--out=${lost}`);
+    expect({ status: c.status, err: c.stderr }).toEqual({ status: 0, err: '' });
+    expect(readFileSync(lost, 'utf8')).toBe(text);
+    expect(readFileSync(join(root, 'voice/phrases.json'), 'utf8')).toBe(text);
   });
 });
 
@@ -68,10 +137,10 @@ describe('the speaker and the voice of every line (VOICE-10)', () => {
     for (const q of QUESTS) expect(fairy.cast[q.id]?.emoji, q.id).toBe(q.emoji);
   });
 
-  it('every row is [text, intonation, speaker], its voice is the one of its speaker in the table', async () => {
+  it('every row is [text, intonation, speaker] - and the world, for the voice of a next world; its voice is the one of its speaker in the table', async () => {
     const cast = Object.assign({}, ...(await tables()).map((t) => t.cast));
     const wrong = Object.entries(file).filter(([key, row]) => {
-      if (row.length !== 3 || !Object.hasOwn(cast, row[2])) return true;
+      if ((row.length !== 3 && row.length !== 4) || !Object.hasOwn(cast, row[2])) return true;
       const voice = key.includes('@') ? key.split('@')[1] : 'Puck';
       return cast[row[2]].voice !== voice;
     }).map(([key, row]) => `${key} ${JSON.stringify(row)}`);

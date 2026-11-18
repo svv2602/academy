@@ -309,12 +309,21 @@ export function recordable(key: string, text: string): string {
  * line is the narrator's under its own key, the name of its clip, which never changes. A line the table's `voiced`
  * gives to the characters is listed once more for every voice of a character that says it, as `<key>@<voice>`, with
  * the first such character of the table as its speaker. The whole game has at most five voices.
+ *
+ * The world of a line (TECH-09, R67): a line of the `spoken` of a world other than `first` - the world the installation
+ * brings, DEFAULT_WORLD of src/worlds/index.ts - is that world's voice and carries the id of its world as a fourth
+ * field, and so does each `<key>@<voice>` of it: its clips lie in `voice/<id>/` and tools/gen_voice.py names them
+ * `<id>/<key>`. Every other row has three fields, as it always had, and its clip is the core's: the shared lines (also
+ * in the voice of a character of any world, `npc_next@<voice>`), the first world's and the bank's.
+ * The keys are one set for the whole game (R82): a key two tables share is an error, whichever worlds they are of.
  */
+export type RecordingRow = [text: string, style: VoiceStyle, speaker: string] | [text: string, style: VoiceStyle, speaker: string, world: string];
 export function recordingList(
   worlds: readonly WorldStrings[], bank: SpokenTable,
   casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[] }[],
-): Record<string, [text: string, style: VoiceStyle, speaker: string]> {
-  const list: Record<string, [text: string, style: VoiceStyle, speaker: string]> = {};
+  first: string,
+): Record<string, RecordingRow> {
+  const list: Record<string, RecordingRow> = {};
   const keys = new Set(Object.keys(S.uk));
   const narrator = casts[0]?.narrator;
   if (!narrator) throw new Error('no table "character - voice" (src/worlds/<id>/voices.ts): nobody speaks the lines');
@@ -327,11 +336,12 @@ export function recordingList(
     for (const ch of Object.values(c.cast)) voices.add(ch.voice);
   }
   if (voices.size > 5) throw new Error(`the game has ${voices.size} voices, at most 5 with the narrator's: ${[...voices].join(', ')}`);
-  const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>) => {
+  /** `world`: the id of the next world the lines are the voice of; none for the lines whose clips are the core's. */
+  const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>, world?: string) => {
     for (const [k, style] of Object.entries(spoken)) {
       if (own(k)) throw new Error(`"${k}" of ${owner} is the world's own text of a shared screen (WORLD_OWN): never spoken`);
       if (typeof uk[k] !== 'string') throw new Error(`spoken line "${k}" of ${owner} has no Ukrainian text`);
-      list[k] = [recordable(k, uk[k]), style, narrator];
+      list[k] = world === undefined ? [recordable(k, uk[k]), style, narrator] : [recordable(k, uk[k]), style, narrator, world];
     }
   };
   add('the shared strings', S.uk, SPOKEN);
@@ -339,7 +349,7 @@ export function recordingList(
     const twice = Object.keys(w.table.uk).filter((k) => !own(k) && keys.has(k));
     if (twice.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);
     for (const k of Object.keys(w.table.uk)) if (!own(k)) keys.add(k);
-    add(`world "${w.id}"`, w.table.uk, w.spoken);
+    add(`world "${w.id}"`, w.table.uk, w.spoken, w.id === first ? undefined : w.id);
   }
   const twice = Object.keys(bank.table.uk).filter((k) => keys.has(k));
   if (twice.length) throw new Error(`the bank: these strings already exist (one key, one clip): ${twice.join(', ')}`);
@@ -368,10 +378,12 @@ export function recordingList(
       }
     }
   }
-  const out: Record<string, [text: string, style: VoiceStyle, speaker: string]> = {};
+  const out: Record<string, RecordingRow> = {};
   for (const [k, row] of Object.entries(list)) {
     out[k] = row;
-    for (const [voice, who] of voiced.get(k) ?? []) if (voice !== narratorVoice) out[`${k}@${voice}`] = [row[0], row[1], who];
+    // A line in the voice of a character belongs where the line itself does: the world's voice, or the core's.
+    const world = row[3];
+    for (const [voice, who] of voiced.get(k) ?? []) if (voice !== narratorVoice) out[`${k}@${voice}`] = world === undefined ? [row[0], row[1], who] : [row[0], row[1], who, world];
   }
   return out;
 }
