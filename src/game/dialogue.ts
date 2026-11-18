@@ -114,8 +114,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     const thanks = line(lines.partGiven, 'story', 0, n.def.emoji);
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
+    // The last part: "every shard is back" belongs to its moment, before an achievement's scene (the stop point after it).
+    if (count === characters.length) { await line(lines.allParts, 'story'); await stopPoint('part'); return () => { shardsSettled.n++; }; }
     await stopPoint('part');
-    if (count === characters.length) { await line(lines.allParts, 'story'); return () => { shardsSettled.n++; }; }
     return () => {
       void thanks.then(() => {
         if (!background.some((t) => t.active?.())) void line('go_next', 'hint', 5000);
