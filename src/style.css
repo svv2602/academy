@@ -186,6 +186,23 @@ button.it { min-width: 44px; min-height: 44px; }
 .t-stage.watch .pad { opacity: .75; }
 .pad.flash { transform: scale(1.22); background: #fff3b0; box-shadow: 0 0 0 5px #ffd95e, 0 5px 0 #e2d2f1; }
 
+/* ---------- the cut-scenes (WORLD-13): the frame fills the window, the subtitle at the bottom, "skip" in the corner ---------- */
+#story { position: fixed; inset: 0; z-index: 9; background: #000; touch-action: none; user-select: none; -webkit-user-select: none; }
+#story canvas { display: block; width: 100%; height: 100%; }
+#storySub { position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content;
+  max-width: min(760px, calc(100vw - 2 * max(16px, env(safe-area-inset-left)) - 140px)); margin: 0; padding: 8px 18px; border-radius: 18px;
+  background: rgba(40, 24, 64, .58); color: #fff; text-align: center; font-size: clamp(16px, min(2.6vw, 5.2vh), 24px); font-weight: 600; line-height: 1.25; }
+#storySkip { position: absolute; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); width: 56px; height: 56px;
+  border-radius: 50%; background: rgba(255, 255, 255, .85); color: #7a4fd0; font-size: 26px; box-shadow: 0 4px 0 rgba(0, 0, 0, .25); cursor: pointer; }
+#storySub.top { bottom: auto; top: max(12px, env(safe-area-inset-top)); }
+@media (max-aspect-ratio: 1/1) { #storySub { max-width: calc(100vw - 32px); } #storySub.top { top: calc(max(12px, env(safe-area-inset-top)) + 68px); } }
+/* the book's buttons that show a seen scene again, in the row of its tabs (no line of their own on a phone held sideways) */
+.book-row { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; align-items: center; }
+.story-row { display: flex; gap: 6px; align-items: center; }
+.story-row:empty { display: none; }
+.story-row button.story-again { min-width: 56px; min-height: 44px; padding: 4px 14px; border-radius: 16px; background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e;
+  font-size: 20px; font-weight: 700; color: #7a4fd0; cursor: pointer; }
+
 /* ---------- collection & parents ---------- */
 #btnBook { pointer-events: auto; min-width: 44px; min-height: 44px; padding: 6px 12px; cursor: pointer; }
 #book, #parents { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(120, 90, 180, .4); z-index: 5; }

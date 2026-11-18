@@ -835,12 +835,12 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       page.on('response', (r) => { if (r.status() >= 400 && !(lost && r.status() === 404 && ofProbe(r.url()))) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
       const g = (fn, arg) => page.evaluate(fn, arg);
       const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); });
-      /** The game from "Play" on: the tour of the first entry is skipped the way a tap skips it, the heroine can walk. */
+      /** The game from "Play" on: a new save's introduction (WORLD-13) and the tour of the first entry are skipped the way a tap skips them, the heroine can walk. */
       const start = async () => {
         await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
         await until(() => typeof window.__game?.travel === 'function' && __game.time > 0, null, 'no window.__game.travel - the game does not show the change of world with ?debug', 30000);
         await page.click('#play');
-        await until(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, 'the game stayed busy after "Play"');
+        await until(() => { if (__game.story?.active) { __game.story.skip(); return false; } if (__game.flyoverPlayer?.active) { __game.flyoverPlayer.skip(); return false; } return !__game.busy && !__game.story?.active; }, null, 'the game stayed busy after "Play"');
       };
       /** The heroine walks: "forward" is held until she has moved half a step, however slow the frames are. */
       const walks = async () => {
@@ -1038,7 +1038,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       const entered = await p.g(() => ({ flying: __game.flyoverPlayer?.active ?? null, items: __game.items }));
       const flyover = Array.isArray(entered.items) ? entered.items.find((i) => i.kind === 'flyover') : null;
       if (entered.flying !== true || !flyover?.active || !flyover.done) fail(`${name}: on the first entry into the probe world its tour is not played, or its description does not say so (the tour on: ${entered.flying}, the item: ${JSON.stringify(flyover ?? null)})`);
-      await p.until(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, `the game stayed busy after the change to "${PROBE}"`);
+      await p.until(() => { if (__game.story?.active) { __game.story.skip(); return false; } if (__game.flyoverPlayer?.active) { __game.flyoverPlayer.skip(); return false; } return !__game.busy && !__game.story?.active; }, null, `the game stayed busy after the change to "${PROBE}"`);
       const away = await p.state();
       await p.page.screenshot({ path: join(root, shots, 'travel-probe.png') });
       if (away.mark !== mark) fail(`${name}: the mark left in window is gone after the change (${away.mark}): the page was reloaded`);
@@ -1606,7 +1606,7 @@ async function cacheScenarios({ url, asked, list, fail: report }) {
     if (offline !== 'ready') fail(`offline: the world "${PROBE}" is "${offline}" without network, expected "ready"`);
     await page2.click('#play');
     // The first entry into the world plays its tour: it is ended the way a tap ends it.
-    await page2.waitForFunction(() => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); return !__game.busy && !__game.flyoverPlayer?.active; }, null, { timeout: T(60000) })
+    await page2.waitForFunction(() => { if (__game.story?.active) { __game.story.skip(); return false; } if (__game.flyoverPlayer?.active) { __game.flyoverPlayer.skip(); return false; } return !__game.busy && !__game.story?.active; }, null, { timeout: T(60000) })
       .catch(() => fail('offline: the game stayed busy after "Play"'));
     // The character greets with the world's own line, then gives its task: the clip of the greeting is one of the
     // world's own folder, and by the time the task is there the line has been said.

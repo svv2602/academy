@@ -5,6 +5,7 @@ import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
 import { setTour, tour } from '../../game/flyover';
+import { playStory, setStories } from '../../game/story';
 import type { DebugExtras } from '../../game/debug';
 import type { WorldFrame } from '../../game/loop';
 import type { Spot } from '../../game/player';
@@ -35,6 +36,7 @@ import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
 import { buildSky } from './sky';
 import { createStarSearch } from './star-search';
+import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
 import { SPAWN, colliders, height, raycastGround, resolve } from './terrain';
 import { voices } from './voices';
@@ -69,7 +71,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     if (!search.active) speech.caption(null);
     else if (speech.shown?.key !== 't_stars') starSearch.caption();
   });
-  const restoreCrystal = createFinale(g, stage, shrine, npcs, scope);
+  // The cut-scenes (WORLD-13, ./story.ts): the introduction is played by the start of the game (src/game/start.ts), the
+  // return of the crystal once the finale and its last words are over - "walk around" comes after it.
+  const story = setStories(g, FAIRY_STORIES, scope);
+  const restoreCrystal = createFinale(g, stage, shrine, npcs, scope, () => playStory(g, 'story_crystal'));
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // ---------- tasks played in the world (PLAY-01, src/game/worldtasks/): steps of the chains, on the shared frame ----------
   // One task at a time: the frame tapes it and steps it, the debug door of the walkthrough reaches it.
@@ -210,7 +215,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       flyover: () => { void tour(g, { record: false }); }, flyoverPlayer: flyover,
       flyoverPoints: FAIRY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
       // the magic of the world (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
-      magic, setMagic: (v: number | null) => magic.set(v) },
+      magic, setMagic: (v: number | null) => magic.set(v),
+      // the cut-scenes (WORLD-13): their player (active, id, index, elapsed, pass, fading, log; play(id) shows one without
+      // marking it, next(), skip(), hold(u), flat)
+      story },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (worldTaskDoor(g).solve()) return 'world task';

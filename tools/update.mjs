@@ -151,7 +151,13 @@ try {
   await page.waitForFunction(() => !!window.__game, null, { timeout: T(30000) }); /* clock: page-load */
   await page.evaluate(() => __game.ach.hold());
   await page.click('#play');
-  await page.waitForFunction(() => !!window.__game && !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) }); /* clock: page-load */
+  // A new save's introduction (WORLD-13, played through in the walkthrough's piece world1) comes first: skipped here.
+  await page.waitForFunction(() => !!window.__game && (!!__game.story?.active || !document.querySelector('#bubble').classList.contains('hidden')), null, { timeout: T(30000) }); /* clock: page-load */
+  if (await page.evaluate(() => !!__game.story?.active)) {
+    await page.evaluate(() => __game.story.skip());
+    await gameFor(() => !__game.story.active, null, 10).catch(() => fail('build A: the introduction of a new save did not end on its skip'));
+  }
+  await page.waitForFunction(() => !document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(30000) }); /* clock: page-load */
   // A new save flies over the world first (WORLD-11): a tap skips the tour - its end is waited for by the tour's own
   // state, not by the clock (on the slow CI runner the tour lasts minutes of the clock).
   if (await page.evaluate(() => !!__game.flyoverPlayer?.active)) {

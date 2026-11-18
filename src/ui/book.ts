@@ -180,6 +180,25 @@ function renderAch(save: Save) {
     : `${t('ach_book')}: ${tf('book_count', { n: ACHIEVEMENTS.filter((x) => x.id in save.achievements).length, of: ACHIEVEMENTS.length })}`;
 }
 
+/** A seen cut-scene of the world (WORLD-13, src/game/story.ts): the book shows it again with a button of its own. */
+export interface BookStory { id: string; icon: string; title: Key; play(): void }
+let bookStories: () => readonly BookStory[] = () => [];
+let closeForStory: () => void = () => {};
+/** The scenes of the world played now, read at every opening (the start of the game sets it), and how the book closes for one. */
+export function setBookStories(list: () => readonly BookStory[], close: () => void) { bookStories = list; closeForStory = close; }
+
+function renderStories() {
+  const box = document.getElementById('bookStories');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const st of bookStories()) {
+    // a tap closes the book and plays the scene again; nothing is recorded
+    const b = button('story-again', `▶ ${st.icon}`, () => { closeForStory(); st.play(); });
+    b.dataset.story = st.id; b.setAttribute('aria-label', t(st.title)); b.title = t(st.title);
+    box.appendChild(b);
+  }
+}
+
 /**
  * Draws every section of the profile from `save` and the world played now (`achGame`, read at this call); `persist`
  * stores the save after the choice of a pet.
@@ -191,6 +210,7 @@ export function renderProfile(save: Save, persist: () => void = () => achGame?.p
   renderSecrets(world, ws);
   renderPets(save, persist);
   renderAch(save);
+  renderStories();
 }
 
 /**
