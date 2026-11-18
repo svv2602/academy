@@ -5080,5 +5080,181 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_1": {
+  "text": "Ми сьогодні чудово погралися! Продовжимо завтра?",
+  "heard": "Ми сьогодні чудово погралися. Продовжимо завтра?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_2": {
+  "text": "Мої лапки трохи втомилися. Може, відпочинемо до завтра?",
+  "heard": "Мої лапки трохи втомилися. Може, відпочинемо до завтра?",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_3": {
+  "text": "Усе, що ми знайшли, збережеться. Продовжимо завтра?",
+  "heard": "Усе, що ми знайшли, збережеться. Продовжимо завтра?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_4": {
+  "text": "Яка гарна пригода сьогодні! Час відпочити оченятам.",
+  "heard": "Яка гарна пригода сьогодні! Час відпочити оченятам.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_5": {
+  "text": "Світ зачекає на нас до завтра. Відпочинемо?",
+  "heard": "Світ зачекає на нас до завтра. Відпочинемо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_more_1": {
+  "text": "Гаразд! Ще трішки пограємо разом.",
+  "heard": "Гаразд, ще трішки пограємо разом.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_more_2": {
+  "text": "Добре, я з тобою! Куди підемо?",
+  "heard": "Добре, я з тобою. Куди підемо?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_more_3": {
+  "text": "Чудово! Біжімо далі за іскорками.",
+  "heard": "Чудово, біжімо далі за іскорками!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_bye_1": {
+  "text": "До завтра! Я чекатиму тебе тут.",
+  "heard": "До завтра я чекатиму тебе тут.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "break_bye_2": {
+  "text": "Відпочивай! Завтра на нас чекають нові дива.",
+  "heard": "Відпочивай, завтра на нас чекають нові дива.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hello_1": {
+  "text": "Привіт! Я так скучав за тобою!",
+  "heard": "Привіт, я так скучав за тобою!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hello_2": {
+  "text": "Ура, ти тут! Мур-р, починаємо пригоду!",
+  "heard": "Ура, ти тут! Мррр, починаємо пригоду!",
+  "score": 0.955,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hello_3": {
+  "text": "Вітаю, Хранителько! Світи на тебе чекають.",
+  "heard": "Вітаю, Хранителько. Святии на тебе чекають.",
+  "score": 0.962,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hello_4": {
+  "text": "Ось і ти! Мені стільки треба тобі показати!",
+  "heard": "Ось і ти, мені стільки треба тобі показати!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hello_5": {
+  "text": "Мур! Як добре, що ти повернулася!",
+  "heard": "Мур, як добре, що ти повернулася!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "gift_star_1": {
+  "text": "А це тобі зірочка — подарунок на сьогодні!",
+  "heard": "А це тобі зірочка-подарунок на сьогодні!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "gift_star_2": {
+  "text": "Мур! Зірочка для тебе — просто так!",
+  "heard": "Мур, зірочка для тебе, просто так.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "left_new_world": {
+  "text": "Тут живуть нові друзі. Ходімо познайомимося!",
+  "heard": "Тут живуть нові друзі, ходімо познайомимося!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "left_mid_chain": {
+  "text": "Наш друг чекає на тебе. Біжімо за іскорками!",
+  "heard": "Наш друг чекає на тебе. Біжімо за іскорками!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "left_between": {
+  "text": "Одному другові ми вже допомогли. Хто наступний?",
+  "heard": "Одному другові ми вже допомогли. Хто наступний?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "left_before_final": {
+  "text": "Усі частинки вже в нас! Залишилось скласти скарб.",
+  "heard": "Усі частинки вже в нас, залишилось скласти скарб.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "left_after_artifact": {
+  "text": "Наш скарб сяє! Великому Дереву вже краще.",
+  "heard": "Наш скарб сяє, великому дереву вже краще.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
