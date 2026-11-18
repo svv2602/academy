@@ -54,3 +54,47 @@ jobs:
             e2e.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # Twenty rounds "first world -> probe world -> back" (TECH-15): the gate plays five (ci.yml, part "travel"), and what a
+  # session piles up slowly is seen only over more. The first five are held to the requirement as in the gate, the later
+  # half (rounds 11-20) to the same 10 % again (tools/worlds.mjs `roundProblems`): a healthy heap grows by less each
+  # round, a world that is not freed by the same. The heap, geometries, textures and kinds of each round are in the log.
+  rounds:
+    name: worlds (probe world, travel, 20 rounds) (dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check and build
+        run: npm run build
+      - name: Check Chrome
+        run: /usr/bin/google-chrome --version
+      # As the job "worlds" of ci.yml plays it: software rendering, the lowest fixed tier.
+      - name: Probe world, twenty rounds
+        shell: bash
+        env:
+          E2E_GL: swiftshader
+          Q: '0'
+          E2E_ROUNDS: '20'
+          E2E_RUN_TIMEOUT_MS: '3000000'
+        run: |
+          set -o pipefail
+          echo "dev at $(git rev-parse --short HEAD)"
+          node tools/worlds.mjs dist --only travel 2>&1 | tee worlds.log
+      - name: Upload screenshots and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-rounds-a${{ github.run_attempt }}
+          path: |
+            shots-e2e/
+            worlds.log
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1102,7 +1102,8 @@ describe('.github/workflows/nightly.yml: the whole session of the phone once a d
   const night = workflow('nightly.yml');
   it('runs on a schedule and by hand, plays dev, publishes nothing and leaves no status "check"', () => {
     expect(night.text).toMatch(/\non:\n  schedule:\n    - cron: '[0-9]+ [0-9]+ \* \* \*'\n  workflow_dispatch:\npermissions:\n  contents: read\n/);
-    expect(Object.keys(night.jobs)).toEqual(['session']);
+    expect(Object.keys(night.jobs)).toEqual(['session', 'rounds']);
+    for (const job of Object.values(night.jobs)) expect(job).toContain('      - uses: actions/checkout@v4\n        with:\n          ref: dev\n');
     expect(night.text).not.toMatch(/name: ['"]?check['"]?$/m);
     expect(night.text).not.toContain('pages');
     expect(night.jobs.session).toContain('      - uses: actions/checkout@v4\n        with:\n          ref: dev\n');
@@ -1114,6 +1115,27 @@ describe('.github/workflows/nightly.yml: the whole session of the phone once a d
     expect(night.jobs.session).toContain(`          E2E_RUN_TIMEOUT_MS: '${TRY_LIMITS.all.runMs}'\n`);
     // its own build comes before the walkthrough: the job is longer than the walkthrough by it
     expect(Number(key(night.jobs.session, 'timeout-minutes'))).toBeGreaterThan(TRY_LIMITS.all.minutes);
+  });
+});
+
+describe('.github/workflows/nightly.yml: twenty rounds of the probe world once a day on dev (TECH-15)', () => {
+  const night = workflow('nightly.yml');
+  const job = night.jobs.rounds;
+  it('builds dev and plays the part "travel" of tools/worlds.mjs as the gate does, but twenty rounds', () => {
+    expect(job).toContain('        run: npm run build\n');
+    expect(job).toContain('node tools/worlds.mjs dist --only travel 2>&1 | tee worlds.log');
+    // the same rendering as the job "worlds" of ci.yml
+    expect(job).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
+    expect(workflow('ci.yml').jobs.worlds).toContain("          E2E_GL: swiftshader\n          Q: '0'\n");
+    expect(job).toContain("          E2E_ROUNDS: '20'\n");
+    expect(workflow('ci.yml').text).not.toContain('E2E_ROUNDS');   // the gate plays the five of the requirement
+  });
+  it('the limit of the run is under the limit of the job, and the log is kept whatever the end: the numbers of each round are in it', () => {
+    const runMs = Number(/E2E_RUN_TIMEOUT_MS: '(\d+)'/.exec(job)[1]);
+    expect(runMs).toBeGreaterThan(600000);   // more than the default of tools/worlds.mjs: twenty rounds, not five
+    expect(Number(key(job, 'timeout-minutes')) * 60000).toBeGreaterThan(runMs);
+    expect(job).toContain('        if: always()\n        uses: actions/upload-artifact@v4\n');
+    expect(job).toContain('            worlds.log\n');
   });
 });
 

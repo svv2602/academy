@@ -89,7 +89,8 @@
 //      the middle of its closing is pictured (travel-mid.png, the game's clock stopped, not the debug stop of the
 //      layer). After each round the garbage is collected and the heap in use, the geometries, the textures and the
 //      programs of the renderer are read and printed (`readRound`, the same as tools/worlds-phone.mjs on the phone);
-//      after the last none may be more than ROUND_GROWTH over the first. Then the network goes off, the page is
+//      after the fifth none may be more than ROUND_GROWTH over the first. E2E_ROUNDS asks for more (the night's run,
+//      nightly.yml: 20), and the later half of them is held to the same rule (`roundProblems`). Then the network goes off, the page is
 //      reloaded: the progress of both worlds is where it was, and the probe world opens from the cache.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
@@ -503,12 +504,23 @@ export const ROUND_KEYS = ['heap', 'geometries', 'textures'];
  */
 export const ROUND_KINDS = 'kinds';
 
+/** The most rounds E2E_ROUNDS may ask for: twenty is the night's run (nightly.yml); more is a study, not a check. */
+export const ROUNDS_MOST = 50;
+
 /**
- * The numbers after the rounds, [{ round, heap, geometries, textures, programs }] in order: ROUNDS of them, each read,
- * and each number after the last round at most ROUND_GROWTH over the same after the first. Returns the problems.
+ * How many rounds to play: E2E_ROUNDS, ROUNDS without it. Fewer than ROUNDS would leave the requirement unchecked,
+ * so it is no number to ask for. Returns { rounds } or { error }.
  */
-export function roundProblems(rounds) {
-  if (rounds.length !== ROUNDS) return [`${rounds.length} round(s) were read, expected ${ROUNDS}`];
+export function roundsWanted(env) {
+  const raw = env.E2E_ROUNDS;
+  if (raw === undefined || raw === '') return { rounds: ROUNDS };
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < ROUNDS || n > ROUNDS_MOST) return { error: `bad E2E_ROUNDS "${raw}": a whole number from ${ROUNDS} to ${ROUNDS_MOST}` };
+  return { rounds: n };
+}
+
+/** The problems of one stretch of rounds: its last round against its first (each number) and against all before it (the kinds). */
+function stretchProblems(rounds) {
   const out = [];
   const [a, z] = [rounds[0], rounds[rounds.length - 1]];
   const lost = rounds.find((r) => !Array.isArray(r[ROUND_KINDS]) || !r[ROUND_KINDS].length);
@@ -523,6 +535,28 @@ export function roundProblems(rounds) {
     const bad = rounds.find((r) => !(Number.isFinite(r[k]) && r[k] > 0));
     if (bad) { out.push(`"${k}" was not read after round ${bad.round} (${bad[k]}): nothing to compare`); continue; }
     if (z[k] > a[k] * (1 + ROUND_GROWTH)) out.push(`after round ${z.round} "${k}" is ${z[k]}, after round ${a.round} it was ${a[k]}: ${(((z[k] / a[k]) - 1) * 100).toFixed(1)} % more, at most ${ROUND_GROWTH * 100} % is allowed - the worlds left are not freed`);
+  }
+  return out;
+}
+
+/**
+ * The numbers after the rounds, [{ round, heap, geometries, textures, programs, kinds }] in order: `want` of them
+ * (ROUNDS by default), each read. The first ROUNDS rounds are held to the requirement (TECH-15): each number after
+ * round ROUNDS at most ROUND_GROWTH over the same after round 1, the kinds as `ROUND_KINDS` says.
+ * A longer run (the night's twenty) is held to it a second time on its later half: from round want/2 + 1 to the last,
+ * by the same rule. Not the last against the first: the heap of a game that leaks nothing still grows over twenty
+ * rounds, by less each round (docs/perf.md: 17.66 -> 19.63 MB from round 2 to 20, 0.23 MB a round at the start, 0.04
+ * in rounds 11-20 - the engine's compiled code and the renderer's tables, no object of a world), so 10 % over twenty
+ * would fail a healthy game; a world that is not freed adds the same every round and shows in the later half as in
+ * the first five. Each problem of the later half names its rounds. Returns the problems.
+ */
+export function roundProblems(rounds, want = ROUNDS) {
+  if (rounds.length !== want) return [`${rounds.length} round(s) were read, expected ${want}`];
+  const out = stretchProblems(rounds.slice(0, ROUNDS));
+  if (want > ROUNDS) {
+    const from = Math.floor(want / 2);
+    const later = rounds.slice(from);
+    out.push(...stretchProblems(later).map((x) => `the later half (rounds ${later[0].round}-${later[later.length - 1].round}): ${x}`));
   }
   return out;
 }
@@ -603,6 +637,8 @@ async function main() {
   if (!Number.isInteger(firstPort) || firstPort < 1 || firstPort > 65000) usage(`bad E2E_PORT "${process.env.E2E_PORT}"`);
   const runTimeoutMs = Number(process.env.E2E_RUN_TIMEOUT_MS || 600000);
   if (!(runTimeoutMs > 0)) usage(`bad E2E_RUN_TIMEOUT_MS "${process.env.E2E_RUN_TIMEOUT_MS}"`);
+  const wanted = roundsWanted(process.env);
+  if (wanted.error) usage(wanted.error);
   const dist = resolve(args[0] ?? join(root, 'dist'));
   if (args[0] && !existsSync(join(dist, 'index.html'))) usage(`${dist} has no index.html: build the game first (npm run build)`);
   const probeDist = join(root, PROBE_DIST);
@@ -760,7 +796,7 @@ async function main() {
   }
   // ---- 7. the change of world without a reload ----
   if (play('travel')) try {
-    const summary = await travelScenarios({ url, shots, asked, list: readList(probeDist), fail, block: (id) => { blocked = id; } });
+    const summary = await travelScenarios({ url, shots, asked, list: readList(probeDist), fail, block: (id) => { blocked = id; }, rounds: wanted.rounds });
     if (summary) console.log(`[worlds] ${summary}`);
   } catch (e) {
     fail(`the change of world: ${e.stack ?? e}`);
@@ -774,10 +810,11 @@ async function main() {
 /**
  * The scenarios of the change of world (7 above) on the probe build served at `url`; the pictures go to `shots`.
  * `asked` is the server's record of requests, `list` worlds.json of the build. `block(id)` makes the server answer 404
- * for the files of the world `id` (null gives them back). Every failure goes to `fail`; returns the line to print when
- * every scenario came to its end without one ('' otherwise).
+ * for the files of the world `id` (null gives them back). `rounds` is how many rounds the scenario "rounds" plays
+ * (`roundsWanted`). Every failure goes to `fail`; returns the line to print when every scenario came to its end
+ * without one ('' otherwise).
  */
-async function travelScenarios({ url, shots, asked, list, fail: report, block }) {
+async function travelScenarios({ url, shots, asked, list, fail: report, block, rounds: wantRounds = ROUNDS }) {
   let failures = 0;
   const fail = (msg) => { failures++; report(`the change of world: ${msg}`); };
   const { chromium } = await import('playwright-core');
@@ -1274,6 +1311,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
     // off and the page is reloaded: the progress of both worlds is where it was, and the probe world opens from the
     // cache - the server asked for none of its files.
     const rounds = [];
+    rounds.want = wantRounds;
     {
       const name = 'rounds';
       const p = await open(name, false, true);
@@ -1320,12 +1358,12 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       await settled(p, FIRST);
       rounds.push(await readRound(p.page, cdp, 1));
       console.log(`[worlds] ${name}: ${roundLine(rounds[0])}`);
-      for (let n = 2; n <= ROUNDS; n++) {
+      for (let n = 2; n <= rounds.want; n++) {
         for (const x of await playRound(p.page, p.until)) fail(`${name}, round ${n}: ${x}`);
         rounds.push(await readRound(p.page, cdp, n));
         console.log(`[worlds] ${name}: ${roundLine(rounds[rounds.length - 1])}`);
       }
-      for (const x of roundProblems(rounds)) fail(`${name}: ${x}`);
+      for (const x of roundProblems(rounds, rounds.want)) fail(`${name}: ${x}`);
       // The progress of both worlds after a reload, without network; the probe world opens from the cache.
       const progress = () => p.g(([a, b]) => JSON.stringify({ first: __game.save.worlds[a]?.quests ?? null, probe: __game.save.worlds[b]?.quests ?? null, stars: __game.save.stars }), [FIRST, PROBE]);
       const was = await progress();
@@ -1347,7 +1385,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       + `the line "${HI}" has its clip ${HI_CLIP} only while "${PROBE}" plays and was said by it; `
       + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) its download failed, the game went back to "${FIRST}", the cat said "${NEED_NET}" by its clip and the game played on; `
       + `without network and cache the portal stayed closed (the frame never closed, "${NEED_NET}" by its clip, the heroine walked, a task was solved, the server asked for nothing of "${PROBE}"), and once downloaded "${PROBE}" opened without network; `
-      + `${ROUNDS} rounds there and back (${rounds.map((r) => `${(r.heap / 1048576).toFixed(1)} MB/${r.geometries}g/${r.textures}t/${r.programs}p`).join(', ')}), the last within ${ROUND_GROWTH * 100} % of the first; the progress of both worlds after a reload without network, "${PROBE}" opened from the cache; `
+      + `${rounds.want} rounds there and back (${rounds.map((r) => `${(r.heap / 1048576).toFixed(1)} MB/${r.geometries}g/${r.textures}t/${r.programs}p`).join(', ')}), the fifth within ${ROUND_GROWTH * 100} % of the first${rounds.want > ROUNDS ? ', and so the last of the later half' : ''}; the progress of both worlds after a reload without network, "${PROBE}" opened from the cache; `
       + `${((Date.now() - started) / 1000).toFixed(0)} s; pictures: ${shots}/travel-*.png`;
   } finally {
     block(null);

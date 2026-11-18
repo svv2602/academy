@@ -13,8 +13,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
-  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  pelvisKey, playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  pelvisKey, playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
 
@@ -676,6 +676,66 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
     expect(roundProblems(five({ heap: 0 }))[0]).toContain('"heap" was not read after round 5');
   });
 
+  it('E2E_ROUNDS: five without it, a whole number from five to fifty with it, anything else refused', () => {
+    expect(roundsWanted({})).toEqual({ rounds: 5 });
+    expect(roundsWanted({ E2E_ROUNDS: '' })).toEqual({ rounds: 5 });
+    expect(roundsWanted({ E2E_ROUNDS: '20' })).toEqual({ rounds: 20 });
+    expect(roundsWanted({ E2E_ROUNDS: '5' })).toEqual({ rounds: 5 });
+    expect(roundsWanted({ E2E_ROUNDS: String(ROUNDS_MOST) })).toEqual({ rounds: ROUNDS_MOST });
+    for (const bad of ['4', '0', '-20', '20.5', 'twenty', String(ROUNDS_MOST + 1)]) {
+      expect(roundsWanted({ E2E_ROUNDS: bad }).error).toBe(`bad E2E_ROUNDS "${bad}": a whole number from 5 to ${ROUNDS_MOST}`);
+    }
+  });
+
+  describe('twenty rounds (the night\'s run): the first five and the later half, each by the rule of five', () => {
+    const many = (n, f = () => ({})) => Array.from({ length: n }, (_, i) => round(i + 1, f(i + 1)));
+    // the heap of docs/perf.md: grows by less each round, 11 % from round 2 to 20, 2 % over the later half
+    const healthy = (r) => ({ heap: (17.66 + 2 * (1 - Math.exp(-(r - 1) / 6))) * MB });
+
+    it('a heap that grows by less each round passes, though the last is more than 10 % over the first', () => {
+      const rounds = many(20, healthy);
+      expect(rounds[19].heap / rounds[0].heap).toBeGreaterThan(1.1);
+      expect(roundProblems(rounds, 20)).toEqual([]);
+    });
+
+    it('a world not freed (the same more each round) fails in the later half, by the rounds it names', () => {
+      const leak = many(20, (r) => ({ heap: (40 + 0.6 * r) * MB }));   // 2.4 MB over the first five rounds: within 10 % there
+      expect(roundProblems(leak.slice(0, 5))).toEqual([]);
+      const left = roundProblems(leak, 20);
+      expect(left).toHaveLength(1);
+      expect(left[0]).toMatch(/^the later half \(rounds 11-20\): after round 20 "heap" is .* it was .* at most 10 % is allowed/);
+    });
+
+    it.each(ROUND_KEYS)('"%s" growing only after round five is caught by the later half', (k) => {
+      const base = round(1)[k];
+      const left = roundProblems(many(20, (r) => ({ [k]: r <= 11 ? base : Math.ceil(base * 1.11) })), 20);
+      expect(left).toEqual([expect.stringContaining(`the later half (rounds 11-20): after round 20 "${k}" is`)]);
+    });
+
+    it('the first five are still held to the requirement: a jump there fails though the later half is flat', () => {
+      const left = roundProblems(many(20, (r) => ({ textures: r >= 5 ? 140 : 120 })), 20);
+      expect(left).toEqual([expect.stringContaining('after round 5 "textures" is 140, after round 1 it was 120')]);
+    });
+
+    it('new kinds of program in the last round are judged against the later half before it', () => {
+      const KINDS2 = Array.from({ length: 20 }, (_, i) => `prog${i}:x${i}`);
+      const left = roundProblems(many(20, (r) => ({ kinds: r === 20 ? KINDS2 : KINDS })), 20);
+      expect(left).toEqual([expect.stringMatching(/^the later half \(rounds 11-20\): after round 20 the renderer holds 20 kind\(s\)/)]);
+    });
+
+    it('an odd number of rounds: the later half starts after the middle', () => {
+      const leak = many(21, (r) => ({ geometries: r === 21 ? 400 : 300 }));
+      expect(roundProblems(leak, 21)).toEqual([expect.stringContaining('the later half (rounds 11-21)')]);
+    });
+
+    it('fewer rounds than asked for, or a number lost in the later half, is a problem: never a quiet pass', () => {
+      expect(roundProblems(many(19), 20)).toEqual(['19 round(s) were read, expected 20']);
+      expect(roundProblems(many(5), 20)).toEqual(['5 round(s) were read, expected 20']);
+      expect(roundProblems(many(20, (r) => (r === 15 ? { heap: undefined } : {})), 20))
+        .toEqual(['the later half (rounds 11-20): "heap" was not read after round 15 (undefined): nothing to compare']);
+    });
+  });
+
   it('a line of the log for each round: the heap in MB and the three counts of the renderer', () => {
     expect(roundLine(round(3, { heap: 41.5 * MB }))).toBe('round 3: heap 41.50 MB, geometries 300, textures 120, programs 60 (20 kinds in the round)');
   });
@@ -817,7 +877,12 @@ describe('the scenarios of the gate in the part "travel" (R07, R12, README of ch
     expect(rounds.indexOf('await watchPrograms(p.page);')).toBeGreaterThanOrEqual(0);
     expect(rounds.indexOf('await watchPrograms(p.page);')).toBeLessThan(rounds.indexOf('window.__roundGoing = __game.travel(to);'));
     expect(rounds).toContain('for (const x of await playRound(p.page, p.until)) fail(');
-    expect(rounds).toContain('for (const x of roundProblems(rounds)) fail(');
+    // as many rounds as were asked for (E2E_ROUNDS), each played, and all of them judged against that number
+    expect(rounds).toContain('for (let n = 2; n <= rounds.want; n++) {');
+    expect(src).toContain('rounds.want = wantRounds;');
+    expect(src).toContain('const wanted = roundsWanted(process.env);\n  if (wanted.error) usage(wanted.error);');
+    expect(src).toContain('block: (id) => { blocked = id; }, rounds: wanted.rounds });');
+    expect(rounds).toContain('for (const x of roundProblems(rounds, rounds.want)) fail(');
     expect(rounds).toContain('if (now !== was) fail(');
     expect(rounds.indexOf('await offline(p);')).toBeLessThan(rounds.indexOf('await p.page.reload();'));
     expect(rounds).toContain('if (again.ok !== true) fail(');
