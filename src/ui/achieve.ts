@@ -6,9 +6,9 @@
  */
 import { inTask, sfx } from '../core/audio';
 import { pick } from '../core/util';
-import { ACHIEVEMENTS, unshown, type AchContext, type AchievementId } from '../game/achievements';
+import { ACHIEVEMENTS, check, unshown, type AchContext, type AchievementId } from '../game/achievements';
 import type { Game } from '../game/context';
-import { achievementStop, bindStops, onStop, setScreen, worldContext } from '../game/stops';
+import { achievementStop, bindStops, onPoint, onStop, setScreen, worldContext } from '../game/stops';
 import { isSkillStep } from '../game/tasks/index';
 import { SKILL } from '../game/taskviews/panel';
 import type { SkillId } from '../game/skills';
@@ -75,6 +75,9 @@ export function bindAchievements(g: Game) {
   if (bound) return;
   bound = true;
   setScreen({ taskOpen: () => inTask(), cardOpen: () => !el.fanfare.classList.contains('hidden') });
+  // Every point grants what was earned, even one that may not come in now (a card, the book, the heroine busy): the
+  // scene waits in the queue for the next point that may - an achievement is never lost to a skipped point.
+  onPoint(() => { if (check(g.save, context(g)).length) g.persist(); });
   onStop(async () => {
     await achievementStop(g.save, context(g), achState.held ? null : (id) => scene(g, id), g.persist);
   });

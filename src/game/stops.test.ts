@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import type { AchContext, AchievementId } from './achievements';
-import { achContext, achievementStop, atPlay, mayStop, onStop, setScreen, stopPoint, worldFacts, type StopHost } from './stops';
+import { check, type AchContext, type AchievementId } from './achievements';
+import { achContext, achievementStop, atPlay, mayStop, onPoint, onStop, setScreen, stopPoint, worldFacts, type StopHost } from './stops';
 
 const CTX: AchContext = {
   worlds: [{ id: 'w1', groundStars: [0, 1], quests: [{ id: 'a', steps: [1, 2] }], chest: 'chest', secrets: ['chest'] }],
@@ -94,6 +94,34 @@ describe('stop points and the achievements\' scene (PLAY-08, R43)', () => {
     expect(ran).toEqual(['a:task', 'b:task']);
     await stopPoint('book', null);
     expect(ran).toEqual(['a:task', 'b:task']);
+  });
+
+  it('a point that may not come in still runs what is due at every point: an achievement is never lost to a skipped point', async () => {
+    const s = twoAtOnce(), due: string[] = [], scenes: string[] = [];
+    off.push(onPoint(() => { due.push('grant'); }), onStop(() => { scenes.push('scene'); }));
+    setScreen({ taskOpen: () => false, cardOpen: () => true });          // a card on screen: the point is skipped
+    await stopPoint('book', host(s));
+    await stopPoint('book', host(s, { busy: true }));                    // the heroine busy: skipped too
+    setScreen({ taskOpen: () => false, cardOpen: () => false });
+    expect([due.length, scenes.length]).toEqual([2, 0]);
+    await stopPoint('book', host(s));                                     // a point that may come in: both
+    expect([due.length, scenes.length]).toEqual([3, 1]);
+  });
+
+  it.each([
+    ['first_artifact', (s: Save) => { s.worlds.w1 = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null }; }],
+    ['secret_chest', (s: Save) => { s.worlds.w1 = { quests: {}, final: false, starsTaken: [], flags: { chest: true }, pos: null }; }],
+    ['all_world_stars', (s: Save) => { s.worlds.w1 = { quests: {}, final: false, starsTaken: [0, 1], flags: {}, pos: null }; }],
+    ['all_skills', (s: Save) => { s.skills.count.tasks = 1; s.skills.count.first = 1; s.skills.add.tasks = 1; s.skills.add.first = 1; }],
+    ['days_3', (s: Save) => { s.days = { n: 3, last: '2026-11-18' }; }],
+  ] as const)('%s, met away from any point that may come in, is granted at a skipped one and waits for its scene', async (id, meet) => {
+    const s = defaultSave();
+    off.push(onPoint((g) => { check(g.save, CTX, 5); }));
+    meet(s);
+    setScreen({ taskOpen: () => false, cardOpen: () => true });   // every point of the session skipped: a card on screen
+    await stopPoint('book', host(s));
+    await stopPoint('part', host(s, { busy: true }));
+    expect(s.achievements[id]).toBe(5);
   });
 
   it('"Play" counts the day once per date and is a stop point', async () => {
