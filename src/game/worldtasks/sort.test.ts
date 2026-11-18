@@ -13,6 +13,7 @@ import type { Spoken } from '../../core/audio';
 import type { SpokenKey } from '../../ui/strings';
 import { sort, generate, type SortSpec } from '../tasks/sort';
 import { showTask, type TaskHooks } from '../taskviews/panel';
+import { createWorldScope } from '../scope';
 import { showSortInWorld, type WorldSort } from './sort';
 
 const MARKUP = '<div id="task" class="hidden"><button id="taskClose"></button>'
@@ -50,7 +51,7 @@ const tapPedestal = (w: WorldSort, colour: string) => {
   return w.tap((v) => Math.hypot(v.x - p.position.x, v.z - p.position.z) < 1e-6 ? 0 : 1000);
 };
 const openWorld = (spec: SortSpec, hooks: TaskHooks, scene = new THREE.Scene()) =>
-  showSortInWorld(scene, spec, { x: 3, z: -2, facing: 0.7 }, hooks, { groundY: () => 0, reach: 60 });
+  showSortInWorld(scene, spec, { x: 3, z: -2, facing: 0.7 }, hooks, { groundY: () => 0, reach: 60, scope: createWorldScope(new THREE.Scene()) });
 
 describe('"sort" in the world and on the panel, from one description', () => {
   it.each([1, 2, 3])(`level %i: ${SEEDS} seeds - the same colours in the same order, the same crystal first, both solved by solution()`, async (level) => {
@@ -173,5 +174,39 @@ describe('the world show draws no random numbers', () => {
     const code = SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     expect(code).not.toMatch(/Math\.random/);
     expect(code).not.toMatch(/\brng\b/i);
+  });
+});
+
+describe('"sort" in the world and the world it is played in', () => {
+  it('a world left while the last crystal lands: the task does not end in the world taken away (its timer is the world\'s)', async () => {
+    const spec = generate(1, createRng('world-sort-left'));
+    const { hooks } = listen();
+    const scene = new THREE.Scene(), scope = createWorldScope(new THREE.Scene());
+    const w = showSortInWorld(scene, spec, { x: 3, z: -2, facing: 0.7 }, hooks, { groundY: () => 0, reach: 60, scope });
+    const shown = scene.children.length;
+    let ended = false;
+    void w.done.then(() => { ended = true; });
+    w.solve();
+    expect(w.state().phase).toBe('solved');
+    scope.dispose();
+    await vi.advanceTimersByTimeAsync(5000);
+    await breathe();
+    expect(ended).toBe(false);
+    expect(scene.children.length).toBe(shown);       // nothing of the task was taken out of a scene already gone
+  });
+
+  it('the door\'s wrong move goes through the handler of a tap: counted, the solved state after solve()', async () => {
+    const spec = generate(2, createRng('world-sort-door'));
+    const { hooks, heard } = listen();
+    const w = openWorld(spec, hooks);
+    expect(w.state()).toMatchObject({ kind: 'sort', phase: 'input', wrongs: 0, rung: 0 });
+    expect(w.wrong()).toBe(true);
+    expect(w.state().wrongs).toBe(1);
+    await vi.runAllTimersAsync();
+    expect(heard.wrong).toBe(1);
+    w.solve();
+    expect(w.state().phase).toBe('solved');
+    await vi.runAllTimersAsync();
+    await expect(w.done).resolves.toMatchObject({ solved: true, wrong: 1 });
   });
 });

@@ -9,9 +9,11 @@
  * open it, to wire the close button (`showClose` in src/ui/ui.ts) and to call `update` in its frame.
  */
 import * as THREE from 'three';
+import type { WorldScope } from '../scope';
 import { sort, type SortSpec } from '../tasks/sort';
-import { afterMistake, hintOf, type FlowTask, type ShownHint } from '../taskviews/flow';
-import type { TaskHooks, TaskResult } from '../taskviews/panel';
+import { hintOf, type ShownHint } from '../taskviews/flow';
+import type { TaskHooks } from '../taskviews/panel';
+import { taskCore, type WorldTaskShow } from './core';
 
 /** The colours of the description, as they are drawn in the world. */
 export const SORT_COLORS: Record<string, string> = { red: '#ff5a6e', blue: '#4aa8ff', yellow: '#ffd54f', green: '#5fd07a' };
@@ -23,25 +25,17 @@ export interface WorldSortOptions {
   groundY(x: number, z: number): number;
   /** The farthest a tap may land from a pedestal on the screen, in pixels. */
   reach: number;
+  /** The world's scope: the task's timer goes with the world (src/game/scope.ts). */
+  scope: WorldScope;
 }
 
-export interface WorldSort {
-  /** Settles once the task is solved or closed. */
-  readonly done: Promise<TaskResult>;
+export interface WorldSort extends WorldTaskShow {
   /** The pedestals in the order of the description's colours; each holds its colour in `userData.color`. */
   readonly pedestals: readonly THREE.Mesh[];
   /** The crystal to sort; its colour is in `userData.color` (null once every crystal is sorted). */
   readonly crystal: THREE.Mesh;
-  /** The middle of the arc, where the camera looks. */
-  readonly center: THREE.Vector3;
-  /** A tap while the task is open takes it, even one that hits no pedestal (true). */
-  tap(screenDist: (p: THREE.Vector3) => number): boolean;
-  /** Solves the task through the same handler a tap goes through, in the order of `sort.solution`. */
+  /** The same as `solve` (the name the world's cheat knew it by). */
   cheat(): void;
-  /** The close button: the task ends unsolved and leaves nothing in the scene. */
-  close(): void;
-  /** The crystal bobs, a pulsing pedestal breathes, a wrong one shakes. */
-  update(time: number): void;
 }
 
 const RADIUS = 1.8;            // m: the arc's radius
@@ -87,28 +81,25 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
   scene.add(group);
   hooks.prompt(spec.prompt);
 
-  let finish!: (r: TaskResult) => void;
-  const done = new Promise<TaskResult>((res) => { finish = res; });
   const hint: ShownHint | null = hintOf(spec.hint, null, {
     tryBaskets: () => { trying = { from: -1 }; own = null; crystalMat.emissiveIntensity = 1; },
     pulseNext: () => { pulse = pedestals.find((p) => p.userData.color === sort.solution(spec, st)[0]) ?? null; },
   });
-  const task: FlowTask & { alive: boolean; wrongs: number } = { alive: true, wrongs: 0, own: -1, hint };
-
-  const end = (solved: boolean) => {
-    task.alive = false; pulse = null; trying = null; own = null;
+  // The course of the task is the frame's (./core.ts): its mistakes, its hint, its end - the end's timer is the world's.
+  const core = taskCore(o.scope, hooks, hint, () => {
+    pulse = null; trying = null; own = null;
     scene.remove(group);
     geo.dispose(); gemGeo.dispose(); crystal.geometry.dispose();
-    finish({ solved, wrong: task.wrongs });
-  };
+  });
+
   function pick(p: THREE.Mesh) {
-    if (!task.alive) return;
+    if (!core.alive) return;
     const color = p.userData.color as string;
     const out = sort.answer(spec, st, color);
     if (out === 'ignored') return;
     if (out === 'wrong') {
       shake.set(p, -1);                       // started at the next update
-      void afterMistake(task, ++task.wrongs, hooks);
+      void core.mistake();
       return;
     }
     // The crystal lands on its pedestal, the next one shows up.
@@ -118,21 +109,33 @@ export function showSortInWorld(scene: THREE.Scene, spec: SortSpec, at: SortPlac
     pulse = null; trying = null; own = null; crystalMat.emissiveIntensity = 0.5;
     hooks.good();
     showCrystal();
-    if (out === 'right') { task.alive = false; setTimeout(() => end(true), 700); }
+    if (out === 'right') core.solve(700);     // the last crystal lands, then the task ends
   }
+  const solve = () => { for (const color of sort.solution(spec, st)) { const p = pedestals.find((x) => x.userData.color === color); if (p) pick(p); } };
 
   return {
-    done, pedestals, crystal, center,
+    kind: 'sort', done: core.done, pedestals, crystal, center,
     tap: (screenDist) => {
-      if (!task.alive) return false;
+      if (!core.alive) return false;
       let best: THREE.Mesh | null = null, bd = o.reach;
       const top = new THREE.Vector3();
       for (const p of pedestals) { const d = screenDist(top.copy(p.position).setY(p.position.y + TOP)); if (d < bd) { bd = d; best = p; } }
       if (best) pick(best);
       return true;
     },
-    cheat: () => { for (const color of sort.solution(spec, st)) { const p = pedestals.find((x) => x.userData.color === color); if (p) pick(p); } },
-    close: () => { if (task.alive) end(false); },
+    solve, cheat: solve,
+    // a wrong move: a pedestal of another colour than the crystal's
+    wrong: () => {
+      if (!core.alive) return false;
+      const p = pedestals.find((x) => x.userData.color !== queue[st.pos]);
+      if (!p) return false;
+      pick(p);
+      return true;
+    },
+    close: () => core.close(),
+    state: () => ({ kind: 'sort', phase: core.phase, wrongs: core.wrongs, rung: core.rung, progress: [] }),
+    progress: () => [],
+    resume: () => {},
     update: (time) => {
       crystal.position.y = center.y + 1.5 + Math.sin(time * 2.4) * 0.08;
       crystal.rotation.y = time * 1.5;

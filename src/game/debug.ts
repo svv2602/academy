@@ -4,6 +4,7 @@ import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
 import { uTime } from '../core/materials';
 import { cheatTask } from './taskviews/panel';
+import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
@@ -111,6 +112,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     get isStill() { return g.still; },
     fade: transition,
     talk(id: string) { world.talk(id); },
+    /**
+     * The task played in the world now (src/game/worldtasks/core.ts), whatever its kind: `solve()`, `wrong()` (one wrong
+     * move), `close()` (the close button), and `state` - its kind, phase (input / mistake / solved / closed), wrong moves,
+     * the rung of the hint on screen, its middle; null when none is open.
+     */
+    worldTask: worldTaskDoor(g),
     /** Does the right thing for whatever task is on screen; returns what it did. */
     cheat() {
       const done = world.cheatWorld();

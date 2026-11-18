@@ -1852,11 +1852,19 @@ try {
         await tapOn('#answersClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
         await ended('closed with its cross');
         await open();
+        // the debug door of a task in the world (src/game/worldtasks/core.ts): its state without knowing its kind, one wrong
+        // move through the same handler a tap takes, then the cheat solves it through the door
+        const st0 = await g(() => __game.worldTask.state);
+        if (!st0 || st0.phase !== 'input' || st0.wrongs !== 0) fail(`the door shows ${JSON.stringify(st0)} for a task just opened`);
+        if (!(await g(() => __game.worldTask.wrong()))) fail('the door made no wrong move');
+        await gameFor(() => __game.worldTask.state?.wrongs === 1, null, 5).catch(async () => fail(`a wrong move through the door was not counted: ${JSON.stringify(await g(() => __game.worldTask.state))}`));
         const how = await g(() => __game.cheat());
-        if (how !== 'sort') fail(`__game.cheat() did "${how}", not the sort`);
+        if (how !== 'world task') fail(`__game.cheat() did "${how}", not the task in the world`);
+        if ((await g(() => __game.worldTask.state?.phase)) !== 'solved') fail(`the door does not show the task solved: ${JSON.stringify(await g(() => __game.worldTask.state))}`);
         await ended('solved');
+        if ((await g(() => __game.worldTask.state)) !== null) fail('the door still shows a task once it is over');
         if (!(await walks())) fail('the heroine does not walk');
-        console.log(`sort in the world: ${pedestals} pedestals; closed with its cross, then solved - nothing recorded, the heroine walks`);
+        console.log(`sort in the world: ${pedestals} pedestals; closed with its cross, a wrong move and solved through the door - nothing recorded, the heroine walks`);
       }
       // A conversation is broken once on purpose, right after it has taken the controls: the heroine must walk again,
       // and the same conversation must start anew (the replay below).

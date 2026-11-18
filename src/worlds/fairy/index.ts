@@ -12,6 +12,7 @@ import type { WorldScope } from '../../game/scope';
 import { levelFor } from '../../game/skills';
 import { playScene } from '../../game/stage';
 import { generate as generateSort } from '../../game/tasks/sort';
+import { setWorldTask, worldTaskDoor } from '../../game/worldtasks/core';
 import { showSortInWorld, type WorldSort } from '../../game/worldtasks/sort';
 import type { BookInfo, BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldTask } from '../../game/world';
 import { openShop } from '../../ui/shop';
@@ -85,11 +86,12 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     const hx = at.x + Math.sin(h) * 3, hz = at.z + Math.cos(h) * 3;
     hero.root.position.set(hx, g.groundY(hx, hz), hz); hero.heading = h + Math.PI; hero.root.rotation.y = hero.heading;
     const spec = generateSort(levelFor(save, 'classify'), createRng(null));
-    const show = sortShow = showSortInWorld(scene, spec, at, g.hooksFor(deer.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60 });
+    const show = sortShow = showSortInWorld(scene, spec, at, g.hooksFor(deer.def.emoji), { groundY: g.groundY, reach: g.touch ? 90 : 60, scope });
+    setWorldTask(g, show);   // the debug door of the walkthrough reaches it (src/game/worldtasks/core.ts)
     Object.assign(sorting, { active: true, colors: show.pedestals.map((p) => p.userData.color as string) });
     g.cam.focus = g.above(show.center, 1);
     showClose(() => show.close());
-    try { await g.task(() => show.done); } finally { hideAnswers(); sorting.active = false; sortShow = null; }
+    try { await g.task(() => show.done); } finally { hideAnswers(); sorting.active = false; sortShow = null; setWorldTask(g, null); }
   });
 
   // ---------- the shop's signboard (R10, R19): the mushroom is in the scenery, its badge floats over the cap ----------
@@ -176,7 +178,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       magic, setMagic: (v: number | null) => magic.set(v) },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
-      if (sortShow && sorting.active) { sortShow.cheat(); return 'sort'; }
+      if (worldTaskDoor(g).solve()) return 'world task';
       if (bf.active && !bf.demo) { (el.answers.children[bf.n - 1] as HTMLElement).dispatchEvent(new PointerEvent('pointerdown')); return 'butterflies'; }
       if (search.active) { const it = search.items.find((s) => !s.found); if (it) hero.root.position.copy(it.mesh.position); return 'star'; }
       return '';
