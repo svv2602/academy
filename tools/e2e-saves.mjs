@@ -15,6 +15,7 @@
 /** The blocks of tools/shot.mjs a group may play, in the order the whole walkthrough plays them. */
 export const BLOCKS = [
   'no-debug',       // the built game without ?debug: no window.__game, no frame counter, the quality lowered by itself
+  'story',          // the cut-scenes (WORLD-13): a new save's introduction before the tour - taps, skip, every frame; none for a save played; the return of the crystal after the finale; shown again from the book
   'flyover',        // the tour of the world: a new save flies it and a tap ends it, a picture per point, none on a second entry or an old save (WORLD-11)
   'hidden-page',    // a hidden page pauses the introduction (TECH-05)
   'intro',          // the introduction heard to its end, the picture of the spawn
@@ -98,16 +99,17 @@ export const ACH_WHOLE = [...ACH_BASE, 'all_skills', 'first_artifact'];
  * The size decides the rest as it always did (tools/e2e.mjs): desktop is played offline, desktop-tall without the voice.
  */
 export const GROUPS = {
-  // friends 1-2 from no save: the published game without ?debug, the tour of the world, a hidden page, the introduction, the cat
-  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'], ach: ACH_BASE },
+  // friends 1-2 from no save: the published game without ?debug, the introduction of the cut-scenes, the tour of the world, a hidden page, the introduction, the cat
+  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'story', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'], ach: ACH_BASE },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions, the creatures, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
     friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'creatures', 'magic', 'achievements'], ach: ACH_BASE,
   },
-  // the deer: its star search with everything around it; then the finale, the book, the fawn that waits after the
-  // deer's chain (found, chosen, after her after a reload), the parents' section, the save moved by a code, "start again"
+  // the deer: its star search with everything around it; then the finale and the return of the crystal (a save played:
+  // no introduction), the book and its scene shown again, the fawn that waits after the deer's chain (found, chosen,
+  // after her after a reload), the parents' section, the save moved by a code, "start again"
   finale: {
     // Six examples with mistakes (LEARN-11), so that the parents' section has more than its five hardest to show (PLAY-15):
     // addition and take away only - the deer's chain has neither, so none of them comes back in place of its steps.
@@ -116,7 +118,7 @@ export const GROUPS = {
       name: 'Мірабелла', dress: '#5cc8ff', hair: '#f5d16b',
       hard: { n: 12, list: [['add:8+5', 3, 5], ['sub:13-6', 4, 4], ['add:7+6', 1, 9], ['sub:15-8', 2, 2], ['add:9+4', 2, 7], ['add:6+7', 1, 3]]
         .map(([k, e, at]) => ({ k, l: 3, e, c: 0, at })) } }),
-    friends: ['deer'], blocks: ['finale', 'magic-crystal', 'book', 'pet', 'parents', 'achievements', 'code', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
+    friends: ['deer'], blocks: ['story', 'finale', 'magic-crystal', 'book', 'pet', 'parents', 'achievements', 'code', 'leave', 'start-again'], ach: [...ACH_BASE, 'all_skills', 'first_artifact'],
   },
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the

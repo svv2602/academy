@@ -34,6 +34,9 @@
   <!-- After the task panel, so that it lies over it: a tap on the bubble says its line again. -->
   <div id="bubble" class="hidden" role="button"><div class="cat" id="speaker">🐱</div><p id="bubbleText"></p></div>
 
+  <!-- The cut-scenes (WORLD-13, src/game/story.ts): over everything; a tap goes on, the button skips the whole scene. -->
+  <div id="story" class="hidden"><p id="storySub" class="hidden"></p><button id="storySkip" aria-label="skip">⏭</button></div>
+
   <!-- The book of treasures, the profile (PLAY-07, PLAY-09; src/ui/book.ts): like the shop, the heroine close up on the
        free side and the card with tabs by pictures - the magic shelf (five places, the lands open), the secrets, the
        pets, the achievements. Nothing scrolls. -->
@@ -41,7 +44,7 @@
     <div id="bookSay" class="quiet"><div class="cat">🐱</div><p id="bookSayText"></p></div>
     <div class="card book-card">
       <div class="book-head"><h2 id="colTitle"></h2><div id="colStats" class="stats"></div></div>
-      <div id="bookTabs" class="shop-tabs"></div>
+      <div class="book-row"><div id="bookTabs" class="shop-tabs"></div><div id="bookStories" class="story-row"></div></div>
       <div id="bookShelf" class="book-pane"><div id="shelf" class="shelf"></div><p id="shelfSay" class="book-line"></p><div id="shards" class="shards"></div></div>
       <div id="bookSecrets" class="book-pane hidden"><p id="secretsSay" class="book-line"></p><div id="secrets" class="tiles"></div></div>
       <div id="bookPets" class="book-pane hidden"><div id="pets" class="tiles"></div><p id="petsSay" class="book-line"></p></div>

@@ -625,7 +625,7 @@ try {
       if (scrollX || scrollY) out.push(`the window is scrolled to ${px(scrollX)},${px(scrollY)}`);
 
       // 2. panels: inside the window, no scrolling inside
-      const panels = [...document.querySelectorAll('#start .panel, #task .t-card, #book .card, #parents .card, #fanfare .card, #shop .shop-card, #shopSay, #bubble, #hud, #answers')].filter(shown);
+      const panels = [...document.querySelectorAll('#start .panel, #task .t-card, #book .card, #parents .card, #fanfare .card, #shop .shop-card, #shopSay, #bubble, #hud, #answers, #storySub')].filter(shown);
       for (const p of panels) {
         const b = box(p), cs = getComputedStyle(p);
         if (outside(b, win)) out.push(`${label(p)} is outside the ${vw}x${vh} window: ${at(b)}`);
@@ -788,7 +788,8 @@ try {
       // The composition of a number has no levels 1-2: it would play them as its 3, the missing addend, which the phone
       // sizes play already. A run that fixes 1 or 2 (the tall desktop, tools/e2e.mjs) plays its house (level 4) instead.
       if (level && Number(level) < 3) await page.evaluate(() => { __game.save.fixed.compose = 4; });
-      await gameFor(() => !document.querySelector('#bubble').classList.contains('hidden'), null, 20);
+      // A new save starts with its introduction (WORLD-13): its frames wait for a tap, its subtitle is its own.
+      await gameFor(() => !document.querySelector('#bubble').classList.contains('hidden') || !!window.__game.story?.active, null, 20);
       // E2E_ONLY: the game plays from the group's save - or the group would pass playing something else.
       if (group) {
         // what the group declares (not the text written above: a save lost on its way must not agree with itself)
@@ -807,6 +808,107 @@ try {
             .catch(() => { throw new Error(`group "${only}": the stop point of "Play" earned nothing from the save`); });
           await fanfareUp('the stop point of "Play"');
         }
+      }
+      // ---- the cut-scenes (WORLD-13): still frames, one move of the camera each with the parallax of its depth map, the
+      // cat's line and its subtitle. A new save starts with the introduction, before the tour: a tap goes on to the next
+      // frame and the heroine does not walk, the skip button closes the whole scene; a save already played has none.
+      // `storyFrames` plays the scene on screen to its end by taps: a picture of the start and of the end of every pass
+      // (held there), the first pass run to its end - its line starts ~0.3 s in, the pass lasts the line + 1 s at least,
+      // then the frame stands until the tap. Every frame shown must be shown in 2.5D (the depth map loaded: also offline).
+      const storyNow = () => g(() => {
+        const s = __game.story, sub = document.querySelector('#storySub');
+        return { on: s.active, id: s.id, i: s.index, t: s.elapsed, pass: s.pass, fading: s.fading, busy: __game.busy,
+          sub: sub.classList.contains('hidden') ? '' : sub.textContent, joy: !document.querySelector('#joy').classList.contains('hidden'),
+          jump: !document.querySelector('#btnJump').classList.contains('hidden'), log: s.log.length };
+      });
+      const storyFail = (what) => { throw new Error(`the cut-scenes: ${what}`); };
+      const storyFrame = (i) => gameFor((i) => __game.story.index === i && !__game.story.fading, i, 15)
+        .catch(() => storyFail(`frame ${i + 1} did not come`));
+      const storyTap = async () => {
+        const vp = page.viewportSize();
+        await (touch ? page.touchscreen.tap(vp.width / 2, vp.height / 2) : page.mouse.click(vp.width / 2, vp.height / 2));
+      };
+      const storyFrames = async (id, { upTo = Infinity } = {}) => {
+        const n = await g((id) => __game.story.stories.find((s) => s.id === id).shots.length, id);
+        await storyFrame(0);
+        const from = await g((id) => __game.story.log.findLastIndex((f) => f.story === id && f.index === 0), id);
+        const at = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        for (let i = 0; i < Math.min(n, upTo); i++) {
+          await storyFrame(i);
+          const name = `story-${id.replace('story_', '')}-${i + 1}`;
+          await g(() => __game.story.hold(0)); await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          await shot(`${name}a`);
+          await g(() => __game.story.hold(null));
+          if (i === 0) {
+            // the first pass to its end, in the scene's own time (frames of at most 0.05 s, as the game's): its line, then the frame stands still until the tap
+            await gameFor(() => __game.story.elapsed >= __game.story.pass - 1e-6, null, 40)
+              .catch(() => storyFail(`${id}: the pass of the first frame did not end`));
+            const s0 = await storyNow();
+            await gameSeconds(1);
+            const s1 = await storyNow(), f = await g(() => __game.story.log.at(-1));
+            if (s1.i !== 0 || !s1.on) storyFail(`${id}: the first frame did not wait for a tap (frame ${s1.i + 1})`);
+            if (s1.t !== s0.t) storyFail(`${id}: the first frame still moves after its pass (${s0.t.toFixed(2)} -> ${s1.t.toFixed(2)} s)`);
+            if (!s1.sub) storyFail(`${id}: no subtitle on the first frame`);
+            if (f.lineAt === null || f.lineAt < 0.25 || f.lineAt > 0.6) storyFail(`${id}: the line started at ${f.lineAt} s of the pass, not ~0.3 s`);
+            if (f.lineEnd === null) storyFail(`${id}: the line of the first frame did not end within its pass of ${f.pass.toFixed(2)} s`);
+            else if (f.pass - f.lineEnd < 1 - 0.06) storyFail(`${id}: the pass (${f.pass.toFixed(2)} s) ends ${(f.pass - f.lineEnd).toFixed(2)} s after its line, not 1 s or more`);
+            console.log(`the cut-scenes: ${id} 1: the line from ${f.lineAt.toFixed(2)} to ${f.lineEnd.toFixed(2)} s, the pass ${f.pass.toFixed(2)} s, then still until the tap`);
+          }
+          await g(() => __game.story.hold(1)); await g(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+          await shot(`${name}b`);
+          await g(() => __game.story.hold(null));
+          if (i + 1 >= Math.min(n, upTo)) break;
+          await storyTap();
+          await gameFor((i) => __game.story.index === i + 1 || !__game.story.active, i, 10)
+            .catch(() => storyFail(`${id}: a tap on frame ${i + 1} did not go on`));
+        }
+        if (upTo >= n) {
+          await storyTap();
+          await gameFor(() => !__game.story.active, null, 10).catch(() => storyFail(`${id}: a tap on the last frame did not end it`));
+        }
+        const shown = await g((from) => __game.story.log.slice(from), from);
+        const left = [];
+        if (shown.length !== Math.min(n, upTo)) left.push(`${shown.length} frames shown, not ${Math.min(n, upTo)}`);
+        for (const f of shown) if (f.mode !== '25d') left.push(`frame ${f.index + 1} (${f.image}) shown ${f.mode === 'none' ? 'without its picture' : 'flat, its depth map did not load'}`);
+        const moved = await g(([x, z]) => Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z), at);
+        if (moved > 0.2) left.push(`the heroine walked ${moved.toFixed(2)} m during the scene`);
+        if (left.length) storyFail(`${id}: ${left.join('; ')}`);
+        return shown;
+      };
+      if (has('story')) {
+        if (!groupSave) {
+          const s0 = await storyNow();
+          if (!s0.on || s0.id !== 'story_intro') storyFail('a new save: no introduction after "play"');
+          if (!s0.busy) storyFail('the heroine is free to walk during the introduction');
+          if (s0.joy || s0.jump) storyFail('the joystick or the jump button shows during the introduction');
+          if (await g(() => __game.flyoverPlayer?.active)) storyFail('the tour flies during the introduction');
+          const flags = await g(() => ({ now: __game.save.worlds.fairy?.flags?.story_intro, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.flags?.story_intro }));
+          if (flags.now !== true || flags.stored !== true) storyFail(`the introduction is not marked seen as it starts: ${JSON.stringify(flags)}`);
+          // two frames by taps, then the skip button on the third closes the whole scene: the tour comes next
+          const shown = await storyFrames('story_intro', { upTo: 3 });
+          await tapOn('#storySkip').catch((e) => storyFail(`the skip button cannot be pressed: ${why(e)}`));
+          await gameFor(() => !__game.story.active, null, 10).catch(() => storyFail('the skip button did not close the introduction'));
+          const logged = await g(() => __game.story.log.length);
+          await gameSeconds(1);
+          if ((await g(() => __game.story.log.length)) !== logged) storyFail('a frame was shown after the skip');
+          await gameFor(() => __game.flyoverPlayer?.active || __game.save.worlds.fairy?.flags?.toured, null, 10)
+            .catch(() => storyFail('the tour did not follow the introduction'));
+          console.log(`the cut-scenes: a new save plays the introduction first; taps went on through ${shown.length} frames, the skip button closed it, the tour follows`);
+        } else {
+          // a save already played: no introduction (a second of game time after "play")
+          const t0 = await g(() => __game.time);
+          for (;;) {
+            const s = await g(() => ({ on: __game.story.active, t: __game.time }));
+            if (s.on) storyFail('a save already played: the introduction is shown');
+            if (s.t > t0 + 1) break;
+            await framesDrawn(1);
+          }
+          if (await g(() => __game.save.worlds.fairy?.flags?.story_intro)) storyFail('a save already played is marked as having seen the introduction');
+          console.log('the cut-scenes: a save already played has no introduction');
+        }
+      } else if (await g(() => __game.story?.active)) {
+        await g(() => __game.story.skip());
+        await gameFor(() => !__game.story.active && (__game.flyoverPlayer?.active || __game.save.worlds.fairy?.flags?.toured), null, 10);
       }
       // ---- the tour of the world (WORLD-11): a new save flies the camera along the world's path after "play" while the
       // cat says its line, and a tap ends it; then a picture from every point of the path (the debug command, each point
@@ -983,6 +1085,16 @@ try {
         if (!(await visible('#bubble'))) fail(`"${cat.key}" is said again without its subtitle`);
         console.log(`a tap on the cat: "${cat.key}" is said again, the heroine stands`);
         catRepeated = true;
+      }
+
+      // ---- the cut-scenes (WORLD-13): the whole introduction once more (the debug command, nothing recorded): every frame
+      // is shown, the offline walkthrough too, each by a tap ----
+      if (has('story') && !groupSave) {
+        await gameFor(() => !__game.busy, null, 30).catch(() => storyFail('the game is still busy before the introduction again'));
+        await g(() => { void __game.story.play('story_intro'); });
+        const shown = await storyFrames('story_intro');
+        if (!(await g(() => !__game.busy))) storyFail('the heroine is still held after the introduction');
+        console.log(`the cut-scenes: the introduction again, all ${shown.length} frames in 2.5D by taps`);
       }
 
       // ---- the heroine (TECH-14): one child model on the game skeleton. In every clip of hers the lowest foot bone
@@ -2217,6 +2329,19 @@ try {
         await fanfareCard(20, 'the finale'); await calm(); await shot('22-final-card');
         const freeSaid = await g(() => window.__starts.free ?? 0);
         await page.click('#fanfareOk');
+        // the cut-scene of the return of the crystal (WORLD-13): after the finale's last words, before "walk around"
+        await gameFor(() => __game.story?.active && __game.story.id === 'story_crystal', null, 20)
+          .catch(() => storyFail('no return of the crystal after the finale'));
+        if ((await g(() => window.__starts.free ?? 0)) > freeSaid) storyFail('"free" was said before the return of the crystal');
+        if (!(await g(() => __game.save.worlds.fairy.flags?.story_crystal === true))) storyFail('the return of the crystal is not marked seen');
+        // the order with the achievements (PLAY-08): no scene of an achievement over the cut-scene - a stop point after it
+        // brings first_artifact
+        if (await g(() => __game.ach.scene !== null || !document.querySelector('#fanfare').classList.contains('hidden'))) storyFail('a card or an achievement\'s scene lies over the return of the crystal');
+        if (has('story')) {
+          const shown = await storyFrames('story_crystal');
+          console.log(`the cut-scenes: the return of the crystal after the finale, all ${shown.length} frames in 2.5D by taps`);
+        } else await g(() => __game.story.skip());
+        await gameFor(() => !__game.story.active, null, 10).catch(() => storyFail('the return of the crystal did not end'));
         // "Walk around" comes after the scene and after the final words, with its subtitle - like "go on" after a shard.
         await page.waitForFunction((n) => !__game.busy && __game.line === 'free' && (window.__starts.free ?? 0) > n
           && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(20000) }) /* clock: audio */
@@ -2585,6 +2710,25 @@ try {
         if (!(await walks())) fail('the heroine does not walk after the shop of the signboard');
         console.log(`shop sign: "${label}" beside the signboard at ${at.x}, ${at.z} opened the shop, "done" closed it`);
       }
+      // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----
+      if (has('story')) {
+        if (!(await visible('#book'))) { await tapOn('#btnBook').catch((e) => storyFail(`the book cannot be opened: ${why(e)}`)); await calm(); }
+        const b = await g(() => ({ buttons: [...document.querySelectorAll('#book .story-again')].map((e) => e.dataset.story),
+          seen: __game.story.stories.map((s) => s.id).filter((id) => __game.save.worlds.fairy.flags?.[id] === true), flags: JSON.stringify(__game.save.worlds.fairy.flags) }));
+        if (JSON.stringify(b.buttons) !== JSON.stringify(b.seen)) storyFail(`the book offers ${b.buttons.join(', ') || 'no scene'}, the save has seen ${b.seen.join(', ') || 'none'}`);
+        if (!b.seen.length) storyFail('the book has no scene to show again');
+        await shot('30-book-stories');
+        const id = b.seen[b.seen.length - 1];
+        await tapOn(`#book .story-again[data-story=${id}]`).catch((e) => storyFail(`the button of "${id}" in the book cannot be pressed: ${why(e)}`));
+        await gameFor((id) => __game.story.active && __game.story.id === id, id, 10).catch(() => storyFail(`the book did not show "${id}" again`));
+        if (await visible('#book')) storyFail('the book stays open over the scene');
+        await storyFrame(0); await shot('story-from-book');
+        await tapOn('#storySkip').catch((e) => storyFail(`the skip button cannot be pressed: ${why(e)}`));
+        await gameFor(() => !__game.story.active && !__game.busy, null, 10).catch(() => storyFail('the skip button did not close the scene of the book'));
+        if (await g(() => JSON.stringify(__game.save.worlds.fairy.flags)) !== b.flags) storyFail('showing a scene from the book changed the flags of the save');
+        if (!(await walks())) storyFail('the heroine does not walk after the scene of the book');
+        console.log(`the cut-scenes: the book offers ${b.buttons.join(', ')}; "${id}" shown again from it and skipped, nothing recorded`);
+      }
       if (has('parents')) {
         await page.click('#btnBook'); await calm();
         // The same "random" number at both openings of the gate: only the memory of the example asked last time can make
@@ -2907,6 +3051,11 @@ try {
           await page.waitForFunction(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden'),
             null, { timeout: T(90000) }).catch(() => fail(`${what}: the game did not start after "play"`)); /* clock: page-load */
           await g(() => __game.flyoverPlayer?.skip());
+          // a new player's introduction (WORLD-13, played through in the piece world1) lies over the game: skipped here
+          if (await g(() => !!window.__game.story?.active)) {
+            await g(() => __game.story.skip());
+            await gameFor(() => !__game.story.active, null, 10).catch(() => fail(`${what}: the introduction of a new player did not end on its skip`));
+          }
         };
         // the book, the gate answered from the screen, "move the game" (the one of its two buttons this size shows)
         const openCode = async (what) => {
@@ -3203,6 +3352,11 @@ try {
         await tapOn('#play').catch((e) => errors.push(`book: ${mode}: "play" of a new player cannot be pressed: ${why(e)}`));
         await page.waitForFunction(() => !document.querySelector('#btnBook').classList.contains('hidden') && document.querySelector('#start').classList.contains('hidden') && !!window.__game,
           null, { timeout: T(90000) }).catch(() => errors.push(`book: ${mode}: the game of a new player did not start`)); /* clock: page-load */
+        // a new player's introduction (WORLD-13, played through in the piece world1) lies over the game: skipped here
+        if (await g(() => !!window.__game.story?.active)) {
+          await g(() => __game.story.skip());
+          await gameFor(() => !__game.story.active, null, 10).catch(() => errors.push(`book: ${mode}: the introduction of a new player did not end on its skip`));
+        }
         await tapOn('#btnBook').then(() => checkProfile('start', 0)).then(() => closeBook())
           .catch((e) => errors.push(`book: ${mode}: ${e.message}`));
       }

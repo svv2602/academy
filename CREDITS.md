@@ -27,4 +27,14 @@ on its page; made static (no skeleton, no animation; the bird's texture turned i
 The fairies and their little flowers are our own simple shapes built in code (`src/worlds/fairy/creatures.ts`),
 not taken from any pack or service.
 
+Cut-scene frames of the first world (WORLD-13; `public/story/`), each file:
+`w1_intro_1.webp`, `w1_intro_2.webp`, `w1_intro_3.webp`, `w1_intro_4.webp`, `w1_intro_5.webp`, `w1_crystal_1.webp`,
+`w1_crystal_2.webp`, `w1_crystal_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter
+service on 2026-11-15 (saving of the requests in the account turned off), dedicated to the public domain under CC0 1.0;
+viewed and accepted by the customer on 2026-11-15.
+Their depth maps `w1_intro_1_depth.webp`, `w1_intro_2_depth.webp`, `w1_intro_3_depth.webp`, `w1_intro_4_depth.webp`,
+`w1_intro_5_depth.webp`, `w1_crystal_1_depth.webp`, `w1_crystal_2_depth.webp`, `w1_crystal_3_depth.webp` — computed
+from those frames on 2026-11-15 with Depth Anything V2 Small (Apache-2.0, the ONNX export of onnx-community) by
+`tools/depth.py`, locally; the model is not part of the game. Dedicated to the public domain under CC0 1.0.
+
 Code: Three.js (MIT).
