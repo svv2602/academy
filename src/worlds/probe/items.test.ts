@@ -13,6 +13,9 @@ import { createWorldScope } from '../../game/scope';
 import type { Stage } from '../../game/stage';
 import { SPOKEN, STRINGS } from '../../ui/strings';
 import { probe } from './index';
+import { taskFrame } from '../../game/worldtasks/core';
+import { worldTaskProblems } from '../../game/worldtasks/play';
+import { TALLY, showTallyInWorld, tallyPlace } from './tally';
 import { ALTAR, FINALE, FINALE_SECONDS, GEM, PART, PET_AT, PROBE_FLYOVER, SCENE, SECRET, SPOT_R, STORY_SECONDS, TAKE_R, TOUR, createItems } from './items';
 
 vi.mock('../../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
@@ -24,6 +27,8 @@ vi.hoisted(() => { for (const id of ['joy', 'btnJump', 'btnAct']) document.body.
 /** The places the world hands its items (src/worlds/probe/index.ts): the stump and the signboard. */
 const STUMP = { x: 5, z: -2 }, SIGN = { x: -4, z: -3 };
 const FRIEND = probe.characters[0];
+/** The second character: its one step is the world's task in the world (./tally.ts). */
+const KIT = probe.characters[1];
 const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 
 /** A target of taps that counts its listeners. */
@@ -41,7 +46,7 @@ function taps() {
 function host(ws: WorldState = worldState(defaultSave(), probe.id)) {
   const scene = new THREE.Scene();
   const g = {
-    scene, ws, world: { id: probe.id, characters: probe.characters, pet: probe.pet, secrets: probe.secrets },
+    scene, ws, world: { id: probe.id, characters: probe.characters, pet: probe.pet, secrets: probe.secrets, worldTasks: probe.worldTasks },
     hero: { root: { position: new THREE.Vector3(probe.spawn.x, 0, probe.spawn.z) } }, cam: { focus: null as THREE.Vector3 | null },
     camOverride: null as number | null, busy: false, auto: null,
     groundY: () => 0, persist: vi.fn(), sparks: { burst: vi.fn() }, above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy),
@@ -64,20 +69,22 @@ function host(ws: WorldState = worldState(defaultSave(), probe.id)) {
   };
   return { g, ws, stage, target, enter };
 }
+/** The hooks of a task nobody listens to. */
+const listenNot = () => ({ prompt: () => {}, good: () => {}, wrong: () => Promise.resolve() as never, hint: () => Promise.resolve() as never });
 const covers = (s: Spot, p: { x: number; z: number }) => Math.hypot(s.pos.x - p.x, s.pos.z - p.z) <= s.r;
 /** Everything the finale comes after, done in the save. */
 function allButFinale(ws: WorldState) {
-  ws.quests[FRIEND.id] = FRIEND.steps.length;
+  for (const c of probe.characters) ws.quests[c.id] = c.steps.length;
   for (const f of [PET_ITEM, TOUR, SECRET, PART, SCENE]) ws.flags[f] = true;
 }
 
 describe('the probe world describes itself (ARCH-16, R28)', () => {
-  it('one item of every kind, in the order they are done; the description lacks nothing a test world needs', () => {
+  it('one item of every kind (two chains), in the order they are done; the description lacks nothing a test world needs', () => {
     const { all } = host().enter();
     expect(all().map((i) => `${i.kind} ${i.id} ${i.how}`)).toEqual([
-      `chain ${FRIEND.id} act`, 'pet pet act', 'flyover toured auto', 'secret hollow act', 'part gem walk', 'scene story act', 'finale final act',
+      `chain ${FRIEND.id} act`, `chain ${KIT.id} act`, 'pet pet act', 'flyover toured auto', 'secret hollow act', 'part gem walk', 'scene story act', 'finale final act',
     ]);
-    for (const kind of KINDS) expect(all().filter((i) => i.kind === kind), kind).toHaveLength(1);
+    for (const kind of KINDS) expect(all().filter((i) => i.kind === kind), kind).toHaveLength(kind === 'chain' ? 2 : 1);
     expect(missing(all(), ONE_EACH)).toEqual([]);
     // a test world is not a whole world: the template's own numbers name what a real one still needs
     expect(missing(all()).map((l) => /of kind "(\w+)"/.exec(l)![1])).toEqual(['chain', 'part', 'scene', 'secret']);
@@ -129,14 +136,19 @@ describe('the probe world describes itself (ARCH-16, R28)', () => {
 
   it('the places: each item done by the action button stands inside its own spot and outside every other', () => {
     const { items, all } = host().enter();
-    const friend: Spot = { pos: new THREE.Vector3(FRIEND.x, 0, FRIEND.z), r: 3, label: 'talk', on: () => true, run: () => {} };
+    const talk = probe.characters.map((c): Spot => ({ pos: new THREE.Vector3(c.x, 0, c.z), r: 3, label: 'talk', on: () => true, run: () => {} }));
     const portal: Spot = { pos: new THREE.Vector3(7, 0, 3), r: 2.2, label: 'open', on: () => true, run: () => {} };
     const pet: Spot = { pos: new THREE.Vector3(PET_AT.x, 0, PET_AT.z), r: PET_SPOT_R, label: 'take', on: () => true, run: () => {} };
-    const spots = [friend, portal, ...items.spots, pet];
+    const spots = [...talk, portal, ...items.spots, pet];
     for (const i of all().filter((x) => x.how === 'act')) expect(spots.filter((s) => covers(s, i.at!)), i.id).toHaveLength(1);
     for (const s of items.spots) expect(s.r).toBe(SPOT_R);
     // where the walkthroughs press the action button for the character (tools/shot.mjs) and for the portal (tools/worlds.mjs)
     for (const p of [{ x: FRIEND.x + 1.4, z: FRIEND.z + 1.4 }, { x: 7, z: 4.5 }]) expect(items.spots.filter((s) => covers(s, p))).toEqual([]);
+    // the heroine stands beside the row of the task in the world (src/game/worldtasks/core.ts taskFrame): no other action spot there
+    const row = showTallyInWorld(new THREE.Scene(), tallyPlace(KIT), listenNot(), { reach: 60, scope: createWorldScope(new THREE.Scene()) });
+    const { stand } = taskFrame(row, { fov: 50, aspect: 844 / 390 });
+    expect(spots.filter((s) => s.label !== 'talk' && covers(s, stand)).map((s) => s.label)).toEqual([]);
+    expect(Math.hypot(stand.x, stand.z), 'on the meadow').toBeLessThan(19);
     // the part lies away from every spot and from the spawn: nobody picks it up on the way
     for (const s of spots) expect(Math.hypot(s.pos.x - GEM.x, s.pos.z - GEM.z), s.label).toBeGreaterThan(s.r + TAKE_R);
     expect(Math.hypot(probe.spawn.x - GEM.x, probe.spawn.z - GEM.z)).toBeGreaterThan(5);
@@ -220,7 +232,7 @@ describe('each item of the probe world can be done in the game', () => {
     expect(pathProblems(PROBE_FLYOVER)).toEqual([]);
     // its line is a shared recorded one: the world's one spoken line of its own is the greeting of its character
     expect(probe.strings.spoken).toEqual({ probe_hi: 'warm' });
-    expect(probe.characters.map((c) => c.hi)).toEqual(['probe_hi']);
+    expect(probe.characters.map((c) => c.hi)).toEqual(['probe_hi', undefined]);
     expect(SPOKEN[PROBE_FLYOVER.line as keyof typeof SPOKEN]).toBeTruthy();
     expect(STRINGS.uk[PROBE_FLYOVER.line as keyof typeof STRINGS.uk]).toBeTruthy();
     const { g, ws, enter } = host();
@@ -243,12 +255,12 @@ describe('each item of the probe world can be done in the game', () => {
   });
 
   it('the finale: the altar has no button until everything else is done - each item left undone holds it back', async () => {
-    for (const undone of [FRIEND.id, PET_ITEM, TOUR, SECRET, PART, SCENE]) {
+    for (const undone of [FRIEND.id, KIT.id, PET_ITEM, TOUR, SECRET, PART, SCENE]) {
       const { ws, enter } = host();
       const { spot } = enter();
       allButFinale(ws);
       expect(spot('place').on(), 'everything is done').toBe(true);
-      if (undone === FRIEND.id) ws.quests[undone] = 0; else delete ws.flags[undone];
+      if (probe.characters.some((c) => c.id === undone)) ws.quests[undone] = 0; else delete ws.flags[undone];
       expect(spot('place').on(), `without "${undone}"`).toBe(false);
     }
     expect(host().enter().spot('place').on(), 'a new game').toBe(false);
@@ -346,5 +358,23 @@ describe('the probe world wires its items into the game (src/worlds/probe/index.
     expect(INDEX).toMatch(/update: \(dt, time, canMove\) => \{\n {8}items\.update\(dt, time, canMove\);\n/);
     expect(INDEX).toMatch(/\n {4}items: items\.items,\n/);
     expect(INDEX).toMatch(/more: \{ flyoverPlayer: items\.tour \}/);
+  });
+
+  it('its task in the world: declared, a step of its second character, given to the conversation with `run`, tapped and moved in the frame', () => {
+    expect(probe.worldTasks).toEqual([TALLY]);
+    expect(KIT.steps).toEqual([TALLY]);
+    const { all } = host().enter();
+    expect(all().find((i) => i.id === KIT.id)!.inWorld).toEqual([0]);
+    expect('inWorld' in all().find((i) => i.id === FRIEND.id)!, 'the panel task of the first character').toBe(false);
+    // the conversation plays the step with the very tasks that were checked against the declaration
+    expect(INDEX).toMatch(/const tasks: Record<string, WorldTask> = \{ \[TALLY\]: tallyTask\(g, player, scope\) \};/);
+    expect(INDEX).toMatch(/worldTaskProblems\(probe\.worldTasks, tasks\)/);
+    expect(INDEX).toMatch(/createDialogue\(g, stage, \{ characters: FRIENDS, lines: LINES, tasks \}\)/);
+    expect(INDEX.match(/\bcreateDialogue\(/g)).toHaveLength(1);
+    expect(worldTaskProblems(probe.worldTasks, {})).toEqual([`the task in the world "${TALLY}" of worldTasks has no "run" among the tasks of the world's conversation`]);
+    expect(worldTaskProblems(probe.worldTasks, { [TALLY]: { skill: 'compare', start: () => {} } })).toHaveLength(1);
+    // a tap while it is open is its, its things move in the world's time
+    expect(INDEX).toMatch(/tap: \(screenDist\) => player\.tap\(screenDist\),/);
+    expect(INDEX).toMatch(/animate: \(_dt, time\) => \{ flies\.update\(time\); player\.update\(time\); \},/);
   });
 });

@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
-  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
   pelvisKey, playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
@@ -568,7 +568,8 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(walk).toMatch(/^if \(play\('walk'\)\) try \{\n {4}for \(const walk of WALKS\) \{\n/);
     expect(walk).toContain("const env = walkEnv(process.env, walk, { commit, voiceOut, passOut, modelsOut: ");
     expect(walk).toContain("await run(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, walk.size], runTimeoutMs, env);");
-    expect(walk).toContain('const wrong = reportProblems(pass, { world: PROBE, size: walk.size, offline: walk.offline, kinds: ITEM_KINDS });');
+    // the probe world has a task in the world: a pass that never played one is a failure of the part
+    expect(walk).toContain('const wrong = reportProblems(pass, { world: PROBE, size: walk.size, offline: walk.offline, kinds: ITEM_KINDS, inWorld: true });');
     expect(walk).toContain('for (const p of wrong) fail(`${name}: ${p}`);');
     // the page asked for the files of the world in this very run, not in the one before it
     expect(walk).toContain('const from = asked.length, t0 = Date.now();');
@@ -631,7 +632,13 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(travel).toContain("described: Array.isArray(__game.items)");
     expect(travel).toContain("if (!Array.isArray(home.described) || !home.described.includes('secret chest')) fail(");
     expect(travel).toContain("for (const k of ['npcs', 'names', 'described', ");
-    expect(travel).toMatch(/if \(!same\(kinds, \[\.\.\.ITEM_KINDS\]\.sort\(\)\) \|\| !away\.described\.includes\('chain friend'\)\) fail\(/);
+    expect(travel).toMatch(/if \(!same\(kinds, \[\.\.\.ITEM_KINDS\]\.sort\(\)\) \|\| !PROBE_CHARACTERS\.every\(\(c\) => away\.described\.includes\(`chain \$\{c\}`\)\)\) fail\(/);
+  });
+
+  it('the characters it expects in the probe world are the ones the world declares, in their order', () => {
+    const index = readFileSync(join(root, 'src/worlds/probe/index.ts'), 'utf8');
+    const friends = index.slice(index.indexOf('const FRIENDS'), index.indexOf('];', index.indexOf('const FRIENDS')));
+    expect([...friends.matchAll(/\{ id: '(\w+)'/g)].map((m) => m[1])).toEqual(PROBE_CHARACTERS);
   });
 });
 

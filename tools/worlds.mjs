@@ -116,6 +116,11 @@ export const PROBE = 'probe';
 export const PROBE_FILES = 'worlds-test/probe';
 /** The build of the probe world, next to dist/. */
 export const PROBE_DIST = 'dist-probe';
+/**
+ * The characters of the probe world (src/worlds/probe/index.ts), in their order: the first gives a panel task and greets
+ * with the world's own line, the second gives its task in the world.
+ */
+export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
 export const PARTS = ['walk', 'cache', 'transition', 'travel'];
 /**
@@ -756,7 +761,7 @@ async function main() {
       else if (!(voice.loud > 0)) fail(`${name} started ${voice.loud} of ${voice.clips} clips with a volume`);
       // Written only by a pass that did every item of the description: in this size, with the network as asked.
       const pass = read(passOut);
-      const wrong = reportProblems(pass, { world: PROBE, size: walk.size, offline: walk.offline, kinds: ITEM_KINDS });
+      const wrong = reportProblems(pass, { world: PROBE, size: walk.size, offline: walk.offline, kinds: ITEM_KINDS, inWorld: true });
       for (const p of wrong) fail(`${name}: ${p}`);
       // ---- 4. the page asked for every file of the world ----
       const mine = asked.slice(from);
@@ -772,7 +777,7 @@ async function main() {
       for (const f of off.late) fail(`${name}: with the network switched off the server was still asked for ${f}: the world was not built from the cache "worlds"`);
       if (voice && !wrong.length && !missed.length && off.marked && !off.late.length) {
         console.log(`[worlds] the world "${PROBE}" played by its description in the ${walk.size} size ${walk.offline ? 'without network' : 'with the network'}: `
-          + `${pass.items.length} items, one of every kind (${pass.items.map((i) => `${i.kind} ${i.id}`).join(', ')}), done in the order ${pass.order.join(', ')}; `
+          + `${pass.items.length} items, an item of every kind (${pass.items.map((i) => `${i.kind} ${i.id}`).join(', ')}), done in the order ${pass.order.join(', ')}; `
           + `${voice.loud} of ${voice.clips} clips with a volume; the page asked for ${due.join(', ')}${due.length < files.length ? ` and was answered ${files.filter((f) => !due.includes(f)).join(', ')} from the cache` : ''} (the server was asked for the files of the world ${askedOfWorld(mine, PROBE).length} times${walk.offline ? ', none of them with the network switched off' : ''}); `
           + `${((Date.now() - t0) / 1000).toFixed(0)} s`);
       }
@@ -1082,12 +1087,12 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       if (away.world !== PROBE) fail(`${name}: after the change the world played is "${away.world}", expected "${PROBE}"`);
       if (!same(away.same, [])) fail(`${name}: in the probe world these are not the objects of the first world, or have left the scene: ${JSON.stringify(away.same)} (the heroine and the cat are made once)`);
       if (!same(away.at, [0, 6])) fail(`${name}: the heroine stands at ${away.at} in the probe world, expected its spawn 0,6`);
-      if (!same(away.npcs, ['friend'])) fail(`${name}: the characters of window.__game are ${JSON.stringify(away.npcs)} in the probe world, expected its own "friend"`);
+      if (!same(away.npcs, PROBE_CHARACTERS)) fail(`${name}: the characters of window.__game are ${JSON.stringify(away.npcs)} in the probe world, expected its own ${JSON.stringify(PROBE_CHARACTERS)}`);
       if (away.names.length) fail(`${name}: window.__game still has the first world's own names in the probe world: ${away.names.join(', ')}`);
-      // The description is the one of the world played now: one item of every kind, the chain of its own character.
-      const kinds = Array.isArray(away.described) ? away.described.map((d) => d.split(' ')[0]).sort() : [];
-      if (!same(kinds, [...ITEM_KINDS].sort()) || !away.described.includes('chain friend')) fail(`${name}: after the change window.__game.items is not the description of the probe world: ${JSON.stringify(away.described)}, expected one item of every kind (${ITEM_KINDS.join(', ')}) with the chain of "friend"`);
-      if (away.crystals !== '0/1') fail(`${name}: the counter of parts shows "${away.crystals}" in the probe world, expected "0/1"`);
+      // The description is the one of the world played now: an item of every kind, the chains of its own characters.
+      const kinds = Array.isArray(away.described) ? [...new Set(away.described.map((d) => d.split(' ')[0]))].sort() : [];
+      if (!same(kinds, [...ITEM_KINDS].sort()) || !PROBE_CHARACTERS.every((c) => away.described.includes(`chain ${c}`))) fail(`${name}: after the change window.__game.items is not the description of the probe world: ${JSON.stringify(away.described)}, expected an item of every kind (${ITEM_KINDS.join(', ')}) with the chains of ${JSON.stringify(PROBE_CHARACTERS)}`);
+      if (away.crystals !== `0/${PROBE_CHARACTERS.length}`) fail(`${name}: the counter of parts shows "${away.crystals}" in the probe world, expected "0/${PROBE_CHARACTERS.length}"`);
       if (away.music === null || away.music === home.music) fail(`${name}: the music in the probe world starts at ${away.music}, in the first world at ${home.music}: it is not the music of the new world`);
       if (away.foxClip !== 'npc_next') fail(`${name}: a fox of the probe world would speak with the clip "${away.foxClip}": the voices of the first world were not taken back`);
       if (away.ownClip !== HI_CLIP) fail(`${name}: in the probe world its own line "${HI}" has the clip "${away.ownClip}", expected "${HI_CLIP}" - the clip in the folder of the world`);
@@ -1129,7 +1134,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       // just done, and its own secrets (the ones of its description) - nothing of the world left.
       const awayBook = await p.book();
       const awaySecrets = (await p.g(() => __game.items.filter((i) => i.kind === 'secret').map((i) => i.id))).sort();
-      if (awayBook.parts !== 1 || awayBook.got !== 1) fail(`${name}: the book in the probe world shows ${awayBook.parts} part(s), ${awayBook.got} lit, expected the one part of "friend", lit: the book still shows the world left`);
+      if (awayBook.parts !== PROBE_CHARACTERS.length || awayBook.got !== 1) fail(`${name}: the book in the probe world shows ${awayBook.parts} part(s), ${awayBook.got} lit, expected the ${PROBE_CHARACTERS.length} parts of its characters, the one of "friend" lit: the book still shows the world left`);
       if (!same([...awayBook.secrets].sort(), awaySecrets) || same(awayBook.secrets, homeBook.secrets)) fail(`${name}: the book in the probe world shows the secrets ${JSON.stringify(awayBook.secrets)}, its description has ${JSON.stringify(awaySecrets)} (the first world: ${JSON.stringify(homeBook.secrets)})`);
       const fairyNow = await p.g((w) => JSON.stringify(__game.save.worlds[w]), FIRST);
       if (fairyNow !== fairyThen) fail(`${name}: a task solved in the probe world changed the part of the first world in the save: ${fairyThen} -> ${fairyNow}`);
@@ -1244,7 +1249,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       if (again.ok !== true) fail(`${name}: with the files back __game.travel('${PROBE}') answered ${again.ok}, expected true`);
       for (const x of travelFramesProblems(again.frames, FIRST, PROBE)) fail(`${name}, with the files back: ${x}`);
       const away = await p.state();
-      if (away.world !== PROBE || !same(away.npcs, ['friend']) || !Array.isArray(away.described)) fail(`${name}: with the files back the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)} and the description ${JSON.stringify(away.described)}, expected the probe world`);
+      if (away.world !== PROBE || !same(away.npcs, PROBE_CHARACTERS) || !Array.isArray(away.described)) fail(`${name}: with the files back the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)} and the description ${JSON.stringify(away.described)}, expected the probe world`);
       notFound = p.expected.notFound;
       await p.ctx.close();
     }
@@ -1297,7 +1302,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       for (const x of travelFramesProblems(there.frames, FIRST, PROBE)) fail(`${name2}: ${x}`);
       await settled(p, PROBE);
       const away = await p.state();
-      if (away.world !== PROBE || !same(away.npcs, ['friend'])) fail(`${name2}: the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
+      if (away.world !== PROBE || !same(away.npcs, PROBE_CHARACTERS)) fail(`${name2}: the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
       if (!(await p.walks())) fail(`${name2}: the heroine does not walk in the probe world entered without network`);
       noneAsked(name2, 'the probe world entered from the cache');
       await p.ctx.close();

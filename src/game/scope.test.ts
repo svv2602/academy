@@ -660,7 +660,7 @@ describe('a world is opened with a scope of its own (TECH-15)', () => {
   it('what the game is told of a world is made in one place, for the first world and for every world travelled to, with every field of its description', () => {
     // entryOf(world) is that place (src/game/travel.ts hands it to g.enter): a field left out there stays the first world's - or nobody's
     const entry = /const entryOf = \(world: WorldDef\): WorldEntry => \(\{([^}]*)\}\);/.exec(MAIN)?.[1] ?? '';
-    for (const field of ['id', 'ground', 'spawn', 'pet', 'characters', 'secrets', 'chest', 'groundStars']) expect(entry, field).toContain(`${field}: world.${field}`);
+    for (const field of ['id', 'ground', 'spawn', 'pet', 'characters', 'secrets', 'chest', 'groundStars', 'worldTasks']) expect(entry, field).toContain(`${field}: world.${field}`);
     expect(entry).toContain('crystals: ');
     expect(MAIN).toMatch(/createGame\(\{[^}]*\bworld: entryOf\(world\),/);
     expect(MAIN).toMatch(/createTravel\(\{[^}]*\bentryOf\b/);
