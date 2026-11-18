@@ -6,7 +6,7 @@ import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
 import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
 import type { BookInfo } from '../game/world';
-import { bookView } from './book';
+import { bookView, setBookStories, type BookStory } from './book';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
 import { lang, setChildName, setLang, t, tf, type Key } from './strings';
 
@@ -155,7 +155,9 @@ export const nextBreak = (m: number): number => BREAK_STEPS[(BREAK_STEPS.indexOf
  * Collection book + the parents' section behind an "adult" gate. The book shows what the world gives (`book`): its parts,
  * got or not, then its lines of figures; the profile around them (the shelf, secrets, pets, achievements) is src/ui/book.ts.
  */
-export function initBook(save: Save, book: BookInfo, on: { change(): void; reset(): void; open(isOpen: boolean): void; shop(): void }) {
+export function initBook(save: Save, book: BookInfo, on: {
+  change(): void; reset(): void; open(isOpen: boolean): void; shop(): void; stories?(): readonly BookStory[];
+}) {
   const bookCard = $('book'), parents = $('parents');
   const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
   const renderBook = () => {
@@ -172,6 +174,8 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     $('colStats').innerHTML = book.stats().map((s) => `<div>${s.icon} ${t(s.label)}: ${s.value}</div>`).join('');
   };
   // The profile (PLAY-07, PLAY-09, src/ui/book.ts): the heroine close up, the shelf, the secrets, the pets, the achievements.
+  // the seen cut-scenes of the world (WORLD-13): the profile shows them again; a tap closes the book and plays one
+  if (on.stories) setBookStories(on.stories, () => { bookView(false, save); show(bookCard, false); });
   $('btnBook').addEventListener('click', () => { renderBook(); bookView(true, save); show(bookCard, true); });
   $('bookClose').addEventListener('click', () => { bookView(false, save); show(bookCard, false); void stopPoint('book'); });
   // The shop and the fitting room (PLAY-04, PLAY-05): a screen of its own over the game, which stays paused.

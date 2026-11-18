@@ -27,6 +27,16 @@ const uk = {
   t_stars: 'Знайди пʼять зірочок, що сховалися поруч!', t_stars_back: 'Усі зірочки знайдено! Повертаймося до оленя.',
   shard_title: 'Уламок кристала!', shard_text: '{n} з 5', all_shards: 'Усі уламки в нас! Віднесімо їх до альтанки біля ставка.',
   final_title: 'Кристал світла сяє!', final_text: 'Ти повернула магію Королівству фей!',
+  // --- the cut-scenes (WORLD-13, ./story.ts): the cat's line of each frame; the names of the scenes in the book (not spoken)
+  story_intro_1: 'Це Королівство фей. Тут усе сяє завдяки Кристалу світла.',
+  story_intro_2: 'Ой! Кристал розлетівся на пʼять уламків, і чари почали тьмяніти.',
+  story_intro_3: 'Не сумуй! Уламки бережуть пʼятеро друзів. Кожен чекає на допомогу.',
+  story_intro_4: 'А ось і ти, Хранителько! Я твій кіт-помічник, я буду поруч.',
+  story_intro_5: 'Ходімо збирати уламки! Біжи за іскорками — вони покажуть дорогу.',
+  story_crystal_1: 'Ми зібрали всі уламки! Дивись, як вони сяють над ставком.',
+  story_crystal_2: 'Уламки зʼєдналися! Кристал світла знову цілий і сяє.',
+  story_crystal_3: 'Королівство знову розквітло! А вдалині на нас чекає Велике Древо.',
+  story_intro: 'Початок історії', story_crystal: 'Кристал світла повернувся',
   // --- the book
   col_shards: 'Уламки кристала', col_chest: 'Таємна скриня',
 };
@@ -49,6 +59,15 @@ const ru: Record<keyof typeof uk, string> = {
   t_stars: 'Найди пять звёздочек, которые спрятались рядом!', t_stars_back: 'Все звёздочки найдены! Возвращаемся к оленю.',
   shard_title: 'Осколок кристалла!', shard_text: '{n} из 5', all_shards: 'Все осколки у нас! Отнесём их в беседку у пруда.',
   final_title: 'Кристалл света сияет!', final_text: 'Ты вернула магию Королевству фей!',
+  story_intro_1: 'Это Королевство фей. Здесь всё сияет благодаря Кристаллу света.',
+  story_intro_2: 'Ой! Кристалл разлетелся на пять осколков, и волшебство стало тускнеть.',
+  story_intro_3: 'Не грусти! Осколки берегут пятеро друзей. Каждый ждёт помощи.',
+  story_intro_4: 'А вот и ты, Хранительница! Я твой кот-помощник, я буду рядом.',
+  story_intro_5: 'Пойдём собирать осколки! Беги за искорками — они покажут дорогу.',
+  story_crystal_1: 'Мы собрали все осколки! Смотри, как они сияют над прудом.',
+  story_crystal_2: 'Осколки соединились! Кристалл света снова цел и сияет.',
+  story_crystal_3: 'Королевство снова расцвело! А вдали нас ждёт Великое Древо.',
+  story_intro: 'Начало истории', story_crystal: 'Кристалл света вернулся',
   col_shards: 'Осколки кристалла', col_chest: 'Тайный сундук',
 };
 
@@ -57,6 +76,8 @@ const spoken = {
   intro: 'joy', tour: 'joy', chest: 'joy', free: 'warm',
   unicorn_hi: 'warm', fox_hi: 'warm', mushking_hi: 'warm', deer_hi: 'warm', queen_hi: 'warm',
   npc_done: 'joy', t_stars: 'warm', t_stars_back: 'joy', all_shards: 'joy', final_text: 'joy',
+  story_intro_1: 'warm', story_intro_2: 'calm', story_intro_3: 'warm', story_intro_4: 'joy', story_intro_5: 'joy',
+  story_crystal_1: 'warm', story_crystal_2: 'joy', story_crystal_3: 'joy',
 } as const satisfies Partial<Record<keyof typeof uk, VoiceStyle>>;
 
 export const strings = { id: 'fairy', table: { uk, ru }, spoken } satisfies WorldStrings;
