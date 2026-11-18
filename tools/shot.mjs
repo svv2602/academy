@@ -2204,19 +2204,7 @@ try {
         // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way
         // (the whole way back takes seconds of game time - minutes of the clock on the slow CI runner)
         if (!(await gameUntil((w) => Math.abs(__game.magic.target - w) < 1e-9 && __game.magic.value < 1 - (1 - w) * 0.1, want, 2))) fail('the debug value did not let go of the magic in 2 s of game time');
-        // the page loaded again (a second tab of the same address and storage: a reload of this one would drop the
-        // watchers of the walkthrough) builds the world with the same magic, from its first frame
-        const again = await (async () => {
-          const p2 = await page.context().newPage();
-          try {
-            await p2.goto(page.url());
-            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
-            await p2.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => fail('no __game.magic in the page loaded again')); /* clock: page-load */
-            return await p2.evaluate(() => ({ value: __game.magic.value, target: __game.magic.target }));
-          } finally { await p2.close().catch(() => {}); }
-        })();
-        if (Math.abs(again.value - want) > 1e-9 || Math.abs(again.target - want) > 1e-9) fail(`the page loaded again shows the magic ${JSON.stringify(again)}, this one ${want}`);
-        console.log(`the magic: ${shards} shards - ${want.toFixed(2)}, the same in the page loaded again; point ${MAGIC_POINT + 1} of the tour: ${said} (${tag}-magic-0.png, ${tag}-magic-1.png)`);
+        console.log(`the magic: ${shards} shards - ${want.toFixed(2)} (the page loaded again: block leave); point ${MAGIC_POINT + 1} of the tour: ${said} (${tag}-magic-0.png, ${tag}-magic-1.png)`);
       }
       if (has('finale')) {
         // replay one finished quest
@@ -2693,6 +2681,17 @@ try {
           if (near(storedBefore)) console.log('leaving the page: the timer had already saved the spot - not put to the test');
           else if (!near(pos)) errors.push(`leaving the page: the save keeps ${JSON.stringify(pos)}, not the spot she left at ${JSON.stringify(leftAt)}`);
           else console.log('leaving the page: the spot she stood on is saved');
+        }
+        // The magic of the world after the reload (WORLD-09): built from the save, from the first frame of the page - read
+        // on the start screen, before "play" (a value that came from elsewhere would still be on its way to the save's).
+        {
+          await page.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => { throw new Error('the magic: no __game.magic after the reload'); }); /* clock: page-load */
+          const m = await g((k) => {
+            const w = __game.save.worlds.fairy, shards = Object.values(w.quests).filter((n) => n >= 3).length;
+            return { value: __game.magic.value, target: __game.magic.target, want: w.final ? 1 : Math.min(1, shards * k) };
+          }, MAGIC_SHARD);
+          if (Math.abs(m.value - m.want) > 1e-9 || Math.abs(m.target - m.want) > 1e-9) errors.push(`the magic: ${mode}: after the reload the page shows ${m.value} (heading for ${m.target}), the save gives ${m.want}`);
+          else console.log(`the magic: after the reload ${m.want.toFixed(2)} from the first frame, as the save gives it`);
         }
         // The shop's choices after the reload (R05, R09): the bought wand, no wings, the hair and the colour of the wings.
         if (shopped) {
