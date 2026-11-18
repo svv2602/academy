@@ -10,9 +10,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import {
-  PARTS, PROBE, PROBE_DIST, PROBE_FILES, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems,
-  ITEM_KINDS, ONE_OF_EACH, descriptionProblems, marksProblems, nextItem,
+  PARTS, PROBE, PROBE_DIST, PROBE_FILES, WALKS, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, ringPixels, travelFramesProblems, walkEnv,
 } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -410,110 +409,48 @@ describe('the frames of a change of world (TECH-15)', () => {
   });
 });
 
-describe('the description of a world as the scenarios read it (ARCH-16)', () => {
-  const item = (kind, id, o = {}) => ({ kind, id, at: { x: 1, z: 2 }, how: 'act', after: [], done: false, active: false, ...o });
-  /** The description of a test world: one item of every kind, the part in the secret, the finale after everything. */
-  const items = (o = {}) => [
-    item('chain', 'friend'), item('pet', 'pet', { after: ['friend'] }), item('flyover', 'toured', { at: null, how: 'auto' }),
-    item('secret', 'hollow'), item('part', 'gem', { how: 'walk', after: ['hollow'] }), item('scene', 'story'),
-    item('finale', 'final', { after: ['friend', 'pet', 'toured', 'hollow', 'gem', 'story'] }),
-  ].map((i) => ({ ...i, ...o[i.id] }));
-  const seen = (list = items(), o = {}) => ({ items: list, missing: [], problems: [], ...o });
-  const one = (list) => { expect(list, list.join('; ')).toHaveLength(1); return list[0]; };
+describe('the walkthroughs of the part "walk": the probe world by its description (ARCH-16)', () => {
+  const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
 
-  it('the kinds are the ones of src/game/world.ts, and a test world needs one of each', () => {
-    const src = readFileSync(join(root, 'src/game/world.ts'), 'utf8');
-    const union = /export type WorldItemKind = ([^;]+);/.exec(src)[1].split('|').map((k) => k.trim().replace(/'/g, ''));
-    expect([...ITEM_KINDS].sort()).toEqual(union.sort());
-    expect(ONE_OF_EACH).toEqual({ chain: 1, secret: 1, part: 1, scene: 1, flyover: 1, pet: 1, finale: 1 });
+  it('two sizes: the phone with the network, the computer without it', () => {
+    expect(WALKS).toEqual([{ size: 'mobile', offline: false, level: '3' }, { size: 'desktop', offline: true, level: '' }]);
   });
 
-  it('a whole description of the one shape has no problem', () => {
-    expect(descriptionProblems(seen())).toEqual([]);
-    expect(descriptionProblems(seen(items({ friend: { done: true }, toured: { done: true, active: true } })))).toEqual([]);
+  it('the environment of a walkthrough: the probe world, one item of every kind needed, the network as the size says, a report of the pass', () => {
+    const o = { commit: 'abc1234', voiceOut: 'v.json', modelsOut: 'm.json', passOut: 'p.json' };
+    const phone = walkEnv({ PATH: '/bin', E2E_GL: 'swiftshader', E2E_ONLY: 'shop', E2E_OFFLINE: '1', E2E_MUTE: '1' }, WALKS[0], o);
+    expect(phone).toEqual({
+      PATH: '/bin', E2E_GL: 'swiftshader', E2E_WORLD: PROBE, E2E_WORLD_NEED: 'one', E2E_WORLD_OUT: 'p.json', E2E_ONLY: '', E2E_OFFLINE: '0', E2E_MUTE: '0',
+      E2E_COMMIT: 'abc1234', E2E_VOICE_OUT: 'v.json', E2E_MODELS_OUT: 'm.json', E2E_LEVEL: '3',
+    });
+    const desk = walkEnv({ E2E_OFFLINE: '0' }, WALKS[1], o);
+    expect(desk.E2E_OFFLINE).toBe('1');
+    expect(desk.E2E_LEVEL, 'the computer plays the adaptive level, as in the first world').toBe('');
+    // E2E_LEVEL of the caller sets one level for both
+    expect(WALKS.map((w) => walkEnv({ E2E_LEVEL: '5' }, w, o).E2E_LEVEL)).toEqual(['5', '5']);
   });
 
-  it('no description at all: a world that hands in none, or a game that does not show it', () => {
-    expect(one(descriptionProblems({ items: null, missing: null, problems: null }))).toContain('null: the world hands in no description');
-    expect(one(descriptionProblems({ items: undefined }))).toContain('window.__game.items is undefined');
+  it('the part "walk" plays tools/shot.mjs once for each of them and reads the report of each pass', () => {
+    const walk = src.slice(src.indexOf("if (play('walk')) try {"), src.indexOf('// ---- 5. the cache of the next world ----'));
+    expect(walk).toMatch(/^if \(play\('walk'\)\) try \{\n {4}for \(const walk of WALKS\) \{\n/);
+    expect(walk).toContain("const env = walkEnv(process.env, walk, { commit, voiceOut, passOut, modelsOut: ");
+    expect(walk).toContain("await run(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, walk.size], runTimeoutMs, env);");
+    expect(walk).toContain('const wrong = reportProblems(pass, { world: PROBE, size: walk.size, offline: walk.offline, kinds: ITEM_KINDS });');
+    expect(walk).toContain('for (const p of wrong) fail(`${name}: ${p}`);');
+    // the page asked for the files of the world in this very run, not in the one before it
+    expect(walk).toContain('const from = asked.length, t0 = Date.now();');
+    expect(walk).toContain('const mine = asked.slice(from);');
+    expect(walk).toContain('const missed = notAskedByPage(files, mine);');
   });
 
-  it.each(ITEM_KINDS.map((k) => [k]))('a kind that is not there, or is there twice: %s', (kind) => {
-    const without = items().filter((i) => i.kind !== kind);
-    expect(one(descriptionProblems(seen(without)))).toBe(`0 items of kind "${kind}", a test world has one of every kind`);
-    const twice = [...items(), item(kind, 'second')];
-    expect(one(descriptionProblems(seen(twice)))).toBe(`2 items of kind "${kind}" (${items().find((i) => i.kind === kind).id}, second), a test world has one of every kind`);
+  it('the description is played by the shared walkthrough alone: no scenario of its own is left here', () => {
+    expect(src).not.toContain('describedScenario');
+    expect(src).not.toContain('export function nextItem');
+    expect(src).toContain("import { ITEM_KINDS, reportProblems } from './world-pass.mjs';");
+    expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(2);
   });
 
-  it('an item that is not of the shape: each field is named', () => {
-    const broken = { kind: 'riddle', id: '', at: { x: 1 }, how: 'look', after: 'friend', done: () => true };
-    const lines = descriptionProblems(seen([...items(), broken]));
-    expect(one(lines)).toBe('the item 7 ("") is not of the shape of an item: kind "riddle", id "", at {"x":1}, how "look", after "friend", done undefined, active undefined');
-    expect(one(descriptionProblems(seen([...items(), null])))).toBe('the item 7 is null, not an item');
-    // a place may be absent (the item starts by itself), never half there
-    expect(descriptionProblems(seen(items({ story: { at: null } })))).toEqual([]);
-    expect(one(descriptionProblems(seen(items({ story: { at: { x: 1, z: NaN } } }))))).toContain('at {"x":1,"z":null}');
-  });
-
-  it('what the game itself finds lacking or disagreeing is passed on', () => {
-    const lacks = 'template point 6 "Необязательные секреты" (docs/13-worlds.md): 0 item(s) of kind "secret" - the secrets, at least 1 needed';
-    expect(one(descriptionProblems(seen(items(), { missing: [lacks] })))).toBe(`the description lacks a point of the world template: ${lacks}`);
-    expect(one(descriptionProblems(seen(items(), { problems: ['"well" of the world\'s secrets has no item of kind "secret"'] })))).toContain('disagrees with what the world declares: "well"');
-    expect(one(descriptionProblems(seen(items(), { missing: null })))).toContain('window.__game.missing() answered null');
-    expect(one(descriptionProblems(seen(items(), { problems: undefined })))).toContain('window.__game.itemProblems is undefined');
-  });
-
-  it('the marks: the id of an item is the name of its mark in the world\'s part of the save', () => {
-    const all = items(Object.fromEntries(items().map((i) => [i.id, { done: true }])));
-    const world = { quests: { friend: 1 }, final: true, flags: { pet: true, toured: true, hollow: true, gem: true, story: true } };
-    expect(marksProblems(all, world)).toEqual([]);
-    expect(marksProblems(items(), { quests: {}, final: false, flags: {} })).toEqual([]);
-    expect(marksProblems(items(), null), 'a new game has no part of the save yet').toEqual([]);
-    // a step of a chain that is not finished yet is not a mark of "done"
-    expect(marksProblems(items(), { quests: { friend: 1 }, final: false, flags: {} })).toEqual([]);
-  });
-
-  it('the marks: an item done without its mark, under another name, or not done with it', () => {
-    const all = items(Object.fromEntries(items().map((i) => [i.id, { done: true }])));
-    const world = () => ({ quests: { friend: 1 }, final: true, flags: { pet: true, toured: true, hollow: true, gem: true, story: true } });
-    const w1 = world(); delete w1.flags.hollow; w1.flags.secret = true;
-    expect(one(marksProblems(all, w1))).toBe('the item "hollow" (secret) is done, but its mark "flags.hollow" is undefined in the stored save');
-    const w2 = world(); w2.final = false; w2.flags.final = true;
-    expect(one(marksProblems(all, w2))).toBe('the item "final" (finale) is done, but its mark "final" is false in the stored save');
-    const w3 = world(); w3.quests = {};
-    expect(one(marksProblems(all, w3))).toBe('the item "friend" (chain) is done, but its mark "quests.friend" is undefined in the stored save');
-    expect(marksProblems(all, null)).toHaveLength(7);
-    expect(one(marksProblems(items(), { quests: {}, final: false, flags: { gem: true } }))).toBe('the item "gem" (part) is not done, but its mark "flags.gem" is set in the stored save');
-    expect(one(marksProblems(items(), { quests: {}, final: true, flags: {} }))).toBe('the item "final" (finale) is not done, but its mark "final" is set in the stored save');
-  });
-
-  it('the next item: the order of the list, but never before what it comes after', () => {
-    const order = [];
-    let list = items({ toured: { done: true } });
-    for (let next = nextItem(list); next; next = nextItem(list)) {
-      expect(next.stuck).toBeUndefined();
-      order.push(next.id);
-      list = list.map((i) => (i.id === next.id ? { ...i, done: true } : i));
-    }
-    expect(order).toEqual(['friend', 'pet', 'hollow', 'gem', 'story', 'final']);
-    expect(nextItem(list)).toBeNull();
-    // the part stands before its secret in the list: the secret is still done first
-    const swapped = [item('part', 'gem', { after: ['hollow'] }), item('secret', 'hollow')];
-    expect(nextItem(swapped).id).toBe('hollow');
-    expect(nextItem(swapped.map((i) => (i.id === 'hollow' ? { ...i, done: true } : i))).id).toBe('gem');
-  });
-
-  it('the next item: nothing can be done - each undone item waits for one that is not done or not there', () => {
-    expect(nextItem([item('part', 'gem', { after: ['attic'] })])).toEqual({ stuck: ['gem'] });
-    expect(nextItem([item('part', 'gem', { after: ['key'] }), item('part', 'key', { after: ['gem'] })])).toEqual({ stuck: ['gem', 'key'] });
-  });
-
-  it('the scenario of the description is played in the part "walk"; the change of world reads the description of the world played', () => {
-    const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
-    expect(src.split('await describedScenario(')).toHaveLength(2);
-    expect(src).toMatch(/if \(play\('walk'\)\) try \{\n(?:(?!\n {2}\}).*\n)*? {4}const summary = await describedScenario\(\{ url, shots, fail \}\);\n/);
-    // every check of the description the scenario makes is one of the functions above
-    for (const call of ['descriptionProblems(first)', 'descriptionProblems(last)', 'descriptionProblems(again)', 'marksProblems(last.items, await stored())', 'marksProblems(again.items, await stored())', 'nextItem(items)']) expect(src, call).toContain(call);
+  it('the change of world reads the description of the world played', () => {
     const travel = src.slice(src.indexOf('async function travelScenarios('), src.indexOf('async function transitionScenarios('));
     expect(travel).toContain("described: Array.isArray(__game.items)");
     expect(travel).toContain('if (home.described !== null) fail(');
@@ -571,7 +508,7 @@ describe('node tools/worlds.mjs', () => {
   it('each part is played only when it is named: the walkthrough, the cache, the transition and the change of world are behind play(<part>)', () => {
     const src = readFileSync(join(root, 'tools/worlds.mjs'), 'utf8');
     expect(src).toContain("const play = (part) => read.parts.includes(part);");
-    expect(src).toMatch(/if \(play\('walk'\)\) try \{\n[^\n]*\n[^\n]*\n\s+const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)/);
+    expect(src).toMatch(/if \(play\('walk'\)\) try \{\n {4}for \(const walk of WALKS\) \{\n(?:(?!\n {2}\}).*\n)*? {6}const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)/);
     expect(src).toMatch(/if \(play\('cache'\)\) try \{\n\s+const summary = await cacheScenarios\(/);
     expect(src).toMatch(/if \(play\('transition'\)\) try \{\n\s+const summary = await transitionScenarios\(/);
     expect(src).toMatch(/if \(play\('travel'\)\) try \{\n\s+const summary = await travelScenarios\(/);

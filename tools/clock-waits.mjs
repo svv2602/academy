@@ -22,10 +22,10 @@ export const CLOCK_REASONS = {
 };
 
 /** How many waits are marked `moves-to-world-pass`: they leave with playWorld; the number may only go down. */
-export const MOVING = 18;
+export const MOVING = 0;
 
 /**
  * Files of another stream whose waits are only listed here, not marked: the number of their unmarked waits may only go
  * down. (tools/worlds.mjs belongs to the world probe; its list went to its stream.)
  */
-export const FOREIGN = { 'tools/worlds.mjs': 32 };
+export const FOREIGN = { 'tools/worlds.mjs': 25 };
