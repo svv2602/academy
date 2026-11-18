@@ -2124,6 +2124,17 @@ try {
           && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(20000) }) /* clock: audio */
           .catch(() => { throw new Error('after the finale: "free" was not said with its subtitle'); });
         await shot('23-restored');
+        // After "free" the end of the finale is a stop point (PLAY-08): the scene of the artifact restored comes right here,
+        // not at whatever point comes next. Waited for by the game - its scene on screen, or the point over -, not the clock.
+        {
+          const over0 = await g(() => (__game.ach.over.finale ?? 0));
+          if (!(await gameUntil((n) => __game.ach.scene !== null || (__game.ach.over.finale ?? 0) > n, over0, 30))) {
+            throw new Error('after the finale: its stop point did not come (in 30 s of game time)');
+          }
+          await fanfareUp('the end of the finale');
+          if (!(await gameUntil((n) => (__game.ach.over.finale ?? 0) > n, over0, 10))) throw new Error('after the finale: its stop point is not over');
+          if (!achSeen.includes('first_artifact')) errors.push(`achievements: ${mode}: the scene of first_artifact did not come right after the finale (shown so far: ${achSeen.join(', ') || 'none'})`);
+        }
       }
       // ---- the crystal restored brings the magic to 1 (WORLD-09), the rainbow with it ----
       if (has('magic-crystal')) {
@@ -2241,6 +2252,10 @@ try {
         }`;
         // the fawn walks after her, within `m` of her, and the controls are hers (it stands while a scene runs)
         const after = `(m) => { const p = (${petNow})(); return !!p && p.follows && p.d <= m && !__game.busy; }`;
+        // In the whole walkthrough the block "book" leaves the book open for the shop: the pet needs the world (the book
+        // pauses the game), so the book is closed for this block - its close a stop point like any - and opened again after.
+        const bookOpen = await visible('#book');
+        if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
         await holdAchDuring(async () => {
           const item = await g(() => __game.items?.find((i) => i.kind === 'pet') ?? null);
           if (item?.done === true || await g(() => __game.save.worlds.fairy.flags.pet === true)) fail('the pet is found before the block (the flag "pet" of the world is set)');
@@ -2322,6 +2337,10 @@ try {
             console.log(`pet: "${label}" at ${at.x}, ${at.z} found the fawn (flag "pet", save.pets), chosen in the book; after the reload it walks after her (${r.d.toFixed(2)} m)`);
           } finally { await p2.close().catch(() => {}); }
         });
+        if (bookOpen) {
+          await tap('#btnBook');
+          if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
+        }
       }
       // ---- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book, opened in the middle of the game ----
       // A tap on a thing puts it on at once; one tried on and not bought comes off when the screen closes; a thing she
