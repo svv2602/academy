@@ -1,4 +1,5 @@
 import type { Save } from '../core/save';
+import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
 import { lastDays } from '../game/playtime';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
@@ -192,12 +193,12 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     return `<p id="pHard" class="pnote phard"><b>${t('p_hard')}</b> · ${list.length ? list.join(' · ') : t('p_hard_none')}</p>`;
   };
   const renderParents = () => {
-    $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}${skillTable(SKILLS.slice(5))}</div>
+    $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
-      <div class="prow preset"><button id="pReset">${t('p_reset')}</button></div>
+      <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pReset">${t('p_reset')}</button></div>
       <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span></div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
@@ -209,6 +210,50 @@ export function initBook(save: Save, book: BookInfo, on: { change(): void; reset
     $('pBody').querySelectorAll<HTMLInputElement>('[data-v]').forEach((r) => r.addEventListener('input', () => { save.vol[r.dataset.v as 'music'] = Number(r.value); on.change(); }));
     const reset = $('pReset'); let armed = false;
     reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });
+    // One "move the game" button is shown: under the second table, or beside "reset" on a phone held upright (style.css).
+    $('pBody').querySelectorAll('.pcodebtn').forEach((b) => b.addEventListener('click', renderCode));
+  };
+  // The save as a code (PLAY-16): a view of its own in place of the section - the section has no room for two fields.
+  // The code is made and copied at the adult's tap only; a pasted one is checked at the first tap of "load", written
+  // at the second (the save it replaces kept: src/core/savecode.ts), then the page is reloaded and loadSave reads it.
+  const renderCode = () => {
+    $('pBody').innerHTML = `<div class="pcode"><p class="pnote">${t('p_code_note')}</p>
+      <div class="pcrow"><button id="pCodeCopy">${t('p_code_copy')}</button><textarea id="pCodeOut" readonly rows="2" spellcheck="false"></textarea></div>
+      <div class="pcrow"><button id="pCodeLoad">${t('p_code_load')}</button><textarea id="pCodeIn" rows="2" spellcheck="false" placeholder="${t('p_code_paste')}"></textarea></div>
+      <div class="pcfoot"><p id="pCodeMsg" class="pnote" role="status"></p>${hasBefore() ? `<button id="pCodeRestore">${t('p_code_restore')}</button>` : ''}<button id="pCodeBack">${t('p_code_back')}</button></div></div>`;
+    const out = $<HTMLTextAreaElement>('pCodeOut'), inp = $<HTMLTextAreaElement>('pCodeIn'), load = $('pCodeLoad');
+    const say = (text: string, bad = false) => { const m = $('pCodeMsg'); m.textContent = text; m.classList.toggle('bad', bad); };
+    const refused = (reason: Refusal) => { disarm(); say(t(`p_code_${reason}` as Key), true); };
+    let armed = false;
+    const disarm = () => { armed = false; load.textContent = t('p_code_load'); };
+    $('pCodeCopy').addEventListener('click', async () => {
+      out.value = await toCode(save);
+      try { await navigator.clipboard.writeText(out.value); say(t('p_code_copied')); } catch { out.select(); say(t('p_code_select')); }
+    });
+    inp.addEventListener('input', () => { disarm(); say(''); });
+    load.addEventListener('click', async () => {
+      if (!armed) {
+        const r = await fromCode(inp.value);
+        if (!r.ok) return refused(r.reason);
+        armed = true; load.textContent = t('p_code_sure'); say('');
+        return;
+      }
+      const r = await loadCode(save, inp.value);
+      if (!r.ok) return refused(r.reason);
+      location.reload();
+    });
+    // The way back (decision of the lead, 2026-11-18): while the game a code replaced is kept, it can be given back - with
+    // the same second tap; the game given back takes its place there, so the same button undoes it again.
+    const restore = document.getElementById('pCodeRestore');
+    let back = false;
+    restore?.addEventListener('click', () => {
+      if (!back) { back = true; disarm(); restore.textContent = t('p_code_restore_sure'); say(''); return; }
+      const r = restoreBefore(save);
+      if (!r.ok) { back = false; restore.textContent = t('p_code_restore'); return refused(r.reason); }
+      location.reload();
+    });
+    inp.addEventListener('input', () => { if (back && restore) { back = false; restore.textContent = t('p_code_restore'); } });
+    $('pCodeBack').addEventListener('click', renderParents);
   };
   // The gate (PLAY-14): every opening asks a new example, never the one asked last time.
   let gate: GateQuestion | null = null;
