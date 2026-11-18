@@ -68,6 +68,11 @@ describe('the catalog of pets (PLAY-09, R18, R57)', () => {
     expect(petProblems({ id: WORLD, pet: TEST_PET, characters: [{ id: 'hedgehog' }] })).toHaveLength(1);
     expect(petProblems({ id: WORLD, pet: { ...TEST_PET, species: 'dragon' }, characters: owl })).toHaveLength(1);
     expect(petProblems({ id: 'forest', pet: TEST_PET, characters: owl })).toHaveLength(1);
+    // a test world may borrow the species of another world; a test world still needs a species of the catalog and its character
+    expect(petProblems({ id: 'forest', pet: TEST_PET, characters: owl, test: true })).toEqual([]);
+    expect(petProblems({ id: 'forest', pet: TEST_PET, characters: owl, test: false })).toHaveLength(1);
+    expect(petProblems({ id: 'forest', pet: { ...TEST_PET, species: 'dragon' }, characters: owl, test: true })).toHaveLength(1);
+    expect(petProblems({ id: 'forest', pet: TEST_PET, characters: [{ id: 'hedgehog' }], test: true })).toHaveLength(1);
   });
 });
 

@@ -10,6 +10,17 @@ const CLIPS: Record<string, string> = {
   Idle: 'Idle_Loop', Walk: 'Walk_Loop', Run: 'Jog_Fwd_Loop', Jump: 'Jump_Loop', Land: 'Jump_Land',
   Interact: 'Interact', Dance: 'Dance_Loop', Talk: 'Idle_Talking_Loop', Wave: 'Spell_Simple_Shoot',
 };
+/**
+ * Game names -> clips of the same library that a world may bring for the heroine in a file of its own (her "world
+ * clips", `worldClips` below): the swimming of a water world (WorldDef.move). The shared hero/anims.glb has none of them.
+ */
+const WORLD_CLIPS: Record<string, string> = { Swim: 'Swim_Fwd_Loop', Float: 'Swim_Idle_Loop' };
+/**
+ * In the water (WorldDef.move, kind 'swim') the heroine's standing, walking and running are played by the swimming clips:
+ * src/game/player.ts hands this to the one point every clip of hers goes through (Actor.rename). Talk, Dance and the rest
+ * play as they are.
+ */
+export const SWIM_NAMES: Readonly<Record<string, string>> = { Idle: 'Float', Walk: 'Swim', Run: 'Swim' };
 /** Crown height of the heroine standing in Idle: the same as the adult-body heroine had before TECH-14 (R17). */
 const HERO_TOP = 1.53;
 
@@ -24,9 +35,9 @@ const boneMap = (root: THREE.Object3D) => {
   return bones;
 };
 /** Copies of the game's clips that exist in `anims`, each passed through `edit`. */
-function gameClips(anims: THREE.AnimationClip[], edit: (clip: THREE.AnimationClip) => void) {
+function gameClips(anims: THREE.AnimationClip[], edit: (clip: THREE.AnimationClip) => void, table = CLIPS) {
   const clips = new Map<string, THREE.AnimationClip>();
-  for (const [name, src] of Object.entries(CLIPS)) {
+  for (const [name, src] of Object.entries(table)) {
     const clip = anims.find((a) => a.name === src)?.clone();
     if (!clip) continue;
     edit(clip);
@@ -147,7 +158,14 @@ function region(h: number, s: number, l: number) {
  * hero/anims play on it unchanged except for the pelvis translation, scaled to her shorter legs. The dress and the hair
  * are re-painted in the texture; the hairstyle is the model's own.
  */
-export async function buildHero(look: Look): Promise<Rig & { setLook(l: Look): void; headBone: THREE.Object3D; shoulder: number }> {
+export async function buildHero(look: Look): Promise<Rig & {
+  setLook(l: Look): void; headBone: THREE.Object3D; shoulder: number;
+  /**
+   * The heroine's copies of the clips a world brings in a file of its own (`WORLD_CLIPS`, under their game names), with
+   * the pelvis scaled as for the shared clips: the world lends them to her (Actor.lend) and takes them back as it is left.
+   */
+  worldClips(file: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }): Map<string, THREE.AnimationClip>;
+}> {
   const [src, anims] = await Promise.all([gltf('hero/child'), gltf('hero/anims')]);
   const model = cloneSkinned(src.scene);
   const [mesh] = skinned(model);
@@ -160,10 +178,14 @@ export async function buildHero(look: Look): Promise<Rig & { setLook(l: Look): v
   // anims.glb is shared with the adult characters: the pelvis is scaled on this heroine's own copies of the clips. The ratio comes
   // from the rest poses of the two skeletons, so the clips put her pelvis where her legs reach.
   const restY = (root: THREE.Object3D) => { root.updateMatrixWorld(true); return root.getObjectByName('pelvis')!.getWorldPosition(new THREE.Vector3()).y; };
-  const pelvis = restY(model) / restY(anims.scene);
-  const clips = gameClips(anims.animations, (clip) => {
-    for (const t of clip.tracks) if (t.name === 'pelvis.position') t.values = t.values.map((v) => v * pelvis);
-  });
+  const restPelvis = restY(model);
+  const scaledPelvis = (by: number) => (clip: THREE.AnimationClip) => {
+    for (const t of clip.tracks) if (t.name === 'pelvis.position') t.values = t.values.map((v) => v * by);
+  };
+  const clips = gameClips(anims.animations, scaledPelvis(restPelvis / restY(anims.scene)));
+  // A world's file of clips has the same UAL skeleton: its pelvis goes through the same scaling, by its own rest pose.
+  const worldClips = (file: { scene: THREE.Object3D; animations: THREE.AnimationClip[] }) =>
+    gameClips(file.animations, scaledPelvis(restPelvis / restY(file.scene)), WORLD_CLIPS);
 
   // Height: the crown in the first frame of Idle at HERO_TOP; the wings are hung from the shoulders of that pose.
   const mixer = new THREE.AnimationMixer(model);
@@ -219,5 +241,5 @@ export async function buildHero(look: Look): Promise<Rig & { setLook(l: Look): v
   setLook(look);
 
   const root = new THREE.Group(); root.add(model);
-  return { root, model, clips, setLook, headBone: bones.Head, shoulder };
+  return { root, model, clips, setLook, headBone: bones.Head, shoulder, worldClips };
 }

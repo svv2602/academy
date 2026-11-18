@@ -41,11 +41,11 @@ export const petSpecies = (id: string | null | undefined): PetSpecies | undefine
  * `after` that names none of the world's characters (the pet would never show itself). src/game/pets.test.ts runs it
  * over every world of the registry.
  */
-export function petProblems(w: { id: string; pet?: WorldPet; characters: readonly { id: string }[] }): string[] {
+export function petProblems(w: { id: string; pet?: WorldPet; characters: readonly { id: string }[]; test?: boolean }): string[] {
   if (!w.pet) return [];
   const s = petSpecies(w.pet.species), out: string[] = [];
   if (!s) out.push(`${w.id}: the pet species "${w.pet.species}" is not in PETS`);
-  else if (s.world !== w.id) out.push(`${w.id}: the pet species "${s.id}" is of the world "${s.world}"`);
+  else if (s.world !== w.id && !w.test) out.push(`${w.id}: the pet species "${s.id}" is of the world "${s.world}"`);   // a test world may borrow one
   const after = w.pet.after;
   if (after !== undefined && !w.characters.some((c) => c.id === after)) out.push(`${w.id}: the pet comes after "${after}", no character of the world`);
   return out;

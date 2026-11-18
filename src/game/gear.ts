@@ -86,15 +86,22 @@ export interface Gear {
   update(time: number, grounded: boolean): void;
 }
 
+/** What the water hides while she swims (R86): the wand would go into her face, the petals stand across her body. */
+const wetHidden = (id: GearId | null) => id === 'wings_petals' || (id !== null && GEAR[id].slot === 'wand');
+
 /**
  * The heroine's items (PLAY-04, PLAY-05): `petals` are her procedural wings, shown while `wings_petals` is worn;
- * the trail bursts a few sparkles at her feet into the shared pool `sparks`.
+ * the trail bursts a few sparkles at her feet into the shared pool `sparks`. `water` - she swims now (a world that
+ * declares it, src/game/player.ts `swimming`): the wand and the petals stay worn but hidden, and show again as she
+ * leaves the water. It is read as the gear is made and after every move (`update`).
  */
-export function createGear(rig: Rig, parts: GearModels, petals: readonly THREE.Object3D[], sparks: Sparks): Gear {
+export function createGear(rig: Rig, parts: GearModels, petals: readonly THREE.Object3D[], sparks: Sparks, water: () => boolean = () => false): Gear {
   const worn: Record<GearSlot, GearId | null> = { ...DEFAULT_GEAR };
+  let wet = water();
   const show = (id: GearId | null, on: boolean) => {
-    if (id === 'wings_petals') for (const p of petals) p.visible = on;
-    else if (id && id in parts) parts[id as ModelId].object.visible = on;
+    const visible = on && !(wet && wetHidden(id));
+    if (id === 'wings_petals') for (const p of petals) p.visible = visible;
+    else if (id && id in parts) parts[id as ModelId].object.visible = visible;
   };
   for (const id of MODEL_IDS) parts[id].object.visible = false;
   show('wings_petals', true);
@@ -130,6 +137,7 @@ export function createGear(rig: Rig, parts: GearModels, petals: readonly THREE.O
       show(id, true);
     },
     update(time, grounded) {
+      if (water() !== wet) { wet = !wet; for (const slot of ['wand', 'wings'] as const) show(worn[slot], true); }
       const dt = lastTime < 0 ? 0 : Math.min(0.1, time - lastTime);
       lastTime = time;
       if (worn.wings === 'wings_butterfly') {
