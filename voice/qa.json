@@ -4960,5 +4960,125 @@
   "model": "gemini-2.5-flash-preview-tts",
   "voice": "Puck",
   "from": "copy of h_count (public/voice/h_count.mp3)"
+ },
+ "ach_first_shard": {
+  "text": "Перша частинка вдома! Магія вже повертається.",
+  "heard": "Перша частинка вдома. Магія вже повертається.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_secret_chest": {
+  "text": "Ти знайшла таємну скриню! Справжня дослідниця!",
+  "heard": "Ти знайшла таємну скриню! Справжня дослідниця!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_all_world_stars": {
+  "text": "Усі зірочки цього світу в тебе! Яке гостре око!",
+  "heard": "Усі зірочки цього світу в тебе! Яке гостре око!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_first_artifact": {
+  "text": "Перший скарб повернувся додому! Ти справжня Хранителька!",
+  "heard": "Перший скарб повернувся додому. Ти справжня хранителька!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_three_secrets": {
+  "text": "Три таємниці! Ти помічаєш те, чого не бачать інші.",
+  "heard": "Три таємниці: ти помічаєш те, чого не бачать інші.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_first_task": {
+  "text": "Перше завдання розгадано! Пригода починається.",
+  "heard": "Перше завдання розгадано. Пригода починається!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_try_again": {
+  "text": "Не вийшло одразу, а ти спробувала ще — і вийшло!",
+  "heard": "Не вийшло одразу, а ти спробувала ще, і вийшло!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_all_skills": {
+  "text": "Ти спробувала все: і лічбу, і загадки! Молодчинка!",
+  "heard": "Ти спробувала все: і лічбу, і загадки. Молодчинка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_fifty_tasks": {
+  "text": "Пʼятдесят завдань позаду! Ось це старання!",
+  "heard": "П'ятдесят завдань позаду – ось це старання!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_clean_ten": {
+  "text": "Десять завдань поспіль з першої спроби! Неймовірно!",
+  "heard": "Десять завдань поспіль з першої спроби! Неймовірно!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_days_3": {
+  "text": "Ми разом уже три дні! Мені з тобою весело.",
+  "heard": "Ми разом уже три дні, мені з тобою весело!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_days_5": {
+  "text": "Пʼять днів пригод разом! Ти моя найкраща подружка.",
+  "heard": "П'ять днів пригод разом! Ти моя найкраща подружка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pet_found": {
+  "text": "Ой, оленятко! Тепер воно гулятиме з нами.",
+  "heard": "Ой, оленятко! Тепер воно гулятиме з нами!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pet_chosen": {
+  "text": "Твій улюбленець іде з нами!",
+  "heard": "Твій улюбленець іде з нами.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "shelf_first": {
+  "text": "Це наша чарівна полиця. Тут засяють усі пʼять скарбів!",
+  "heard": "Це наша чарівна полиця. Тут засяють усі п'ять скарбів.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
