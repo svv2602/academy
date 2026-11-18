@@ -8,7 +8,7 @@ import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
-import { played, stopPoint, type StopWhere } from './stops';
+import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
 
@@ -90,6 +90,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       stop(where: StopWhere) { return stopPoint(where, g); },
       /** The stop points of "Play" over since the page loaded. */
       get plays() { return played.n; },
+      /** The stop points over since the page loaded, by place ('finale', 'book', ...). */
+      get over() { return { ...over }; },
     },
     /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
     get time() { return uTime.value; },

@@ -19,7 +19,7 @@ import type { WorldDef } from './world';
  * Where the point is. `task` and `part` come inside a conversation, which holds the controls itself (`busy`): the
  * scene runs inside it. `book` and `play` come with the controls free, and need them free.
  */
-export type StopWhere = 'task' | 'part' | 'book' | 'play';
+export type StopWhere = 'task' | 'part' | 'book' | 'play' | 'finale';
 
 /** What a point needs of the game (`Game` of src/game/context.ts has all of it). */
 export interface StopHost {
@@ -70,12 +70,16 @@ export function onPoint(fn: (g: StopHost) => void): () => void {
 
 export async function stopPoint(where: StopWhere, g: StopHost | null = host): Promise<void> {
   if (!g) return;
-  for (const fn of silent) fn(g);
-  for (const fn of subscribers) {
-    if (!mayStop(g, where)) return;
-    await fn(g, where);
-  }
+  try {
+    for (const fn of silent) fn(g);
+    for (const fn of subscribers) {
+      if (!mayStop(g, where)) return;
+      await fn(g, where);
+    }
+  } finally { over[where] = (over[where] ?? 0) + 1; }
 }
+/** The stop points over since the page loaded, by place (a scene shown or not): the walkthrough waits for them (__game.ach.over). */
+export const over: Partial<Record<StopWhere, number>> = {};
 
 /** "Play" (R44): the day is counted, then the point. */
 export async function atPlay(g: StopHost | null = host): Promise<void> {
