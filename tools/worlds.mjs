@@ -466,8 +466,20 @@ export const FIRST_WORLD = 'fairy';
 export const ROUNDS = 5;
 /** How much each number after the last round may be over the same number after the first: 10 % (TECH-15). */
 export const ROUND_GROWTH = 0.1;
-/** What is read after a round: the bytes of the JavaScript heap in use, the geometries, textures and shader programs the renderer holds. */
-export const ROUND_KEYS = ['heap', 'geometries', 'textures', 'programs'];
+/** What is read after a round and held to ROUND_GROWTH: the bytes of the JavaScript heap in use, the geometries and textures the renderer holds. */
+export const ROUND_KEYS = ['heap', 'geometries', 'textures'];
+/**
+ * The shader programs are judged by their kinds, not by their number at one moment. The renderer compiles some
+ * programs again and lets them go as the scene changes (seen on the CI runner and under software rendering here:
+ * 47 or 58 programs after a round, the same kinds of program every time), so a count read at one moment swings by a
+ * quarter while nothing leaks. A program that leaks is a kind that was never there before: the kinds of each round are
+ * every program the renderer held in any frame of it (`watchPrograms`), and the last round may bring at most
+ * ROUND_GROWTH new kinds over the first two together (the first round enters by the network and may hold fewer). A
+ * program of a material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its shaders when they
+ * were first compiled, and a world entered again compiles them under new numbers: those numbers are left out of the
+ * kind (`watchPrograms`), or every round would bring "new" kinds of the very same materials.
+ */
+export const ROUND_KINDS = 'kinds';
 
 /**
  * The numbers after the rounds, [{ round, heap, geometries, textures, programs }] in order: ROUNDS of them, each read,
@@ -477,6 +489,14 @@ export function roundProblems(rounds) {
   if (rounds.length !== ROUNDS) return [`${rounds.length} round(s) were read, expected ${ROUNDS}`];
   const out = [];
   const [a, z] = [rounds[0], rounds[rounds.length - 1]];
+  const lost = rounds.find((r) => !Array.isArray(r[ROUND_KINDS]) || !r[ROUND_KINDS].length);
+  if (lost) out.push(`the kinds of the shader programs were not read after round ${lost.round}: nothing to compare`);
+  else {
+    const b = rounds[1], known = new Set([...a[ROUND_KINDS], ...b[ROUND_KINDS]]), fresh = z[ROUND_KINDS].filter((k) => !known.has(k));
+    if (fresh.length > known.size * ROUND_GROWTH) {
+      out.push(`after round ${z.round} the renderer holds ${fresh.length} kind(s) of shader program it did not hold in rounds ${a.round} and ${b.round} (${known.size} kinds then; at most ${ROUND_GROWTH * 100} % new is allowed): ${fresh.join(', ')}`);
+    }
+  }
   for (const k of ROUND_KEYS) {
     const bad = rounds.find((r) => !(Number.isFinite(r[k]) && r[k] > 0));
     if (bad) { out.push(`"${k}" was not read after round ${bad.round} (${bad[k]}): nothing to compare`); continue; }
@@ -487,7 +507,33 @@ export function roundProblems(rounds) {
 
 /** One line of the log for the numbers after a round. */
 export function roundLine(r) {
-  return `round ${r.round}: heap ${(r.heap / 1048576).toFixed(2)} MB, geometries ${r.geometries}, textures ${r.textures}, programs ${r.programs}`;
+  return `round ${r.round}: heap ${(r.heap / 1048576).toFixed(2)} MB, geometries ${r.geometries}, textures ${r.textures}, programs ${r.programs} (${r[ROUND_KINDS]?.length ?? '?'} kinds in the round)`;
+}
+
+/**
+ * From now on every frame notes the kinds of the shader programs the renderer holds (a kind: the name of the program
+ * and a short hash of its key of the cache); `readRound` takes what was noted since the read before and starts anew.
+ * Called once, before the first round begins.
+ */
+export async function watchPrograms(page) {
+  await page.evaluate(() => {
+    const w = window;
+    w.__programKinds = new Set();
+    if (w.__programWatch) return;
+    w.__programWatch = true;
+    // A material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its two shaders when first
+    // compiled: the same material compiled again after its world was left gets new numbers. They are not the kind.
+    const kind = (p) => {
+      const parts = p.cacheKey.split(',');
+      const own = /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1] ?? '');
+      const key = (own ? ['own', 'own', ...parts.slice(2)] : parts).join(',');
+      let h = 2166136261;
+      for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+      return `${p.name || (own ? 'own' : parts[0])}:${(h >>> 0).toString(36)}`;
+    };
+    const tick = () => { for (const p of w.__game.renderer.info.programs ?? []) w.__programKinds.add(kind(p)); requestAnimationFrame(tick); };
+    tick();
+  });
 }
 
 /**
@@ -500,7 +546,9 @@ export async function readRound(page, cdp, round) {
   const { usedSize } = await cdp.send('Runtime.getHeapUsage');
   const held = await page.evaluate(() => {
     const info = window.__game.renderer.info;
-    return { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0 };
+    const kinds = window.__programKinds ? [...window.__programKinds].sort() : null;
+    if (window.__programKinds) window.__programKinds = new Set();
+    return { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0, kinds };
   });
   return { round, heap: usedSize, ...held };
 }
@@ -1134,6 +1182,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block })
       if (!(await p.walks())) fail(`${name}: the heroine does not walk in the first world`);
       // The first change, by the network; caught in the middle of its closing by the game's own clock (`still`, not the
       // debug stop of the layer): the picture is of a change that really runs.
+      await watchPrograms(p.page);   // the kinds of the first round: from its very first change on
       const mid = await p.g((to) => new Promise((res) => {
         window.__roundGoing = __game.travel(to);
         const f = __game.fade;

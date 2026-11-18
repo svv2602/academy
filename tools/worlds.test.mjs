@@ -13,8 +13,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
-  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUND_GROWTH, ROUND_KEYS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, travelFramesProblems, walkEnv, worldVoiceProblems,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_DIST, PROBE_FILES, ROUNDS, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
 
@@ -613,19 +613,21 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
 
 describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', () => {
   const MB = 1048576;
-  const round = (n, o = {}) => ({ round: n, heap: 40 * MB, geometries: 300, textures: 120, programs: 60, ...o });
+  const KINDS = Array.from({ length: 20 }, (_, i) => `prog${i}:k${i}`);
+  const round = (n, o = {}) => ({ round: n, heap: 40 * MB, geometries: 300, textures: 120, programs: 60, kinds: KINDS, ...o });
   const five = (last = {}) => [1, 2, 3, 4].map((n) => round(n)).concat(round(5, last));
 
-  it('five rounds, the numbers of the requirement: the heap, the geometries, the textures, the programs, at most 10 % over', () => {
+  it('five rounds, the numbers of the requirement: the heap, the geometries, the textures, at most 10 % over; the programs by their kinds', () => {
     expect(ROUNDS).toBe(5);
     expect(ROUND_GROWTH).toBe(0.1);
-    expect(ROUND_KEYS).toEqual(['heap', 'geometries', 'textures', 'programs']);
+    expect(ROUND_KEYS).toEqual(['heap', 'geometries', 'textures']);
+    expect(ROUND_KINDS).toBe('kinds');
     expect(FIRST_WORLD).toBe('fairy');
   });
 
   it('the last round within 10 % of the first, each number: no problem - exactly 10 % over is still within', () => {
     expect(roundProblems(five())).toEqual([]);
-    expect(roundProblems(five({ heap: 44 * MB, geometries: 330, textures: 132, programs: 66 }))).toEqual([]);
+    expect(roundProblems(five({ heap: 44 * MB, geometries: 330, textures: 132 }))).toEqual([]);
     // the rule is the last against the first: a round in the middle that held more and let it go is no problem
     const mid = five(); mid[2] = round(3, { heap: 60 * MB });
     expect(roundProblems(mid)).toEqual([]);
@@ -642,13 +644,36 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
   it('a number not read after a round, or not five rounds, is a problem: never a quiet pass', () => {
     expect(roundProblems(five().slice(0, 4))).toEqual(['4 round(s) were read, expected 5']);
     expect(roundProblems([])).toEqual(['0 round(s) were read, expected 5']);
-    const lost = five(); lost[1] = round(2, { programs: undefined });
-    expect(roundProblems(lost)).toEqual(['"programs" was not read after round 2 (undefined): nothing to compare']);
+    const lost = five(); lost[1] = round(2, { textures: undefined });
+    expect(roundProblems(lost)).toEqual(['"textures" was not read after round 2 (undefined): nothing to compare']);
+    const blind = five(); blind[2] = round(3, { kinds: null });
+    expect(roundProblems(blind)).toEqual(['the kinds of the shader programs were not read after round 3: nothing to compare']);
+    expect(roundProblems(five({ kinds: [] }))).toEqual(['the kinds of the shader programs were not read after round 5: nothing to compare']);
     expect(roundProblems(five({ heap: 0 }))[0]).toContain('"heap" was not read after round 5');
   });
 
   it('a line of the log for each round: the heap in MB and the three counts of the renderer', () => {
-    expect(roundLine(round(3, { heap: 41.5 * MB }))).toBe('round 3: heap 41.50 MB, geometries 300, textures 120, programs 60');
+    expect(roundLine(round(3, { heap: 41.5 * MB }))).toBe('round 3: heap 41.50 MB, geometries 300, textures 120, programs 60 (20 kinds in the round)');
+  });
+
+  it('the programs: a count that swings while the kinds stay is no problem; new kinds over 10 % are, each named (CI 44287659093)', () => {
+    // seen on the runner: 47 or 58 programs after a round, the same kinds - the count is no longer judged
+    const swing = five({ programs: 58 }); swing[0] = round(1, { programs: 47 });
+    expect(roundProblems(swing)).toEqual([]);
+    // two new kinds of twenty: exactly 10 % - within
+    expect(roundProblems(five({ kinds: [...KINDS, 'leak:a', 'leak:b'] }))).toEqual([]);
+    // three new kinds: a problem that says how many, of how many, and which
+    const left = roundProblems(five({ kinds: [...KINDS, 'leak:a', 'leak:b', 'leak:c'] }));
+    expect(left).toEqual(['after round 5 the renderer holds 3 kind(s) of shader program it did not hold in rounds 1 and 2 (20 kinds then; at most 10 % new is allowed): leak:a, leak:b, leak:c']);
+    // the second round renumbers the sources of the materials of their own once: its kinds are known, not new (CI 44287659093)
+    const renumbered = KINDS.slice(0, 12).concat(['32:x', '34:y', '36:z', '39:w', '41:v', '43:u', '4:t', '4:s']);
+    const settled = [1, 2, 3, 4, 5].map((n) => round(n, n === 1 ? {} : { kinds: renumbered }));
+    expect(roundProblems(settled)).toEqual([]);
+    // what the second round knows counts: a kind first seen in round 3 and kept is new
+    const late = [1, 2, 3, 4, 5].map((n) => round(n, n < 3 ? {} : { kinds: [...KINDS, 'a:1', 'b:2', 'c:3'] }));
+    expect(roundProblems(late)).toHaveLength(1);
+    // kinds the first round held and the last did not are no growth
+    expect(roundProblems(five({ kinds: KINDS.slice(5) }))).toEqual([]);
   });
 
   it('readRound: the garbage is collected (twice) before the heap is read, then the renderer is read', async () => {
@@ -658,9 +683,47 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
     globalThis.window = { __game: { renderer: { info: { memory: { geometries: 7, textures: 3 }, programs: [1, 2] } } } };
     try {
       const page = { evaluate: async (fn, arg) => { calls.push('renderer'); return fn(arg); } };
-      expect(await readRound(page, cdp, 2)).toEqual({ round: 2, heap: 1234, geometries: 7, textures: 3, programs: 2 });
+      expect(await readRound(page, cdp, 2)).toEqual({ round: 2, heap: 1234, geometries: 7, textures: 3, programs: 2, kinds: null });
+      // with the watch on: the kinds noted since the read before, sorted, and the noting starts anew
+      globalThis.window.__programKinds = new Set(['b:2', 'a:1']);
+      expect((await readRound(page, cdp, 3)).kinds).toEqual(['a:1', 'b:2']);
+      expect([...globalThis.window.__programKinds]).toEqual([]);
     } finally { globalThis.window = was; }
-    expect(calls).toEqual(['HeapProfiler.collectGarbage', 'HeapProfiler.collectGarbage', 'Runtime.getHeapUsage', 'renderer']);
+    expect(calls.slice(0, 4)).toEqual(['HeapProfiler.collectGarbage', 'HeapProfiler.collectGarbage', 'Runtime.getHeapUsage', 'renderer']);
+  });
+
+  it('watchPrograms: every frame notes the kind of each program - its name and a hash of its key - once installed', async () => {
+    const was = { window: globalThis.window, raf: globalThis.requestAnimationFrame };
+    const frames = [];
+    globalThis.requestAnimationFrame = (f) => { frames.push(f); };
+    const programs = [{ name: 'MeshStandardMaterial', cacheKey: 'physical,a,b' }, { name: '', cacheKey: 'basic,x' }];
+    globalThis.window = { __game: { renderer: { info: { programs } } } };
+    try {
+      const page = { evaluate: async (fn, arg) => fn(arg) };
+      await watchPrograms(page);
+      const first = [...globalThis.window.__programKinds];
+      expect(first).toHaveLength(2);
+      expect(first[0]).toMatch(/^MeshStandardMaterial:[0-9a-z]+$/);
+      expect(first[1]).toMatch(/^basic:[0-9a-z]+$/);
+      // a program with another key is another kind; the same key is the same kind, frame after frame
+      programs.push({ name: 'MeshStandardMaterial', cacheKey: 'physical,a,c' });
+      frames.shift()();
+      expect(globalThis.window.__programKinds.size).toBe(3);
+      // a material of its own compiled again under new numbers of its shaders is the same kind; other defines are another
+      programs.push({ name: '', cacheKey: '32,33,FOG,x' });
+      frames.shift()();
+      programs.push({ name: '', cacheKey: '57,58,FOG,x' });
+      frames.shift()();
+      expect(globalThis.window.__programKinds.size).toBe(4);
+      expect([...globalThis.window.__programKinds].filter((k) => k.startsWith('own:'))).toHaveLength(1);
+      programs.push({ name: '', cacheKey: '57,58,NOFOG,x' });
+      frames.shift()();
+      expect(globalThis.window.__programKinds.size).toBe(5);
+      // installed once: a second call starts the noting anew, it does not add a second watch
+      await watchPrograms(page);
+      expect(globalThis.window.__programKinds.size).toBe(0);
+      expect(frames).toHaveLength(1);   // the one watch, waiting for its next frame
+    } finally { globalThis.window = was.window; globalThis.requestAnimationFrame = was.raf; }
   });
 
   it('playRound: to the probe world and back by __game.travel, the game settled after each; a change that is not true stops the round', async () => {
@@ -720,6 +783,9 @@ describe('the scenarios of the gate in the part "travel" (R07, R12, README of ch
     expect(rounds).toContain('const p = await open(name, false, true);');
     expect(rounds).toContain("if (kept.status !== 'ready' || !same(kept.cached, files)) fail(");
     expect(rounds).toContain('rounds.push(await readRound(p.page, cdp, 1));');
+    // the kinds of the first round are watched from its very first change, before the picture of the middle of it
+    expect(rounds.indexOf('await watchPrograms(p.page);')).toBeGreaterThanOrEqual(0);
+    expect(rounds.indexOf('await watchPrograms(p.page);')).toBeLessThan(rounds.indexOf('window.__roundGoing = __game.travel(to);'));
     expect(rounds).toContain('for (const x of await playRound(p.page, p.until)) fail(');
     expect(rounds).toContain('for (const x of roundProblems(rounds)) fail(');
     expect(rounds).toContain('if (now !== was) fail(');
@@ -744,7 +810,8 @@ describe('node tools/worlds-phone.mjs: the same rounds on the phone (R21)', () =
   const phone = readFileSync(join(root, 'tools/worlds-phone.mjs'), 'utf8');
 
   it('plays the rounds and reads the numbers with the functions of the scenario "rounds", and compares them the same way', () => {
-    expect(phone).toContain("import { FIRST_WORLD, PROBE, PROBE_DIST, ROUNDS, playRound, readRound, roundLine, roundProblems } from './worlds.mjs';");
+    expect(phone).toContain("import { FIRST_WORLD, PROBE, PROBE_DIST, ROUNDS, playRound, readRound, roundLine, roundProblems, watchPrograms } from './worlds.mjs';");
+    expect(phone.indexOf('await watchPrograms(page);')).toBeLessThan(phone.indexOf('const wrong = await playRound(page, until);'));
     expect(phone).toContain('const wrong = await playRound(page, until);');
     expect(phone).toContain('rounds.push(await readRound(page, cdp, n));');
     expect(phone).toContain('problems.push(...roundProblems(rounds));');

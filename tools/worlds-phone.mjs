@@ -18,7 +18,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FIRST_WORLD, PROBE, PROBE_DIST, ROUNDS, playRound, readRound, roundLine, roundProblems } from './worlds.mjs';
+import { FIRST_WORLD, PROBE, PROBE_DIST, ROUNDS, playRound, readRound, roundLine, roundProblems, watchPrograms } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** Where Chrome of the phone answers after `adb forward tcp:9333 localabstract:chrome_devtools_remote`. */
@@ -135,6 +135,7 @@ async function main() {
     console.log(`[phone] ${screen.agent}; ${screen.size.join('x')} at ${screen.dpr}`);
     const cdp = await ctx.newCDPSession(page);
     const rounds = [];
+    await watchPrograms(page);
     for (let n = 1; n <= ROUNDS; n++) {
       const wrong = await playRound(page, until);
       for (const x of wrong) problems.push(`round ${n}: ${x}`);
