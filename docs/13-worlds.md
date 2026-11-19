@@ -116,6 +116,36 @@
 - **Пишет:** — (собирательное требование). **Зависит от:** PLAY-01, PLAY-10, PLAY-11, PLAY-09, VOICE-06,
   WORLD-09, WORLD-10, WORLD-11, WORLD-13.
 
+#### Таблица шаблона: первый мир (на 2026-11-19)
+
+Каждая строка ведёт к проверке. «Тест» — юнит-тест (название `it`), «e2e» — блок автопрохождения `tools/shot.mjs`
+и строка, которую он печатает, «кадр» — снимок автопрохождения `<размер>-<имя>.png`. Открытые пункты стоят в последнем
+столбце как есть.
+
+| # | Пункт | Чем проверено | Состояние |
+|---|---|---|---|
+| 1 | Облик, небо, музыка | небо `src/worlds/fairy/sky.ts`, музыка и небо в описании мира `src/worlds/fairy/index.ts`; кадры `01-spawn`, `flyover-1` … `flyover-6` | **открыт:** просмотра кадров с точек облёта по четырём пунктам WORLD-10 ещё нет. Закрывает: WORLD-10 (ниже в этом разделе), чеклист framing |
+| 2 | 5 персонажей, свой голос | персонажи `src/worlds/fairy/quests.ts`, голоса `src/worlds/fairy/voices.ts`; тест `tools/sync_phrases.test.mjs` «the first world: the queen and the unicorn share a voice, the fox, the mushroom king and the deer have their own» | выполнено (примечание 1) |
+| 3 | Цепочки по 3 задания | тест `src/worlds/fairy/quests.test.ts` «every chain keeps its three steps, the fox and the king one more…»; `src/worlds/fairy/parts.test.ts` | выполнено; у лисы и короля четвёртый шаг — найти свою часть артефакта (WORLD-08); примечание 2 |
+| 4 | Не меньше 3 видов заданий в мире, 2 новых | бабочки, поиск звёзд, постаменты (`sort`), камни через ручей (`order`), две поляны (`compare`) — `src/worlds/fairy/index.ts`; тесты `src/game/worldtasks/sort.test.ts`, `stones.test.ts`, `glades.test.ts`, `core.test.ts`; e2e «a step of a chain played in the world (PLAY-01)» → `world task "<kind>" …`; кадры `task-world-sort`, `task-world-stones`, `task-world-glades`, `task-butterflies`, `task-stars` | выполнено (5) |
+| 5 | Артефакт, сцена возвращения, магия | тесты `src/worlds/fairy/magic.test.ts` (WORLD-09), `src/game/story.test.ts` «an introduction of 4-6 frames and a return of the crystal of 2-3…» (WORLD-13); e2e блоки `magic` → `the magic: … point N of the tour: magic 0 vs 1 differ by …` и `magic-crystal`; кадры `shard-<id>`, `20-shrine` … `23-restored`, `magic-0`, `magic-1` | выполнено; облик при магии 0 подтверждает заказчик |
+| 6 | Не меньше 3 секретов | сундук, поляна за водопадом, комната в домике феи — `secrets` в описании мира, `src/worlds/fairy/secrets.ts`; тесты `src/worlds/fairy/secrets.test.ts`, `world-data.test.ts` «the chest is a secret…»; e2e группа `secrets` → `secrets: the chest, the glade … and the house … the book shows 3 marks`; кадры `secrets-room`, `secrets-book` | выполнено (3); две части артефакта лежат в секретах — e2e `a part in the world: …` (WORLD-08) |
+| 7 | Не меньше 3 видов существ | феи, птицы, рыбы — `src/worlds/fairy/creatures.ts`; тесты `creatures.test.ts` «there are three kinds…»; e2e группа `creatures`; кадры `creature-<вид>-<действие>` | выполнено (3, бабочки сверх них) |
+| 8 | Питомец | оленёнок — `pet` в описании мира, `src/game/pets.ts`; тесты `src/game/pets.test.ts`; e2e группа `pet` → `pet: … found the fawn … after the reload it walks after her`; кадры `pet-waiting`, `pet` | выполнено |
+| 9 | Не меньше 5 украшений, открываемых в мире | `src/game/shop.ts`: `wand_crystal` (за кристалл), `earrings_star` (за три секрета); тесты `src/game/shop.test.ts` | **открыт: 2 из 5**, украшений для дома нет; остальные вещи покупаются за звёзды. Закрывает: PLAY-13 «Волшебный дом» ([12-gameplay.md](12-gameplay.md)), отложен (Q7) |
+| 10 | Все реплики записаны | тест `tools/gen_voice.test.mjs` «every line of voice/phrases.json has a clip recorded from exactly its text and intonation» (список ожидающих пуст); e2e → `voice: N clips sounded, lines left to the synthesizer: none` | выполнено |
+| 11 | Автопрохождение на телефоне и компьютере, кадры облёта | размеры `tools/world-pieces.mjs`; путь `src/worlds/fairy/flyover-path.ts`, тест `src/game/flyover.test.ts`; e2e группа `flyover` → `the tour: <N> pictures of its points …` (6 точек) | выполнено |
+| 12 | Бюджет производительности (TECH-06) | замеры П3 на S22 в [perf.md](perf.md): «Итог: TECH-06 выполнен», «Замер на S22 (2026-11-18): тяжёлые точки первого мира, q0–q2, заставки», «Итог по `TECH-06`» | выполнено по числам perf.md (на `q1` у грибного короля 51 кадр — хуже, чем 2026-11-15); новый замер здесь не делался |
+| 13 | Ассеты мира грузятся при входе (TECH-09) | `src/game/travel.test.ts` «a world in the cache is entered at once», `src/worlds/registry.test.ts` — на пробном мире | **открыт:** модели и голос первого мира лежат в общих папках `public/` (решение Q1). Закрывает: TECH-09 ([15-tech.md](15-tech.md), «Состояние на 2026-11-18 (не закончено)») |
+| 14 | Источники моделей | [CREDITS.md](../CREDITS.md); тест `src/game/story.test.ts` «every file of a frame and of its depth map has its entry in CREDITS.md» | выполнено; проверка тестом есть только для кадров заставок, не для моделей |
+
+Открыты пункты 1, 9 и 13; у каждого в таблице указано, кто его закрывает.
+
+Примечания:
+1. Голосов четыре на пять персонажей: единорог и королева говорят одним голосом (Sulafat). Так разрешил заказчик
+   2026-11-15.
+2. В цепочке оленя есть состав числа (`compose`), хотя в таблице навыков он отнесён к миру 3.
+
 ### WORLD-08 — Артефакт нужно найти, а не только получить
 - **Приоритет · объём · этап:** medium · M · Э3
 - **Основание:** промпт §6 «Поиск артефактов»; аудит: все осколки выдаются персонажами
