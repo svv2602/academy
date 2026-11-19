@@ -6,6 +6,14 @@ import type { SkillStep } from '../../game/tasks/index';
  * number house, src/game/tasks/index.ts) or one of the two tasks played out in the 3D world.
  */
 export type Step = TaskType | SkillStep | 'butterflies' | 'stars' | 'part';
+/**
+ * The steps the world gives its conversation a task for (src/worlds/fairy/index.ts, `tasks`): the three in the background
+ * (the butterflies, the star search, a part hidden in the world) and the three played in the world. Every other step of
+ * a chain must be a panel task - a step that is neither has nothing to play it (src/game/dialogue.ts).
+ */
+export const TASK_STEPS = ['butterflies', 'stars', 'sort', 'order', 'compare', 'part'] as const;
+/** The steps played in the world in its frame (PLAY-01; WorldDef.worldTasks): each has a task with `run`. */
+export const WORLD_TASKS = ['sort', 'order', 'compare'] as const;
 export interface QuestDef {
   id: 'unicorn' | 'fox' | 'mushking' | 'deer' | 'queen';
   emoji: string;

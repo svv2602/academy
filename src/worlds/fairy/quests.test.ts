@@ -57,3 +57,25 @@ describe('the chains of the fairy kingdom', () => {
     expect(deer.steps[done] ?? 'finished').toBe(['stars', 'sort', 'compose', 'finished'][done]);
   });
 });
+
+describe('the steps of the chains and the tasks of the world', () => {
+  it('every step is a panel task or one the world gives a task for: none is left with nothing to play it', async () => {
+    const { TASK_STEPS, WORLD_TASKS } = await import('./quests');
+    const tasks: readonly string[] = TASK_STEPS;
+    for (const q of QUESTS) for (const s of q.steps) expect(s in SKILL || isSkillStep(s) || tasks.includes(s), `${q.id}: "${s}"`).toBe(true);
+    // the steps played in the world are among them, and each is a step of some chain
+    for (const id of WORLD_TASKS) {
+      expect(tasks).toContain(id);
+      expect(QUESTS.some((q) => (q.steps as readonly string[]).includes(id)), id).toBe(true);
+    }
+  });
+
+  it('the world checks it as it is built: each named step has its task, those played in the world a "run"', async () => {
+    const { readFileSync } = await import('node:fs');
+    const index = readFileSync(new URL('./index.ts', import.meta.url), 'utf8');
+    expect(index).toMatch(/TASK_STEPS\.filter\(\(id\) => !tasks\[id\]\)/);
+    expect(index).toMatch(/worldTaskProblems\(WORLD_TASKS, tasks\)/);
+    expect(index).toMatch(/worldTasks: WORLD_TASKS/);
+    // the check itself (worldTaskProblems) is tested with the probe world: src/worlds/probe/items.test.ts
+  });
+});

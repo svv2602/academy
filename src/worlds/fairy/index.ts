@@ -14,7 +14,8 @@ import type { WorldScope } from '../../game/scope';
 import { levelFor } from '../../game/skills';
 import { playScene } from '../../game/stage';
 import { generate as generateSort, type SortSpec } from '../../game/tasks/sort';
-import { setWorldTask, taskFrame, worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { showSortInWorld } from '../../game/worldtasks/sort';
 import { showStonesInWorld } from '../../game/worldtasks/stones';
 import type { WorldTaskShow } from '../../game/worldtasks/core';
@@ -24,7 +25,7 @@ import { showGladesInWorld } from '../../game/worldtasks/glades';
 import { typeOf } from '../../game/tasks';
 import type { BookInfo, BuiltWorld, MusicParams, Npc, WorldDef, WorldGround, WorldItem, WorldLines, WorldTask } from '../../game/world';
 import { openShop } from '../../ui/shop';
-import { el, hideAnswers, showClose } from '../../ui/ui';
+import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
@@ -34,7 +35,7 @@ import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
-import { QUESTS, chainDone, type QuestDef } from './quests';
+import { QUESTS, TASK_STEPS, WORLD_TASKS, chainDone, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
 import { SKY_RADIUS, buildSky } from './sky';
@@ -104,21 +105,13 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const restoreCrystal = createFinale(g, stage, shrine, npcs, scope, () => playStory(g, 'story_crystal'));
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // ---------- tasks played in the world (PLAY-01, src/game/worldtasks/): steps of the chains, on the shared frame ----------
-  // One task at a time: the frame tapes it and steps it, the debug door of the walkthrough reaches it.
+  // One task at a time, opened by the shared player (src/game/worldtasks/play.ts): its frame, the close button, the debug
+  // door of the walkthrough; taken back when it ends or when the world is left in its middle.
   const sorting = { active: false, colors: [] as string[] };     // window.__game reads this very object
-  let worldShow: WorldTaskShow | null = null;
-  /** Opens a task in the world before `n`: the heroine stands `stand` m before its middle, facing it; the camera looks at it. */
+  const player = worldTaskPlayer(g, scope);
   const playInWorld = async (_n: Npc, show: WorldTaskShow) => {
-    worldShow = show;
-    setWorldTask(g, show);
-    // the frame of the task (src/game/worldtasks/core.ts): the camera over it as over a table, the heroine beside it
-    const { cam, stand } = taskFrame(show, camera);
-    hero.root.position.set(stand.x, g.groundY(stand.x, stand.z), stand.z); hero.heading = stand.facing; hero.root.rotation.y = hero.heading;
-    g.camTask = cam;
-    showClose(() => show.close());
-    try { return await show.done; } finally { hideAnswers(); sorting.active = false; worldShow = null; setWorldTask(g, null); g.camTask = null; }
+    try { return await player.play(show); } finally { sorting.active = false; }
   };
-  scope.own(() => { g.camTask = null; });   // a world left in the middle of a task takes its frame away
   /** The arc of the pedestals before the deer (or any character `n`). */
   const sortAt = (n: Npc) => {
     const h = n.def.heading;
@@ -184,6 +177,13 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   }
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
   const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep], ['compare', compareStep], ['part', parts]]);
+  // Every step the world names is a task of its conversation, and those it plays in the world are played in the
+  // foreground - a step without its task would go to the panel, which has no such task (./quests.ts).
+  const wrongTasks = [
+    ...TASK_STEPS.filter((id) => !tasks[id]).map((id) => `the step "${id}" has no task`),
+    ...worldTaskProblems(WORLD_TASKS, tasks),
+  ];
+  if (wrongTasks.length) throw new Error(`the fairy world: ${wrongTasks.join('; ')}`);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
   scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks }), { talk } = dialogue;
@@ -227,7 +227,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     spots,
     // While the butterflies are counted every tap is theirs, even one that hits none: the heroine stays at the bed.
     // A tap no task took may be a creature's (its reaction; nothing recorded).
-    tap: (screenDist) => butterflies.tap(screenDist) || (worldShow?.tap(screenDist) ?? false) || creatures.tap(screenDist),
+    tap: (screenDist) => butterflies.tap(screenDist) || player.tap(screenDist) || creatures.tap(screenDist),
     afterMove: (time, grounded) => characters.wings(time, grounded),
     // The characters, then the collectibles, then the shrine: the order they were always updated in.
     update: (dt, time, canMove) => {
@@ -246,7 +246,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       chestStars.animate(dt);
       flies.update(time);
       butterflies.bob(time);
-      worldShow?.update(time);
+      player.update(time);
       badge.position.y = sign.y + SIGN_H + 0.7 + Math.sin(time * 2) * 0.08;
       updateClouds(dt);
     },
@@ -391,6 +391,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   ground,
   characters: FRIENDS,
   secrets: ['chest', 'glade', 'house'],
+  worldTasks: WORLD_TASKS,
   chest: 'chest',
   groundStars: 8,
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
