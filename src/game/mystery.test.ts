@@ -169,5 +169,13 @@ describe('the stars in the world (src/game/mystery-stars.ts)', () => {
     expect(m.today).toHaveLength(0);
     expect(m.spots).toHaveLength(0);
     expect(h.lines).toEqual([]);
+    // the scene is the same held or not (tools/worlds.mjs compares a world built again with the first time): the mesh is
+    // there, drawing nothing
+    const mesh = h.g.scene.children.find((o) => (o as THREE.InstancedMesh).isInstancedMesh) as THREE.InstancedMesh;
+    expect(mesh?.count).toBe(0);
+    mysteryHold.held = false; mysteryHold.day = '2026-11-20';
+    const free = host(), f = createMystery(free.g, geo, free.stage);
+    expect(free.g.scene.children.length).toBe(h.g.scene.children.length);
+    f.dispose();
   });
 });

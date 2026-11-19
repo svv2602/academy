@@ -5,7 +5,7 @@ import { SKILL } from './taskviews/panel';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
-import { MYSTERY_COLOR, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
+import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
 import { dayKey } from './playtime';
 
 /**
@@ -63,12 +63,23 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
   const spots: Spot[] = [], unsolvedPos: THREE.Vector3[] = [];
   let shown: (MysteryStar & { pos: THREE.Vector3; solved: boolean })[] = [];
   let shownDay = '';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sv = new THREE.Vector3(), colour = new THREE.Color();
+  // The mesh is made at once whenever the world has places, held or not: the scene of a world is the same at every entry
+  // into it (tools/worlds.mjs compares the first world built again with the first time); nothing is drawn while count is 0.
   let mesh: THREE.InstancedMesh | null = null;
+  if (def && geo) {
+    mesh = new THREE.InstancedMesh(geo, starMaterial(), MYSTERY_COUNT);
+    mesh.name = 'mystery-stars';
+    mesh.frustumCulled = false;      // ten small stars across the valley: culling them would cost more than it saves
+    mesh.castShadow = false;
+    for (let i = 0; i < MYSTERY_COUNT; i++) mesh.setColorAt(i, colour.set('#ffffff'));   // the colour attribute from the start: one program
+    mesh.count = 0;
+    g.scene.add(mesh);
+  }
   let opening = false, gone = false;
 
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sv = new THREE.Vector3(), colour = new THREE.Color();
 
-  /** The stars of the day `d` at their places; the mesh made once, its colours set per day. */
+  /** The stars of the day `d` at their places, their colours set per day. */
   function place(d: string) {
     shownDay = d;
     const state = mysteryOf(g.ws, d);
@@ -77,13 +88,7 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
       g.ground.resolve(p, 0.6);
       return { ...s, pos: new THREE.Vector3(p.x, g.groundY(p.x, p.z) + FLOAT, p.z), solved: state.solved.includes(s.id) };
     }) : [];
-    if (!mesh && geo && shown.length) {
-      mesh = new THREE.InstancedMesh(geo, starMaterial(), shown.length);
-      mesh.name = 'mystery-stars';
-      mesh.frustumCulled = false;      // ten small stars across the valley: culling them would cost more than it saves
-      mesh.castShadow = false;
-      g.scene.add(mesh);
-    }
+    if (mesh) mesh.count = shown.length;
     shown.forEach((s, i) => mesh?.setColorAt(i, colour.set(MYSTERY_COLOR[s.kind])));
     if (mesh?.instanceColor) mesh.instanceColor.needsUpdate = true;
     spots.length = 0;
@@ -126,7 +131,7 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
       if (gone) return;
       if (hidden()) { if (shown.length) { shown = []; spots.length = 0; refreshUnsolved(); if (mesh) mesh.count = 0; } return; }
       const d = day();
-      if (d !== shownDay || (!shown.length && def)) { place(d); if (mesh) mesh.count = shown.length; }
+      if (d !== shownDay || (!shown.length && def)) place(d);
       if (!mesh) return;
       shown.forEach((s, i) => {
         if (s.solved) { mesh!.setMatrixAt(i, m4.compose(s.pos, q.identity(), sv.setScalar(0))); return; }
