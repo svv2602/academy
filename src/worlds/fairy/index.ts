@@ -402,6 +402,7 @@ const ground: WorldGround = {
 /** The first world, the Fairy Kingdom (ARCH-06): listed in src/worlds/index.ts. */
 export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   id: 'fairy',
+  shelf: 0,   // the Crystal of Light, the first place of the shelf
   spawn: SPAWN,
   ground,
   characters: FRIENDS,

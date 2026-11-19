@@ -12,9 +12,10 @@
  * skips a task.
  */
 import type { Gear, Save } from '../core/save';
+import { artifactBack } from './artifacts';
 
 export type Slot = keyof Gear;
-/** The world whose final restores the Crystal of Light. */
+/** The world whose artifact is the Crystal of Light. */
 const FIRST_WORLD = 'fairy';
 /** What opens a thing that is not sold: the Crystal of Light restored (the end of the first world), an achievement. */
 export type Reward = 'crystal' | 'three_secrets';
@@ -97,7 +98,7 @@ export function unlocked(s: Save, id: string): boolean {
   const it = item(id);
   if (!it?.reward) return false;
   // Read without worldState, which would create the world in the save: asking must change nothing.
-  if (it.reward === 'crystal') return s.worlds[FIRST_WORLD]?.final === true;
+  if (it.reward === 'crystal') return artifactBack(s, FIRST_WORLD);
   // Three secrets: the achievement of PLAY-08, received for good (src/game/achievements.ts).
   return it.reward === 'three_secrets' && 'three_secrets' in s.achievements;
 }

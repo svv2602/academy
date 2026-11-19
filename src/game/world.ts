@@ -145,6 +145,11 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   arrive?(from: string): Arrival | null;
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
+  /**
+   * The place of the world's artifact on the shelf of the book (0-4, src/ui/book.ts): a world with one brings an
+   * artifact back with its final (src/game/artifacts.ts); absent - the world has none (the hub, the probe world).
+   */
+  readonly shelf?: number;
   /** PLAY-09: the world's pet. Its done mark is ws.flags.pet (the item `pet` of the world description); `species` is an id of src/game/pets.ts. */
   readonly pet?: {
     readonly species: string; readonly at: { readonly x: number; readonly z: number };

@@ -11,6 +11,7 @@
  */
 import type { Save, WorldState } from '../core/save';
 import { ACHIEVEMENTS } from '../game/achievements';
+import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
 import { achGame } from './achieve';
@@ -34,6 +35,16 @@ export const SHELF: readonly ShelfPlace[] = [
   { world: null, icon: '🌟', art: 'art_5', parts: null, wait: 'shelf_wait_5' },
 ];
 
+/**
+ * The world of a place: the one of the registry that has this place (`WorldDef.shelf`, src/game/artifacts.ts), so a
+ * world added to the registry takes its place by itself; with no registry known (a test of the shelf alone) - the
+ * place's own.
+ */
+export function shelfWorld(p: ShelfPlace, i: number, worlds: readonly ArtifactWorld[] = knownWorlds()): string | null {
+  if (!worlds.length) return p.world;
+  return worlds.find((w) => w.shelf === i)?.id ?? null;
+}
+
 /** A place as the save has it: the artifact back (`found`), some of its parts (the world played only) or still waiting. */
 export type PlaceState = { kind: 'found' } | { kind: 'parts'; n: number; of: number } | { kind: 'wait' };
 
@@ -47,12 +58,13 @@ const stored = (save: Save, id: string): Partial<WorldState> => {
  * The state of each place of the shelf, from the save alone: `final` of its world, else - for the world played - the
  * number of its characters whose chain is finished, out of all of them.
  */
-export function shelfState(save: Save, world: Pick<WorldEntry, 'id' | 'characters'> | null): PlaceState[] {
-  return SHELF.map((p) => {
-    if (!p.world) return { kind: 'wait' };
-    const w = stored(save, p.world);
-    if (w.final === true) return { kind: 'found' };
-    const chars = world && world.id === p.world ? world.characters ?? [] : [];
+export function shelfState(save: Save, world: Pick<WorldEntry, 'id' | 'characters'> | null, worlds: readonly ArtifactWorld[] = knownWorlds()): PlaceState[] {
+  return SHELF.map((p, i) => {
+    const id = shelfWorld(p, i, worlds);
+    if (!id) return { kind: 'wait' };
+    const w = stored(save, id);
+    if (artifactBack(save, id)) return { kind: 'found' };
+    const chars = world && world.id === id ? world.characters ?? [] : [];
     const n = chars.filter((c) => (w.quests?.[c.id] ?? 0) >= c.steps.length).length;
     return n > 0 ? { kind: 'parts', n, of: chars.length } : { kind: 'wait' };
   });
@@ -108,7 +120,7 @@ function renderTabs(save: Save) {
 
 function renderShelf(save: Save, world: WorldEntry | null) {
   const states = shelfState(save, world), box = $('shelf');
-  if (pickedPlace < 0) pickedPlace = Math.max(0, SHELF.findIndex((p) => p.world === world?.id));
+  if (pickedPlace < 0) pickedPlace = Math.max(0, SHELF.findIndex((p, i) => shelfWorld(p, i) === world?.id));
   const text = (p: ShelfPlace, s: PlaceState) => (s.kind === 'found' ? t('shelf_found')
     : s.kind === 'parts' && p.parts ? tf('shelf_parts', { n: s.n, of: s.of, parts: t(p.parts) }) : t(p.wait));
   box.innerHTML = '';
@@ -117,7 +129,8 @@ function renderShelf(save: Save, world: WorldEntry | null) {
     const cap = s.kind === 'found' ? '✨' : s.kind === 'parts' ? `${s.n}/${s.of}` : '';
     const cls = 'place' + (s.kind === 'found' ? ' found' : s.kind === 'parts' ? ' parts' : ' sil') + (i === pickedPlace ? ' sel' : '');
     const b = button(cls, `<span class="ic">${p.icon}</span><span class="cap">${cap}</span>`, () => { pickedPlace = i; renderShelf(save, world); });
-    b.dataset.place = String(i); b.dataset.state = s.kind; if (p.world) b.dataset.world = p.world;
+    const id = shelfWorld(p, i);
+    b.dataset.place = String(i); b.dataset.state = s.kind; if (id) b.dataset.world = id;
     b.setAttribute('aria-label', t(p.art));
     box.appendChild(b);
   });

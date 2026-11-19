@@ -22,6 +22,7 @@ import { el, initStart, showNotice, showUpdate } from './ui/ui';
 import { initSupplyRow } from './ui/supplies';
 import { initTuningPanel } from './ui/tuning';
 import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
+import { knowWorlds } from './game/artifacts';
 
 const params = new URLSearchParams(location.search);
 /** The part of the loading bar the download of the world where she stopped takes at the launch (when it is needed). */
@@ -60,6 +61,7 @@ const { world, refused: refusedAtLaunch } = await launchWorld(WORLDS, DEFAULT_WO
 // share is an error, one key per clip), and the start screen's subtitle is the one of the world played;
 // ARCH-06: the music is the one of the world played.
 for (const w of WORLDS) addStrings(w.strings, w === world);
+knowWorlds(WORLDS);   // the artifacts and the shelf count the worlds of the registry (src/game/artifacts.ts)
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 // PLAY-22: the controls the parent chose (the heroine's speed, the camera, the joystick), before anything reads them.
