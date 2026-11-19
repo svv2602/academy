@@ -13,10 +13,13 @@ export const SKY_LOOK = {
   fog: ['#d9ecf7', '#f9e0f0'], fogFar: [300, 380], hemi: [1.25, 1.55], sun: [2.6, 3.0],
 } as const;
 
+/** The radius of the sky's sphere, m. Its colours go by direction alone: smaller and moved, it looks the same. */
+export const SKY_RADIUS = 400;
+
 /** The sky (its shader's `uGlow` is the magic of the world), the haze and the two lights. */
 export function buildSky(scene: THREE.Scene) {
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(400, 24, 16),
+    new THREE.SphereGeometry(SKY_RADIUS, 24, 16),
     new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { uGlow: { value: 0 } },

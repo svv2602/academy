@@ -2338,6 +2338,9 @@ try {
           const eye = await g(() => +(__game.camera.position.y - __game.hero.root.position.y).toFixed(2));
           const roomDraw = await g(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
           if (eye > 4.5) fail(`the camera in the room stands ${eye} m over the floor right after the door (at most 4.5)`);
+          // and it sees no farther than the room: the valley behind its walls is not drawn (docs/perf.md)
+          const reachIn = await g(() => __game.camera.far);
+          if (reachIn > 40) fail(`the camera in the room reaches ${reachIn} m: the valley behind the walls is drawn`);
           await shot('secrets-room');
           await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2);
           await act();
@@ -2346,6 +2349,9 @@ try {
           await g((p) => __game.teleport(p[0], p[1]), doorIn); await framesDrawn(2);
           await act();
           await until(() => !__game.secrets.inRoom() && !__game.busy, null, 'the door inside did not lead out of the room');
+          await gameSeconds(0.5);
+          const reachOut = await g(() => __game.camera.far);
+          if (reachOut < 100) fail(`out of the room the camera reaches only ${reachOut} m`);
           const s1 = await state();
           const want = 5 + (gladeFound ? 0 : 3) + 3;
           if (s1.stars !== s0.stars + want) fail(`the secrets found in the block gave ${s1.stars - s0.stars} stars, not ${want}`);
@@ -2367,7 +2373,7 @@ try {
           await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
           await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
           await until(() => ['secret_chest', 'three_secrets'].every((k) => k in __game.save.achievements), null, 'closing the book did not grant "the chest" and "three secrets"');
-          console.log(`secrets: the chest, the glade (${gladeFound ? 'found before, with the fox\'s shard' : `walked ${walked.toFixed(1)} m in through the waterfall`}) (its camera ${gc.dist.toFixed(1)} m from her, out with no jump) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets; draw calls: the glade ${gc.calls} (${Math.round(gc.tris / 1000)}k triangles), the room ${roomDraw.calls} (${Math.round(roomDraw.tris / 1000)}k)`);
+          console.log(`secrets: the chest, the glade (${gladeFound ? 'found before, with the fox\'s shard' : `walked ${walked.toFixed(1)} m in through the waterfall`}) (its camera ${gc.dist.toFixed(1)} m from her, out with no jump) and the house (the room - the camera ${eye} m over its floor, reaching ${reachIn} m, ${reachOut} m out again -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets; draw calls: the glade ${gc.calls} (${Math.round(gc.tris / 1000)}k triangles), the room ${roomDraw.calls} (${Math.round(roomDraw.tris / 1000)}k)`);
         });
       }
       // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----
