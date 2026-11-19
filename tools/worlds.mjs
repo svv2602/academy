@@ -505,7 +505,9 @@ export const ROUND_KEYS = ['heap', 'geometries', 'textures'];
  * brings kinds no round before has held; a state seen in any earlier round is no leak. A
  * program of a material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its shaders when they
  * were first compiled, and a world entered again compiles them under new numbers: those numbers are left out of the
- * kind (`watchPrograms`), or every round would bring "new" kinds of the very same materials.
+ * kind (`watchPrograms`), or every round would bring "new" kinds of the very same materials. Nor are the lights a
+ * program was compiled for (`programKind`): the same material in the light of the other world was the "new" kinds of
+ * 2026-11-19; the settings of the lights are judged on their own - one no round before had fails at once.
  */
 export const ROUND_KINDS = 'kinds';
 
@@ -524,6 +526,25 @@ export function roundsWanted(env) {
   return { rounds: n };
 }
 
+/**
+ * How a new kind differs from the known kind of the same program closest to it: the places of its key (the renderer's
+ * cache key, comma-separated) whose values differ, "#place: known -> new", for the nearest known key (fewest places).
+ */
+export function keyDiff(fresh, keys) {
+  const key = keys[fresh];
+  if (!key) return 'no key';
+  const name = fresh.split(':')[0], parts = key.split(',');
+  let best = null;
+  for (const [k, other] of Object.entries(keys)) {
+    if (k === fresh || k.split(':')[0] !== name || !other) continue;
+    const o = other.split(',');
+    const at = [];
+    for (let i = 0; i < Math.max(parts.length, o.length); i++) if (parts[i] !== o[i]) at.push(`#${i}: ${o[i] ?? '-'} -> ${parts[i] ?? '-'}`);
+    if (!best || at.length < best.at.length) best = { k, at };
+  }
+  return best ? `vs ${best.k}: ${best.at.slice(0, 6).join('; ')}${best.at.length > 6 ? ` (+${best.at.length - 6})` : ''}` : 'no known kind of this program';
+}
+
 /** The problems of one stretch of rounds: its last round against its first (each number) and against all before it (the kinds). */
 function stretchProblems(rounds) {
   const out = [];
@@ -531,10 +552,17 @@ function stretchProblems(rounds) {
   const lost = rounds.find((r) => !Array.isArray(r[ROUND_KINDS]) || !r[ROUND_KINDS].length);
   if (lost) out.push(`the kinds of the shader programs were not read after round ${lost.round}: nothing to compare`);
   else {
-    const before = rounds.slice(0, -1), known = new Set(before.flatMap((r) => r[ROUND_KINDS])), fresh = z[ROUND_KINDS].filter((k) => !known.has(k));
-    if (fresh.length > known.size * ROUND_GROWTH) {
-      out.push(`after round ${z.round} the renderer holds ${fresh.length} kind(s) of shader program no round before held (rounds ${a.round}-${before[before.length - 1].round}: ${known.size} kinds; at most ${ROUND_GROWTH * 100} % new is allowed): ${fresh.join(', ')}`);
+    const isLight = (k) => k.startsWith('lights:');
+    const before = rounds.slice(0, -1), known = new Set(before.flatMap((r) => r[ROUND_KINDS]));
+    const fresh = z[ROUND_KINDS].filter((k) => !known.has(k) && !isLight(k)), size = [...known].filter((k) => !isLight(k)).length;
+    const keys = Object.assign({}, ...rounds.map((r) => r.keys ?? {}));
+    const how = (k) => (Object.keys(keys).length ? `; how the first differs - ${keyDiff(k, keys)}` : '');
+    if (fresh.length > size * ROUND_GROWTH) {
+      out.push(`after round ${z.round} the renderer holds ${fresh.length} kind(s) of shader program no round before held (rounds ${a.round}-${before[before.length - 1].round}: ${size} kinds; at most ${ROUND_GROWTH * 100} % new is allowed): ${fresh.join(', ')}${how(fresh[0])}`);
     }
+    // A setting of the lights no round before had: the lights of a world left are still in the scene (each round one more).
+    const light = z[ROUND_KINDS].filter((k) => !known.has(k) && isLight(k));
+    if (light.length) out.push(`after round ${z.round} a program is compiled for lights no round before had (rounds ${a.round}-${before[before.length - 1].round}): ${light.join(', ')} - the lights of a world left behind? (the numbers: directional, point, spot, spot maps, hemisphere, area, then the shadows of each, the light probes, the type of the shadow map)`);
   }
   for (const k of ROUND_KEYS) {
     const bad = rounds.find((r) => !(Number.isFinite(r[k]) && r[k] > 0));
@@ -572,29 +600,58 @@ export function roundLine(r) {
 }
 
 /**
+ * The kind of a shader program, from the renderer's name and cache key (three.js WebGLPrograms.getProgramCacheKey),
+ * and the setting of the lights it was compiled for. Self-contained: `watchPrograms` hands its source to the page.
+ * - A material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its two shaders when first
+ *   compiled: the same material compiled again after its world was left gets new numbers. They are not the kind.
+ * - The lights are not the kind either: the same material is compiled once for the lights of each world (the first
+ *   world has a shadow of the sun and no point light, the probe world a point light and no shadow), and which of the
+ *   two programs is still held when a round is read depends on what the camera saw last (2026-11-19, the runner: 51 or
+ *   62 programs, the eleven "new" kinds of round 5 the materials in the other light). The twelve numbers of the lights
+ *   (numDirLights ... numLightProbes, shadowMapType: places 32-43 after the precision, which opens the parameters) are
+ *   returned as `lights` instead, and judged on their own: a light no round before had is a world's light left behind.
+ */
+export function programKind(name, cacheKey) {
+  const parts = cacheKey.split(',');
+  const own = /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1] ?? '');
+  if (own) { parts[0] = 'own'; parts[1] = 'own'; }
+  let lights = null;
+  const at = parts.findIndex((x, i) => /^(high|medium|low)p$/.test(x) && /^[a-z0-9-]*$/.test(parts[i + 1] ?? '#'));
+  if (at >= 0 && parts.length > at + 43) {
+    lights = parts.slice(at + 32, at + 44).join('.');
+    for (let i = at + 32; i < at + 44; i++) parts[i] = '*';
+  }
+  const key = parts.join(',');
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return { kind: `${name || (own ? 'own' : parts[0])}:${(h >>> 0).toString(36)}`, lights };
+}
+
+/**
  * From now on every frame notes the kinds of the shader programs the renderer holds (a kind: the name of the program
  * and a short hash of its key of the cache); `readRound` takes what was noted since the read before and starts anew.
  * Called once, before the first round begins.
  */
 export async function watchPrograms(page) {
-  await page.evaluate(() => {
+  await page.evaluate(([src]) => {
     const w = window;
     w.__programKinds = new Set();
+    w.__programKeys = w.__programKeys || {};
     if (w.__programWatch) return;
     w.__programWatch = true;
-    // A material of its own (ShaderMaterial) is keyed by the numbers the renderer gave its two shaders when first
-    // compiled: the same material compiled again after its world was left gets new numbers. They are not the kind.
-    const kind = (p) => {
-      const parts = p.cacheKey.split(',');
-      const own = /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1] ?? '');
-      const key = (own ? ['own', 'own', ...parts.slice(2)] : parts).join(',');
-      let h = 2166136261;
-      for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
-      return `${p.name || (own ? 'own' : parts[0])}:${(h >>> 0).toString(36)}`;
+    const programKind = new Function(`return (${src})`)();
+    // The whole key of each kind, once: what tells a new kind from a known one (`keyDiff`).
+    const note = (k, key) => { w.__programKinds.add(k); w.__programKeys[k] ??= key; };
+    const tick = () => {
+      for (const p of w.__game.renderer.info.programs ?? []) {
+        const { kind, lights } = programKind(p.name, p.cacheKey);
+        note(kind, p.cacheKey);
+        if (lights !== null) note(`lights:${lights}`, lights);
+      }
+      requestAnimationFrame(tick);
     };
-    const tick = () => { for (const p of w.__game.renderer.info.programs ?? []) w.__programKinds.add(kind(p)); requestAnimationFrame(tick); };
     tick();
-  });
+  }, [programKind.toString()]);
 }
 
 /**
@@ -609,7 +666,8 @@ export async function readRound(page, cdp, round) {
     const info = window.__game.renderer.info;
     const kinds = window.__programKinds ? [...window.__programKinds].sort() : null;
     if (window.__programKinds) window.__programKinds = new Set();
-    return { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0, kinds };
+    const keys = kinds && Object.fromEntries(kinds.map((k) => [k, window.__programKeys?.[k] ?? '']));
+    return { geometries: info.memory.geometries, textures: info.memory.textures, programs: info.programs?.length ?? 0, kinds, keys };
   });
   return { round, heap: usedSize, ...held };
 }
