@@ -14,6 +14,14 @@ import { TREE_WAY } from './layout';
  * that finished the kingdom before the hub existed (R28). Grey like the hub (WORLD-12): its look comes with the hub's.
  */
 
+/**
+ * The way is open in the published game: after the crystal she goes to the hub, and the arch stands. False hides it
+ * while the hub is grey (the customer's word): "walk around" after the finale as before, no arch, no sparkles to it.
+ * The hub itself stays in the registry - `?debug&world=hub` opens it, and from there the arch of the fairies leads
+ * back here (`arrive` still puts her where the arch would stand).
+ */
+export const TREE_WAY_OPEN = false;
+
 /** The id of the hub in the registry (src/worlds/index.ts). */
 export const HUB = 'hub';
 /** m in front of the arch, toward the valley, where she comes out of it. */
@@ -41,7 +49,8 @@ export function createTreeWay(g: Game): TreeWay {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.55, 3.4, 0.55), stone);
     post.position.set(side * 1.4, 1.6, 0);   // a little into the ground: it is not flat here
     arch.add(post);
-    g.ground.block(TREE_WAY.x + Math.cos(TREE_WAY.facing) * side * 1.4, TREE_WAY.z - Math.sin(TREE_WAY.facing) * side * 1.4, 0.45);
+    // hidden, it keeps nobody out
+    if (TREE_WAY_OPEN) g.ground.block(TREE_WAY.x + Math.cos(TREE_WAY.facing) * side * 1.4, TREE_WAY.z - Math.sin(TREE_WAY.facing) * side * 1.4, 0.45);
   }
   const top = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.55, 0.65), stone);
   top.position.y = 3.55;
@@ -55,9 +64,9 @@ export function createTreeWay(g: Game): TreeWay {
   const pos = new THREE.Vector3(TREE_WAY.x, y, TREE_WAY.z);
   return {
     pos,
-    spot: { pos, r: SPOT_R, label: 'to_tree', on: () => ws.final, run: () => { void travel(HUB); } },
+    spot: { pos, r: SPOT_R, label: 'to_tree', on: () => TREE_WAY_OPEN && ws.final, run: () => { void travel(HUB); } },
     update(time) {
-      arch.visible = ws.final;
+      arch.visible = TREE_WAY_OPEN && ws.final;
       veilMat.opacity = 0.4 + 0.18 * Math.sin(time * 1.6);
     },
   };

@@ -37,7 +37,7 @@ import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
 import { QUESTS, TASK_STEPS, WORLD_TASKS, chainDone, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
-import { FROM_HUB, HUB, createTreeWay, hubVisited } from './tree-way';
+import { FROM_HUB, HUB, TREE_WAY_OPEN, createTreeWay, hubVisited } from './tree-way';
 import { travel } from '../../game/travel';
 import { SIGN_H } from './scenery';
 import { SKY_RADIUS, VALLEY_FAR, buildSky } from './sky';
@@ -107,7 +107,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // The way to the Great Tree (WORLD-01): the first time she goes there by herself once the crystal is back.
   const treeWay = createTreeWay(g);
   const restoreCrystal = createFinale(g, stage, shrine, npcs, scope, () => playStory(g, 'story_crystal'),
-    () => (hubVisited(g.save) ? null : () => travel(HUB)));
+    () => (!TREE_WAY_OPEN || hubVisited(g.save) ? null : () => travel(HUB)));
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // ---------- tasks played in the world (PLAY-01, src/game/worldtasks/): steps of the chains, on the shared frame ----------
   // One task at a time, opened by the shared player (src/game/worldtasks/play.ts): its frame, the close button, the debug
@@ -226,7 +226,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     const next = npcs.find((n) => !chainDone(ws, n.def));
     if (next) return next.pos;
     // the crystal whole: to the way to the Great Tree until she has been there (R28: also a save from before the hub)
-    if (ws.final) return hubVisited(g.save) ? null : treeWay.pos;
+    if (ws.final) return TREE_WAY_OPEN && !hubVisited(g.save) ? treeWay.pos : null;
     return shrine.pos;
   }
 
@@ -283,7 +283,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     npcs,
     // gear: the heroine's items (src/game/gear.ts), worn and taken off by the walkthrough and the shop; shopSign: where
     // the walkthrough walks up to the shop's signboard; creatures: the creatures of no task (kind, state, position, taps), holdCreature: one of them held still.
-    more: { search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign, creatures: creatures.herd.all,
+    // treeWayOpen: the way to the Great Tree is open (./tree-way.ts) - the walkthrough after the finale follows it or "free"
+    more: { treeWayOpen: TREE_WAY_OPEN, search, bf, sorting, gear: characters.gear, worldSort: () => { void worldSort(); }, shopSign: sign, creatures: creatures.herd.all,
       // holds creature `i` calm at [x, y, z] until a tap (null lets it go): the walkthrough taps it there
       // creatureBody(i): m above creature i's position where its drawn body's middle is - the point a tap is measured from
       creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),

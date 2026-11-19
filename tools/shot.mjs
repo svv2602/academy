@@ -2645,10 +2645,14 @@ try {
           console.log(`the cut-scenes: the return of the crystal after the finale, all ${shown.length} frames in 2.5D by taps`);
         } else await g(() => __game.story.skip());
         await gameFor(() => !__game.story.active, null, 10).catch(() => storyFail('the return of the crystal did not end'));
-        // The first time she goes to the Great Tree (WORLD-01, R12, R29; src/worlds/fairy/tree-way.ts): no "walk around" -
-        // the end of the finale is a stop point (PLAY-08), the scene of the artifact restored comes right here, then the
-        // hub by itself. Waited for by the game - its scene on screen, or the point over -, not the clock.
-        {
+        // While the way to the Great Tree is hidden (src/worlds/fairy/tree-way.ts TREE_WAY_OPEN): "walk around" comes after the
+        // scene and after the final words, with its subtitle - like "go on" after a shard.
+        if (!(await g(() => __game.treeWayOpen === true))) {
+          await page.waitForFunction((n) => !__game.busy && __game.line === 'free' && (window.__starts.free ?? 0) > n
+            && !document.querySelector('#bubble').classList.contains('hidden'), freeSaid, { timeout: T(20000) }) /* clock: audio */
+            .catch(() => { throw new Error('after the finale: "free" was not said with its subtitle'); });
+          await shot('23-restored');
+          // After "free" the end of the finale is a stop point (PLAY-08): the scene of the artifact restored comes right here.
           const over0 = await g(() => (__game.ach.over.finale ?? 0));
           if (!(await gameUntil((n) => __game.ach.scene !== null || (__game.ach.over.finale ?? 0) > n, over0, 30))) {
             throw new Error('after the finale: its stop point did not come (in 30 s of game time)');
@@ -2656,28 +2660,42 @@ try {
           await fanfareUp('the end of the finale');
           if (!(await gameUntil((n) => (__game.ach.over.finale ?? 0) > n, over0, 10))) throw new Error('after the finale: its stop point is not over');
           if (!achSeen.includes('first_artifact')) errors.push(`achievements: ${mode}: the scene of first_artifact did not come right after the finale (shown so far: ${achSeen.join(', ') || 'none'})`);
-        }
-        {
-          const fail = (what) => { throw new Error(`after the finale, the way to the Great Tree: ${what}`); };
-          if (!(await gameUntil(() => __game.world === 'hub' && !__game.transitioning, null, 60))) fail('she is not taken to the hub (in 60 s of game time)');
-          if ((await g(() => window.__starts.free ?? 0)) > freeSaid) fail('"free" was said, though she goes to the hub');
-          // the hub's tour on the first entry, ended by a tap as a player ends it
-          if (await gameUntil(() => __game.flyoverPlayer?.active === true, null, 10)) await g(() => __game.flyoverPlayer.skip());
-          else fail('no tour of the hub on its first entry');
-          if (!(await gameUntil(() => !__game.busy, null, 20))) fail('the heroine is not given back after the tour of the hub');
-          // she appears at the arch of the fairies, 4 m into the glade (src/worlds/hub/layout.ts arrivalAt(0): 0, 8.5)
-          const at = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-          if (Math.hypot(at[0] - 0, at[1] - 8.5) > 1.5) fail(`she appears at ${at.map((v) => v.toFixed(1))}, not at the arch of the fairies (0, 8.5)`);
-          const nests = await g(() => __game.hub.nests());
-          if (JSON.stringify(nests) !== JSON.stringify([true, false, false, false, false])) fail(`the nests ${JSON.stringify(nests)}: the crystal's alone should glow`);
-          await shot('23-hub');
-          // back through the arch of the fairies: out of the arch to the tree, facing the valley (tree-way.ts FROM_HUB: 0, 18.5)
-          if ((await g(() => __game.travel('fairy'))) !== true) fail('the way back to the Fairy Kingdom was refused');
-          if (!(await gameUntil(() => __game.world === 'fairy' && !__game.transitioning && !__game.busy, null, 60))) fail('she is not back in the Fairy Kingdom');
-          const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-          if (Math.hypot(back[0] - 0, back[1] - 18.5) > 1.5) fail(`back from the hub at ${back.map((v) => v.toFixed(1))}, not in front of the arch to the tree (0, 18.5)`);
-          console.log('after the finale: the stop point, then the hub by itself (its tour, she at the arch of the fairies, the nest of the crystal glows), and back out of the arch to the tree');
-          await shot('23-restored');
+          if (await g(() => __game.world !== 'fairy')) throw new Error('after the finale: she left the Fairy Kingdom, though the way to the Great Tree is hidden');
+        } else {
+          // The first time she goes to the Great Tree (WORLD-01, R12, R29; src/worlds/fairy/tree-way.ts): no "walk around" -
+          // the end of the finale is a stop point (PLAY-08), the scene of the artifact restored comes right here, then the
+          // hub by itself. Waited for by the game - its scene on screen, or the point over -, not the clock.
+          {
+            const over0 = await g(() => (__game.ach.over.finale ?? 0));
+            if (!(await gameUntil((n) => __game.ach.scene !== null || (__game.ach.over.finale ?? 0) > n, over0, 30))) {
+              throw new Error('after the finale: its stop point did not come (in 30 s of game time)');
+            }
+            await fanfareUp('the end of the finale');
+            if (!(await gameUntil((n) => (__game.ach.over.finale ?? 0) > n, over0, 10))) throw new Error('after the finale: its stop point is not over');
+            if (!achSeen.includes('first_artifact')) errors.push(`achievements: ${mode}: the scene of first_artifact did not come right after the finale (shown so far: ${achSeen.join(', ') || 'none'})`);
+          }
+          {
+            const fail = (what) => { throw new Error(`after the finale, the way to the Great Tree: ${what}`); };
+            if (!(await gameUntil(() => __game.world === 'hub' && !__game.transitioning, null, 60))) fail('she is not taken to the hub (in 60 s of game time)');
+            if ((await g(() => window.__starts.free ?? 0)) > freeSaid) fail('"free" was said, though she goes to the hub');
+            // the hub's tour on the first entry, ended by a tap as a player ends it
+            if (await gameUntil(() => __game.flyoverPlayer?.active === true, null, 10)) await g(() => __game.flyoverPlayer.skip());
+            else fail('no tour of the hub on its first entry');
+            if (!(await gameUntil(() => !__game.busy, null, 20))) fail('the heroine is not given back after the tour of the hub');
+            // she appears at the arch of the fairies, 4 m into the glade (src/worlds/hub/layout.ts arrivalAt(0): 0, 8.5)
+            const at = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+            if (Math.hypot(at[0] - 0, at[1] - 8.5) > 1.5) fail(`she appears at ${at.map((v) => v.toFixed(1))}, not at the arch of the fairies (0, 8.5)`);
+            const nests = await g(() => __game.hub.nests());
+            if (JSON.stringify(nests) !== JSON.stringify([true, false, false, false, false])) fail(`the nests ${JSON.stringify(nests)}: the crystal's alone should glow`);
+            await shot('23-hub');
+            // back through the arch of the fairies: out of the arch to the tree, facing the valley (tree-way.ts FROM_HUB: 0, 18.5)
+            if ((await g(() => __game.travel('fairy'))) !== true) fail('the way back to the Fairy Kingdom was refused');
+            if (!(await gameUntil(() => __game.world === 'fairy' && !__game.transitioning && !__game.busy, null, 60))) fail('she is not back in the Fairy Kingdom');
+            const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+            if (Math.hypot(back[0] - 0, back[1] - 18.5) > 1.5) fail(`back from the hub at ${back.map((v) => v.toFixed(1))}, not in front of the arch to the tree (0, 18.5)`);
+            console.log('after the finale: the stop point, then the hub by itself (its tour, she at the arch of the fairies, the nest of the crystal glows), and back out of the arch to the tree');
+            await shot('23-restored');
+          }
         }
       }
       // ---- the crystal restored brings the magic to 1 (WORLD-09), the rainbow with it ----
