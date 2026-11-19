@@ -241,6 +241,10 @@ button.it { min-width: 44px; min-height: 44px; }
 .prow button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .prow button.sel { background: #a56bff; color: #fff; }
 .prow input[type=range] { width: 150px; accent-color: #a56bff; }
 #pReset { background: #ffe3ea; color: #d0496f; }
+/* The controls (PLAY-22): a view in place of the section, like the code's; its button beside "move the game". */
+.prow .pctlbtn { background: #e9f7ee; color: #3f9a64; } .preset .pctlbtn { display: none; }
+.pctl { display: grid; gap: 4px; grid-column: 1 / -1; } .pctl .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .pctl .prow { margin: 2px 0; flex-wrap: nowrap; }
+.pctl .prow > span { flex: 0 0 34%; text-align: right; } .pctl .prow button { flex: 1 1 0; max-width: 170px; padding: 6px 8px; }
 /* The save as a code (PLAY-16): a view in place of the section; each field beside its button, the message and "back" under them.
    Its button stands under the second table of skills (four rows to the first one's five): no line more for the section. */
 .prow .pcodebtn { background: #e6f3ff; color: #4f86c0; } .preset .pcodebtn { display: none; }
@@ -267,6 +271,8 @@ button.it { min-width: 44px; min-height: 44px; }
   .ptab { font-size: 12px; } .ptab th { font-size: 10px; } .ptab th, .ptab td { padding: 0 2px; } .pfix { padding: 2px 6px; }
   .ptab :is(th, td):first-child { width: 36%; } .ptab :is(th, td):nth-child(2) { width: 24%; } .ptab :is(th, td):nth-child(3) { width: 18%; }
   .ptime { font-size: 13px; } .pdays { font-size: 12px; } .pdays b { font-size: 11px; } #pBody .pnote { font-size: 11px; margin-top: 2px; }
+  .pcoderow { flex-wrap: nowrap; gap: 6px; } .pcoderow button { padding: 4px 10px; font-size: 14px; }
+  .pctl .prow { font-size: 14px; }
   .pset .prow { margin: 2px 0; gap: 4px 8px; font-size: 14px; } .pvol label { font-size: 12px; } .prow.pvol { flex-wrap: nowrap; } .prow.pvol input[type=range] { width: 64px; }
   /* The version goes up to the free left end of the title's line ("close" holds the right one): the column of the settings
      has the height of a line more for the break (PLAY-20). */
@@ -285,10 +291,13 @@ button.it { min-width: 44px; min-height: 44px; }
   .pset .prow > span { min-width: 0; } .pdays { font-size: 11px; gap: 2px; }
   .pcrow { grid-template-columns: minmax(0, 1fr); gap: 4px; } .pcode textarea { min-height: 64px; }
   /* Two buttons in one half of 390 px do not fit (one was cut off, the quality ran into the other): the quality and the
-     break share the first line, "reset" and "move the game" a line of their own, half each, the version a thin last line. */
+     break share the first line, "reset", "move the game" and "controls" a line of their own, the version a thin last line. */
   .pcoderow { display: none; } .preset .pcodebtn { display: inline-block; }
-  .pset .preset { display: contents; } .pset .preset button { padding: 4px 8px; line-height: 1.15; justify-self: center; }
-  .pset .pbreak { grid-row: 1; grid-column: 2; } .pset .pbreak button { white-space: nowrap; } .pset .pvol { grid-row: 2; } .pset #pReset { grid-row: 3; grid-column: 1; } .pset #pCodeUp { grid-row: 3; grid-column: 2; }
+  .pset .preset { grid-row: 3; grid-column: 1 / -1; display: flex; flex-wrap: nowrap; gap: 6px; } .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 6px; line-height: 1.15; }
+  .pset .pbreak { grid-row: 1; grid-column: 2; } .pset .pbreak button { white-space: nowrap; } .pset .pvol { grid-row: 2; }
+  /* "reset", "move the game" and "controls" (PLAY-22) share the third line, a third each, their texts wrapping inside */
+  .preset .pctlbtn { display: inline-block; }
+  .pctl .prow { flex-wrap: wrap; justify-content: center; } .pctl .prow > span { flex: 1 0 100%; text-align: center; }
   /* the version: small, in the free bottom right corner of the card, beside "close" (a line of its own did not fit) */
   #pVersion { position: absolute; right: 12px; bottom: 18px; max-width: 24%; font-size: 10px; line-height: 1.25; text-align: right; }
   .ptab :is(th, td):first-child { width: 37%; } .ptab :is(th, td):nth-child(3) { width: 18%; }

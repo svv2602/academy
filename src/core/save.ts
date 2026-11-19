@@ -15,6 +15,7 @@
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
+import { CONTROL_IDS, CONTROL_STEPS, type Controls } from './tuning';
 /**
  * One world's progress. The names are those of version 2 (tools/shot.mjs reads them under `worlds.fairy`), but for
  * the chest of the first world: a secret of any world is a flag of its own in `flags`.
@@ -89,6 +90,12 @@ export interface Save {
    * 0 = off. Absent = BREAK_DEFAULT; a damaged value is BREAK_DEFAULT too.
    */
   breakMin?: number;
+  /**
+   * The controls the parent chose (PLAY-22, src/core/tuning.ts `applyControls`): the heroine's speed, the camera's
+   * distance, the joystick's size, the camera's turn - each "less", "normal" or "more". Absent = every one "normal";
+   * a damaged step is "normal" (dropped), a control of a later version is kept as it is.
+   */
+  controls?: Controls;
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -113,6 +120,16 @@ export interface Save {
 export interface SessionTime { min: number; last: number; quiet: number }
 
 /** The minutes the parent may choose before a break (R33); 0 = off. */
+/** The stored choice of the controls: the known ones with a known step, the unknown ones (a later version's) as they are. */
+function controlsOf(v: unknown): Controls {
+  const out: Record<string, unknown> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out as Controls;
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+    if (!(CONTROL_IDS as string[]).includes(k)) out[k] = x;
+    else if ((CONTROL_STEPS as readonly unknown[]).includes(x)) out[k] = x;
+  }
+  return out as Controls;
+}
 export const BREAK_CHOICES: readonly number[] = [0, 10, 15, 20, 30];
 /** The minutes before a break of a save that has not chosen (Q8: 20). */
 export const BREAK_DEFAULT = 20;
@@ -367,6 +384,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The pets found, when stored: a damaged list keeps only its ids, each once (an unknown one is a later version's).
   if (s.pets !== undefined) out.pets = Array.isArray(s.pets) ? [...new Set((s.pets as unknown[]).filter((id): id is string => typeof id === 'string' && id !== ''))] : [];
   // The rhythm of a session (PLAY-20, PLAY-21), when stored: a damaged choice is the default, a damaged date none.
+  if (s.controls !== undefined) out.controls = controlsOf(s.controls);
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);

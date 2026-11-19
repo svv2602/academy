@@ -3097,6 +3097,40 @@ try {
             if (steps.map((x) => x.split(' ')[0]).join(' ') !== 'q2 q1 q0 auto') errors.push(`quality: the button steps through ${steps.join(' -> ')}, not q2 -> q1 -> q0 -> auto`);
             console.log(`quality button: ${steps.join(' -> ')}`);
           }
+          // ---- the controls (PLAY-22): "fast" and "further" apply at once, are written, and a page opened anew has them ----
+          {
+            const near = (a, b) => Math.abs(a - b) < 1e-9;
+            const want = { speed: 5.4 * 1.3, runFrom: 1.3 * 1.3, camDist: 6.2 * 1.25 };
+            const read = (pg) => pg.evaluate(() => ({ t: { ...__game.tuning }, c: __game.save.controls ?? null,
+              stored: JSON.parse(localStorage.getItem('amw-save') || '{}').controls ?? null }));
+            const off = (t, w) => Object.entries(w).filter(([k, v]) => !near(t[k], v)).map(([k, v]) => `${k} ${t[k]} (not ${+v.toFixed(4)})`);
+            await page.locator('.pctlbtn:visible').first().click(); await calm();
+            await shot('31-controls');
+            await page.click('[data-ctl=speed][data-step=more]'); await calm();
+            await page.click('[data-ctl=cam][data-step=more]'); await calm();
+            const now = await read(page);
+            const sel = await g(() => [...document.querySelectorAll('[data-ctl].sel')].map((b) => `${b.dataset.ctl}:${b.dataset.step}`).join(' '));
+            if (off(now.t, want).length) errors.push(`controls: "fast" and "further" did not apply at once: ${off(now.t, want).join(', ')}`);
+            if (JSON.stringify(now.stored) !== JSON.stringify({ speed: 'more', cam: 'more' })) errors.push(`controls: the stored save has ${JSON.stringify(now.stored)}, not speed and camera "more"`);
+            if (sel !== 'speed:more cam:more joy:normal look:normal') errors.push(`controls: the buttons chosen are "${sel}"`);
+            // a page of the game opened anew reads the choice from the save before anything uses it
+            const again = await ctx.newPage();
+            try {
+              again.on('pageerror', (e) => errors.push(`controls, the page opened anew: pageerror: ${e.message}`));
+              await again.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : ''));
+              await again.waitForFunction(() => !!window.__game?.tuning, null, { timeout: T(90000) }); /* clock: page-load */
+              const r = await read(again);
+              if (off(r.t, want).length) errors.push(`controls: a page opened anew does not have them: ${off(r.t, want).join(', ')}`);
+              else console.log(`controls: "fast" and "further" applied at once and in a page opened anew (speed ${+r.t.speed.toFixed(2)}, run from ${+r.t.runFrom.toFixed(2)}, camera ${+r.t.camDist.toFixed(2)})`);
+            } finally { await again.close(); }
+            // back to "normal": the game's own numbers, nothing stored
+            await page.click('[data-ctl=speed][data-step=normal]'); await calm();
+            await page.click('[data-ctl=cam][data-step=normal]'); await calm();
+            const back = await read(page);
+            if (off(back.t, { speed: 5.4, runFrom: 1.3, camDist: 6.2 }).length) errors.push(`controls: "normal" did not bring the numbers back: ${off(back.t, { speed: 5.4, runFrom: 1.3, camDist: 6.2 }).join(', ')}`);
+            if (back.stored && Object.keys(back.stored).length) errors.push(`controls: after "normal" the save still has ${JSON.stringify(back.stored)}`);
+            await page.click('#pCtlBack'); await calm();
+          }
           // closed and opened again: another example, and the section is shut until it is answered
           await page.click('#parentsClose'); await page.click('#btnBook'); await calm(); await page.click('#btnParents'); await calm();
           if (await open()) fail('opened for the second time, the section is not shut');

@@ -3,6 +3,7 @@ import { setProgressHandler } from './core/assets';
 import { setMusic, setVolumes, volume } from './core/audio';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
+import { applyControls } from './core/tuning';
 import { startUpdater } from './core/update';
 import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
@@ -35,6 +36,8 @@ for (const w of WORLDS) addStrings(w.strings, w === world);
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
 const save = loadSave();
+// PLAY-22: the controls the parent chose (the heroine's speed, the camera, the joystick), before anything reads them.
+applyControls(save.controls);
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
 applyVolume();
 initStart(save, save.played, () => applyLook());

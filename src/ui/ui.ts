@@ -1,4 +1,5 @@
 import type { Save } from '../core/save';
+import { CONTROL_IDS, CONTROL_STEPS, type ControlId, type ControlStep, type Controls } from '../core/tuning';
 import type { UpdateState } from '../core/update';
 import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
 import { lastDays } from '../game/playtime';
@@ -165,7 +166,7 @@ export const nextBreak = (m: number): number => BREAK_STEPS[(BREAK_STEPS.indexOf
  * got or not, then its lines of figures; the profile around them (the shelf, secrets, pets, achievements) is src/ui/book.ts.
  */
 export function initBook(save: Save, book: BookInfo, on: {
-  change(): void; reset(): void; open(isOpen: boolean): void; shop(): void; stories?(): readonly BookStory[];
+  change(): void; controls?(): void; reset(): void; open(isOpen: boolean): void; shop(): void; stories?(): readonly BookStory[];
 }) {
   const bookCard = $('book'), parents = $('parents');
   const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
@@ -214,13 +215,13 @@ export function initBook(save: Save, book: BookInfo, on: {
   // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
   const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
-    $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button></div></div></div>
+    $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
-      <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pReset">${t('p_reset')}</button></div>
+      <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pReset">${t('p_reset')}</button></div>
       <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}</div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
@@ -236,10 +237,28 @@ export function initBook(save: Save, book: BookInfo, on: {
     reset.addEventListener('click', () => { if (armed) on.reset(); else { armed = true; reset.textContent = t('p_reset_sure'); } });
     // One "move the game" button is shown: under the second table, or beside "reset" on a phone held upright (style.css).
     $('pBody').querySelectorAll('.pcodebtn').forEach((b) => b.addEventListener('click', renderCode));
+    $('pBody').querySelectorAll('.pctlbtn').forEach((b) => b.addEventListener('click', renderControls));
   };
   // The save as a code (PLAY-16): a view of its own in place of the section - the section has no room for two fields.
   // The code is made and copied at the adult's tap only; a pasted one is checked at the first tap of "load", written
   // at the second (the save it replaces kept: src/core/savecode.ts), then the page is reloaded and loadSave reads it.
+  // The controls (PLAY-22): a view of its own in place of the section, like the code's - four lines of three buttons each
+  // do not fit beside the tables. A tap applies the step at once and writes the save; "normal" is the game's own numbers.
+  const renderControls = () => {
+    const c = save.controls ?? {};
+    const step = (id: ControlId) => (c[id] && CONTROL_STEPS.includes(c[id]) ? c[id] : 'normal');
+    $('pBody').innerHTML = `<div class="pctl">${CONTROL_IDS.map((id) => `<div class="prow"><span>${t(`p_ctl_${id}` as Key)}</span>${CONTROL_STEPS.map((k) =>
+      `<button data-ctl="${id}" data-step="${k}" class="${step(id) === k ? 'sel' : ''}">${t(`p_ctl_${id}_${k}` as Key)}</button>`).join('')}</div>`).join('')}
+      <div class="pcfoot"><p class="pnote">${t('p_ctl_note')}</p><button id="pCtlBack">${t('p_code_back')}</button></div></div>`;
+    $('pBody').querySelectorAll<HTMLElement>('[data-ctl]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.ctl as ControlId, k = b.dataset.step as ControlStep;
+      const next: Controls = { ...(save.controls ?? {}) };
+      if (k === 'normal') delete next[id]; else next[id] = k;
+      save.controls = next;
+      on.controls?.(); renderControls();
+    }));
+    $('pCtlBack').addEventListener('click', renderParents);
+  };
   const renderCode = () => {
     $('pBody').innerHTML = `<div class="pcode"><p class="pnote">${t('p_code_note')}</p>
       <div class="pcrow"><button id="pCodeCopy">${t('p_code_copy')}</button><textarea id="pCodeOut" readonly rows="2" spellcheck="false"></textarea></div>

@@ -1203,3 +1203,31 @@ describe('the rhythm of a session (PLAY-20, PLAY-21): breakMin, gift, session - 
     expect(load({ session: { min: Infinity, last: 5, quiet: null } }).session).toEqual({ min: 0, last: 5, quiet: 0 });
   });
 });
+
+describe('the controls the parent chose (PLAY-22): `controls`, a field of version 4 without a new version (R45)', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none; a version 4 save written before it opens as it was, without it', () => {
+    expect('controls' in defaultSave()).toBe(false);
+    const s = load({ stars: 5 });
+    expect([s.v, s.stars, 'controls' in s]).toEqual([4, 5, false]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+  });
+
+  it('read and write: the choice survives a store and a load, next to fields this code does not know (on top and inside it)', () => {
+    const fields = { controls: { speed: 'more', cam: 'less', joy: 'normal', look: 'more', tilt: 'more' }, later: 'x' };
+    storeSave({ ...load(fields) });
+    const s = loadSave();
+    expect(s).toMatchObject(fields);
+    expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
+    expect(s.v).toBe(SAVE_VERSION);
+  });
+
+  it('a damaged step is dropped (it is "normal"), the others kept; a damaged field is no choice at all', () => {
+    expect(load({ controls: { speed: 'fast', cam: 'more', joy: 3, look: null } }).controls).toEqual({ cam: 'more' });
+    for (const bad of ['more', 3, null, ['more']]) expect(load({ controls: bad }).controls, JSON.stringify(bad)).toEqual({});
+  });
+});

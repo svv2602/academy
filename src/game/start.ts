@@ -1,5 +1,6 @@
 import { unlockAudio } from '../core/audio';
 import { initInput } from '../core/input';
+import { applyControls } from '../core/tuning';
 import { clearSave } from '../core/save';
 import '../ui/session';   // PLAY-20: the cat's offer of a break joins the stop points (its card and the sleeping cat)
 import { initShop } from '../ui/shop';
@@ -67,6 +68,8 @@ export function initStartScreen(g: Game, o: {
   });
   initBook(save, o.book, {
     change: () => { o.applyVolume(); o.applyPin(); persist(); },
+    // PLAY-22: the controls the parent chose apply at once (what the debug panel changed gives way to them)
+    controls: () => { applyControls(save.controls); persist(); },
     reset: () => { clearSave(); location.reload(); },
     open: (v) => { g.paused = v; },
     shop: openShop,

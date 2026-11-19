@@ -63,6 +63,12 @@ const S = sameKeys({
     // --- collection & parents
     col_title: 'Мої скарби', col_stars: 'Зірочки', parents: 'Для батьків', close: 'Закрити',
     gate_q: 'Розділ для дорослих. Скільки буде {a} × {b}?', p_title: 'Батьківський розділ', p_version: 'Версія',
+    // PLAY-22: the controls in the parents' section; read by the grown-ups only, never spoken
+    p_ctl: 'Керування', p_ctl_note: 'Діє одразу і зберігається разом із грою.',
+    p_ctl_speed: 'Швидкість героїні', p_ctl_speed_less: 'Повільно', p_ctl_speed_normal: 'Звичайно', p_ctl_speed_more: 'Швидко',
+    p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближче', p_ctl_cam_normal: 'Звичайно', p_ctl_cam_more: 'Далі',
+    p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Менший', p_ctl_joy_normal: 'Звичайний', p_ctl_joy_more: 'Більший',
+    p_ctl_look: 'Поворот камери', p_ctl_look_less: 'Повільніше', p_ctl_look_normal: 'Звичайно', p_ctl_look_more: 'Швидше',
     // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
     p_upd_loading: 'завантажується оновлення', p_upd_ready: 'нова версія — після перезапуску',
     sk_count: 'Лічба', sk_add: 'Додавання', sk_sub: 'Віднімання', sk_compare: 'Порівняння', sk_logic: 'Логіка',
@@ -212,6 +218,12 @@ const S = sameKeys({
     place: 'Собрать',
     col_title: 'Мои сокровища', col_stars: 'Звёздочки', parents: 'Для родителей', close: 'Закрыть',
     gate_q: 'Раздел для взрослых. Сколько будет {a} × {b}?', p_title: 'Родительский раздел', p_version: 'Версия',
+    // PLAY-22: the controls in the parents' section; read by the grown-ups only, never spoken
+    p_ctl: 'Управление', p_ctl_note: 'Действует сразу и сохраняется вместе с игрой.',
+    p_ctl_speed: 'Скорость героини', p_ctl_speed_less: 'Медленно', p_ctl_speed_normal: 'Обычно', p_ctl_speed_more: 'Быстро',
+    p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближе', p_ctl_cam_normal: 'Обычно', p_ctl_cam_more: 'Дальше',
+    p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Меньше', p_ctl_joy_normal: 'Обычный', p_ctl_joy_more: 'Больше',
+    p_ctl_look: 'Поворот камеры', p_ctl_look_less: 'Медленнее', p_ctl_look_normal: 'Обычно', p_ctl_look_more: 'Быстрее',
     // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
     p_upd_loading: 'загружается обновление', p_upd_ready: 'новая версия — после перезапуска',
     sk_count: 'Счёт', sk_add: 'Сложение', sk_sub: 'Вычитание', sk_compare: 'Сравнение', sk_logic: 'Логика',
