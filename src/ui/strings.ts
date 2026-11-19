@@ -63,6 +63,8 @@ const S = sameKeys({
     // --- collection & parents
     col_title: 'Мої скарби', col_stars: 'Зірочки', parents: 'Для батьків', close: 'Закрити',
     gate_q: 'Розділ для дорослих. Скільки буде {a} × {b}?', p_title: 'Батьківський розділ', p_version: 'Версія',
+    // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
+    p_upd_loading: 'завантажується оновлення', p_upd_ready: 'нова версія — після перезапуску',
     sk_count: 'Лічба', sk_add: 'Додавання', sk_sub: 'Віднімання', sk_compare: 'Порівняння', sk_logic: 'Логіка',
     p_skill: 'Навичка', p_level: 'Рівень', p_tasks: 'Завдань', p_first: 'З першої спроби', p_errors: 'Помилок',
     p_diff: 'Складність', d0: 'Авто', d1: 'Легко', d2: 'Середньо', d3: 'Складно',
@@ -210,6 +212,8 @@ const S = sameKeys({
     place: 'Собрать',
     col_title: 'Мои сокровища', col_stars: 'Звёздочки', parents: 'Для родителей', close: 'Закрыть',
     gate_q: 'Раздел для взрослых. Сколько будет {a} × {b}?', p_title: 'Родительский раздел', p_version: 'Версия',
+    // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
+    p_upd_loading: 'загружается обновление', p_upd_ready: 'новая версия — после перезапуска',
     sk_count: 'Счёт', sk_add: 'Сложение', sk_sub: 'Вычитание', sk_compare: 'Сравнение', sk_logic: 'Логика',
     p_skill: 'Навык', p_level: 'Уровень', p_tasks: 'Заданий', p_first: 'С первой попытки', p_errors: 'Ошибок',
     p_diff: 'Сложность', d0: 'Авто', d1: 'Легко', d2: 'Средне', d3: 'Сложно',
