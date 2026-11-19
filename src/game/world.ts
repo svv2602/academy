@@ -7,6 +7,7 @@ import type { DebugExtras } from './debug';
 import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
+import type { MysteryDef } from './mystery';
 import type { WorldScope } from './scope';
 import type { TaskType } from './tasks/types';
 import type { SkillId } from './skills';
@@ -174,6 +175,11 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * of its own).
    */
   readonly worldTasks?: readonly string[];
+  /**
+   * The places the mysterious stars of a day may stand at (src/game/mystery.ts): out of sight, where she has to walk;
+   * at least MYSTERY_MIN_SPOTS of them, MYSTERY_COUNT a day. Absent - the world has none.
+   */
+  readonly mystery?: MysteryDef;
   /** PLAY-08 (`secret_chest`): the flag of the world's chest, one of `secrets`. */
   readonly chest?: string;
   /** PLAY-08 (`all_world_stars`): how many stars lie on the world's ground (ids 0 to n - 1 in ws.starsTaken); a search's are not. */

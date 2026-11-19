@@ -5456,5 +5456,37 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mystery_found": {
+  "text": "Загадкова зірка! Розвʼяжи — і вона твоя.",
+  "heard": "Загадкова зірка: розв'яжи, і вона твоя!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mystery_won": {
+  "text": "Зірка твоя! Аж три зірочки!",
+  "heard": "Зірка твоя аж три зірочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mystery_wait": {
+  "text": "Зірка почекає тебе тут.",
+  "heard": "Зірка почекає тебе тут.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mystery_day": {
+  "text": "Сьогодні у світі зʼявилися нові загадкові зірки!",
+  "heard": "Сьогодні у світі з'явилися нові загадкові зірки.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

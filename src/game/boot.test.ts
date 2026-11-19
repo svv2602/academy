@@ -9,13 +9,14 @@ const buildHero = vi.fn();
 const loadGear = vi.fn();
 const showNotice = vi.fn();
 const shared = vi.fn();
-vi.mock('../core/assets', () => ({ rig, shared }));
+const staticGeo = vi.fn();
+vi.mock('../core/assets', () => ({ rig, shared, staticGeo }));
 vi.mock('./hero', () => ({ buildHero }));
 vi.mock('./gear', () => ({ loadGear }));
 vi.mock('../ui/ui', () => ({ showNotice }));
 
 const SAVE = { dress: '#ff7fb5' } as unknown as Save;
-const HERO = { model: 'the heroine' }, GEAR = { wand_star: 'a wand' }, CAT = { model: 'the cat' };
+const HERO = { model: 'the heroine' }, GEAR = { wand_star: 'a wand' }, CAT = { model: 'the cat' }, STAR = { geometry: 'the star' };
 /** A module of its own for every test: "the game said why it stopped" is remembered for the life of the page. */
 const boot = async () => { vi.resetModules(); return import('./boot'); };
 
@@ -23,6 +24,7 @@ let error: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   rig.mockReset().mockResolvedValue(CAT);
   shared.mockReset();
+  staticGeo.mockReset().mockResolvedValue(STAR);
   buildHero.mockReset().mockImplementation(async () => ({ ...HERO }));
   loadGear.mockReset().mockResolvedValue(GEAR);
   showNotice.mockReset();
@@ -36,7 +38,7 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const got = await loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledExactlyOnceWith(SAVE);
     expect(rig.mock.calls[0]).toEqual(['extra/cat', 0.75, false]);
-    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])) });
+    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])), starGeo: STAR });
     // The items are hung under the bones of the model the game plays with, not of a copy.
     expect(loadGear).toHaveBeenCalledExactlyOnceWith(got!.heroRig);
     expect(showNotice).not.toHaveBeenCalled();
@@ -55,7 +57,13 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const { loadShared } = await boot();
     await loadShared(SAVE);
     expect(rig.mock.calls.slice(1)).toEqual(PETS.map((p) => [p.model, p.height, true]));
-    expect(shared).toHaveBeenCalledExactlyOnceWith(...PETS.map((p) => p.model));
+    expect(shared).toHaveBeenCalledExactlyOnceWith(...PETS.map((p) => p.model), 'platformer_game_pack/Star');
+  });
+
+  it('the star of the mysterious stars (src/game/mystery-stars.ts): once, with the rest, kept for every world', async () => {
+    const { loadShared } = await boot();
+    await loadShared(SAVE);
+    expect(staticGeo).toHaveBeenCalledExactlyOnceWith('platformer_game_pack/Star', 0.9);
   });
 
   it.each([
