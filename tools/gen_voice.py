@@ -20,7 +20,9 @@ Each clip is checked by transcribing it back (OpenAI, `transcribe` of the old ga
 only when something is recorded).
 The Gemini key is read from ~/.config/academy/gemini.env (a line `GEMINI_API_KEY=...`; ACADEMY_GEMINI_ENV names
 another file). The service is paid: a line is sent only if it has no clip yet or its text or intonation changed.
-Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new]
+Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new] [--help]
+An argument it does not know stops it before anything is read or sent (2026-11-19: `--help` was not known then, and
+the run recorded seven lines for real); `--help` prints this text and sends nothing.
 `--only` takes the names above; a plain key works for a line of a world too (the keys are one set for the whole game).
 """
 import base64
@@ -297,11 +299,30 @@ class Recorder:
         return {**res, 'style': style, 'voice': voice_of(cid), 'model': self.model}
 
 
+FLAGS = ('--dry-run', '--force')
+VALUED = ('--only=', '--model=')
+
+
+def check_args(argv):
+    """'help' for --help or -h, else None; exits, sending nothing, on any argument it does not know."""
+    if any(a in ('--help', '-h') for a in argv):
+        return 'help'
+    unknown = [a for a in argv if a not in FLAGS and not a.startswith(VALUED)]
+    if unknown:
+        sys.exit('gen_voice: nothing was sent. Unknown argument: ' + ' '.join(unknown)
+                 + '. Known: --only=id1,id2 --force --dry-run --model=old|new --help')
+    return None
+
+
 def arg(name, default=None):
     return next((a.split('=', 1)[1] for a in sys.argv if a.startswith(f'--{name}=')), default)
 
 
 def main():
+    # First of all: an argument it does not know stops it before any file is read or any request is made.
+    if check_args(sys.argv[1:]) == 'help':
+        print(__doc__)
+        return
     audio, bank = ROOT / 'public' / 'voice', ROOT / 'public' / 'bank'
     phrases = json.loads((ROOT / 'voice' / 'phrases.json').read_text())
     check_no_placeholders(phrases)

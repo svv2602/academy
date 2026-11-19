@@ -4,7 +4,7 @@
 // 2. The recorded clips themselves: every line of voice/phrases.json has a clip that was recorded from exactly
 //    this text with this intonation and was heard back correctly. A changed line fails here until it is re-recorded.
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -199,6 +199,50 @@ print(json.dumps({'calls': calls, 'res': res, 'strict': v.style_prompt('Leda', '
     // the clips made by the other model are kept, never sent again; the count by voice is printed even when it is none
     expect(r).toMatch(/^\d+ recorded clips are of another model or voice and are kept \(not recorded again\)$/m);
     expect(r).toMatch(/^by voice \(model gemini-3\.8-flash-tts\): (none|(Puck|Charon|Sulafat|Leda|Orus) \d+(, (Puck|Charon|Sulafat|Leda|Orus) \d+)*)$/m);
+  });
+});
+
+describe('tools/gen_voice.py: its arguments (2026-11-19: an unknown one recorded for real)', { timeout: 60_000 }, () => {
+  const cli = (args) => spawnSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), ...args],
+    { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmpdir(), 'gen-voice-no-such.env') } });
+
+  it('an argument it does not know stops it before anything is read or sent', () => {
+    for (const bad of [['--help-me'], ['--dryrun'], ['--only', 'sup_speed'], ['sup_speed'], ['--dry-run', '--forse']]) {
+      const r = cli(bad);
+      expect(r.status, bad.join(' ')).not.toBe(0);
+      expect(r.stderr, bad.join(' ')).toMatch(/^gen_voice: nothing was sent\. Unknown argument: /m);
+      expect(r.stdout, bad.join(' ')).not.toMatch(/lines to record/);
+    }
+  });
+
+  it('the check runs first in main(): no file is read, no key is asked, no request is made', () => {
+    const r = py(`
+seen = []
+v.gemini_key = lambda *a: seen.append('key')
+real = pathlib.Path.read_text
+pathlib.Path.read_text = lambda self, *a, **k: (seen.append(str(self)), real(self, *a, **k))[1]
+sys.argv = ['gen_voice.py', '--bogus']
+try:
+    v.main()
+except SystemExit as e:
+    print(json.dumps({'exit': str(e), 'seen': seen}))`);
+    expect(r.code, r.err).toBe(0);
+    const out = JSON.parse(r.out);
+    expect(out.exit).toMatch(/^gen_voice: nothing was sent\. Unknown argument: --bogus/);
+    expect(out.seen).toEqual([]);
+  });
+
+  it('--help and -h print the usage and send nothing, without a key', () => {
+    for (const h of ['--help', '-h']) {
+      const r = cli([h]);
+      expect(r.status, r.stderr).toBe(0);
+      expect(r.stdout).toMatch(/Run: python3 tools\/gen_voice\.py/);
+      expect(r.stdout).not.toMatch(/lines to record/);
+    }
+  });
+
+  it('the known arguments still pass the check', () => {
+    expect(cli(['--dry-run', '--model=old', '--only=sup_jump']).status).toBe(0);
   });
 });
 
