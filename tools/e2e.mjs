@@ -47,8 +47,9 @@ with one model blocked the game asks for it 1 + 3 times, then shows the message 
 the button pressed, the start screen with "Play" appears. Both screens are measured in 844x390 and 390x844.
 "update" (tools/update.mjs; once per run, with the mobile size, like "failure screens"; a server of its own): a new
 build is published while the game is played - the new service worker installs and waits, the page keeps its worker
-(no controllerchange), is not navigated, and a task is still solved; once every page of the game is closed, a new page
-opens the new build with the stars of the old one.
+(no controllerchange), is not navigated, and a task is still solved; a second page opened meanwhile keeps the old build;
+the parents' section says the new version comes after a restart; once every page of the game is closed, a new page
+opens the new build with the stars of the old one; on its start screen a third build is switched on with one reload.
 "worlds" (tools/worlds.mjs; once per run, with the mobile size, like "update"; a build and a server of its own): the
 probe world is a test world - dist/ must hold nothing of it (no file, no code); the build that lists it is made anew
 (vite build --mode probe --outDir dist-probe), must hold its files under models/probe/ and story/probe/ and the commit

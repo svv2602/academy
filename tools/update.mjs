@@ -1,15 +1,21 @@
-// A new version of the game is taken at the next launch, not in the middle of a game (TECH-13):
+// A new version of the game is taken at the next launch, not in the middle of a game (TECH-13, src/core/update.ts):
 //   node tools/update.mjs [distDir]
 // tools/e2e.mjs runs it as the step "update", once per run (with the mobile size, like "failure screens").
-// It serves the build itself, from a folder that can be switched: build A is distDir as it is, build B a copy of it
-// with a mark in index.html (<meta name="e2e-build" content="B">) and so another revision of index.html in sw.js.
+// It serves the build itself, from a folder that can be switched: build A is distDir as it is, builds B and C copies of
+// it with a mark in index.html (<meta name="e2e-build" content="B">) and so another revision of index.html in sw.js.
 //   1. Build A is opened with ?debug; its service worker is activated and controls the page; "Play" is pressed.
-//   2. The server is switched to build B and the page asks for an update (reg.update()): the new worker must be
-//      installed and wait (reg.waiting), the page must keep its old worker (no controllerchange), must not be navigated
-//      or reloaded (the mark of this session is still in window), and a task must still be solved - the stars it gives
-//      are in the save. The same checks once more after the task.
-//   3. Every page of the game is closed (only about:blank stays open): the waiting worker becomes the active one.
+//   2. The game is played: the server is switched to build B and the page asks for an update (reg.update()): the new
+//      worker must be installed and wait (reg.waiting), the page must keep its old worker (no controllerchange), must
+//      not be navigated or reloaded (the mark of this session is still in window), and a task must still be solved -
+//      the stars it gives are in the save. The same checks once more after the task.
+//   3. A second page of the game is opened while the first is played: it stays on its start screen with build A, it
+//      does not take the waiting worker (the first page answers it: `__game.update.held()` is "other-page"), and the
+//      first page is not changed. The second page is closed.
+//   4. The parents' section of the played page says that the new version comes after a restart (#pUpdate "ready").
+//   5. Every page of the game is closed (only about:blank stays open): the waiting worker becomes the active one.
 //      A new page of the game is opened: it is build B (the mark is there), and its save has the stars of step 2.
+//   6. The start screen of build B, "Play" not pressed: build C is published and found - the page switches it on
+//      itself with exactly one reload, shows build C and the same stars.
 // Every wait is for an event or a state (the worker's state, a selector, the stars), with generous limits.
 // Environment: E2E_GL=gl|swiftshader (as tools/shot.mjs), E2E_SLOW=<n> (multiplier for the limits), Q=<0|1|2> (fixed
 // graphics tier, as tools/shot.mjs).
@@ -43,20 +49,22 @@ const problems = [];
 const fail = (msg) => { problems.push(msg); console.error(`update: ${msg}`); };
 const limit = (what, ms, p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`${what}: nothing after ${ms} ms`)), ms))]);
 
-// ---- build B: a copy of the build, index.html marked, its new revision in the precache list of sw.js ----
+// ---- builds B and C: copies of the build, index.html marked, its new revision in the precache list of sw.js ----
 const copy = mkdtempSync(join(tmpdir(), 'academy-update-'));
-function buildB() {
-  cpSync(dist, copy, { recursive: true });
-  const html = readFileSync(join(copy, 'index.html'), 'utf8');
+const copyC = mkdtempSync(join(tmpdir(), 'academy-update-c-'));
+/** A copy of the build at `to`, marked `name`. */
+function buildCopy(to = copy, name = 'B') {
+  cpSync(dist, to, { recursive: true });
+  const html = readFileSync(join(to, 'index.html'), 'utf8');
   if (!/<head>/i.test(html)) throw new Error('index.html has no <head>');
-  const marked = html.replace(/<head>/i, `<head><meta name="${MARK}" content="B">`);
-  writeFileSync(join(copy, 'index.html'), marked);
-  const sw = readFileSync(join(copy, 'sw.js'), 'utf8');
+  const marked = html.replace(/<head>/i, `<head><meta name="${MARK}" content="${name}">`);
+  writeFileSync(join(to, 'index.html'), marked);
+  const sw = readFileSync(join(to, 'sw.js'), 'utf8');
   const entry = /\{url:"index\.html",revision:"([0-9a-f]+)"\}/g;
   const found = [...sw.matchAll(entry)];
   if (found.length !== 1) throw new Error(`sw.js: expected one precache entry of index.html, found ${found.length}`);
   const revision = createHash('md5').update(marked).digest('hex');
-  writeFileSync(join(copy, 'sw.js'), sw.replace(entry, `{url:"index.html",revision:"${revision}"}`));
+  writeFileSync(join(to, 'sw.js'), sw.replace(entry, `{url:"index.html",revision:"${revision}"}`));
   return { from: found[0][1], to: revision };
 }
 
@@ -112,7 +120,7 @@ async function versions(ctx, page) {
 
 let summary = '';
 try {
-  const b = buildB();
+  const b = buildCopy();
   console.log(`[update] build B: index.html marked, its revision ${b.from} -> ${b.to}; served on ${origin}`);
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
   await ctx.route((u) => !own(u.href), (route) => route.abort());   // nothing leaves for the internet
@@ -215,8 +223,43 @@ try {
   const before = await page.evaluate(() => ({ stars: __game.save.stars, quests: JSON.stringify(__game.save.worlds.fairy.quests), stored: JSON.parse(localStorage.getItem('amw-save')).stars }));
   if (before.stored !== before.stars) fail(`the stars of the task are not in the stored save: ${before.stored} stored, ${before.stars} in the game`);
   await check('after a task was solved');
+  const held = await page.evaluate(() => ({ state: __game.update.state(), held: __game.update.held() }));
+  if (held.state !== 'ready' || held.held !== 'playing') fail(`the played page: the update is "${held.state}", held back by "${held.held}" - not "ready" and "playing"`);
 
-  // ---- 3. every page of the game is closed, a new one is opened ----
+  // ---- 3. a second page of the game, opened while the first is played, keeps build A ----
+  {
+    const log2 = { navigations: 0 };
+    const second = await ctx.newPage();
+    watch(second, 'second page', log2);
+    await second.goto(gameUrl);
+    await second.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); /* clock: page-load */
+    await second.waitForFunction(() => !!window.__game?.update && __game.update.held() === 'other-page', null, { timeout: T(30000) }) /* clock: page-load */
+      .catch(async () => fail(`the second page did not hold the update back for the played one: ${JSON.stringify(await second.evaluate(() => ({ state: window.__game?.update?.state(), held: window.__game?.update?.held() })).catch(() => null))}`));
+    if (log2.navigations !== 1) fail(`the second page was navigated ${log2.navigations} time(s), not once: it reloaded itself`);
+    if (await mark(second) !== 'A') fail('the second page shows build B while the first one is played');
+    await second.close();
+    await check('after a second page was opened and closed');
+  }
+
+  // ---- 4. the parents' section of the played page: the new version comes after a restart ----
+  {
+    await page.click('#btnBook');
+    await page.click('#btnParents');
+    const q = await page.textContent('#gateQ');
+    const m = /(\d+) × (\d+)/.exec(q ?? '');
+    if (!m) throw new Error(`the gate of the parents' section: no multiplication in "${q}"`);
+    await page.type('#gateA', String(Number(m[1]) * Number(m[2])));
+    await page.waitForFunction(() => !document.querySelector('#pBody').classList.contains('hidden'), null, { timeout: T(10000) }); /* clock: input-event */
+    const line = await page.evaluate(() => {
+      const e = document.querySelector('#pUpdate'), v = document.querySelector('#pVersion'), r = v?.getBoundingClientRect();
+      return { state: e?.dataset.state ?? null, text: v?.textContent ?? '', inside: !!r && r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+    });
+    if (line.state !== 'ready' || !line.text.includes('нова версія — після перезапуску')) fail(`the parents' section: the version line is "${line.text}" (${line.state}), it does not say the new version comes after a restart`);
+    if (!line.inside) fail(`the parents' section: the version line "${line.text}" is not inside the window`);
+    await check('with the parents\' section open');
+  }
+
+  // ---- 5. every page of the game is closed, a new one is opened ----
   const blank = await ctx.newPage();
   const sw = await versions(ctx, blank);
   const waitingB = () => [...sw.all.values()].find((v) => v.status === 'installed');
@@ -225,7 +268,8 @@ try {
   await page.close();
   await sw.until('the new worker after every page was closed', () => sw.all.get(idB)?.status === 'activated', T(60000)) /* clock: page-load */
     .catch(() => { throw new Error(`every page of the game is closed, but the new worker did not activate (it is "${sw.all.get(idB)?.status}")`); });
-  watch(blank, 'build B', { navigations: 0 });
+  const logB = { navigations: 0 };
+  watch(blank, 'build B', logB);
   await blank.goto(gameUrl);
   await blank.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }); /* clock: page-load */
   await blank.waitForFunction(() => !!window.__game && !!navigator.serviceWorker.controller, null, { timeout: T(30000) }) /* clock: page-load */
@@ -234,8 +278,32 @@ try {
   const after = await blank.evaluate(() => ({ stars: __game.save.stars, quests: JSON.stringify(__game.save.worlds.fairy.quests) }));
   if (after.stars !== before.stars) fail(`build B opened the save with ${after.stars} star(s), build A left ${before.stars}`);
   if (after.quests !== before.quests) fail(`build B opened the save with the quests ${after.quests}, build A left ${before.quests}`);
+
+  // ---- 6. the start screen of build B: build C is found and switched on with one reload ----
+  buildCopy(copyC, 'C');
+  serving = copyC;
+  await blank.waitForFunction(() => !!window.__game?.update && __game.update.state() === 'none', null, { timeout: T(30000) }) /* clock: page-load */
+    .catch(() => fail('build B: its start screen has no updater, or a new version before build C was published'));
+  logB.navigations = 0;
+  await blank.evaluate(async () => { const reg = await navigator.serviceWorker.getRegistration(); await reg.update(); }).catch(() => {});
+  await blank.waitForFunction((n) => document.querySelector(`meta[name="${n}"]`)?.getAttribute('content') === 'C', MARK, { timeout: T(60000) }) /* clock: page-load */
+    .catch(() => {});
+  await blank.locator('#play').waitFor({ state: 'visible', timeout: T(90000) }) /* clock: page-load */
+    .catch(() => fail('build C: no "Play" after the reload'));
+  if (await mark(blank) !== 'C') fail(`the start screen of build B did not switch build C on: it shows build ${await mark(blank)}`);
+  // One reload only: a second would come at once (the decision takes a fraction of a second), the game is given its time.
+  await blank.waitForFunction(() => !!window.__game?.update && !!navigator.serviceWorker.controller, null, { timeout: T(30000) }); /* clock: page-load */
+  await blank.waitForTimeout(T(3000)); /* clock: quiet-window */
+  if (logB.navigations !== 1) fail(`the start screen switched build C on with ${logB.navigations} navigation(s), not exactly one reload`);
+  const afterC = await blank.evaluate(async () => {
+    const reg = await navigator.serviceWorker.getRegistration();
+    return { stars: __game.save.stars, waiting: !!reg?.waiting, state: __game.update.state() };
+  });
+  if (afterC.waiting || afterC.state !== 'none') fail(`build C: a worker still waits after the reload (${afterC.state})`);
+  if (afterC.stars !== before.stars) fail(`build C opened the save with ${afterC.stars} star(s), build A left ${before.stars}`);
   summary = `the new worker waited through a solved task (stars ${stars0} -> ${before.stars}), no controllerchange, no navigation; `
-    + `after closing every page: build B with ${after.stars} star(s)`;
+    + `a second page kept build A for the played one; the parents' section said "after a restart"; `
+    + `after closing every page: build B with ${after.stars} star(s); on its start screen build C came in with one reload`;
   await ctx.close();
 } catch (e) {
   fail(`${e.stack ?? e}`);
@@ -243,6 +311,7 @@ try {
   await browser.close().catch(() => {});
   server.close();
   rmSync(copy, { recursive: true, force: true });
+  rmSync(copyC, { recursive: true, force: true });
 }
 if (summary) console.log(`[update] ${summary}`);
 console.log(problems.length ? `[update] FAILED: ${problems.length} problem(s)` : '[update] PASSED');
