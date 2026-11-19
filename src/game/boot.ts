@@ -1,4 +1,5 @@
-import { rig, shared, type Rig } from '../core/assets';
+import type * as THREE from 'three';
+import { rig, shared, staticGeo, type Rig } from '../core/assets';
 import type { Save } from '../core/save';
 import { showNotice } from '../ui/ui';
 import { CAT_HEIGHT } from './companion';
@@ -23,7 +24,12 @@ export interface Shared {
    * per file (src/core/assets.ts `gltf`), each `rig` is a clone of its own.
    */
   petRigs: Record<string, Rig>;
+  /** The model of a mysterious star (src/game/mystery-stars.ts): of the core, every world shows it. */
+  starGeo: THREE.BufferGeometry;
 }
+
+/** The model of a mysterious star - the one the first world has on its ground - of the core now. */
+const MYSTERY_STAR = 'platformer_game_pack/Star';
 
 let failed = false;
 
@@ -44,11 +50,12 @@ export function loadFailed(e: unknown): void {
 /** The heroine (dressed as the save says), the cat and the pets. Null = failed for good, the notice is already shown. */
 export function loadShared(save: Save): Promise<Shared | null> {
   // The pets are of the core: never released with a world, also when a world shows the same model file.
-  shared(...PETS.map((p) => p.model));
+  shared(...PETS.map((p) => p.model), MYSTERY_STAR);
   return Promise.all([
     // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
     rig('extra/cat', CAT_HEIGHT, false),
     Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
-  ]).then(([heroRig, catRig, pets]): Shared => ({ heroRig, catRig, petRigs: Object.fromEntries(pets) }), (e: unknown) => { loadFailed(e); return null; });
+    staticGeo(MYSTERY_STAR, 0.9),
+  ]).then(([heroRig, catRig, pets, starGeo]): Shared => ({ heroRig, catRig, petRigs: Object.fromEntries(pets), starGeo }), (e: unknown) => { loadFailed(e); return null; });
 }

@@ -156,6 +156,9 @@ const S = sameKeys({
     hello_5: 'Мур! Як добре, що ти повернулася!',
     gift_star_1: 'А це тобі зірочка — подарунок на сьогодні!',
     gift_star_2: 'Мур! Зірочка для тебе — просто так!',
+    // the mysterious stars (src/game/mystery-stars.ts)
+    mystery_found: 'Загадкова зірка! Розвʼяжи — і вона твоя.', mystery_won: 'Зірка твоя! Аж три зірочки!',
+    mystery_wait: 'Зірка почекає тебе тут.', mystery_day: 'Сьогодні у світі зʼявилися нові загадкові зірки!', mystery_open: 'Зірка',
     left_new_world: 'Тут живуть нові друзі. Ходімо познайомимося!',
     left_mid_chain: 'Наш друг чекає на тебе. Біжімо за іскорками!',
     left_between: 'Одному другові ми вже допомогли. Хто наступний?',
@@ -310,6 +313,9 @@ const S = sameKeys({
     hello_5: 'Мур! Как хорошо, что ты вернулась!',
     gift_star_1: 'А это тебе звёздочка — подарок на сегодня!',
     gift_star_2: 'Мур! Звёздочка для тебя — просто так!',
+    // the mysterious stars (src/game/mystery-stars.ts)
+    mystery_found: 'Загадочная звезда! Реши — и она твоя.', mystery_won: 'Звезда твоя! Целых три звёздочки!',
+    mystery_wait: 'Звезда подождёт тебя здесь.', mystery_day: 'Сегодня в мире появились новые загадочные звёзды!', mystery_open: 'Звезда',
     left_new_world: 'Здесь живут новые друзья. Пойдём познакомимся!',
     left_mid_chain: 'Наш друг ждёт тебя. Бежим за искорками!',
     left_between: 'Одному другу мы уже помогли. Кто следующий?',
@@ -379,6 +385,7 @@ const SPOKEN = {
   break_1: 'warm', break_2: 'calm', break_3: 'warm', break_4: 'calm', break_5: 'warm', break_more_1: 'warm', break_more_2: 'joy', break_more_3: 'joy', break_bye_1: 'warm', break_bye_2: 'warm',
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
+  mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
