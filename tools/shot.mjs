@@ -262,6 +262,8 @@ try {
     // the break too (PLAY-20): its minutes are real time, a slow machine would meet the card in another block; only the
     // block "break" lets it go
     sessionStorage.setItem('amw-break-hold', '1');
+    // the mysterious stars (src/game/mystery-stars.ts): their places are of the day; only the block "mystery" lets them go
+    sessionStorage.setItem('amw-mystery-hold', '1');
   });
   const page = await ctx.newPage();
   // The voice is played by Audio elements that are not in the document: every one that was started is remembered
@@ -2955,6 +2957,78 @@ try {
         });
         if (bookOpen) {
           await tap('#btnBook');
+          if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
+        }
+      }
+      // ---- the mysterious stars (src/game/mystery.ts): found, a mistake, closed - it stays; solved - three stars; a new day ----
+      // The hold of the walkthrough (R61) is let go for the block, the day set by the lever: the places do not depend on
+      // the real date. Then: the line of the day once; at a star the action button opens a task of its kind; a deliberate
+      // mistake shows the first rung of the hint; the cross closes it - nothing given, the star stays; opened again and
+      // solved - three stars, kept in the save; the next day - other places, nothing solved. The hold is pulled again after.
+      if (has('mystery')) {
+        const fail = (what) => { throw new Error(`mystery: ${what}`); };
+        const until = async (pred, arg, what, seconds = 10) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        const bookOpen = await visible('#book');
+        if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        await holdAchDuring(async () => {
+          await g(() => { __game.mystery.day('2030-01-01'); __game.mystery.release(); });
+          await until(() => __game.mystery.today.length === 10, null, 'no ten mysterious stars once the hold is let go');
+          await until(() => __game.save.worlds.fairy.mystery?.told === true, null, 'the cat did not tell of the new stars of the day');
+          const day1 = await g(() => __game.mystery.today.map((s) => ({ id: s.id, kind: s.kind, step: s.step, x: s.pos.x, z: s.pos.z })));
+          const star = day1.find((s) => s.kind === 'blue') ?? day1[0];
+          const stars0 = await g(() => __game.save.stars);
+          const openAt = async () => {
+            await g((s) => { __game.teleport(s.x + 1.0, s.z + 1.0); __game.cam.yaw = Math.atan2(1, 1); }, star);
+            await until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, `no action button at the ${star.kind} star`);
+            await act();
+            await until(() => !!document.querySelector('#task:not(.hidden)'), null, 'the action button did not open the task of the star', 20);
+          };
+          await g((s) => { __game.teleport(s.x + 2.2, s.z + 2.2); __game.cam.yaw = Math.atan2(1, 1); }, star);
+          await framesDrawn(20);
+          await shot('mystery-star');
+          await openAt();
+          const type = await g(() => [...document.querySelector('#taskStage').classList].find((c) => c.startsWith('t-') && c !== 't-stage')?.slice(2));
+          if (type !== star.step && !(star.step === 'compare' && type === 'signs')) fail(`the ${star.kind} star opened "${type}", not "${star.step}"`);
+          // one deliberate mistake: the right element learnt from the task's own solve with its taps swallowed
+          const wrong = await g(() => {
+            const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
+            let right = null;
+            const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+            document.addEventListener('pointerdown', swallow, true);
+            try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+            if (!right) return 'the game did not show which element is right';
+            const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
+              .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('yes') && !e.classList.contains('q'));
+            if (!same.length) return `no other element like the right one (${right.className})`;
+            tap(same[0]); return '';
+          });
+          if (wrong) fail(`no deliberate mistake: ${wrong}`);
+          if (!(await hintRan('#taskStage[data-shown="1"]'))) fail('the first rung of the hint did not run after the mistake');
+          await tapOn('#taskClose').catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
+          await gameFor(() => !__game.busy, null, 10).catch(() => fail('the closed task did not give the controls back'));
+          const kept = await g((id) => ({ stars: __game.save.stars, solved: __game.save.worlds.fairy.mystery?.solved ?? [], open: __game.mystery.unsolved().length, still: !__game.mystery.today.find((s) => s.id === id).solved }), star.id);
+          if (kept.stars !== stars0 || kept.solved.length || kept.open !== 10 || !kept.still) fail(`closed, the star did not stay as it was: ${JSON.stringify(kept)}`);
+          // opened again and solved
+          await openAt();
+          await g(() => __game.cheat());
+          await until((id) => (__game.save.worlds.fairy.mystery?.solved ?? []).includes(id) && !__game.busy, star.id, 'the solved star is not kept in the save', 30);
+          const got = await g(() => __game.save.stars);
+          if (got !== stars0 + 3) fail(`a solved star gave ${got - stars0} stars, not 3`);
+          const stored = await g((id) => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.mystery?.solved?.includes(id), star.id);
+          if (!stored) fail('the solved star is not stored');
+          if ((await g(() => __game.mystery.unsolved().length)) !== 9) fail('the solved star is still among the unsolved ones (the compass)');
+          // the next day: other places, nothing solved, the line of the day again
+          await g(() => __game.mystery.day('2030-01-02'));
+          await until(() => __game.save.worlds.fairy.mystery?.day === '2030-01-02' && __game.mystery.unsolved().length === 10, null, 'the next day did not bring its stars');
+          const day2 = await g(() => __game.mystery.today.map((s) => `${s.pos.x},${s.pos.z}`));
+          const same = day2.filter((p) => day1.some((s) => `${s.x},${s.z}` === p)).length;
+          if (same === 10) fail('the next day the stars stand at the same places');
+          await until(() => __game.save.worlds.fairy.mystery?.told === true, null, 'the cat did not tell of the stars of the next day');
+          console.log(`mystery: 10 stars of the day, the ${star.kind} one opened "${type}", a mistake - the first rung, closed - it stayed; solved - +3 stars, stored; the next day ${10 - same} of 10 places new`);
+        });
+        await g(() => { __game.mystery.hold(); __game.mystery.day(null); });
+        if (bookOpen) {
+          await tapOn('#btnBook');
           if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
         }
       }

@@ -62,8 +62,8 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   // each frame into one list: a world may change its own. Without a pet's spot the world's list is used as it is.
   const spots: Spot[] = [];
   const allSpots = (): readonly Spot[] => {
-    if (g.pets.spots.length === 0) return world.spots;
-    spots.length = 0; spots.push(...world.spots, ...g.pets.spots);
+    if (g.pets.spots.length === 0 && g.mystery.spots.length === 0) return world.spots;
+    spots.length = 0; spots.push(...world.spots, ...g.pets.spots, ...g.mystery.spots);
     return spots;
   };
   const waiting: (() => void)[] = [];
@@ -88,6 +88,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     player.prompt(canMove, here);
     companion.update(dt);
     g.pets.update(dt);
+    g.mystery.update(time, canMove);
     world.update(dt, time, canMove);
     suppliesOf(g)?.update(dt, time, canMove);   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
     guide.update(time, g.started() && !g.busy ? world.goal() : null);
