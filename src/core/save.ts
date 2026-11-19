@@ -13,6 +13,8 @@
  * So did the rhythm of a session (PLAY-20, PLAY-21): the minutes before a break (`breakMin`), the date of the last gift
  * of the day (`gift`) and the current session of play (`session`): optional, absent until first written, a damaged one mended.
  * So did the world where she stopped (`lastWorld`, WORLD-01, TECH-09): absent until the first entry into a world.
+ * So did the potions and the compass (src/game/supplies.ts): her stock (`supplies`) and the seconds left of what acts
+ * (`effects`): absent until the first purchase, a damaged count is none.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -103,6 +105,13 @@ export interface Save {
    * Progress, not the device's: the transfer code carries it, "Start again" clears it. Anything but a word is absent.
    */
   lastWorld?: string;
+  /** The potions and the compass she has, by id (src/game/shop.ts SUPPLIES): how many of each. Progress: carried by the code. */
+  supplies?: Record<string, number>;
+  /**
+   * What acts now, by effect (src/game/supplies.ts): the seconds of play left. Kept, so that a reload or a break does
+   * not take away a minute she paid for.
+   */
+  effects?: Record<string, number>;
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -340,6 +349,12 @@ function daysOf(x: unknown): NonNullable<Save['days']> {
 
 const amount = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0;
 /** The session as stored: a damaged number is 0 (a damaged `last` starts the session again at its next frame). */
+/** A record of numbers by id: only the finite numbers `keep` agrees to; anything that is not such a record is empty. */
+function countsOf(x: unknown, keep: (n: number) => boolean): Record<string, number> {
+  if (!isObject(x)) return {};
+  return Object.fromEntries(Object.entries(x).filter((e): e is [string, number] => typeof e[1] === 'number' && Number.isFinite(e[1]) && keep(e[1])));
+}
+
 function sessionOf(x: unknown): SessionTime {
   const t = part(x);
   return { ...t, min: amount(t.min) ? t.min : 0, last: amount(t.last) ? t.last : 0, quiet: amount(t.quiet) ? t.quiet : 0 };
@@ -394,6 +409,9 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.controls !== undefined) out.controls = controlsOf(s.controls);
   // The world where she stopped: a world this build does not know is kept (a later version's), a damaged one dropped.
   if (s.lastWorld !== undefined && !(typeof s.lastWorld === 'string' && s.lastWorld !== '')) delete out.lastWorld;
+  // The stock and the effects: only whole counts above zero and seconds above zero are kept (an unknown id too).
+  if (s.supplies !== undefined) out.supplies = countsOf(s.supplies, (n) => Number.isInteger(n) && n > 0);
+  if (s.effects !== undefined) out.effects = countsOf(s.effects, (n) => n > 0);
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);

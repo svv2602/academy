@@ -120,7 +120,16 @@ export interface WorldItem {
  * A world once built: its parts of the frame, what window.__game reads of it, the book, its lines, the HUD counter and
  * the heroine's items (src/game/gear.ts: the shop screen puts on what the save holds and what she tries on).
  */
-export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear; items?(): readonly WorldItem[] }
+export interface BuiltWorld {
+  frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear; items?(): readonly WorldItem[];
+  /**
+   * The finds of the world not found yet, where they are (the chest, a secret's entrance): they twinkle while she
+   * glows (the glow potion, src/game/supplyfx.ts). Asked twice a second while it acts: no new objects each time.
+   */
+  glimmer?(): readonly THREE.Vector3[];
+  /** She is in a cramped place (a room): a giant keeps her own size there (the funny potion). Absent - nowhere. */
+  cramped?(): boolean;
+}
 
 /** A place to appear at: `facing` is the heading (absent - the heading of every entry, facing -z). */
 export interface Arrival { x: number; z: number; facing?: number }

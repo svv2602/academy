@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { CONTROLS, CONTROL_IDS, TUNING_DEFAULTS, TUNING_KEYS, TUNING_RANGES, applyControls, camDistance, controlFactor, resetTuning, setTuning, tuning, tuningText } from './tuning';
+import { CONTROLS, CONTROL_IDS, TUNING_DEFAULTS, TUNING_KEYS, TUNING_RANGES, applyControls, applyEffects, camDistance, controlFactor, resetTuning, setTuning, tuning, tuningText } from './tuning';
 import { initInput, input, pollInput } from './input';
 import { initTuningPanel } from '../ui/tuning';
 
@@ -9,8 +9,8 @@ afterEach(() => resetTuning());
 describe('tuning values (ARCH-14)', () => {
   it('defaults are the numbers the game had before the panel', () => {
     // src/main.ts: look 0.006 / 0.004 per pixel, speed 5.4, run above 1.3, camera 6.2 (portrait 8);
-    // src/core/input.ts: joystick radius 56 px, joystick zone the left 40 % of the window.
-    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 1.3, joyRadius: 56, joyZone: 0.4, joyHoldMs: 250, camDist: 6.2 });
+    // src/core/input.ts: joystick radius 56 px, joystick zone the left 40 % of the window; src/game/player.ts: the jump 6.4 m/s.
+    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 1.3, joyRadius: 56, joyZone: 0.4, joyHoldMs: 250, camDist: 6.2, jump: 6.4 });
     expect(tuning).toEqual(TUNING_DEFAULTS);
     expect(camDistance(16 / 9)).toBe(6.2);
     expect(camDistance(390 / 844)).toBe(8);
@@ -40,16 +40,16 @@ describe('tuning values (ARCH-14)', () => {
     expect(tuning).toEqual(TUNING_DEFAULTS);
   });
 
-  it('the text to copy holds all eight current values', () => {
+  it('the text to copy holds all nine current values', () => {
     expect(tuningText().split('\n')).toEqual([
-      'lookX = 0.006', 'lookY = 0.004', 'speed = 5.4', 'runFrom = 1.3', 'joyRadius = 56', 'joyZone = 0.4', 'joyHoldMs = 250', 'camDist = 6.2',
+      'lookX = 0.006', 'lookY = 0.004', 'speed = 5.4', 'runFrom = 1.3', 'joyRadius = 56', 'joyZone = 0.4', 'joyHoldMs = 250', 'camDist = 6.2', 'jump = 6.4',
     ]);
     setTuning('speed', 3.1);
     setTuning('joyZone', 0.55);
     const text = tuningText();
     expect(text).toContain('speed = 3.1');
     expect(text).toContain('joyZone = 0.55');
-    expect(text.split('\n')).toHaveLength(8);
+    expect(text.split('\n')).toHaveLength(9);
   });
 });
 
@@ -195,5 +195,31 @@ describe('the controls the parent chose (PLAY-22)', () => {
     applyControls(undefined);
     resetTuning();
     expect(tuning.speed).toBe(5.4);
+  });
+});
+
+describe('the potions over the parent\'s choice (src/game/supplies.ts)', () => {
+  afterEach(() => { applyEffects({}); applyControls(undefined); });
+
+  it('multiply the parent\'s choice; the next call replaces them; none is the choice again', () => {
+    applyControls({ speed: 'more' });
+    applyEffects({ speed: 1.5, jump: 2 });
+    expect(tuning.speed).toBeCloseTo(5.4 * 1.3 * 1.5);
+    expect(tuning.runFrom).toBeCloseTo(1.3 * 1.3);
+    expect(tuning.jump).toBeCloseTo(12.8);
+    applyEffects({ camDist: 0.5 });
+    expect([tuning.speed, tuning.jump]).toEqual([5.4 * 1.3, 6.4]);
+    expect(tuning.camDist).toBeCloseTo(3.1);
+    applyEffects({});
+    expect(tuning.camDist).toBe(6.2);
+  });
+
+  it('a new choice of the parent keeps the potion; the panel\'s reset brings both back', () => {
+    applyEffects({ speed: 1.5 });
+    applyControls({ speed: 'less' });
+    expect(tuning.speed).toBeCloseTo(5.4 * 0.75 * 1.5);
+    setTuning('speed', 2);
+    resetTuning();
+    expect(tuning.speed).toBeCloseTo(5.4 * 0.75 * 1.5);
   });
 });

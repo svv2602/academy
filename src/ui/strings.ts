@@ -95,6 +95,12 @@ const S = sameKeys({
     shop_hi: 'Це чарівна лавка{, name}! Торкнись речі, і вона одразу на тобі.',
     shop_more: 'Ще трішки зірочок, і ця річ буде твоя!',
     shop_bought: 'Тепер це твоє назавжди!',
+    // --- the potions and the compass (src/game/supplies.ts): the cat when one is drunk; the names of the buttons (not spoken)
+    sup_speed: 'Ух, які швидкі ніжки! Біжімо!', sup_jump: 'Тепер ти стрибаєш вище за грибочки!',
+    sup_glow: 'Ти сяєш! Поглянь, що мерехтить поруч.', sup_tiny: 'Ой, яка ти крихітна!', sup_giant: 'Ого, яка ти велика!',
+    sup_compass: 'Стрілка покаже, де загадкова зірка.', sup_all_found: 'Усі загадкові зірки вже знайдені!',
+    supn_speed: 'Зілля швидкості', supn_jump: 'Зілля стрибучості', supn_glow: 'Зілля сяйва', supn_funny: 'Смішне зілля', supn_compass: 'Компас',
+    shop_stock: 'є {n}',
     // --- the device cannot run the game / the game could not load (TECH-07, TECH-08): for the grown-ups, text only
     no_webgl: 'Цей браузер не вміє показувати тривимірний світ гри. Оновіть браузер до нової версії або відкрийте гру в іншому браузері.',
     load_failed: 'Не вдалося завантажити гру. Перевірте інтернет і спробуйте ще раз.', retry: 'Спробувати ще раз',
@@ -247,6 +253,11 @@ const S = sameKeys({
     shop_hi: 'Это волшебная лавка{, name}! Коснись вещи, и она сразу на тебе.',
     shop_more: 'Ещё чуть-чуть звёздочек, и эта вещь будет твоей!',
     shop_bought: 'Теперь это твоё навсегда!',
+    sup_speed: 'Ух, какие быстрые ножки! Бежим!', sup_jump: 'Теперь ты прыгаешь выше грибочков!',
+    sup_glow: 'Ты сияешь! Посмотри, что мерцает рядом.', sup_tiny: 'Ой, какая ты крошечная!', sup_giant: 'Ого, какая ты большая!',
+    sup_compass: 'Стрелка покажет, где загадочная звезда.', sup_all_found: 'Все загадочные звёзды уже найдены!',
+    supn_speed: 'Зелье быстроты', supn_jump: 'Зелье прыгучести', supn_glow: 'Зелье сияния', supn_funny: 'Смешное зелье', supn_compass: 'Компас',
+    shop_stock: 'есть {n}',
     no_webgl: 'Этот браузер не умеет показывать трёхмерный мир игры. Обновите браузер до новой версии или откройте игру в другом браузере.',
     load_failed: 'Не удалось загрузить игру. Проверьте интернет и попробуйте ещё раз.', retry: 'Попробовать ещё раз',
     praise_0: 'Молодец!', praise_1: 'Отлично!', praise_3: 'Супер!', praise_4: 'Правильно!', praise_5: 'Ура! Верно!', praise_6: 'Ты умница!',
@@ -379,6 +390,7 @@ const SPOKEN = {
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
   h2_odd: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
   shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy',
+  sup_speed: 'joy', sup_jump: 'joy', sup_glow: 'joy', sup_tiny: 'joy', sup_giant: 'joy', sup_compass: 'warm', sup_all_found: 'warm',
   // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists
   praise_0: 'joy', praise_1: 'joy', praise_3: 'joy', praise_4: 'joy', praise_5: 'joy', praise_6: 'joy', praise_7: 'joy',
   try_0: 'warm', try_1: 'warm', try_2: 'warm', tap_1: 'warm', tap_2: 'warm', tap_3: 'warm', tap_4: 'warm', tap_5: 'warm', tap_6: 'warm',

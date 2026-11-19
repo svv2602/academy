@@ -16,6 +16,7 @@ const LABELS: Record<TuningKey, string> = {
   joyZone: 'зона джойст.',
   joyHoldMs: 'кольцо через, мс',
   camDist: 'камера',
+  jump: 'прыжок',
 };
 
 const shown = (n: number) => String(+n.toFixed(4));

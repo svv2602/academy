@@ -1408,9 +1408,11 @@ try {
         const look = () => {
           const n = __game.save.stars;
           // The one way down: a purchase the walkthrough announced (window.__stars.buy), exactly its price, the thing in
-          // the save's purchases, stored at once (PLAY-04). Any other drop is an error.
+          // the save's purchases (a potion: its stock as announced), stored at once (PLAY-04). Any other drop is an error.
           const b = w.buy, kept = n !== w.last ? JSON.parse(localStorage.getItem('amw-save') || '{}') : null;
-          if (n < w.last && b && w.last - n === b.price && __game.save.owned.includes(b.id) && kept.stars === n && kept.owned?.includes(b.id)) { w.bought.push(`${b.id} ${w.last} -> ${n}`); w.buy = null; }
+          const got = b && (b.stock === undefined ? __game.save.owned.includes(b.id) && kept.owned?.includes(b.id)
+            : __game.save.supplies?.[b.id] === b.stock && kept.supplies?.[b.id] === b.stock);
+          if (n < w.last && b && w.last - n === b.price && got && kept.stars === n) { w.bought.push(`${b.id} ${w.last} -> ${n}`); w.buy = null; }
           else if (n < w.last) w.drops.push(`${w.last} -> ${n}`);
           if (n > w.last) { if (kept.stars !== n) w.unsaved.push(`${w.last} -> ${n}, stored ${kept.stars}`); }
           w.last = n; w.frames++; requestAnimationFrame(look);
@@ -3028,6 +3030,73 @@ try {
         if (s5.worn.wand !== 'wand_star' || s5.worn.wings !== null || s5.worn.trail !== start.gear.trail || s5.worn.head !== head) fail(`after "done" she wears wand ${s5.worn.wand}, wings ${s5.worn.wings}, trail ${s5.worn.trail}, head ${s5.worn.head}`);
         shopped = { wand: 'wand_star', head, wings: null, hair, wingColor };
         console.log(`shop: tried ${tryId} on and took it off, ${shortChecked ? 'the sparkles showed "N ⭐ more" and bought nothing, ' : ''}bought the star wand ${start.stars} -> ${s3.stars} stars${head === 'wizard_hat' ? ' and the hat' : ''}, hair ${hair}, wings ${wingColor} then none`);
+      }
+      // ---- the potions and the compass (decision of 2026-11-19, src/game/supplies.ts, src/game/supplyfx.ts) ----
+      // Bought on the tab of the potions (each purchase one more in the stock, the watch of the stars told of it), drunk
+      // from the row of their buttons by one tap: the speed and the jump over the tuning, the glow's halo, the funny
+      // potion's size and camera; the time stands while the game stands (the shop open); the save keeps the seconds;
+      // the effect ends and all is as before. The compass in a world without mysterious stars is dimmed and not spent.
+      if (has('potions')) {
+        const fail = (what) => { throw new Error(`potions: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const st = () => g(() => ({ stars: __game.save.stars, supplies: { ...(__game.save.supplies ?? {}) }, effects: { ...(__game.save.effects ?? {}) },
+          speed: __game.tuning.speed, jump: __game.tuning.jump, camDist: __game.tuning.camDist, scale: __game.hero.root.scale.x,
+          halo: __game.hero.root.getObjectByName('glow halo')?.visible ?? null,
+          row: [...document.querySelectorAll('#supplies .sup')].map((b) => `${b.dataset.id}${b.classList.contains('dim') ? ' dim' : ''}`),
+          rowShown: !document.querySelector('#supplies')?.classList.contains('hidden') }));
+        // the stars for the purchases: won stars are stored at once (the watch of the stars reads both in the same frame)
+        await g(() => { __game.save.stars += 160; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+        await calm();
+        const base = await st();
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        await tap('#shopTabs [data-tab=potions]'); await calm();
+        const buys = [['speed', 25], ['speed', 25], ['jump', 25], ['funny', 20], ['glow', 30], ['compass', 30]];
+        for (const [id, price] of buys) {
+          await tap(`#shopItems [data-id=${id}]`); await calm();
+          const before = await st();
+          const label = await page.textContent('#shopBuy').catch(() => '');
+          if (!label.includes(`${price} ⭐`)) fail(`the button under ${id} (${price} ⭐) with ${before.stars} stars: "${label}"`);
+          await g((it) => { window.__stars.buy = it; }, { id, price, stock: (before.supplies[id] ?? 0) + 1 });
+          await tap('#shopBuy'); await calm();
+          const after = await st();
+          if (after.stars !== before.stars - price || after.supplies[id] !== (before.supplies[id] ?? 0) + 1) fail(`buying ${id}: ${before.stars} -> ${after.stars} stars, the stock ${before.supplies[id] ?? 0} -> ${after.supplies[id]}`);
+          await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
+        }
+        await shot('potions-shop');
+        // the time stands while the shop is open: nothing acts yet, and nothing of the row is shown over the shop
+        if ((await st()).rowShown) fail('the row of the potions is shown over the shop');
+        await tap('#shopDone'); await calm();
+        const bought = await st();
+        if (!bought.rowShown || bought.row.join() !== 'speed,jump,glow,funny,compass dim') fail(`the row after the shop: shown ${bought.rowShown}, ${JSON.stringify(bought.row)}; expected speed,jump,glow,funny and a dimmed compass (no mysterious stars here)`);
+        // the compass: dimmed and not spent
+        await tap('#supplies [data-id=compass]'); await calm();
+        if ((await st()).supplies.compass !== 1) fail('the compass was spent in a world without mysterious stars');
+        // drunk by one tap each
+        for (const id of ['speed', 'jump', 'glow', 'funny']) { await tap(`#supplies [data-id=${id}]`); await calm(); }
+        await gameSeconds(1);
+        const on = await st();
+        const size = on.effects.tiny ? 0.5 : on.effects.giant ? 1.6 : null;
+        if (!(on.effects.speed > 50 && on.effects.jump > 50 && on.effects.glow > 50 && size)) fail(`after drinking the effects are ${JSON.stringify(on.effects)}`);
+        if (Math.abs(on.speed / base.speed - 1.5) > 0.01 || Math.abs(on.jump / base.jump - Math.SQRT2) > 0.01) fail(`the speed ${base.speed} -> ${on.speed}, the jump ${base.jump} -> ${on.jump}: expected x1.5 and x1.41`);
+        if (Math.abs(on.scale - size) > 0.02 || Math.abs(on.camDist / base.camDist - (size === 0.5 ? 0.6 : 1.5)) > 0.01) fail(`her size ${on.scale} (expected ${size}), the camera ${base.camDist} -> ${on.camDist}`);
+        if (on.halo !== true) fail('the glow acts and there is no halo around her');
+        if (on.supplies.speed !== 1 || 'jump' in on.supplies) fail(`the stock after drinking: ${JSON.stringify(on.supplies)}`);
+        await shot('potions-on');
+        const kept = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').effects ?? {});
+        if (!(kept.speed > 0 && kept.glow > 0)) fail(`the seconds of the effects are not stored: ${JSON.stringify(kept)}`);
+        // the time stands while the game stands: the shop open for a while
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        const t0 = (await st()).effects.speed;
+        await gameSeconds(1.5);   // the game's clock runs on while the shop holds the game
+        const t1 = (await st()).effects.speed;
+        await tap('#shopDone'); await calm();
+        if (t1 !== t0) fail(`the time of the speed ran while the shop was open: ${t0} -> ${t1}`);
+        // the end: everything as before
+        await g(() => { for (const k of Object.keys(__game.save.effects)) __game.save.effects[k] = 0.2; });
+        await gameSeconds(1.5);
+        const off = await st();
+        if (Object.keys(off.effects).length || off.speed !== base.speed || off.jump !== base.jump || off.camDist !== base.camDist || Math.abs(off.scale - 1) > 0.001 || off.halo !== false) fail(`after the end: ${JSON.stringify(off)}, before: speed ${base.speed}, jump ${base.jump}, camera ${base.camDist}`);
+        console.log(`potions: bought ${buys.length} for ${base.stars - bought.stars} stars, drunk four by one tap each (speed x1.5, jump x1.41, the halo, ${size === 0.5 ? 'tiny' : 'a giant'}), the time stood while the shop was open, stored, ended as before; the compass dimmed and kept`);
       }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
       // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.

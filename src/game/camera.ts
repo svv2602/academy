@@ -33,7 +33,7 @@ export function createCamera(g: Game, focusDist: () => number): { look(): void; 
           // a task in the world (src/game/worldtasks/core.ts): its own frame, looked at from above as a table; glided to
           v.copy(t.target); cam.yaw += angleDiff(t.yaw, cam.yaw) * damp(3, dt);
         } else if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
-        else v.set(hp.x, hp.y + 1.5, hp.z);
+        else v.set(hp.x, hp.y + 1.5 * hero.root.scale.y, hp.z);   // a tiny or a giant heroine (src/game/supplies.ts): her height
         cam.target.lerp(v, damp(t || cam.focus ? 3 : 9, dt));
         cam.dist = lerp(cam.dist, t ? t.dist : g.camOverride ?? (cam.focus ? focusDist() : camDistance(camera.aspect)), damp(3, dt));
         cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : userPitch, damp(t || cam.focus ? 3 : 10, dt));

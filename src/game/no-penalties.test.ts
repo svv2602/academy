@@ -48,7 +48,7 @@ const STAR_WRITES = [
 /** The first allowed writer: addStars in src/game/context.ts adds its own parameter. */
 const ADD_STARS = /const addStars = \(n: number\b[^)]*\) => \{ save\.stars \+= n;/;
 /** The second allowed writer: buy in src/game/shop.ts, which refuses first unless canBuy says yes, then takes the price. */
-const BUY = /export function buy\(s: Save, id: string\): boolean \{\n\s*if \(!canBuy\(s, id\)\) return false;\n\s*const it = item\(id\)!;\n\s*s\.stars -= it\.price!;\n/;
+const BUY = /export function buy\(s: Save, id: string\): boolean \{\n\s*if \(!canBuy\(s, id\)\) return false;\n\s*const it = goods\(id\)!;\n\s*s\.stars -= it\.price!;\n/;
 const ALLOWED = [
   { file: 'src/game/context.ts', text: 'save.stars += n' },
   { file: 'src/game/shop.ts', text: 's.stars -= it.price!' },
