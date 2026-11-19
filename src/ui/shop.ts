@@ -4,7 +4,9 @@
  * wings, the head, the wand, the sparkles. A tap on a thing puts it on at once, free, for as long as the screen is
  * open (trying on); one that is not hers has a single button under it, "buy for N ⭐", or "N ⭐ more" when she has not
  * got the stars yet (soft lilac, no error sound). What she tried on and did not buy comes off when the screen closes.
- * The colours of the dress, the hair and the wings are free for ever (R15).
+ * The colours of the dress, the hair and the wings are free for ever (R15). The last tab sells the potions and the
+ * compass (src/game/supplies.ts): a tap on one picks it, its button buys one more for her stock (no trying on, no
+ * "for ever" - the cat says nothing, a chime and the new count).
  *
  * The rules are src/game/shop.ts: this screen spends stars only through `buy`, on the child's tap, and stores the save
  * at once after every choice (`persist`). What is tried on never reaches the save.
@@ -13,7 +15,8 @@ import { sfx, say } from '../core/audio';
 import type { Save } from '../core/save';
 import { GEAR, type Gear, type GearId } from '../game/gear';
 import { LOOKS, applyLook as putOnLook, lookOf } from '../game/looks';
-import { CATALOG, buy, equip, has, itemState, type Slot } from '../game/shop';
+import { CATALOG, STOCK_MAX, SUPPLIES, buy, canBuy, equip, has, itemState, stock, type Slot, type SupplyId } from '../game/shop';
+import { SUPPLY_LOOK } from './supplies';
 import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
 import { DRESS, HAIR } from './ui';
 
@@ -22,10 +25,10 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 /** The free colours of the wings; the first is the one the petals always had (save.ts WING_COLOR). */
 export const WING_COLORS = ['#d8f6ff', '#ffd1ec', '#e6d4ff', '#fff3b8', '#c9ffe0'];
 const SLOTS: readonly Slot[] = ['head', 'wand', 'wings', 'trail'];
-type Tab = 'dress' | 'hair' | Slot;
+type Tab = 'dress' | 'hair' | Slot | 'potions';
 const TABS: readonly { id: Tab; icon: string }[] = [
   { id: 'dress', icon: '👗' }, { id: 'hair', icon: '💇' }, { id: 'wings', icon: '🪽' },
-  { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' },
+  { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' }, { id: 'potions', icon: '🧪' },
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
 const ICON: Record<string, string> = {
@@ -85,6 +88,8 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   let trial: Partial<Record<Slot, string>> = {};
   /** A silhouette tapped: its caption is shown under the tiles (nothing is put on). */
   let peek: string | null = null;
+  /** The potion picked on its tab: its button buys one. */
+  let potion: SupplyId | null = null;
 
   const speak = (key: SpokenKey) => {
     sayText.textContent = t(key);
@@ -146,14 +151,43 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     act.appendChild(b);
   }
 
+  /** The tab of the potions: a tile per kind (its price, how many she has); the one picked has its "buy" button. */
+  function renderPotions() {
+    const row = document.createElement('div');
+    row.className = 'tiles';
+    for (const x of SUPPLIES) {
+      const n = stock(save, x.id);
+      const cap = `${x.price} ⭐${n > 0 ? ` · ${tf('shop_stock', { n })}` : ''}`;
+      const b = button('tile' + (potion === x.id ? ' sel' : ''), `<span class="ic">${SUPPLY_LOOK[x.id].icon}</span><span class="cap">${cap}</span>`, () => { potion = x.id; render(); });
+      b.dataset.id = x.id; b.title = t(`supn_${x.id}` as Key); b.setAttribute('aria-label', t(`supn_${x.id}` as Key));
+      b.style.setProperty('--c', SUPPLY_LOOK[x.id].color);
+      row.appendChild(b);
+    }
+    items.appendChild(row);
+    act.innerHTML = '';
+    if (!potion) return;
+    const id = potion, price = SUPPLIES.find((x) => x.id === id)!.price;
+    if (stock(save, id) >= STOCK_MAX) { act.textContent = tf('shop_stock', { n: STOCK_MAX }); return; }
+    const short = Math.max(0, price - save.stars);
+    const b = button('big small' + (short > 0 ? ' short' : ''), '', () => {
+      if (!canBuy(save, id) || !buy(save, id)) speak('shop_more');
+      else { hooks.persist(); hooks.refreshHud(); sfx('chime'); }
+      render();
+    });
+    b.id = 'shopBuy'; b.dataset.id = id;
+    b.textContent = short > 0 ? tf('shop_short', { n: short }) : tf('shop_buy', { n: price });
+    act.appendChild(b);
+  }
+
   function render() {
     tabs.innerHTML = '';
     for (const tb of TABS) {
-      const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; peek = null; render(); });
+      const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; peek = null; potion = null; render(); });
       b.dataset.tab = tb.id;
       tabs.appendChild(b);
     }
     items.innerHTML = '';
+    if (tab === 'potions') { renderPotions(); return; }
     if (tab === 'dress' || tab === 'hair') {
       const key = tab;
       items.appendChild(swatches(key === 'dress' ? DRESS : HAIR, save[key], (c) => { save[key] = c; hooks.applyLook(); hooks.persist(); }));
@@ -178,7 +212,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
 
   const open = () => {
     if (!root.classList.contains('hidden')) return;
-    trial = {}; peek = null; tab = 'dress';
+    trial = {}; peek = null; potion = null; tab = 'dress';
     $('shopDone').textContent = t('shop_done');
     sayBox.classList.add('quiet');
     render();

@@ -10,6 +10,7 @@ import { createPlayer, type Spot } from './player';
 import { tickPlayTime } from './playtime';
 import { tickSession } from './session';
 import { storyOf } from './story';
+import { suppliesOf } from './supplyfx';
 
 /**
  * The seam between the frame and the world (ARCH-05): the world's own parts of a frame, called at fixed places in it.
@@ -87,6 +88,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     companion.update(dt);
     g.pets.update(dt);
     world.update(dt, time, canMove);
+    suppliesOf(g)?.update(dt, time, canMove);   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
     guide.update(time, g.started() && !g.busy ? world.goal() : null);
     player.fadeRing(dt);
 

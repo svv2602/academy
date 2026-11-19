@@ -638,10 +638,11 @@ describe('a world is opened with a scope of its own (TECH-15)', () => {
   });
 
   it('nothing of the world is made inside shared(): its sky, its load and its build would stay in the scene for good', () => {
-    // Exactly the two calls above in src/main.ts, and one in the change of world: the game's part of the new world
-    // (`g.enter`). Another one, around a call of the world, would mark the world's objects as the game's.
-    expect(MAIN.match(/\bscope\.shared\(/g)).toHaveLength(2);
-    expect(sharedCalls(MAIN)).toEqual(['createGame', 'startLoop']);
+    // Exactly the calls above in src/main.ts (and the potions' halo and arrow, src/game/supplyfx.ts), and one in the
+    // change of world: the game's part of the new world (`g.enter`). Another one, around a call of the world, would
+    // mark the world's objects as the game's.
+    expect(MAIN.match(/\bscope\.shared\(/g)).toHaveLength(3);
+    expect(sharedCalls(MAIN)).toEqual(['createGame', 'installSupplies', 'startLoop']);
     expect(TRAVEL.match(/\bscope\.shared\(/g)).toHaveLength(1);
     expect(sharedCalls(TRAVEL)).toEqual(['g.enter']);
   });

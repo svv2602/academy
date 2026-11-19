@@ -14,10 +14,12 @@ import { createGate, probeNetwork } from './game/gate';
 import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
 import { enterWorld, initStartScreen } from './game/start';
+import { installSupplies } from './game/supplyfx';
 import { createTravel, openWorld, worldView, type Travel } from './game/travel';
 import { launchWorld, type WorldDef } from './game/world';
 import { addStrings } from './ui/strings';
 import { el, initStart, showNotice, showUpdate } from './ui/ui';
+import { initSupplyRow } from './ui/supplies';
 import { initTuningPanel } from './ui/tuning';
 import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
 
@@ -143,6 +145,14 @@ async function boot() {
     applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, ...worldView(() => travel.built ?? w),
     launched: { world: world.id, refused: refusedAtLaunch, refuse: () => refuse() },
   });
+
+  // ---------- the potions and the compass (src/game/supplyfx.ts): the game's own, through every world ----------
+  const supplies = opened.scope.shared(() => installSupplies(g, {
+    glimmer: () => travel.built?.glimmer?.() ?? [],
+    cramped: () => travel.built?.cramped?.() ?? false,
+  }));
+  // The cat's line answers the child's own tap: as the shop's lines, it is not a hint a sounding line turns away.
+  supplies.onFrame(initSupplyRow(supplies, { say: (key) => { void g.speech.line(key, 'story'); } }));
 
   // ---------- loop ----------
   // The parts of the loop every world shares are made inside shared(); the first frame is played outside it.

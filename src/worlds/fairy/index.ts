@@ -31,7 +31,7 @@ import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
-import { SHOP_SIGN } from './layout';
+import { ROOM, SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
@@ -325,7 +325,22 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       { icon: '🎁', label: 'col_chest', value: ws.flags.chest ? '✔' : '?' },
     ],
   };
-  return { frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}`, gear: characters.gear, items: () => items };
+  // The finds not found yet, for the glow potion (src/game/supplyfx.ts): the places the description names (`items`
+  // above) - the chest, the glade, and the house by its door outside (the box inside, once she is in the room).
+  const gladeAt = new THREE.Vector3(secrets.gladeAt.x, g.groundY(secrets.gladeAt.x, secrets.gladeAt.z), secrets.gladeAt.z);
+  const boxAt = new THREE.Vector3(secrets.boxAt.x, ROOM.y, secrets.boxAt.z);
+  const finds: THREE.Vector3[] = [];
+  const glimmer = () => {
+    finds.length = 0;
+    if (!ws.flags.chest) finds.push(chestAt);
+    if (!ws.flags[GLADE_FLAG]) finds.push(gladeAt);
+    if (!ws.flags[HOUSE_FLAG]) finds.push(secrets.inRoom() ? boxAt : secrets.doorOut);
+    return finds;
+  };
+  return {
+    frame, debug, book, lines: LINES, hud: () => `${shardCount(ws)}/${QUESTS.length}`, gear: characters.gear, items: () => items,
+    glimmer, cramped: () => secrets.inRoom(),
+  };
 }
 
 type FairySky = ReturnType<typeof buildSky>;

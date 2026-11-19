@@ -1264,3 +1264,28 @@ describe('the world where she stopped (WORLD-01, TECH-09): `lastWorld`, a field 
     expect('lastWorld' in loadSave()).toBe(false);
   });
 });
+
+describe('the potions and the compass: `supplies` and `effects`, fields of version 4 without a new version', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has neither; a save written before them opens as it was', () => {
+    expect(['supplies' in defaultSave(), 'effects' in defaultSave()]).toEqual([false, false]);
+    const s = load({ stars: 7 });
+    expect([s.stars, 'supplies' in s, 'effects' in s]).toEqual([7, false, false]);
+  });
+
+  it('read and write next to a field this code does not know; an id of a later version is kept', () => {
+    const fields = { supplies: { speed: 2, cloak: 1 }, effects: { glow: 41.5, fly: 3 }, later: 'x' };
+    storeSave({ ...load(fields) });
+    expect(loadSave()).toMatchObject(fields);
+  });
+
+  it('damaged: only whole counts above zero and seconds above zero are kept; not a record - empty', () => {
+    expect(load({ supplies: { speed: 0, jump: -1, glow: 1.5, funny: '2', compass: 3 } }).supplies).toEqual({ compass: 3 });
+    expect(load({ effects: { speed: 0, jump: 12.5, glow: 'x', tiny: Infinity } }).effects).toEqual({ jump: 12.5 });
+    for (const bad of [3, 'x', null, [1]]) expect(load({ supplies: bad, effects: bad })).toMatchObject({ supplies: {}, effects: {} });
+  });
+});

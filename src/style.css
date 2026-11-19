@@ -408,3 +408,20 @@ button.it { min-width: 44px; min-height: 44px; }
   .break-btns .big { margin-top: 10px; padding: 6px 24px; font-size: 22px; }
   .sleep-cat { font-size: 56px; } #sleepSay { font-size: 17px; }
 }
+
+/* The potions and the compass (src/ui/supplies.ts): a row on the right, above the action button (whose label may be
+   long: the row never lies over it, a tap meant for it must not drink a potion), while she can walk; one tap drinks
+   one. The top is the cat's bubble's; right of the row the debug panel's button. Without a touch screen (no jump
+   button, the action button in the middle) the row stands in the bottom corner. */
+#supplies { position: fixed; bottom: calc(max(70px, env(safe-area-inset-bottom) + 44px) + 116px); right: max(90px, env(safe-area-inset-right) + 70px);
+  display: flex; gap: 8px; flex-direction: row-reverse; }
+body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom)); }
+@media (max-aspect-ratio: 5/4) { #supplies { right: max(22px, env(safe-area-inset-right)); } }
+#supplies .sup { position: relative; width: 48px; height: 48px; border-radius: 50%; border: 0; font-size: 26px; line-height: 1;
+  background: radial-gradient(circle at 50% 60%, var(--c) 0 55%, rgba(255,255,255,.92) 56%); box-shadow: 0 4px 0 rgba(120,80,160,.25); }
+#supplies .sup.on::before { content: ""; position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(#ffd84a calc(var(--left) * 360deg), rgba(255,255,255,.35) 0); z-index: -1; }
+#supplies .sup.dim { filter: grayscale(.8); opacity: .6; }
+#supplies .sup b { position: absolute; right: -4px; bottom: -4px; min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px;
+  background: #fff; color: #7a4fb0; font-size: 13px; line-height: 20px; box-shadow: 0 2px 0 rgba(120,80,160,.25); }
+#supplies .sup:active { transform: translateY(3px); }

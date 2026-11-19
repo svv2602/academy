@@ -91,7 +91,8 @@ export function createPlayer(g: Game): Player {
         const l = Math.hypot(mx, mz) || 1;
         hp.x += (mx / l) * speed * dt; hp.z += (mz / l) * speed * dt;
         hero.face(Math.atan2(mx, mz), dt);
-        g.ground.resolve(hp, 0.4);
+        // her radius grows and shrinks with her (the funny potion, src/game/supplies.ts)
+        g.ground.resolve(hp, 0.4 * hero.root.scale.x);
       } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
       const ground = groundY(hp.x, hp.z);
       // In the water (WorldDef.move): no gravity and no jump, she keeps her height above the ground; standing, walking
@@ -100,7 +101,7 @@ export function createPlayer(g: Game): Player {
       hero.rename(swim ? SWIM_NAMES : null);
       if (swim) { vy = 0; grounded = true; hp.y = ground + g.world.move!.height; }
       else {
-        if (input.jump && grounded && canMove) { vy = 6.4; grounded = false; sfx('jump'); }
+        if (input.jump && grounded && canMove) { vy = tuning.jump; grounded = false; sfx('jump'); }
         vy -= 17 * dt; hp.y += vy * dt;
         if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
       }

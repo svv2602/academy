@@ -5368,5 +5368,61 @@
   "style": "warm",
   "voice": "Orus",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_speed": {
+  "text": "Ух, які швидкі ніжки! Біжімо!",
+  "heard": "Ох, які швидкі ніжки, біжімо!",
+  "score": 0.962,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_jump": {
+  "text": "Тепер ти стрибаєш вище за грибочки!",
+  "heard": "Тепер ти стрибаєш вище за грибочки.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_glow": {
+  "text": "Ти сяєш! Поглянь, що мерехтить поруч.",
+  "heard": "Ти сяєш? Поглянь, що мерехтить поруч!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_tiny": {
+  "text": "Ой, яка ти крихітна!",
+  "heard": "Ой, яка ти крихітна!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_giant": {
+  "text": "Ого, яка ти велика!",
+  "heard": "Ого, яка ти велика!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_compass": {
+  "text": "Стрілка покаже, де загадкова зірка.",
+  "heard": "Стрілка покаже, де загадкова зірка.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_all_found": {
+  "text": "Усі загадкові зірки вже знайдені!",
+  "heard": "Усі загадкові зірки вже знайдені.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

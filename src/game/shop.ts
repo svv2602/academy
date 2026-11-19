@@ -7,6 +7,9 @@
  * tap, and never by anything else; a bought thing is kept for ever and cannot be bought twice; a thing she cannot
  * afford yet is still shown with the stars it still needs; some things are not for sale - a reward opens them.
  * Trying a thing on before buying it is the screen's own state and never reaches the save.
+ * The potions and the compass (`SUPPLIES`) are bought the same way, by `buy`, but are used up: each purchase adds one to
+ * her stock (`save.supplies`), which src/game/supplies.ts spends when she drinks one. None of them gives an answer or
+ * skips a task.
  */
 import type { Gear, Save } from '../core/save';
 
@@ -56,6 +59,35 @@ export const CATALOG: readonly Item[] = [
 /** The thing of an id, or undefined for an id the catalog does not know (a later version's thing, a damaged save). */
 export const item = (id: string): Item | undefined => CATALOG.find((i) => i.id === id);
 
+/** The things that are used up: the four potions and the compass (src/game/supplies.ts). */
+export const SUPPLY_IDS = ['speed', 'jump', 'glow', 'funny', 'compass'] as const;
+export type SupplyId = (typeof SUPPLY_IDS)[number];
+/** A thing that is used up: bought again and again, each purchase one more in her stock. */
+export interface Supply { id: SupplyId; price: number; supply: true }
+/**
+ * Prices (decision of 2026-11-19): a day of play brings about 50-60 stars, one or two potions; the dearer things of the
+ * shop are what the stars are saved for.
+ */
+export const SUPPLIES: readonly Supply[] = [
+  { id: 'speed', price: 25, supply: true },
+  { id: 'jump', price: 25, supply: true },
+  { id: 'funny', price: 20, supply: true },
+  { id: 'glow', price: 30, supply: true },
+  { id: 'compass', price: 30, supply: true },
+];
+/** No more of one kind in her stock: the number fits its button, and the stars are not all spent on one thing. */
+export const STOCK_MAX = 9;
+
+/** How many of a supply she has (a damaged or missing count is none). */
+export function stock(s: Save, id: SupplyId): number {
+  const n = s.supplies?.[id];
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+/** Anything the shop sells or keeps: a thing to wear or a supply. */
+const goods = (id: string): Item | Supply | undefined => item(id) ?? SUPPLIES.find((x) => x.id === id);
+const isSupply = (x: Item | Supply): x is Supply => 'supply' in x;
+
 /**
  * Whether the reward of a thing that is not sold has been earned. The Crystal of Light: the first world's final.
  * Three secrets: the achievement `three_secrets` of PLAY-08 in `save.achievements` - until it comes the earrings stay a
@@ -78,20 +110,23 @@ export function has(s: Save, id: string): boolean {
 
 /** Whether a tap on "buy" would buy the thing: it is for sale, not hers yet, and she has the stars. */
 export function canBuy(s: Save, id: string): boolean {
-  const it = item(id);
-  return !!it && it.price !== undefined && !has(s, id) && s.stars >= it.price;
+  const it = goods(id);
+  if (!it || it.price === undefined || s.stars < it.price) return false;
+  return isSupply(it) ? stock(s, it.id) < STOCK_MAX : !has(s, id);
 }
 
 /**
  * Buys a thing on the child's tap: the second and last writer of the stars (src/game/no-penalties.test.ts reads this
- * function), and the only one that lowers them. Takes exactly the price and keeps the thing for ever. Refused, with
+ * function), and the only one that lowers them. Takes exactly the price and keeps the thing for ever - or, for a
+ * supply, adds one to her stock. Refused, with
  * the save left as it was, when canBuy says no. The caller stores the save.
  */
 export function buy(s: Save, id: string): boolean {
   if (!canBuy(s, id)) return false;
-  const it = item(id)!;
+  const it = goods(id)!;
   s.stars -= it.price!;
-  s.owned.push(id);
+  if (isSupply(it)) s.supplies = { ...s.supplies, [it.id]: stock(s, it.id) + 1 };
+  else s.owned.push(id);
   return true;
 }
 
