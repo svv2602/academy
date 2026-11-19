@@ -182,10 +182,12 @@ for i in range(9):
 export('wreath', 'Head', 'Венок из цветов', 'head', wreath)
 
 hat_m = mat(PURPLE, 0, 0.6)
-# The cone is as wide as the hair at the brim (hair x ±0.31 at z 1.10-1.20), so the hair top stays inside it and the hat
-# sits on the head; the brim is a little wider and tips down at the front, as a hat worn on a child's head does.
-HAT_Z, HAT_R, HAT_H, HAT_TILT = 1.08, 0.3, 0.5, math.radians(7)
-hat = [cyl(0.37, 0.02, (0, 0.02, HAT_Z), (HAT_TILT, 0, 0), m=hat_m, verts=40),
+# The cone is nearly as wide as the hair where it sits (hair x ±0.31 at z 1.10-1.20), so the hair top stays inside it and
+# the hat sits on the head; the brim is a little wider. 2026-11-19 (the customer on the S22, "fix the hat"): it sat low and
+# its brim tipped 7 degrees down at the front, hiding her eyes from the camera a little above her - now higher, a little
+# smaller, the brim almost level, the eyes in view from the front.
+HAT_Z, HAT_R, HAT_H, HAT_TILT, HAT_BRIM = 1.14, 0.29, 0.45, math.radians(2), 0.34
+hat = [cyl(HAT_BRIM, 0.02, (0, 0.02, HAT_Z), (HAT_TILT, 0, 0), m=hat_m, verts=40),
        cone(HAT_R, HAT_H, (0, 0.02 - math.sin(HAT_TILT) * HAT_H / 2, HAT_Z + HAT_H / 2), (HAT_TILT, 0, 0), m=hat_m, verts=32)]
 for (x, h) in ((0.09, 0.08), (-0.07, 0.2), (0.02, 0.32)):
     r = HAT_R * (1 - h / HAT_H)                                  # the cone's radius at that height
@@ -193,8 +195,16 @@ for (x, h) in ((0.09, 0.08), (-0.07, 0.2), (0.02, 0.32)):
     hat.append(star(0.03, 0.01, (x, y, HAT_Z + h * math.cos(HAT_TILT)), m=mat(YELLOW, 0.3, 0.3, emit=0.5)))
 export('wizard_hat', 'Head', 'Колпак волшебницы', 'head', hat)
 
-cap = [cone(0.12, 0.24, (0.05, 0.02, 1.24), (0, math.radians(-14), 0), m=mat(LILAC, 0, 0.6), verts=20),
-       ball(0.025, (0.083, 0.02, 1.36), m=mat(YELLOW, 0, 0.4, emit=0.3))]
+# The little cap of the look (variant B2, chosen by the customer 2026-11-19: the old one, 0.12 x 0.24 on the side of the
+# top, was hardly seen in the game): its rim sunk into the top of the hair (the forehead stays open), the upper part
+# bent over to the side like a soft cap, a ball at its tip. No brim and no stars: not the shop's wizard_hat.
+CAP_Z, CAP_R, LOW_H, MID_R, TOP_H, BEND = 1.17, 0.21, 0.26, 0.085, 0.18, math.radians(-60)
+jz = CAP_Z + LOW_H
+bx, bz = math.sin(BEND), math.cos(BEND)
+cap = [cyl(CAP_R, LOW_H, (0, 0.03, CAP_Z + LOW_H / 2), m=mat(LILAC, 0, 0.6), verts=32, r2=MID_R),
+       ball(MID_R, (0, 0.03, jz), m=mat(LILAC, 0, 0.6), seg=16),
+       cone(MID_R, TOP_H, (bx * TOP_H / 2, 0.03, jz + bz * TOP_H / 2), (0, BEND, 0), m=mat(LILAC, 0, 0.6), verts=24),
+       ball(0.04, (bx * TOP_H, 0.03, jz + bz * TOP_H), m=mat(YELLOW, 0, 0.4, emit=0.3))]
 export('wizard_cap', 'Head', 'Маленький колпачок (образ)', 'head', cap)
 
 skin = mat(SKIN, 0, 0.6)
