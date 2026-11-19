@@ -8,6 +8,7 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { dressGlade, dressRoom, type GladeLook } from './secret-look';
 import { GLADE, HOUSE, ROOM } from './layout';
+import { BOULDERS, GLADE_FACE, GLADE_RING_R, gladeRocks } from './hiding';
 
 /**
  * The two secrets of the first world besides the chest (PLAY-10): optional, not needed by the story, each found once.
@@ -77,7 +78,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
 
   // ---------- the glade behind the waterfall ----------
   // The curtain faces the valley's middle; the ring of rocks closes the rest.
-  const face = Math.atan2(-GLADE.x, -GLADE.z), R = GLADE.r + 1.4;
+  const face = GLADE_FACE, R = GLADE_RING_R;
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
   const rocks = new THREE.InstancedMesh(rockGeo, mat.stone(), 40);
   let nRock = 0;
@@ -88,14 +89,9 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
     rocks.setMatrixAt(nRock++, m4);
     ground.block(x, z, r * 0.9);
   };
-  const GAP = 0.42;   // half the angle of the entrance, rad
-  for (let i = 0; i < 18; i++) {
-    const a = face + GAP + (i / 17) * (Math.PI * 2 - GAP * 2);
-    rock(GLADE.x + Math.sin(a) * R, GLADE.z + Math.cos(a) * R, 1.25 + (i % 3) * 0.25, 2.4 + ((i * 7) % 5) * 0.35, i * 1.7);
-  }
-  // the two pillars of the entrance and the stone over it the water falls from
-  const side = (s: number) => face + s * (GAP + 0.08);
-  for (const s of [-1, 1]) rock(GLADE.x + Math.sin(side(s)) * R, GLADE.z + Math.cos(side(s)) * R, 1.15, 4.2, s * 2);
+  // the ring and the two pillars of the entrance (./hiding.ts), then the boulders the mysterious stars hide behind - one
+  // mesh, one draw call for all of them
+  for (const k of [...gladeRocks(), ...BOULDERS]) rock(k.x, k.z, k.r, k.h, k.spin);
   const ex = GLADE.x + Math.sin(face) * R, ez = GLADE.z + Math.cos(face) * R, ey = groundY(ex, ez);
   q.setFromEuler(new THREE.Euler(0, face, 0));
   m4.compose(pv.set(ex, ey + 4.1, ez), q, sv.set(2.6, 0.9, 1.3));
