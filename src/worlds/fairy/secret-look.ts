@@ -59,10 +59,17 @@ function fireflies(n: number, cx: number, cz: number, r: number, y0: number) {
 /** m from the glade's middle within which its look is drawn: past it the ring of rocks hides it anyway. */
 export const GLADE_LOOK_R = 16;
 export interface GladeLook {
-  /** `d`: how far she is from the glade's middle - the look is drawn only near it (no draw calls from the valley). */
-  update(time: number, d: number): void;
+  /**
+   * `d`: how far she is from the glade's middle - the look is drawn only near it (no draw calls from the valley). `cam`:
+   * where the camera stands - the tree is not drawn while the camera is in its crown (seen from inside, its leaves and
+   * boughs filled the screen and slowed the phone down, WORLD-10); the camera is then between her and the tree, looking away.
+   */
+  update(time: number, d: number, cam: THREE.Vector3): void;
   readonly root: THREE.Group;
 }
+
+/** m: the ball the boughs and the leaves of the glade's tree (5.2 m) fill, its middle over the foot of the tree, with a margin. */
+export const GLADE_CROWN = { y: 3.4, r: 2.6 } as const;
 
 /** The glade dressed: `face` is the way out (towards the waterfall), `block` keeps the heroine out of the tree's trunk. */
 export async function dressGlade(parent: THREE.Group, groundY: (x: number, z: number) => number, face: number, block: (x: number, z: number, r: number) => void): Promise<GladeLook> {
@@ -77,8 +84,10 @@ export async function dressGlade(parent: THREE.Group, groundY: (x: number, z: nu
   const back = face + Math.PI;
   // 1. the old tree at the back, its crown glowing softly (leaves only)
   const tx = GLADE.x + Math.sin(back) * 2.7, tz = GLADE.z + Math.cos(back) * 2.7;
-  group.add(partsAt(tree, [at(tx, tz, 1, back + 0.6)], (p) => (p.cutout ? '#ffb8f0' : null), 0.35));
+  const treeParts = partsAt(tree, [at(tx, tz, 1, back + 0.6)], (p) => (p.cutout ? '#ffb8f0' : null), 0.35);
+  group.add(treeParts);
   block(tx, tz, 0.6);
+  const crown = new THREE.Vector3(tx, groundY(tx, tz) + GLADE_CROWN.y, tz);
   // 2. a ring of glowing mushrooms around the tree's foot
   const ring = Array.from({ length: 11 }, (_, i) => {
     const a = (i / 11) * Math.PI * 2, r = 1.25 + (i % 2) * 0.2;
@@ -99,9 +108,11 @@ export async function dressGlade(parent: THREE.Group, groundY: (x: number, z: nu
   group.add(ff.pts);
   return {
     root: group,
-    update: (t, d) => {
+    update: (t, d, cam) => {
       group.visible = d < GLADE_LOOK_R;
-      if (group.visible) ff.update(t);
+      if (!group.visible) return;
+      ff.update(t);
+      treeParts.visible = cam.distanceTo(crown) >= GLADE_CROWN.r;
     },
   };
 }

@@ -24,23 +24,63 @@ function reserved(x: number, z: number, margin: number) {
   return false;
 }
 
+// Detailed textured trees near the play area; cheap flat-colour ones for the distant forest ring.
+export const NEAR_TREES: readonly (readonly [string, number, number])[] = [
+  ['CommonTree1', 8, 3], ['CommonTree2', 7.5, 3], ['CommonTree3', 6.5, 3], ['CommonTree4', 7, 3], ['CommonTree5', 6, 3],
+  ['TwistedTree1', 7, 1], ['TwistedTree2', 6.5, 1], ['Pine5', 7.5, 2], ['Pine2', 9, 1],
+];
+const FAR_TREES: readonly (readonly [string, number, Record<string, string>?])[] = [
+  ['nature_pack/CommonTree_1', 7.5], ['nature_pack/CommonTree_2', 8], ['nature_pack/CommonTree_3', 6.5], ['nature_pack/PineTree_1', 8.5],
+  ['nature_pack/CommonTree_4', 6.5, { Green: '#ffb7d5', DarkGreen: '#f794bd' }],
+];
+
+/** A tree as placed: where, its scale, its height in metres (the model's height times the scale), near or of the far ring. */
+export interface TreeSpot { x: number; z: number; s: number; h: number; near: boolean; collide: boolean }
+
+/**
+ * Where the trees stand: the near textured ones around the play area, the far flat-colour ring, and the grove that hides
+ * the chest. Pure - `rnd` is the scenery's randomness and is advanced exactly as before - so that a test can check the
+ * tour's camera against the crowns (src/worlds/fairy/flyover-path.test.ts).
+ */
+export function placeTrees(rnd: () => number, density: number) {
+  const weights = NEAR_TREES.map((d) => d[2]), wsum = weights.reduce((a, b) => a + b, 0);
+  const nearItems: Placement[][] = NEAR_TREES.map(() => []), farItems: Placement[][] = FAR_TREES.map(() => []);
+  const placed: TreeSpot[] = [];
+  let tries = 0;
+  while (placed.length < 150 * density && tries++ < 6000) {
+    const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (WORLD_R + 22);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const forest = fbm(x * 0.045 + 40, z * 0.045 + 13, 3);
+    if (r <= WORLD_R - 22 && forest < 0.56) continue;
+    if (reserved(x, z, 2.5) || placed.some((p) => Math.hypot(p.x - x, p.z - z) < 3.6)) continue;
+    const item = { x, z, s: 0.85 + rnd() * 0.45, rot: rnd() * 6.28 };
+    let h: number, near = r < 52;
+    if (near) {
+      let pick = rnd() * wsum, k = 0;
+      while ((pick -= weights[k]) > 0) k++;
+      nearItems[k].push(item); h = NEAR_TREES[k][1];
+    } else { const k = Math.floor(rnd() * FAR_TREES.length); farItems[k].push(item); h = FAR_TREES[k][1]; }
+    placed.push({ x, z, s: item.s, h: h * item.s, near, collide: r < WORLD_R });
+  }
+  // A grove that hides the secret chest (not in `placed`: the under-growth hugs the trees of the loop only).
+  const grove: TreeSpot[] = [];
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 1.5 + 2.2, x = CHEST.x + Math.cos(a) * 4.4, z = CHEST.z + Math.sin(a) * 4.4;
+    const item = { x, z, s: 0.95 + rnd() * 0.2, rot: rnd() * 6.28 };
+    nearItems[i % 5].push(item);
+    grove.push({ x, z, s: item.s, h: NEAR_TREES[i % 5][1] * item.s, near: true, collide: true });
+  }
+  return { nearItems, farItems, placed, grove };
+}
+
 export async function buildScenery(scene: THREE.Scene, density: number) {
   const rnd = mulberry32(2024);
   const tree = propMaterial(0.0035), solid = propMaterial();
   const N = (n: string, h: number, normals: 'model' | 'up' | 'sphere' = 'model') => texturedParts('nature2/' + n, h, normals);
 
-  // Detailed textured trees near the play area; cheap flat-colour ones for the distant forest ring.
-  const nearDefs: [string, number, number][] = [
-    ['CommonTree1', 8, 3], ['CommonTree2', 7.5, 3], ['CommonTree3', 6.5, 3], ['CommonTree4', 7, 3], ['CommonTree5', 6, 3],
-    ['TwistedTree1', 7, 1], ['TwistedTree2', 6.5, 1], ['Pine5', 7.5, 2], ['Pine2', 9, 1],
-  ];
-  const farDefs: [string, number, Record<string, string>?][] = [
-    ['nature_pack/CommonTree_1', 7.5], ['nature_pack/CommonTree_2', 8], ['nature_pack/CommonTree_3', 6.5], ['nature_pack/PineTree_1', 8.5],
-    ['nature_pack/CommonTree_4', 6.5, { Green: '#ffb7d5', DarkGreen: '#f794bd' }],
-  ];
   const [nearTrees, farGeos, rocks3, bushes, flowerKinds, smalls, tallGrass, mushSmall, pathStones, pebbles, mushGeo, stumpGeo, lilyGeo] = await Promise.all([
-    Promise.all(nearDefs.map(([n, h]) => N(n, h, 'sphere'))),
-    Promise.all(farDefs.map(([p, h, rc]) => staticGeo(p, h, rc))),
+    Promise.all(NEAR_TREES.map(([n, h]) => N(n, h, 'sphere'))),
+    Promise.all(FAR_TREES.map(([p, h, rc]) => staticGeo(p, h, rc))),
     Promise.all(['RockMedium1', 'RockMedium2', 'RockMedium3'].map((n) => N(n, 0.9))),
     Promise.all([N('BushCommon', 1.2, 'sphere'), N('BushCommonFlowers', 1.3, 'sphere')]),
     Promise.all([N('Flower3Group', 0.6, 'up'), N('Flower4Single', 0.5, 'up'), N('Flower3Single', 0.5, 'up'), N('Flower4Single', 0.42, 'up')]),
@@ -54,31 +94,8 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     staticGeo('nature_pack/Lilypad', 0.12),
   ]);
 
-  const weights = nearDefs.map((d) => d[2]), wsum = weights.reduce((a, b) => a + b, 0);
-  const nearItems: Placement[][] = nearDefs.map(() => []), farItems: Placement[][] = farDefs.map(() => []);
-  const placed: { x: number; z: number }[] = [];
-  let tries = 0;
-  while (placed.length < 150 * density && tries++ < 6000) {
-    const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (WORLD_R + 22);
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    const forest = fbm(x * 0.045 + 40, z * 0.045 + 13, 3);
-    if (r <= WORLD_R - 22 && forest < 0.56) continue;
-    if (reserved(x, z, 2.5) || placed.some((p) => Math.hypot(p.x - x, p.z - z) < 3.6)) continue;
-    const item = { x, z, s: 0.85 + rnd() * 0.45, rot: rnd() * 6.28 };
-    if (r < 52) {
-      let pick = rnd() * wsum, k = 0;
-      while ((pick -= weights[k]) > 0) k++;
-      nearItems[k].push(item);
-    } else farItems[Math.floor(rnd() * farDefs.length)].push(item);
-    placed.push({ x, z });
-    if (r < WORLD_R) colliders.push({ x, z, r: 0.6 });
-  }
-  // A grove that hides the secret chest.
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 1.5 + 2.2, x = CHEST.x + Math.cos(a) * 4.4, z = CHEST.z + Math.sin(a) * 4.4;
-    nearItems[i % 5].push({ x, z, s: 0.95 + rnd() * 0.2, rot: rnd() * 6.28 });
-    colliders.push({ x, z, r: 0.6 });
-  }
+  const { nearItems, farItems, placed, grove } = placeTrees(rnd, density);
+  for (const t of [...placed, ...grove]) if (t.collide) colliders.push({ x: t.x, z: t.z, r: 0.6 });
   nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
   farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
 
