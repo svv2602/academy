@@ -1132,13 +1132,17 @@ try {
           const stopped = await tapCat('left_new_world');
           console.log(`a tap on the cat with the bubble empty: "${stopped}" (where we stopped)`);
           await silence().catch(() => fail(`the voice did not fall silent after "${stopped}"`));
-          // Its bubble stays 8 s by the wall clock (welcome.ts LEFT_HOLD_MS), which a slow runner can spend before the
-          // repeat below: then the line is put back in the bubble, as it was before its timer hid it.
-          if (!(await visible('#bubble'))) { await g(() => document.querySelector('#bubble').classList.remove('hidden')); putBack = true; }
+          // Its bubble stays 8 s by the wall clock (welcome.ts LEFT_HOLD_MS): a slow runner can spend them before the
+          // repeat below, even between a look at the bubble and the tap. So its timer is let run out, and the line is put
+          // back in the bubble, as it was before the timer hid it - no timer is left to hide it under the tap.
+          await page.waitForFunction(() => document.querySelector('#bubble').classList.contains('hidden'), null, { timeout: T(15000) }) /* clock: audio */
+            .catch(() => fail(`the bubble of "${stopped}" was not hidden by its timer`));
+          await g(() => document.querySelector('#bubble').classList.remove('hidden'));
+          putBack = true;
         }
         if (await visible('#bubble')) {
           const key = await tapCat(null);
-          console.log(`a tap on the cat: "${key}" is said again, the heroine stands${putBack ? ' (put back in the bubble: its timer had hidden it)' : ''}`);
+          console.log(`a tap on the cat: "${key}" is said again, the heroine stands${putBack ? ' (put back in the bubble after its timer hid it)' : ''}`);
           catRepeated = true;
         }
       }
