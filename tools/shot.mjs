@@ -1070,7 +1070,7 @@ try {
           // over already (or never sounding): the cat repeats it on a tap
           if (await g(() => !!window.__hideCatch.done)) { /* caught in between */ } else {
             const cat = await g(() => {
-              const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+              const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + __game.catTapY, p.z).project(__game.camera);
               const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
               const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
               return { x, y, under: under ? under.id || under.localName : 'nothing' };
@@ -1108,7 +1108,7 @@ try {
         const tapCat = async (want) => {
           const cat = await g((w) => {
             const key = w ?? __game.line, p = __game.cat.root.position, hp = __game.hero.root.position;
-            const s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+            const s = new __game.THREE.Vector3(p.x, p.y + __game.catTapY, p.z).project(__game.camera);
             const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
             const under = s.z < 1 ? document.elementFromPoint(x, y) : null;
             return { key, x, y, under: under ? under.id || under.localName : 'nothing', n: window.__starts[key] ?? 0, at: [hp.x, hp.z] };
@@ -3343,7 +3343,7 @@ try {
             .catch(() => fail('the bubble did not empty before the tap on the cat'));
           const want = await wantLeft();
           const cat = await g(() => {
-            const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + 0.3, p.z).project(__game.camera);
+            const p = __game.cat.root.position, s = new __game.THREE.Vector3(p.x, p.y + __game.catTapY, p.z).project(__game.camera);
             const x = (s.x * 0.5 + 0.5) * innerWidth, y = (-s.y * 0.5 + 0.5) * innerHeight;
             const under = s.z < 1 && x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight ? document.elementFromPoint(x, y) : null;
             return { x, y, under: under ? under.id || under.localName : 'nothing' };

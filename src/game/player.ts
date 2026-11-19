@@ -4,6 +4,7 @@ import { input } from '../core/input';
 import { tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
 import { catTap } from '../ui/welcome';
+import { CAT_TAP_Y } from './companion';
 import { SWIM_NAMES } from './hero';
 import { createRipple } from './ripple';
 import { GROUND, pace, speedometer } from './stride';
@@ -53,7 +54,7 @@ export function createPlayer(g: Game): Player {
           if (spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
           // A tap on the cat asks it to say its line again - or, with the bubble empty, where we stopped (PLAY-21) -,
           // not to walk to it. (In the butterflies task the cat is out of the frame.)
-          else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + 0.3)) < (touch ? 70 : 46)) catTap(g);
+          else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + CAT_TAP_Y)) < (touch ? 70 : 46)) catTap(g);
           else {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
             if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {

@@ -35,7 +35,7 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const { loadShared } = await boot();
     const got = await loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledExactlyOnceWith(SAVE);
-    expect(rig.mock.calls[0]).toEqual(['extra/cat2', 0.62, true]);
+    expect(rig.mock.calls[0]).toEqual(['extra/cat', 0.75, false]);
     expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])) });
     // The items are hung under the bones of the model the game plays with, not of a copy.
     expect(loadGear).toHaveBeenCalledExactlyOnceWith(got!.heroRig);

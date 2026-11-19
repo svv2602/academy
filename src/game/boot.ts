@@ -1,6 +1,7 @@
 import { rig, shared, type Rig } from '../core/assets';
 import type { Save } from '../core/save';
 import { showNotice } from '../ui/ui';
+import { CAT_HEIGHT } from './companion';
 import { loadGear, type GearModels } from './gear';
 import { buildHero } from './hero';
 import { PETS } from './pets';
@@ -47,7 +48,7 @@ export function loadShared(save: Save): Promise<Shared | null> {
   return Promise.all([
     // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
-    rig('extra/cat2', 0.62, true),
+    rig('extra/cat', CAT_HEIGHT, false),
     Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
   ]).then(([heroRig, catRig, pets]): Shared => ({ heroRig, catRig, petRigs: Object.fromEntries(pets) }), (e: unknown) => { loadFailed(e); return null; });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING_DEFAULTS } from '../core/tuning';
-import { CAT_PACE_MAX, GROUND, PACE_MIN, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, pace, paceFollower, speedometer } from './stride';
+import { CAT_RUN_MAX, CAT_WALK_BACK, CAT_WALK_MAX, GROUND, PACE_MIN, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, pace, paceFollower, speedometer } from './stride';
 
 describe('the pace of the steps (src/game/stride.ts)', () => {
   it('is the speed over its clip\'s speed over the ground: a standing foot keeps its place', () => {
@@ -8,9 +8,14 @@ describe('the pace of the steps (src/game/stride.ts)', () => {
     expect(pace(1, GROUND.heroWalk)).toBeCloseTo(1 / GROUND.heroWalk);
   });
 
-  it('holds to its bounds: never slower than PACE_MIN, the cat never above CAT_PACE_MAX', () => {
+  it('holds to its bounds: never slower than PACE_MIN, never above its max', () => {
     expect(pace(0, GROUND.catWalk)).toBe(PACE_MIN);
-    expect(pace(5.4, GROUND.catWalk, CAT_PACE_MAX)).toBe(CAT_PACE_MAX);
+    expect(pace(5.4, GROUND.catWalk, CAT_WALK_MAX)).toBe(CAT_WALK_MAX);
+  });
+
+  it('the cat runs at the heroine\'s run with its paws in place, and walks again only well below where it runs', () => {
+    expect(pace(5.4, GROUND.catRun, CAT_RUN_MAX)).toBeCloseTo(5.4 / GROUND.catRun);   // not held: no slide
+    expect(CAT_WALK_BACK).toBeLessThan(CAT_WALK_MAX * 0.8);
   });
 
   it('the fawn\'s gallop at the heroine\'s run: under half the strides it would need, its paws sliding at most 0.6 of the way', () => {

@@ -213,11 +213,11 @@ describe('the scope of a model (TECH-09, TECH-15)', () => {
   });
 
   it('keeps the heroine, her items and the cat though a world loads them', async () => {
-    const paths = ['hero/base', 'hero/anims', 'items/wand', 'extra/cat2', 'extra/cat22', 'extra/mushking', 'heroes/knight'];
+    const paths = ['hero/base', 'hero/anims', 'items/wand', 'extra/cat', 'extra/cat2', 'extra/mushking', 'heroes/knight'];
     await withScope('w5', () => Promise.all(paths.map((p) => gltf(p))));
     release('w5');
     await tick();
-    expect(paths.filter((p) => freed(p).length > 0)).toEqual(['extra/cat22', 'extra/mushking', 'heroes/knight']);
+    expect(paths.filter((p) => freed(p).length > 0)).toEqual(['extra/cat2', 'extra/mushking', 'heroes/knight']);
   });
 
   it('keeps what `shared` names: one model or a folder, loaded already or not yet', async () => {

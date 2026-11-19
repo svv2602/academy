@@ -39,7 +39,7 @@ try {
   // 1. in place: the clip's own ground speed
   const inPlace = await page.evaluate(() => {
     const out = {};
-    const cast = [['hero', __game.hero, ['Walk', 'Run'], false], ['cat', __game.cat, ['Walk'], true], ['pet', __game.pet, ['Walk', 'Gallop'], true]];
+    const cast = [['hero', __game.hero, ['Walk', 'Run'], false], ['cat', __game.cat, ['Walk', 'Run'], true], ['pet', __game.pet, ['Walk', 'Gallop'], true]];
     for (const [who, a, clips, four] of cast) {
       for (const clip of clips) {
         const at = a.root.position.clone(), dt = 1 / 120;
@@ -83,16 +83,17 @@ try {
   console.log('in the game, a standing foot over the ground (mean m/s; share of the body\'s speed; worst m/s):');
   for (const [k, r] of Object.entries(res)) console.log(`  ${k.padEnd(5)} slide ${String(r.slide).padStart(6)}  share ${String(r.share).padStart(6)}  worst ${r.worst}  steady share ${r.steady} (${r.steadyN})  (${r.samples} samples, ${r.frames} frames, ${r.moved} m from start to end)`);
 
-  // 3. the pet's smoothness over 10 s of running (two turns, two stops): how often its clip changes (Walk, Gallop, Idle), how
-  // much its pace jumps from frame to frame, how fast its heading turns at the worst
+  // 3. the smoothness of the pet and the cat over 10 s of running (two turns, two stops): how often a clip changes (Walk,
+  // Run or Gallop, Idle), how much the pace jumps from frame to frame, how fast the heading turns at the worst
   await page.evaluate(() => {
-    const log = window.__petLog = [];
+    const log = window.__smoothLog = { pet: [], cat: [] };
     const tick = () => {
-      const p = __game.pet;
-      if (p) { const a = p.actions.get(p.current); log.push({ t: __game.time, clip: p.current, pace: a ? a.timeScale : 0, h: p.heading }); }
-      if (!window.__petStop) requestAnimationFrame(tick);
+      for (const [k, a] of [['pet', __game.pet], ['cat', __game.cat]]) {
+        if (a) { const act = a.actions.get(a.current); log[k].push({ t: __game.time, clip: a.current, pace: act ? act.timeScale : 0, h: a.heading }); }
+      }
+      if (!window.__smoothStop) requestAnimationFrame(tick);
     };
-    window.__petStop = false; requestAnimationFrame(tick);
+    window.__smoothStop = false; requestAnimationFrame(tick);
   });
   // runs with a turn, stops and starts again, as a child plays: 10 s of it
   for (const keys of [['ArrowUp'], ['ArrowUp', 'ArrowLeft'], ['ArrowUp'], [], ['ArrowUp'], ['ArrowUp', 'ArrowRight'], ['ArrowUp'], []]) {
@@ -101,21 +102,27 @@ try {
     for (const k of keys) await page.keyboard.up(k);
   }
   const smooth = await page.evaluate(() => {
-    window.__petStop = true;
-    const log = window.__petLog;
-    let switches = 0, jump = 0, turn = 0, n = 0; const seq = [log[0].clip];
-    for (let i = 1; i < log.length; i++) {
-      const a = log[i - 1], b = log[i], dt = b.t - a.t;
-      if (dt <= 0) continue;
-      if (b.clip !== a.clip) { switches++; seq.push(`${b.t.toFixed(1)} ${b.clip}`); }
-      else { jump += Math.abs(b.pace - a.pace); n++; }
-      let dh = b.h - a.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
-      turn = Math.max(turn, Math.abs(dh) / dt);
+    window.__smoothStop = true;
+    const out = {};
+    for (const [k, log] of Object.entries(window.__smoothLog)) {
+      if (!log.length) continue;
+      let switches = 0, jump = 0, turn = 0, n = 0; const seq = [log[0].clip];
+      for (let i = 1; i < log.length; i++) {
+        const a = log[i - 1], b = log[i], dt = b.t - a.t;
+        if (dt <= 0) continue;
+        if (b.clip !== a.clip) { switches++; seq.push(`${b.t.toFixed(1)} ${b.clip}`); }
+        else { jump += Math.abs(b.pace - a.pace); n++; }
+        let dh = b.h - a.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+        turn = Math.max(turn, Math.abs(dh) / dt);
+      }
+      const secs = log.at(-1).t - log[0].t;
+      out[k] = { secs: +secs.toFixed(1), switches, perTen: +(switches * 10 / secs).toFixed(1), paceJump: +(jump / Math.max(1, n)).toFixed(3), turn: +turn.toFixed(1), frames: log.length, seq: seq.join(' -> '), clips: [...new Set(log.map((f) => f.clip))].join(' ') };
     }
-    const secs = log.at(-1).t - log[0].t;
-    return { secs: +secs.toFixed(1), switches, perTen: +(switches * 10 / secs).toFixed(1), paceJump: +(jump / Math.max(1, n)).toFixed(3), turn: +turn.toFixed(1), frames: log.length, seq: seq.join(' -> '), clips: [...new Set(log.map((f) => f.clip))].join(' ') };
+    return out;
   });
-  console.log(`the pet over ${smooth.secs} s of running: ${smooth.switches} changes of clip (${smooth.perTen} in 10 s; ${smooth.clips}), the pace jumps ${smooth.paceJump} a frame on the mean, the worst turn ${smooth.turn} rad/s (${smooth.frames} frames)\n  ${smooth.seq}`);
+  for (const [k, r] of Object.entries(smooth)) {
+    console.log(`the ${k} over ${r.secs} s of running: ${r.switches} changes of clip (${r.perTen} in 10 s; ${r.clips}), the pace jumps ${r.paceJump} a frame on the mean, the worst turn ${r.turn} rad/s (${r.frames} frames)\n  ${r.seq}`);
+  }
 } finally {
   await browser.close();
   try { process.kill(-server.pid); } catch { /* gone */ }
