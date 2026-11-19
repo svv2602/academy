@@ -1,3 +1,4 @@
+import { mysteryProblems } from './mystery';
 import type { CharacterDef, WorldDef, WorldItem, WorldItemKind } from './world';
 
 /**
@@ -19,7 +20,7 @@ export const KINDS: readonly WorldItemKind[] = ['chain', 'part', 'scene', 'final
 /** What the description reads of a world: WorldDef fits, and so does what the game holds of the world played (`g.world`). */
 export interface Declared {
   readonly characters?: readonly CharacterDef[]; readonly pet?: WorldDef['pet']; readonly secrets?: readonly string[];
-  readonly worldTasks?: readonly string[];
+  readonly worldTasks?: readonly string[]; readonly mystery?: WorldDef['mystery'];
 }
 /** The marks of a world: its part of the save (WorldState, src/core/save.ts). */
 export interface Marks { quests: Record<string, number>; flags: Record<string, boolean>; final: boolean }
@@ -88,7 +89,8 @@ export function ready(item: Pick<WorldItem, 'after'>, items: readonly WorldItem[
  * that plays by itself tells when it is on (`active`); the chains are the world's characters one to one; the secrets
  * are the world's `secrets` one to one; there is a pet exactly when the world declares one, under the id of its flag
  * and at the declared place; every task the world declares to play in the world (`worldTasks`) is a step of some
- * character, and each chain names exactly its steps of them (`inWorld`) - a walkthrough would not find the others.
+ * character, and each chain names exactly its steps of them (`inWorld`) - a walkthrough would not find the others;
+ * the places of the mysterious stars are enough and apart (src/game/mystery.ts `mysteryProblems`).
  */
 export function problems(world: Declared, items: readonly WorldItem[]): string[] {
   const out: string[] = [];
@@ -119,6 +121,7 @@ export function problems(world: Declared, items: readonly WorldItem[]): string[]
     if (JSON.stringify(have) !== JSON.stringify(want)) out.push(`the chain "${c.id}" names the steps ${JSON.stringify(have)} as played in the world, the world's worldTasks make them ${JSON.stringify(want)}`);
   }
   oneToOne('secret', world.secrets ?? [], 'secrets');
+  if (world.mystery) out.push(...mysteryProblems(world.mystery));
   const pets = items.filter((i) => i.kind === 'pet');
   if (!world.pet) for (const p of pets) out.push(`the item "${p.id}" of kind "pet": the world declares no pet`);
   else if (pets.length !== 1) out.push(`the world declares a pet, the description has ${pets.length} items of kind "pet"`);
