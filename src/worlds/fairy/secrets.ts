@@ -240,7 +240,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
       (box.material as THREE.MeshStandardMaterial).emissiveIntensity = houseFound() ? 0.15 : 0.35 + Math.sin(time * 3) * 0.2;
       const hp = hero.root.position, d = Math.hypot(hp.x - GLADE.x, hp.z - GLADE.z);
       gladeCamera(d);
-      gladeLook?.update(time, d);
+      gladeLook?.update(time, d, g.camera.position);
       if (canMove && !gladeFound() && d < FIND_R) findGlade();
       void dt;
     },
