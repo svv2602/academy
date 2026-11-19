@@ -164,9 +164,10 @@ function buildPortals(scene: THREE.Scene, leadsTo: readonly (string | null)[]) {
         arch.add(v);
       }
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshStandardMaterial({ map: signTexture(p.icon, p.colour), roughness: 0.9 }));
-      sign.position.set(2.6, 1.2, 0.3);
+      // facing the glade, where she comes from (beside the arch, a step in front of it)
+      sign.position.set(2.6, 1.2, -0.3); sign.rotation.y = Math.PI;
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 6), std('#8a6142'));
-      post.position.set(2.6, 0.45, 0.25);
+      post.position.set(2.6, 0.45, -0.25);
       arch.add(sign, post);
     }
     arch.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== veil) { o.castShadow = true; o.receiveShadow = true; } });
