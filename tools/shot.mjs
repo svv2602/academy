@@ -207,6 +207,20 @@ try {
   const viewport = { width: size.width, height: size.height };
   const ctxOptions = touch ? { viewport, deviceScaleFactor: 2, hasTouch: true, isMobile: true } : { viewport };
   const ctx = await browser.newContext(ctxOptions);
+  // What Chrome actually draws with: E2E_GL=gl must be the machine's GPU. Some flags (e.g. --use-gl=egl) fall back to
+  // SwiftShader silently; the line makes such a fallback visible at the top of the log.
+  {
+    const probe = await ctx.newPage();
+    const renderer = await probe.evaluate(() => {
+      const g = document.createElement('canvas').getContext('webgl2');
+      if (!g) return 'no WebGL2';
+      const info = g.getExtension('WEBGL_debug_renderer_info');
+      return info ? g.getParameter(info.UNMASKED_RENDERER_WEBGL) : 'unknown';
+    }).catch((e) => `unknown (${e.message})`);
+    await probe.close();
+    const soft = /swiftshader/i.test(renderer);
+    console.log(`renderer: ${renderer} (E2E_GL=${gl}${gl === 'gl' && soft ? ' - WARNING: software rendering, not the GPU' : ''})`);
+  }
 
   // ---- network: every request of the context (pages and the service worker) must stay on our own origin ----
   const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
