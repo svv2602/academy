@@ -8,6 +8,19 @@ const POND_LEVEL = 0.2;
 export const WATER_Y = POND_LEVEL - 0.38;
 const PATH: [number, number][] = [[0, 16], [1, 5], [3.5, -5], [2, -13], [-4, -27], [-8, -42], [-8, -53]];
 
+/** The point of the path nearest to x, z (its middle line, without the wobble of pathDist). */
+export function nearestOnPath(x: number, z: number): { x: number; z: number } {
+  let best = { x: PATH[0][0], z: PATH[0][1] }, bd = Infinity;
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const [ax, az] = PATH[i], [bx, bz] = PATH[i + 1];
+    const dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    const px = ax + dx * t, pz = az + dz * t, d = Math.hypot(x - px, z - pz);
+    if (d < bd) { bd = d; best = { x: px, z: pz }; }
+  }
+  return best;
+}
+
 export function pathDist(x: number, z: number) {
   let best = 1e9;
   for (let i = 0; i < PATH.length - 1; i++) {
