@@ -5,6 +5,7 @@ import { showNotice } from '../ui/ui';
 import { CAT_HEIGHT } from './companion';
 import { loadGear, type GearModels } from './gear';
 import { buildHero } from './hero';
+import { MYSTERY_STAR } from './mystery';
 import { loadPetGear, type PetGearModels } from './petgear';
 import { PETS } from './pets';
 
@@ -32,7 +33,7 @@ export interface Shared {
 }
 
 /** The model of a mysterious star - the one the first world has on its ground - of the core now. */
-const MYSTERY_STAR = 'platformer_game_pack/Star';
+const MYSTERY_STAR_FILE = 'platformer_game_pack/Star';
 
 let failed = false;
 
@@ -53,13 +54,13 @@ export function loadFailed(e: unknown): void {
 /** The heroine (dressed as the save says), the cat and the pets. Null = failed for good, the notice is already shown. */
 export function loadShared(save: Save): Promise<Shared | null> {
   // The pets are of the core: never released with a world, also when a world shows the same model file.
-  shared(...PETS.map((p) => p.model), MYSTERY_STAR);
+  shared(...PETS.map((p) => p.model), MYSTERY_STAR_FILE);
   return Promise.all([
     // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
     rig('extra/cat', CAT_HEIGHT, false),
     Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
-    staticGeo(MYSTERY_STAR, 0.9),
+    staticGeo(MYSTERY_STAR_FILE, MYSTERY_STAR.model),
   ]).then(async ([heroRig, catRig, pets, starGeo]): Promise<Shared> => {
     const petRigs = Object.fromEntries(pets);
     // The pets' things hang under their bones while the models are still in their rest pose (src/game/petgear.ts).
