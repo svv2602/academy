@@ -7,18 +7,25 @@ import { hub } from './hub';
 // The probe world (./probe, TECH-15) is a test world: it is listed only in a build made with `--mode probe`
 // (tools/worlds.mjs builds dist-probe/ and plays it there). In any other mode the condition is a constant false, so
 // the build holds neither its code nor its files: `npm run e2e` checks dist/ for that (the step "worlds").
-// The hub (./hub, WORLD-01) is the home between the worlds: no files of its own, it is part of the installation.
+// The hub (./hub, WORLD-01) is the home between the worlds: part of the installation (INSTALLED below).
 export const WORLDS = [fairy, hub, ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : [])];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';
+/**
+ * The worlds of the installation: never downloaded as a next world. The first world, and the hub - it has no files of
+ * its own (decision Q5 of the hub, R31: up to 0.5 MB it stays in the installation). Once it has files under
+ * models/hub/ or voice/hub/, the build has to keep them in the installation too (tools/vite-worlds.mjs counts every
+ * folder of src/worlds/ but the first world's as a next world).
+ */
+export const INSTALLED: readonly string[] = [DEFAULT_WORLD, 'hub'];
 
 /**
  * The worlds to download while the world `current` is played (TECH-09), in the order to try them: the ones listed
- * after it, then the ones listed before it - without `current` itself and without the first world, which is part of
- * the installation. The first of them that is not in the cache yet is the next world (src/core/worldcache.ts
+ * after it, then the ones listed before it - without `current` itself and without the worlds of the installation
+ * (`INSTALLED`). The first of them that is not in the cache yet is the next world (src/core/worldcache.ts
  * `downloadNext`). `ids` are the worlds in the order of the registry.
  */
-export function nextWorlds(current: string, ids: readonly string[] = WORLDS.map((w) => w.id), first: string = DEFAULT_WORLD): string[] {
+export function nextWorlds(current: string, ids: readonly string[] = WORLDS.map((w) => w.id), installed: readonly string[] = INSTALLED): string[] {
   const at = ids.indexOf(current);
-  return [...ids.slice(at + 1), ...ids.slice(0, Math.max(at, 0))].filter((id) => id !== current && id !== first);
+  return [...ids.slice(at + 1), ...ids.slice(0, Math.max(at, 0))].filter((id) => id !== current && !installed.includes(id));
 }

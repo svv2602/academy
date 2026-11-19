@@ -5,8 +5,8 @@
 // the page is handed in as functions (the status of the cache of worlds, src/core/worldcache.ts `status`; the
 // network; what a refusal does), so it has no state of the page of its own and is tested on stand-ins.
 // Two rules come from the walkthrough, which fails on any error in the console:
-// - the status is not asked for a world that needs no download by definition (the default world, a registry of one
-//   world): in a build without next worlds it would request a list that is not there, and a 404 is such an error;
+// - the status is not asked for a world that needs no download by definition (a world of the installation - the
+//   default world and the hub -, a registry of one world): in a build without next worlds it would request a list that is not there, and a 404 is such an error;
 // - no request leaves when the page says it is offline: a request that fails is such an error too. Only when the page
 //   believes it is online one real request is made (`probe`), and only its success means "the network is there".
 
@@ -27,8 +27,8 @@ export type GateAnswer = { enter: true; from: 'cache' | 'network' } | { enter: f
 export interface GateEnv {
   /** The ids of the worlds of the registry (src/worlds/index.ts `WORLDS`). */
   worlds: readonly string[];
-  /** The world that is part of the installation (src/worlds/index.ts `DEFAULT_WORLD`). */
-  defaultWorld: string;
+  /** The worlds that are part of the installation (src/worlds/index.ts `INSTALLED`: the default world and the hub). */
+  installed: readonly string[];
   /** The status of the world in the cache. A rejection reads as "unknown" and is treated as 'none'. */
   status: (id: string) => Promise<GateStatus>;
   /** Does the page believe it is online (`navigator.onLine`)? Only an explicit false means "offline". */
@@ -76,7 +76,7 @@ export function createGate(env: GateEnv): Gate {
 
   function canEnter(id: string): Promise<GateAnswer> {
     // Part of the installation by definition: the cache is not asked (see the head of the file).
-    if (id === env.defaultWorld || env.worlds.length <= 1) return Promise.resolve(OPEN);
+    if (env.installed.includes(id) || env.worlds.length <= 1) return Promise.resolve(OPEN);
     const running = checking.get(id);
     if (running) return running;
     const mine = check(id);

@@ -94,34 +94,37 @@ describe('the folders of the worlds under public/ (TECH-09)', () => {
 describe('nextWorlds: the worlds to download while one is played (TECH-09)', () => {
   const ORDER = ['fairy', 'ocean', 'space', 'ice'];
 
-  it('the worlds listed after the current one, then the ones before it, without the current and the first one', async () => {
+  it('the worlds listed after the current one, then the ones before it, without the current and the installed ones', async () => {
     const { nextWorlds } = await registry('test');
-    expect(nextWorlds('fairy', ORDER, 'fairy')).toEqual(['ocean', 'space', 'ice']);
-    expect(nextWorlds('ocean', ORDER, 'fairy')).toEqual(['space', 'ice']);
-    expect(nextWorlds('space', ORDER, 'fairy')).toEqual(['ice', 'ocean']);
-    expect(nextWorlds('ice', ORDER, 'fairy')).toEqual(['ocean', 'space']);
+    expect(nextWorlds('fairy', ORDER, ['fairy'])).toEqual(['ocean', 'space', 'ice']);
+    expect(nextWorlds('ocean', ORDER, ['fairy'])).toEqual(['space', 'ice']);
+    expect(nextWorlds('space', ORDER, ['fairy'])).toEqual(['ice', 'ocean']);
+    expect(nextWorlds('ice', ORDER, ['fairy'])).toEqual(['ocean', 'space']);
+    expect(nextWorlds('fairy', ['fairy', 'hub', 'ocean'], ['fairy', 'hub'])).toEqual(['ocean']);   // the hub, installed too
   });
 
-  it('the first world is named, not taken from the order of the list', async () => {
+  it('the installed worlds are named, not taken from the order of the list', async () => {
     const { nextWorlds } = await registry('test');
-    expect(nextWorlds('ocean', ORDER, 'space')).toEqual(['ice', 'fairy']);
-    expect(nextWorlds('space', ORDER, 'space')).toEqual(['ice', 'fairy', 'ocean']);
+    expect(nextWorlds('ocean', ORDER, ['space'])).toEqual(['ice', 'fairy']);
+    expect(nextWorlds('space', ORDER, ['space'])).toEqual(['ice', 'fairy', 'ocean']);
   });
 
   it('a world the registry does not list: every next world, in the order of the registry', async () => {
     const { nextWorlds } = await registry('test');
-    expect(nextWorlds('nowhere', ORDER, 'fairy')).toEqual(['ocean', 'space', 'ice']);
+    expect(nextWorlds('nowhere', ORDER, ['fairy'])).toEqual(['ocean', 'space', 'ice']);
   });
 
-  it('the published game: the hub is the next world of the first one, and the hub has none', async () => {
-    const { nextWorlds } = await registry('production');
-    expect(nextWorlds('fairy')).toEqual(['hub']);
+  it('the published game: the hub is in the installation with the first world - no next world, no request for the list', async () => {
+    const { nextWorlds, INSTALLED, DEFAULT_WORLD } = await registry('production');
+    expect(INSTALLED).toEqual([DEFAULT_WORLD, 'hub']);
+    expect(nextWorlds('fairy')).toEqual([]);
     expect(nextWorlds('hub')).toEqual([]);
   });
 
-  it('the probe build: the hub and the probe world come after the first world, the hub after the probe world', async () => {
+  it('the probe build: the probe world is the next one of the first world and of the hub, and has no next one itself', async () => {
     const { nextWorlds } = await registry('probe');
-    expect(nextWorlds('fairy')).toEqual(['hub', 'probe']);
-    expect(nextWorlds('probe')).toEqual(['hub']);
+    expect(nextWorlds('fairy')).toEqual(['probe']);
+    expect(nextWorlds('hub')).toEqual(['probe']);
+    expect(nextWorlds('probe')).toEqual([]);
   });
 });

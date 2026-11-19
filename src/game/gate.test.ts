@@ -18,7 +18,7 @@ function held<T>() {
 /** What the stand-ins answer: a plain value, or a function when the test needs more (a delay, an error). */
 interface Stand {
   worlds?: readonly string[];
-  defaultWorld?: string;
+  installed?: readonly string[];
   status?: GateStatus | GateEnv['status'];
   online?: boolean | GateEnv['online'];
   probe?: boolean | GateEnv['probe'];
@@ -32,7 +32,7 @@ function setup(o: Stand = {}) {
   const asProbe: GateEnv['probe'] = typeof probe === 'function' ? probe : async () => probe;
   const env = {
     worlds: o.worlds ?? WORLDS,
-    defaultWorld: o.defaultWorld ?? 'fairy',
+    installed: o.installed ?? ['fairy'],
     status: vi.fn(asStatus),
     online: vi.fn(asOnline),
     probe: vi.fn(asProbe),
@@ -59,9 +59,10 @@ describe('a world that needs no download is entered without a question', () => {
     expect(env.refuse).not.toHaveBeenCalled();
   });
 
-  it('the default world is the one handed in, not the first of the registry', async () => {
-    const { env, gate } = setup({ defaultWorld: 'ocean', status: 'none', online: false });
+  it('the worlds of the installation are the ones handed in, not the first of the registry', async () => {
+    const { env, gate } = setup({ installed: ['ocean', 'hub'], status: 'none', online: false });
     expect(await gate.canEnter('ocean')).toEqual({ enter: true, from: 'cache' });
+    expect(await gate.canEnter('hub')).toEqual({ enter: true, from: 'cache' });   // the hub: no list to ask
     expect(env.status).not.toHaveBeenCalled();
     expect(await gate.canEnter('fairy')).toEqual({ enter: false });
     expect(env.status).toHaveBeenCalledWith('fairy');
@@ -69,7 +70,7 @@ describe('a world that needs no download is entered without a question', () => {
 
   it('a registry of one world: the status is not asked (the build has no list of worlds, a 404 is an error in the console)', async () => {
     for (const worlds of [['fairy'], []]) {
-      const { env, gate } = setup({ worlds, defaultWorld: 'fairy', status: 'none', online: false });
+      const { env, gate } = setup({ worlds, installed: ['fairy'], status: 'none', online: false });
       expect(await gate.canEnter('fairy')).toEqual({ enter: true, from: 'cache' });
       expect(await gate.canEnter('ocean')).toEqual({ enter: true, from: 'cache' });
       expect(env.status).not.toHaveBeenCalled();

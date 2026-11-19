@@ -21,7 +21,7 @@ import { addStrings } from './ui/strings';
 import { el, initStart, showNotice, showUpdate } from './ui/ui';
 import { initSupplyRow } from './ui/supplies';
 import { initTuningPanel } from './ui/tuning';
-import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
+import { DEFAULT_WORLD, INSTALLED, WORLDS, nextWorlds } from './worlds';
 import { knowWorlds } from './game/artifacts';
 
 const params = new URLSearchParams(location.search);
@@ -39,7 +39,7 @@ const save = loadSave();
 const worlds = createWorldCache();
 let refuse = () => {};
 const gate = createGate({
-  worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),
+  worlds: WORLDS.map((w) => w.id), installed: INSTALLED, status: (id) => worlds.status(id),
   online: () => navigator.onLine, probe: () => probeNetwork(), refuse: () => refuse(),
 });
 // ARCH-06, WORLD-01: the world to play, from the registry (src/worlds/index.ts): the world where she stopped, through

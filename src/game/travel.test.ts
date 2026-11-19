@@ -959,7 +959,7 @@ describe('src/main.ts hands the change of world its gate', () => {
 
   it('the gate asks the cache of worlds, the page and the network; a refusal is the cat\'s recorded line "need_net"', () => {
     const gate = MAIN.slice(MAIN.indexOf('createGate({'), MAIN.indexOf('\n});', MAIN.indexOf('createGate({')));
-    expect(gate).toContain('worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),');
+    expect(gate).toContain('worlds: WORLDS.map((w) => w.id), installed: INSTALLED, status: (id) => worlds.status(id),');
     expect(gate).toContain('online: () => navigator.onLine, probe: () => probeNetwork(), refuse: () => refuse(),');
     expect(MAIN).toContain("refuse = () => { void g.speech.line('need_net', 'hint'); };");
     // the gate is made before the world of the launch is chosen: the launch asks it too (WORLD-01, R17)
