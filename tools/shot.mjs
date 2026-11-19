@@ -2196,6 +2196,11 @@ try {
           await g((p) => __game.teleport(p[0], p[1]), doorOut); await framesDrawn(2);
           await act();
           await until(() => __game.secrets.inRoom() && !__game.busy, null, 'the door of the house did not lead into the room');
+          // the camera of the room right after the door: at the height of the eyes over its floor, not lifted by the
+          // relief beyond its walls (the hill past the valley's rim once put it some 29 m over the room)
+          await gameSeconds(1);
+          const eye = await g(() => +(__game.camera.position.y - __game.hero.root.position.y).toFixed(2));
+          if (eye > 4.5) fail(`the camera in the room stands ${eye} m over the floor right after the door (at most 4.5)`);
           await shot('secrets-room');
           await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2);
           await act();
@@ -2224,7 +2229,7 @@ try {
           await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
           await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
           await until(() => ['secret_chest', 'three_secrets'].every((k) => k in __game.save.achievements), null, 'closing the book did not grant "the chest" and "three secrets"');
-          console.log(`secrets: the chest, the glade (walked ${walked.toFixed(1)} m in through the waterfall) and the house (the room, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
+          console.log(`secrets: the chest, the glade (walked ${walked.toFixed(1)} m in through the waterfall) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
         });
       }
       // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----

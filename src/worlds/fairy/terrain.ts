@@ -22,8 +22,16 @@ export function pathDist(x: number, z: number) {
 /** Inside the room of the house (./secrets.ts): its floor and walls, not the valley's relief. */
 export const inRoom = (x: number, z: number) => Math.abs(x - ROOM.x) < ROOM.half + 2 && Math.abs(z - ROOM.z) < ROOM.half + 2;
 
+/**
+ * How far past the walls of the room its floor is the ground, m: as far as the camera behind her goes in the room (4.2 m
+ * from her, ./secrets.ts) - the camera is kept 0.8 m over the ground (src/game/camera.ts), and the relief out there is
+ * the hill beyond the valley's rim, which would lift it some 29 m over the room.
+ */
+export const ROOM_CAMERA_REACH = 6;
+const underRoom = (x: number, z: number) => Math.abs(x - ROOM.x) < ROOM.half + ROOM_CAMERA_REACH && Math.abs(z - ROOM.z) < ROOM.half + ROOM_CAMERA_REACH;
+
 export function height(x: number, z: number) {
-  if (inRoom(x, z)) return ROOM.y;
+  if (underRoom(x, z)) return ROOM.y;
   let h = (fbm(x * 0.028 + 7.3, z * 0.028 + 2.1) - 0.5) * 6 + (fbm(x * 0.12, z * 0.12, 2) - 0.5) * 0.5;
   const d = Math.hypot(x, z);
   const rim = smoothstep(WORLD_R - 6, WORLD_R + 40, d);

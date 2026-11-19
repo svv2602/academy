@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { GLADE, HOUSE, ROOM, WORLD_R } from './layout';
-import { height, inRoom, resolve } from './terrain';
+import { ROOM_CAMERA_REACH, height, inRoom, resolve } from './terrain';
 
 describe('the ground of the secrets', () => {
   it('the room: its floor is flat, a walker is held inside its walls, not pulled back to the valley', () => {
@@ -15,6 +15,15 @@ describe('the ground of the secrets', () => {
     const mid = { x: ROOM.x + 1, z: ROOM.z + 1 };
     resolve(mid, 0.35);
     expect(mid).toEqual({ x: ROOM.x + 1, z: ROOM.z + 1 });
+  });
+
+  it('the room: the ground behind its walls is its floor as far as the camera behind her goes, not the hill out there', () => {
+    // the camera of the room: 4.2 m from her (secrets.ts), she as far as 0.35 m from a wall
+    const reach = ROOM.half - 0.35 + 4.2;
+    expect(ROOM_CAMERA_REACH).toBeGreaterThan(reach - ROOM.half);
+    for (const [sx, sz] of [[0, 1], [1, 1], [-1, 0], [1, -1]]) expect(height(ROOM.x + sx * reach, ROOM.z + sz * reach)).toBe(ROOM.y);
+    // and the room still lies far beyond the valley: its widened floor too
+    expect(Math.hypot(ROOM.x, ROOM.z) - ROOM.half - ROOM_CAMERA_REACH).toBeGreaterThan(WORLD_R + 40);
   });
 
   it('the room lies beyond the valley and its rim; the glade and the house inside it', () => {
