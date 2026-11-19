@@ -101,3 +101,16 @@ export class Actor {
 
   update(dt: number) { this.mixer.update(dt); }
 }
+
+/**
+ * The shadow of a model from its body only (docs/perf.md): every part of a model with a material of its own is a draw
+ * call of its own in the shadow pass too, and the small ones - eyes, hooves, buckles - cast shadows nobody sees. The
+ * parts with less than `share` of the model's triangles stop casting; the biggest part always casts.
+ */
+export function shadowFromBody(root: THREE.Object3D, share = 0.15): void {
+  const parts: THREE.Mesh[] = [];
+  root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.castShadow) parts.push(m); });
+  const tris = (m: THREE.Mesh) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+  const total = parts.reduce((s, m) => s + tris(m), 0), biggest = Math.max(...parts.map(tris));
+  for (const m of parts) if (tris(m) < total * share && tris(m) < biggest) m.castShadow = false;
+}

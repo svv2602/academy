@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { tint } from '../../core/assets';
-import { Actor } from '../../game/actor';
+import { Actor, shadowFromBody } from '../../game/actor';
 import type { Game } from '../../game/context';
 import { createGear, type Gear } from '../../game/gear';
 import type { WorldScope } from '../../game/scope';
@@ -63,6 +63,7 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const npcs: Npc[] = FRIENDS.map((def) => {
     const actor = new Actor(rigs[def.id]);
+    shadowFromBody(actor.root);
     const pos = new THREE.Vector3(def.x, groundY(def.x, def.z), def.z);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     scene.add(actor.root);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { sfx } from '../../core/audio';
-import { Actor } from '../../game/actor';
+import { Actor, shadowFromBody } from '../../game/actor';
 import type { Game } from '../../game/context';
 import { CHEST } from './layout';
 import type { FairyLoads } from './load';
@@ -27,19 +27,30 @@ export function createChestStars(g: Game, L: FairyLoads, starMat: THREE.Material
 
   // ----- chest, stars -----
   const chest = new Actor(L.chestRig);
+  shadowFromBody(chest.root);
   chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z);
   chest.root.rotation.y = 0.9;
   scene.add(chest.root);
   if (ws.flags.chest) chest.pose('Chest_Open');
   const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [18, -4], [-17, -14], [7, -31], [-26, 11], [26, -30], [-2, -40]];
+  // one instanced mesh draws all of them in one call (docs/perf.md); a star taken is scaled to nothing
+  const stars = new THREE.InstancedMesh(L.starGeo, starMat, starSpots.length);
+  stars.frustumCulled = false;   // they bob and spin across the valley: a handful of small stars, culling would cost more
+  scene.add(stars);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), none = new THREE.Vector3();
   const groundStars = starSpots.map(([x, z], id) => {
     const p = { x, z }; ground.resolve(p, 0.6);
-    const mesh = new THREE.Mesh(L.starGeo, starMat);
-    mesh.position.set(p.x, groundY(p.x, p.z) + 1.0, p.z);
-    mesh.visible = !ws.starsTaken.includes(id);
-    scene.add(mesh);
-    return { id, mesh };
+    return { id, pos: new THREE.Vector3(p.x, groundY(p.x, p.z) + 1.0, p.z), taken: ws.starsTaken.includes(id) };
   });
+  const place = (time: number) => {
+    for (const s of groundStars) {
+      if (s.taken) { stars.setMatrixAt(s.id, m4.compose(s.pos, q.identity(), none)); continue; }
+      s.pos.y = groundY(s.pos.x, s.pos.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
+      stars.setMatrixAt(s.id, m4.compose(s.pos, q.setFromAxisAngle(up, time * 1.6), one));
+    }
+    stars.instanceMatrix.needsUpdate = true;
+  };
+  place(0);
 
   function openChest() {
     ws.flags.chest = true;
@@ -54,10 +65,10 @@ export function createChestStars(g: Game, L: FairyLoads, starMat: THREE.Material
     open: openChest,
     update: (time, canMove) => {
       const hp = g.hero.root.position;
+      place(time);
       for (const s of groundStars) {
-        if (!s.mesh.visible) continue;
-        s.mesh.rotation.y = time * 1.6; s.mesh.position.y = groundY(s.mesh.position.x, s.mesh.position.z) + 1 + Math.sin(time * 2 + s.id) * 0.15;
-        if (canMove && Math.hypot(s.mesh.position.x - hp.x, s.mesh.position.z - hp.z) < 1.2) { s.mesh.visible = false; ws.starsTaken.push(s.id); g.addStars(1, s.mesh.position); }
+        if (s.taken) continue;
+        if (canMove && Math.hypot(s.pos.x - hp.x, s.pos.z - hp.z) < 1.2) { s.taken = true; ws.starsTaken.push(s.id); g.addStars(1, s.pos.clone()); }
       }
     },
     animate: (dt) => { chest.update(dt); },
