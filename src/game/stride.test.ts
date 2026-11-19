@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CAT_PACE_MAX, GROUND, PACE_MIN, pace, speedometer } from './stride';
+import { TUNING_DEFAULTS } from '../core/tuning';
+import { CAT_PACE_MAX, GROUND, PACE_MIN, PET_RUN_MAX, pace, speedometer } from './stride';
 
 describe('the pace of the steps (src/game/stride.ts)', () => {
   it('is the speed over its clip\'s speed over the ground: a standing foot keeps its place', () => {
@@ -10,6 +11,14 @@ describe('the pace of the steps (src/game/stride.ts)', () => {
   it('holds to its bounds: never slower than PACE_MIN, the cat never above CAT_PACE_MAX', () => {
     expect(pace(0, GROUND.catWalk)).toBe(PACE_MIN);
     expect(pace(5.4, GROUND.catWalk, CAT_PACE_MAX)).toBe(CAT_PACE_MAX);
+  });
+
+  it('the fawn\'s gallop at the heroine\'s run: half the strides it would need, its paws sliding at most 0.6 of the way', () => {
+    const run = TUNING_DEFAULTS.speed;
+    expect(pace(run, GROUND.fawnGallop)).toBeGreaterThan(5);   // what a standing paw would need: the legs whirred
+    expect(pace(run, GROUND.fawnGallop, PET_RUN_MAX)).toBe(PET_RUN_MAX);
+    expect(PET_RUN_MAX).toBeLessThanOrEqual(pace(run, GROUND.fawnGallop) / 1.9);
+    expect(1 - (PET_RUN_MAX * GROUND.fawnGallop) / run).toBeLessThanOrEqual(0.6);
   });
 
   it('reads the speed from where a character is, smoothed over about a tenth of a second', () => {
