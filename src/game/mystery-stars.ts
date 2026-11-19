@@ -5,7 +5,7 @@ import { SKILL } from './taskviews/panel';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
-import { MYSTERY_COLOR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
+import { MYSTERY_COLOR, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
 import { dayKey } from './playtime';
 
 /**
@@ -19,9 +19,9 @@ import { dayKey } from './playtime';
  */
 export const mysteryHold: { held: boolean; day: string | null } = { held: false, day: null };
 
-/** m: how near the heroine opens a star; how high it floats over the ground. */
+/** m: how near the heroine opens a star. */
 export const MYSTERY_SPOT_R = 1.8;
-const FLOAT = 1.3;
+const { float: FLOAT, scale: SCALE, bob: BOB } = MYSTERY_STAR;
 
 export interface MysteryInWorld {
   /** The spots of today's unsolved stars ("open"), joined to the world's in the frame (src/game/loop.ts). */
@@ -130,8 +130,8 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
       if (!mesh) return;
       shown.forEach((s, i) => {
         if (s.solved) { mesh!.setMatrixAt(i, m4.compose(s.pos, q.identity(), sv.setScalar(0))); return; }
-        s.pos.y = g.groundY(s.pos.x, s.pos.z) + FLOAT + Math.sin(time * 1.8 + i) * 0.18;
-        mesh!.setMatrixAt(i, m4.compose(s.pos, q.setFromAxisAngle(up, time * 1.2 + i), sv.setScalar(1 + 0.08 * Math.sin(time * 4 + i))));
+        s.pos.y = g.groundY(s.pos.x, s.pos.z) + FLOAT + (0.5 + 0.5 * Math.sin(time * 1.8 + i)) * BOB;
+        mesh!.setMatrixAt(i, m4.compose(s.pos, q.setFromAxisAngle(up, time * 1.2 + i), sv.setScalar(SCALE * (1 + 0.08 * Math.sin(time * 4 + i)))));
       });
       mesh.instanceMatrix.needsUpdate = true;
       // the line of the day: once a day per world, the first time she is free to move while some star waits
