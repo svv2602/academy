@@ -1,4 +1,4 @@
-// node tools/calls.mjs [port] [--raw] : what the draw calls and triangles of the first world are spent on (a tool for a
+// node tools/calls.mjs [port] [--raw] [--q 0,1,2] : what the draw calls and triangles of the first world are spent on (a tool for a
 // person, docs/perf.md). Plays the built game (dist/) with ?debug on this computer, at q1 and q2, in the points of the
 // measures on the S22: the start, the pond with the shrine, the mushroom king, the glade behind the waterfall - and the
 // room of the fairy house (a secret of its own, far beyond the valley).
@@ -17,6 +17,10 @@ import { GROUPS } from './e2e-saves.mjs';
 const port = Number(process.argv.find((a) => /^\d+$/.test(a)) || 4239);
 const raw = process.argv.includes('--raw');
 const server = spawn(process.execPath, ['tools/e2e.mjs', '--serve', String(port)], { stdio: 'ignore', detached: true });
+// the server goes with the measure, also when the measure is stopped (a `timeout`, Ctrl+C): else it is left serving
+const stopServer = () => { try { process.kill(-server.pid); } catch { /* gone */ } };
+process.on('exit', stopServer);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { stopServer(); process.exit(130); });
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--use-angle=gl', '--enable-gpu', '--ignore-gpu-blocklist', '--mute-audio'] });
 // the S22's save: the five tasks of the chains done, the finale not played (the shrine waits for the shards)
 const save = GROUPS.shop.save();
@@ -25,7 +29,9 @@ const rowsOut = [];
 const POINTS = { start: [0, 14], 'pond and shrine': [16, -9], 'mushroom king': null, 'glade behind the waterfall': [44, -40], 'room of the fairy house': [0, 215] };
 
 try {
-  for (const q of [1, 2]) {
+  // the levels of quality: q1 and q2, or the ones given (--q 0,1,2)
+  const qi = process.argv.indexOf('--q');
+  for (const q of qi > 0 ? process.argv[qi + 1].split(',').map(Number) : [1, 2]) {
     const url = `http://localhost:${port}/?debug&q=${q}`;
     for (let i = 0; i < 60; i++) { try { if ((await fetch(url)).ok) break; } catch { /* not yet */ } await new Promise((r) => setTimeout(r, 500)); /* clock: page-load */ }
     const ctx = await browser.newContext({ viewport: { width: 844, height: 390 } });
