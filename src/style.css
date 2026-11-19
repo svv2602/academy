@@ -432,3 +432,6 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 .t-help { width: 48px; height: 48px; border-radius: 50%; background: #fff; font-size: 26px; line-height: 1; box-shadow: 0 4px 0 rgba(160,110,200,.25),
   0 0 0 3px #ffe9a6; animation: pop .3s; }
 @media (max-aspect-ratio: 5/4) { .t-helps { top: -8px; } }
+
+/* The helpers of a task taken in the week (src/ui/ui.ts helpsLine): a line of the version's corner, a little darker. */
+#pHelps { color: #8a7aa0; margin-top: 2px; }
