@@ -10,6 +10,7 @@ export const TUNING_DEFAULTS = {
   runFrom: 1.3,     // m/s: faster than this she runs, slower - walks (2026-11-18: at 2.6 her walk, its pace by her speed, blurred)
   joyRadius: 56,    // px: how far the joystick knob goes from where the finger landed
   joyZone: 0.4,     // share of the window width, from the left, where a touch starts the joystick
+  joyHoldMs: 250,   // ms a finger held still in the joystick zone before the ring shows (a drag shows it at once)
   camDist: 6.2,     // camera distance behind the heroine in a landscape window (portrait: the same proportion of 8)
 } as const;
 
@@ -24,6 +25,7 @@ export const TUNING_RANGES: Record<TuningKey, readonly [number, number, number]>
   runFrom: [0.5, 8, 0.1],
   joyRadius: [24, 140, 2],
   joyZone: [0.2, 0.7, 0.01],
+  joyHoldMs: [0, 800, 10],
   camDist: [3, 14, 0.1],
 };
 

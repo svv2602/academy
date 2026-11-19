@@ -14,6 +14,7 @@ const LABELS: Record<TuningKey, string> = {
   runFrom: 'бег от',
   joyRadius: 'радиус джойст.',
   joyZone: 'зона джойст.',
+  joyHoldMs: 'кольцо через, мс',
   camDist: 'камера',
 };
 

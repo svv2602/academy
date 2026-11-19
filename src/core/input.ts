@@ -25,14 +25,17 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   addEventListener('blur', () => keys.clear());
 
   // One pointer may steer (left half on touch), another may look around; a short press is a tap.
-  let stick: { id: number; x: number; y: number; t: number; moved: boolean } | null = null;
+  // The ring shows only once the finger steers: moved past 12 px, or held longer than `tuning.joyHoldMs` - a short tap
+  // to walk ("go here") on the joystick side shows nothing.
+  let stick: { id: number; x: number; y: number; t: number; moved: boolean; hold: number } | null = null;
+  const showRing = () => { if (stick) { clearTimeout(stick.hold); joy.classList.add('on'); } };
   let look: { id: number; x: number; y: number; sx: number; sy: number; t: number; moved: boolean } | null = null;
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
     if (input.touch && e.clientX < innerWidth * tuning.joyZone && !stick) {
-      stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
-      joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; sizeRing(joy, tuning.joyRadius); joy.classList.add('on');
+      stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false, hold: window.setTimeout(showRing, tuning.joyHoldMs) };
+      joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; sizeRing(joy, tuning.joyRadius);
       knob.style.transform = 'translate(-50%,-50%)';
     } else if (!look) {
       look = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false };
@@ -42,7 +45,7 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
     if (stick && e.pointerId === stick.id) {
       let dx = e.clientX - stick.x, dy = e.clientY - stick.y;
       const d = Math.hypot(dx, dy), R = tuning.joyRadius;   // read on every move: the debug panel may change it
-      if (d > 12) stick.moved = true;
+      if (d > 12 && !stick.moved) { stick.moved = true; showRing(); }
       if (d > R) { dx *= R / d; dy *= R / d; }
       knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       stickX = dx / R; stickY = -dy / R;
@@ -56,6 +59,7 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
     if (stick && e.pointerId === stick.id) {
       // A short press on the joystick side that never became a drag is a tap-to-walk, same as anywhere else.
       if (!stick.moved && performance.now() - stick.t < 450 && e.type === 'pointerup') input.tap = { x: e.clientX, y: e.clientY };
+      clearTimeout(stick.hold);
       stick = null; stickX = stickY = 0; joy.classList.remove('on');
     }
     else if (look && e.pointerId === look.id) {

@@ -1147,6 +1147,40 @@ try {
         }
       }
 
+      // ---- a tap to walk on the joystick side of a phone: the heroine walks, and the joystick ring never shows (it shows
+      // only once a finger steers - moved past 12 px or held longer than tuning.joyHoldMs, src/core/input.ts) ----
+      if (has('cat') && touch) {
+        const fail = (what) => { throw new Error(`a tap to walk on the joystick side: ${what}`); };
+        await gameFor(() => !__game.busy, null, 30).catch(() => {});
+        const at = await g(() => {
+          const { THREE, camera } = __game, zone = innerWidth * __game.tuning.joyZone, h = __game.hero.root.position;
+          // a point of the ground some metres from her, seen on the joystick side over the canvas
+          for (const d of [3, 4.5, 2.2]) for (let k = 0; k < 16; k++) {
+            const a = (k / 16) * Math.PI * 2, wx = h.x + Math.sin(a) * d, wz = h.z + Math.cos(a) * d;
+            const v = new THREE.Vector3(wx, h.y, wz).project(camera);
+            if (v.z >= 1) continue;
+            const x = (v.x * 0.5 + 0.5) * innerWidth, y = (-v.y * 0.5 + 0.5) * innerHeight;
+            if (x < 20 || x > zone - 20 || y < innerHeight * 0.3 || y > innerHeight - 20) continue;
+            const el = document.elementFromPoint(x, y);
+            if (el && el.id === 'c') return { x, y };
+          }
+          return null;
+        });
+        if (!at) fail('no ground to tap on the joystick side');
+        await g(() => {
+          const j = document.querySelector('#joy'); window.__ringSeen = j.classList.contains('on');
+          window.__ringWatch = new MutationObserver(() => { if (j.classList.contains('on')) window.__ringSeen = true; });
+          window.__ringWatch.observe(j, { attributes: true, attributeFilter: ['class'] });
+        });
+        const from = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+        await page.touchscreen.tap(at.x, at.y);
+        await gameSeconds(1);
+        const r = await g((p) => { window.__ringWatch.disconnect(); return { seen: window.__ringSeen, moved: Math.hypot(__game.hero.root.position.x - p[0], __game.hero.root.position.z - p[1]) }; }, from);
+        if (r.seen) fail('the joystick ring showed');
+        if (r.moved < 0.3) fail(`the heroine did not walk (${r.moved.toFixed(2)} m)`);
+        console.log(`a tap to walk on the joystick side: she walked ${r.moved.toFixed(1)} m, the joystick ring never showed`);
+      }
+
       // ---- the cut-scenes (WORLD-13): the whole introduction once more (the debug command, nothing recorded): every frame
       // is shown, the offline walkthrough too, each by a tap ----
       if (has('story') && !groupSave) {
