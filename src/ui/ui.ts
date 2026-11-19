@@ -1,4 +1,5 @@
 import type { Save } from '../core/save';
+import type { UpdateState } from '../core/update';
 import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
 import { lastDays } from '../game/playtime';
 import { breakMinutes } from '../game/session';
@@ -96,6 +97,14 @@ export function fanfare(title: Key, text: string, gemColor = '#7fe3ff'): Promise
 }
 
 /** The free colours of the dress and the hair (R15): the start screen and the shop's fitting room (src/ui/shop.ts) show them. */
+/** TECH-13: the state of a new version for the version line of the parents' section (src/core/update.ts). */
+let updateState: UpdateState = 'none';
+export function showUpdate(s: UpdateState) {
+  updateState = s;
+  const e = document.getElementById('pUpdate');
+  if (e) { e.dataset.state = s; e.textContent = s === 'none' ? '' : ` · ${t(s === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`; }
+}
+
 export const DRESS = ['#ff7eb6', '#b388ff', '#5cc8ff', '#ffd54f', '#6ee7a8'];
 export const HAIR = ['#8a5a3a', '#f5d16b', '#3b2a3a', '#ff8a5c', '#ff9ed2'];
 
@@ -202,6 +211,8 @@ export function initBook(save: Save, book: BookInfo, on: {
     const list = hardest(save);
     return `<p id="pHard" class="pnote phard"><b>${t('p_hard')}</b> · ${list.length ? list.join(' · ') : t('p_hard_none')}</p>`;
   };
+  // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
+  const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
     $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
@@ -210,7 +221,7 @@ export function initBook(save: Save, book: BookInfo, on: {
       <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
       <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pReset">${t('p_reset')}</button></div>
-      <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span></div></div></div>`;
+      <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}</div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
       save.fixed[k] = nextFixed(k, save.fixed[k] ?? 0); on.change(); renderParents();

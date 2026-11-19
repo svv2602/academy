@@ -3,6 +3,7 @@ import { setProgressHandler } from './core/assets';
 import { setMusic, setVolumes, volume } from './core/audio';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
+import { startUpdater } from './core/update';
 import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
 import { loadShared } from './game/boot';
@@ -15,7 +16,7 @@ import { enterWorld, initStartScreen } from './game/start';
 import { createTravel, openWorld, worldView, type Travel } from './game/travel';
 import { pickWorld, type WorldDef } from './game/world';
 import { addStrings } from './ui/strings';
-import { el, initStart, showNotice } from './ui/ui';
+import { el, initStart, showNotice, showUpdate } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
 import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
 
@@ -37,6 +38,12 @@ const save = loadSave();
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
 applyVolume();
 initStart(save, save.played, () => applyLook());
+// TECH-13: a new version is switched on here, on the start screen before "Play" (one reload, when no other page of the
+// game answers), or by the browser once every page of the game is closed; never after "Play" (src/core/update.ts).
+let played = false;
+el.play.addEventListener('click', () => { played = true; }, { once: true, capture: true });
+const updater = startUpdater({ playing: () => played, hold: (on) => { (el.play as HTMLButtonElement).disabled = on; } });
+updater.onState(showUpdate);
 
 // ---------- TECH-07: no WebGL2, no game ----------
 // Three.js 0.170 draws with WebGL2 only: without it the renderer below throws, and the page would stay on the loading
@@ -124,5 +131,5 @@ async function boot() {
 
   const showDebug = debug ? exposeDebug(g, w.debug, travel) : null;
   // The walkthrough of the cache (tools/worlds.mjs) reads the download and the cache through these.
-  if (debug) Object.assign((window as unknown as { __game: object }).__game, { worlds });
+  if (debug) Object.assign((window as unknown as { __game: object }).__game, { worlds, update: updater });
 }

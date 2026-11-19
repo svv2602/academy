@@ -64,9 +64,11 @@ export default defineConfig(({ mode }) => {
       list,
       VitePWA({
         // A new version is taken at the next launch, never in the middle of a game (TECH-13): the new worker installs and
-        // waits until every page of the game is closed (registerType 'prompt', skipWaiting: false; the game never asks
-        // it to skip). clientsClaim: true lets the very first worker take the page that installed it, without that the
-        // offline walkthrough would wait for a controller. tools/update.mjs (the step "update" of npm run e2e) checks it.
+        // waits (registerType 'prompt', skipWaiting: false). It takes over when every page of the game is closed, or
+        // earlier from the start screen before "Play": src/core/update.ts sends it SKIP_WAITING (the listener workbox
+        // writes into sw.js) when no other page of the game answers, and reloads the page once. clientsClaim: true lets
+        // the very first worker take the page that installed it, without that the offline walkthrough would wait for a
+        // controller. tools/update.mjs (the step "update" of npm run e2e) checks it.
         registerType: 'prompt',
         includeAssets: ['icon.svg'],
         // Every file type the game page requests must be listed here, or the installed game breaks without network.
