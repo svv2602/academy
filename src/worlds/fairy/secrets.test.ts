@@ -33,3 +33,24 @@ describe('the ground of the secrets', () => {
     expect(Math.hypot(GLADE.x, GLADE.z) + GLADE.r + 3).toBeLessThan(WORLD_R - 4);
   });
 });
+
+describe('the camera on the glade', () => {
+  it('2.4 m from her inside the ring, the usual distance from its edge on, a smooth step between with no jump', async () => {
+    const { GLADE_CAM, GLADE_CAM_IN, GLADE_CAM_OUT, gladeCamDist } = await import('./secrets');
+    const far = 5.2;
+    expect(gladeCamDist(0, far)).toBe(GLADE_CAM);
+    expect(gladeCamDist(GLADE_CAM_IN, far)).toBe(GLADE_CAM);
+    expect(gladeCamDist(GLADE_CAM_OUT, far)).toBeCloseTo(far, 9);
+    expect(gladeCamDist(GLADE_CAM_OUT + 3, far)).toBeCloseTo(far, 9);
+    // the ring of rocks lies past the inner distance, the waterfall before the outer one
+    expect(GLADE_CAM_IN).toBeLessThan(GLADE.r);
+    expect(GLADE_CAM_OUT).toBeGreaterThan(GLADE.r + 1.4);
+    // never a jump: at most 1.5 times the mean change per metre, and never back
+    const most = (1.5 * (far - GLADE_CAM)) / (GLADE_CAM_OUT - GLADE_CAM_IN);
+    for (let d = 0; d < 10; d += 0.05) {
+      const dd = gladeCamDist(d + 0.05, far) - gladeCamDist(d, far);
+      expect(dd).toBeGreaterThanOrEqual(-1e-12);
+      expect(dd / 0.05).toBeLessThanOrEqual(most + 1e-9);
+    }
+  });
+});
