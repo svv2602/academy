@@ -244,7 +244,7 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
     expect(loop).toMatch(/\n\s*companion\.update\(dt\);\n\s*g\.pets\.update\(dt\);/);
     expect(loop).toMatch(/player\.tap\(canMove, here, world\.tap\)/);
     expect(loop).toMatch(/player\.prompt\(canMove, here\)/);
-    expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots\)/);
+    expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots, \.\.\.g\.mystery\.spots\)/);
   });
   it('the game makes the pets of the world played, with the models of the shared load', () => {
     // `g.world`, not the world of the launch: the pets are made anew for every world entered (TECH-15, src/game/travel.ts)

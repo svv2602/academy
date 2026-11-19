@@ -16,6 +16,8 @@ import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './taskviews/panel';
 import { Butterflies } from './butterflies';
 import { createPets, type PetsInWorld } from './pets';
+import { createPlanner, type Planner } from './planner';
+import { createMystery, type MysteryInWorld } from './mystery-stars';
 import type { CharacterDef, WorldDef, WorldGround } from './world';
 import { el, setAct, setCounter } from '../ui/ui';
 
@@ -111,6 +113,13 @@ export interface Game extends GameWorld {
   task(open: () => Promise<TaskResult>): Promise<TaskResult>;
   hooksFor(speaker: string): TaskHooks;
   /**
+   * The planner of the panel tasks (src/game/planner.ts), one for the session: the conversations of every world and the
+   * mysterious stars draw from it, so the examples with mistakes come back wherever the next task is asked.
+   */
+  readonly plan: Planner;
+  /** The mysterious stars of the world played (src/game/mystery-stars.ts), made anew on every entry like the pets. */
+  readonly mystery: MysteryInWorld;
+  /**
    * TECH-15: the world played is left (src/game/travel.ts, under the closed frame, before its scope is disposed). From
    * here to the next `enter` no task opens, and what the left world still runs no longer touches the controls.
    */
@@ -148,6 +157,8 @@ export interface WorldEntry {
   arrive?: WorldDef['arrive'];
   /** Its own word for where she stopped (WorldDef.left); absent - the shared ones (src/ui/welcome.ts). */
   left?: WorldDef['left'];
+  /** The places of its mysterious stars (WorldDef.mystery); absent: none. */
+  mystery?: WorldDef['mystery'];
 }
 
 /** The heading of the heroine as a world opens, when it names none: facing -z, the camera behind her (yaw 0). */
@@ -234,10 +245,13 @@ export function createGame(o: {
 
   // The pets read the game live (`busy`, the heroine): they are made of it right after it.
   let pets: PetsInWorld | null = null;
+  let mystery: MysteryInWorld | null = null;
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, petGear: o.shared.petGear ?? {}, rng: o.rng,
     get pets() { return pets!; },
+    get mystery() { return mystery!; },
+    plan: createPlanner(save),
     busy: false, paused: false, still: false, auto: null, camOverride: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
@@ -259,6 +273,7 @@ export function createGame(o: {
       // The pets of the world entered: its own pet at its place, the chosen one by the heroine (the ones of the world
       // left were taken out with it, src/game/travel.ts).
       pets?.dispose(); pets = petsOf();
+      mystery?.dispose(); mystery = mysteryOf();
       for (const fn of watchers) fn('enter');
     },
     onWorld: (fn) => { watchers.push(fn); },
@@ -270,6 +285,9 @@ export function createGame(o: {
     chainDone: (id) => { const c = g.world.characters?.find((x) => x.id === id); return !!c && (g.ws.quests[c.id] ?? 0) >= c.steps.length; },
   });
   pets = petsOf();
+  // The mysterious stars of the world entered, with a stage of that entry (src/game/mystery-stars.ts).
+  const mysteryOf = (): MysteryInWorld => createMystery(g, o.shared.starGeo, () => createStage(g, () => {}));
+  mystery = mysteryOf();
   return g;
 }
 

@@ -115,7 +115,7 @@ async function boot() {
   const entryOf = (world: WorldDef): WorldEntry => ({
     id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '',
     pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars,
-    move: world.move, worldTasks: world.worldTasks, arrive: world.arrive?.bind(world), left: world.left?.bind(world),
+    move: world.move, worldTasks: world.worldTasks, arrive: world.arrive?.bind(world), left: world.left?.bind(world), mystery: world.mystery,
   });
   // shared(): the heroine, the cat, the sparks and the butterflies - and the guide and the tap ring of the loop below -
   // join the scene after the world's sky and load, and are not the world's.
