@@ -4,7 +4,8 @@ import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
 import { CAT_TAP_Y } from './companion';
 import { uTime } from '../core/materials';
-import { cheatTask } from './taskviews/panel';
+import { cheatTask, runTask, type TaskResult } from './taskviews/panel';
+import type { TaskType } from './tasks/types';
 import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
 import type { Game } from './context';
@@ -151,6 +152,15 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * the rung of the hint on screen, its middle; null when none is open.
      */
     worldTask: worldTaskDoor(g),
+    /**
+     * A panel task of `type` and `level` opened now, as a character would (the cat's hooks, the helpers of her stock):
+     * the walkthrough's way to the helpers of a task (src/game/helpers.ts). The game stands while it is open; the
+     * promise settles with its result. Nothing is recorded: no level, no stars.
+     */
+    task(type: TaskType, level: number): Promise<TaskResult> {
+      g.busy = true;
+      return runTask(type, level, g.hooksFor('🐱'), g.rng).finally(() => { g.busy = false; });
+    },
     /** Does the right thing for whatever task is on screen; returns what it did. */
     cheat() {
       const done = world.cheatWorld();

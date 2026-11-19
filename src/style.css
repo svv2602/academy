@@ -425,3 +425,10 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 #supplies .sup b { position: absolute; right: -4px; bottom: -4px; min-width: 20px; height: 20px; border-radius: 10px; padding: 0 5px;
   background: #fff; color: #7a4fb0; font-size: 13px; line-height: 20px; box-shadow: 0 2px 0 rgba(120,80,160,.25); }
 #supplies .sup:active { transform: translateY(3px); }
+
+/* The helpers of a task (src/game/helpers.ts): their buttons in the top left corner of the panel, as the close button
+   in the right one; only those she has, where they give something. */
+.t-helps { position: absolute; top: -14px; left: -6px; display: flex; gap: 8px; }
+.t-help { width: 48px; height: 48px; border-radius: 50%; background: #fff; font-size: 26px; line-height: 1; box-shadow: 0 4px 0 rgba(160,110,200,.25),
+  0 0 0 3px #ffe9a6; animation: pop .3s; }
+@media (max-aspect-ratio: 5/4) { .t-helps { top: -8px; } }

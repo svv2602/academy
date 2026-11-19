@@ -36,6 +36,9 @@ export function signsView(spec: SignsSpec, c: PanelCtx) {
   const sides = [side(a), side(b)];
   const slot = el('span', 'slot', '?');
   c.stage.append(sides[0], slot, sides[1]);
+  // The abacus (src/game/helpers.ts): under each number its things in ten frames, not matched - the matching is the
+  // second rung of the hint.
+  if (c.framed) [a, b].forEach((n, i) => tenFrames(sides[i], Array.from({ length: n }, () => el('span', 'pt', spec.body.thing))));
   const ok = options(c, spec.body.options, (v) => signs.answer(spec, st, v) === 'right');
   // The sign the child put stands between the numbers.
   tap(ok, () => { slot.textContent = spec.body.answer; slot.classList.add('set'); });

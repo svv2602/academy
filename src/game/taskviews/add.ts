@@ -8,7 +8,7 @@ import { FRAMES_FROM, countOn, fillTen, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 
 export function addView(spec: AddSpec, c: PanelCtx) {
-  const st = add.start(spec), { a, thing, tilt } = spec.body, framed = spec.level >= FRAMES_FROM;
+  const st = add.start(spec), { a, thing, tilt } = spec.body, framed = spec.level >= FRAMES_FROM || c.framed === true;   // c.framed: the abacus
   const ga = el('div', framed ? 'group framed' : 'group'), gb = el('div', framed ? 'group framed' : 'group');
   c.stage.append(ga, el('span', 'sign', '+'), gb, el('span', 'sign', '='), el('span', 'sign q', '?'));
   const all = [...items(ga, thing, tilt.slice(0, a)), ...items(gb, thing, tilt.slice(a))];

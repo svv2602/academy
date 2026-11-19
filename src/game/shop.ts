@@ -60,9 +60,15 @@ export const CATALOG: readonly Item[] = [
 /** The thing of an id, or undefined for an id the catalog does not know (a later version's thing, a damaged save). */
 export const item = (id: string): Item | undefined => CATALOG.find((i) => i.id === id);
 
-/** The things that are used up: the four potions and the compass (src/game/supplies.ts). */
-export const SUPPLY_IDS = ['speed', 'jump', 'glow', 'funny', 'compass'] as const;
-export type SupplyId = (typeof SUPPLY_IDS)[number];
+/** The potions and the compass: drunk in the game, from the row of their buttons (src/game/supplies.ts). */
+export const POTION_IDS = ['speed', 'jump', 'glow', 'funny', 'compass'] as const;
+export type PotionId = (typeof POTION_IDS)[number];
+/** The helpers of a task: taken in the task itself, from its panel (src/game/helpers.ts). */
+export const HELPER_IDS = ['owl', 'abacus'] as const;
+export type HelperId = (typeof HELPER_IDS)[number];
+/** The things that are used up: the potions and the compass, and the helpers of a task. */
+export const SUPPLY_IDS = [...POTION_IDS, ...HELPER_IDS] as const;
+export type SupplyId = PotionId | HelperId;
 /** A thing that is used up: bought again and again, each purchase one more in her stock. */
 export interface Supply { id: SupplyId; price: number; supply: true }
 /**
@@ -75,6 +81,10 @@ export const SUPPLIES: readonly Supply[] = [
   { id: 'funny', price: 20, supply: true },
   { id: 'glow', price: 30, supply: true },
   { id: 'compass', price: 30, supply: true },
+  // the helpers of a task (decision of 2026-11-19): the owl says the first rung of the hint at once, the abacus lays the
+  // things out in ten frames
+  { id: 'owl', price: 15, supply: true },
+  { id: 'abacus', price: 20, supply: true },
 ];
 /** No more of one kind in her stock: the number fits its button, and the stars are not all spent on one thing. */
 export const STOCK_MAX = 9;

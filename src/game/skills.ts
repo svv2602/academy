@@ -42,11 +42,14 @@ export function levelFor(s: Save, skill: SkillId) {
  * tasks in a row that reached the second, step it down; a single wrong answer keeps the level (and ends both runs).
  * `streak` counts the clean solves in a row (above 0) or the tasks in a row that ended at the second step (below 0).
  */
-export function recordTask(s: Save, skill: SkillId, wrong: number) {
-  countClean(s, wrong);
+export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false) {
   const k = s.skills[skill];
   const [min, max] = LEVELS[skill];
   k.tasks++; k.errors += wrong;
+  // Solved with a helper (the owl, the abacus, src/game/helpers.ts) and no mistake: no error, but no clean solve either -
+  // the run of clean solves and the run towards the next level start again, the level stays.
+  if (helped && wrong === 0) { countClean(s, 1); k.streak = 0; k.level = withinLevels(skill, k.level); return; }
+  countClean(s, wrong);
   if (wrong === 0) {
     k.first++; k.streak = Math.max(1, k.streak + 1);
     if (k.streak >= 2 && k.level < max) { k.level++; k.streak = 0; }

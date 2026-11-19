@@ -73,7 +73,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         await line('npc_again', 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
-        if (res.solved) { recordTask(save, skill, res.wrong); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
+        if (res.solved) { recordTask(save, skill, res.wrong, res.helped === true); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
         return;
       }
       if (done === 0 && q.hi) await line(q.hi, 'story', 0, q.emoji);
@@ -91,7 +91,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         ws.quests[q.id] = k + 1;
-        recordTask(save, skill, res.wrong);
+        recordTask(save, skill, res.wrong, res.helped === true);   // with a helper: no level up (src/game/helpers.ts)
         addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();

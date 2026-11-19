@@ -9,8 +9,8 @@ let s: Save;
 beforeEach(() => { s = defaultSave(); });
 
 describe('the shop sells the supplies again and again (src/game/shop.ts)', () => {
-  it('prices: speed 25, jump 25, funny 20, glow 30, compass 30', () => {
-    expect(Object.fromEntries(SUPPLIES.map((x) => [x.id, x.price]))).toEqual({ speed: 25, jump: 25, funny: 20, glow: 30, compass: 30 });
+  it('prices: speed 25, jump 25, funny 20, glow 30, compass 30; the helpers: owl 15, abacus 20', () => {
+    expect(Object.fromEntries(SUPPLIES.map((x) => [x.id, x.price]))).toEqual({ speed: 25, jump: 25, funny: 20, glow: 30, compass: 30, owl: 15, abacus: 20 });
   });
 
   it('each purchase takes the price and adds one to the stock; never into the things she wears', () => {
