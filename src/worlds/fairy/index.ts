@@ -31,7 +31,7 @@ import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
-import { SHOP_SIGN } from './layout';
+import { MYSTERY_SPOTS, SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
@@ -394,6 +394,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   worldTasks: WORLD_TASKS,
   chest: 'chest',
   groundStars: 8,
+  mystery: { spots: MYSTERY_SPOTS },
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,

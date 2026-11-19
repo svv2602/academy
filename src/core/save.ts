@@ -27,6 +27,8 @@ export interface WorldState {
   starsTaken: number[];             // ids of collected world stars
   flags: Record<string, boolean>;   // the world's own one-off things by its names (the first world: `chest` is open)
   pos: [number, number] | null;     // where the heroine stood
+  /** The mysterious stars of the day (src/game/mystery.ts): absent until the first of them is shown; mended where read. */
+  mystery?: { day: string; solved: number[]; told?: boolean };
 }
 export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)
