@@ -19,7 +19,7 @@ const uk = {
   // --- the two other secrets (PLAY-10, ./secrets.ts): the glade behind the waterfall, the fairy house and its room
   secret_glade: 'Таємна галявина за водоспадом! Тут ростуть чарівні квіти.',
   secret_house: 'Це скринька феї з музикою! Дякую, що завітала.',
-  house_in: 'Зайти', house_out: 'Вийти', house_look: 'Роздивитися',
+  house_in: 'Зайти', house_out: 'Вийти', house_look: 'Роздивитися', to_tree: 'До Древа',
   // --- the parts hidden in the world (WORLD-08, ./parts.ts): where the fox and the mushroom king left their shards
   fox_part_hint: 'Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?',
   mushking_part_hint: 'Мій уламок лежить на полиці в будиночку феї біля криниці.',
@@ -58,7 +58,7 @@ const ru: Record<keyof typeof uk, string> = {
   chest: 'Ого, тайный сундук! В нём звёздочки!', crystal_name: 'Кристалл света',
   secret_glade: 'Тайная поляна за водопадом! Здесь растут волшебные цветы.',
   secret_house: 'Это шкатулка феи с музыкой! Спасибо, что заглянула.',
-  house_in: 'Зайти', house_out: 'Выйти', house_look: 'Рассмотреть',
+  house_in: 'Зайти', house_out: 'Выйти', house_look: 'Рассмотреть', to_tree: 'К Древу',
   fox_part_hint: 'Свой осколок я спрятала за водопадом, на тайной поляне. Найдёшь?',
   mushking_part_hint: 'Мой осколок лежит на полке в домике феи у колодца.',
   free: 'Гуляй по королевству! Здесь ещё много тайн.',

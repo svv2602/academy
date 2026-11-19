@@ -37,6 +37,8 @@ import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
 import { QUESTS, TASK_STEPS, WORLD_TASKS, chainDone, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
+import { FROM_HUB, HUB, createTreeWay, hubVisited } from './tree-way';
+import { travel } from '../../game/travel';
 import { SIGN_H } from './scenery';
 import { SKY_RADIUS, buildSky } from './sky';
 import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
@@ -102,7 +104,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // The cut-scenes (WORLD-13, ./story.ts): the introduction is played by the start of the game (src/game/start.ts), the
   // return of the crystal once the finale and its last words are over - "walk around" comes after it.
   const story = setStories(g, FAIRY_STORIES, scope);
-  const restoreCrystal = createFinale(g, stage, shrine, npcs, scope, () => playStory(g, 'story_crystal'));
+  // The way to the Great Tree (WORLD-01): the first time she goes there by herself once the crystal is back.
+  const treeWay = createTreeWay(g);
+  const restoreCrystal = createFinale(g, stage, shrine, npcs, scope, () => playStory(g, 'story_crystal'),
+    () => (hubVisited(g.save) ? null : () => travel(HUB)));
   // The shared conversation (src/game/dialogue.ts): a step of a chain that is not a panel task names one of these.
   // ---------- tasks played in the world (PLAY-01, src/game/worldtasks/): steps of the chains, on the shared frame ----------
   // One task at a time, opened by the shared player (src/game/worldtasks/play.ts): its frame, the close button, the debug
@@ -209,6 +214,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
+    treeWay.spot,
     ...secrets.spots,
   ];
 
@@ -219,7 +225,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     if (shard) return shard;
     const next = npcs.find((n) => !chainDone(ws, n.def));
     if (next) return next.pos;
-    return ws.final ? null : shrine.pos;
+    // the crystal whole: to the way to the Great Tree until she has been there (R28: also a save from before the hub)
+    if (ws.final) return hubVisited(g.save) ? null : treeWay.pos;
+    return shrine.pos;
   }
 
   // ---------- the world's parts of the frame (src/game/loop.ts calls them in its order) ----------
@@ -238,6 +246,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       parts.update(dt, time, canMove);
       starSearch.update(dt, time);
       shrine.update(dt, time);
+      treeWay.update(time);
       creatures.update(dt);
       magic.update(dt);
     },
@@ -404,6 +413,8 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   id: 'fairy',
   shelf: 0,   // the Crystal of Light, the first place of the shelf
   spawn: SPAWN,
+  // Out of the arch to the Great Tree, back from the hub (./tree-way.ts); from elsewhere - where she was left.
+  arrive: (from) => (from === HUB ? FROM_HUB : null),
   ground,
   characters: FRIENDS,
   secrets: ['chest', 'glade', 'house'],

@@ -73,9 +73,11 @@ export function buildShrine(g: Game, L: FairyLoads, _sky: ReturnType<typeof buil
  * The finale (ARCH-05): the five shards merge into the crystal. Returns the scene to start from the shrine's spot;
  * what the cat says after it is said once the scene is over (its end clears the bubble), never inside it.
  * `after` runs once the scene and its last words are over, before "walk around": the cut-scene of the return of the
- * crystal (WORLD-13, ./story.ts).
+ * crystal (WORLD-13, ./story.ts). `away`, asked then: the way out of the world she takes right now (the first time,
+ * to the Great Tree, ./tree-way.ts) - she goes there instead of "walk around", after the stop point; null: she stays.
  */
-export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readonly Npc[], scope: WorldScope, after: () => Promise<unknown> = async () => {}): () => Promise<void> {
+export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readonly Npc[], scope: WorldScope, after: () => Promise<unknown> = async () => {},
+  away: () => (() => Promise<unknown>) | null = () => null): () => Promise<void> {
   const { ws, cam, hero, cat, sparks, persist, fault } = g;
   const { line } = g.speech;
   const pos = shrine.pos;
@@ -99,7 +101,15 @@ export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readon
       // After the scene (its end clears the bubble) and after the final words: a hint does not cut the story off.
       // The last words, then the return of the crystal (its cut-scene, `after`), then "free", then a stop point (PLAY-08):
       // the achievement of the artifact restored has its scene right after the finale, not at whatever point comes next.
-      onward = () => { void words.then(after).then(() => line('free', 'hint', 6000)).then(() => stopPoint('finale', g)); };
+      // The first time she goes to the Great Tree instead of "free" (R12, R29): the stop point, then the way out.
+      onward = () => {
+        void words.then(after).then(async () => {
+          const go = away();
+          if (!go) await line('free', 'hint', 6000);
+          await stopPoint('finale', g);
+          if (go) await go();
+        });
+      };
     });
     onward();
   };

@@ -11,6 +11,8 @@ export const PATCH = { x: -1.5, z: -15.5 };   // flower patch where the task but
 export const CRYSTAL = { x: 2.2, z: -9.2 };
 export const CHEST = { x: -31, z: 6 };        // optional secret behind the birches
 export const SHOP_SIGN = { x: 4, z: 9.6 };   // the shop's signboard at the spawn meadow, right of the path (R10, R19)
+/** The arch to the Great Tree (./tree-way.ts): at the end of the path behind the spawn, facing the valley (-z). */
+export const TREE_WAY = { x: 0, z: 21.5, facing: Math.PI };
 // The two secrets besides the chest (PLAY-10): a glade hidden behind a waterfall at the valley's south-east rim - its
 // curtain faces the valley, the rocks around close it - and the fairy house by the well, whose door leads into a room.
 export const GLADE = { x: 44, z: -40, r: 4.2 };
