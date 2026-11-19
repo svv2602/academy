@@ -204,6 +204,12 @@ export function initBook(save: Save, book: BookInfo, on: {
   };
   // Two tables of the same columns (five skills and four): side by side on a phone held sideways, one under the other upright.
   const skillTable = (ks: readonly SkillId[]) => `<table class="ptab"><tr><th>${t('p_skill')}</th><th>${t('p_level')}</th><th>${t('p_tasks')}</th><th>${t('p_first')}</th></tr>${ks.map(skillRow).join('')}</table>`;
+  // The helpers of a task taken in the last seven days (src/game/helpers.ts): the parents see how often she leans on
+  // them. Under the version, in the corner it stands in: a line of the section's own would push it past a phone's window.
+  const helpsLine = () => {
+    const n = helpsOfWeek(save);
+    return `<div id="pHelps" title="${HELPER_IDS.map((id) => t(`supn_${id}` as Key)).join(', ')}">${t('p_helps')}: ${HELPER_IDS.map((id) => `${SUPPLY_LOOK[id].icon} ${n[id]}`).join(' · ')}</div>`;
+  };
   // The minutes of the last seven days (R33), today last; for the grown-ups only, nothing of it reaches the child.
   const timeBlock = () => {
     const days = lastDays(save), total = days.reduce((n, d) => n + d.minutes, 0);
@@ -215,22 +221,18 @@ export function initBook(save: Save, book: BookInfo, on: {
     const list = hardest(save);
     return `<p id="pHard" class="pnote phard"><b>${t('p_hard')}</b> · ${list.length ? list.join(' · ') : t('p_hard_none')}</p>`;
   };
-  // The helpers of a task taken in the last seven days (src/game/helpers.ts): the parents see how often she leans on them.
-  const helpsBlock = () => {
-    const n = helpsOfWeek(save), any = HELPER_IDS.some((id) => n[id] > 0);
-    return `<p id="pHelps" class="pnote phard"><b>${t('p_helps')}</b> · ${any ? HELPER_IDS.map((id) => `${SUPPLY_LOOK[id].icon} ${t(`supn_${id}` as Key)}: ${n[id]}`).join(' · ') : t('p_helps_none')}</p>`;
-  };
+
   // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
   const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
     $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
-      ${hardBlock()}${helpsBlock()}</div>
+      ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
       <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pReset">${t('p_reset')}</button></div>
-      <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}</div></div></div>`;
+      <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}${helpsLine()}</div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
       save.fixed[k] = nextFixed(k, save.fixed[k] ?? 0); on.change(); renderParents();
