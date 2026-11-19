@@ -27,6 +27,13 @@ export const GROUND = {
 export const CAT_PACE_MAX = 3;
 /** The pace of the pet's walk at most; faster, it gallops. */
 export const PET_WALK_MAX = 2.2;
+/**
+ * The pace of the pet's gallop at most. At the heroine's run (5.4 m/s) the fawn's gallop would need a pace near 5.2:
+ * its legs whirred (the customer on the S22, 2026-11-19). It keeps 2.6 - half the strides - and its paws slide about
+ * half of the way at the top speed (the bound of the walkthrough is 0.6). A longer leap was the other way: the clip's
+ * stride is set by the model's legs, so only a bigger fawn or a new clip would make it, not a pace.
+ */
+export const PET_RUN_MAX = 2.6;
 /** A pace below this looks like standing still while the body moves: the steps go on at least this fast. */
 export const PACE_MIN = 0.5;
 

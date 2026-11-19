@@ -2775,8 +2775,10 @@ try {
           // ground, measured by tools/feet.mjs: Walk 0.24, Gallop 1.04 m/s) is set against the way the pet went. What is
           // not covered slides. Read from the pace, not from the paws: a slow machine draws fewer frames than a paw
           // stands. Measured 2026-11-18 (the block "finale"): 0.91 of its way with the pace by the distance (the walk
-          // only), 0.081 with the pace by its speed and the gallop, 0.053 drawn by program; the bound is half way.
-          const PET_SLIDE = 0.5, PET_GROUND = { Walk: 0.24, Gallop: 1.04 };
+          // only), 0.081 with the pace by its speed and the gallop, 0.053 drawn by program. 2026-11-19: the gallop is held
+          // to a pace of 2.6 (PET_RUN_MAX: its legs whirred at 5.2), so at the top speed its paws slide about half the way;
+          // the bound is 0.6 of it.
+          const PET_SLIDE = 0.6, PET_GROUND = { Walk: 0.24, Gallop: 1.04 };
           if (mode === 'mobile' || mode === 'mobile-portrait') {
           await g(() => {
             const log = window.__paceLog = [];
