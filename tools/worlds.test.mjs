@@ -14,7 +14,7 @@ import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { listWorlds } from './vite-worlds.mjs';
 import {
   FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
-  pelvisKey, playRound, probeBuildProblems, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
+  keyDiff, pelvisKey, playRound, probeBuildProblems, programKind, probeFiles, probeLeft, publishedProblems, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
 
@@ -773,6 +773,51 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
     expect(roundProblems(five({ kinds: KINDS.slice(5) }))).toEqual([]);
   });
 
+  // A cache key of the renderer for a standard material (three.js r170 order): the program, its defines, the parameters
+  // from the precision on (the lights at places 32-43 after it), the two masks, the colour space, the custom key.
+  const stdKey = ({ point = 0, dirShadow = 0, map = 'uv', custom = '' } = {}) => {
+    const params = ['highp', 'srgb', '0', '0', map, ...Array(22).fill('false'), '0', 'false', 'false', '0', '0',
+      '1', String(point), '0', '0', '1', '0', String(dirShadow), '0', '0', '0', '0', '2', '6', '0', '0', '3200'];
+    return ['physical', 'STANDARD', '', ...params, '131073', '3', 'srgb', custom].join(',');
+  };
+
+  it('the kind of a program leaves out the lights it was compiled for, and gives them on their own (2026-11-19, the runner)', () => {
+    const inFirst = programKind('', stdKey({ dirShadow: 1 })), inProbe = programKind('', stdKey({ point: 1 }));
+    expect(inFirst.kind).toBe(inProbe.kind);
+    expect(inFirst.lights).not.toBe(inProbe.lights);
+    expect(inFirst.lights.split('.')).toHaveLength(12);
+    expect(inFirst.lights.split('.').slice(0, 2)).toEqual(['1', '0']);    // one directional light, no point light
+    expect(inProbe.lights.split('.').slice(0, 2)).toEqual(['1', '1']);
+    // another material is another kind, in any light
+    expect(programKind('', stdKey({ map: 'false' })).kind).not.toBe(inFirst.kind);
+    expect(programKind('', stdKey({ custom: 'leaf0.25' })).kind).not.toBe(inFirst.kind);
+    // a material of its own compiled again (new numbers of its shaders) is the same kind; a raw one has no lights
+    expect(programKind('', '12,13,highp,x').kind).toBe(programKind('', '40,41,highp,x').kind);
+    expect(programKind('', '12,13,a,b').lights).toBeNull();
+    expect(programKind('MeshBasic', stdKey()).kind.startsWith('MeshBasic:')).toBe(true);
+  });
+
+  it('the lights are judged on their own: a state seen before is none, a light never had before is (a world left behind)', () => {
+    const L = (s) => `lights:${s}`;
+    // the runner: the materials in the other light in round 5 only - their kinds are the known ones, the light was had
+    const swing = [1, 2, 3, 4, 5].map((n) => round(n, { kinds: [...KINDS, L('a'), ...(n === 1 || n === 5 ? [L('b')] : [])] }));
+    expect(roundProblems(swing)).toEqual([]);
+    // a point light more in round 5 than any round before: a problem, whatever the count of kinds
+    const left = [1, 2, 3, 4, 5].map((n) => round(n, { kinds: [...KINDS, L('a'), ...(n === 5 ? [L('c')] : [])] }));
+    expect(roundProblems(left)).toEqual([expect.stringMatching(/^after round 5 a program is compiled for lights no round before had \(rounds 1-4\): lights:c - the lights of a world left behind\?/)]);
+    // the light kinds are not counted in the 10 % of the programs: two new programs of twenty are still within
+    const lit = [1, 2, 3, 4, 5].map((n) => round(n, { kinds: [...KINDS, L('a'), L('b'), L('d'), ...(n === 5 ? ['leak:a', 'leak:b'] : [])] }));
+    expect(roundProblems(lit)).toEqual([]);
+  });
+
+  it('a new kind is told by how its key differs from the nearest known one', () => {
+    const keys = { 'physical:a': 'physical,1,2,3', 'physical:b': 'physical,1,9,3', 'physical:c': 'physical,8,9,7', 'basic:z': 'basic,1,2,3' };
+    expect(keyDiff('physical:a', keys)).toBe('vs physical:b: #2: 9 -> 2');
+    expect(keyDiff('basic:z', keys)).toBe('no known kind of this program');
+    const withKeys = five({ kinds: [...KINDS, 'leak:a', 'leak:b', 'leak:c'], keys: { 'leak:a': 'leak,1', 'leak:b': 'leak,2' } });
+    expect(roundProblems(withKeys)[0]).toMatch(/; how the first differs - vs leak:b: #1: 2 -> 1$/);
+  });
+
   it('readRound: the garbage is collected (twice) before the heap is read, then the renderer is read', async () => {
     const calls = [];
     const cdp = { send: async (m) => { calls.push(m); return m === 'Runtime.getHeapUsage' ? { usedSize: 1234, totalSize: 9999 } : {}; } };
@@ -780,7 +825,7 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
     globalThis.window = { __game: { renderer: { info: { memory: { geometries: 7, textures: 3 }, programs: [1, 2] } } } };
     try {
       const page = { evaluate: async (fn, arg) => { calls.push('renderer'); return fn(arg); } };
-      expect(await readRound(page, cdp, 2)).toEqual({ round: 2, heap: 1234, geometries: 7, textures: 3, programs: 2, kinds: null });
+      expect(await readRound(page, cdp, 2)).toEqual({ round: 2, heap: 1234, geometries: 7, textures: 3, programs: 2, kinds: null, keys: null });
       // with the watch on: the kinds noted since the read before, sorted, and the noting starts anew
       globalThis.window.__programKinds = new Set(['b:2', 'a:1']);
       expect((await readRound(page, cdp, 3)).kinds).toEqual(['a:1', 'b:2']);
@@ -816,6 +861,15 @@ describe('the rounds "first world -> probe world -> back" (TECH-15, R10, R19)', 
       programs.push({ name: '', cacheKey: '57,58,NOFOG,x' });
       frames.shift()();
       expect(globalThis.window.__programKinds.size).toBe(5);
+      // the same material in the lights of the two worlds: one kind, and each setting of the lights noted on its own
+      programs.push({ name: 'MeshStandardMaterial', cacheKey: stdKey({ dirShadow: 1 }) });
+      frames.shift()();
+      programs.push({ name: 'MeshStandardMaterial', cacheKey: stdKey({ point: 1 }) });
+      frames.shift()();
+      const lit = [...globalThis.window.__programKinds];
+      expect(lit.filter((k) => k.startsWith('lights:'))).toHaveLength(2);
+      expect(lit).toHaveLength(5 + 1 + 2);
+      expect(globalThis.window.__programKeys[lit.find((k) => k.startsWith('lights:'))]).toMatch(/^\d+(\.\d+){11}$/);
       // installed once: a second call starts the noting anew, it does not add a second watch
       await watchPrograms(page);
       expect(globalThis.window.__programKinds.size).toBe(0);
