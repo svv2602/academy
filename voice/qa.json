@@ -5424,5 +5424,13 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "shop_deal": {
+  "text": "Сьогодні в лавці знижка! Подивись, що позначено стрічкою.",
+  "heard": "Сьогодні в лавці знижка. Подивись, що позначено стрічкою.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -118,6 +118,11 @@ export interface Save {
    * seven days are kept; the parents' section shows their sum. Absent until the first one taken.
    */
   helps?: Record<string, Record<string, number>>;
+  /**
+   * The deal of the day (src/game/deal.ts): `took` - the day its thing was bought at the deal's price (no other deal that
+   * day), `said` - the day the cat told of it in the shop (once a day). Dates `YYYY-MM-DD`; absent until first written.
+   */
+  deal?: { took?: string; said?: string };
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -418,6 +423,11 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The stock and the effects: only whole counts above zero and seconds above zero are kept (an unknown id too).
   if (s.supplies !== undefined) out.supplies = countsOf(s.supplies, (n) => Number.isInteger(n) && n > 0);
   if (s.effects !== undefined) out.effects = countsOf(s.effects, (n) => n > 0);
+  // The deal of the day: its two dates, each kept only when it is a date.
+  if (s.deal !== undefined) {
+    const d = isObject(s.deal) ? s.deal : {};
+    out.deal = Object.fromEntries(['took', 'said'].filter((k) => typeof d[k] === 'string' && DAY.test(d[k] as string)).map((k) => [k, d[k]]));
+  }
   // The helpers taken by day: a day keyed by its date, its counts whole and above zero; anything else is dropped.
   if (s.helps !== undefined) {
     out.helps = Object.fromEntries(Object.entries(isObject(s.helps) ? s.helps : {})

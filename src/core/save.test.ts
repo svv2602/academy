@@ -1289,3 +1289,19 @@ describe('the potions and the compass: `supplies` and `effects`, fields of versi
     for (const bad of [3, 'x', null, [1]]) expect(load({ supplies: bad, effects: bad })).toMatchObject({ supplies: {}, effects: {} });
   });
 });
+
+describe('the deal of the day: `deal`, a field of version 4 without a new version', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+  it('absent in a fresh save; read and written as it is', () => {
+    expect('deal' in defaultSave()).toBe(false);
+    storeSave({ ...load({ deal: { took: '2030-03-05', said: '2030-03-05' }, later: 1 }) });
+    expect(loadSave()).toMatchObject({ deal: { took: '2030-03-05', said: '2030-03-05' }, later: 1 });
+  });
+  it('a damaged date is dropped, a damaged field is empty', () => {
+    expect(load({ deal: { took: 'today', said: '2030-03-05', x: 1 } }).deal).toEqual({ said: '2030-03-05' });
+    for (const bad of [3, 'x', null, ['2030-03-05']]) expect(load({ deal: bad }).deal, JSON.stringify(bad)).toEqual({});
+  });
+});

@@ -5,6 +5,8 @@ import { tuning } from '../core/tuning';
 import { CAT_TAP_Y } from './companion';
 import { uTime } from '../core/materials';
 import { cheatTask, runTask, type TaskResult } from './taskviews/panel';
+import { dealState } from './deal';
+import { dealOf } from './shop';
 import type { TaskType } from './tasks/types';
 import { worldTaskDoor } from './worldtasks/core';
 import { transition } from './transition';
@@ -18,6 +20,8 @@ import type { WorldItem } from './world';
 
 /** The key of the tab's storage that keeps the walkthrough's lever of the gift (`__game.gift`) over a reload. */
 export const GIFT_HOLD = 'amw-gift-hold';
+/** The walkthrough's lever of the deal of the day (src/game/deal.ts), kept for the tab like the gift's. */
+export const DEAL_HOLD = 'amw-deal-hold';
 /** The same for the walkthrough's lever of the break (`__game.brk`). */
 export const BREAK_HOLD = 'amw-break-hold';
 
@@ -50,6 +54,7 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   // The walkthrough's lever of the gift of the day, pulled in this tab before (window.__game.gift below).
   try { giftState.held = sessionStorage.getItem(GIFT_HOLD) === '1'; } catch { /* ignore */ }
   try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
+  try { dealState.held = sessionStorage.getItem(DEAL_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
   // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
@@ -114,6 +119,17 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * `release()` - the gift by the clock again, `held` - whether it is pulled. The walkthrough's own lever (R61: the saves
      * of its pieces do not depend on the real date), never the game's; it lasts for the tab (sessionStorage), reloads too.
      */
+    /**
+     * The deal of the day (src/game/deal.ts): `hold()` - no deal, every price its own (all pieces, R61), `release()` -
+     * the deal again; `day(key)` - the day taken as today (null: the real one); `today` - the deal now, or null.
+     */
+    deal: {
+      get held() { return dealState.held; },
+      hold() { dealState.held = true; try { sessionStorage.setItem(DEAL_HOLD, '1'); } catch { /* ignore */ } },
+      release() { dealState.held = false; try { sessionStorage.removeItem(DEAL_HOLD); } catch { /* ignore */ } },
+      day(key: string | null) { dealState.day = key; },
+      get today() { return dealOf(save); },
+    },
     /** The break (PLAY-20, src/ui/session.ts): `hold()` - no card at the points, `release()` - the card when its minutes come. */
     brk: {
       get held() { return breakHold.held; },

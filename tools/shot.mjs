@@ -255,6 +255,8 @@ try {
     if (sessionStorage.getItem('e2e-gift')) return;
     sessionStorage.setItem('e2e-gift', '1');
     sessionStorage.setItem('amw-gift-hold', '1');
+    // the deal of the day too (src/game/deal.ts): its price depends on the date; only the block "deal" lets it go
+    sessionStorage.setItem('amw-deal-hold', '1');
     // the break too (PLAY-20): its minutes are real time, a slow machine would meet the card in another block; only the
     // block "break" lets it go
     sessionStorage.setItem('amw-break-hold', '1');
@@ -3156,6 +3158,45 @@ try {
         if (!(r.solved && r.helped === true)) fail(`the result of the task: ${JSON.stringify(r)}, expected solved and helped`);
         if (after.supplies.owl || after.supplies.abacus || day.owl !== 1 || day.abacus !== 1) fail(`after the task: the stock ${JSON.stringify(after.supplies)}, today's count ${JSON.stringify(day)}`);
         console.log('helpers: bought the owl (15) and the abacus (20); in counting on level 2 the owl said the first rung at once, nothing lit, the abacus laid out ten frames; both spent once, counted for the parents, the result "helped"');
+      }
+      // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
+      // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
+      // cat tells of it (once that day), the tile has the ribbon and the deal's price; bought at that price (the watch
+      // of the stars told of it) the deal is gone for the day and the mark too; another day has a deal again; a reload
+      // keeps the day's deal taken. Then the lever is pulled again for the blocks after.
+      if (has('deal')) {
+        const fail = (what) => { throw new Error(`deal: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const SUPPLY = ['speed', 'jump', 'glow', 'funny', 'compass', 'owl', 'abacus'];
+        await g(() => { __game.deal.release(); __game.deal.day('2030-03-05'); __game.save.stars += 60; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+        await calm();
+        const d = await g(() => __game.deal.today);
+        if (!d || !(d.price < d.was)) fail(`no deal on a day with the lever let go: ${JSON.stringify(d)}`);
+        await page.click('#btnBook'); await calm();
+        if (!(await g(() => !!document.querySelector('#btnShop .dealmark')))) fail('no mark of the deal on the shop button');
+        await tap('#btnShop'); await calm();
+        await gameFor(() => document.getElementById('shopSay')?.dataset.key === 'shop_deal', null, 10).catch(() => fail('the cat did not tell of the deal'));
+        const tile = await g((id) => { const e = document.querySelector(`#shopItems [data-id=${id}]`); return e && { deal: e.classList.contains('deal'), cap: e.textContent }; }, d.id);
+        if (!tile?.deal || !tile.cap.includes(`${d.price} ⭐`) || !tile.cap.includes(String(d.was))) fail(`the tile of ${d.id} on the tab the shop opened on: ${JSON.stringify(tile)}, expected the ribbon, ${d.was} crossed out and ${d.price} ⭐`);
+        await tap(`#shopItems [data-id=${d.id}]`); await calm();
+        const label = await page.textContent('#shopBuy').catch(() => '');
+        if (!label.includes(`${d.price} ⭐`)) fail(`the button under the deal says "${label}", expected ${d.price} ⭐`);
+        const before = await g((id) => ({ stars: __game.save.stars, stock: __game.save.supplies?.[id] ?? 0 }), d.id);
+        const supply = SUPPLY.includes(d.id);
+        await g((it) => { window.__stars.buy = it; }, supply ? { id: d.id, price: d.price, stock: before.stock + 1 } : { id: d.id, price: d.price });
+        await tap('#shopBuy'); await calm();
+        await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of the deal ${d.id} at ${d.price}`));
+        const after = await g(() => ({ stars: __game.save.stars, deal: __game.save.deal, today: __game.deal.today }));
+        if (after.stars !== before.stars - d.price || after.deal?.took !== '2030-03-05' || after.today !== null) fail(`after buying the deal: ${before.stars} -> ${after.stars} stars, the save's deal ${JSON.stringify(after.deal)}, the deal now ${JSON.stringify(after.today)}`);
+        await shot('deal-bought');
+        await tap('#shopDone'); await calm();
+        await page.click('#btnBook'); await calm();
+        if (await g(() => !!document.querySelector('#btnShop .dealmark'))) fail('the mark of the deal is still on the shop button after it was taken');
+        await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        const next = await g(() => { __game.deal.day('2030-03-06'); return __game.deal.today; });
+        if (!next) fail('no deal on the next day');
+        await g(() => { __game.deal.day(null); __game.deal.hold(); });
+        console.log(`deal: on 2030-03-05 ${d.id} ${d.was} -> ${d.price} stars, the mark, the cat, the ribbon; bought at the deal's price, gone for the day with its mark; the next day ${next.id}`);
       }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
       // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.

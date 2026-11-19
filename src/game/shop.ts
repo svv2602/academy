@@ -12,6 +12,7 @@
  * skips a task.
  */
 import type { Gear, Save } from '../core/save';
+import { dealDay, dealState, discounted, ranked } from './deal';
 import { artifactBack } from './artifacts';
 
 export type Slot = keyof Gear;
@@ -119,25 +120,51 @@ export function has(s: Save, id: string): boolean {
   return !!it && (it.free === true || s.owned.includes(id) || unlocked(s, id));
 }
 
-/** Whether a tap on "buy" would buy the thing: it is for sale, not hers yet, and she has the stars. */
-export function canBuy(s: Save, id: string): boolean {
+/** Whether the thing could be bought at all now, whatever she can pay: for sale, and not hers yet (a supply: room in the stock). */
+function forSale(s: Save, id: string): boolean {
   const it = goods(id);
-  if (!it || it.price === undefined || s.stars < it.price) return false;
+  if (!it || it.price === undefined) return false;
   return isSupply(it) ? stock(s, it.id) < STOCK_MAX : !has(s, id);
+}
+
+/** Every id the shop sells, in the order of the catalog: the things to wear, then the supplies. */
+const SOLD: readonly string[] = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...SUPPLIES.map((x) => x.id)];
+
+/** The deal of `day` (src/game/deal.ts): its thing and both prices; null - held, taken that day already, or nothing to sell. */
+export function dealOf(s: Save, day = dealDay()): { id: string; price: number; was: number } | null {
+  if (dealState.held || s.deal?.took === day) return null;
+  const id = ranked(day, SOLD).find((x) => forSale(s, x));
+  if (!id) return null;
+  const was = goods(id)!.price!;
+  return { id, price: discounted(was), was };
+}
+
+/** What the thing costs now: the deal's price for the deal of the day, else its own (undefined: not sold). */
+export function priceOf(s: Save, id: string, day = dealDay()): number | undefined {
+  const deal = dealOf(s, day);
+  return deal?.id === id ? deal.price : goods(id)?.price;
+}
+
+/** Whether a tap on "buy" would buy the thing: it is for sale, not hers yet, and she has the stars for its price now. */
+export function canBuy(s: Save, id: string): boolean {
+  const price = priceOf(s, id);
+  return forSale(s, id) && price !== undefined && s.stars >= price;
 }
 
 /**
  * Buys a thing on the child's tap: the second and last writer of the stars (src/game/no-penalties.test.ts reads this
- * function), and the only one that lowers them. Takes exactly the price and keeps the thing for ever - or, for a
- * supply, adds one to her stock. Refused, with
+ * function), and the only one that lowers them. Takes exactly the price canBuy checked (`priceOf`: the deal of the
+ * day's, or the thing's own) and keeps the thing for ever - or, for a supply, adds one to her stock. Refused, with
  * the save left as it was, when canBuy says no. The caller stores the save.
  */
 export function buy(s: Save, id: string): boolean {
   if (!canBuy(s, id)) return false;
-  const it = goods(id)!;
-  s.stars -= it.price!;
+  const it = goods(id)!, day = dealDay(), deal = dealOf(s, day), price = priceOf(s, id, day)!;
+  s.stars -= price;
   if (isSupply(it)) s.supplies = { ...s.supplies, [it.id]: stock(s, it.id) + 1 };
   else s.owned.push(id);
+  // the deal of the day taken: no other deal today (src/game/deal.ts)
+  if (deal?.id === id) s.deal = { ...s.deal, took: day };
   return true;
 }
 
@@ -157,13 +184,14 @@ export function equip(s: Save, slot: Slot, id: string | null): boolean {
 /**
  * How the screen shows a thing:
  * - `owned`: hers (bought, opened or free), worn or not;
- * - `price`: for sale; `short` is the stars she still needs ("ещё N звёзд", no red, no error sound), 0 when she can buy it;
+ * - `price`: for sale at `price` now (`was`: its own price, when it is the deal of the day); `short` is the stars she still
+ *   needs ("ещё N звёзд", no red, no error sound), 0 when she can buy it;
  * - `reward`: not sold and not opened yet, its reward is reachable now (the Crystal of Light): shown with what opens it;
  * - `silhouette`: not sold, its reward does not exist yet (the earrings until PLAY-08): a silhouette "за досягнення".
  */
 export type ItemState =
   | { kind: 'owned'; worn: boolean }
-  | { kind: 'price'; price: number; short: number }
+  | { kind: 'price'; price: number; short: number; was?: number }
   | { kind: 'reward'; reward: Reward }
   | { kind: 'silhouette'; reward: Reward };
 
@@ -174,7 +202,10 @@ export function itemState(s: Save, id: string): ItemState | undefined {
   const it = item(id);
   if (!it) return undefined;
   if (has(s, id)) return { kind: 'owned', worn: s.gear[it.slot] === id };
-  if (it.price !== undefined) return { kind: 'price', price: it.price, short: Math.max(0, it.price - s.stars) };
+  if (it.price !== undefined) {
+    const price = priceOf(s, id)!;
+    return { kind: 'price', price, short: Math.max(0, price - s.stars), ...(price < it.price ? { was: it.price } : {}) };
+  }
   const reward = it.reward!;
   return REACHABLE.includes(reward) ? { kind: 'reward', reward } : { kind: 'silhouette', reward };
 }

@@ -435,3 +435,9 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 
 /* The helpers of a task taken in the week (src/ui/ui.ts helpsLine): a line of the version's corner, a little darker. */
 #pHelps { color: #8a7aa0; margin-top: 2px; }
+
+/* The deal of the day (src/game/deal.ts): its tile has a ribbon, its old price is crossed out; a mark on the shop's button. */
+#shopItems .tile.deal { position: relative; box-shadow: 0 0 0 3px #ff8fc4, 0 4px 0 rgba(160,110,200,.25); }
+#shopItems .tile.deal::after { content: "−40%"; position: absolute; top: -8px; right: -8px; padding: 1px 6px; border-radius: 8px; background: #ff5fa8; color: #fff; font-size: 12px; font-weight: 800; }
+#shopItems .tile .cap s { opacity: .55; font-weight: 600; }
+#btnShop .dealmark { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #ff5fa8; color: #fff; font-size: .8em; }

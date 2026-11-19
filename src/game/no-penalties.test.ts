@@ -48,10 +48,10 @@ const STAR_WRITES = [
 /** The first allowed writer: addStars in src/game/context.ts adds its own parameter. */
 const ADD_STARS = /const addStars = \(n: number\b[^)]*\) => \{ save\.stars \+= n;/;
 /** The second allowed writer: buy in src/game/shop.ts, which refuses first unless canBuy says yes, then takes the price. */
-const BUY = /export function buy\(s: Save, id: string\): boolean \{\n\s*if \(!canBuy\(s, id\)\) return false;\n\s*const it = goods\(id\)!;\n\s*s\.stars -= it\.price!;\n/;
+const BUY = /export function buy\(s: Save, id: string\): boolean \{\n\s*if \(!canBuy\(s, id\)\) return false;\n\s*const it = goods\(id\)!, day = dealDay\(\), deal = dealOf\(s, day\), price = priceOf\(s, id, day\)!;\n\s*s\.stars -= price;\n/;
 const ALLOWED = [
   { file: 'src/game/context.ts', text: 'save.stars += n' },
-  { file: 'src/game/shop.ts', text: 's.stars -= it.price!' },
+  { file: 'src/game/shop.ts', text: 's.stars -= price' },
 ];
 
 describe('stars are only ever added (LEARN-14, R13)', () => {
@@ -72,7 +72,7 @@ describe('stars are only ever added (LEARN-14, R13)', () => {
     const context = SOURCES.find((s) => s.path === 'src/game/context.ts')!.text;
     expect(ADD_STARS.test(context), 'addStars in src/game/context.ts does not add its amount to save.stars ("save.stars += n")').toBe(true);
     const shop = SOURCES.find((s) => s.path === 'src/game/shop.ts')?.text ?? '';
-    expect(BUY.test(shop), 'buy in src/game/shop.ts does not take the price right after canBuy ("s.stars -= it.price!")').toBe(true);
+    expect(BUY.test(shop), 'buy in src/game/shop.ts does not take the price canBuy checked right after it ("s.stars -= price", price = priceOf)').toBe(true);
     expect(writes.length, `addStars and buy must be the only writers of the stars, found: ${where(writes)}`).toBe(2);
   });
 

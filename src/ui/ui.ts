@@ -4,7 +4,7 @@ import type { UpdateState } from '../core/update';
 import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
 import { helpsOfWeek } from '../game/helpers';
 import { lastDays } from '../game/playtime';
-import { HELPER_IDS } from '../game/shop';
+import { HELPER_IDS, dealOf } from '../game/shop';
 import { breakMinutes } from '../game/session';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
@@ -175,7 +175,8 @@ export function initBook(save: Save, book: BookInfo, on: {
   const show = (node: HTMLElement, v: boolean) => { node.classList.toggle('hidden', !v); on.open(v); };
   const renderBook = () => {
     $('colTitle').textContent = t('col_title'); $('bookClose').textContent = t('close'); $('btnParents').textContent = t('parents');
-    $('btnShop').textContent = `🛍️ ${t('shop')}`;
+    // the deal of the day not taken yet: a mark on the button (src/game/deal.ts)
+    $('btnShop').innerHTML = `🛍️ ${t('shop')}${dealOf(save) ? ' <b class="dealmark">%</b>' : ''}`;
     $('shards').innerHTML = '';
     for (const p of book.parts()) {
       const d = document.createElement('div');

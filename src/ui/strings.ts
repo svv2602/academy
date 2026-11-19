@@ -96,6 +96,7 @@ const S = sameKeys({
     shop_hi: 'Це чарівна лавка{, name}! Торкнись речі, і вона одразу на тобі.',
     shop_more: 'Ще трішки зірочок, і ця річ буде твоя!',
     shop_bought: 'Тепер це твоє назавжди!',
+    shop_deal: 'Сьогодні в лавці знижка! Подивись, що позначено стрічкою.',
     // --- the potions and the compass (src/game/supplies.ts): the cat when one is drunk; the names of the buttons (not spoken)
     sup_speed: 'Ух, які швидкі ніжки! Біжімо!', sup_jump: 'Тепер ти стрибаєш вище за грибочки!',
     sup_glow: 'Ти сяєш! Поглянь, що мерехтить поруч.', sup_tiny: 'Ой, яка ти крихітна!', sup_giant: 'Ого, яка ти велика!',
@@ -255,6 +256,7 @@ const S = sameKeys({
     shop_hi: 'Это волшебная лавка{, name}! Коснись вещи, и она сразу на тебе.',
     shop_more: 'Ещё чуть-чуть звёздочек, и эта вещь будет твоей!',
     shop_bought: 'Теперь это твоё навсегда!',
+    shop_deal: 'Сегодня в лавке скидка! Посмотри, что отмечено ленточкой.',
     sup_speed: 'Ух, какие быстрые ножки! Бежим!', sup_jump: 'Теперь ты прыгаешь выше грибочков!',
     sup_glow: 'Ты сияешь! Посмотри, что мерцает рядом.', sup_tiny: 'Ой, какая ты крошечная!', sup_giant: 'Ого, какая ты большая!',
     sup_compass: 'Стрелка покажет, где загадочная звезда.', sup_all_found: 'Все загадочные звёзды уже найдены!',
@@ -391,7 +393,7 @@ const SPOKEN = {
   h2_missing: 'warm', h1_house: 'warm', h2_house: 'warm', h2_pattern: 'warm', h1_pattern_grow: 'warm', h2_pattern_grow: 'warm',
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
   h2_odd: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
-  shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy',
+  shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy', shop_deal: 'joy',
   sup_speed: 'joy', sup_jump: 'joy', sup_glow: 'joy', sup_tiny: 'joy', sup_giant: 'joy', sup_compass: 'warm', sup_all_found: 'warm',
   // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists
   praise_0: 'joy', praise_1: 'joy', praise_3: 'joy', praise_4: 'joy', praise_5: 'joy', praise_6: 'joy', praise_7: 'joy',

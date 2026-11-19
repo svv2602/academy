@@ -15,7 +15,8 @@ import { sfx, say } from '../core/audio';
 import type { Save } from '../core/save';
 import { GEAR, type Gear, type GearId } from '../game/gear';
 import { LOOKS, applyLook as putOnLook, lookOf } from '../game/looks';
-import { CATALOG, STOCK_MAX, SUPPLIES, buy, canBuy, equip, has, itemState, stock, type Slot, type SupplyId } from '../game/shop';
+import { CATALOG, STOCK_MAX, SUPPLIES, buy, canBuy, dealOf, equip, has, item, itemState, priceOf, stock, type Slot, type SupplyId } from '../game/shop';
+import { dealDay } from '../game/deal';
 import { SUPPLY_LOOK } from './supplies';
 import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
 import { DRESS, HAIR } from './ui';
@@ -36,6 +37,8 @@ const ICON: Record<string, string> = {
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
   tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
+/** The price of a tile: the deal of the day has its own price crossed out before the new one. */
+const priceCap = (price: number, was?: number) => (was ? `<s>${was}</s> ${price} ⭐` : `${price} ⭐`);
 /** The camera distance while the screen is open: the heroine is seen close up beside the card. */
 const CLOSEUP = 3.2;
 
@@ -93,6 +96,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
 
   const speak = (key: SpokenKey) => {
     sayText.textContent = t(key);
+    sayBox.dataset.key = key;   // which line: read by the walkthrough (the shop speaks past the planner of g.speech)
     sayBox.classList.remove('quiet');
     void say(key, voiceText(key), 'story');
   };
@@ -156,9 +160,9 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     const row = document.createElement('div');
     row.className = 'tiles';
     for (const x of SUPPLIES) {
-      const n = stock(save, x.id);
-      const cap = `${x.price} ⭐${n > 0 ? ` · ${tf('shop_stock', { n })}` : ''}`;
-      const b = button('tile' + (potion === x.id ? ' sel' : ''), `<span class="ic">${SUPPLY_LOOK[x.id].icon}</span><span class="cap">${cap}</span>`, () => { potion = x.id; render(); });
+      const n = stock(save, x.id), price = priceOf(save, x.id)!;
+      const cap = `${priceCap(price, price < x.price ? x.price : undefined)}${n > 0 ? ` · ${tf('shop_stock', { n })}` : ''}`;
+      const b = button('tile' + (potion === x.id ? ' sel' : '') + (price < x.price ? ' deal' : ''), `<span class="ic">${SUPPLY_LOOK[x.id].icon}</span><span class="cap">${cap}</span>`, () => { potion = x.id; render(); });
       b.dataset.id = x.id; b.title = t(`supn_${x.id}` as Key); b.setAttribute('aria-label', t(`supn_${x.id}` as Key));
       b.style.setProperty('--c', SUPPLY_LOOK[x.id].color);
       row.appendChild(b);
@@ -166,7 +170,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     items.appendChild(row);
     act.innerHTML = '';
     if (!potion) return;
-    const id = potion, price = SUPPLIES.find((x) => x.id === id)!.price;
+    const id = potion, price = priceOf(save, id)!;
     if (stock(save, id) >= STOCK_MAX) { act.textContent = tf('shop_stock', { n: STOCK_MAX }); return; }
     const short = Math.max(0, price - save.stars);
     const b = button('big small' + (short > 0 ? ' short' : ''), '', () => {
@@ -199,8 +203,9 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     row.className = 'tiles';
     for (const id of [null, ...CATALOG.filter((i) => i.slot === slot).map((i) => i.id)]) {
       const st = id === null ? null : itemState(save, id)!;
-      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? `${st.price} ⭐` : st.kind === 'reward' ? '🎁' : t('shop_achieve');
-      const cls = 'tile' + (shown(slot) === id && peek === null ? ' sel' : '') + (st?.kind === 'silhouette' ? ' sil' : '') + (peek !== null && peek === id ? ' sel' : '');
+      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : st.kind === 'reward' ? '🎁' : t('shop_achieve');
+      const cls = 'tile' + (shown(slot) === id && peek === null ? ' sel' : '') + (st?.kind === 'silhouette' ? ' sil' : '') + (peek !== null && peek === id ? ' sel' : '')
+        + (st?.kind === 'price' && st.was ? ' deal' : '');
       const b = button(cls, `<span class="ic">${ICON[id ?? 'none'] ?? '❔'}</span>${cap ? `<span class="cap">${cap}</span>` : ''}`, () => { tapThing(slot, id); render(); });
       b.dataset.id = id ?? 'none';
       row.appendChild(b);
@@ -213,12 +218,17 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   const open = () => {
     if (!root.classList.contains('hidden')) return;
     trial = {}; peek = null; potion = null; tab = 'dress';
+    // The deal of the day (src/game/deal.ts): the shop opens on its tab, and the cat tells of it once a day.
+    const deal = dealOf(save), day = dealDay();
+    if (deal) tab = item(deal.id)?.slot ?? 'potions';
+    const tell = deal !== null && save.deal?.said !== day;
+    if (tell) { save.deal = { ...save.deal, said: day }; hooks.persist(); }
     $('shopDone').textContent = t('shop_done');
     sayBox.classList.add('quiet');
     render();
     root.classList.remove('hidden');
     hooks.pause(true); hooks.closeup(CLOSEUP);
-    speak('shop_hi');
+    speak(tell ? 'shop_deal' : 'shop_hi');
   };
   const close = () => {
     // What was tried on and not bought comes off: the slot shows the save's thing again.
