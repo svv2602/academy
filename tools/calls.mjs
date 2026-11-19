@@ -1,6 +1,7 @@
 // node tools/calls.mjs [port] [--raw] : what the draw calls and triangles of the first world are spent on (a tool for a
 // person, docs/perf.md). Plays the built game (dist/) with ?debug on this computer, at q1 and q2, in the points of the
-// measures on the S22: the start, the pond with the shrine, the mushroom king, the glade behind the waterfall.
+// measures on the S22: the start, the pond with the shrine, the mushroom king, the glade behind the waterfall - and the
+// room of the fairy house (a secret of its own, far beyond the valley).
 //
 // In each point the camera looks the heaviest of eight ways (most draw calls), as on the S22. One frame is drawn with
 // the renderer's renderBufferDirect wrapped: every call is counted with the object it draws, in the main pass or the
@@ -21,7 +22,7 @@ const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome'
 const save = GROUPS.shop.save();
 save.worlds.fairy.final = false;
 const rowsOut = [];
-const POINTS = { start: [0, 14], 'pond and shrine': [16, -9], 'mushroom king': null, 'glade behind the waterfall': [44, -40] };
+const POINTS = { start: [0, 14], 'pond and shrine': [16, -9], 'mushroom king': null, 'glade behind the waterfall': [44, -40], 'room of the fairy house': [0, 215] };
 
 try {
   for (const q of [1, 2]) {

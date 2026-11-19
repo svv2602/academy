@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { sfx } from '../../core/audio';
+import { camDistance } from '../../core/tuning';
 import { mat } from '../../core/style';
 import type { Game } from '../../game/context';
 import { petPlace } from '../../game/pets';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
+import { dressGlade, dressRoom, type GladeLook } from './secret-look';
 import { GLADE, HOUSE, ROOM } from './layout';
 
 /**
@@ -22,6 +24,18 @@ import { GLADE, HOUSE, ROOM } from './layout';
 export const GLADE_FLAG = 'glade', HOUSE_FLAG = 'house';
 /** m from the middle of the glade where walking in finds it. */
 const FIND_R = 1.5;
+/**
+ * The camera on the glade, m from her: inside its ring of rocks the usual 5 m would stand in the rocks or in the water,
+ * so it comes closer (as the room has its own, below). By where she stands, not by time: `GLADE_CAM` from the middle out
+ * to `GLADE_CAM_IN` m, the usual distance from `GLADE_CAM_OUT` m on, a smooth step between - walking through the
+ * entrance the camera moves with her steps, never a jump; standing still, it stays.
+ */
+export const GLADE_CAM = 2.4, GLADE_CAM_IN = GLADE.r - 0.6, GLADE_CAM_OUT = GLADE.r + 2.2;
+/** The distance of the glade's camera with her `d` m from its middle and the usual distance `far`. */
+export function gladeCamDist(d: number, far: number): number {
+  const k = Math.min(1, Math.max(0, (d - GLADE_CAM_IN) / (GLADE_CAM_OUT - GLADE_CAM_IN)));
+  return GLADE_CAM + (far - GLADE_CAM) * k * k * (3 - 2 * k);
+}
 
 export interface Secrets {
   readonly spots: readonly Spot[];
@@ -109,19 +123,9 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   foam.position.set(ex, ey + 0.07, ez);
   group.add(foam);
 
-  // inside: a ring of glowing flowers around the middle
-  const petal = mat.glow('petal', 0.6, { emissive: 'petalGlow' });
-  const stem = new THREE.MeshStandardMaterial({ color: '#4fae54', roughness: 1 });
-  const flowers = new THREE.Group();
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2, r = 2.1 + (i % 2) * 0.5, x = GLADE.x + Math.sin(a) * r, z = GLADE.z + Math.cos(a) * r, y = groundY(x, z);
-    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.6, 5), stem);
-    st.position.set(x, y + 0.3, z);
-    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), petal);
-    bloom.position.set(x, y + 0.66, z); bloom.userData.base = bloom.position.y; bloom.userData.k = i;
-    flowers.add(st, bloom);
-  }
-  group.add(flowers);
+  // inside: the look of the glade (./secret-look.ts) - its models come as the world loads
+  let gladeLook: GladeLook | null = null;
+  void dressGlade(group, groundY, face, (x, z, r) => ground.block(x, z, r)).then((l) => { gladeLook = l; });
   const gladeFound = () => ws.flags[GLADE_FLAG] === true;
   function findGlade() {
     ws.flags[GLADE_FLAG] = true;
@@ -167,6 +171,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   door.position.set(0, 1.05, ROOM.half - 0.02); door.rotation.y = Math.PI;
   room.add(floor, walls, rug, table, leg, bed, shelf, box, door);
   for (const o of room.children) { o.receiveShadow = true; o.castShadow = o !== walls && o !== floor && o !== rug; }
+  const roomLook = dressRoom(room, ROOM.half, WALL_H, { floor, walls, bed });
   group.add(room);
   ground.block(ROOM.x, ROOM.z - 2.2, 0.9);          // the table
   ground.block(ROOM.x - 2.9, ROOM.z + 1.2, 0.8); ground.block(ROOM.x - 2.9, ROOM.z + 2.1, 0.8);   // the bed
@@ -198,7 +203,14 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
       scope.timeout(() => { moving = false; g.busy = false; }, 250);
     }, 300);
   }
-  scope.own(() => { if (g.camOverride === 4.2) g.camOverride = null; });
+  let gladeCam = false;     // the camera's distance is the glade's now
+  scope.own(() => { if (g.camOverride === 4.2 || gladeCam) g.camOverride = null; });
+  /** The glade's camera: by where she stands near it; never over a distance another rule has set (the room's). */
+  function gladeCamera(d: number) {
+    if (!gladeCam && g.camOverride !== null) return;
+    if (d >= GLADE_CAM_OUT) { if (gladeCam) { g.camOverride = null; gladeCam = false; } return; }
+    g.camOverride = gladeCamDist(d, camDistance(g.camera.aspect)); gladeCam = true;
+  }
 
   function openBox() {
     ws.flags[HOUSE_FLAG] = true;
@@ -220,10 +232,16 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
     update(dt, time, canMove) {
       water.uniforms.uTime.value = time;
       foam.scale.setScalar(1 + Math.sin(time * 6) * 0.12);
-      for (const f of flowers.children) if (f.userData.base !== undefined) f.position.y = f.userData.base + Math.sin(time * 2 + f.userData.k) * 0.05;
+      // the room is drawn only with her in it or at its door inside: from the valley it lay in the camera's view far beyond
+      // the fog and cost its draw calls at the shrine and the mushroom king (tools/calls.mjs)
+      const near = Math.abs(hero.root.position.x - ROOM.x) < ROOM.half + 8 && Math.abs(hero.root.position.z - ROOM.z) < ROOM.half + 8;
+      room.visible = near;
+      if (near) roomLook.update(time);
       (box.material as THREE.MeshStandardMaterial).emissiveIntensity = houseFound() ? 0.15 : 0.35 + Math.sin(time * 3) * 0.2;
-      const hp = hero.root.position;
-      if (canMove && !gladeFound() && Math.hypot(hp.x - GLADE.x, hp.z - GLADE.z) < FIND_R) findGlade();
+      const hp = hero.root.position, d = Math.hypot(hp.x - GLADE.x, hp.z - GLADE.z);
+      gladeCamera(d);
+      gladeLook?.update(time, d);
+      if (canMove && !gladeFound() && d < FIND_R) findGlade();
       void dt;
     },
   };

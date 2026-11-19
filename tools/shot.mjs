@@ -2273,6 +2273,39 @@ try {
             finally { await page.keyboard.up('KeyW'); }
             walked = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), from);
           }
+          // the camera on the glade (secrets.ts, GLADE_CAM): inside the ring of rocks it comes to 2.2-2.6 m from her, over
+          // the grass and inside the ring; walking out through the water it goes back to its usual distance with no jump
+          await g((p) => { __game.teleport(p.x, p.z); }, at.glade); await gameSeconds(2);
+          const gc = await g((p) => {
+            const c = __game.camera.position, t = __game.cam.target;
+            const r = __game.renderer.info.render;
+            return { dist: c.distanceTo(t), over: c.y - __game.hero.root.position.y, fromMiddle: Math.hypot(c.x - p.x, c.z - p.z), calls: r.calls, tris: r.triangles };
+          }, at.glade);
+          if (Math.abs(gc.dist - 2.4) > 0.2) fail(`the camera on the glade stands ${gc.dist.toFixed(2)} m from her, not 2.2-2.6`);
+          if (gc.over < 0.75 || gc.fromMiddle > 4.6) fail(`the camera on the glade stands ${gc.over.toFixed(2)} m over her feet, ${gc.fromMiddle.toFixed(2)} m from the middle (at least 0.75; inside the ring, at most 4.6)`);
+          const glideOut = await g((p) => new Promise((done) => {
+            // out the way she came: towards the valley's middle, "forward" held; the largest change of the distance in a frame
+            const f = Math.atan2(-p.x, -p.z);
+            __game.hero.heading = f; __game.cam.yaw = f + Math.PI;
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
+            // the change of the camera's distance per metre she walks, frame by frame: a jump would be a large one on a short step
+            const hp = __game.hero.root.position;
+            let last = __game.cam.dist, lx = hp.x, lz = hp.z, jump = 0;
+            const t0 = __game.time;
+            const step = () => {
+              const moved = Math.hypot(hp.x - lx, hp.z - lz), dd = Math.abs(__game.cam.dist - last);
+              if (moved > 0.01) jump = Math.max(jump, dd / moved);
+              else if (dd > 0.3) jump = Infinity;      // the distance changed by itself, she standing
+              last = __game.cam.dist; lx = hp.x; lz = hp.z;
+              if (__game.time - t0 < 4) { requestAnimationFrame(step); return; }
+              window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' }));
+              done({ jump, dist: __game.cam.dist, out: Math.hypot(hp.x - p.x, hp.z - p.z) });
+            };
+            requestAnimationFrame(step);
+          }), at.glade);
+          if (glideOut.out < 6) fail(`walking out of the glade she got ${glideOut.out.toFixed(1)} m from its middle in 4 s, not out of its ring`);
+          if (glideOut.jump > 2) fail(`walking out of the glade the camera's distance changed ${glideOut.jump.toFixed(2)} m per metre she walked (at most 2)`);
+          if (glideOut.dist < 3) fail(`out of the glade the camera stays ${glideOut.dist.toFixed(2)} m from her: the glade's distance was not given back`);
           // the house: in through its door, the music box, out again
           const doorOut = await g(() => [__game.secrets.doorOut.x, __game.secrets.doorOut.z]);
           await g((p) => __game.teleport(p[0], p[1]), doorOut); await framesDrawn(2);
@@ -2282,6 +2315,7 @@ try {
           // relief beyond its walls (the hill past the valley's rim once put it some 29 m over the room)
           await gameSeconds(1);
           const eye = await g(() => +(__game.camera.position.y - __game.hero.root.position.y).toFixed(2));
+          const roomDraw = await g(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
           if (eye > 4.5) fail(`the camera in the room stands ${eye} m over the floor right after the door (at most 4.5)`);
           await shot('secrets-room');
           await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2);
@@ -2312,7 +2346,7 @@ try {
           await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
           await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
           await until(() => ['secret_chest', 'three_secrets'].every((k) => k in __game.save.achievements), null, 'closing the book did not grant "the chest" and "three secrets"');
-          console.log(`secrets: the chest, the glade (${gladeFound ? 'found before, with the fox\'s shard' : `walked ${walked.toFixed(1)} m in through the waterfall`}) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
+          console.log(`secrets: the chest, the glade (${gladeFound ? 'found before, with the fox\'s shard' : `walked ${walked.toFixed(1)} m in through the waterfall`}) (its camera ${gc.dist.toFixed(1)} m from her, out with no jump) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets; draw calls: the glade ${gc.calls} (${Math.round(gc.tris / 1000)}k triangles), the room ${roomDraw.calls} (${Math.round(roomDraw.tris / 1000)}k)`);
         });
       }
       // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----
