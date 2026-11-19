@@ -6,7 +6,7 @@ import type { SpokenKey } from '../ui/strings';
 import { Actor } from './actor';
 import type { Game } from './context';
 import type { Spot } from './player';
-import { GROUND, PET_RUN_MAX, PET_WALK_MAX, pace, speedometer } from './stride';
+import { GROUND, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, pace, paceFollower, speedometer } from './stride';
 import type { WorldDef } from './world';
 
 /**
@@ -117,10 +117,13 @@ export function petPlace(hero: { x: number; z: number }, heading: number, out = 
  * pushed out of the cat's reach: a pet nearer the cat than PET_GAP stands off along the line between them.
  * Returns the distance that was left to its place (more than NEAR: it walked).
  */
+/** How fast the pet goes after its place `d` m away, m/s: faster the further it is, 7 at most. */
+export const followSpeed = (d: number) => Math.min(7, d * 3.2);
+
 export function followStep(p: { x: number; z: number }, place: { x: number; z: number }, cat: { x: number; z: number }, dt: number): number {
   const d = Math.hypot(place.x - p.x, place.z - p.z);
   if (d > NEAR) {
-    const step = Math.min(Math.min(7, d * 3.2) * dt, d);
+    const step = Math.min(followSpeed(d) * dt, d);
     p.x += ((place.x - p.x) / d) * step; p.z += ((place.z - p.z) / d) * step;
   }
   const cx = p.x - cat.x, cz = p.z - cat.z, cd = Math.hypot(cx, cz);
@@ -175,6 +178,8 @@ export function createPets(g: PetHost, o: {
   const place = new THREE.Vector3();
   let follower: Actor | null = null, followed: string | null = null, waiting: Actor | null = null;
   const real = speedometer();   // the follower's speed over the ground as it is
+  const steps = paceFollower();  // its pace, smoothed in time
+  let galloping = false, moving = '';   // the walking clip it plays now
   let gone = false;
 
   const spots: Spot[] = [];
@@ -234,7 +239,7 @@ export function createPets(g: PetHost, o: {
       if (f !== wasFound || r !== wasReady || (g.save.pet ?? null) !== followed) { wasFound = f; wasReady = r; refresh(); }
       if (follower) {
         const p = follower.root.position, hp = g.hero.root.position;
-        if (g.busy) follower.play('Idle', 0.3);
+        if (g.busy) { moving = ''; follower.play('Idle', 0.3); }
         else {
           petPlace(hp, g.hero.heading, place);
           const x0 = p.x, z0 = p.z;
@@ -243,13 +248,18 @@ export function createPets(g: PetHost, o: {
           const moved = Math.hypot(p.x - x0, p.z - z0);
           const speed = real(p.x, p.z, dt);
           if (d > NEAR && moved > 1e-4) {
-            follower.face(Math.atan2(p.x - x0, p.z - z0), dt);
-            // the pace by the speed it goes at (src/game/stride.ts); too fast for its walk, it runs if it can
-            const kind = petSpecies(followed);
-            const run = kind?.run && follower.has(kind.run.clip) && speed / kind.walk > PET_WALK_MAX ? kind.run : null;
-            if (run) follower.play(run.clip, 0.2, pace(speed, run.ground, PET_RUN_MAX));
-            else follower.play('Walk', 0.15, pace(speed, kind?.walk ?? GROUND.fawnWalk, PET_WALK_MAX));
-          } else { follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
+            follower.face(Math.atan2(p.x - x0, p.z - z0), dt, 6);
+            // the pace by the speed it goes at (src/game/stride.ts), smoothed in time; too fast for its walk, it runs if
+            // it can, and walks again only well below that (no flicker between the two)
+            const kind = petSpecies(followed), walk = kind?.walk ?? GROUND.fawnWalk;
+            const canRun = !!kind?.run && follower.has(kind.run.clip);
+            // the clip by the speed it is going to (a start from standing does not walk one frame, then gallop)
+            galloping = canRun && Math.max(speed, followSpeed(d)) / walk > (galloping ? PET_WALK_BACK : PET_WALK_MAX);
+            const [clip, target] = galloping && kind?.run
+              ? [kind.run.clip, pace(speed, kind.run.ground, PET_RUN_MAX)] : ['Walk', pace(speed, walk, PET_WALK_MAX)];
+            follower.play(clip, 0.35, moving !== clip ? steps.reset(target) : steps.next(target, dt));
+            moving = clip;
+          } else { galloping = false; moving = ''; follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
         }
         p.y = g.groundY(p.x, p.z);
         follower.update(dt);

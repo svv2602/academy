@@ -29,13 +29,30 @@ export const CAT_PACE_MAX = 3;
 export const PET_WALK_MAX = 2.2;
 /**
  * The pace of the pet's gallop at most. At the heroine's run (5.4 m/s) the fawn's gallop would need a pace near 5.2:
- * its legs whirred (the customer on the S22, 2026-11-19). It keeps 2.6 - half the strides - and its paws slide about
- * half of the way at the top speed (the bound of the walkthrough is 0.6). A longer leap was the other way: the clip's
- * stride is set by the model's legs, so only a bigger fawn or a new clip would make it, not a pace.
+ * its legs whirred (the customer on the S22, 2026-11-19). 2.6 was still "jerky" to the customer; it keeps 2.1 - some 4
+ * leaps a second -, and its paws slide 0.6 of the way at the top speed, the most allowed (2.0 would slide 0.62). A longer
+ * leap was the other way: the clip's stride is set by the model's legs, so only a bigger fawn or a new clip would make
+ * it, not a pace.
  */
-export const PET_RUN_MAX = 2.6;
+export const PET_RUN_MAX = 2.1;
+/** It gallops when its walk would need a pace above PET_WALK_MAX, and walks again only below this: no flicker between. */
+export const PET_WALK_BACK = 1.6;
 /** A pace below this looks like standing still while the body moves: the steps go on at least this fast. */
 export const PACE_MIN = 0.5;
+
+/**
+ * A pace that follows its target smoothly in time (about a fifth of a second), so that a push or a short frame does not
+ * jerk the legs; a new clip starts at its target.
+ */
+export function paceFollower() {
+  let p = 0;
+  return {
+    /** The pace of this frame on the way to `target`. */
+    next(target: number, dt: number) { p += (target - p) * Math.min(1, dt * 5); return p; },
+    /** A new clip: its pace starts at its target. */
+    reset(target: number) { p = target; return p; },
+  };
+}
 
 /** The pace of a clip of the given speed over the ground for a body moving at `speed`, held to [PACE_MIN, max]. */
 export function pace(speed: number, ground: number, max = Infinity): number {
