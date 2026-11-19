@@ -15,6 +15,11 @@ import { createRng } from '../core/rng';
 export const MYSTERY_COUNT = 10;
 /** Stars of the shop a solved one gives (the decision of 2026-11-19: the shop gets supplies and dearer things). */
 export const MYSTERY_REWARD = 3;
+/**
+ * The star's body, m: the model's height (src/game/boot.ts loads it so), the scale it is drawn at, how high it floats
+ * over the ground and how far it bobs up - a world that hides its stars hides this much (src/worlds/fairy/hiding.ts).
+ */
+export const MYSTERY_STAR = { model: 0.9, scale: 1.5, float: 0.8, bob: 0.18 } as const;
 /** The fewest places a world names: fewer, and the places of one day would hardly differ from the day before's. */
 export const MYSTERY_MIN_SPOTS = 20;
 
