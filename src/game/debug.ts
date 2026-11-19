@@ -11,6 +11,7 @@ import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
 import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
+import { mysteryHold } from './mystery-stars';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -19,6 +20,8 @@ import type { WorldItem } from './world';
 export const GIFT_HOLD = 'amw-gift-hold';
 /** The same for the walkthrough's lever of the break (`__game.brk`). */
 export const BREAK_HOLD = 'amw-break-hold';
+/** The same for the walkthrough's lever of the mysterious stars (`__game.mystery`). */
+export const MYSTERY_HOLD = 'amw-mystery-hold';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -49,6 +52,7 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   // The walkthrough's lever of the gift of the day, pulled in this tab before (window.__game.gift below).
   try { giftState.held = sessionStorage.getItem(GIFT_HOLD) === '1'; } catch { /* ignore */ }
   try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
+  try { mysteryHold.held = sessionStorage.getItem(MYSTERY_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
   // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
@@ -118,6 +122,21 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       get held() { return breakHold.held; },
       hold() { breakHold.held = true; try { sessionStorage.setItem(BREAK_HOLD, '1'); } catch { /* ignore */ } },
       release() { breakHold.held = false; try { sessionStorage.removeItem(BREAK_HOLD); } catch { /* ignore */ } },
+    },
+    /**
+     * The mysterious stars (src/game/mystery-stars.ts): `hold()` - none in any world, `release()` - by the clock again,
+     * `day(key)` - the day they are of (null: today), `today` - the stars of the day in the world played (id, kind, step, pos, solved),
+     * `open(id)` - what the action button does at that star. The walkthrough's own lever (R61), never the game's; the hold
+     * lasts for the tab (sessionStorage).
+     */
+    mystery: {
+      get held() { return mysteryHold.held; },
+      hold() { mysteryHold.held = true; try { sessionStorage.setItem(MYSTERY_HOLD, '1'); } catch { /* ignore */ } },
+      release() { mysteryHold.held = false; try { sessionStorage.removeItem(MYSTERY_HOLD); } catch { /* ignore */ } },
+      day(key: string | null) { mysteryHold.day = key; },
+      get today() { return g.mystery.today; },
+      unsolved: () => g.mystery.unsolved(),
+      open(id: number) { const s = g.mystery.today.find((x) => x.id === id); const spot = s && g.mystery.spots.find((p) => p.pos === s.pos); if (spot?.on()) spot.run(); return !!spot; },
     },
     gift: {
       get held() { return giftState.held; },

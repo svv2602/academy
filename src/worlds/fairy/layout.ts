@@ -15,5 +15,16 @@ export const SHOP_SIGN = { x: 4, z: 9.6 };   // the shop's signboard at the spaw
 // curtain faces the valley, the rocks around close it - and the fairy house by the well, whose door leads into a room.
 export const GLADE = { x: 44, z: -40, r: 4.2 };
 export const HOUSE = { x: -9.5, z: 2.5, rot: 1.2 };
+/**
+ * The places of the mysterious stars (src/game/mystery.ts, ten of them a day): out of sight, where she has to walk - by
+ * the trees of the forest ring, behind the castle, outside the rocks of the glade, behind the fairy house; off the path,
+ * the pond and the characters' places (src/worlds/fairy/mystery.test.ts).
+ */
+export const MYSTERY_SPOTS: readonly { x: number; z: number }[] = [
+  { x: 7.5, z: -64.5 }, { x: -24, z: -60 }, { x: 43.5, z: -30 }, { x: -15, z: 1.5 }, { x: 43.5, z: 43.5 }, { x: -28.5, z: 54 },
+  { x: -64.5, z: 7.5 }, { x: 64.5, z: 4.5 }, { x: -48, z: -28.5 }, { x: 9, z: 61.5 }, { x: 19.5, z: -1.5 }, { x: 1.5, z: 30 },
+  { x: -37.5, z: 24 }, { x: 33, z: -55.5 }, { x: -22.5, z: -27 }, { x: 31.5, z: 22.5 }, { x: 0, z: -43.5 }, { x: -37.5, z: 3 },
+  { x: 51, z: -10.5 }, { x: -39, z: -46.5 }, { x: -18, z: 21 }, { x: 28.5, z: 55.5 }, { x: 28.5, z: -21 }, { x: 61.5, z: 21 },
+];
 /** The room of the house: a closed floor far beyond the valley (no ground there), walked like the meadow. */
 export const ROOM = { x: 0, z: 215, half: 4.2, y: 0 };

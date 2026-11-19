@@ -11,7 +11,7 @@ import { tf } from '../ui/strings';
 import type { Game } from './context';
 import { levelFor, recordTask, type SkillId } from './skills';
 import { playScene, type Stage } from './stage';
-import { createPlanner, weakest } from './planner';
+import { weakest } from './planner';
 import { SKILL } from './taskviews/panel';
 import type { TaskType } from './tasks/types';
 import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
@@ -45,9 +45,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   const { line } = g.speech;
   const { characters, lines, tasks } = world;
   const background = Object.values(tasks).filter((t) => t.start);
-  // Every panel task of the conversations is planned (src/game/planner.ts): the examples with mistakes come back, the
-  // same task never twice in a row.
-  const plan = createPlanner(save);
+  // Every panel task of the conversations is planned (src/game/planner.ts, one planner for the session, `g.plan`): the
+  // examples with mistakes come back, the same task never twice in a row.
+  const { plan } = g;
   // The stop points of this game (src/game/stops.ts): the achievements' scene comes in at them.
   bindAchievements(g);
 
