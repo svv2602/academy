@@ -6,7 +6,7 @@ import type { SpokenKey } from '../ui/strings';
 import { Actor } from './actor';
 import type { Game } from './context';
 import type { Spot } from './player';
-import { GROUND, PET_WALK_MAX, pace, speedometer } from './stride';
+import { GROUND, PET_RUN_MAX, PET_WALK_MAX, pace, speedometer } from './stride';
 import type { WorldDef } from './world';
 
 /**
@@ -247,7 +247,7 @@ export function createPets(g: PetHost, o: {
             // the pace by the speed it goes at (src/game/stride.ts); too fast for its walk, it runs if it can
             const kind = petSpecies(followed);
             const run = kind?.run && follower.has(kind.run.clip) && speed / kind.walk > PET_WALK_MAX ? kind.run : null;
-            if (run) follower.play(run.clip, 0.2, pace(speed, run.ground));
+            if (run) follower.play(run.clip, 0.2, pace(speed, run.ground, PET_RUN_MAX));
             else follower.play('Walk', 0.15, pace(speed, kind?.walk ?? GROUND.fawnWalk, PET_WALK_MAX));
           } else { follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
         }
