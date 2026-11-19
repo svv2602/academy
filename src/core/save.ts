@@ -14,7 +14,8 @@
  * of the day (`gift`) and the current session of play (`session`): optional, absent until first written, a damaged one mended.
  * So did the world where she stopped (`lastWorld`, WORLD-01, TECH-09): absent until the first entry into a world.
  * So did the potions and the compass (src/game/supplies.ts): her stock (`supplies`) and the seconds left of what acts
- * (`effects`): absent until the first purchase, a damaged count is none.
+ * (`effects`): absent until the first purchase, a damaged count is none. So did the helpers of a task taken by day
+ * (`helps`), for the parents.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -112,6 +113,11 @@ export interface Save {
    * not take away a minute she paid for.
    */
   effects?: Record<string, number>;
+  /**
+   * The helpers of a task taken (src/game/helpers.ts), by local date (`YYYY-MM-DD`) and helper: how many. Only the last
+   * seven days are kept; the parents' section shows their sum. Absent until the first one taken.
+   */
+  helps?: Record<string, Record<string, number>>;
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -412,6 +418,12 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The stock and the effects: only whole counts above zero and seconds above zero are kept (an unknown id too).
   if (s.supplies !== undefined) out.supplies = countsOf(s.supplies, (n) => Number.isInteger(n) && n > 0);
   if (s.effects !== undefined) out.effects = countsOf(s.effects, (n) => n > 0);
+  // The helpers taken by day: a day keyed by its date, its counts whole and above zero; anything else is dropped.
+  if (s.helps !== undefined) {
+    out.helps = Object.fromEntries(Object.entries(isObject(s.helps) ? s.helps : {})
+      .filter(([day]) => DAY.test(day))
+      .map(([day, counts]) => [day, countsOf(counts, (n) => Number.isInteger(n) && n > 0)]));
+  }
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);

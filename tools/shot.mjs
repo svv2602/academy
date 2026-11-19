@@ -3098,6 +3098,47 @@ try {
         if (Object.keys(off.effects).length || off.speed !== base.speed || off.jump !== base.jump || off.camDist !== base.camDist || Math.abs(off.scale - 1) > 0.001 || off.halo !== false) fail(`after the end: ${JSON.stringify(off)}, before: speed ${base.speed}, jump ${base.jump}, camera ${base.camDist}`);
         console.log(`potions: bought ${buys.length} for ${base.stars - bought.stars} stars, drunk four by one tap each (speed x1.5, jump x1.41, the halo, ${size === 0.5 ? 'tiny' : 'a giant'}), the time stood while the shop was open, stored, ended as before; the compass dimmed and kept`);
       }
+      // ---- the helpers of a task (decision of 2026-11-19, src/game/helpers.ts) ----
+      // Bought on the tab of the potions; in a task of counting on level 2 (opened by __game.task) the owl says the
+      // first rung at once - the way, no answer lit - and is spent once; the abacus lays the things out in ten frames;
+      // the stock goes down, today's count of each goes up (the parents' section reads it); the result says "helped".
+      if (has('helpers')) {
+        const fail = (what) => { throw new Error(`helpers: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const st = () => g(() => ({ stars: __game.save.stars, supplies: { ...(__game.save.supplies ?? {}) }, helps: JSON.parse(JSON.stringify(__game.save.helps ?? {})) }));
+        await g(() => { __game.save.stars += 35; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+        await calm();
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        await tap('#shopTabs [data-tab=potions]'); await calm();
+        for (const [id, price] of [['owl', 15], ['abacus', 20]]) {
+          await tap(`#shopItems [data-id=${id}]`); await calm();
+          const before = await st();
+          await g((it) => { window.__stars.buy = it; }, { id, price, stock: (before.supplies[id] ?? 0) + 1 });
+          await tap('#shopBuy'); await calm();
+          const after = await st();
+          if (after.stars !== before.stars - price || after.supplies[id] !== (before.supplies[id] ?? 0) + 1) fail(`buying ${id}: ${before.stars} -> ${after.stars} stars, the stock ${after.supplies[id]}`);
+          await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
+        }
+        await tap('#shopDone'); await calm();
+        if (await g(() => !!document.querySelector('#supplies [data-id=owl], #supplies [data-id=abacus]'))) fail('a helper of a task is in the row of the potions');
+        await g(() => { window.__helped = null; void __game.task('count', 2).then((r) => { window.__helped = r; }); });
+        await page.locator('#taskOwl').waitFor({ timeout: 20000 }).catch(() => fail('no owl on the panel of a task'));
+        if (!(await visible('#taskAbacus'))) fail('no abacus on the panel of counting on level 2');
+        await tap('#taskOwl');
+        await gameFor(() => document.getElementById('taskStage').dataset.shown === '1', null, 30).catch(() => fail('the owl did not give the first rung'));
+        if (await g(() => !!document.querySelector('#taskStage .pulse, #taskOpts .pulse'))) fail('the owl lit the answer');
+        if (await visible('#taskOwl')) fail('the owl is still on the panel after it was taken');
+        await tap('#taskAbacus');
+        if (!(await g(() => document.querySelectorAll('#taskStage .tens .tf').length > 0))) fail('the abacus laid out no ten frames');
+        await shot('helpers-task');
+        await g(() => __game.cheat());
+        await gameFor(() => window.__helped !== null, null, 20).catch(() => fail('the task did not end'));
+        const r = await g(() => window.__helped);
+        const after = await st(), day = Object.values(after.helps).at(-1) ?? {};
+        if (!(r.solved && r.helped === true)) fail(`the result of the task: ${JSON.stringify(r)}, expected solved and helped`);
+        if (after.supplies.owl || after.supplies.abacus || day.owl !== 1 || day.abacus !== 1) fail(`after the task: the stock ${JSON.stringify(after.supplies)}, today's count ${JSON.stringify(day)}`);
+        console.log('helpers: bought the owl (15) and the abacus (20); in counting on level 2 the owl said the first rung at once, nothing lit, the abacus laid out ten frames; both spent once, counted for the parents, the result "helped"');
+      }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
       // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.
       if (has('shop-sign')) {

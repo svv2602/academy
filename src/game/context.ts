@@ -9,6 +9,7 @@ import { PRAISE, TRY, tapKey, voiceText } from '../ui/strings';
 import { Actor } from './actor';
 import type { HeroModel, Shared } from './boot';
 import { Sparks } from './fx';
+import { taskHelpers } from './helpers';
 import type { Stage } from './stage';
 import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './taskviews/panel';
@@ -215,12 +216,15 @@ export function createGame(o: {
   }
 
   // ----- panel tasks -----
+  // The helpers of a task (the owl, the abacus, src/game/helpers.ts): her stock, stored after each one taken.
+  const helpers = taskHelpers(save, () => persist());
   const hooksFor = (speaker: string): TaskHooks => ({
     prompt: (key, ask) => { void (ask ? speech.ask(ask, key, 'task', speaker) : speech.line(key, 'task', 0, speaker)); },
     number: (n) => { const k = tapKey(n); if (k) void say(k, voiceText(k), 'task'); },
     wrong: () => { sfx('soft'); const k = TRY[randInt(0, TRY.length - 1)]; return say(k, voiceText(k), 'task'); },
     hint: speech.hintLine,
     good: () => sfx('pop'),
+    helpers,
   });
 
   // The pets read the game live (`busy`, the heroine): they are made of it right after it.

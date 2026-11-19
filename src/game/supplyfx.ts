@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { applyEffects } from '../core/tuning';
 import type { Game } from './context';
 import { swimming } from './player';
-import { SUPPLY_IDS, stock, type SupplyId } from './shop';
+import { POTION_IDS, stock, type PotionId } from './shop';
 import { acting, drink, left, mysteriesLeft, refusal, sizeOf, tick, tuningOf, type EffectId, type Refusal } from './supplies';
 
 /** m: how near a mysterious star or a find twinkles under the glow. */
@@ -41,12 +41,12 @@ export interface SupplyWorld {
 }
 
 /** One button of the screen (src/ui/supplies.ts): how many she has, the seconds left of its effect, and whether a tap would drink it. */
-export interface SupplyButton { id: SupplyId; count: number; left: number; refusal: Refusal | null }
+export interface SupplyButton { id: PotionId; count: number; left: number; refusal: Refusal | null }
 
 export interface Supplies {
   /** Drinks one `id` (a tap on its button): its effect, or why not. Stores the save. */
-  drink(id: SupplyId): { effect: EffectId } | { refused: Refusal };
-  /** The buttons to show: the supplies she has or whose effect acts, in the order of SUPPLY_IDS. */
+  drink(id: PotionId): { effect: EffectId } | { refused: Refusal };
+  /** The buttons to show: the supplies she has or whose effect acts, in the order of POTION_IDS. */
   buttons(): SupplyButton[];
   /** The frame: the time runs while she can walk; the tuning, her size and the pictures follow what acts. */
   update(dt: number, time: number, canMove: boolean): void;
@@ -143,7 +143,7 @@ export function installSupplies(g: Game, world: SupplyWorld): Supplies {
     },
     buttons() {
       const p = place();
-      return SUPPLY_IDS
+      return POTION_IDS
         .map((id) => ({ id, count: stock(save, id), left: id === 'funny' ? Math.max(left(save, 'tiny'), left(save, 'giant')) : left(save, id as EffectId), refusal: refusal(save, id, p) }))
         .filter((b) => b.count > 0 || b.left > 0);
     },

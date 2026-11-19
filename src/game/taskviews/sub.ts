@@ -10,7 +10,7 @@ import { hintOf } from './flow';
 export function subView(spec: SubSpec, c: PanelCtx) {
   const st = sub.start(spec), { total, gone } = spec.body;
   const list = items(c.stage, spec.body.thing, spec.body.tilt);
-  if (spec.level >= FRAMES_FROM) tenFrames(c.stage, list);
+  if (spec.level >= FRAMES_FROM || c.framed) tenFrames(c.stage, list);   // c.framed: the abacus (src/game/helpers.ts)
   list.slice(total - gone).forEach((x) => x.classList.add('gone'));
   const ok = options(c, spec.body.options, (v) => sub.answer(spec, st, v) === 'right');
   c.hint = hintOf(spec.hint, pulseOf(ok), {

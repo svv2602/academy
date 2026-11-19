@@ -18,7 +18,7 @@
  */
 import type { Save } from '../core/save';
 import type { TuningKey } from '../core/tuning';
-import { stock, type SupplyId } from './shop';
+import { stock, type PotionId } from './shop';
 
 /** Seconds of play a potion acts. */
 export const EFFECT_SECONDS = 60;
@@ -65,7 +65,7 @@ export function acting(s: Save): EffectId[] {
 }
 
 /** The effect a supply gives; funny: the size she has now, else one by chance. */
-function effectOf(s: Save, id: SupplyId, random: () => number): EffectId {
+function effectOf(s: Save, id: PotionId, random: () => number): EffectId {
   if (id !== 'funny') return id;
   if (left(s, 'tiny') > 0) return 'tiny';
   if (left(s, 'giant') > 0) return 'giant';
@@ -73,7 +73,7 @@ function effectOf(s: Save, id: SupplyId, random: () => number): EffectId {
 }
 
 /** Why `id` would not be drunk now, or null when it would. */
-export function refusal(s: Save, id: SupplyId, at: Omit<DrinkPlace, 'random'>): Refusal | null {
+export function refusal(s: Save, id: PotionId, at: Omit<DrinkPlace, 'random'>): Refusal | null {
   if (stock(s, id) === 0) return 'none';
   if (id === 'jump' && at.water) return 'water';
   if (id === 'compass' && at.mysteries === null) return 'no-stars';
@@ -86,7 +86,7 @@ export function refusal(s: Save, id: SupplyId, at: Omit<DrinkPlace, 'random'>): 
  * Drinks one `id`: one less in her stock, a minute more of its effect (no more than EFFECT_MAX). Refused - the save as
  * it was - when `refusal` says why. The caller stores the save and applies the tuning.
  */
-export function drink(s: Save, id: SupplyId, at: DrinkPlace): { effect: EffectId } | { refused: Refusal } {
+export function drink(s: Save, id: PotionId, at: DrinkPlace): { effect: EffectId } | { refused: Refusal } {
   const why = refusal(s, id, at);
   if (why) return { refused: why };
   const effect = effectOf(s, id, at.random);

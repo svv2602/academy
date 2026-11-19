@@ -31,7 +31,7 @@ export async function countUp(c: PanelCtx, from: number, to: number, put: (dot: 
 }
 
 export function missingView(spec: MissingSpec, c: PanelCtx) {
-  const st = missing.start(spec), { a, sum, thing, tilt } = spec.body, framed = sum > 10;
+  const st = missing.start(spec), { a, sum, thing, tilt } = spec.body, framed = sum > 10 || c.framed === true;   // c.framed: the abacus
   const known = el('div', framed ? 'group framed' : 'group'), gap = el('div', 'gap');
   const q = el('span', 'sign q', '?');
   gap.appendChild(q);

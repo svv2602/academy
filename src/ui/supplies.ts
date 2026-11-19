@@ -17,6 +17,8 @@ export const SUPPLY_LOOK: Record<SupplyId, { icon: string; color: string }> = {
   glow: { icon: '✨', color: '#ffe36e' },
   funny: { icon: '🍄', color: '#ff9ed2' },
   compass: { icon: '🧭', color: '#ffc46b' },
+  owl: { icon: '🦉', color: '#d9b98c' },
+  abacus: { icon: '🧮', color: '#b8e0ff' },
 };
 
 /** The cat's line when an effect starts. */

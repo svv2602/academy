@@ -6,6 +6,11 @@
  * random numbers: every choice of the task is in the description. `runTask` makes the description from the task's rng.
  * The shows are drawn by `hints.css` (the composition of a number by its own `compose.css`, the neighbours of a number
  * by `neighbors.css`, the signs by `signs.css`).
+ *
+ * The helpers of a task (src/game/helpers.ts) have their buttons in a corner of the panel, only when she has one and
+ * where it gives something: the owl - before any mistake or hint, the first rung of the hint at once (and the first
+ * mistake then goes on with the second rung); the abacus - in a task with a number on the levels without ten frames,
+ * the task drawn again with its things in ten frames (`PanelCtx.framed`). Neither gives the answer.
  */
 import { createRng, type Rng } from '../../core/rng';
 import type { Spoken } from '../../core/audio';
@@ -14,6 +19,9 @@ import type { SpokenKey } from '../../ui/strings';
 import { generate, type SpecOf, type TaskSpec } from '../tasks/index';
 import type { TaskType } from '../tasks/types';
 import type { SkillId } from '../skills';
+import type { TaskHelpers } from '../helpers';
+import type { HelperId } from '../shop';
+import { FRAMES_FROM } from './tenframe';
 import { afterMistake, type ShownHint } from './flow';
 import { countView } from './count';
 import { addView } from './add';
@@ -38,7 +46,8 @@ export const SKILL: Record<TaskType, SkillId> = {
   neighbors: 'series', signs: 'compare',
 };
 
-export interface TaskResult { solved: boolean; wrong: number; }
+/** `helped`: a helper was taken in this task (src/game/helpers.ts): the level does not grow for it. */
+export interface TaskResult { solved: boolean; wrong: number; helped?: boolean }
 /**
  * What the game asks the cat to say. `wrong` and `hint` return the end of their line, so the next step can wait for it.
  * A line that is cut off by a newer one settles at once as well: a settled promise does not mean "heard to the end",
@@ -51,6 +60,8 @@ export interface TaskHooks {
   wrong(): Spoken;                 // gentle "try again"
   hint(key: SpokenKey): Spoken;    // the cat says the hint aloud, with its subtitle
   good(): void;                    // right-answer chime
+  /** Her helpers (the owl, the abacus); absent - no helper buttons on the panel. */
+  helpers?: TaskHelpers;
 }
 
 /** What a show gets from the panel: where to draw, the cat, and the task as it goes on. */
@@ -63,6 +74,8 @@ export interface PanelCtx {
   /** The hint of this task type: the line the cat says, and the solution shown once the line has ended. */
   hint: ShownHint | null;
   cheat: () => void;
+  /** The abacus was taken: the show lays its things out in ten frames whatever the level. */
+  framed?: boolean;
 }
 /** The show of one task type: draws the description on the panel and wires its taps. */
 export type PanelView<T extends TaskType> = (spec: SpecOf<T>, c: PanelCtx) => void;
@@ -116,6 +129,20 @@ const viewOf = <T extends TaskType>(type: T) => ({
   neighbors: neighborsView, signs: signsView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
+/**
+ * Does the abacus give something in this task: a task with things to count whose show does not lay them out in ten
+ * frames by itself (count, add, take away below FRAMES_FROM; the missing number up to 10; the signs, whose things are
+ * shown by the second rung only).
+ */
+export function abacusHelps(spec: TaskSpec): boolean {
+  switch (spec.type) {
+    case 'count': case 'add': case 'sub': return spec.level < FRAMES_FROM;
+    case 'missing': return spec.body.sum <= 10;
+    case 'signs': return true;
+    default: return false;
+  }
+}
+
 let current: PanelCtx | null = null;
 /** Test hook: solves the task on screen the way a child would (through the same handlers). */
 export function cheatTask() { current?.cheat(); return !!current; }
@@ -128,8 +155,14 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
   const close = document.getElementById('taskClose')!;
   stage.className = 't-stage t-' + spec.type; stage.innerHTML = ''; opts.innerHTML = ''; stage.removeAttribute('style'); delete stage.dataset.shown;
   root.classList.remove('hidden', 'won');
+  const card = root.querySelector('.t-card') ?? root;
+  card.querySelector('.t-helps')?.remove();
   return new Promise((resolve) => {
-    const finish = (solved: boolean) => { c.alive = false; current = null; root.classList.add('hidden'); resolve({ solved, wrong: c.wrongs }); };
+    let helped = false;
+    /** The rungs the owl has given already: the mistakes go on from the next one. */
+    let given = 0;
+    const helps = el('div', 't-helps');
+    const finish = (solved: boolean) => { c.alive = false; current = null; helps.remove(); root.classList.add('hidden'); resolve(helped ? { solved, wrong: c.wrongs, helped } : { solved, wrong: c.wrongs }); };
     const c: PanelCtx = {
       stage, opts, hooks, wrongs: 0, alive: true, own: -1, hint: null, cheat: () => {},
       // The end is set before the sound: whatever the sound does, a right answer always ends the task (a panel left up
@@ -144,11 +177,42 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     };
     current = c;
     close.onclick = () => { if (c.alive) finish(false); };
-    (view as PanelView<TaskType>)(spec, c);
-    // The rung whose line has ended and whose show has run is marked on the stage (no style): the walkthrough waits
-    // for it instead of a pause, and then checks what that rung put on screen (tools/shot.mjs, R16).
-    const shown = c.hint;
-    if (shown) c.hint = { key: shown.key, show: (round) => { stage.dataset.shown = String(round); shown.show(round); } };
+    const draw = () => {
+      (view as PanelView<TaskType>)(spec, c);
+      // The rung whose line has ended and whose show has run is marked on the stage (no style): the walkthrough waits
+      // for it instead of a pause, and then checks what that rung put on screen (tools/shot.mjs, R16). After the owl a
+      // mistake goes on from the rung after the ones she was given.
+      const shown = c.hint;
+      if (shown) c.hint = { key: (round) => shown.key(round + given), show: (round) => { stage.dataset.shown = String(round + given); shown.show(round + given); } };
+    };
+    draw();
+    // ---- the helpers: a button for each one she has, where it gives something ----
+    const button = (id: HelperId, icon: string, on: () => void) => {
+      const b = el('button', 't-help', icon);
+      b.id = id === 'owl' ? 'taskOwl' : 'taskAbacus'; b.dataset.id = id;
+      tap(b, () => { if (!c.alive || !hooks.helpers?.use(id)) return; helped = true; b.remove(); on(); if (!helps.children.length) helps.remove(); });
+      helps.appendChild(b);
+      return b;
+    };
+    if (hooks.helpers?.has('owl') && c.hint) {
+      const owl = button('owl', '🦉', () => {
+        given = 1;
+        const shown = c.hint!, round = c.wrongs;
+        // the first rung as after a first mistake: its line, then what it shows (a rung of the way shows nothing)
+        void hooks.hint(shown.key(1 - given)).then(() => { if (c.alive && c.wrongs === round) { stage.dataset.shown = '1'; } });
+      });
+      // a mistake or a hint before the owl was asked: the hint is on its way already, the owl has nothing to add
+      const was = c.wrong.bind(c);
+      c.wrong = (e) => { owl.remove(); if (!helps.children.length) helps.remove(); was(e); };
+    }
+    if (hooks.helpers?.has('abacus') && abacusHelps(spec)) {
+      button('abacus', '🧮', () => {
+        c.framed = true;
+        stage.innerHTML = ''; opts.innerHTML = '';
+        draw();
+      });
+    }
+    if (helps.children.length) card.appendChild(helps);
     hooks.prompt(spec.prompt, spec.ask);
   });
 }

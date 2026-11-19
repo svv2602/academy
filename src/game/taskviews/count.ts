@@ -10,7 +10,7 @@ import { hintOf } from './flow';
 export function countView(spec: CountSpec, c: PanelCtx) {
   const st = count.start(spec), { n } = spec.body;
   const list = items(c.stage, spec.body.thing, spec.body.tilt);
-  if (spec.level >= FRAMES_FROM) tenFrames(c.stage, list);
+  if (spec.level >= FRAMES_FROM || c.framed) tenFrames(c.stage, list);   // c.framed: the abacus (src/game/helpers.ts)
   let counted = 0;
   list.forEach((b) => tap(b, () => { if (!b.classList.contains('hit')) { b.classList.add('hit'); badge(b, ++counted); c.own = c.wrongs; c.hooks.number(counted); } }));
   const ok = options(c, spec.body.options, (v) => count.answer(spec, st, v) === 'right');
