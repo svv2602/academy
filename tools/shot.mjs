@@ -387,7 +387,28 @@ try {
   // its seconds of game time, gameFor - the same as a promise that fails; a game that stands still fails at once.
   const { gameUntil, gameFor } = gameWaits(page, { ceiling: T(600000) }); /* clock: ceiling */
   // `n` frames drawn by the page - an event, not a time: as many as it takes, however slow the frames are.
-  const framesDrawn = (n = 2) => g((n) => new Promise((r) => { const f = () => (--n > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+  // What the screen shows and holds, for a wait that ran out: the panels shown, the buttons and whether they can be
+  // pressed, what holds the game. Asked with a limit of its own: a page that does not answer says so.
+  const screenState = () => within('the state of the screen', g(() => {
+    const ids = ['start', 'sleep', 'wake', 'play', 'setup', 'loading', 'breakCard', 'breakYes', 'breakNo', 'fanfare', 'task', 'bubble', 'hud', 'book', 'parents', 'story'];
+    const shown = ids.filter((id) => { const e = document.getElementById(id); return e && !e.classList.contains('hidden') && e.getClientRects().length; });
+    const off = [...document.querySelectorAll('button')].filter((b) => b.disabled && b.getClientRects().length).map((b) => b.id || b.textContent.trim().slice(0, 12));
+    const gm = window.__game;
+    return { shown, disabled: off, hidden: document.hidden, time: gm?.time, busy: gm?.busy, paused: gm?.paused, inTask: gm?.inTask, line: gm?.line,
+      ach: gm && { scene: gm.ach.scene, queue: [...(gm.ach.queue ?? [])], held: gm.ach.held, over: { ...(gm.ach.over ?? {}) } },
+      session: gm?.save.session, breakMin: gm?.save.breakMin, update: gm?.update && { state: gm.update.state(), held: gm.update.held() } };
+  }), T(10000)).then((x) => JSON.stringify(x), (e) => `(no answer: ${e.message})`); /* clock: page-load */
+  // A promise of the page with a limit of the clock: one that never settles fails with `what`, not by the job's own limit
+  // with nothing in the log (2026-11-19: the whole session on the runner stopped in the block "break" twice, silent).
+  const within = (what, p, ms) => {
+    let timer;
+    const late = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`${what}: nothing after ${Math.round(ms / 1000)} s of the clock`)), ms); });
+    return Promise.race([p, late]).finally(() => clearTimeout(timer));
+  };
+  // `n` frames drawn by the page - an event, not a time: as many as it takes, however slow the frames are; none for a
+  // minute of the clock is a page that stopped drawing (said with what the screen shows).
+  const framesDrawn = (n = 2) => within(`${n} frame(s) drawn`, g((n) => new Promise((r) => { const f = () => (--n > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n), T(60000)) /* clock: page-load */
+    .catch(async (e) => { throw new Error(`${e.message}: the page stopped drawing - ${await screenState()}`); });
   // The page has come to rest after a tap: no CSS animation or transition of a finite length still runs (the browser runs
   // them by the wall clock: an element entering, a panel sliding; an endless one - a pulse - is not waited for), then a
   // frame is drawn with what it shows now.
@@ -3240,8 +3261,10 @@ try {
           // before its minutes, no card
           await g(() => { __game.save.breakMin = 30; __game.save.session.min = 1; });
           const over0 = await g(() => __game.ach.over.task ?? 0);
-          await g(() => __game.ach.stop('task'));
+          await within('a stop point before the minutes of the break', g(() => __game.ach.stop('task')), T(60000)) /* clock: input-event */
+            .catch(async (e) => fail(`${e.message} (it waits for something: a card?) - ${await screenState()}`));
           if (await g(cardShown)) left.push('a card came before the minutes of the break');
+          console.log(`break: before the minutes - ${await screenState()}`);
           if ((await g(() => __game.ach.over.task ?? 0)) !== over0 + 1) left.push('the point before the minutes did not end at once');
           // ---- "play on" ----
           const before1 = await offer(10);
@@ -3250,6 +3273,7 @@ try {
           const out1 = await inWindow(['#breakCard .card', '#breakYes', '#breakNo', '#breakSay']);
           if (out1.length) left.push(`${mode}: not inside the window: ${out1.join(', ')}`);
           if (!first) left.push('the card has no line of the cat');
+          console.log(`break: the card of "play on" - ${await screenState()}`);
           await tap('#breakNo'); await calm();
           await gameFor((n) => (__game.ach.over.task ?? 0) === n + 1, before1, 10).catch(() => left.push('"play on" did not end the stop point'));
           const s1 = await g(() => ({ card: !document.querySelector('#breakCard').classList.contains('hidden'), bubble: document.querySelector('#bubble').classList.contains('hidden') ? '' : document.querySelector('#bubbleText').textContent,
@@ -3263,12 +3287,15 @@ try {
           if (!(await walks())) left.push('the heroine does not walk after "play on"');
           // in the quiet, no card
           await g(() => { __game.save.session.min = __game.save.session.quiet - 1; });
-          await g(() => __game.ach.stop('task'));
+          await within('a stop point in the quiet after "play on"', g(() => __game.ach.stop('task')), T(60000)) /* clock: input-event */
+            .catch(async (e) => fail(`${e.message} (it waits for something: a card?) - ${await screenState()}`));
           if (await g(cardShown)) left.push('a card came in the quiet after "play on"');
+          console.log(`break: in the quiet - ${await screenState()}`);
           // ---- "till tomorrow" ----
           const before2 = await offer(s1.quiet + 0.5);
           const second = await g(() => document.querySelector('#breakSay').textContent);
           if (second === first) left.push(`the cat said the same offer twice in a row: "${first}"`);
+          console.log(`break: the card of "till tomorrow" - ${await screenState()}`);
           await tap('#breakYes');
           await gameFor(() => !document.querySelector('#start').classList.contains('hidden') && !document.querySelector('#sleep').classList.contains('hidden'), null, 10)
             .catch(() => fail('"till tomorrow" did not show the start screen with the sleeping cat'));
@@ -3283,7 +3310,9 @@ try {
           if (s2.hud || s2.setup) left.push('the start screen of the sleeping cat shows the game\'s buttons or the setup');
           if (!s2.say || !s2.wake) left.push('the sleeping cat has no line or no "Continue"');
           if (s2.over !== before2) left.push('the stop point ended before "Continue": what comes after it would come under the sleeping cat');
+          console.log(`break: the sleeping cat - ${await screenState()}`);
           await tap('#wake'); await calm();
+          console.log(`break: after "Continue" - ${await screenState()}`);
           await gameFor((n) => (__game.ach.over.task ?? 0) === n + 1, before2, 10).catch(() => left.push('"Continue" did not end the stop point'));
           const s3 = await g(() => ({ start: !document.querySelector('#start').classList.contains('hidden'), hud: !document.querySelector('#hud').classList.contains('hidden'), stars: __game.save.stars }));
           if (s3.start || !s3.hud) left.push('"Continue" did not bring the game back with one tap');
