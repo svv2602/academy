@@ -3,7 +3,8 @@
 //
 // A foot is the lowest part of a character - the vertices of its skinned meshes within the lowest 4 % of its height in
 // its standing pose, by side (and front and back for four legs; the cat has no bones in its legs) - or, where it has
-// them, the bone of the ball of the foot (the heroine: the middle of a sole rolls from heel to toes while it stands).
+// them, the bone of the ball of the foot (the heroine: the middle of a sole rolls from heel to toes while it stands) or
+// of the toes (the cat: four of them).
 // In a frame the body stands on its lowest foot when that one is near its lowest (3 % of the height, 2 cm at least)
 // and goes back under the body; its speed over the ground then is the slide.
 
@@ -34,7 +35,12 @@ await page.evaluate(() => {
     // of a sole rolls from the heel to the toes and moves while the foot stands
     const balls = {};
     actor.model.traverse((o) => { if (o.isBone && /^ball_[lr]$/.test(o.name)) balls[o.name.endsWith('l') ? 'L' : 'R'] = [{ bone: o }]; });
-    return { groups: Object.keys(balls).length === 2 ? balls : groups, height: hi - lo };
+    if (Object.keys(balls).length === 2) return { groups: balls, height: hi - lo };
+    // four legs with the bones of their toes (the Meshy cat: frontToe.L ... rearToe.R; three.js drops the dots of node names): a toe is the point it stands on
+    // (its idle stands on one paw lower than the others, so the lowest vertices would find one foot only)
+    const toes = {};
+    actor.model.traverse((o) => { const m = o.isBone && /^(front|rear)Toe\.?([LR])$/.exec(o.name); if (m) toes[m[2] + (m[1] === 'front' ? 'F' : 'B')] = [{ bone: o }]; });
+    return { groups: Object.keys(toes).length === 4 ? toes : groups, height: hi - lo };
   };
   window.__mid = (group) => {
     if (group[0].bone) return group[0].bone.getWorldPosition(new THREE.Vector3());

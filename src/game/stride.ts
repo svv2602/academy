@@ -14,17 +14,22 @@ import { clamp } from '../core/util';
 export const GROUND = {
   heroWalk: 0.5,
   heroRun: 3.17,
-  /** The cat has no other walking clip: at the heroine's run it cannot keep its paws (see CAT_PACE_MAX). */
-  catWalk: 0.41,
+  /** The Meshy cat (2026-11-19) at 0.75 m: its walk and its run (measured by its toe bones). */
+  catWalk: 0.368,
+  catRun: 1.12,
   fawnWalk: 0.24,
   fawnGallop: 1.04,
 } as const;
 
+/** The pace of the cat's walk at most; faster, it runs. Below CAT_WALK_BACK it walks again (no flicker between). */
+export const CAT_WALK_MAX = 2.2;
+export const CAT_WALK_BACK = 1.6;
 /**
- * The highest pace of the cat's walk: above it the legs only blur. At the heroine's run (5.4 m/s) the cat would need a
- * pace near 20; it keeps 3 and slides the rest (decision 2026-11-18; a run of its own is a question to the customer).
+ * The pace of the cat's run at most: high enough that at the heroine's run (5.4 m/s, a pace of 4.8 - some 7 strides a
+ * second of its 0.7 s clip) its paws keep their place. The old cat had no run and slid 0.72 of the way there (decision
+ * 2026-11-18); the Meshy cat runs. If its legs look too quick, 3.5 gives some 5 strides a second and slides 0.27.
  */
-export const CAT_PACE_MAX = 3;
+export const CAT_RUN_MAX = 5;
 /** The pace of the pet's walk at most; faster, it gallops. */
 export const PET_WALK_MAX = 2.2;
 /**
@@ -39,6 +44,9 @@ export const PET_RUN_MAX = 2.1;
 export const PET_WALK_BACK = 1.6;
 /** A pace below this looks like standing still while the body moves: the steps go on at least this fast. */
 export const PACE_MIN = 0.5;
+
+/** How fast the cat or the pet goes after its place `d` m away, m/s: faster the further it is, 7 at most. */
+export const followSpeed = (d: number) => Math.min(7, d * 3.2);
 
 /**
  * A pace that follows its target smoothly in time (about a fifth of a second), so that a push or a short frame does not

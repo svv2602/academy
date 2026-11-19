@@ -6,7 +6,7 @@ import type { SpokenKey } from '../ui/strings';
 import { Actor } from './actor';
 import type { Game } from './context';
 import type { Spot } from './player';
-import { GROUND, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, pace, paceFollower, speedometer } from './stride';
+import { GROUND, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, followSpeed, pace, paceFollower, speedometer } from './stride';
 import type { WorldDef } from './world';
 
 /**
@@ -117,9 +117,6 @@ export function petPlace(hero: { x: number; z: number }, heading: number, out = 
  * pushed out of the cat's reach: a pet nearer the cat than PET_GAP stands off along the line between them.
  * Returns the distance that was left to its place (more than NEAR: it walked).
  */
-/** How fast the pet goes after its place `d` m away, m/s: faster the further it is, 7 at most. */
-export const followSpeed = (d: number) => Math.min(7, d * 3.2);
-
 export function followStep(p: { x: number; z: number }, place: { x: number; z: number }, cat: { x: number; z: number }, dt: number): number {
   const d = Math.hypot(place.x - p.x, place.z - p.z);
   if (d > NEAR) {

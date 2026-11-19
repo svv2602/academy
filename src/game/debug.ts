@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { clipFor, dropped, inTask, musicPlaying, speaking, voiceLog } from '../core/audio';
 import { shardsSettled } from './dialogue';
 import { tuning } from '../core/tuning';
+import { CAT_TAP_Y } from './companion';
 import { uTime } from '../core/materials';
 import { cheatTask } from './taskviews/panel';
 import { worldTaskDoor } from './worldtasks/core';
@@ -55,6 +56,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   const game: Record<string, unknown> = {
     hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: world.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
+    /** Where a tap on the cat aims, m over its feet (src/game/companion.ts). */
+    catTapY: CAT_TAP_Y,
     /** The pet that follows the heroine (PLAY-09), null when none: its actor, for the measure of the feet (tools/feet.mjs). */
     get pet() { return g.pets.follower; },
     /**

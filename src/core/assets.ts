@@ -105,10 +105,10 @@ const counted = new WeakSet<Promise<GLTF>>();
  * and the cat are loaded inside the world's own `load` - without this list they would be released with the world.
  * An entry that ends with `/` is a folder, any other is one model.
  */
-const sharedPaths = ['hero/', 'items/', 'extra/cat2'];
+const sharedPaths = ['hero/', 'items/', 'extra/cat'];
 const isShared = (path: string) => sharedPaths.some((s) => (s.endsWith('/') ? path.startsWith(s) : path === s));
 
-/** Marks models (`'extra/cat2'`) or folders of models (`'hero/'`) as shared: loaded or not yet, they are never released. */
+/** Marks models (`'extra/cat'`) or folders of models (`'hero/'`) as shared: loaded or not yet, they are never released. */
 export function shared(...paths: string[]) {
   sharedPaths.push(...paths);
   for (const [path, h] of held) if (isShared(path)) h.kept = true;

@@ -1,7 +1,7 @@
 # Credits
 
 3D models: **Quaternius** (https://quaternius.com) — CC0 1.0 packs: Ultimate Nature, Ultimate Animated Animals,
-Medieval Village, Platformer Game Kit, Ultimate RPG, plus single models (cat, castle, fantasy house, mushroom)
+Medieval Village, Platformer Game Kit, Ultimate RPG, plus single models (castle, fantasy house, mushroom)
 fetched from https://poly.pizza.
 
 Textured trees, plants, flowers and rocks: Quaternius "Stylized Nature MegaKit" (CC0 1.0), converted from the
@@ -15,6 +15,12 @@ Heroine as a child (TECH-14; `models-src/hero/child.glb`, built with `tools/hero
 were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-15; under Meshy's terms for
 paid plans the model belongs to the customer (not CC0). Skeleton and animations: Quaternius "Universal Animation
 Library" — CC0 1.0. The queen keeps the heroine models above.
+
+The cat (`models-src/extra/cat.glb`): the mesh, its texture, its skeleton (four legs) and its clips (Meshy's cat
+idle, walk, run and "act cute" for its dance) were generated with the Meshy service (https://www.meshy.ai) on a paid
+plan on 2026-11-19; under Meshy's terms for paid plans the model belongs to the customer (not CC0), the skeleton and
+the clips are Meshy's "Service Assets", licensed for use as part of the model. Joined, simplified and its texture
+shrunk in Blender for this game.
 
 Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wands, butterfly wings, and the free items
 of the four looks: tiara, little wizard cap, elf ears, flower, moon and leaf wands; `models-src/items/`): our own simple shapes made in Blender for this game with
