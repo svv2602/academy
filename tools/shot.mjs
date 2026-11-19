@@ -1127,14 +1127,18 @@ try {
         await silence().catch(() => fail('the voice did not fall silent after the introduction'));
         // PLAY-21: with the bubble empty (its timer hid the last line) a tap says where we stopped - in the new world of
         // this piece "left_new_world" -; with a line in the bubble the tap repeats it (VOICE-08).
+        let putBack = false;
         if (!(await visible('#bubble'))) {
           const stopped = await tapCat('left_new_world');
           console.log(`a tap on the cat with the bubble empty: "${stopped}" (where we stopped)`);
           await silence().catch(() => fail(`the voice did not fall silent after "${stopped}"`));
+          // Its bubble stays 8 s by the wall clock (welcome.ts LEFT_HOLD_MS), which a slow runner can spend before the
+          // repeat below: then the line is put back in the bubble, as it was before its timer hid it.
+          if (!(await visible('#bubble'))) { await g(() => document.querySelector('#bubble').classList.remove('hidden')); putBack = true; }
         }
         if (await visible('#bubble')) {
           const key = await tapCat(null);
-          console.log(`a tap on the cat: "${key}" is said again, the heroine stands`);
+          console.log(`a tap on the cat: "${key}" is said again, the heroine stands${putBack ? ' (put back in the bubble: its timer had hidden it)' : ''}`);
           catRepeated = true;
         }
       }
