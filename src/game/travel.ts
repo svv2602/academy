@@ -139,6 +139,11 @@ export interface TravelHost {
   drawn(): Promise<void>;
   /** The entry into the world once its frame is open (src/game/start.ts `enterWorld`); `first` - she has not been in it yet. */
   welcome(first: boolean): Promise<void>;
+  /**
+   * She is in the world `id` asked for, its frame open (called before `welcome`): the game starts the download of the
+   * next world from there (TECH-09). Not called when the change did not happen.
+   */
+  arrived(id: string): void;
   /** The gate of the worlds (src/game/gate.ts): asked for every change, before anything of it is done. */
   gate: Gate;
   /** The cache of the worlds (src/core/worldcache.ts): a world let in "from the network" is downloaded through it in full. */
@@ -201,7 +206,7 @@ export function createTravel(host: TravelHost): Travel {
   }
 
   /** Opens and builds `world` behind the closed frame. Null = it could not be: nothing of it is left in the scene or in the loader. */
-  async function open(world: WorldDef): Promise<Played | null> {
+  async function open(world: WorldDef, from: string | null): Promise<Played | null> {
     let opening: Opening | null = null, entered = false;
     try {
       resetProgress();
@@ -210,7 +215,7 @@ export function createTravel(host: TravelHost): Travel {
       if (loads !== null) {
         // The game's part of the world, then the world itself. What a watcher of the change (g.onWorld) adds to the
         // scene on "enter" is the game's, as what createGame adds is.
-        o.scope.shared(() => g.enter(host.entryOf(world)));
+        o.scope.shared(() => g.enter(host.entryOf(world), from));
         entered = true;
         return build(o, loads);
       }
@@ -314,9 +319,11 @@ export function createTravel(host: TravelHost): Travel {
     const fetched = gate.from === 'network' ? await download(id) : true;
     const base = gate.from === 'network' ? DOWNLOAD_SHARE : 0;
     setProgressHandler((f) => transition.setProgress(base + (1 - base) * f));
-    let now = fetched ? await open(next) : null;
+    // She comes from the world left: the new one may say where she appears (WorldDef.arrive); back in the world left,
+    // she stands where she was.
+    let now = fetched ? await open(next, was.opening.world.id) : null;
     const arrived = now !== null;
-    if (!now) now = await open(was.opening.world);
+    if (!now) now = await open(was.opening.world, null);
     if (!now) {
       // Neither world could be opened (no network and nothing in the cache): the game says so, with "try again".
       endTask();
@@ -353,7 +360,13 @@ export function createTravel(host: TravelHost): Travel {
       // same text goes to the bubble (text only, it is for the grown-ups), and the start screen gets its panel back.
       el.notice.classList.add('hidden'); el.setup.classList.remove('hidden');
       bubble('load_failed', 8000);
-    } else if (g.started()) void host.welcome(first);
+    } else {
+      // The world asked for: it is where she stopped (src/core/save.ts `lastWorld`), and the next world is downloaded.
+      save.lastWorld = id;
+      g.persist();
+      host.arrived(id);
+      if (g.started()) void host.welcome(first);
+    }
     return arrived;
   }
 

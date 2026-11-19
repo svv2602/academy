@@ -7,7 +7,9 @@
 // the bytes the list names (their SHA-256), whoever put them there. A download that was cut short, and a file whose
 // fingerprint changed with a new version, both read as "partial" until the next download brings the rest.
 // Nothing here throws or writes to the console: a failure of the network or of the storage (no room) ends the download
-// and stays in its state.
+// and stays in its state. A download in the background (`downloadNext`) gives way to a world asked for by name
+// (`download`, the heroine at its portal): it stops after the file it is bringing, so she never waits for a whole other
+// world; the next `downloadNext` brings the rest.
 
 /** One file of a world: its address relative to the page, its size in bytes and the SHA-256 of its bytes. */
 export interface WorldFile { url: string; size: number; revision: string }
@@ -23,9 +25,10 @@ export type WorldStatus = 'core' | 'ready' | 'partial' | 'none';
 /**
  * Why a download did not run or stopped: 'network' - a file or the list did not arrive; 'storage' - the cache refused
  * it (no room, no cache at all); 'changed' - the server sent other bytes than the list names (another version is being
- * published); 'saving' - the browser asks to save data, nothing is downloaded.
+ * published); 'saving' - the browser asks to save data, nothing is downloaded; 'yielded' - a download in the background
+ * stopped to let a world asked for by name go first.
  */
-export type WorldError = 'network' | 'storage' | 'changed' | 'saving';
+export type WorldError = 'network' | 'storage' | 'changed' | 'saving' | 'yielded';
 /** The last download: the world, how far it came (`done` of `total` files are in the cache) and how it ended. */
 export interface WorldDownload { world: string; status: WorldStatus; done: number; total: number; running: boolean; error: WorldError | null }
 
@@ -75,7 +78,8 @@ export interface WorldCache {
   status(id: string): Promise<WorldStatus>;
   /**
    * Brings the files of the world `id` the cache lacks (or holds with an old fingerprint), one at a time, in the order
-   * of the list. A second call while the first runs returns the first one's promise.
+   * of the list. A second call while the first runs returns the first one's promise. A download of another world in the
+   * background (`downloadNext`) gives way: it stops after its current file ('yielded'), and this one starts.
    */
   download(id: string): Promise<WorldDownload>;
   /**
@@ -89,10 +93,13 @@ export interface WorldCache {
   cached(id: string): Promise<string[]>;
 }
 
+interface Running { world: string; promise: Promise<WorldDownload>; background: boolean; yield: boolean }
+
 export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
   let list: Promise<WorldList | null | 'network'> | null = null;
   let last: WorldDownload | null = null;
-  let running: { world: string; promise: Promise<WorldDownload> } | null = null;
+  /** The download running or waiting last; `background` - from `downloadNext`, `yield` - asked to give way. */
+  let running: Running | null = null;
 
   const abs = (url: string) => new URL(url, env.base).href;
 
@@ -141,7 +148,7 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
     return held === files.length ? 'ready' : held ? 'partial' : 'none';
   }
 
-  async function run(id: string): Promise<WorldDownload> {
+  async function run(id: string, me: Running): Promise<WorldDownload> {
     const s: WorldDownload = last = { world: id, status: 'none', done: 0, total: 0, running: true, error: null };
     const end = (status: WorldStatus, error: WorldError | null = null) => { s.status = status; s.error = error; s.running = false; return s; };
     const l = await getList();
@@ -157,6 +164,7 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
     for (const f of files) if (await holds(cache, f)) s.done++; else missing.push(f);
     if (s.done) s.status = 'partial';
     for (const f of missing) {
+      if (me.yield) return stopped('yielded');
       let bytes: ArrayBuffer, type: string | null;
       try {
         // Past the service worker's route (it answers plain addresses from this very cache): the fingerprint in the
@@ -180,15 +188,24 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
     return end('ready');
   }
 
-  function download(id: string): Promise<WorldDownload> {
-    if (running?.world === id) return running.promise;
-    // One file at a time, whatever is asked: another world waits for the one being downloaded.
-    const before = running?.promise;
-    const mine = { world: id, promise: before ? before.then(() => run(id)) : run(id) };
+  function start(id: string, background: boolean): Promise<WorldDownload> {
+    if (running?.world === id) {
+      // Asked by name while it runs in the background: it no longer gives way.
+      if (!background) running.background = false;
+      return running.promise;
+    }
+    // One file at a time, whatever is asked: another world waits for the one being downloaded - but a world asked for
+    // by name does not wait for one of the background, which stops after its current file.
+    const before = running;
+    if (before && before.background && !background) before.yield = true;
+    const mine: Running = { world: id, promise: Promise.resolve(null as unknown as WorldDownload), background, yield: false };
+    mine.promise = before ? before.promise.then(() => run(id, mine)) : run(id, mine);
     running = mine;
     void mine.promise.then(() => { if (running === mine) running = null; });
     return mine.promise;
   }
+
+  function download(id: string): Promise<WorldDownload> { return start(id, false); }
 
   async function downloadNext(candidates: readonly string[]): Promise<WorldDownload | null> {
     if (!candidates.length) return null;
@@ -198,7 +215,7 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
     const choosing: WorldDownload = last = { world: candidates[0], status: 'none', done: 0, total: 0, running: true, error: null };
     for (const id of candidates) {
       const now = await status(id);
-      if (now !== 'ready' && now !== 'core') return download(id);
+      if (now !== 'ready' && now !== 'core') return start(id, true);
     }
     if (last === choosing) last = before;
     return null;

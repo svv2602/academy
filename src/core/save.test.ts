@@ -1231,3 +1231,36 @@ describe('the controls the parent chose (PLAY-22): `controls`, a field of versio
     for (const bad of ['more', 3, null, ['more']]) expect(load({ controls: bad }).controls, JSON.stringify(bad)).toEqual({});
   });
 });
+
+describe('the world where she stopped (WORLD-01, TECH-09): `lastWorld`, a field of version 4 without a new version', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+
+  it('a fresh save has none; a version 4 save written before it opens as it was, without it', () => {
+    expect('lastWorld' in defaultSave()).toBe(false);
+    const s = load({ stars: 5 });
+    expect([s.v, s.stars, 'lastWorld' in s]).toEqual([4, 5, false]);
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+  });
+
+  it('read and write: it survives a store and a load next to a field this code does not know; a world this build lacks is kept', () => {
+    for (const fields of [{ lastWorld: 'hub', later: 'x' }, { lastWorld: 'world-of-a-later-version', later: { y: 1 } }]) {
+      storeSave({ ...load(fields) });
+      const s = loadSave();
+      expect(s).toMatchObject(fields);
+      expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
+    }
+  });
+
+  it('anything but a word is absent', () => {
+    for (const bad of ['', 3, null, ['hub'], { id: 'hub' }]) expect('lastWorld' in load({ lastWorld: bad }), JSON.stringify(bad)).toBe(false);
+  });
+
+  it('"start again" clears it', () => {
+    storeSave({ ...load({ lastWorld: 'hub' }) });
+    clearSave();
+    expect('lastWorld' in loadSave()).toBe(false);
+  });
+});

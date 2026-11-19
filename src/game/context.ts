@@ -115,7 +115,7 @@ export interface Game extends GameWorld {
    * TECH-15: `w` is the world played from now on (after its load, before its build). Everything `worldPart` makes of
    * it replaces the world's part of `g`; the heroine stands where she was left in that world, else at its spawn.
    */
-  enter(w: WorldEntry): void;
+  enter(w: WorldEntry, from?: string | null): void;
   /**
    * How a shared part of the game learns of a change of world: `fn('leave')` while the world left is still whole and
    * `g` still holds its part, `fn('enter')` once `g` holds the part of the new one (before that world is built).
@@ -140,18 +140,25 @@ export interface WorldEntry {
   move?: WorldDef['move'];
   /** The steps it plays as tasks in the world (WorldDef.worldTasks): its description names them (src/game/describe.ts). */
   worldTasks?: WorldDef['worldTasks'];
+  /** Where she appears coming from another world (WorldDef.arrive); absent - where she was left, else the spawn. */
+  arrive?: WorldDef['arrive'];
 }
+
+/** The heading of the heroine as a world opens, when it names none: facing -z, the camera behind her (yaw 0). */
+export const ENTRY_HEADING = Math.PI;
 
 /**
  * The world's part of the game, made of the world to play: its progress in the save, its ground, where the heroine
- * stands when it opens (where she was left, else the world's spawn) and the text of its counter.
+ * stands when it opens and the text of its counter. She stands where the world says she arrives from the world `from`
+ * (`arrive`, only when she comes by travel), else where she was left, else at the world's spawn.
  */
-export function worldPart(save: Save, w: WorldEntry): Omit<GameWorld, 'groundY' | 'visit'> & { start: { x: number; z: number }; crystals: () => string } {
+export function worldPart(save: Save, w: WorldEntry, from: string | null = null): Omit<GameWorld, 'groundY' | 'visit'> & { start: { x: number; z: number; facing: number }; crystals: () => string } {
   const ws = worldState(save, w.id);
-  return {
-    worldId: w.id, ws, ground: w.ground, world: w,
-    start: { x: ws.pos?.[0] ?? w.spawn.x, z: ws.pos?.[1] ?? w.spawn.z }, crystals: w.crystals,
-  };
+  const came = from !== null ? w.arrive?.(from) ?? null : null;
+  const start = came
+    ? { x: came.x, z: came.z, facing: came.facing ?? ENTRY_HEADING }
+    : { x: ws.pos?.[0] ?? w.spawn.x, z: ws.pos?.[1] ?? w.spawn.z, facing: ENTRY_HEADING };
+  return { worldId: w.id, ws, ground: w.ground, world: w, start, crystals: w.crystals };
 }
 
 /** `shared` is the shared load (the heroine's model and the cat's, src/game/boot.ts), `world` the world to play. */
@@ -230,15 +237,15 @@ export function createGame(o: {
     fault: () => { if (g.failNext) { g.failNext = false; throw new Error('broken on purpose by __game.failNext()'); } },
     praise, task: taskOf(visit), hooksFor,
     leave: () => { for (const fn of watchers) fn('leave'); between = true; visit++; },
-    enter: (w) => {
-      part = worldPart(save, w);
+    enter: (w, from = null) => {
+      part = worldPart(save, w, from);
       // All of it at once, not field by field: a field added to `worldPart` is swapped with no line here.
       Object.assign(g, part, { task: taskOf(visit) });
       between = false;
-      const { x, z } = part.start;
-      hero.root.position.set(x, groundY(x, z), z); hero.heading = Math.PI; hero.root.rotation.y = Math.PI;
+      const { x, z, facing } = part.start;
+      hero.root.position.set(x, groundY(x, z), z); hero.heading = facing; hero.root.rotation.y = facing;
       cat.root.position.set(x + 1, groundY(x + 1, z + 0.6), z + 0.6);
-      cam.yaw = 0; cam.focus = null; cam.target.copy(hero.root.position);
+      cam.yaw = facing - ENTRY_HEADING; cam.focus = null; cam.target.copy(hero.root.position);
       g.auto = null;
       // The pets of the world entered: its own pet at its place, the chosen one by the heroine (the ones of the world
       // left were taken out with it, src/game/travel.ts).

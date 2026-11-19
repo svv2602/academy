@@ -4,6 +4,7 @@ import type { Key, SpokenKey, WorldStrings } from '../ui/strings';
 import type { Actor } from './actor';
 import type { Game } from './context';
 import type { DebugExtras } from './debug';
+import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { WorldScope } from './scope';
@@ -121,9 +122,18 @@ export interface WorldItem {
  */
 export interface BuiltWorld { frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear; items?(): readonly WorldItem[] }
 
+/** A place to appear at: `facing` is the heading (absent - the heading of every entry, facing -z). */
+export interface Arrival { x: number; z: number; facing?: number }
+
 export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly id: string;
   readonly spawn: { x: number; z: number };
+  /**
+   * Where the heroine appears when she comes by `travel` from the world `from` (the hub: at the portal of that world;
+   * a world: at its way to the hub), and where she faces (the heading, as `Actor.heading`; the camera stands behind
+   * her). Null or absent: where she was left in this world, else `spawn` - as on a launch, which has no `from`.
+   */
+  arrive?(from: string): Arrival | null;
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
   /** PLAY-09: the world's pet. Its done mark is ws.flags.pet (the item `pet` of the world description); `species` is an id of src/game/pets.ts. */
@@ -186,4 +196,33 @@ export function pickWorld(worlds: readonly WorldDef[], byDefault: string, param:
   if (!main) throw new Error(`the default world "${byDefault}" is not in src/worlds/index.ts`);
   const asked = debug && param !== null ? worlds.find((w) => w.id === param) : undefined;
   return asked ?? main;
+}
+
+/** What the launch into the world where she stopped needs: the gate of worlds and the download of a world. */
+export interface LaunchEnv {
+  /** The gate of worlds (src/game/gate.ts): the same one every change of world asks. */
+  gate: Pick<Gate, 'canEnter'>;
+  /** Downloads the world in full into the cache of worlds; true when it is ready. Never rejects. */
+  download(id: string): Promise<boolean>;
+}
+
+/** The world to launch, and whether the world where she stopped was refused (the cat says so once she plays). */
+export interface Launch { world: WorldDef; refused: boolean }
+
+/**
+ * The world to launch (WORLD-01, TECH-09, R17, R27): `?world=` with debug as in `pickWorld`; otherwise the world where
+ * she stopped (`lastWorld` of the save) - through the same gate as every change of world: in the cache, it opens; to
+ * be had from the network, it is downloaded first (under the loading bar); refused or not had after all, the default
+ * world opens and `refused` is true. No `lastWorld`, the default world, or a world this build does not have: the
+ * default world, and the gate is not asked.
+ */
+export async function launchWorld(worlds: readonly WorldDef[], byDefault: string, param: string | null, debug: boolean, last: string | undefined, env: LaunchEnv): Promise<Launch> {
+  const picked = pickWorld(worlds, byDefault, param, debug);
+  if (debug && param !== null && worlds.some((w) => w.id === param)) return { world: picked, refused: false };
+  const want = last === undefined ? undefined : worlds.find((w) => w.id === last);
+  if (!want || want === picked) return { world: picked, refused: false };
+  const answer = await env.gate.canEnter(want.id);
+  if (!answer.enter) return { world: picked, refused: true };
+  if (answer.from === 'network' && !(await env.download(want.id))) return { world: picked, refused: true };
+  return { world: want, refused: false };
 }

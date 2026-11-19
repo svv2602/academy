@@ -66,6 +66,12 @@ describe('the save as a code (PLAY-16)', () => {
     expect(r.save).toMatchObject({ name: 'Зоряна', stars: 37, later: { kept: [1, 2] }, worlds: { fairy: { quests: { q1: 3, q2: 1 } } } });
   });
 
+  it('carries the world where she stopped (`lastWorld`): progress, not the device\'s', async () => {
+    const r = await fromCode(await toCode({ ...played(), lastWorld: 'hub' }));
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.save).toMatchObject({ lastWorld: 'hub' });
+  });
+
   it('refuses an empty, a foreign, a damaged code and one with no save in it', async () => {
     const code = await toCode(played());
     expect(await fromCode('  \n')).toEqual({ ok: false, reason: 'empty' });

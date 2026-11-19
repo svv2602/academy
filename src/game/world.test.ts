@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { pickWorld, type WorldDef } from './world';
+import { launchWorld, pickWorld, type LaunchEnv, type WorldDef } from './world';
 
 /** Only the id matters to pickWorld: the rest of a world is never touched. */
 const world = (id: string) => ({ id }) as unknown as WorldDef;
@@ -57,7 +57,7 @@ describe('the registry names the published world (R04, R22)', () => {
 
   it('main.ts plays the world the registry names, not the first of a namespace', () => {
     const main = RAW['../main.ts'];
-    expect(main).toMatch(/pickWorld\(WORLDS, DEFAULT_WORLD,/);
+    expect(main).toMatch(/launchWorld\(WORLDS, DEFAULT_WORLD, params.get\('world'\), debug, save.lastWorld,/);
     expect(main).not.toMatch(/import \* as \w+ from '\.\/worlds'/);
   });
 });
@@ -70,3 +70,51 @@ describe('the world reaches the audio', () => {
   });
 });
 
+
+describe('launchWorld: the world where she stopped, through the gate (WORLD-01, TECH-09, R17, R27)', () => {
+  const first = { id: 'first' } as WorldDef, hub = { id: 'hub' } as WorldDef, far = { id: 'far' } as WorldDef;
+  const list = [first, hub, far];
+  type Answer = Awaited<ReturnType<LaunchEnv['gate']['canEnter']>>;
+  const env = (answer: Answer, ready = true) => {
+    const asked: string[] = [], downloads: string[] = [];
+    const e: LaunchEnv = {
+      gate: { canEnter: async (id) => { asked.push(id); return answer; } },
+      download: async (id) => { downloads.push(id); return ready; },
+    };
+    return { e, asked, downloads };
+  };
+  const OPEN: Answer = { enter: true, from: 'cache' }, NET: Answer = { enter: true, from: 'network' }, NO: Answer = { enter: false };
+
+  it('no world where she stopped, the default world, or a world this build lacks: the default world, the gate not asked', async () => {
+    for (const last of [undefined, 'first', 'gone']) {
+      const { e, asked } = env(OPEN);
+      expect(await launchWorld(list, 'first', null, false, last, e)).toEqual({ world: first, refused: false });
+      expect(asked).toEqual([]);
+    }
+  });
+
+  it('a world in the cache opens; one from the network is downloaded first, then opens', async () => {
+    const cached = env(OPEN);
+    expect(await launchWorld(list, 'first', null, false, 'hub', cached.e)).toEqual({ world: hub, refused: false });
+    expect([cached.asked, cached.downloads]).toEqual([['hub'], []]);
+    const net = env(NET);
+    expect(await launchWorld(list, 'first', null, false, 'far', net.e)).toEqual({ world: far, refused: false });
+    expect([net.asked, net.downloads]).toEqual([['far'], ['far']]);
+  });
+
+  it('refused by the gate, or not ready after its download: the default world, and it says so', async () => {
+    const no = env(NO);
+    expect(await launchWorld(list, 'first', null, false, 'far', no.e)).toEqual({ world: first, refused: true });
+    expect(no.downloads).toEqual([]);
+    const broken = env(NET, false);
+    expect(await launchWorld(list, 'first', null, false, 'far', broken.e)).toEqual({ world: first, refused: true });
+  });
+
+  it('?world= with debug wins over the world where she stopped; without debug it is not read', async () => {
+    const d = env(OPEN);
+    expect(await launchWorld(list, 'first', 'far', true, 'hub', d.e)).toEqual({ world: far, refused: false });
+    expect(await launchWorld(list, 'first', 'first', true, 'hub', d.e)).toEqual({ world: first, refused: false });
+    expect(d.asked).toEqual([]);
+    expect(await launchWorld(list, 'first', 'far', false, 'hub', d.e)).toEqual({ world: hub, refused: false });
+  });
+});

@@ -56,7 +56,7 @@
 //      line sounds `window.__game.travel('probe')` is called. Every frame of the change is recorded and read
 //      (`travelFramesProblems`): behind the closed frame no line sounds, no music plays, the interface is hidden and
 //      the controls are taken; the world changes only there. Then, in the probe world: the mark is alive (the page
-//      was not reloaded), the heroine stands at its spawn and walks, its character gives a task and the task is
+//      was not reloaded), the heroine stands at its spawn facing its portal (its WorldDef.arrive for the first world) and walks, its character gives a task and the task is
 //      solved, the names of the first world are gone from window.__game, its voices too, its wings and butterflies are
 //      off the heroine and the flock, the music is the probe world's. The world's own line has its clip in the folder
 //      of the world only while the probe world plays (`__game.clipFor`): none before the change, none after the way
@@ -82,7 +82,11 @@
 //      "the closed portal" (R07, R12): in a browser that saves data (no download in the background) the probe world is
 //      not in the cache and the network is off: the change is refused before the frame closes - no frame of the layer
 //      is drawn, the controls stay free - the cat says "need_net" by its clip (not the synthesizer), the heroine walks,
-//      a character gives a task; "open from the cache": downloaded with the network, the world is entered without it.
+//      a character gives a task; "the launch refused" (WORLD-01, R17): the save says she stopped in the probe world and
+//      the page is loaded again without network - the first world opens, the save still names the probe world until
+//      "Play", and after the entry the cat says "need_net" by its clip; "open from the cache": downloaded with the
+//      network, the world is entered without it; "the launch where she stopped" (R27): loaded again without network,
+//      the game opens in the probe world from the cache, the heroine where she stood, and she walks.
 //      "Without network" is always the server's count after OFFLINE_MARK (`askedOffline`): none of the world's files.
 //      "rounds" (TECH-15, R10, R19, R20, R22): in a browser that saves data, ROUNDS times "first world -> probe world
 //      -> back"; the first change is by the network and must leave the world "ready" in the cache, its voice too, and
@@ -121,6 +125,8 @@ export const PROBE_DIST = 'dist-probe';
  * with the world's own line, the second gives its task in the world.
  */
 export const PROBE_CHARACTERS = ['friend', 'kit'];
+/** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
+export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
 export const PARTS = ['walk', 'cache', 'transition', 'travel'];
 /**
@@ -1145,6 +1151,9 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       if (away.world !== PROBE) fail(`${name}: after the change the world played is "${away.world}", expected "${PROBE}"`);
       if (!same(away.same, [])) fail(`${name}: in the probe world these are not the objects of the first world, or have left the scene: ${JSON.stringify(away.same)} (the heroine and the cat are made once)`);
       if (!same(away.at, [0, 6])) fail(`${name}: the heroine stands at ${away.at} in the probe world, expected its spawn 0,6`);
+      // WorldDef.arrive: coming from the first world she faces the portal (src/worlds/probe/index.ts ARRIVAL).
+      const facing = await p.g(() => __game.hero.heading);
+      if (Math.abs(facing - PROBE_ARRIVAL_FACING) > 0.01) fail(`${name}: in the probe world she faces ${facing.toFixed(3)}, expected ${PROBE_ARRIVAL_FACING.toFixed(3)} - the way to the portal its arrive() names for the first world`);
       if (!same(away.npcs, PROBE_CHARACTERS)) fail(`${name}: the characters of window.__game are ${JSON.stringify(away.npcs)} in the probe world, expected its own ${JSON.stringify(PROBE_CHARACTERS)}`);
       if (away.names.length) fail(`${name}: window.__game still has the first world's own names in the probe world: ${away.names.join(', ')}`);
       // The description is the one of the world played now: an item of every kind, the chains of its own characters.
@@ -1349,6 +1358,23 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       const still = await p.g((id) => __game.worlds.status(id), PROBE);
       if (still !== 'none') fail(`${name}: after the refusal the probe world is "${still}", expected "none"`);
 
+      // "the launch refused" (WORLD-01, R17): the save says she stopped in the probe world, which is not in the cache,
+      // and the page is loaded again without network - the launch asks the same gate: the first world opens, and once
+      // the entry after "Play" is over the cat says the network is needed.
+      const name1 = 'the launch refused';
+      // the game saves itself on the way out (pagehide), with the field set here
+      await p.g((id) => { __game.save.lastWorld = id; }, PROBE);
+      await p.page.reload();
+      await p.until(() => !!window.__game?.save, null, `${name1}: no window.__game after the reload`, 240000);
+      const launched = await p.g(() => ({ world: __game.world, last: __game.save.lastWorld, clips: __game.voice.clips }));
+      if (launched.world !== FIRST) fail(`${name1}: without network and cache the game launched in "${launched.world}", expected "${FIRST}"`);
+      if (launched.last !== PROBE) fail(`${name1}: before "Play" the save says she stopped in "${launched.last}", expected "${PROBE}" (it is the one tried)`);
+      await p.start();
+      await saidNeedNet(p, name1, launched.clips);
+      const played = await p.g(() => __game.save.lastWorld);
+      if (played !== FIRST) fail(`${name1}: after "Play" the save says she stopped in "${played}", expected "${FIRST}", where she plays`);
+      noneAsked(name1, 'the launch refused');
+
       // "open from the cache": downloaded with the network, entered without it
       const name2 = 'open from the cache';
       await p.ctx.setOffline(false);
@@ -1363,6 +1389,20 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       if (away.world !== PROBE || !same(away.npcs, PROBE_CHARACTERS)) fail(`${name2}: the game is in "${away.world}" with the characters ${JSON.stringify(away.npcs)}, expected the probe world`);
       if (!(await p.walks())) fail(`${name2}: the heroine does not walk in the probe world entered without network`);
       noneAsked(name2, 'the probe world entered from the cache');
+
+      // "the launch where she stopped" (WORLD-01, R27): she stopped in the probe world; the page is loaded again
+      // without network and the game opens in the probe world from the cache, where she stood.
+      const name3 = 'the launch where she stopped';
+      const left = await p.g(() => { return { last: __game.save.lastWorld, at: [__game.hero.root.position.x, __game.hero.root.position.z].map((v) => Math.round(v * 100) / 100) }; });
+      if (left.last !== PROBE) fail(`${name3}: in the probe world the save says she stopped in "${left.last}", expected "${PROBE}"`);
+      await p.page.reload();
+      await p.until(() => !!window.__game?.save && typeof window.__game.travel === 'function', null, `${name3}: no window.__game after the reload`, 240000);
+      const relaunched = await p.state();
+      if (relaunched.world !== PROBE || !same(relaunched.npcs, PROBE_CHARACTERS)) fail(`${name3}: the game launched in "${relaunched.world}" with the characters ${JSON.stringify(relaunched.npcs)}, expected the probe world`);
+      if (!same(relaunched.at, left.at)) fail(`${name3}: in the probe world launched again she stands at ${relaunched.at}, she was left at ${left.at}`);
+      await p.start();
+      if (!(await p.walks())) fail(`${name3}: the heroine does not walk in the probe world launched without network`);
+      noneAsked(name3, 'the probe world launched from the cache');
       await p.ctx.close();
     }
 
@@ -1447,7 +1487,7 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
     return `the change of world: "${FIRST}" -> "${PROBE}" by __game.travel and back by the portal with no reload of the page; behind the closed frame no line, no music and no interface; `
       + `the line "${HI}" has its clip ${HI_CLIP} only while "${PROBE}" plays and was said by it; `
       + `each world's progress in its own part of the save, also after a reload; with the files of "${PROBE}" gone (${notFound} answers 404) its download failed, the game went back to "${FIRST}", the cat said "${NEED_NET}" by its clip and the game played on; `
-      + `without network and cache the portal stayed closed (the frame never closed, "${NEED_NET}" by its clip, the heroine walked, a task was solved, the server asked for nothing of "${PROBE}"), and once downloaded "${PROBE}" opened without network; `
+      + `without network and cache the portal stayed closed (the frame never closed, "${NEED_NET}" by its clip, the heroine walked, a task was solved, the server asked for nothing of "${PROBE}"), a launch in "${PROBE}" without its cache opened "${FIRST}" and the cat said "${NEED_NET}" after "Play"; once downloaded "${PROBE}" opened without network, and a launch there opened it from the cache where she stood; `
       + `${rounds.want} rounds there and back (${rounds.map((r) => `${(r.heap / 1048576).toFixed(1)} MB/${r.geometries}g/${r.textures}t/${r.programs}p`).join(', ')}), the fifth within ${ROUND_GROWTH * 100} % of the first${rounds.want > ROUNDS ? ', and so the last of the later half' : ''}; the progress of both worlds after a reload without network, "${PROBE}" opened from the cache; `
       + `${((Date.now() - started) / 1000).toFixed(0)} s; pictures: ${shots}/travel-*.png`;
   } finally {

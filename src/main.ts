@@ -15,27 +15,51 @@ import { startLoop } from './game/loop';
 import { createSpeech } from './game/speech';
 import { enterWorld, initStartScreen } from './game/start';
 import { createTravel, openWorld, worldView, type Travel } from './game/travel';
-import { pickWorld, type WorldDef } from './game/world';
+import { launchWorld, type WorldDef } from './game/world';
 import { addStrings } from './ui/strings';
 import { el, initStart, showNotice, showUpdate } from './ui/ui';
 import { initTuningPanel } from './ui/tuning';
 import { DEFAULT_WORLD, WORLDS, nextWorlds } from './worlds';
 
 const params = new URLSearchParams(location.search);
+/** The part of the loading bar the download of the world where she stopped takes at the launch (when it is needed). */
+const LAUNCH_DOWNLOAD_SHARE = 0.8;
 // Debug tools (ARCH-11, ARCH-14): the frame counter, window.__game and the tuning panel exist only with ?debug in the
 // address or on the development server. The frames are measured either way: the quality fallback needs them.
 const debug = params.has('debug') || import.meta.env.DEV;
 // ARCH-08: ?seed=<text> makes the tasks repeat (the same tasks in the same order); without it they are random.
 const rng = createRng(params.get('seed'));
-// ARCH-06: the world to play, from the registry (src/worlds/index.ts): its default world; ?world=<id> only with debug.
-const world = pickWorld(WORLDS, DEFAULT_WORLD, params.get('world'), debug);
+const save = loadSave();
+// TECH-09: the cache of the next worlds and the gate every change of world asks (src/game/gate.ts): a world that
+// is not downloaded, without network, is refused and the cat says that the network is needed (its clip is in the core).
+// The gate is made before the world is chosen (the launch asks it too); what a refusal says is set once the game is.
+const worlds = createWorldCache();
+let refuse = () => {};
+const gate = createGate({
+  worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),
+  online: () => navigator.onLine, probe: () => probeNetwork(), refuse: () => refuse(),
+});
+// ARCH-06, WORLD-01: the world to play, from the registry (src/worlds/index.ts): the world where she stopped, through
+// the gate (src/game/world.ts `launchWorld`), else the default world; ?world=<id> only with debug. A world to be had
+// from the network is downloaded first, under the loading bar (its first part; the load of the world fills the rest).
+let barFrom = 0;
+const { world, refused: refusedAtLaunch } = await launchWorld(WORLDS, DEFAULT_WORLD, params.get('world'), debug, save.lastWorld, {
+  gate,
+  download: async (id) => {
+    const tick = setInterval(() => { const s = worlds.state(); if (s?.world === id && s.total > 0) el.bar.style.width = `${Math.round(LAUNCH_DOWNLOAD_SHARE * 100 * s.done / s.total)}%`; }, 200);
+    const d = await worlds.download(id).catch(() => null);
+    clearInterval(tick);
+    const ready = d?.status === 'ready' || d?.status === 'core';
+    if (ready) barFrom = LAUNCH_DOWNLOAD_SHARE;
+    return ready;
+  },
+});
 // ARCH-12: the texts of every world of the registry join the shared ones before anything is shown (a key two worlds
 // share is an error, one key per clip), and the start screen's subtitle is the one of the world played;
 // ARCH-06: the music is the one of the world played.
 for (const w of WORLDS) addStrings(w.strings, w === world);
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
-const save = loadSave();
 // PLAY-22: the controls the parent chose (the heroine's speed, the camera, the joystick), before anything reads them.
 applyControls(save.controls);
 const applyVolume = () => { Object.assign(volume, save.vol); setVolumes(); };
@@ -70,7 +94,7 @@ const quality = createQuality({ renderer, scene, camera, sun: opened.sky.sun, sa
 addEventListener('resize', () => quality.apply());
 
 // ---------- boot ----------
-setProgressHandler((f) => { el.bar.style.width = `${Math.round(f * 100)}%`; });
+setProgressHandler((f) => { el.bar.style.width = `${Math.round((barFrom + (1 - barFrom) * f) * 100)}%`; });
 let applyLook = () => {};
 quality.apply();
 void boot();
@@ -87,7 +111,7 @@ async function boot() {
   const entryOf = (world: WorldDef): WorldEntry => ({
     id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '',
     pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars,
-    move: world.move, worldTasks: world.worldTasks,
+    move: world.move, worldTasks: world.worldTasks, arrive: world.arrive?.bind(world),
   });
   // shared(): the heroine, the cat, the sparks and the butterflies - and the guide and the tap ring of the loop below -
   // join the scene after the world's sky and load, and are not the world's.
@@ -96,14 +120,9 @@ async function boot() {
     world: entryOf(world),
   }));
   applyLook = () => shared.heroRig.setLook(save);
-  // TECH-09: the cache of the next worlds and the gate every change of world asks (src/game/gate.ts): a world that
-  // is not downloaded, without network, is refused and the cat says that the network is needed (its clip is in the core).
-  const worlds = createWorldCache();
-  const refuse = () => { void g.speech.line('need_net', 'hint'); };
-  const gate = createGate({
-    worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),
-    online: () => navigator.onLine, probe: () => probeNetwork(), refuse,
-  });
+  // TECH-09: a refusal of the gate - the cat says that the network is needed. The world where she stopped, refused at
+  // the launch, is said once she plays (src/game/start.ts, after "Play" and the entry into the world).
+  refuse = () => { void g.speech.line('need_net', 'hint'); };
   // TECH-15: the change of world (src/game/travel.ts). The built world goes to the frame, the quality tier and
   // window.__game through it - the first one below, every next one from `travel(<id>)`.
   const travel: Travel = createTravel({
@@ -112,6 +131,7 @@ async function boot() {
     show: (built, sky) => { quality.setSun(sky.sun); showDebug?.(built.debug); },
     drawn: () => loop.drawn(),
     welcome: (first) => enterWorld(g, first),
+    arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },
     gate, cache: worlds, refuse,
   });
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
@@ -119,7 +139,10 @@ async function boot() {
 
   // ---------- start screen & menus ----------
   // The book and the heroine's items are the ones of the world played at the moment they are asked for.
-  initStartScreen(g, { applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, ...worldView(() => travel.built ?? w) });
+  initStartScreen(g, {
+    applyVolume, applyPin: () => quality.applyPin(), applyLook, lines: w.lines, ...worldView(() => travel.built ?? w),
+    launched: { world: world.id, refused: refusedAtLaunch, refuse: () => refuse() },
+  });
 
   // ---------- loop ----------
   // The parts of the loop every world shares are made inside shared(); the first frame is played outside it.
@@ -130,6 +153,7 @@ async function boot() {
   // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of
   // another world), one file at a time, and not at all when the browser saves data (src/core/worldcache.ts). A build
   // with one world has no next one: nothing is asked for.
+  // From there on every change of world starts it again from the world entered (`arrived` above).
   el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); }, { once: true });
 
   const showDebug = debug ? exposeDebug(g, w.debug, travel) : null;

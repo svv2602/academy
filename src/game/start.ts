@@ -31,10 +31,13 @@ export async function enterWorld(g: Game, first: boolean): Promise<void> {
  * the listeners keep the order they always had - audio.ts registers its own visibilitychange at import, so it runs first.
  * `lines`, `book` and `gear` are the world's: its welcome on a first launch, what the collection book shows, the
  * heroine's items (the shop screen of the book puts on what the save holds right here, before the first frame).
- * `applyLook` paints the save's dress and hair onto the heroine.
+ * `applyLook` paints the save's dress and hair onto the heroine. `launched` is the world the game was launched in
+ * (src/main.ts, src/game/world.ts `launchWorld`): "play" makes it the one where she stopped (WORLD-01), and when the
+ * world where she had stopped was refused at the launch, the cat says why once the entry is over (R17).
  */
 export function initStartScreen(g: Game, o: {
   applyVolume(): void; applyPin(): void; applyLook(): void; lines: WorldLines; book: BookInfo; gear: Gear;
+  launched: { world: string; refused: boolean; refuse(): void };
 }): void {
   const { save, hero, cam, speech, persist, refreshHud } = g;
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
@@ -45,10 +48,11 @@ export function initStartScreen(g: Game, o: {
     el.hud.classList.remove('hidden'); el.btnJump.classList.remove('hidden');
     refreshHud();
     const first = !save.played;
-    save.played = true; persist();
+    save.played = true; save.lastWorld = o.launched.world; persist();
     cam.yaw = 0; cam.target.copy(hero.root.position);
     hero.once('Wave', 'Idle');
     await enterWorld(g, first);
+    if (o.launched.refused) o.launched.refuse();
     void atPlay(g);   // PLAY-08: the day of play is counted, then a stop point - at once, not when a chunk has loaded
   }, { once: true });
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.

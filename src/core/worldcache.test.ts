@@ -353,3 +353,40 @@ describe('downloadNext: the next world, while the previous one is played', () =>
     expect(worlds.state()).toMatchObject({ error: 'saving' });
   });
 });
+
+describe('a world asked for by name goes before the background (the heroine at its portal)', () => {
+  it('the download of the background stops after its current file, "yielded"; the world asked for comes next', async () => {
+    const { worlds, server } = setup(await listOf({ ocean: OCEAN, space: SPACE }), { ...OCEAN, ...SPACE });
+    const first = server.gate('models/ocean/a.glb');
+    const background = worlds.downloadNext(['ocean']);
+    await first.started;
+    const asked = worlds.download('space');
+    first.release();
+    expect(await background).toMatchObject({ world: 'ocean', status: 'partial', done: 1, total: 3, running: false, error: 'yielded' });
+    expect(await asked).toMatchObject({ world: 'space', status: 'ready', done: 1 });
+    expect(filesAsked(server).map((u) => u.split('?')[0])).toEqual([at('models/ocean/a.glb'), at('models/space/s.glb')]);
+    expect(server.s.most).toBe(1);
+    // the next downloadNext brings the rest of it
+    expect(await worlds.downloadNext(['ocean'])).toMatchObject({ world: 'ocean', status: 'ready', done: 3 });
+  });
+
+  it('the world of the background asked for by name: it no longer gives way, and is downloaded once', async () => {
+    const { worlds, server } = setup(await listOf({ ocean: OCEAN, space: SPACE }), { ...OCEAN, ...SPACE });
+    const first = server.gate('models/ocean/a.glb');
+    const background = worlds.downloadNext(['ocean']);
+    await first.started;
+    const asked = worlds.download('ocean');
+    const other = worlds.download('space');
+    first.release();
+    expect(await asked).toMatchObject({ world: 'ocean', status: 'ready', done: 3, error: null });
+    expect(await background).toBe(await asked);
+    expect(await other).toMatchObject({ world: 'space', status: 'ready' });
+    expect(filesAsked(server).length).toBe(4);
+  });
+
+  it('a world asked for by name does not stop another one asked for by name', async () => {
+    const { worlds } = setup(await listOf({ ocean: OCEAN, space: SPACE }), { ...OCEAN, ...SPACE });
+    const [a, b] = await Promise.all([worlds.download('ocean'), worlds.download('space')]);
+    expect([a.status, a.error, b.status]).toEqual(['ready', null, 'ready']);
+  });
+});

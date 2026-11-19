@@ -37,6 +37,11 @@ const STUMP = { model: 'probe/stump', x: 5, z: -2 };
 const SIGN = { picture: 'story/probe/sign.webp', x: -4, z: -3 };
 /** The portal home (TECH-15): a ring to walk up to; its action button changes the world to `to` without a reload. */
 const PORTAL = { to: 'fairy', x: 7, z: 3 };
+/**
+ * Where she arrives from the world of the portal (WorldDef.arrive): at the spawn, facing the portal - the place stays
+ * the one the walkthrough expects, the heading shows the hook was asked (tools/worlds.mjs).
+ */
+export const ARRIVAL = { x: SPAWN.x, z: SPAWN.z, facing: Math.atan2(PORTAL.x - SPAWN.x, PORTAL.z - SPAWN.z) };
 /** The heroine's clips of this world (tools/pack_world_clips.mjs): Swim_Fwd_Loop and Swim_Idle_Loop of the UAL, CC0. */
 const SWIM_CLIPS = 'probe/swim';
 
@@ -211,6 +216,7 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
 export const probe: WorldDef<ProbeLoads, WorldSky> = {
   id: 'probe',
   spawn: SPAWN,
+  arrive: (from) => (from === PORTAL.to ? ARRIVAL : null),
   ground,
   characters: FRIENDS,
   worldTasks: WORLD_TASKS,

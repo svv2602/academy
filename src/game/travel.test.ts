@@ -183,7 +183,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
   const speech = { shown: null, caption: vi.fn(), line: vi.fn(() => Promise.resolve()), ask: vi.fn(), muted: () => false, hintLine: vi.fn(), repeat: vi.fn() };
   const entries: WorldEntry[] = [];
   const entryOf = (world: WorldDef): WorldEntry => {
-    const e = { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '', pet: world.pet };
+    const e = { id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '', pet: world.pet, arrive: world.arrive?.bind(world) };
     entries.push(e);
     return e;
   };
@@ -194,6 +194,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
     shared: { heroRig, catRig: rig(), petRigs: Object.fromEntries(PETS.map((p) => [p.id, rig()])) } as never, world: entryOf(worlds[0]),
   }));
   const frames: WorldFrame[] = [], shown: { built: BuiltWorld; sky: WorldSky }[] = [], welcomed: boolean[] = [];
+  const arrivedIn: string[] = [];
   const waiting: (() => void)[] = [];
   const travel = T.createTravel({
     g, scene, save, touch: false, worlds, entryOf,
@@ -201,6 +202,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
     show: (built, sky) => { log.push('show'); shown.push({ built, sky }); },
     drawn: () => new Promise<void>((done) => { log.push('a frame behind the closed frame'); waiting.push(done); }),
     welcome: (first) => { welcomed.push(first); return Promise.resolve(); },
+    arrived: (id) => { arrivedIn.push(id); log.push(`arrived ${id}`); },
     gate: door.gate, cache: door.cache, refuse: door.refuse,
   });
   travel.begin(opened, L);
@@ -223,7 +225,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
     if (!done) throw new Error('the change of world did not come to its end in 3000 frames');
     return p;
   }
-  return { T, g, scene, save, travel, transition, flyover, worldPart, entries, frames, shown, welcomed, ring, heroRig, speech, play, door };
+  return { T, g, scene, save, travel, transition, flyover, worldPart, entries, frames, shown, welcomed, arrivedIn, ring, heroRig, speech, play, door };
 }
 
 const names = (scene: THREE.Scene) => scene.children.map((c) => c.name).filter(Boolean).sort();
@@ -247,7 +249,7 @@ describe('travel: the order of a change of world (TECH-15)', () => {
     const persist = g.persist, leave = g.leave, enter = g.enter;
     vi.spyOn(g, 'persist').mockImplementation(() => { log.push('save'); persist(); });
     vi.spyOn(g, 'leave').mockImplementation(() => { log.push('leave'); leave(); });
-    vi.spyOn(g, 'enter').mockImplementation((w) => { log.push(`enter ${w.id}`); enter(w); });
+    vi.spyOn(g, 'enter').mockImplementation((w, from) => { log.push(`enter ${w.id}`); enter(w, from); });
     const ready = transition.ready;
     vi.spyOn(transition, 'ready').mockImplementation(() => { log.push('ready'); ready(); });
     // Asked for before the change starts: it settles first, with the log as the closing left it.
@@ -262,7 +264,7 @@ describe('travel: the order of a change of world (TECH-15)', () => {
       'own of a', 'a sky freed', 'a land freed', 'a friend freed', 'release a', "a copy of the wand's material freed",
       'progress from zero', 'sky b', 'models of b', 'load b', 'enter b', 'build b',
       'wear gear of b', 'show', 'a frame behind the closed frame',
-      'endTask', 'ready', 'a frame behind the closed frame', 'music 222',
+      'endTask', 'ready', 'a frame behind the closed frame', 'music 222', 'save', 'arrived b',
     ]);
   });
 
@@ -421,8 +423,10 @@ describe('travel: the save (R20)', () => {
     const persist = g.persist;
     vi.spyOn(g, 'persist').mockImplementation(() => { persist(); stored.push(`${log.includes('own of a') ? 'after' : 'before'} the world was left: ${localStorage.getItem('amw-save')}`); });
     await play(travel.go('b'));
-    expect(stored).toHaveLength(1);
+    // the second save is in the new world, with the world where she stopped (`lastWorld`)
+    expect(stored).toHaveLength(2);
     expect(stored[0]).toMatch(/^before the world was left: /);
+    expect(JSON.parse(stored[1].replace(/^[^{]*/, '')).lastWorld).toBe('b');
     expect(JSON.parse(stored[0].replace(/^[^{]*/, '')).worlds.a.pos).toEqual([12, -7]);
     expect(save.worlds.a.pos).toEqual([12, -7]);
   });
@@ -462,6 +466,57 @@ describe('travel: the save (R20)', () => {
     expect(g.hero.root.position.toArray()).toEqual([40, 0, 41]);
     await play(travel.go('b'));
     expect(g.hero.root.position.toArray()).toEqual([8, 3, 9]);
+  });
+
+  it('a world that says where she arrives from the world left (WorldDef.arrive) puts her there, facing its way, the camera behind her', async () => {
+    const a = fakeWorld('a'), hub = fakeWorld('h', { height: 1 });
+    const asked: string[] = [];
+    hub.arrive = (from) => { asked.push(from); return from === 'a' ? { x: 5, z: -6, facing: 0.5 } : null; };
+    const { travel, play, g } = await setup([a, hub, fakeWorld('c')]);
+    await play(travel.go('h'));
+    expect(asked).toEqual(['a']);
+    expect(g.hero.root.position.toArray()).toEqual([5, 1, -6]);
+    expect([g.hero.heading, g.hero.root.rotation.y]).toEqual([0.5, 0.5]);
+    expect(g.cam.yaw).toBeCloseTo(0.5 - Math.PI);
+    expect(g.cam.target.toArray()).toEqual(g.hero.root.position.toArray());
+    // it wins over the place she was left at; a world it names no place for - where she was left, facing as always
+    g.hero.root.position.set(9, 1, 9);
+    await play(travel.go('a'));
+    await play(travel.go('h'));
+    expect(g.hero.root.position.toArray()).toEqual([5, 1, -6]);
+    g.hero.root.position.set(9, 1, 9);
+    await play(travel.go('c'));
+    await play(travel.go('h'));
+    expect(asked).toEqual(['a', 'a', 'c']);
+    expect(g.hero.root.position.toArray()).toEqual([9, 1, 9]);
+    expect([g.hero.heading, g.cam.yaw]).toEqual([Math.PI, 0]);
+  });
+
+  it('back in the world left after a failed load she stands where she was: its arrive is not asked', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const asked: string[] = [];
+    a.arrive = (from) => { asked.push(from); return { x: 0, z: 0 }; };
+    const { travel, play, g } = await setup([a, b]);
+    g.hero.root.position.set(12, 0, -7);
+    b.fail = 'load';
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(asked).toEqual([]);
+    expect(g.hero.root.position.toArray()).toEqual([12, 0, -7]);
+  });
+
+  it('in the world asked for: it is where she stopped (`lastWorld`, saved at once) and the game is told (the next download); not when the change failed', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const { travel, play, g, save, arrivedIn } = await setup([a, b]);
+    const persist = vi.spyOn(g, 'persist');
+    expect(await play(travel.go('b'))).toBe(true);
+    expect(save.lastWorld).toBe('b');
+    expect(arrivedIn).toEqual(['b']);
+    expect(persist.mock.calls.length).toBe(2);   // behind the closed frame, and once in the new world
+    expect(log.indexOf('arrived b')).toBeGreaterThan(log.lastIndexOf('build b'));
+    a.fail = 'load';
+    expect(await play(travel.go('a'))).toBe(false);
+    expect(save.lastWorld).toBe('b');
+    expect(arrivedIn).toEqual(['b']);
   });
 });
 
@@ -762,7 +817,7 @@ describe('travel: the gate of a world (TECH-09, R07, R12)', () => {
   it('a refusal changes nothing: the frame never closes, the controls stay free, the world played stays, nothing is left or saved', async () => {
     const a = fakeWorld('a', { music: 111 }), b = fakeWorld('b', { music: 222 });
     const door = fakeDoor({ answer: () => ({ enter: false }) });
-    const { travel, play, g, transition, scene, save, welcomed } = await setup([a, b], { door });
+    const { travel, play, g, transition, scene, save, welcomed, arrivedIn } = await setup([a, b], { door });
     const persist = vi.spyOn(g, 'persist'), leave = vi.spyOn(g, 'leave');
     const before = names(scene);
     const seen: string[] = [];
@@ -785,6 +840,7 @@ describe('travel: the gate of a world (TECH-09, R07, R12)', () => {
     // The change of world says nothing itself: the gate has had the cat say why (src/main.ts hands it the line).
     expect(door.refused).toEqual([]);
     expect(welcomed).toEqual([]);
+    expect(arrivedIn).toEqual([]);
     expect(hidden('bubble')).toBe(true);
   });
 
@@ -902,10 +958,18 @@ describe('src/main.ts hands the change of world its gate', () => {
   });
 
   it('the gate asks the cache of worlds, the page and the network; a refusal is the cat\'s recorded line "need_net"', () => {
-    const gate = MAIN.slice(MAIN.indexOf('createGate({'), MAIN.indexOf('\n  });', MAIN.indexOf('createGate({')));
+    const gate = MAIN.slice(MAIN.indexOf('createGate({'), MAIN.indexOf('\n});', MAIN.indexOf('createGate({')));
     expect(gate).toContain('worlds: WORLDS.map((w) => w.id), defaultWorld: DEFAULT_WORLD, status: (id) => worlds.status(id),');
-    expect(gate).toContain('online: () => navigator.onLine, probe: () => probeNetwork(), refuse,');
-    expect(MAIN).toContain("const refuse = () => { void g.speech.line('need_net', 'hint'); };");
+    expect(gate).toContain('online: () => navigator.onLine, probe: () => probeNetwork(), refuse: () => refuse(),');
+    expect(MAIN).toContain("refuse = () => { void g.speech.line('need_net', 'hint'); };");
+    // the gate is made before the world of the launch is chosen: the launch asks it too (WORLD-01, R17)
+    expect(MAIN.indexOf('createGate({')).toBeLessThan(MAIN.indexOf('await launchWorld('));
+    expect(MAIN.indexOf('await launchWorld(')).toBeLessThan(MAIN.indexOf('openWorld(world, scene)'));
+  });
+
+  it('every change of world starts the download of the next world from the world entered (TECH-09, R18)', () => {
+    const args = MAIN.slice(MAIN.indexOf('createTravel({'), MAIN.indexOf('\n  });', MAIN.indexOf('createTravel({')));
+    expect(args).toContain('arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },');
   });
 });
 

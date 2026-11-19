@@ -12,6 +12,7 @@
  * and the pets found (`pets`, PLAY-09): absent until the first find, a damaged list keeps only its ids.
  * So did the rhythm of a session (PLAY-20, PLAY-21): the minutes before a break (`breakMin`), the date of the last gift
  * of the day (`gift`) and the current session of play (`session`): optional, absent until first written, a damaged one mended.
+ * So did the world where she stopped (`lastWorld`, WORLD-01, TECH-09): absent until the first entry into a world.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
 import { isTier, type Tier } from './quality';
@@ -96,6 +97,12 @@ export interface Save {
    * a damaged step is "normal" (dropped), a control of a later version is kept as it is.
    */
   controls?: Controls;
+  /**
+   * The world she was in last (WORLD-01, TECH-09; the hub too): "Continue" opens it, through the gate of worlds
+   * (src/main.ts). Written at every entry into a world. Absent, or a world this build does not have: the default world.
+   * Progress, not the device's: the transfer code carries it, "Start again" clears it. Anything but a word is absent.
+   */
+  lastWorld?: string;
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -385,6 +392,8 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.pets !== undefined) out.pets = Array.isArray(s.pets) ? [...new Set((s.pets as unknown[]).filter((id): id is string => typeof id === 'string' && id !== ''))] : [];
   // The rhythm of a session (PLAY-20, PLAY-21), when stored: a damaged choice is the default, a damaged date none.
   if (s.controls !== undefined) out.controls = controlsOf(s.controls);
+  // The world where she stopped: a world this build does not know is kept (a later version's), a damaged one dropped.
+  if (s.lastWorld !== undefined && !(typeof s.lastWorld === 'string' && s.lastWorld !== '')) delete out.lastWorld;
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);
