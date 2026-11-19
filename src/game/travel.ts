@@ -198,6 +198,7 @@ export function createTravel(host: TravelHost): Travel {
     // The pets leave the scene with the world, behind the closed frame: one shown later than the world's build joined
     // the scene outside shared(), and the scope would free the model every world shares.
     g.pets.dispose();
+    g.mystery.dispose();
     try { opening.scope.dispose(); } catch (e) { console.error(`the world "${opening.world.id}" did not undo everything of its own:`, e); }
     release(opening.world.id);
     undo();

@@ -300,14 +300,16 @@ describe('replaying a finished chain trains the weakest skill (LEARN-16, R23, R2
 });
 
 describe('the conversations give their tasks through the planner', () => {
-  const sources = import.meta.glob('./dialogue.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+  const sources = import.meta.glob(['./dialogue.ts', './context.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
   const dialogue = sources['./dialogue.ts'];
 
   it('both the step of a chain and the replay are planned; the replay picks the weakest step', () => {
     const planned = [...dialogue.matchAll(/plan\.runTask\(/g)];
     expect(planned.length).toBe(2);
     expect(dialogue).not.toMatch(/[^.]\brunTask\(/);                 // no task of the panel past the planner
-    expect(dialogue).toMatch(/const plan = createPlanner\(save\)/);
+    // one planner for the session (`g.plan`, src/game/context.ts): the conversations and the mysterious stars draw from it
+    expect(dialogue).toMatch(/const \{ plan \} = g;/);
+    expect(sources['./context.ts']).toMatch(/plan: createPlanner\(save\),/);
     expect(dialogue).toMatch(/weakest\(q\.steps\.filter\(isPanel\), skillOf, save, g\.rng\)/);
     expect(dialogue).not.toMatch(/pick\(q\.steps/);
   });

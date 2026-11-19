@@ -32,6 +32,7 @@ export const BLOCKS = [
   'magic-crystal',  // the crystal restored brings the magic to 1 (WORLD-09)
   'book',           // the collection book against the save
   'pet',            // the pet of the first world: found by the action button, chosen in the book, after her after a reload (PLAY-09)
+  'mystery',        // the mysterious stars: the line of the day, a star's task - a mistake, closed and it stays, solved for 3 stars; the next day other places
   'shop',           // the shop and the fitting room (PLAY-04, PLAY-05)
   'potions',        // the potions and the compass: bought, drunk by one tap, the time stands with the game, the end
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
@@ -111,7 +112,7 @@ export const ACH_WHOLE = [...ACH_BASE, 'secret_chest', 'three_secrets', 'all_ski
  */
 export const GROUPS = {
   // friends 1-2 from no save: the published game without ?debug, the introduction of the cut-scenes, the tour of the world, a hidden page, the introduction, the cat
-  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'story', 'flyover', 'hidden-page', 'intro', 'cat', 'achievements'], ach: ACH_BASE },
+  world1: { save: null, friends: ['unicorn', 'fox'], blocks: ['no-debug', 'story', 'flyover', 'hidden-page', 'intro', 'cat', 'mystery', 'achievements'], ach: ACH_BASE },
   // friends 3 and 5 (the mushroom king, the queen); then the debug show of "sort", a broken talk, the tuning panel,
   // the collisions, the three secrets, the creatures, the magic of four shards - none of them needs the finished world
   world2: {
