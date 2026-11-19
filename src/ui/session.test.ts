@@ -86,6 +86,26 @@ describe('the card at a stop point (R31, R32)', () => {
     } finally { mod.breakHold.held = false; }
   });
 
+  it('an offer due while the lever was held is not kept: after the lever, a point before the minutes shows nothing', async () => {
+    const late = game(25);   // the real minutes passed the break while the lever was held
+    mod.breakHold.held = true;
+    try { await stops.stopPoint('task', late.g); } finally { mod.breakHold.held = false; }
+    expect(breakState.offer).toBeNull();
+    const early = game(1); early.save.breakMin = 30;   // what the block "break" sets before its first point
+    let over = false;
+    const point = stops.stopPoint('task', early.g).then(() => { over = true; });
+    await tick();
+    expect(shown('breakCard')).toBe(false);
+    expect(over).toBe(true);
+    await point;
+    // and at the minute of the break the card comes as ever
+    const due = game(20);
+    const p2 = stops.stopPoint('task', due.g);
+    await tick();
+    expect(shown('breakCard')).toBe(true);
+    $('breakNo').click(); await p2;
+  });
+
   it('"play on": one tap closes it, the cat answers (a spoken line of the bubble), nothing is taken, the quiet is stored', async () => {
     const { g, save, saved, said } = game();
     const stars = save.stars = 7;

@@ -3257,6 +3257,12 @@ try {
             .catch(() => fail('the game did not come to rest before the block'));
           const s0 = await g(() => ({ stars: __game.save.stars, min: __game.save.session?.min ?? null }));
           if (s0.min === null) fail('the save has no session after minutes of play');
+          // what a slow machine meets (2026-11-19, the runner): the real minutes pass the break while the lever is pulled
+          // and a point comes - no card then, and no offer kept for after the lever (it came at the block's first point)
+          await g(() => { __game.save.breakMin = 20; __game.save.session.min = 25; });
+          await within('a stop point past the minutes with the lever pulled', g(() => __game.ach.stop('task')), T(60000)) /* clock: input-event */
+            .catch(async (e) => fail(`${e.message} - ${await screenState()}`));
+          if (await g(cardShown)) left.push('a card came while the lever of the break was pulled');
           await g(() => __game.brk.release());   // the walkthrough's lever of the break, pulled from its first page on
           // before its minutes, no card
           await g(() => { __game.save.breakMin = 30; __game.save.session.min = 1; });

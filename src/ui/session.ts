@@ -63,7 +63,11 @@ function oneTap(ids: readonly string[]): Promise<string> {
 
 /** The card at a stop point when an offer waits; otherwise nothing. */
 export async function breakCard(g: Host, _where: StopWhere): Promise<void> {
-  if (breakState.offer === null || breakHold.held) return;
+  // An offer due while the lever is pulled is dropped, not kept: kept, it came at the first point after the lever was let
+  // go, whatever the minutes were then (2026-11-19: on the slow runner the real minutes passed 20 before the block
+  // "break", which then waited for its own point behind a card nobody tapped). After the lever the minutes decide anew.
+  if (breakHold.held) { breakState.offer = null; return; }
+  if (breakState.offer === null) return;
   const key = pickOther(OFFERS, lastOffer); lastOffer = key;
   const card = $('breakCard');
   $('breakSay').textContent = t(key);
