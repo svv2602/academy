@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { sfx } from '../../core/audio';
+import { mat } from '../../core/style';
 import type { Game } from '../../game/context';
 import { petPlace } from '../../game/pets';
 import type { Spot } from '../../game/player';
@@ -35,8 +36,6 @@ export interface Secrets {
   update(dt: number, time: number, canMove: boolean): void;
 }
 
-const ROCK = new THREE.MeshStandardMaterial({ color: '#b7a9c4', roughness: 0.95, flatShading: true });
-const MOSS = new THREE.MeshStandardMaterial({ color: '#7cc46a', roughness: 1, flatShading: true });
 
 /** A curtain of falling water: stripes that run down, lighter at the edges, never fully opaque. */
 function waterMaterial() {
@@ -66,7 +65,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   // The curtain faces the valley's middle; the ring of rocks closes the rest.
   const face = Math.atan2(-GLADE.x, -GLADE.z), R = GLADE.r + 1.4;
   const rockGeo = new THREE.DodecahedronGeometry(1, 0);
-  const rocks = new THREE.InstancedMesh(rockGeo, ROCK, 40);
+  const rocks = new THREE.InstancedMesh(rockGeo, mat.stone(), 40);
   let nRock = 0;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3();
   const rock = (x: number, z: number, r: number, h: number, spin: number) => {
@@ -91,7 +90,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   rocks.castShadow = true; rocks.receiveShadow = true;
   group.add(rocks);
   // moss on the top of the lintel
-  const moss = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), MOSS);
+  const moss = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat.moss());
   moss.position.set(ex, ey + 4.55, ez); moss.scale.set(2.2, 0.35, 1.1); moss.rotation.y = face;
   group.add(moss);
 
@@ -111,7 +110,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   group.add(foam);
 
   // inside: a ring of glowing flowers around the middle
-  const petal = new THREE.MeshStandardMaterial({ color: '#ffb3e6', emissive: '#ff7fd0', emissiveIntensity: 0.6, roughness: 0.6 });
+  const petal = mat.glow('petal', 0.6, { emissive: 'petalGlow' });
   const stem = new THREE.MeshStandardMaterial({ color: '#4fae54', roughness: 1 });
   const flowers = new THREE.Group();
   for (let i = 0; i < 9; i++) {
@@ -136,12 +135,12 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   const hx = Math.sin(HOUSE.rot), hz = Math.cos(HOUSE.rot);
   const outAt = { x: HOUSE.x + hx * 4.1, z: HOUSE.z + hz * 4.1 };
   const doorOut = new THREE.Vector3(outAt.x, groundY(outAt.x, outAt.z), outAt.z);
-  const wall = new THREE.MeshStandardMaterial({ color: '#fff0dc', roughness: 0.9 });
-  const wood = new THREE.MeshStandardMaterial({ color: '#b98560', roughness: 0.8 });
+  const wall = mat.cloth('plaster');
+  const wood = mat.wood();
   const room = new THREE.Group();
   room.position.set(ROOM.x, ROOM.y, ROOM.z);
   const S = ROOM.half * 2, WALL_H = 3;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshStandardMaterial({ color: '#d8a878', roughness: 0.8 }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(S, S), mat.wood('#d8a878'));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
   // four walls facing in, seen from inside only: a camera behind one sees through it into the room; no ceiling
   const walls = new THREE.Group();
@@ -156,15 +155,15 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   table.position.set(0, 0.75, -2.2);
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.75, 8), wood);
   leg.position.set(0, 0.37, -2.2);
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 2.2), new THREE.MeshStandardMaterial({ color: '#c79bff', roughness: 0.9 }));
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 2.2), mat.cloth('lilac'));
   bed.position.set(-2.9, 0.25, 1.6);
   const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 0.4), wood);
   shelf.position.set(2.9, 0.8, -ROOM.half + 0.25);
   // the find: the fairy's music box on the table, a small chest with a glowing lid
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.3), new THREE.MeshStandardMaterial({ color: '#ffd166', emissive: '#ffb84d', emissiveIntensity: 0.35, roughness: 0.4 }));
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.3), mat.own('glow', 'gold', 0.35, { emissive: 'goldGlow', roughness: 0.4 }));
   box.position.set(0, 0.93, -2.2);
   // the door inside, a framed rectangle on the near wall
-  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.1), new THREE.MeshStandardMaterial({ color: '#9a6a4c', roughness: 0.8 }));
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.1), mat.wood('door'));
   door.position.set(0, 1.05, ROOM.half - 0.02); door.rotation.y = Math.PI;
   room.add(floor, walls, rug, table, leg, bed, shelf, box, door);
   for (const o of room.children) { o.receiveShadow = true; o.castShadow = o !== walls && o !== floor && o !== rug; }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mat } from '../../core/style';
 import { sfx } from '../../core/audio';
 import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
@@ -39,7 +40,7 @@ export function buildShrine(g: Game, L: FairyLoads, _sky: ReturnType<typeof buil
   crystal.position.copy(shrine);
   scene.add(crystal);
   const shards = QUESTS.map((q) => {
-    const m = new THREE.Mesh(crystalGeo, new THREE.MeshStandardMaterial({ color: q.shard, emissive: q.shard, emissiveIntensity: 0.7, roughness: 0.2, flatShading: true }));
+    const m = new THREE.Mesh(crystalGeo, mat.glow(q.shard as `#${string}`, 0.7, { roughness: 0.2, flatShading: true }));
     m.scale.setScalar(0.34); m.visible = false;
     scene.add(m);
     return m;
@@ -59,8 +60,8 @@ export function buildShrine(g: Game, L: FairyLoads, _sky: ReturnType<typeof buil
         m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);
         m.rotation.y = time * 1.5 + i;
       });
-      const mat = crystal.material as THREE.MeshStandardMaterial;
-      mat.opacity = lerp(mat.opacity, ws.final ? 1 : 0.18, damp(2, dt));
+      const cm = crystal.material as THREE.MeshStandardMaterial;
+      cm.opacity = lerp(cm.opacity, ws.final ? 1 : 0.18, damp(2, dt));
       crystal.scale.setScalar(lerp(crystal.scale.x, ws.final ? 1.25 : 0.8, damp(3, dt)));
       crystal.position.y = shrine.y + Math.sin(time * 1.8) * 0.12; crystal.rotation.y = time * 0.9;
       crystalLight.intensity = ws.final ? 5 + Math.sin(time * 3) * 1.2 : g.finale > 0 ? g.finale * 2 : 0;
