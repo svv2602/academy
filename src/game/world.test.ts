@@ -39,6 +39,7 @@ describe('pickWorld', () => {
 
 // The registry itself (src/worlds/index.ts) with a stand-in for the world: the real one needs a page to load.
 vi.mock('../worlds/fairy', () => ({ fairy: { id: 'fairy' } }));
+vi.mock('../worlds/hub', () => ({ hub: { id: 'hub' } }));
 const RAW = import.meta.glob(['../main.ts', '../worlds/index.ts', '../worlds/fairy/index.ts'],{ query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('the registry names the published world (R04, R22)', () => {

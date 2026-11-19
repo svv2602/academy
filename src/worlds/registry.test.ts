@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // The registry (src/worlds/index.ts) with stand-ins for the worlds: the real ones need a page to load. The probe
 // world (TECH-15) is a test world: the published game must not list it, a build made with `--mode probe` must.
 vi.mock('./fairy', () => ({ fairy: { id: 'fairy' } }));
+vi.mock('./hub', () => ({ hub: { id: 'hub' } }));
 vi.mock('./probe', () => ({ probe: { id: 'probe' } }));
 const RAW = import.meta.glob(['./index.ts', './*/index.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -19,15 +20,15 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(import.meta.env.MODE).toBe('test');
   });
 
-  it.each(['test', 'production', 'development'])('in the mode "%s" the only world is the Fairy Kingdom', async (mode) => {
+  it.each(['test', 'production', 'development'])('in the mode "%s" the worlds are the Fairy Kingdom and the hub', async (mode) => {
     const { WORLDS, DEFAULT_WORLD } = await registry(mode);
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
   it('a build made with --mode probe lists the probe world too, and still plays the Fairy Kingdom by default', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('probe');
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'probe']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'probe']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
@@ -40,7 +41,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
 
   it('the stand-ins above have the ids of the real worlds, each named after its folder', () => {
     const folders = Object.keys(RAW).filter((p) => p !== './index.ts').map((p) => p.split('/')[1]).sort();
-    expect(folders).toEqual(['fairy', 'probe']);
+    expect(folders).toEqual(['fairy', 'hub', 'probe']);
     for (const id of folders) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*id: '${id}',$`, 'm'));
   });
 
@@ -75,7 +76,7 @@ describe('the folders of the worlds under public/ (TECH-09)', () => {
   });
 
   it.each(Object.keys(CORE_FOLDERS))('no world is named like a folder of the core under public/%s/', (kind) => {
-    expect(ids).toEqual(['fairy', 'probe']);
+    expect(ids).toEqual(['fairy', 'hub', 'probe']);
     expect(ids.filter((id) => CORE_FOLDERS[kind].includes(id))).toEqual([]);
   });
 
@@ -112,14 +113,15 @@ describe('nextWorlds: the worlds to download while one is played (TECH-09)', () 
     expect(nextWorlds('nowhere', ORDER, 'fairy')).toEqual(['ocean', 'space', 'ice']);
   });
 
-  it('the published game has one world: no next world', async () => {
+  it('the published game: the hub is the next world of the first one, and the hub has none', async () => {
     const { nextWorlds } = await registry('production');
-    expect(nextWorlds('fairy')).toEqual([]);
+    expect(nextWorlds('fairy')).toEqual(['hub']);
+    expect(nextWorlds('hub')).toEqual([]);
   });
 
-  it('the probe build: the probe world is the next one of the first world, and has no next one itself', async () => {
+  it('the probe build: the hub and the probe world come after the first world, the hub after the probe world', async () => {
     const { nextWorlds } = await registry('probe');
-    expect(nextWorlds('fairy')).toEqual(['probe']);
-    expect(nextWorlds('probe')).toEqual([]);
+    expect(nextWorlds('fairy')).toEqual(['hub', 'probe']);
+    expect(nextWorlds('probe')).toEqual(['hub']);
   });
 });

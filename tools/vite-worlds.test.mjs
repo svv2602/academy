@@ -35,9 +35,9 @@ describe('buildWorlds: the next worlds of a build', () => {
     expect(buildWorlds('probe', 'probe', src())).toEqual(['ocean', 'probe']);
   });
 
-  it('the sources as they are: the published build has no next world, the probe build has the probe world', () => {
-    expect(buildWorlds('production', 'probe')).toEqual([]);
-    expect(buildWorlds('probe', 'probe')).toEqual(['probe']);
+  it('the sources as they are: the published build has the hub (no files of its own), the probe build the probe world too', () => {
+    expect(buildWorlds('production', 'probe')).toEqual(['hub']);
+    expect(buildWorlds('probe', 'probe')).toEqual(['hub', 'probe']);
   });
 });
 

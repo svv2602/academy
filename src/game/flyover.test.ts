@@ -89,14 +89,14 @@ describe('the tour of a world (WORLD-11)', () => {
 
 describe('the tour on an entry (src/game/start.ts plays it)', () => {
   /** A game with what the tour touches: its flags, the speech, a world that is visited when `visited` says so. */
-  const game = (visited: () => boolean) => {
+  const game = (visited: () => boolean, p: FlyoverPath = path) => {
     const flags: Record<string, boolean> = {};
     const said: string[] = [];
     const g = {
       busy: false, auto: null, ws: { flags },
       speech: { line: vi.fn((k: string) => { said.push(k); return Promise.resolve(); }), caption: vi.fn() },
     } as unknown as Game;
-    const player = setTour(g, { path, visited: () => flags.toured === true || visited(), mark: () => { flags.toured = true; } });
+    const player = setTour(g, { path: p, visited: () => flags.toured === true || visited(), mark: () => { flags.toured = true; } });
     return { g, flags, said, player };
   };
   const tap = () => window.dispatchEvent(new Event('pointerdown'));
@@ -133,6 +133,17 @@ describe('the tour on an entry (src/game/start.ts plays it)', () => {
     player.skip();
     expect(await played).toBe(true);
     expect(flags.toured).toBeUndefined();
+  });
+
+  it('a silent tour (no line recorded yet: the grey build of the hub) flies with nothing said, and a tap ends it', async () => {
+    const { g, said, player } = game(() => false, { ...path, line: null });
+    const played = tour(g);
+    expect(player.active).toBe(true);
+    expect(said).toEqual([]);
+    run(player, path.seconds + 0.1);
+    expect(await played).toBe(true);
+    expect(g.busy).toBe(false);
+    expect(g.speech.caption).not.toHaveBeenCalled();
   });
 
   it('flown to its end without a tap, it ends by itself and gives the heroine back', async () => {

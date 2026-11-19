@@ -39,6 +39,11 @@ describe('tools/world-pieces.mjs: what CI plays for each world', () => {
     expect(WORLDS.probe).toEqual({ files: ['src/worlds/probe/', 'worlds-test/probe/'], walk: [], worlds: true });
   });
 
+  it('the hub is the job "worlds" alone until its pass comes (checklist F): no walkthrough of its own yet', () => {
+    expect(WORLDS.hub).toEqual({ files: worldFiles('hub'), walk: [], worlds: true });
+    expect(pick(['src/worlds/hub/index.ts'])).toMatchObject(PROBE_ONLY);
+  });
+
   it('the sizes are the ones of tools/e2e.mjs, in its order', () => {
     const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
     const list = (name) => JSON.parse(new RegExp(`const ${name} = (\\[[^\\]]*\\]);`).exec(src)[1].replaceAll("'", '"'));
@@ -74,7 +79,7 @@ describe('tools/ci-pieces.mjs pick: the changed files choose the jobs (R30)', ()
   ])('a shared file (%s) plays everything: every walkthrough and the probe world', (file) => {
     const plan = pick([file]);
     expect(plan).toMatchObject(EVERYTHING);
-    expect(plan.play).toEqual(['fairy', 'probe']);
+    expect(plan.play).toEqual(['fairy', 'hub', 'probe']);
     expect(plan.reason).toContain('shared files changed');
   });
 
@@ -91,7 +96,8 @@ describe('tools/ci-pieces.mjs pick: the changed files choose the jobs (R30)', ()
   });
 
   it('files of two worlds play both; a shared file among files of a world and documents still plays everything', () => {
-    expect(pick(['src/worlds/probe/index.ts', 'src/worlds/fairy/npcs.ts'])).toMatchObject(EVERYTHING);
+    // every job, but not "all": the hub is a world of its own (its files play the job "worlds" alone)
+    expect(pick(['src/worlds/probe/index.ts', 'src/worlds/fairy/npcs.ts'])).toMatchObject({ walk: ALL_WALKS, worlds: true, all: false, play: ['fairy', 'probe'] });
     expect(pick(['src/worlds/probe/index.ts', 'docs/15-tech.md', 'src/core/save.ts'])).toMatchObject(EVERYTHING);
     expect(pick(['src/worlds/fairy/index.ts', 'src/core/save.ts'])).toMatchObject(EVERYTHING);
     expect(pick(['docs/15-tech.md', 'tools/shot.mjs']).reason).toContain('shared files changed');

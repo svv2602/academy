@@ -26,5 +26,8 @@ export const worldFiles = (id) => [`src/worlds/${id}/`, ...['models', 'voice', '
  */
 export const WORLDS = {
   fairy: { files: ['src/worlds/fairy/'], walk: SIZES.flatMap((size) => PIECES.map((group) => ({ size, group }))), worlds: false },
+  // The hub (WORLD-01): no walkthrough of its own yet (the hub's piece comes with its pass, checklist F); a change of it
+  // plays the job "worlds", which goes through the change of world.
+  hub: { files: worldFiles('hub'), walk: [], worlds: true },
   probe: { files: ['src/worlds/probe/', 'worlds-test/probe/'], walk: [], worlds: true },
 };

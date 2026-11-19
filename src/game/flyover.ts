@@ -14,7 +14,8 @@ import type { Game } from './context';
 export type Vec3 = readonly [number, number, number];
 /** A point of the path: where the camera stands and where it looks. */
 export interface FlyPoint { pos: Vec3; look: Vec3 }
-export interface FlyoverPath { points: readonly FlyPoint[]; seconds: number; line: SpokenKey }
+/** `line` null: the tour is silent (a world whose line is not recorded yet - the grey build of the hub, R34). */
+export interface FlyoverPath { points: readonly FlyPoint[]; seconds: number; line: SpokenKey | null }
 
 export const POINTS = { min: 5, max: 8 } as const;
 export const SECONDS = { min: 10, max: 15 } as const;
@@ -131,10 +132,11 @@ export async function tour(g: Game, o: { record?: boolean } = {}): Promise<boole
   // A capturing listener of the window: the tap reaches neither the canvas (no walk) nor a button.
   const skip = (e: Event) => { e.preventDefault(); e.stopPropagation(); t.player.skip(); };
   addEventListener('pointerdown', skip, { capture: true });
-  const said = g.speech.line(t.player.path.line, 'story');
+  const line = t.player.path.line;
+  const said = line === null ? null : g.speech.line(line, 'story');
   try {
     const how = await t.player.start();
-    if (how === 'skip') { stopVoice(); g.speech.caption(null); } else await said;
+    if (how === 'skip') { if (said) { stopVoice(); g.speech.caption(null); } } else await said;
   } finally {
     removeEventListener('pointerdown', skip, { capture: true });
     hide.forEach((e, i) => e.classList.toggle('hidden', was[i]));

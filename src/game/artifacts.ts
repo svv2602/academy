@@ -9,7 +9,8 @@ import type { Save, WorldState } from '../core/save';
  * The worlds come from the registry (src/worlds/index.ts), handed in by src/main.ts at the start (`knowWorlds`): the
  * game's own code never imports the registry (it imports the game).
  */
-export interface ArtifactWorld { readonly id: string; readonly shelf?: number }
+/** `test`: a test world (WorldDef.test) - the hub puts it behind a free arch (src/worlds/hub/portals.ts). */
+export interface ArtifactWorld { readonly id: string; readonly shelf?: number; readonly test?: boolean }
 
 let known: readonly ArtifactWorld[] = [];
 /** The worlds of the registry with their places on the shelf (src/main.ts, at the start). */
