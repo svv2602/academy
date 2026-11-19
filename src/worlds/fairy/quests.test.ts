@@ -18,8 +18,8 @@ describe('the chains of the fairy kingdom', () => {
     expect(QUESTS.find((q) => q.id === 'deer')!.steps).toEqual(['stars', 'sort', 'compose']);
   });
 
-  it('every chain keeps its three steps (the progress of old saves counts the same steps)', () => {
-    expect(Object.fromEntries(QUESTS.map((q) => [q.id, q.steps.length]))).toEqual({ unicorn: 3, fox: 3, mushking: 3, deer: 3, queen: 3 });
+  it('every chain keeps its three steps, the fox and the king one more - their part hidden in the world (old saves: parts.ts, settleOldParts)', () => {
+    expect(Object.fromEntries(QUESTS.map((q) => [q.id, q.steps.length]))).toEqual({ unicorn: 3, fox: 4, mushking: 4, deer: 3, queen: 3 });
   });
 
   it('the step "compose" plays the task of its level: 3 the missing addend, 4 the house, 5 the missing addend to 20', () => {

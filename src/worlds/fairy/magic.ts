@@ -3,7 +3,7 @@ import { uSway } from '../../core/materials';
 import { damp, lerp } from '../../core/util';
 import type { Game } from '../../game/context';
 import type { FairyLoads } from './load';
-import { QUESTS } from './quests';
+import { QUESTS, chainDone } from './quests';
 import { SKY_LOOK, type buildSky } from './sky';
 
 /**
@@ -15,7 +15,7 @@ export const SHARD_MAGIC = 0.16;
 /** The magic of the world's part of the save: the shards given back, the crystal restored. */
 export function magicOf(ws: Pick<Game['ws'], 'quests' | 'final'>): number {
   if (ws.final) return 1;
-  const shards = QUESTS.filter((q) => (ws.quests[q.id] ?? 0) >= 3).length;
+  const shards = QUESTS.filter((q) => chainDone(ws, q)).length;
   return Math.min(1, shards * SHARD_MAGIC);
 }
 

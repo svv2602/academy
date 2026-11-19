@@ -1448,7 +1448,7 @@ try {
       // ---- star search: it is not a counting task, no skill may change while it runs (LEARN-02) ----
       const progress = () => g(() => ({ skills: JSON.parse(JSON.stringify(__game.save.skills)), deer: __game.save.worlds.fairy.quests.deer ?? 0, stars: __game.save.stars }));
       let searchBefore = null, searchAfter = null;
-      const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z })));
+      const quests = await g(() => __game.npcs.map((n) => ({ id: n.def.id, x: n.def.x, z: n.def.z, chain: n.def.steps.length })));
       // The order of the friends is the order the guide leads to them and the order of the shards in the book.
       const FAIRY_ORDER = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
       if (quests.map((q) => q.id).join() !== FAIRY_ORDER.join()) errors.push(`friends: ${mode}: the order is ${quests.map((q) => q.id).join(', ')}, not ${FAIRY_ORDER.join(', ')}`);
@@ -1461,7 +1461,7 @@ try {
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
         // Someone whose quest is finished: a greeting, then one of his games - none of them is the "watch and repeat" one,
         // whose second question cuts the first one off by design.
-        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= x.chain);
         if (!other) fail('no character with a finished quest to talk to');
         const mark = await g((id) => new Promise((res) => {
           const t0 = performance.now(), captions = window.__captions = [];
@@ -1556,7 +1556,7 @@ try {
       const closedInSearch = async (q) => {
         const fail = (what) => { throw new Error(`star search after a closed task: ${what}`); };
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
-        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= x.chain);
         if (!other) fail('no character with a finished quest to talk to');
         const found = await g((id) => { __game.talk(id); return __game.search.found; }, other.id);
         await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 20).catch(() => fail(`the task of "${other.id}" did not open`));
@@ -1607,7 +1607,7 @@ try {
         const fail = (what) => { throw new Error(`a shard during the search: ${what}`); };
         await holdAch();   // the block measures the silence, the decision on "go on" and the bubble after the shard
         const done = await g(() => ({ ...__game.save.worlds.fairy.quests }));
-        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= 3);
+        const other = quests.find((x) => x.id !== q.id && (done[x.id] ?? 0) >= x.chain);
         if (!other) fail('no character with a finished quest to talk to');
         await silence().catch(() => fail('the voice did not fall silent before the talk'));
         const was = await g((id) => {
@@ -1632,7 +1632,7 @@ try {
         await wait(300); await silence().catch(() => fail('a line after the shard did not end')); /* clock: audio */
         const now = await g(() => ({ said: window.__starts.go_next ?? 0, dropped: __game.dropped.filter((k) => k === 'go_next').length, quest: __game.save.worlds.fairy.quests }));
         const b = await bubbleNow(), left = [];
-        if ((now.quest[other.id] ?? 0) < 3) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
+        if ((now.quest[other.id] ?? 0) < other.chain) left.push(`the quest of "${other.id}" is not finished: ${now.quest[other.id]}`);
         if (now.said > was.said) left.push('"go_next" was said');
         if (now.dropped > was.dropped) left.push('"go_next" was asked for (the planner turned it away)');
         if (!b.shown) left.push('the bubble is hidden');
@@ -1760,7 +1760,8 @@ try {
         // met for the first time (closed with the cross, then three deliberate mistakes each) outlasts one limit on the slow
         // CI runner while every step of it moves on (the deer's chain of a new kind, 2026-11-16).
         let t0 = Date.now(), at = -1; /* clock: stuck-guard */
-        while ((await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id)) < 3 || await g(() => __game.busy)) {
+        // a chain is done with its last step (three tasks; the fox's and the king's part hidden in the world is a fourth)
+        while (!(await g((id) => (__game.save.worlds.fairy.quests[id] ?? 0) >= __game.npcs.find((n) => n.def.id === id).def.steps.length, q.id)) || await g(() => __game.busy)) {
           const step = await g((id) => __game.save.worlds.fairy.quests[id] ?? 0, q.id);
           if (step !== at) { at = step; t0 = Date.now(); } /* clock: stuck-guard */
           if (Date.now() - t0 > T(stuckMs)) {   /* clock: stuck-guard */
@@ -1775,7 +1776,7 @@ try {
           // The crystal counter counts finished friends only: a quest halfway through gives no shard yet.
           if (!crystalsWrong && !(await g(() => __game.busy))) {
             const c = await g(() => ({ hud: document.querySelector('#crystals').textContent, quests: { ...__game.save.worlds.fairy.quests },
-              done: Object.values(__game.save.worlds.fairy.quests).filter((v) => v >= 3).length }));
+              done: __game.npcs.filter((c) => (__game.save.worlds.fairy.quests[c.def.id] ?? 0) >= c.def.steps.length).length }));
             if (c.hud !== `${c.done}/5`) { crystalsWrong = true; errors.push(`crystals: ${mode}: the counter shows ${c.hud} with the quests ${JSON.stringify(c.quests)}`); }
           }
           if (searchBefore && !searchAfter && !(await g(() => __game.search.active))) {
@@ -1980,7 +1981,48 @@ try {
             if (!fifthHeard && found === 4) { await fifthStar(); continue; }
             await g(() => __game.cheat()); await framesDrawn(1); continue;
           }
-          if (!(await g(() => __game.busy))) {
+          // ---- a part hidden in the world (WORLD-08, R09/R10): after the fox's and the king's three tasks the character has
+          // said where its shard lies and it waits there. The fox's is found on the first visit of the glade, walking in
+          // through the waterfall: the secret and the shard both give their stars, the cat's line of the secret is heard and
+          // the shard waits for its end - nothing turned away; then the card of the shard. Any other: she is put on it.
+          {
+            const part = await g((id) => { const p = __game.parts?.waiting(id); return p ? { flag: p.flag, hint: p.hint, line: p.line } : null; }, q.id);
+            if (part) {
+              const fail = (what) => { throw new Error(`a part in the world (${q.id}): ${what}`); };
+              await gameFor(() => !__game.busy, null, 30).catch(() => fail('the talk did not end'));
+              const said = await g((p) => ({ hint: !!__game.save.worlds.fairy.flags[p.hint], line: (window.__starts[p.line] ?? 0) > 0 || __game.line === p.line }), part);
+              if (!said.hint || (!mute && !said.line)) fail(`the character did not say where its shard lies (${JSON.stringify(said)})`);
+              const s0 = await g(() => ({ stars: __game.save.stars, glade: !!__game.save.worlds.fairy.flags.glade, dropped: __game.dropped.length }));
+              if (q.id === 'fox' && !s0.glade) {
+                await silence().catch(() => {});
+                const from = await g(() => {
+                  const G = __game.secrets.gladeAt, f = Math.atan2(-G.x, -G.z);
+                  return { f, x: G.x + Math.sin(f) * 9, z: G.z + Math.cos(f) * 9 };
+                });
+                await g((p) => { __game.teleport(p.x, p.z); __game.hero.heading = p.f + Math.PI; __game.cam.yaw = p.f; }, from);
+                await framesDrawn(2);
+                await page.keyboard.down('KeyW');
+                try { await gameUntil(() => __game.save.worlds.fairy.flags.glade === true, null, 12); }
+                finally { await page.keyboard.up('KeyW'); }
+                if (!(await g(() => __game.save.worlds.fairy.flags.glade === true))) fail('walking in through the waterfall did not find the glade');
+                await g(() => __game.cheat());     // onto the shard: it is taken once the cat's line of the secret has ended
+                await gameFor((f) => !!__game.save.worlds.fairy.flags[f], part.flag, 20).catch(() => fail('the shard on the glade was not taken'));
+                const s1 = await g((n) => ({ stars: __game.save.stars, dropped: __game.dropped.slice(n), glade: (window.__starts.secret_glade ?? 0) > 0 }), s0.dropped);
+                if (s1.stars - s0.stars !== 3 + 3) fail(`the secret and the shard gave ${s1.stars - s0.stars} stars, not 3 + 3`);
+                if (!mute && !s1.glade) fail('the line of the secret was not heard');
+                if (s1.dropped.length) fail(`lines turned away on the glade: ${s1.dropped.join(', ')}`);
+                console.log(`a part in the world: the fox said where; on the first visit of the glade the secret (its line heard) and then the shard - ${s1.stars - s0.stars} stars, nothing turned away`);
+              } else {
+                await g(() => __game.cheat());
+                await gameFor((f) => !!__game.save.worlds.fairy.flags[f], part.flag, 20).catch(() => fail('the shard was not taken at its place'));
+                console.log(`a part in the world: ${q.id} said where, its shard taken at its place`);
+              }
+              continue;
+            }
+          }
+          // a talk only while the chain is not done: read in the same look as "busy" - its last step may have ended since
+          // the loop's check, and a talk then would open one of its games again (the conversation after a chain)
+          if (await g((id) => !__game.busy && (__game.save.worlds.fairy.quests[id] ?? 0) < __game.npcs.find((n) => n.def.id === id).def.steps.length, q.id)) {
             await g(([x, z]) => __game.teleport(x + 1.4, z + 1.4), [q.x, q.z]);
             await framesDrawn(2);
             if (touch) await press('#btnAct'); else await page.keyboard.press('KeyE');
@@ -1990,7 +2032,7 @@ try {
         console.log('quest done:', q.id, `${((Date.now() - t0) / 1000).toFixed(0)}s`); /* clock: log-time */
         // "All the shards are found" is said after the last friend's shard, never earlier.
         {
-          const a = await g(() => ({ said: window.__starts.all_shards ?? 0, done: Object.values(__game.save.worlds.fairy.quests).filter((v) => v >= 3).length, all: __game.npcs.length }));
+          const a = await g(() => ({ said: window.__starts.all_shards ?? 0, done: __game.npcs.filter((c) => (__game.save.worlds.fairy.quests[c.def.id] ?? 0) >= c.def.steps.length).length, all: __game.npcs.length }));
           if (a.done < a.all && a.said) errors.push(`all shards: ${mode}: "all_shards" was said with ${a.done} of ${a.all} friends done`);
           if (a.done === a.all && !a.said) errors.push(`all shards: ${mode}: "all_shards" was not said after the last shard`);
         }
@@ -2209,7 +2251,10 @@ try {
         if (Object.keys(at).sort().join() !== 'chest,glade,house') fail(`the secrets of the description are ${Object.keys(at).join(', ')}`);
         await holdAchDuring(async () => {
           const s0 = await state();
-          if (s0.flags.chest || s0.flags.glade || s0.flags.house) fail(`a secret is found before the block: ${JSON.stringify(s0.flags)}`);
+          // the glade may be found already: the fox's shard lies there, and the walkthrough took it walking in through the
+          // waterfall (the block "a part hidden in the world"); then it is not walked into again and gives nothing here
+          const gladeFound = !!s0.flags.glade;
+          if (s0.flags.chest || s0.flags.house || (gladeFound && !s0.flags.part_fox)) fail(`a secret is found before the block: ${JSON.stringify(s0.flags)}`);
           // the chest
           await g((p) => __game.teleport(p.x, p.z), at.chest); await framesDrawn(2);
           await act();
@@ -2221,10 +2266,13 @@ try {
             return { x, z };
           }, at.glade);
           await framesDrawn(2);
-          await page.keyboard.down('KeyW');
-          try { await until(() => __game.save.worlds.fairy.flags.glade === true, null, 'walking in through the waterfall did not find the glade', 12); }
-          finally { await page.keyboard.up('KeyW'); }
-          const walked = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), from);
+          let walked = 0;
+          if (!gladeFound) {
+            await page.keyboard.down('KeyW');
+            try { await until(() => __game.save.worlds.fairy.flags.glade === true, null, 'walking in through the waterfall did not find the glade', 12); }
+            finally { await page.keyboard.up('KeyW'); }
+            walked = await g((p) => Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z), from);
+          }
           // the house: in through its door, the music box, out again
           const doorOut = await g(() => [__game.secrets.doorOut.x, __game.secrets.doorOut.z]);
           await g((p) => __game.teleport(p[0], p[1]), doorOut); await framesDrawn(2);
@@ -2244,7 +2292,8 @@ try {
           await act();
           await until(() => !__game.secrets.inRoom() && !__game.busy, null, 'the door inside did not lead out of the room');
           const s1 = await state();
-          if (s1.stars !== s0.stars + 5 + 3 + 3) fail(`the three secrets gave ${s1.stars - s0.stars} stars, not 5 + 3 + 3`);
+          const want = 5 + (gladeFound ? 0 : 3) + 3;
+          if (s1.stars !== s0.stars + want) fail(`the secrets found in the block gave ${s1.stars - s0.stars} stars, not ${want}`);
           // again: nothing more
           await g((p) => __game.teleport(p.x, p.z), at.glade); await gameSeconds(1);
           await g((p) => __game.teleport(p.x, p.z), at.house); await framesDrawn(2); await act(); await gameSeconds(1);
@@ -2263,7 +2312,7 @@ try {
           await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
           await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
           await until(() => ['secret_chest', 'three_secrets'].every((k) => k in __game.save.achievements), null, 'closing the book did not grant "the chest" and "three secrets"');
-          console.log(`secrets: the chest, the glade (walked ${walked.toFixed(1)} m in through the waterfall) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
+          console.log(`secrets: the chest, the glade (${gladeFound ? 'found before, with the fox\'s shard' : `walked ${walked.toFixed(1)} m in through the waterfall`}) and the house (the room - the camera ${eye} m over its floor -, the music box, out again) found, ${s1.stars - s0.stars} stars; nothing more the second time; the book shows ${marks.length} marks, its close granted the chest and three secrets`);
         });
       }
       // ---- the creatures of no task (PLAY-11, PLAY-12; src/worlds/fairy/creatures.ts) ----
@@ -2401,7 +2450,7 @@ try {
       // (over the whole picture and over its sky), more than two pictures of the same magic do; the same in the page loaded again ----
       if (has('magic')) {
         const fail = (what) => { throw new Error(`the magic: ${what}`); };
-        const shards = await g(() => Object.values(__game.save.worlds.fairy.quests).filter((n) => n >= 3).length);
+        const shards = await g(() => __game.npcs.filter((c) => (__game.save.worlds.fairy.quests[c.def.id] ?? 0) >= c.def.steps.length).length);
         const want = Math.min(1, shards * MAGIC_SHARD);
         // the shown magic follows the save: given shards raise it while the world is played, no reload needed
         if (Math.abs((await g(() => __game.magic.target)) - want) > 1e-9) fail(`${shards} shards given back: the magic heads for ${await g(() => __game.magic.target)}, expected ${want}`);
@@ -2615,7 +2664,7 @@ try {
           const b = await g(() => {
             const s = __game.save, w = s.worlds.fairy, shards = [...document.querySelectorAll('#shards .shard')];
             return { shards: shards.length, got: shards.filter((e) => e.classList.contains('got')).length, friends: __game.npcs.length,
-              done: Object.values(w.quests).filter((v) => v >= 3).length, stars: s.stars, chest: !!w.flags?.chest,
+              done: __game.npcs.filter((c) => (w.quests[c.def.id] ?? 0) >= c.def.steps.length).length, stars: s.stars, chest: !!w.flags?.chest,
               stats: document.querySelector('#colStats')?.textContent ?? '' };
           });
           const left = [];
@@ -3049,11 +3098,13 @@ try {
       }
       if (plays('deer') && !searchAfter) errors.push('the skills were not compared around the star search');
       // Every task solved in a talk is counted in its skill (recordTask, src/game/skills.ts): at least one task for
-      // each step of the chains done, but the star search's (it trains no skill).
+      // each step of the chains done, but the star search's and the parts found in the world (src/worlds/fairy/parts.ts:
+      // walking up to a shard trains no skill).
       {
         const recorded = Object.values(s.skills).reduce((n, v) => n + v.tasks, 0);
         const steps = Object.values(s.worlds.fairy.quests).reduce((n, v) => n + v, 0);
-        if (recorded < steps - 1) errors.push(`skills: ${recorded} tasks counted in the skills for ${steps} steps of the chains done`);
+        const parts = ['part_fox', 'part_mushking'].filter((f) => s.worlds.fairy.flags?.[f]).length;
+        if (recorded < steps - 1 - parts) errors.push(`skills: ${recorded} tasks counted in the skills for ${steps} steps of the chains done (${parts} of them parts found in the world)`);
         else console.log(`skills: ${recorded} tasks counted for ${steps} steps of the chains`);
       }
       if (listed('cat') && !catRepeated) errors.push('repeating a line by a tap on the cat went unchecked');
@@ -3255,11 +3306,11 @@ try {
         const LEFTS = ['left_new_world', 'left_mid_chain', 'left_between', 'left_before_final', 'left_after_artifact'];
         // what the state of the world asks for (e4-texts.md §3), from the save of the page
         const wantLeft = () => g(() => {
-          const w = __game.save.worlds.fairy, q = Object.values(w.quests), n = __game.npcs.length;
+          const w = __game.save.worlds.fairy, at = __game.npcs.map((c) => [w.quests[c.def.id] ?? 0, c.def.steps.length]), n = __game.npcs.length;
           if (w.final) return 'left_after_artifact';
-          if (q.filter((v) => v >= 3).length >= n) return 'left_before_final';
-          if (q.some((v) => v > 0 && v < 3)) return 'left_mid_chain';
-          return q.some((v) => v >= 3) ? 'left_between' : 'left_new_world';
+          if (at.filter(([v, len]) => v >= len).length >= n) return 'left_before_final';
+          if (at.some(([v, len]) => v > 0 && v < len)) return 'left_mid_chain';
+          return at.some(([v, len]) => v >= len) ? 'left_between' : 'left_new_world';
         });
         const rest = () => gameFor(() => !__game.busy && !__game.inTask && !__game.speaking && __game.ach.scene === null
           && document.querySelector('#fanfare').classList.contains('hidden'), null, 30).catch(() => fail('the game did not come to rest'));
@@ -3524,7 +3575,7 @@ try {
         {
           await page.waitForFunction(() => !!window.__game?.magic, null, { timeout: T(30000) }).catch(() => { throw new Error('the magic: no __game.magic after the reload'); }); /* clock: page-load */
           const m = await g((k) => {
-            const w = __game.save.worlds.fairy, shards = Object.values(w.quests).filter((n) => n >= 3).length;
+            const w = __game.save.worlds.fairy, shards = __game.npcs.filter((c) => (w.quests[c.def.id] ?? 0) >= c.def.steps.length).length;
             return { value: __game.magic.value, target: __game.magic.target, want: w.final ? 1 : Math.min(1, shards * k) };
           }, MAGIC_SHARD);
           if (Math.abs(m.value - m.want) > 1e-9 || Math.abs(m.target - m.want) > 1e-9) errors.push(`the magic: ${mode}: after the reload the page shows ${m.value} (heading for ${m.target}), the save gives ${m.want}`);

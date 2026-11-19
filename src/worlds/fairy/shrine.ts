@@ -10,11 +10,11 @@ import { fanfare } from '../../ui/ui';
 import { t } from '../../ui/strings';
 import type { Npc } from './characters';
 import type { FairyLoads } from './load';
-import { QUESTS, SHRINE } from './quests';
+import { QUESTS, SHRINE, chainDone } from './quests';
 
 /** How many shards the friends have given: a quest finished is a shard at the shrine. Reads the world's part of the save. */
 export function shardCount(ws: Game['ws']): number {
-  return QUESTS.filter((q) => (ws.quests[q.id] ?? 0) >= 3).length;
+  return QUESTS.filter((q) => chainDone(ws, q)).length;
 }
 
 export interface Shrine {
@@ -53,7 +53,7 @@ export function buildShrine(g: Game, L: FairyLoads, _sky: ReturnType<typeof buil
       const pull = g.finale > 0 ? Math.max(0, 1 - g.finale / 3.4) : 1;
       QUESTS.forEach((q, i) => {
         const m = shards[i];
-        m.visible = (ws.quests[q.id] ?? 0) >= 3 && !ws.final;
+        m.visible = chainDone(ws, q) && !ws.final;
         if (!m.visible) return;
         const a = time * (g.finale > 0 ? 1 + g.finale * 2.5 : 0.7) + (i / 5) * 6.28;
         m.position.set(shrine.x + Math.cos(a) * 0.95 * pull, shrine.y + Math.sin(time * 1.5 + i) * 0.12, shrine.z + Math.sin(a) * 0.95 * pull);

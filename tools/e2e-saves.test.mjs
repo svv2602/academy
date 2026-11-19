@@ -4,7 +4,9 @@
 // fields of defaultSave(), the first world's progress where the game reads it.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAVE_VERSION, defaultSave, defaultWorld, loadSave } from '../src/core/save';
-import { BLOCKS, FRIENDS, GROUPS, PIECES, baseSave, startSave } from './e2e-saves.mjs';
+import { QUESTS } from '../src/worlds/fairy/quests';
+import { settleOldParts } from '../src/worlds/fairy/parts';
+import { BLOCKS, CHAINS, FRIENDS, GROUPS, PIECES, baseSave, startSave } from './e2e-saves.mjs';
 
 /** In-memory stand-in for localStorage: save.ts talks to the global directly and node has none. */
 function memoryStorage() {
@@ -58,11 +60,17 @@ describe('tools/e2e-saves.mjs: the saves the groups of the walkthrough start fro
     const done = Object.keys(s.worlds.fairy.quests);
     for (const id of friends) expect(done).not.toContain(id);
     // the friends before the group's own in the order of the world, and every one of them finished
-    expect(Object.values(s.worlds.fairy.quests).every((n) => n === 3)).toBe(true);
+    for (const [id, n] of Object.entries(s.worlds.fairy.quests)) expect(n).toBe(QUESTS.find((q) => q.id === id).steps.length);
+    // a save of the game of now: the first world does not move it on as a save from before the hidden parts
+    expect(settleOldParts(structuredClone(s.worlds.fairy))).toBe(false);
     expect(s.played).toBe(true);
     // the skills count at least one task per step finished but the star search's (the check at the end of a walkthrough)
     const tasks = Object.values(s.skills).reduce((n, k) => n + k.tasks, 0);
     expect(tasks).toBeGreaterThanOrEqual(done.length * 3 - (done.includes('deer') ? 1 : 0));
+  });
+
+  it('the chains written out are the chains of the world', () => {
+    expect(CHAINS).toEqual(Object.fromEntries(QUESTS.map((q) => [q.id, q.steps.length])));
   });
 
   it('the pieces play every friend once and every block at least once', () => {

@@ -34,11 +34,12 @@ import { SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
-import { QUESTS, type QuestDef } from './quests';
+import { QUESTS, chainDone, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
 import { SIGN_H } from './scenery';
 import { buildSky } from './sky';
 import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
+import { HIDDEN_PARTS, createParts, settleOldParts } from './parts';
 import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
@@ -64,6 +65,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const chestStars = createChestStars(g, L, starMat);
   // the two other secrets: the glade behind the waterfall, the fairy house and its room (./secrets.ts)
   const secrets = createSecrets(g, scope);
+  // the shards of the fox and the mushroom king hidden in the secrets (./parts.ts); a save from before keeps its shards
+  if (settleOldParts(ws)) g.persist();
+  let stepDone: (n: Npc, k: number) => void = () => {};
+  const parts = createParts(g, (id) => npc(id as QuestDef['id']), () => stepDone);
   const butterflies = createButterfliesTask(g, scope);
   const { bf } = butterflies;
   // The creatures of no task (PLAY-11, PLAY-12): fairies, birds, fish - after everything above, so the trees are there.
@@ -162,10 +167,11 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     return { x: n.pos.x + Math.sin(h) * GLADES_AT, z: n.pos.z + Math.cos(h) * GLADES_AT, facing: h + Math.PI };
   }
   // Built from pairs: src/game/no-penalties.test.ts allows a "stars" key in an object only in the fresh save.
-  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep], ['compare', compareStep]]);
+  const tasks: Record<string, WorldTask> = Object.fromEntries([['butterflies', butterflies], ['stars', starSearch], ['sort', sortStep], ['order', orderStep], ['compare', compareStep], ['part', parts]]);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
   scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
-  const { talk } = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks }), { talk } = dialogue;
+  stepDone = dialogue.stepDone;
 
   // ---------- "sort" in the world as a debug show (__game.worldSort()): the walkthrough's look at it outside a chain ----------
   // It records nothing: no skill, no stars, no step of a chain. Its task comes from a randomness of its own, so the
@@ -193,7 +199,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
   function goal(): THREE.Vector3 | null {
     if (search.active) return starSearch.goal();
-    const next = npcs.find((n) => (ws.quests[n.def.id] ?? 0) < 3);
+    const shard = parts.goal();
+    if (shard) return shard;
+    const next = npcs.find((n) => !chainDone(ws, n.def));
     if (next) return next.pos;
     return ws.final ? null : shrine.pos;
   }
@@ -210,6 +218,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       characters.update(dt, time);
       chestStars.update(time, canMove);
       secrets.update(dt, time, canMove);
+      parts.update(dt, time, canMove);
       starSearch.update(dt, time);
       shrine.update(dt, time);
       creatures.update(dt);
@@ -261,6 +270,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       magic, setMagic: (v: number | null) => magic.set(v),
       // the two other secrets (./secrets.ts): the doors of the house outside and inside, is she in the room, where each is found
       secrets: { doorOut: secrets.doorOut, doorIn: secrets.doorIn, inRoom: secrets.inRoom, gladeAt: secrets.gladeAt, boxAt: secrets.boxAt },
+      // the parts hidden in the world (./parts.ts): waiting(id) - the part of `id`'s chain waiting at its place, else null
+      parts: { waiting: (id: string) => parts.waiting(id) },
       // the cut-scenes (WORLD-13): their player (active, id, index, elapsed, pass, fading, log; play(id) shows one without
       // marking it, next(), skip(), hold(u), flat)
       story },
@@ -269,6 +280,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       if (worldTaskDoor(g).solve()) return 'world task';
       if (bf.active && !bf.demo) { (el.answers.children[bf.n - 1] as HTMLElement).dispatchEvent(new PointerEvent('pointerdown')); return 'butterflies'; }
       if (search.active) { const it = search.items.find((s) => !s.found); if (it) hero.root.position.copy(it.mesh.position); return 'star'; }
+      // a shard waiting in the world: she is put onto its place (walking into it takes it)
+      { const p = HIDDEN_PARTS.find((x) => parts.waiting(x.owner)); if (p) { hero.root.position.set(p.at.x, g.groundY(p.at.x, p.at.z), p.at.z); return 'part'; } }
       return '';
     },
   };
@@ -283,12 +296,13 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     marked(ws, { kind: 'secret', id: 'chest', how: 'act', at: { x: chestAt.x + Math.sin(chestRot) * 1.3, z: chestAt.z + Math.cos(chestRot) * 1.3 } }),
     marked(ws, { kind: 'secret', id: GLADE_FLAG, how: 'walk', at: secrets.gladeAt }),
     marked(ws, { kind: 'secret', id: HOUSE_FLAG, how: 'act', at: secrets.boxAt }),
+    ...HIDDEN_PARTS.map((p) => marked(ws, { kind: 'part', id: p.flag, how: 'walk', at: { x: p.at.x, z: p.at.z } })),
     marked(ws, { kind: 'finale', id: 'final', how: 'act', at: { x: shrine.pos.x, z: shrine.pos.z }, after: QUESTS.map((q) => q.id) }),
     marked(ws, { kind: 'scene', id: 'story_crystal', how: 'auto', after: ['final'], active: () => story.active && story.id === 'story_crystal' }),
   ];
   // What the book shows of this world (src/ui/ui.ts draws it): a shard per friend, then the stars and the chest.
   const book: BookInfo = {
-    parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: (ws.quests[q.id] ?? 0) >= 3 })),
+    parts: () => QUESTS.map((q) => ({ color: q.shard, icon: q.emoji, got: chainDone(ws, q) })),
     stats: () => [
       { icon: '⭐', label: 'col_stars', value: String(save.stars) },
       { icon: '🎁', label: 'col_chest', value: ws.flags.chest ? '✔' : '?' },

@@ -20,6 +20,11 @@ import type { CharacterDef, Npc, WorldLines, WorldTask } from './world';
 export interface Dialogue {
   /** A conversation with a character: the next steps of its chain, or one of its games again once it is finished. */
   talk(n: Npc): Promise<void>;
+  /**
+   * Step `k` of `n`'s chain done by a task in the background (its `done`, or the world itself after a reload, when the
+   * task started in an earlier session): the chain moves on and gives its stars; the last step gives the part at once.
+   */
+  stepDone(n: Npc, k: number): void;
 }
 
 /** What the conversation needs of a world: its characters, the lines of its own, and its tasks by the id of their step. */
@@ -77,10 +82,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         const wt: WorldTask | undefined = tasks[step];
         if (wt?.start) {
           // A task in the background: the chain moves on when it is done, the conversation ends here.
-          wt.start(n, () => {
-            ws.quests[q.id] = Math.max(ws.quests[q.id] ?? 0, k + 1);
-            addStars(3, above(hero.root.position, 1.2));
-          });
+          wt.start(n, () => stepDone(n, k));
           return;
         }
         const skill = wt ? wt.skill : skillOf(step as PanelStep), level = levelFor(save, skill);
@@ -126,5 +128,18 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     };
   }
 
-  return { talk };
+  function stepDone(n: Npc, k: number) {
+    const q = n.def;
+    if ((ws.quests[q.id] ?? 0) > k) return;      // done already
+    ws.quests[q.id] = k + 1;
+    addStars(3, above(hero.root.position, 1.2));
+    // the last step of the chain done in the background (a part hidden in the world, WORLD-08): its part now, in a
+    // scene of its own, and the cat's "go on" after it - as at the end of a conversation
+    if (finished(q)) {
+      let onward = () => {};
+      void playScene(stage, `part ${q.id}`, async () => { onward = await givePart(n); }).then(() => onward());
+    }
+  }
+
+  return { talk, stepDone };
 }

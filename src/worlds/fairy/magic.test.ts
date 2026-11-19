@@ -21,10 +21,10 @@ function memoryStorage() {
   };
 }
 
-/** A save of the first world with these friends done (3 steps), one more half done, the crystal restored or not. */
+/** A save of the first world with these friends done (their chains finished), one more half done, the crystal restored or not. */
 function saveWith(done: number, final = false) {
   const s = defaultSave(), ws = worldState(s, 'fairy');
-  QUESTS.slice(0, done).forEach((q) => { ws.quests[q.id] = 3; });
+  QUESTS.slice(0, done).forEach((q) => { ws.quests[q.id] = q.steps.length; });
   if (done < QUESTS.length) ws.quests[QUESTS[done].id] = 2;       // a chain on its way gives no shard yet
   ws.final = final;
   return s;

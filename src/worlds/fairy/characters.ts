@@ -6,7 +6,7 @@ import { createGear, type Gear } from '../../game/gear';
 import type { WorldScope } from '../../game/scope';
 import type { Npc as WorldNpc } from '../../game/world';
 import type { FairyLoads } from './load';
-import { QUESTS, type QuestDef } from './quests';
+import { QUESTS, chainDone, type QuestDef } from './quests';
 
 /** A friend of the first world: its quest and the greeting it says the first time (`<id>_hi`, src/worlds/fairy/strings.ts). */
 export type Friend = QuestDef & { hi: `${QuestDef['id']}_hi` };
@@ -102,7 +102,7 @@ export function createCharacters(g: Game, L: FairyLoads, searching: () => boolea
           n.idle = d > 7 && n.actor.has('Eating') && Math.random() < 0.6 ? 'Eating' : n.actor.has('Idle_2') && Math.random() < 0.4 ? 'Idle_2' : 'Idle';
           n.actor.play(n.idle, 0.4);
         }
-        const open = (ws.quests[n.def.id] ?? 0) < 3;
+        const open = !chainDone(ws, n.def);
         n.mark.visible = open && !g.busy && !(searching() && n.def.id === 'deer');
         n.mark.rotation.y = time * 2; n.mark.position.set(n.pos.x, n.pos.y + (n.def.id === 'unicorn' ? 3 : n.def.id === 'fox' ? 1.7 : 2.6) + Math.sin(time * 2.5) * 0.15, n.pos.z);
         n.actor.update(dt);

@@ -5336,5 +5336,37 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "fox_part_hint": {
+  "text": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
+  "heard": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mushking_part_hint": {
+  "text": "Мій уламок лежить на полиці в будиночку феї біля криниці.",
+  "heard": "Мій уламок лежить на полиці, в будиночку феї біля криниці.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "fox_part_hint@Leda": {
+  "text": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
+  "heard": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "mushking_part_hint@Orus": {
+  "text": "Мій уламок лежить на полиці в будиночку феї біля криниці.",
+  "heard": "Мій уламок лежить на полиці в будиночку феї біля криниці.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

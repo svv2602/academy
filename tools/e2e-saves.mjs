@@ -46,6 +46,10 @@ export const BLOCKS = [
 
 /** The friends of the first world in the order the walkthrough plays them (src/worlds/fairy/quests.ts). */
 export const FRIENDS = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
+/** The steps of each chain (src/worlds/fairy/quests.ts; the unit test compares): the fox and the king end theirs on a part hidden in the world. */
+export const CHAINS = { unicorn: 3, fox: 4, mushking: 4, deer: 3, queen: 3 };
+/** The marks of a part found in the world (src/worlds/fairy/parts.ts): the hint said, the shard taken. */
+const PART_FLAGS = { fox: ['fox_hint', 'part_fox'], mushking: ['mushking_hint', 'part_mushking'] };
 
 /**
  * A skill as the save counts it after `tasks` tasks, one of them failed on purpose (the walkthrough does that; a single
@@ -70,14 +74,15 @@ export function baseSave() {
 }
 
 /**
- * A save of a game played up to a place: the friends `done` (3 steps each), the stars, the skills their tasks counted
+ * A save of a game played up to a place: the friends `done` (their chains finished, their parts found), the stars, the skills their tasks counted
  * (`tasks`: skill -> number of tasks), the crystal restored or not. The rest is a new player's.
  */
 function played({ done, stars, tasks, final = false }) {
   const s = baseSave();
   s.played = true; s.stars = stars; s.launches = 1;
   for (const [k, n] of Object.entries(tasks)) s.skills[k] = skill(n, s.skills[k].level);
-  s.worlds.fairy = { quests: Object.fromEntries(done.map((id) => [id, 3])), final, starsTaken: [], flags: {}, pos: null };
+  const flags = Object.fromEntries(done.flatMap((id) => PART_FLAGS[id] ?? []).map((f) => [f, true]));
+  s.worlds.fairy = { quests: Object.fromEntries(done.map((id) => [id, CHAINS[id]])), final, starsTaken: [], flags, pos: null };
   return s;
 }
 
