@@ -102,7 +102,8 @@ export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   oak: { x: ZONES.oak.x, z: ZONES.oak.z, top: 17 },
   village: { x: ZONES.village.x - 4.6, z: ZONES.village.z - 2, top: 8.5 },
   owl: { x: ZONES.owl.x - 5, z: ZONES.owl.z - 3, top: 11 },
-  maze: { x: ZONES.maze.x - 3.6, z: ZONES.maze.z + 11.8, top: 3.2 },       // the arch over its way in
+  // the arch before its way in, 6 m out: in the first lane the camera behind her has passed it
+  maze: { x: ZONES.maze.x + 2.7, z: ZONES.maze.z + 11.8, top: 3.2 },
   stream: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },
   grove: { x: ZONES.grove.x - 6, z: ZONES.grove.z + 4, top: 11 },
   ash: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },

@@ -281,10 +281,10 @@ export interface MazeShow {
   dispose(): void;
 }
 
-/** The outline of a flat stone of `shape`, on the ground (a prism 8 cm high). */
+/** The outline of a flat stone of `shape`, on the ground (a prism 10 cm high, 0.85 m across: read from behind her). */
 function stoneGeo(shape: (typeof LOOKS)[number]['shape']): THREE.BufferGeometry {
   const sides = { round: 18, square: 4, triangle: 3, hexagon: 6, diamond: 4 }[shape];
-  const g = new THREE.CylinderGeometry(0.34, 0.36, 0.08, sides).translate(0, 0.04, 0);
+  const g = new THREE.CylinderGeometry(0.42, 0.45, 0.1, sides).translate(0, 0.05, 0);
   if (shape === 'square') g.rotateY(Math.PI / 4);
   if (shape === 'diamond') g.scale(0.72, 1, 1.25);
   return g;
@@ -305,7 +305,8 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
     mesh.setMatrixAt(i, m4.compose(new THREE.Vector3(p.x, groundY(p.x, p.z) + lift, p.z), q, new THREE.Vector3(s, s, s)));
   };
   // the hedge
-  const bushGeo = new THREE.IcosahedronGeometry(0.62, 0).scale(1, 1.15, 1).translate(0, 0.55, 0);
+  // low (0.85 m): the camera behind her sees the floor of the path and the stones of the row over it, and the way out
+  const bushGeo = new THREE.IcosahedronGeometry(0.62, 0).scale(1, 0.75, 1).translate(0, 0.38, 0);
   const bushMat = new THREE.MeshStandardMaterial({ color: '#3f7a3a', roughness: 0.9, flatShading: true });
   bushMat.onBeforeCompile = (sh) => fadeAtCamera(sh);
   const hedge = new THREE.InstancedMesh(bushGeo, bushMat, geo.bushes.length);
