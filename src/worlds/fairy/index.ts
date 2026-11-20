@@ -45,6 +45,7 @@ import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
 import { CRYSTAL, PATCH, POND, SPAWN, colliders, height, pathDist, raycastGround, resolve } from './terrain';
+import { COLLECT, support } from './collect';
 import { voices } from './voices';
 
 /**
@@ -397,6 +398,7 @@ const ground: WorldGround = {
   resolve,
   raycast: raycastGround,
   block: (x, z, r) => { colliders.push({ x, z, r }); },
+  support,
 };
 
 /** The first world, the Fairy Kingdom (ARCH-06): listed in src/worlds/index.ts. */
@@ -409,8 +411,9 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   secrets: ['chest', 'glade', 'house'],
   worldTasks: WORLD_TASKS,
   chest: 'chest',
-  groundStars: 8,
+  groundStars: 4,
   mystery: { spots: MYSTERY_SPOTS },
+  collect: COLLECT,
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,

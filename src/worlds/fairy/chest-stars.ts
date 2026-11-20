@@ -32,7 +32,9 @@ export function createChestStars(g: Game, L: FairyLoads, starMat: THREE.Material
   chest.root.rotation.y = 0.9;
   scene.add(chest.root);
   if (ws.flags.chest) chest.pose('Chest_Open');
-  const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [18, -4], [-17, -14], [7, -31], [-26, 11], [26, -30], [-2, -40]];
+  // four of the eight stars of before (the far ones) gave their place to the finds of the collections (PLAY-25); an old
+  // save may still hold their ids 4-7 in starsTaken, which nothing counts any more
+  const starSpots: [number, number][] = [[-6.5, -1], [10, 9], [18, -4], [-17, -14]];
   // one instanced mesh draws all of them in one call (docs/perf.md); a star taken is scaled to nothing
   const stars = new THREE.InstancedMesh(L.starGeo, starMat, starSpots.length);
   stars.frustumCulled = false;   // they bob and spin across the valley: a handful of small stars, culling would cost more

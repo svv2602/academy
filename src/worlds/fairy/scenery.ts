@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { staticGeo, texturedParts } from '../../core/assets';
 import { fbm, mulberry32, vnoise } from '../../core/util';
 import { SHOP_SIGN } from './layout';
+import { OAKS, buildCollectProps, clearOfFinds } from './collect';
 import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
@@ -29,6 +30,8 @@ export const NEAR_TREES: readonly (readonly [string, number, number])[] = [
   ['CommonTree1', 8, 3], ['CommonTree2', 7.5, 3], ['CommonTree3', 6.5, 3], ['CommonTree4', 7, 3], ['CommonTree5', 6, 3],
   ['TwistedTree1', 7, 1], ['TwistedTree2', 6.5, 1], ['Pine5', 7.5, 2], ['Pine2', 9, 1],
 ];
+/** The tree of NEAR_TREES the acorns of the collections hang on (CommonTree1: a bare trunk under a high crown). */
+const OAK = 0;
 const FAR_TREES: readonly (readonly [string, number, Record<string, string>?])[] = [
   ['nature_pack/CommonTree_1', 7.5], ['nature_pack/CommonTree_2', 8], ['nature_pack/CommonTree_3', 6.5], ['nature_pack/PineTree_1', 8.5],
   ['nature_pack/CommonTree_4', 6.5, { Green: '#ffb7d5', DarkGreen: '#f794bd' }],
@@ -98,6 +101,9 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   for (const t of [...placed, ...grove]) if (t.collide) colliders.push({ x: t.x, z: t.z, r: 0.6 });
   nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
   farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
+  // the trees the acorns of the collections hang on (PLAY-25, ./collect.ts), of the valley's own kind
+  instancedParts(scene, height, nearTrees[OAK], OAKS.map((p, i) => ({ x: p.x, z: p.z, s: p.h / NEAR_TREES[OAK][1], rot: i * 2.3 })), 0.0035, true);
+  buildCollectProps(scene);
 
   const scatter = (n: number, margin: number, ok?: (x: number, z: number) => boolean, maxR = WORLD_R - 6, rand = rnd) => {
     const out: Placement[] = [];
@@ -112,11 +118,12 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   };
   const split = (items: Placement[], n: number) => Array.from({ length: n }, (_, i) => items.filter((_, j) => j % n === i));
 
-  const rocks = scatter(40 * density, 1.5, undefined, 56);
+  // nothing of chance stands on a find of the collections: filtered after, the chance of what follows is as it was
+  const rocks = scatter(40 * density, 1.5, undefined, 56).filter((r) => clearOfFinds(r.x, r.z));
   rocks.forEach((r) => { if (r.s > 1.05) colliders.push({ x: r.x, z: r.z, r: r.s * 0.45 }); });
   split(rocks, 3).forEach((it, i) => instancedParts(scene, height, rocks3[i], it, 0, true));
-  split(scatter(60 * density, 1.2, undefined, 56), 2).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
-  instanced(scene, height, stumpGeo, solid, scatter(8, 2), true);
+  split(scatter(60 * density, 1.2, undefined, 56).filter((b) => clearOfFinds(b.x, b.z)), 2).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
+  instanced(scene, height, stumpGeo, solid, scatter(8, 2).filter((s) => clearOfFinds(s.x, s.z)), true);
 
   // Under-growth: ferns and big leaves hug the trees, clover carpets the open meadow.
   const nearTree = (x: number, z: number) => placed.some((p) => Math.hypot(p.x - x, p.z - z) < 4.5);

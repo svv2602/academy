@@ -370,6 +370,14 @@ button.it { min-width: 44px; min-height: 44px; }
 #book .tiles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 #book .tile.pet, #book .tile.secret { width: 84px; }
 #book .tile.got { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e; }
+/* the collections (PLAY-25): a row a kind - its name, six finds (a silhouette until found), how many */
+#book .crows { display: flex; flex-direction: column; gap: 5px; width: 100%; align-items: center; }
+#book .crow { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1; }
+#book .crow.whole { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e; }
+#book .crow .cname { width: 78px; font-size: 12px; font-weight: 800; color: #8a6bb0; text-align: left; }
+#book .crow .cell { width: 30px; height: 30px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
+#book .crow .cell.sil { filter: brightness(0); opacity: .25; }
+#book .crow .cn { width: 52px; font-size: 12px; font-weight: 800; color: #8a6bb0; text-align: right; }
 .ach-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; width: 100%; }
 .ach { min-height: 62px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; padding: 2px; overflow: hidden; }

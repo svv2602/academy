@@ -8,6 +8,7 @@ import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { MysteryDef } from './mystery';
+import type { CollectDef } from './collections';
 import type { WorldScope } from './scope';
 import type { TaskType } from './tasks/types';
 import type { SkillId } from './skills';
@@ -25,6 +26,12 @@ export interface WorldGround {
   raycast(origin: THREE.Vector3, dir: THREE.Vector3, out: THREE.Vector3): boolean;
   /** A round obstacle. Pushed in call order: the order decides where resolve() puts the ground stars. */
   block(x: number, z: number, r: number): void;
+  /**
+   * A support she can jump up onto and stand on (a stump, a flat stone; PLAY-25 `hop`): the height of its top at
+   * (x, z) when her feet at `feet` are not far below it (else she walks into its side, `resolve` keeps her out), null
+   * where there is none. Absent: the world has none, she stands on its relief.
+   */
+  support?(x: number, z: number, feet: number): number | null;
 }
 
 /** What the renderer needs of a world's sky: the sun follows the heroine (and the quality tier sets its shadows). */
@@ -174,6 +181,8 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * at least MYSTERY_MIN_SPOTS of them, MYSTERY_COUNT a day. Absent - the world has none.
    */
   readonly mystery?: MysteryDef;
+  /** PLAY-25: the finds of its collections (src/game/collections.ts), SET_SIZE of each kind. Absent - none. */
+  readonly collect?: CollectDef;
   /** PLAY-08 (`secret_chest`): the flag of the world's chest, one of `secrets`. */
   readonly chest?: string;
   /** PLAY-08 (`all_world_stars`): how many stars lie on the world's ground (ids 0 to n - 1 in ws.starsTaken); a search's are not. */
