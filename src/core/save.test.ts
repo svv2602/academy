@@ -1169,6 +1169,18 @@ describe('the pets found (PLAY-09): `pets`, a field of version 4 without a new v
   });
 });
 
+describe('the middle of a task in the world (WORLD-14): worlds.<id>.tasks - a field of version 4 without a new version', () => {
+  it('read and write: it survives a load, a store and a load again, as it was', () => {
+    const s = defaultSave();
+    worldState(s, 'forest').tasks = { maze: [2, 1] };
+    storage.setItem(KEY, JSON.stringify(s));
+    storeSave(loadSave());
+    const back = loadSave();
+    expect(back.worlds.forest).toMatchObject({ tasks: { maze: [2, 1] } });
+    expect(JSON.parse(storage.getItem(KEY)!).worlds.forest.tasks).toEqual({ maze: [2, 1] });
+  });
+});
+
 describe('the rhythm of a session (PLAY-20, PLAY-21): breakMin, gift, session - fields of version 4 without a new version (R45)', () => {
   const load = (fields: Record<string, unknown>) => {
     storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
