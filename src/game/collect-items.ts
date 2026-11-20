@@ -33,6 +33,8 @@ const TAP_PX = 70;
 const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, butterfly: 2.2 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
+/** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
+const LIVE = 30;
 
 /** The shapes of the kinds, a few dozen triangles each, coloured by vertex; their middle at the origin. */
 function shapes(): Record<CollectKind, THREE.BufferGeometry> {
@@ -87,7 +89,10 @@ export function createCollections(g: CollectHost): CollectInWorld {
   const meshes = new Map<CollectKind, THREE.InstancedMesh>();
   const items = (def?.items ?? []).map((it, id) => {
     const p = new THREE.Vector3(it.x, g.groundY(it.x, it.z) + it.y, it.z);
-    return { ...it, id, pos: p, home: p.clone(), taken: found.includes(id), slot: 0, angle: Math.atan2(it.z, it.x), fly: 0 };
+    const home = p.clone(), angle = Math.atan2(it.z, it.x);
+    // a butterfly to catch is on its ring from the start (far from her it stands still there)
+    if (it.way === 'chase') p.set(it.x + Math.cos(angle) * CHASE.ring, 0, it.z + Math.sin(angle) * CHASE.ring).setY(g.groundY(p.x, p.z) + it.y);
+    return { ...it, id, pos: p, home, taken: found.includes(id), slot: 0, angle, fly: 0, posed: '' as '' | 'rest' | 'live' | 'gone' };
   });
   if (def) for (const kind of kindsOf(def)) {
     const own = items.filter((it) => it.kind === kind);
@@ -105,6 +110,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
   refresh();
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3();
   let gone = false, twinkle = 0;
+  const dirty = new Set<THREE.InstancedMesh>();
 
   function take(it: (typeof items)[number]) {
     if (it.taken || !def) return;
@@ -144,9 +150,17 @@ export function createCollections(g: CollectHost): CollectInWorld {
       const hp = g.hero.root.position, scale = g.hero.root.scale.x;
       const sparkle = (twinkle += dt) > TWINKLE;
       if (sparkle) twinkle = 0;
+      dirty.clear();
       for (const it of items) {
         const mesh = meshes.get(it.kind)!;
-        if (it.taken) { mesh.setMatrixAt(it.slot, m4.makeScale(0, 0, 0)); continue; }
+        if (it.taken) { if (it.posed !== 'gone') { mesh.setMatrixAt(it.slot, m4.makeScale(0, 0, 0)); it.posed = 'gone'; dirty.add(mesh); } continue; }
+        // far from her a find stands still at rest, drawn as it was laid: no matrix of it to send each frame (the
+        // desktop walkthrough of world2 ran a quarter longer with all of them moving)
+        if (Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) > LIVE) {
+          if (it.posed !== 'rest') { mesh.setMatrixAt(it.slot, m4.compose(it.pos, q.identity(), s.setScalar(SIZE[it.kind]))); it.posed = 'rest'; dirty.add(mesh); }
+          continue;
+        }
+        it.posed = 'live'; dirty.add(mesh);
         let yaw = time * 0.6 + it.id, open = 1;
         if (it.way === 'chase') {
           // it flies round its place, fast while she is near (she catches it across the ring)
@@ -169,7 +183,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
         if (sparkle && Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) < NEAR) g.sparks.burst(it.pos.clone(), '#fff6c8', 3, 0.8);
         if (canMove && reaches(it.way, it.pos, hp, scale)) take(it);
       }
-      for (const mesh of meshes.values()) mesh.instanceMatrix.needsUpdate = true;
+      for (const mesh of dirty) mesh.instanceMatrix.needsUpdate = true;
     },
     dispose: () => {
       gone = true;
