@@ -1,7 +1,7 @@
 // The grey build of the sea (WORLD-03, WORLD-12): its walkthrough and its measurements, as tools/forest-grey.mjs does
 // for the forest (its pure helpers are taken from there).
 //
-//   node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--out <dir>]
+//   node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the sea in that mode only (src/worlds/index.ts);
 //    the swimming clips are put into that build by vite.config.ts.
@@ -32,10 +32,11 @@ export const REACHED = 3.5;
 
 /** The arguments: { scales, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
 export function readArgs(argv) {
-  const o = { scales: [1, 1.6], pass: true, measure: true, out: join(root, 'shots-e2e', 'sea-grey') };
+  const o = { scales: [1, 1.6], pass: true, measure: true, water: true, out: join(root, 'shots-e2e', 'sea-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
+    else if (a === '--water-only') { o.pass = false; o.measure = false; o.water = true; }
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
@@ -49,7 +50,7 @@ export function readArgs(argv) {
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
@@ -80,16 +81,17 @@ async function main() {
     if (code !== 0) failed = true;
   }
   // ---- 4. the measurements ----
-  if (!args.measure) { server.close(); process.exit(failed ? 1 : 0); }
+  if (!args.measure && !args.water) { server.close(); process.exit(failed ? 1 : 0); }
   mkdirSync(args.out, { recursive: true });
   const gl = process.env.E2E_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=gl', '--enable-gpu'];
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
-  const all = [];
+  const all = [], water = [];
   try {
-    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out));
+    if (args.measure) for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out));
+    if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
   } finally { await browser.close(); server.close(); }
-  writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
-  console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`);
+  if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
+  if (water.length) { writeFileSync(join(args.out, 'water.json'), JSON.stringify(water, null, 1)); console.log(`[grey] the heroine in the water: ${join(args.out, 'water.json')}`); }
   process.exit(failed ? 1 : 0);
 }
 
@@ -216,5 +218,71 @@ async function measure(browser, url, scale, out) {
   console.log(`[grey]   the heroine in the water: ${poses.map((p) => `${p.what} ${p.clip} (plays ${p.playing}) at ${p.over} m, bubbles ${JSON.stringify(p.bubbles)}`).join('; ')}`);
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, heaviest };
 }
+/**
+ * The heroine swimming and the cat in its bubble, in pictures (the main risk of the world, docs/worlds/world-3.md): at the
+ * tier `q`, the map at its default stretch. The camera is where the game puts it behind her - she swims "forward" with
+ * the key held and the camera is not turned; then from behind and below (the camera dragged down as a child would),
+ * then from the side (she swims to the right of the camera). Five phases of the stroke each, a quarter of a second of
+ * game time apart. Then the cat: by her as she stands, and as she swims. Pictures swim-* and cat-*; their numbers too.
+ */
+async function inWater(browser, url, q, out) {
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
+  await page.addInitScript(() => { for (const k of ['amw-gift-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); });
+  await page.goto(`${url}?debug&q=${q}&world=sea`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#play', { state: 'visible', timeout: 120000 });
+  await page.click('#play');
+  await page.waitForFunction(() => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy; }, null, { timeout: 180000, polling: 300 });
+  await page.evaluate(() => { for (const s of ['#debug', '#fps', '.debug', '#bubble']) document.querySelectorAll(s).forEach((e) => (e.style.visibility = 'hidden')); });
+  const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  const map = await page.evaluate(() => JSON.parse(JSON.stringify(__game.seaMap)));
+  // from the square toward the reef: the longest way, open water
+  const from = map.zones.square, to = map.zones.reef;
+  const look = () => page.evaluate(() => {
+    const { camera, hero, cat, THREE } = __game, h = hero.root.position, c = cat.root.position;
+    const ndc = c.clone().setY(c.y + 0.35).project(camera);
+    return { clip: hero.current, over: +(h.y - __game.seaMap.ground(h.x, h.z)).toFixed(2), catFromHer: +Math.hypot(c.x - h.x, c.z - h.z).toFixed(2),
+      catOnScreen: Math.abs(ndc.x) < 1 && Math.abs(ndc.y) < 1 && ndc.z < 1, bubble: __game.bubbles().cat };
+  });
+  const shots = [];
+  const shoot = async (name) => { await page.screenshot({ path: join(out, `${name}-q${q}.png`) }); shots.push({ name: `${name}-q${q}`, ...(await look()) }); };
+  const start = async () => {
+    await page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [from, to]);
+    await settle(1.2);
+  };
+  const strokes = async (key, name) => {
+    await page.keyboard.down(key);
+    try {
+      await settle(1);
+      for (let i = 1; i <= 5; i++) { await shoot(`${name}-${i}`); await settle(0.25); }
+    } finally { await page.keyboard.up(key); }
+  };
+  // 1. behind her, the camera as the game holds it
+  await start();
+  await strokes('KeyW', 'swim-behind');
+  // 2. behind and below: the camera dragged down to its lowest, as a child's drag up would
+  await start();
+  const x = 420, y = 200;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x, y - 160, { steps: 8 }); await page.mouse.up();
+  await settle(0.8);
+  await strokes('KeyW', 'swim-below');
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x, y + 160, { steps: 8 }); await page.mouse.up();
+  // 3. from the side: she swims to the right of the camera
+  await start();
+  await strokes('KeyD', 'swim-side');
+  // 4. the cat: by her as she stands (the camera turned a little to have both), and as she swims
+  await start();
+  await settle(2);
+  await page.evaluate(() => { const h = __game.hero.root.position, c = __game.cat.root.position; __game.cam.yaw = Math.atan2(h.x - c.x, h.z - c.z) + 0.9; });
+  await settle(1);
+  await shoot('cat-still');
+  await page.keyboard.down('KeyD');
+  try { await settle(1.5); await shoot('cat-swim-1'); await settle(0.6); await shoot('cat-swim-2'); } finally { await page.keyboard.up('KeyD'); }
+  await ctx.close();
+  for (const s of shots) console.log(`[grey]   ${s.name}: ${s.clip} at ${s.over} m; the cat ${s.catFromHer} m from her, ${s.catOnScreen ? 'on screen' : 'NOT on screen'}, its bubble ${s.bubble ? 'shown' : 'NOT shown'}`);
+  return { water: true, q, shots };
+}
+
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
