@@ -9,6 +9,7 @@ import { SHELF } from '../../ui/book';
 import { HUB_FLYOVER } from './flyover-path';
 import { ARRIVE_IN, NESTS, PORTALS, PORTAL_R, RADIUS, TREE, arrivalAt, trunkR } from './layout';
 import { portalWorlds } from './portals';
+import { strings } from './strings';
 
 describe('the map of the hub', () => {
   it('five arches round the tree, one per place of the shelf, with the symbol of that place', () => {
@@ -47,9 +48,10 @@ describe('the worlds behind the arches', () => {
 });
 
 describe('the tour of the hub (WORLD-11)', () => {
-  it('within the rules: 5-8 points, 10-15 s; silent until its line is recorded (R34)', () => {
+  it('within the rules: 5-8 points, 10-15 s; the cat says its line, a line of the hub itself (R34)', () => {
     expect(pathProblems(HUB_FLYOVER)).toEqual([]);
-    expect(HUB_FLYOVER.line).toBeNull();
+    expect(HUB_FLYOVER.line).toBe('hub_tour');
+    expect(Object.keys(strings.spoken)).toContain(HUB_FLYOVER.line);
   });
 
   it('starts at the roots, rises to the first nest, ends looking at the heroine at the first arch', () => {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Save } from '../../core/save';
+import type { Save, WorldState } from '../../core/save';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
 import { travel } from '../../game/travel';
@@ -31,6 +31,13 @@ const SPOT_R = 2;
 
 /** She has been to the hub: its part of the save exists (read without creating it). */
 export const hubVisited = (save: Save): boolean => (save.worlds as Record<string, unknown>)[HUB] !== undefined;
+
+/**
+ * The cat's word for where she stopped (WorldDef.left, R28): with the crystal whole and the way open, until she has been
+ * to the hub - "the Great Tree calls, run after the sparkles to the arch". Else none: the shared words.
+ */
+export const treeCalls = (ws: Pick<WorldState, 'final'>, save: Save, open = TREE_WAY_OPEN): 'tree_calls' | null =>
+  (open && ws.final && !hubVisited(save) ? 'tree_calls' : null);
 
 /** Where she comes out of the arch from the hub: in front of it, facing the valley (WorldDef.arrive). */
 export const FROM_HUB: Arrival = {

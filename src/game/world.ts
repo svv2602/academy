@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Save } from '../core/save';
+import type { Save, WorldState } from '../core/save';
 import type { Key, SpokenKey, WorldStrings } from '../ui/strings';
 import type { Actor } from './actor';
 import type { Game } from './context';
@@ -143,6 +143,11 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * her). Null or absent: where she was left in this world, else `spawn` - as on a launch, which has no `from`.
    */
   arrive?(from: string): Arrival | null;
+  /**
+   * The world's own word for where she stopped, when it knows better than the shared ones (src/ui/welcome.ts
+   * `leftKey`): the cat says it on a tap and after the meeting of a game played before. Null or absent: the shared one.
+   */
+  left?(ws: WorldState, save: Save): SpokenKey | null;
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
   /**

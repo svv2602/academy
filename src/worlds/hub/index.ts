@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Save } from '../../core/save';
+import { worldClips } from '../../core/voice';
 import { artifactBack, artifactCount, knownWorlds } from '../../game/artifacts';
 import type { Game } from '../../game/context';
 import { marked } from '../../game/describe';
@@ -12,6 +13,7 @@ import type { BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldS
 import { HUB_FLYOVER } from './flyover-path';
 import { NESTS, PORTALS, RADIUS, TREE, arrivalAt, trunkR } from './layout';
 import { portalWorlds } from './portals';
+import CLIPS from './clips.json';
 import { strings } from './strings';
 
 /**
@@ -25,8 +27,8 @@ import { strings } from './strings';
  * the cat says so, R16). The others sleep, grey and overgrown, with the sign of their world. A nest glows in the
  * colour of its world once that world's artifact is back (its light, not the artifact itself - R7). She appears at
  * the arch of the world she came from (R9, `arrive`); the cat leads to the next open arch whose world is not done
- * (R10). The tour flies from the roots up to the nest of the crystal, then round the arches (R12, R19) - silent
- * until its line is recorded (R34). The hub has no files of its own: it is part of the installation (R31).
+ * (R10). The tour flies from the roots up to the nest of the crystal, then round the arches (R12, R19), the cat
+ * saying its line (R34). The hub is part of the installation (R31): no models of its own, its one clip precached.
  */
 
 /** The heroine's first entry: from the arch of the Fairy Kingdom (R9). */
@@ -208,6 +210,8 @@ function buildRing(scene: THREE.Scene) {
 function buildHub(g: Game, _L: Record<string, never>, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, save, ws, flies } = g;
   scope.own(() => { colliders.length = 0; });
+  // The voice of the hub (R34): its clips are in voice/hub/, part of the installation; the list is taken back as it is left.
+  scope.own(worldClips(hub.id, CLIPS));
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
 
   const glade = new THREE.Mesh(new THREE.CircleGeometry(RADIUS + 14, 56), std('#8fcf6a', { flatShading: false }));

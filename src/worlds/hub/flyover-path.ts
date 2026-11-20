@@ -6,7 +6,7 @@ const SPAWN = arrivalAt(0);
 /** The tour (WORLD-11): the roots, up the trunk to the first nest, round the arches, back to her at the first arch. */
 export const HUB_FLYOVER: FlyoverPath = {
   seconds: 13,
-  line: null,
+  line: 'hub_tour',
   points: [
     { pos: [1.5, 1.2, 7], look: [0, 0.8, 2.4] },
     { pos: [2.5, 4.5, 6.5], look: [0, NESTS[0].y, trunkR(NESTS[0].y)] },

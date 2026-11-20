@@ -159,6 +159,15 @@ describe('"where we stopped" (R40)', () => {
     expect(repeats()).toBe(0);
   });
 
+  it('a tap on the cat says the world\'s own word when it has one (WorldDef.left), else the shared one', () => {
+    const { g, said, raw } = game();
+    (raw.world as { left?: (ws: { final: boolean }) => string | null }).left = (w) => (w.final ? 'tree_calls' : null);
+    mod.catTap(g);
+    raw.ws = ws({}, true);
+    mod.catTap(g);
+    expect(said).toEqual(['left_new_world', 'tree_calls']);
+  });
+
   it('a tap on the cat with a line in the bubble repeats it', () => {
     const { g, said, repeats } = game();
     $('bubble').classList.remove('hidden');

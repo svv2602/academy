@@ -27,7 +27,12 @@ export async function enterWorld(g: Game, first: boolean): Promise<void> {
     firstDay(g);   // PLAY-21: the first day is marked, no star
     if (g.world.characters?.length) void g.speech.line('go_next', 'hint', 6000);
   }
-  else await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
+  else {
+    await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
+    // the world's own word for where she stopped (WorldDef.left; the first world: the Great Tree calls, R28)
+    const left = g.world.left?.(g.ws, g.save);
+    if (left) void g.speech.line(left, 'hint', 6000);
+  }
 }
 
 /**

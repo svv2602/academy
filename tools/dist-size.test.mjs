@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { MAX_DIST, MAX_DIST_FILE, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, sizeSummary, sourceWorlds } from './dist-size.mjs';
+import { MAX_DIST, MAX_DIST_FILE, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
 
 const dirs = [];
 afterAll(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
@@ -210,6 +210,15 @@ describe('the size budget of every world', () => {
     expect(() => sourceWorlds(src)).toThrow('does not name the first world');
   });
 
+  it('reads the worlds of the installation: the ids listed in INSTALLED, none when it is missing', () => {
+    const src = folder({ 'index.ts': 0 });
+    writeFileSync(join(src, 'index.ts'), "export const DEFAULT_WORLD = 'fairy';\nexport const INSTALLED: readonly string[] = [DEFAULT_WORLD, 'hub', \"sky\"];\n");
+    expect(installedWorlds(src)).toEqual(['hub', 'sky']);
+    writeFileSync(join(src, 'index.ts'), "export const DEFAULT_WORLD = 'fairy';\n");
+    expect(installedWorlds(src)).toEqual([]);
+    expect(installedWorlds()).toContain('hub');
+  });
+
   it('measures the real build by the worlds of src/worlds/ when the worlds are not given', () => {
     const real = sourceWorlds();
     expect(real.first).toMatch(/^[a-z][a-z0-9_]*$/);
@@ -217,7 +226,7 @@ describe('the size budget of every world', () => {
     expect(real.worlds).not.toContain(real.first);
     const r = checkDistSize(folder({ 'a.glb': 10 }));
     expect(r.first).toBe(real.first);
-    expect(r.worlds.map((w) => w.id)).toEqual(real.worlds);
+    expect(r.worlds.map((w) => w.id)).toEqual(real.worlds.filter((id) => !installedWorlds().includes(id)));   // the hub is the core's
     // limits alone do not name the worlds
     expect(checkDistSize(folder({ 'a.glb': 10 }), 1000, 1000, 1000, { maxWorld: 1 }).first).toBe(real.first);
     // an unreadable folder still tells the first world; there is nothing to lay out

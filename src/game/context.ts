@@ -143,6 +143,8 @@ export interface WorldEntry {
   worldTasks?: WorldDef['worldTasks'];
   /** Where she appears coming from another world (WorldDef.arrive); absent - where she was left, else the spawn. */
   arrive?: WorldDef['arrive'];
+  /** Its own word for where she stopped (WorldDef.left); absent - the shared ones (src/ui/welcome.ts). */
+  left?: WorldDef['left'];
 }
 
 /** The heading of the heroine as a world opens, when it names none: facing -z, the camera behind her (yaw 0). */

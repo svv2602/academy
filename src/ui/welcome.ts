@@ -115,8 +115,8 @@ export function firstDay(g: Pick<Game, 'save' | 'persist'>, now = Date.now()): v
 }
 
 /** A tap on the cat (src/game/player.ts): the line of the bubble once more; with the bubble empty - where we stopped. */
-export function catTap(g: Pick<Game, 'speech' | 'world' | 'ws'>): void {
+export function catTap(g: Pick<Game, 'speech' | 'world' | 'ws' | 'save'>): void {
   if (!el.bubble.classList.contains('hidden')) { g.speech.repeat(); return; }
   if (speaking()) return;   // as a repeat: a line that sounds is not cut off
-  void g.speech.line(leftKey(g.world, g.ws), 'hint', LEFT_HOLD_MS);
+  void g.speech.line(g.world.left?.(g.ws, g.save) ?? leftKey(g.world, g.ws), 'hint', LEFT_HOLD_MS);
 }

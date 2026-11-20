@@ -101,11 +101,12 @@ export function createFinale(g: Game, stage: Stage, shrine: Shrine, npcs: readon
       // After the scene (its end clears the bubble) and after the final words: a hint does not cut the story off.
       // The last words, then the return of the crystal (its cut-scene, `after`), then "free", then a stop point (PLAY-08):
       // the achievement of the artifact restored has its scene right after the finale, not at whatever point comes next.
-      // The first time she goes to the Great Tree instead of "free" (R12, R29): the stop point, then the way out.
+      // The first time she goes to the Great Tree instead of "free" (R12, R29): "let's go to the Great Tree", the stop
+      // point, then the way out.
       onward = () => {
         void words.then(after).then(async () => {
           const go = away();
-          if (!go) await line('free', 'hint', 6000);
+          await line(go ? 'go_tree' : 'free', 'hint', go ? 4000 : 6000);
           await stopPoint('finale', g);
           if (go) await go();
         });

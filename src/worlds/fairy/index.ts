@@ -37,7 +37,7 @@ import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
 import { QUESTS, TASK_STEPS, WORLD_TASKS, chainDone, type QuestDef } from './quests';
 import { buildShrine, createFinale, shardCount } from './shrine';
-import { FROM_HUB, HUB, TREE_WAY_OPEN, createTreeWay, hubVisited } from './tree-way';
+import { FROM_HUB, HUB, TREE_WAY_OPEN, createTreeWay, hubVisited, treeCalls } from './tree-way';
 import { travel } from '../../game/travel';
 import { SIGN_H } from './scenery';
 import { SKY_RADIUS, VALLEY_FAR, buildSky } from './sky';
@@ -416,6 +416,8 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   spawn: SPAWN,
   // Out of the arch to the Great Tree, back from the hub (./tree-way.ts); from elsewhere - where she was left.
   arrive: (from) => (from === HUB ? FROM_HUB : null),
+  // the crystal whole and the hub not visited: "the Great Tree calls" on a tap on the cat and back in the game (R28)
+  left: treeCalls,
   ground,
   characters: FRIENDS,
   secrets: ['chest', 'glade', 'house'],

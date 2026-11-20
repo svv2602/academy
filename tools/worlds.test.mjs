@@ -342,9 +342,11 @@ describe('the voice of the probe world in the probe build (worlds.json, sw.js, t
     expect(JSON.stringify(list)).not.toContain('voice/hello.mp3');
   });
 
-  it('coreVoiceBytes: the clips of the folder itself, not of the folders of the worlds inside it', () => {
-    const dir = folder({ 'a.mp3': '12345', 'b@Leda.mp3': '123', 'lake/c.mp3': '1234567', 'notes.txt': '12' });
-    expect(coreVoiceBytes(dir)).toBe(8);
+  it('coreVoiceBytes: the clips of the folder itself and of the installed worlds, not of the next worlds inside it', () => {
+    const dir = folder({ 'a.mp3': '12345', 'b@Leda.mp3': '123', 'lake/c.mp3': '1234567', 'hub/d.mp3': '12', 'notes.txt': '12' });
+    expect(coreVoiceBytes(dir, [])).toBe(8);
+    expect(coreVoiceBytes(dir, ['hub'])).toBe(10);
+    expect(coreVoiceBytes(dir, ['hub', 'sky'])).toBe(10);   // an installed world without a voice of its own
     // the sources: what docs/15-tech.md budgets as the voice of the first load, under its limit
     expect(coreVoiceBytes()).toBeGreaterThan(1_000_000);
     expect(coreVoiceBytes()).toBeLessThanOrEqual(MAX_VOICE);   // the limit of tools/dist-size.mjs, not a copy of it

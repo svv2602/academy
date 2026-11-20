@@ -116,7 +116,7 @@ import { createServer } from 'node:http';
 import { createServer as createSocket } from 'node:net';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { checkDistSize, installedWorlds, sizeSummary } from './dist-size.mjs';
 import { WORLDS_LIST } from './vite-worlds.mjs';
 import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
@@ -358,9 +358,13 @@ export function listProblems(dir, id, files) {
   return out;
 }
 
-/** The bytes of the voice of the core in the sources: the clips of public/voice itself, without the folders inside it. */
-export function coreVoiceBytes(dir = join(root, 'public/voice')) {
-  return readdirSync(dir, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith('.mp3')).reduce((sum, f) => sum + statSync(join(dir, f.name)).size, 0);
+/**
+ * The bytes of the voice of the core in the sources: the clips of public/voice itself and of the folders of the worlds of
+ * the installation (`installed`, the hub: precached with the core), without the folders of the next worlds.
+ */
+export function coreVoiceBytes(dir = join(root, 'public/voice'), installed = installedWorlds()) {
+  const clips = (d) => (existsSync(d) ? readdirSync(d, { withFileTypes: true }).filter((f) => f.isFile() && f.name.endsWith('.mp3')).reduce((sum, f) => sum + statSync(join(d, f.name)).size, 0) : 0);
+  return [dir, ...installed.map((id) => join(dir, id))].reduce((sum, d) => sum + clips(d), 0);
 }
 
 /**
@@ -1003,7 +1007,13 @@ async function hubScenarios({ url, shots, fail: report }) {
       await p.gameSeconds(3);   // the time the first hint of a world comes in
       const lines = await p.g(() => [...window.__hubLines]);
       if (lines.includes('go_next')) fail(`one artifact: in the hub the cat sends her "to a new friend" (go_next) - the hub has none; lines: ${lines.join(', ')}`);
+      // the cat's line of the tour (R34): the hub's own, by its clip in voice/hub/ (precached with the core), not the synthesizer
+      const tourLine = await p.g(() => ({ clip: __game.clipFor('hub_tour'), synth: __game.voice.synth.includes('hub_tour') }));
+      if (!lines.includes('hub_tour')) fail(`one artifact: the cat did not say its line of the tour (hub_tour); lines: ${lines.join(', ')}`);
+      if (tourLine.clip !== 'hub/hub_tour') fail(`one artifact: the line of the tour has the clip "${tourLine.clip}", expected "hub/hub_tour" - the clip in the folder of the hub`);
+      if (tourLine.synth) fail('one artifact: the line of the tour was left to the synthesizer: its clip hub/hub_tour.mp3 did not sound');
       await p.shot('hub-arrival.png');
+      told.push('the cat\'s line of the tour by its clip hub/hub_tour');
       told.push('she at the arch of the fairies facing the tree, the crystal\'s nest alone glowing, the forest\'s arch to the probe world, three asleep, the description its tour alone, no hint "to a new friend"');
       // through the forest's arch by its action button
       await p.g(([x, z]) => { __game.teleport(x, z); }, [HUB_ARCH[1].x * 0.9, HUB_ARCH[1].z * 0.9]);

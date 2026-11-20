@@ -44,6 +44,16 @@ export function sourceWorlds(dir = WORLDS_SRC) {
   return { first, worlds };
 }
 
+/**
+ * The worlds of the installation besides the first one, read as text from src/worlds/index.ts: the ids of
+ * `INSTALLED = [DEFAULT_WORLD, 'hub', ...]` (WORLD-01: the hub is part of the installation). Their files are the core's:
+ * precached with it and measured with it, never downloaded as a next world. [] when index.ts lists none.
+ */
+export function installedWorlds(dir = WORLDS_SRC) {
+  const list = /\bINSTALLED\b[^=\n]*=\s*\[([^\]]*)\]/.exec(readFileSync(join(dir, 'index.ts'), 'utf8'))?.[1] ?? '';
+  return [...list.matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
+}
+
 const sum = (files) => files.reduce((s, f) => s + f.size, 0);
 
 /**
@@ -57,7 +67,8 @@ const sum = (files) => files.reduce((s, f) => s + f.size, 0);
  */
 export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE, maxVoice = MAX_VOICE, layout = {}) {
   const { maxWorld = MAX_WORLD, maxWorldVoice = MAX_WORLD_VOICE } = layout;
-  const { first, worlds: listed } = layout.worlds ? { first: layout.first ?? null, worlds: layout.worlds } : sourceWorlds();
+  const { first, worlds: listed } = layout.worlds ? { first: layout.first ?? null, worlds: layout.worlds }
+    : (({ first: f, worlds: w }, inst) => ({ first: f, worlds: w.filter((id) => !inst.includes(id)) }))(sourceWorlds(), installedWorlds());
   const next = [...new Set(listed)].filter((id) => id !== first);
   let files;
   try { files = distFiles(dir); } catch (e) { return { total: 0, voice: 0, bank: 0, files: 0, heaviest: null, problems: [`cannot read ${dir}: ${e.message}`], first, worlds: [] }; }

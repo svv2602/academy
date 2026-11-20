@@ -8,7 +8,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
-import { sourceWorlds } from './dist-size.mjs';
+import { installedWorlds, sourceWorlds } from './dist-size.mjs';
 import { WORLD_FOLDERS, worldOf } from './world-files.mjs';
 
 /** The list, at the root of the build. Precached: the game reads it without network too. */
@@ -19,12 +19,14 @@ export const WORLDS_CACHE = 'worlds';
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 /**
- * The next worlds of a build of `mode`: the folders of src/worlds/ but the first world's (`sourceWorlds`), and but
- * the test world `testWorld` unless the build is made in the mode of the same name - the registry
- * (src/worlds/index.ts) lists that world under the same condition.
+ * The next worlds of a build of `mode`: the folders of src/worlds/ but the first world's (`sourceWorlds`) and those of
+ * the installation (`installedWorlds`: the hub - its voice is precached with the core), and but the test world
+ * `testWorld` unless the build is made in the mode of the same name - the registry (src/worlds/index.ts) lists that
+ * world under the same condition.
  */
 export function buildWorlds(mode, testWorld, dir = undefined) {
-  return sourceWorlds(dir).worlds.filter((id) => id !== testWorld || mode === testWorld);
+  const installed = installedWorlds(dir);
+  return sourceWorlds(dir).worlds.filter((id) => !installed.includes(id) && (id !== testWorld || mode === testWorld));
 }
 
 /** The folders of the next `worlds` as patterns for the service worker's `globIgnores`: they are not precached. */

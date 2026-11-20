@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../../core/save';
 import { CHEST, HOUSE, SHOP_SIGN, SPAWN, TREE_WAY } from './layout';
-import { FROM_HUB, HUB, hubVisited } from './tree-way';
+import { FROM_HUB, HUB, hubVisited, treeCalls } from './tree-way';
 
 describe('the way to the Great Tree', () => {
   it('the arch stands at the end of the path behind the spawn, clear of the shop sign, the house and the chest', () => {
@@ -27,5 +27,14 @@ describe('the way to the Great Tree', () => {
     expect(Object.keys(s.worlds)).toEqual([]);
     (s.worlds as Record<string, unknown>)[HUB] = { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
     expect(hubVisited(s)).toBe(true);
+  });
+
+  it('the Great Tree calls while the crystal is whole, the way open and the hub not visited; else the shared words', () => {
+    const s: Save = defaultSave();
+    expect(treeCalls({ final: true }, s, true)).toBe('tree_calls');
+    expect(treeCalls({ final: false }, s, true)).toBeNull();
+    expect(treeCalls({ final: true }, s, false)).toBeNull();   // the way hidden (TREE_WAY_OPEN false)
+    (s.worlds as Record<string, unknown>)[HUB] = { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
+    expect(treeCalls({ final: true }, s, true)).toBeNull();
   });
 });

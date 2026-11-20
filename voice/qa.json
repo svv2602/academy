@@ -5432,5 +5432,29 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "go_tree": {
+  "text": "Ходімо до Великого Дерева!",
+  "heard": "Ходімо до великого дерева.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "tree_calls": {
+  "text": "Велике Дерево кличе! Біжи за іскорками до арки.",
+  "heard": "Велике дерево кличе. Біжи за іскорками до арки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_tour": {
+  "text": "Це Велике Дерево! Світло Кристала вже тут. Але дивись: ще чотири гнізда порожні. Їхні світи поки сплять.",
+  "heard": "Це велике дерево! Світло кристала вже тут. Але дивись, ще чотири гнізда порожні, їхні світи поки сплять.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
