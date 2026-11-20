@@ -124,12 +124,14 @@ export function buildTerrain(segments: number) {
   return mesh;
 }
 
-export interface Collider { x: number; z: number; r: number; }
+/** A round obstacle; with `top`, one she can be up on: from her feet at `top` and above it does not keep her out. */
+export interface Collider { x: number; z: number; r: number; top?: number }
 export const colliders: Collider[] = [];
 
 /** Keeps a walker out of props, deep water and the hills around the valley. */
-export function resolve(p: { x: number; z: number }, radius: number) {
+export function resolve(p: { x: number; z: number; y?: number }, radius: number) {
   for (const c of colliders) {
+    if (c.top !== undefined && p.y !== undefined && p.y >= c.top) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius;
     const d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) {

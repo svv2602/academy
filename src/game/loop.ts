@@ -82,13 +82,16 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
 
     camera.look();
     const here = allSpots();
-    player.tap(canMove, here, world.tap);
+    // a find of the collections touched takes the tap first (src/game/collect-items.ts): only while she is free to move -
+    // a task of the world on screen (it holds her) takes every tap
+    player.tap(canMove, here, (dist) => (canMove && g.collect.tap(dist)) || world.tap(dist));
     const mag = player.move(dt, canMove);
     world.afterMove(time, player.grounded);
     player.prompt(canMove, here);
     companion.update(dt);
     g.pets.update(dt);
     g.mystery.update(time, canMove);
+    g.collect.update(dt, time, canMove);
     world.update(dt, time, canMove);
     suppliesOf(g)?.update(dt, time, canMove);   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
     guide.update(time, g.started() && !g.busy ? world.goal() : null);
