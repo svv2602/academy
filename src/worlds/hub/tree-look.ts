@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { gltf, staticGeo } from '../../core/assets';
-import { propMaterial } from '../../core/materials';
+import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { PORTALS, TREE, trunkR } from './layout';
 
@@ -37,7 +37,8 @@ import { PORTALS, TREE, trunkR } from './layout';
  * TECH-06, the S22: every repeated thing is one draw call (one merged geometry or one InstancedMesh), nothing is
  * allocated per frame, the lanterns, fireflies and mushrooms glow by their colour (no light of their own), only the
  * bark (with the stump) and the crown cast shadows. `lookCost` counts what a look draws; TREE_BUDGET is what stage 4 stays under (the test checks it).
- * The trunk and the crown dissolve at the lens (`lensFade`): the camera never shows a wall of bark or leaves.
+ * The trunk and the crown dissolve at the lens (`fadeAtCamera`, src/core/materials.ts): the camera never shows a wall
+ * of bark or leaves, and what stands between the camera and her is looked through.
  */
 
 /** The look of the tree: 1..4 (./tree-look.ts header). */
@@ -301,26 +302,6 @@ const LEAF_TONE: Record<TreeStage, { dull: number; bright: number }> = {
   1: { dull: 0.55, bright: 0.82 }, 2: { dull: 0.32, bright: 0.92 }, 3: { dull: 0.06, bright: 1.02 }, 4: { dull: 0, bright: 1.06 },
 };
 
-/**
- * The fade at the lens for the opaque parts of the tree: nearer than 2.6 m to the camera it thins into a 4x4 ordered
- * dither, nearer than 1.0 m it is gone. This is the lens half of `fadeAtCamera` of src/core/materials.ts (NEAR_FADE,
- * branch run/p4-see-through; not on this branch yet): once that lands, `lensFade(sh)` becomes `fadeAtCamera(sh)`.
- */
-const LENS_FADE_GLSL = `{
-  float keep = smoothstep(1.00, 2.60, length(vViewPosition));
-  if (keep < 1.0) {
-    ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
-    int k = q.x + q.y * 4;
-    float bayer = float(k == 0 ? 0 : k == 1 ? 8 : k == 2 ? 2 : k == 3 ? 10 : k == 4 ? 12 : k == 5 ? 4 : k == 6 ? 14 : k == 7 ? 6
-      : k == 8 ? 3 : k == 9 ? 11 : k == 10 ? 1 : k == 11 ? 9 : k == 12 ? 15 : k == 13 ? 7 : k == 14 ? 13 : 5) / 16.0 + 1.0 / 32.0;
-    if (keep < bayer) discard;
-  }
-}`;
-function lensFade(sh: THREE.WebGLProgramParametersWithUniforms): void {
-  sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-  ${LENS_FADE_GLSL}`);
-}
-
 /** The time the leaves of the crown sway by, the wings beat by and the ring of mushrooms breathes by (set in `update`). */
 const uLeaf = { value: 0 };
 
@@ -330,8 +311,8 @@ const uLeaf = { value: 0 };
  */
 function barkMaterial(map: THREE.Texture | null) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true, map, color: map ? '#ffffff' : new THREE.Color(0.085, 0.075, 0.065) });
-  m.onBeforeCompile = (sh) => lensFade(sh);
-  m.customProgramCacheKey = () => 'tree-bark';
+  m.onBeforeCompile = (sh) => fadeAtCamera(sh);
+  m.customProgramCacheKey = () => 'tree-bark|fade';
   return m;
 }
 
@@ -345,9 +326,9 @@ function crownMaterial() {
       float leafK = clamp((position.y - 6.0) / 10.0, 0.0, 1.0) * 0.14;
       transformed.x += sin(uLeaf * 0.9 + position.x * 0.21 + position.z * 0.17) * leafK;
       transformed.z += cos(uLeaf * 0.7 + position.z * 0.23 - position.x * 0.11) * leafK;`);
-    lensFade(sh);
+    fadeAtCamera(sh);
   };
-  m.customProgramCacheKey = () => 'tree-crown';
+  m.customProgramCacheKey = () => 'tree-crown|fade';
   return m;
 }
 
@@ -604,9 +585,9 @@ function mushMaterial() {
       vGlow = aGlow * (1.0 + 0.3 * step(0.5, aGlow.r + aGlow.g + aGlow.b) * sin(uLeaf * 1.3 + float(gl_InstanceID) * 2.1));`);
     sh.fragmentShader = 'varying vec3 vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       totalEmissiveRadiance = vGlow;`);
-    lensFade(sh);
+    fadeAtCamera(sh);
   };
-  m.customProgramCacheKey = () => 'tree-mush';
+  m.customProgramCacheKey = () => 'tree-mush|fade';
   return m;
 }
 
