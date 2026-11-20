@@ -1004,6 +1004,9 @@ async function hubScenarios({ url, shots, fail: report }) {
       if (JSON.stringify(look.portals) !== JSON.stringify([FIRST_WORLD, PROBE, null, null, null])) fail(`one artifact: the arches lead to ${JSON.stringify(look.portals)}, not the fairies', the probe world behind the forest's and three asleep`);
       if (!look.toured) fail('one artifact: the tour of the hub is not marked in its part of the save');
       if (lacks?.length) fail(`one artifact: the description of the hub against its short template: ${lacks.join('; ')}`);
+      // the counter by the hub's own icon: the artifacts back on the tree, not the shards of a world
+      const icon = () => p.g(() => document.getElementById('crystals')?.parentElement?.querySelector('span')?.textContent ?? null);
+      if ((await icon()) !== '🌳') fail(`one artifact: the counter of the hub has the icon "${await icon()}", expected the tree's 🌳`);
       await p.gameSeconds(3);   // the time the first hint of a world comes in
       const lines = await p.g(() => [...window.__hubLines]);
       if (lines.includes('go_next')) fail(`one artifact: in the hub the cat sends her "to a new friend" (go_next) - the hub has none; lines: ${lines.join(', ')}`);
@@ -1028,6 +1031,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       await p.page.locator('#btnAct').dispatchEvent('pointerdown');   // as tools/shot.mjs presses it: the button breathes, it is never "stable"
       await p.inWorld(PROBE);
       if ((await p.g(() => __game.world)) !== PROBE) fail('one artifact: the arch of the forest did not take her to the probe world');
+      if ((await icon()) !== '💎') fail(`one artifact: in the probe world the counter keeps the hub's icon "${await icon()}", expected the shard's 💎`);
       // back: at the arch of the forest, facing the tree; no tour any more
       if ((await p.g(() => __game.travel('hub'))) !== true) throw new Error('one artifact: the way back to the hub was refused');
       await p.inWorld('hub', true);

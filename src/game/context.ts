@@ -17,7 +17,7 @@ import type { TaskHooks, TaskResult } from './taskviews/panel';
 import { Butterflies } from './butterflies';
 import { createPets, type PetsInWorld } from './pets';
 import type { CharacterDef, WorldDef, WorldGround } from './world';
-import { el, setAct, setCounter } from '../ui/ui';
+import { el, setAct, setCounter, setCounterIcon } from '../ui/ui';
 
 /** A walk the heroine makes by herself (a tap on the ground or on a spot); `then` runs when she gets there. */
 export interface Auto { x: number; z: number; then?: () => void; stuck: number; last: number }
@@ -134,6 +134,8 @@ export interface Game extends GameWorld {
  */
 export interface WorldEntry {
   id: string; ground: WorldGround; spawn: { x: number; z: number }; crystals: () => string;
+  /** The icon of that counter (BuiltWorld.hudIcon); absent - the shard, 💎. */
+  crystalsIcon?: () => string;
   /** The world's pet (WorldDef.pet); absent: the world has none. */
   pet?: WorldDef['pet'];
   /** The world's characters: a pet that comes after a chain waits until it is finished; absent: such a pet never comes. */
@@ -208,7 +210,7 @@ export function createGame(o: {
     if (!live(mine)) return { solved: false, wrong: 0 };
     beginTask(); try { return await open(); } finally { if (live(mine)) endTask(); }
   };
-  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounter('crystals', part.crystals()); };
+  const refreshHud = () => { setCounter('stars', String(save.stars)); setCounterIcon('crystals', part.world.crystalsIcon?.() ?? '💎'); setCounter('crystals', part.crystals()); };
   // The one writer of the stars (src/game/no-penalties.test.ts reads this line): it only ever adds.
   const addStars = (n: number, at: THREE.Vector3) => { save.stars += n; sparks.burst(at, '#ffe066', 24); sfx('chime'); refreshHud(); persist(); };
   const above = (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy);

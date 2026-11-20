@@ -61,6 +61,12 @@ export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: str
   if (holdMs) bubbleTimer = window.setTimeout(() => el.bubble.classList.add('hidden'), holdMs);
 }
 
+/** The icon of a counter (the world's: the hub counts artifacts, not the shards of a world). */
+export function setCounterIcon(which: 'stars' | 'crystals', icon: string) {
+  const span = el[which].parentElement?.querySelector('span');
+  if (span && span.textContent !== icon) span.textContent = icon;
+}
+
 export function setCounter(which: 'stars' | 'crystals', text: string) {
   const node = el[which];
   if (node.textContent === text) return;

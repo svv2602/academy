@@ -200,6 +200,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     book: { parts: () => [], stats: () => [{ icon: '⭐', label: 'col_stars', value: String(save.stars) }] },
     lines: LINES,
     hud: () => `${artifactCount(save)}/5`,
+    // the artifacts back on the Great Tree, not the shards of a world: the tree's own icon by the counter
+    hudIcon: '🌳',
     gear,
     items: () => [flyover],
   };

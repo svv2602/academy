@@ -122,6 +122,8 @@ export interface WorldItem {
  */
 export interface BuiltWorld {
   frame: WorldFrame; debug: DebugExtras; book: BookInfo; lines: WorldLines; hud(): string; gear: Gear; items?(): readonly WorldItem[];
+  /** The icon of the counter `hud` fills; absent - the shard, 💎 (the hub counts the artifacts back, its own icon). */
+  hudIcon?: string;
   /**
    * The finds of the world not found yet, where they are (the chest, a secret's entrance): they twinkle while she
    * glows (the glow potion, src/game/supplyfx.ts). Asked twice a second while it acts: no new objects each time.
