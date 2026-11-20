@@ -68,13 +68,14 @@ export const STREAM: readonly Place[] = [at(48, 4), at(32, 11), at(16, 15), at(6
 export const STREAM_HALF = 1.6;
 
 /**
- * The maze (WORLD-14, src/game/worldtasks/maze.ts): six lanes of paths between hedges, 20 m long and 6 m apart, west of
+ * The maze (WORLD-14, src/game/worldtasks/maze.ts): six lanes of paths between hedges, 6 m apart, west of
  * its zone. Its way in is north-west of the zone, where the hedgehog waits by the arch; the lanes snake south, and its
  * way out comes onto the path to the village. The fifth leaf waits at the far end, just inside the way out. The frame is
  * in metres of the task, not stretched with the map (the stretch moves it with its zone).
  */
 export const MAZE_FRAME = {
-  origin: { x: ZONES.maze.x - 5.8, z: ZONES.maze.z + 11.8 }, along: { x: -1, z: 0 }, across: { x: 0, z: -1 }, length: 20, gap: 6,
+  // as long as the map lets them (the edge is nearest the first two): the trunk 190 m, 35 s at a run on level 5
+  origin: { x: ZONES.maze.x - 5.8, z: ZONES.maze.z + 11.8 }, along: { x: -1, z: 0 }, across: { x: 0, z: -1 }, lengths: [21, 21, 25.5, 25.5, 27.5, 27.5], gap: 6,
 } as const;
 /** The way in, just outside the hedge (the trunk of the maze starts here). */
 export const MAZE_IN = { x: MAZE_FRAME.origin.x + 2.5, z: MAZE_FRAME.origin.z };
@@ -82,7 +83,7 @@ export const MAZE_IN = { x: MAZE_FRAME.origin.x + 2.5, z: MAZE_FRAME.origin.z };
 export const MAZE_END = { x: MAZE_FRAME.origin.x - 1.5, z: MAZE_FRAME.origin.z - 5 * MAZE_FRAME.gap };
 /** Is (x, z) within the hedge of the maze, or `margin` m round it (the outer lanes' hedge reaches 5 m past them)? */
 export function inMaze(x: number, z: number, margin = 0): boolean {
-  const { origin: o, length, gap } = MAZE_FRAME;
+  const { origin: o, lengths, gap } = MAZE_FRAME, length = Math.max(...lengths);
   return x <= o.x + 1.2 + margin && x >= o.x - length - 1.2 - margin && z <= o.z + 5 + margin && z >= o.z - 5 * gap - 5 - margin;
 }
 /** The owl's tree with its hollow: the second leaf lies in it. */

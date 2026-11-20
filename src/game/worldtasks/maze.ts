@@ -73,9 +73,10 @@ export interface Place { x: number; z: number }
 /**
  * The frame the maze is laid in: LANES lanes side by side, walked in turn as a snake. `origin` is where the first lane
  * begins (the way in is just outside it), `along` the way the first lane runs, `across` toward the next lanes (unit
- * vectors on the ground); `length` - of a lane, `gap` - between two lanes.
+ * vectors on the ground); `lengths` - of each lane (two lanes joined at their far end are as long: the map's edge
+ * may leave room for longer lanes on one side), `gap` - between two lanes.
  */
-export interface MazeFrame { origin: Place; along: Place; across: Place; length: number; gap: number }
+export interface MazeFrame { origin: Place; along: Place; across: Place; lengths: readonly number[]; gap: number }
 /** Lanes of a maze: always six, a fork on some of them - the walk is as long on every level (40-60 s, WORLD-14). */
 export const LANES = 6;
 
@@ -140,7 +141,7 @@ export function lineDist(line: readonly Place[], x: number, z: number): number {
  * further on, a wrong one is a loop round a bush back to the fork. The row of the pattern lies on the lane before it.
  */
 export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
-  const { origin: o, along: a, across: c, length: L, gap } = frame;
+  const { origin: o, along: a, across: c, lengths, gap } = frame, L = Math.max(...lengths);
   const P = (u: number, v: number): Place => ({ x: o.x + a.x * v + c.x * u, z: o.z + a.z * v + c.z * u });
   const lanes = forkLanes(spec.forks.length);
   const trunk: Place[] = [P(0, -2.5)];
@@ -148,11 +149,11 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
   const islands: Place[] = [];
   const lines: Place[][] = [];
   for (let i = 0; i < LANES; i++) {
-    const dir = i % 2 === 0 ? 1 : -1, u = i * gap, [v0, v1] = dir > 0 ? [0, L] : [L, 0];
+    const dir = i % 2 === 0 ? 1 : -1, u = i * gap, len = lengths[i], [v0, v1] = dir > 0 ? [0, len] : [len, 0];
     trunk.push(P(u, v0));
     const k = lanes.indexOf(i);
     if (k >= 0) {
-      const f = spec.forks[k], vf = L / 2;
+      const f = spec.forks[k], vf = len / 2;
       // her way along the lane is `dir`, her left `dir` times +across turned: angles are counted from her way, + left
       const Q = (ang: number, d: number, side = 0) => P(u + (Math.sin(ang) * d + Math.cos(ang) * side) * dir, vf + (Math.cos(ang) * d - Math.sin(ang) * side) * dir);
       const fork = P(u, vf);
@@ -182,7 +183,7 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
     }
     trunk.push(P(u, v1));
   }
-  trunk.push(P((LANES - 1) * gap, (LANES % 2 === 0 ? 0 : L) + (LANES % 2 === 0 ? -2.5 : 2.5)));
+  trunk.push(P((LANES - 1) * gap, LANES % 2 === 0 ? -2.5 : lengths[LANES - 1] + 2.5));
   lines.push(trunk);
   // the hedge: a bush wherever the frame is clear of every path, and in the middle of every loop
   const bushes: Place[] = [...islands];
@@ -352,17 +353,26 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
     group.add(mesh);
     owned.push(g, mat);
   });
-  // the glow of the right way at every fork: a few soft discs along its first leg, shown for the fork ahead
-  const glowGeo = new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2);
-  const glowMat = new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0, depthWrite: false });
-  owned.push(glowGeo, glowMat);
+  // the glow of the right way at every fork, shown for the fork ahead after two wrong ways: discs along its first leg,
+  // a ring round its first stone and a pillar of light over it, seen over the hedge - all of one plain bright material
+  // (no glow of q2 needed: it reads at q0 and in the sun), pulsing
+  const glowMat = new THREE.MeshBasicMaterial({ color: '#fff36b', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  const discGeo = new THREE.CircleGeometry(0.42, 16).rotateX(-Math.PI / 2);
+  const ringGeo = new THREE.RingGeometry(0.62, 0.85, 24).rotateX(-Math.PI / 2);
+  const pillarGeo = new THREE.CylinderGeometry(0.22, 0.32, 2.6, 12, 1, true).translate(0, 1.3, 0);
+  owned.push(glowMat, discGeo, ringGeo, pillarGeo);
   const glows = geo.forks.map((f) => {
     const w = f.ways.find((x) => x.right)!, gg = new THREE.Group();
     const [p0, p1] = w.line;
     for (let k = 1; k <= 4; k++) {
       const t = k / 4, x = p0.x + (p1.x - p0.x) * t, z = p0.z + (p1.z - p0.z) * t;
-      const m = new THREE.Mesh(glowGeo, glowMat);
-      m.position.set(x, groundY(x, z) + 0.06, z);
+      const m = new THREE.Mesh(discGeo, glowMat);
+      m.position.set(x, groundY(x, z) + 0.12, z);
+      gg.add(m);
+    }
+    for (const g of [ringGeo, pillarGeo]) {
+      const m = new THREE.Mesh(g, glowMat);
+      m.position.set(w.stone.x, groundY(w.stone.x, w.stone.z) + 0.13, w.stone.z);
       gg.add(m);
     }
     gg.visible = false;
@@ -374,7 +384,9 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
     group,
     update(time, glowAt) {
       glows.forEach((g, k) => { g.visible = k === glowAt; });
-      glowMat.opacity = glowAt >= 0 ? 0.35 + 0.25 * Math.sin(time * 3) : 0;
+      const beat = 0.5 + 0.5 * Math.sin(time * 4);
+      glowMat.opacity = glowAt >= 0 ? 0.55 + 0.4 * beat : 0;
+      if (glowAt >= 0) for (const m of glows[glowAt].children) if (m instanceof THREE.Mesh && m.geometry !== pillarGeo) m.scale.setScalar(1 + 0.2 * beat);
     },
     dispose() { scene.remove(group); for (const o of owned) o.dispose(); },
   };

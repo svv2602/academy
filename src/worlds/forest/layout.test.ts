@@ -64,7 +64,7 @@ describe('the map of the forest, the grey build (WORLD-12)', () => {
     const len = (m: typeof one) => m.PATHS.reduce((n, p) => n + m.lineLength(p), 0);
     expect(len(more) / len(one)).toBeCloseTo(1.6, 6);
     expect(more.OAK).toEqual(one.OAK);
-    expect([more.MAZE_FRAME.length, more.MAZE_FRAME.gap]).toEqual([one.MAZE_FRAME.length, one.MAZE_FRAME.gap]);
+    expect([more.MAZE_FRAME.lengths, more.MAZE_FRAME.gap]).toEqual([one.MAZE_FRAME.lengths, one.MAZE_FRAME.gap]);
     expect(more.HALF / one.HALF).toBeCloseTo(1.6, 6);
   });
 });

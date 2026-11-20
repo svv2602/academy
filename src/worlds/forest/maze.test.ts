@@ -15,7 +15,8 @@ vi.mock('../../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: v
 const { addStrings } = await import('../../ui/strings');
 addStrings((await import('./strings')).strings, false);
 const { createMaze, MAZE, STUCK } = await import('./maze');
-const { MAZE_IN, inMaze } = await import('./layout');
+const { EDGE, HALF, MAZE_IN, inMaze } = await import('./layout');
+const { tuning } = await import('../../core/tuning');
 const { colliders } = await import('./terrain');
 const { keptOf } = await import('../../game/worldtasks/kept');
 
@@ -95,6 +96,24 @@ describe("the hedgehog's maze (WORLD-14)", () => {
     m.update(2, 0, true);
     const goal = m.goal()!, right = m.geo.forks[0].ways.find((w) => w.right)!.line[1];
     expect([goal.x, goal.z]).toEqual([right.x, right.z]);
+  });
+
+  it('every path of it lies inside the walkable map, on every level', () => {
+    for (const level of [1, 3, 5]) {
+      const { g } = host(level), m = createMaze(g as never);
+      m.start!(KOLYUCHKA as never, vi.fn());
+      for (const line of [m.geo.trunk, ...m.geo.forks.flatMap((f) => f.ways.map((w) => w.line))]) {
+        for (const p of line) expect(Math.hypot(p.x, p.z)).toBeLessThan(HALF - EDGE - 0.4);
+      }
+      m.dispose();
+    }
+  });
+
+  it('the trunk is long enough: 35 s at her top speed at the least (WORLD-14: 40-90 s with the forks)', () => {
+    const { g } = host(5), m = createMaze(g as never);
+    const len = m.geo.trunk.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - m.geo.trunk[i].x, p.z - m.geo.trunk[i].z), 0);
+    expect(len / tuning.speed).toBeGreaterThanOrEqual(35);
+    m.dispose();
   });
 
   it('its hedge is in the colliders while it stands, and out once it is gone', () => {

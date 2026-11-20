@@ -12,7 +12,7 @@ import {
   type MazeFrame, type MazeGeo, type MazeSpec, type Place,
 } from './maze';
 
-const FRAME: MazeFrame = { origin: { x: -41, z: 22 }, along: { x: -1, z: 0 }, across: { x: 0, z: -1 }, length: 20, gap: 6 };
+const FRAME: MazeFrame = { origin: { x: -41, z: 31 }, along: { x: -1, z: 0 }, across: { x: 0, z: -1 }, lengths: [21, 21, 25.5, 25.5, 27.5, 27.5], gap: 6 };
 const specs = (level: number, n = 30): MazeSpec[] => Array.from({ length: n }, (_, i) => generateMaze(level, createRng(`maze-test:${level}:${i}`)));
 
 /** The period of a row: the shortest p that repeats it. */
@@ -159,8 +159,9 @@ describe('the paths in their frame', { timeout: 30000 }, () => {
       const near = (p: Place) => cells.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < 0.3);
       expect(near(geo.trunk[geo.trunk.length - 2])).toBe(true);     // the last lane's end, just inside the way out
       for (const f of geo.forks) for (const w of f.ways) expect(near(w.line[Math.floor(w.line.length / 2)])).toBe(true);
-      // every cell inside the hedge lies on a path; going on from a cell to its neighbour never jumps along the trunk
-      // (a jump would be a way round a fork, or a lane walked into from the next one)
+      // going on from a cell to its neighbour never jumps along the trunk by more than LEAK: a jump would be a lane
+      // walked into from the next one (20 m and more along the trunk). Within a fork a wrong loop may touch the jog of
+      // the right way (some 7 m on along it): slipping from the one to the other is the mistake already counted.
       const wayOf = (c: Place) => geo.forks.find((f) => f.ways.some((w) => !w.right && lineDist(w.line, c.x, c.z) < CLEAR));
       const sOf = (c: Place) => { const f = wayOf(c); return along(geo.trunk, f ? f.at.x : c.x, f ? f.at.z : c.z); };
       const key = (c: Place) => `${Math.round(c.x * 4)},${Math.round(c.z * 4)}`;
@@ -171,13 +172,16 @@ describe('the paths in their frame', { timeout: 30000 }, () => {
         const here = s0.get(key(c))!;
         for (const [dx, dz] of [[0.25, 0], [0, 0.25]]) {
           const n = s0.get(key({ x: c.x + dx, z: c.z + dz }));
-          if (n !== undefined && Math.abs(n - here) > 6) jumps++;
+          if (n !== undefined && Math.abs(n - here) > LEAK) jumps++;
         }
       }
       expect(jumps).toBe(0);
     }
   });
 });
+
+/** m along the trunk two neighbouring cells may lie apart: more than a fork spans, less than a lane. */
+const LEAK = 12;
 
 /** Her points along a line, every 0.3 m. */
 function walk(line: readonly Place[]): Place[] {
