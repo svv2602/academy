@@ -18,6 +18,8 @@ import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
 import { buildKeepsakes } from './keepsakes';
 import { ringNote, ringTapped } from './ring-notes';
+import { birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
+import { foundOf } from '../../game/collections';
 import { note } from '../../core/audio';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
@@ -157,6 +159,19 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const keepsakes = buildKeepsakes(scene, save);
   // the ring's notes played (for the walkthrough: ?debug)
   const notes: number[] = [];
+  // The feather of the day (./feathers.ts): when the hub's found grows, today is its day, the bird of the next one falls
+  // asleep on its branch; the first feather ever - the cat's word.
+  let foundN = foundOf(ws).length;
+  const sleep = () => tree.bird.show(birdAsleep(ws, featherDay()));
+  sleep();
+  const watchFeathers = () => {
+    const n = foundOf(ws).length;
+    if (n === foundN) return;
+    foundN = n;
+    if (featherTaken(ws, featherDay())) void g.speech.line('hub_feather', 'hint', 6000);
+    g.persist();
+    sleep();
+  };
   const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
   const { nests, update: glow } = buildNestLook(scene, L.arch);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
@@ -193,6 +208,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       afterMove: (time, grounded) => gear.update(time, grounded),
       // By a sleeping arch the cat says its world sleeps (D) - once as she comes near, not while something else is said.
       update: (_dt, _time, canMove) => {
+        watchFeathers();
         if (!canMove || g.busy) return;
         const at = g.hero.root.position, shelf = sleepingToSpeakOf(at.x, at.z, sleeping, heard);
         if (shelf !== null) void g.speech.line('hub_sleeping', 'hint', 5000);
@@ -207,7 +223,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },
