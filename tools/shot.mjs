@@ -3028,134 +3028,6 @@ try {
           if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
         }
       }
-      // ---- the collections (PLAY-25, src/game/collections.ts): each of the six ways once - walked into, a jump, a jump
-      // only with the jumping potion, up onto a support, a touch on the screen, caught up -, a whole set (+5) and the page
-      // of the book. What she takes she takes as a player would: the keys, the jump, a tap; nothing is taken by a lever.
-      if (has('collect')) {
-        const fail = (what) => { throw new Error(`collect: ${what}`); };
-        const until = async (pred, arg, what, seconds = 10) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
-        const bookOpen = await visible('#book');
-        if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
-        const items = await g(() => __game.collect.items);
-        if (items.length !== 24) fail(`${items.length} finds in the world, not 24`);
-        const of = (kind, way) => items.find((i) => i.kind === kind && i.way === way && !i.taken) ?? fail(`no ${kind} to take by "${way}"`);
-        const taken = (id) => g((id) => __game.collect.items[id].taken && (__game.save.worlds.fairy.found ?? []).includes(id), id);
-        const stars = () => g(() => __game.save.stars);
-        /** She stands `back` m from (x, z), facing it (the camera behind her). */
-        const face = (x, z, back) => g(([x, z, back]) => {
-          const hp = __game.hero.root.position, d = Math.hypot(x - hp.x, z - hp.z) || 1;
-          const sx = x - ((x - hp.x) / d) * back, sz = z - ((z - hp.z) / d) * back;
-          __game.teleport(sx, sz);
-          const yaw = Math.atan2(-(x - sx), -(z - sz));
-          __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI;
-        }, [x, z, back]);
-        /** Holds W until the find `id` is taken, at most `seconds` of game time; `steer` - turned toward it all the way. */
-        const runTo = async (id, seconds, steer = false) => {
-          await page.keyboard.down('KeyW');
-          try {
-            return await gameUntil((a) => {
-              const p = __game.collect.items[a.id], hp = __game.hero.root.position;
-              if (a.steer) __game.cam.yaw = Math.atan2(-(p.x - hp.x), -(p.z - hp.z));
-              return p.taken;
-            }, { id, steer }, seconds);
-          } finally { await page.keyboard.up('KeyW'); }
-        };
-        const log = [];
-        await holdAchDuring(async () => {
-          const s0 = await stars();
-          // walked into: a mushroom in the grass
-          const mush = of('mushroom', 'run');
-          await face(mush.x, mush.z, 3.5); await gameSeconds(0.5);
-          if (await taken(mush.id)) fail('a mushroom 3.5 m away was taken');
-          if (!(await runTo(mush.id, 4))) fail('walking into a mushroom did not take it');
-          if ((await stars()) !== s0 + 1) fail(`a find gave ${(await stars()) - s0} stars, not 1`);
-          log.push('walked into');
-          // a jump: an acorn a jump high
-          const acorn = of('acorn', 'jump');
-          await g((p) => { __game.teleport(p.x, p.z); }, acorn); await gameSeconds(1);
-          if (await taken(acorn.id)) fail('an acorn a jump high was taken standing');
-          await page.keyboard.press('Space');
-          await until((id) => __game.collect.items[id].taken, acorn.id, 'a jump under an acorn did not take it', 3);
-          log.push('a jump');
-          // only with the jumping potion: a plain jump does not reach it, a jump with the potion does
-          const high = of('acorn', 'potion');
-          await g((p) => { __game.teleport(p.x, p.z); }, high); await gameSeconds(1);
-          await page.keyboard.press('Space'); await gameSeconds(1.5);
-          if (await taken(high.id)) fail('a plain jump took an acorn of the jumping potion');
-          const plain = await g(() => __game.tuning.jump);
-          await g(() => { __game.save.effects = { ...(__game.save.effects ?? {}), jump: 30 }; });
-          await until((v) => __game.tuning.jump > v * 1.3, plain, 'the jumping potion did not act', 3);
-          await page.keyboard.press('Space');
-          await until((id) => __game.collect.items[id].taken, high.id, 'a jump with the potion did not take the high acorn', 3);
-          await g(() => { delete __game.save.effects.jump; });
-          await until((v) => Math.abs(__game.tuning.jump - v) < 1e-6, plain, 'the jump did not come back after the potion', 3);
-          log.push(`a jump with the potion (${plain} -> ${(plain * Math.SQRT2).toFixed(2)} m/s)`);
-          // up onto a support: walked into, she stops at its side; with a jump she is up there
-          const top = of('mushroom', 'hop');
-          await face(top.x, top.z, 4);
-          await page.keyboard.down('KeyW');
-          try { await gameSeconds(1.5); } finally { await page.keyboard.up('KeyW'); }
-          const side = await g((p) => ({ y: __game.hero.root.position.y, g: __game.collect.ground(__game.hero.root.position.x, __game.hero.root.position.z), d: Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z) }), top);
-          if (await taken(top.id)) fail('walking into a stump took what lies on it');
-          if (side.d < 0.6 || side.y > side.g + 0.05) fail(`walking into a stump she got onto it (${side.d.toFixed(2)} m from its middle, ${(side.y - side.g).toFixed(2)} m up)`);
-          await face(top.x, top.z, 2.6);
-          await page.keyboard.down('KeyW');
-          try {
-            await gameSeconds(0.12); await page.keyboard.press('Space');
-            await until((id) => __game.collect.items[id].taken, top.id, 'a jump onto the stump did not take what lies on it', 3);
-          } finally { await page.keyboard.up('KeyW'); }
-          log.push('up onto a stump');
-          // a touch: a feather on the pond, out of her wading reach
-          const fl = of('feather', 'tap');
-          await g((p) => { const P = { x: 15, z: -19 }, d = Math.hypot(p.x - P.x, p.z - P.z), k = (d + 3.4) / d; __game.teleport(P.x + (p.x - P.x) * k, P.z + (p.z - P.z) * k); __game.cam.yaw = Math.atan2(-(P.x - p.x), -(P.z - p.z)); }, fl);
-          await gameSeconds(1.5);
-          if (await taken(fl.id)) fail('a feather on the pond was taken without a touch');
-          const at = await g((id) => { const p = __game.collect.items[id], v = new __game.THREE.Vector3(p.x, p.y, p.z).project(__game.camera); return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, z: v.z }; }, fl.id);
-          if (!(at.z < 1 && at.x > 0 && at.y > 0 && at.x < 844 * 3 && at.y < 844 * 3)) fail(`the feather is off the screen: ${JSON.stringify(at)}`);
-          const hp0 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-          await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
-          await until((id) => __game.collect.items[id].taken, fl.id, 'a touch on the feather did not take it', 3);
-          const hp1 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-          if (Math.hypot(hp1[0] - hp0[0], hp1[1] - hp0[1]) > 0.5) fail('the touch on the feather sent her walking too');
-          log.push('a touch');
-          // caught up: a butterfly that flies off round its place
-          const bf = of('butterfly', 'chase');
-          const b0 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z }; }, bf.id);
-          await face(b0.x, b0.z, 3);
-          const caught = await runTo(bf.id, 15, true);
-          if (!caught) fail('she ran 15 s after the butterfly and did not catch it');
-          const flew = await g(([id, b]) => { const p = __game.collect.items[id]; return Math.hypot(p.x - b.x, p.z - b.z); }, [bf.id, b0]);
-          if (flew < 1) fail(`the butterfly did not fly off (${flew.toFixed(2)} m)`);
-          log.push(`caught up (it flew ${flew.toFixed(1)} m)`);
-          // a whole set: the mushrooms but one found already, the last one walked into: +1 and +5, the cat says so
-          const last = items.find((i) => i.kind === 'mushroom' && i.way === 'run' && i.id !== mush.id);
-          await g(([ids, keep]) => { const f = __game.save.worlds.fairy.found; for (const i of ids) if (i !== keep && !f.includes(i)) f.push(i); for (const it of __game.collect.items) if (ids.includes(it.id) && it.id !== keep) it.taken = true; }, [items.filter((i) => i.kind === 'mushroom').map((i) => i.id), last.id]);
-          const s1 = await stars();
-          await face(last.x, last.z, 3.5);
-          if (!(await runTo(last.id, 4))) fail('walking into the last mushroom did not take it');
-          if ((await stars()) !== s1 + 6) fail(`the last find of a set gave ${(await stars()) - s1} stars, not 1 + 5`);
-          const stored = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.found ?? []);
-          if (stored.length < 9) fail(`the finds are not stored: ${JSON.stringify(stored)}`);
-          log.push('a whole set +5');
-        });
-        // the page of the book: four rows of six, the mushrooms whole
-        await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
-        await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open', 5);
-        await tapOn('#bookTabs [data-tab=collect]').catch((e) => fail(`the tab of the collections cannot be pressed: ${why(e)}`));
-        await until(() => !document.querySelector('#bookCollect').classList.contains('hidden'), null, 'the tab of the collections did not open', 5);
-        const page2 = await g(() => ({ rows: [...document.querySelectorAll('#collect .crow')].map((r) => ({ kind: r.dataset.kind, got: +r.dataset.got, cells: r.querySelectorAll('.cell').length, sil: r.querySelectorAll('.cell.sil').length, whole: r.classList.contains('whole') })),
-          found: (__game.save.worlds.fairy.found ?? []).length, say: document.querySelector('#collectSay').textContent }));
-        const left = [];
-        if (page2.rows.length !== 4) left.push(`${page2.rows.length} rows, not 4`);
-        for (const r of page2.rows) { if (r.cells !== 6) left.push(`${r.kind}: ${r.cells} cells`); if (r.cells - r.sil !== r.got) left.push(`${r.kind}: ${r.got} found, ${r.cells - r.sil} in colour`); }
-        if (!page2.rows.find((r) => r.kind === 'mushroom')?.whole) left.push('the mushrooms are not shown whole');
-        if (page2.rows.reduce((n, r) => n + r.got, 0) !== page2.found) left.push(`the rows count ${page2.rows.reduce((n, r) => n + r.got, 0)}, the save ${page2.found}`);
-        if (left.length) fail(`the page of the collections: ${left.join('; ')}`);
-        await shot('collect-book');
-        await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
-        if (!bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
-        console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
-      }
       // ---- the shop and the fitting room (PLAY-04, PLAY-05): a screen of the book, opened in the middle of the game ----
       // A tap on a thing puts it on at once; one tried on and not bought comes off when the screen closes; a thing she
       // cannot afford has "N ⭐ more" (no red) and buys nothing; a purchase takes exactly the price (the watch of the
@@ -3229,9 +3101,16 @@ try {
         };
         const s3 = await buyOne('wand', 'wand_star', 10);
         await shot('shop-bought');
-        // the hat as well while the sparkles (40) are still affordable: a thing she cannot buy yet must be met below
-        let head = start.gear.head;
-        if (s3.stars >= 40 && !s3.owned.includes('wizard_hat')) { await buyOne('head', 'wizard_hat', 30); head = 'wizard_hat'; }
+        // Things for the head as well while the sparkles (40) are still affordable: a thing she cannot buy yet must be met
+        // below. A whole session comes here with more stars than the piece (the stars of the day, the finds): the hat,
+        // then the crown, then the wreath - each a real purchase, until the sparkles are out of reach.
+        let head = start.gear.head, more = s3;
+        const heads = [];
+        for (const [id, price] of [['wizard_hat', 30], ['crown', 30], ['wreath', 15]]) {
+          if (more.stars < 40) break;
+          if (more.owned.includes(id) || more.stars < price) continue;
+          more = await buyOne('head', id, price); head = id; heads.push(id);
+        }
         // 3. a thing she cannot buy yet: seen, tried on, "N ⭐ more", no red, a tap on it buys nothing
         let shortChecked = false;
         await tab('trail');
@@ -3271,7 +3150,7 @@ try {
         const s5 = await state();
         if (s5.worn.wand !== 'wand_star' || s5.worn.wings !== null || s5.worn.trail !== start.gear.trail || s5.worn.head !== head) fail(`after "done" she wears wand ${s5.worn.wand}, wings ${s5.worn.wings}, trail ${s5.worn.trail}, head ${s5.worn.head}`);
         shopped = { wand: 'wand_star', head, wings: null, hair, wingColor };
-        console.log(`shop: tried ${tryId} on and took it off, ${shortChecked ? 'the sparkles showed "N ⭐ more" and bought nothing, ' : ''}bought the star wand ${start.stars} -> ${s3.stars} stars${head === 'wizard_hat' ? ' and the hat' : ''}, hair ${hair}, wings ${wingColor} then none`);
+        console.log(`shop: tried ${tryId} on and took it off, ${shortChecked ? 'the sparkles showed "N ⭐ more" and bought nothing, ' : ''}bought the star wand ${start.stars} -> ${s3.stars} stars${heads.length ? ` and ${heads.join(', ')}` : ''}, hair ${hair}, wings ${wingColor} then none`);
       }
       // ---- the potions and the compass (decision of 2026-11-19, src/game/supplies.ts, src/game/supplyfx.ts) ----
       // Bought on the tab of the potions (each purchase one more in the stock, the watch of the stars told of it), drunk
@@ -3505,6 +3384,136 @@ try {
         if (await visible('#shop')) fail('"done" does not close the shop opened from the signboard');
         if (!(await walks())) fail('the heroine does not walk after the shop of the signboard');
         console.log(`shop sign: "${label}" beside the signboard at ${at.x}, ${at.z} opened the shop, "done" closed it`);
+      }
+      // ---- the collections (PLAY-25, src/game/collections.ts): each of the six ways once - walked into, a jump, a jump
+      // only with the jumping potion, up onto a support, a touch on the screen, caught up -, a whole set (+5) and the page
+      // of the book. What she takes she takes as a player would: the keys, the jump, a tap; nothing is taken by a lever.
+      // In the piece "shop" (tools/e2e-saves.mjs), after its purchases: the stars of the finds come after what the shop
+      // counts on, and the piece world1 stays within the time of a run (it went past 1080 s on desktop with it).
+      if (has('collect')) {
+        const fail = (what) => { throw new Error(`collect: ${what}`); };
+        const until = async (pred, arg, what, seconds = 10) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        const bookOpen = await visible('#book');
+        if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        const items = await g(() => __game.collect.items);
+        if (items.length !== 24) fail(`${items.length} finds in the world, not 24`);
+        const of = (kind, way) => items.find((i) => i.kind === kind && i.way === way && !i.taken) ?? fail(`no ${kind} to take by "${way}"`);
+        const taken = (id) => g((id) => __game.collect.items[id].taken && (__game.save.worlds.fairy.found ?? []).includes(id), id);
+        const stars = () => g(() => __game.save.stars);
+        /** She stands `back` m from (x, z), facing it (the camera behind her). */
+        const face = (x, z, back) => g(([x, z, back]) => {
+          const hp = __game.hero.root.position, d = Math.hypot(x - hp.x, z - hp.z) || 1;
+          const sx = x - ((x - hp.x) / d) * back, sz = z - ((z - hp.z) / d) * back;
+          __game.teleport(sx, sz);
+          const yaw = Math.atan2(-(x - sx), -(z - sz));
+          __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI;
+        }, [x, z, back]);
+        /** Holds W until the find `id` is taken, at most `seconds` of game time; `steer` - turned toward it all the way. */
+        const runTo = async (id, seconds, steer = false) => {
+          await page.keyboard.down('KeyW');
+          try {
+            return await gameUntil((a) => {
+              const p = __game.collect.items[a.id], hp = __game.hero.root.position;
+              if (a.steer) __game.cam.yaw = Math.atan2(-(p.x - hp.x), -(p.z - hp.z));
+              return p.taken;
+            }, { id, steer }, seconds);
+          } finally { await page.keyboard.up('KeyW'); }
+        };
+        const log = [];
+        await holdAchDuring(async () => {
+          const s0 = await stars();
+          // walked into: a mushroom in the grass
+          const mush = of('mushroom', 'run');
+          await face(mush.x, mush.z, 3.5); await gameSeconds(0.5);
+          if (await taken(mush.id)) fail('a mushroom 3.5 m away was taken');
+          if (!(await runTo(mush.id, 4))) fail('walking into a mushroom did not take it');
+          if ((await stars()) !== s0 + 1) fail(`a find gave ${(await stars()) - s0} stars, not 1`);
+          log.push('walked into');
+          // a jump: an acorn a jump high
+          const acorn = of('acorn', 'jump');
+          await g((p) => { __game.teleport(p.x, p.z); }, acorn); await gameSeconds(1);
+          if (await taken(acorn.id)) fail('an acorn a jump high was taken standing');
+          await page.keyboard.press('Space');
+          await until((id) => __game.collect.items[id].taken, acorn.id, 'a jump under an acorn did not take it', 3);
+          log.push('a jump');
+          // only with the jumping potion: a plain jump does not reach it, a jump with the potion does
+          const high = of('acorn', 'potion');
+          await g((p) => { __game.teleport(p.x, p.z); }, high); await gameSeconds(1);
+          await page.keyboard.press('Space'); await gameSeconds(1.5);
+          if (await taken(high.id)) fail('a plain jump took an acorn of the jumping potion');
+          const plain = await g(() => __game.tuning.jump);
+          await g(() => { __game.save.effects = { ...(__game.save.effects ?? {}), jump: 30 }; });
+          await until((v) => __game.tuning.jump > v * 1.3, plain, 'the jumping potion did not act', 3);
+          await page.keyboard.press('Space');
+          await until((id) => __game.collect.items[id].taken, high.id, 'a jump with the potion did not take the high acorn', 3);
+          await g(() => { delete __game.save.effects.jump; });
+          await until((v) => Math.abs(__game.tuning.jump - v) < 1e-6, plain, 'the jump did not come back after the potion', 3);
+          log.push(`a jump with the potion (${plain} -> ${(plain * Math.SQRT2).toFixed(2)} m/s)`);
+          // up onto a support: walked into, she stops at its side; with a jump she is up there
+          const top = of('mushroom', 'hop');
+          await face(top.x, top.z, 4);
+          await page.keyboard.down('KeyW');
+          try { await gameSeconds(1.5); } finally { await page.keyboard.up('KeyW'); }
+          const side = await g((p) => ({ y: __game.hero.root.position.y, g: __game.collect.ground(__game.hero.root.position.x, __game.hero.root.position.z), d: Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z) }), top);
+          if (await taken(top.id)) fail('walking into a stump took what lies on it');
+          if (side.d < 0.6 || side.y > side.g + 0.05) fail(`walking into a stump she got onto it (${side.d.toFixed(2)} m from its middle, ${(side.y - side.g).toFixed(2)} m up)`);
+          await face(top.x, top.z, 2.6);
+          await page.keyboard.down('KeyW');
+          try {
+            await gameSeconds(0.12); await page.keyboard.press('Space');
+            await until((id) => __game.collect.items[id].taken, top.id, 'a jump onto the stump did not take what lies on it', 3);
+          } finally { await page.keyboard.up('KeyW'); }
+          log.push('up onto a stump');
+          // a touch: a feather on the pond, out of her wading reach
+          const fl = of('feather', 'tap');
+          await g((p) => { const P = { x: 15, z: -19 }, d = Math.hypot(p.x - P.x, p.z - P.z), k = (d + 3.4) / d; __game.teleport(P.x + (p.x - P.x) * k, P.z + (p.z - P.z) * k); __game.cam.yaw = Math.atan2(-(P.x - p.x), -(P.z - p.z)); }, fl);
+          await gameSeconds(1.5);
+          if (await taken(fl.id)) fail('a feather on the pond was taken without a touch');
+          const at = await g((id) => { const p = __game.collect.items[id], v = new __game.THREE.Vector3(p.x, p.y, p.z).project(__game.camera); return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight, z: v.z }; }, fl.id);
+          if (!(at.z < 1 && at.x > 0 && at.y > 0 && at.x < 844 * 3 && at.y < 844 * 3)) fail(`the feather is off the screen: ${JSON.stringify(at)}`);
+          const hp0 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+          await (touch ? page.touchscreen.tap(at.x, at.y) : page.mouse.click(at.x, at.y));
+          await until((id) => __game.collect.items[id].taken, fl.id, 'a touch on the feather did not take it', 3);
+          const hp1 = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
+          if (Math.hypot(hp1[0] - hp0[0], hp1[1] - hp0[1]) > 0.5) fail('the touch on the feather sent her walking too');
+          log.push('a touch');
+          // caught up: a butterfly that flies off round its place
+          const bf = of('butterfly', 'chase');
+          const b0 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z }; }, bf.id);
+          await face(b0.x, b0.z, 3);
+          const caught = await runTo(bf.id, 15, true);
+          if (!caught) fail('she ran 15 s after the butterfly and did not catch it');
+          const flew = await g(([id, b]) => { const p = __game.collect.items[id]; return Math.hypot(p.x - b.x, p.z - b.z); }, [bf.id, b0]);
+          if (flew < 1) fail(`the butterfly did not fly off (${flew.toFixed(2)} m)`);
+          log.push(`caught up (it flew ${flew.toFixed(1)} m)`);
+          // a whole set: the mushrooms but one found already, the last one walked into: +1 and +5, the cat says so
+          const last = items.find((i) => i.kind === 'mushroom' && i.way === 'run' && i.id !== mush.id);
+          await g(([ids, keep]) => { const f = __game.save.worlds.fairy.found; for (const i of ids) if (i !== keep && !f.includes(i)) f.push(i); for (const it of __game.collect.items) if (ids.includes(it.id) && it.id !== keep) it.taken = true; }, [items.filter((i) => i.kind === 'mushroom').map((i) => i.id), last.id]);
+          const s1 = await stars();
+          await face(last.x, last.z, 3.5);
+          if (!(await runTo(last.id, 4))) fail('walking into the last mushroom did not take it');
+          if ((await stars()) !== s1 + 6) fail(`the last find of a set gave ${(await stars()) - s1} stars, not 1 + 5`);
+          const stored = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.fairy?.found ?? []);
+          if (stored.length < 9) fail(`the finds are not stored: ${JSON.stringify(stored)}`);
+          log.push('a whole set +5');
+        });
+        // the page of the book: four rows of six, the mushrooms whole
+        await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
+        await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open', 5);
+        await tapOn('#bookTabs [data-tab=collect]').catch((e) => fail(`the tab of the collections cannot be pressed: ${why(e)}`));
+        await until(() => !document.querySelector('#bookCollect').classList.contains('hidden'), null, 'the tab of the collections did not open', 5);
+        const page2 = await g(() => ({ rows: [...document.querySelectorAll('#collect .crow')].map((r) => ({ kind: r.dataset.kind, got: +r.dataset.got, cells: r.querySelectorAll('.cell').length, sil: r.querySelectorAll('.cell.sil').length, whole: r.classList.contains('whole') })),
+          found: (__game.save.worlds.fairy.found ?? []).length, say: document.querySelector('#collectSay').textContent }));
+        const left = [];
+        if (page2.rows.length !== 4) left.push(`${page2.rows.length} rows, not 4`);
+        for (const r of page2.rows) { if (r.cells !== 6) left.push(`${r.kind}: ${r.cells} cells`); if (r.cells - r.sil !== r.got) left.push(`${r.kind}: ${r.got} found, ${r.cells - r.sil} in colour`); }
+        if (!page2.rows.find((r) => r.kind === 'mushroom')?.whole) left.push('the mushrooms are not shown whole');
+        if (page2.rows.reduce((n, r) => n + r.got, 0) !== page2.found) left.push(`the rows count ${page2.rows.reduce((n, r) => n + r.got, 0)}, the save ${page2.found}`);
+        if (left.length) fail(`the page of the collections: ${left.join('; ')}`);
+        await shot('collect-book');
+        await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
+        if (!bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
       }
       // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----
       if (has('story')) {
