@@ -32,6 +32,8 @@ export interface WorldState {
   pos: [number, number] | null;     // where the heroine stood
   /** The mysterious stars of the day (src/game/mystery.ts): absent until the first of them is shown; mended where read. */
   mystery?: { day: string; solved: number[]; told?: boolean };
+  /** The finds of the collections found (src/game/collections.ts): their numbers in the world's list; mended where read. */
+  found?: number[];
 }
 export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)

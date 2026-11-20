@@ -31,6 +31,8 @@ const GLIMMER_EVERY = 0.5;
  */
 interface MysteryView { readonly today?: readonly unknown[]; unsolved(): readonly THREE.Vector3[] }
 const mysteryOf = (g: Game): MysteryView | null => (g as unknown as { mystery?: MysteryView | null }).mystery ?? null;
+/** The finds of the collections not found yet (src/game/collect-items.ts, PLAY-25): they twinkle under the glow too. */
+const collectOf = (g: Game): readonly THREE.Vector3[] => (g as unknown as { collect?: { unfound(): readonly THREE.Vector3[] } }).collect?.unfound() ?? [];
 
 /** What the potions need of the world played (src/main.ts hands it over through the change of world). */
 export interface SupplyWorld {
@@ -170,7 +172,7 @@ export function installSupplies(g: Game, world: SupplyWorld): Supplies {
         if ((sinceGlow += dt) > 0.25) { sinceGlow = 0; sparks.burst(g.above(hp, 0.6 + Math.random() * 1.2), '#fff3b0', 2, 0.6); }
         if ((sinceGlimmer += dt) > GLIMMER_EVERY) {
           sinceGlimmer = 0;
-          for (const p of [...(mysteryOf(g)?.unsolved() ?? []), ...world.glimmer()]) {
+          for (const p of [...(mysteryOf(g)?.unsolved() ?? []), ...world.glimmer(), ...collectOf(g)]) {
             if (Math.hypot(p.x - hp.x, p.z - hp.z) <= GLIMMER_R) sparks.burst(at.copy(p).setY(p.y + 0.4), '#fff6c8', 5, 1.2);
           }
         }

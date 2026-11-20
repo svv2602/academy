@@ -17,6 +17,7 @@ import { Butterflies } from './butterflies';
 import { createPets, type PetsInWorld } from './pets';
 import { createPlanner, type Planner } from './planner';
 import { createMystery, type MysteryInWorld } from './mystery-stars';
+import { createCollections, type CollectInWorld } from './collect-items';
 import type { CharacterDef, WorldDef, WorldGround } from './world';
 import { el, setAct, setCounter } from '../ui/ui';
 
@@ -116,6 +117,8 @@ export interface Game extends GameWorld {
   readonly plan: Planner;
   /** The mysterious stars of the world played (src/game/mystery-stars.ts), made anew on every entry like the pets. */
   readonly mystery: MysteryInWorld;
+  /** The finds of the collections of the world played (src/game/collect-items.ts), made anew on every entry like the stars. */
+  readonly collect: CollectInWorld;
   /**
    * TECH-15: the world played is left (src/game/travel.ts, under the closed frame, before its scope is disposed). From
    * here to the next `enter` no task opens, and what the left world still runs no longer touches the controls.
@@ -156,6 +159,8 @@ export interface WorldEntry {
   left?: WorldDef['left'];
   /** The places of its mysterious stars (WorldDef.mystery); absent: none. */
   mystery?: WorldDef['mystery'];
+  /** The finds of its collections (WorldDef.collect); absent: none. */
+  collect?: WorldDef['collect'];
 }
 
 /** The heading of the heroine as a world opens, when it names none: facing -z, the camera behind her (yaw 0). */
@@ -243,11 +248,13 @@ export function createGame(o: {
   // The pets read the game live (`busy`, the heroine): they are made of it right after it.
   let pets: PetsInWorld | null = null;
   let mystery: MysteryInWorld | null = null;
+  let collect: CollectInWorld | null = null;
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
     get pets() { return pets!; },
     get mystery() { return mystery!; },
+    get collect() { return collect!; },
     plan: createPlanner(save),
     busy: false, paused: false, still: false, auto: null, camOverride: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
@@ -271,6 +278,7 @@ export function createGame(o: {
       // left were taken out with it, src/game/travel.ts).
       pets?.dispose(); pets = petsOf();
       mystery?.dispose(); mystery = mysteryOf();
+      collect?.dispose(); collect = createCollections(g);
       for (const fn of watchers) fn('enter');
     },
     onWorld: (fn) => { watchers.push(fn); },
@@ -285,6 +293,7 @@ export function createGame(o: {
   // The mysterious stars of the world entered, with a stage of that entry (src/game/mystery-stars.ts).
   const mysteryOf = (): MysteryInWorld => createMystery(g, o.shared.starGeo, () => createStage(g, () => {}));
   mystery = mysteryOf();
+  collect = createCollections(g);
   return g;
 }
 

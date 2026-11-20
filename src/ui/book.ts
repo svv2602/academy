@@ -2,7 +2,8 @@
  * The profile in the book of treasures (PLAY-07, the choice of a pet PLAY-09): the heroine close up on the free side of
  * the screen (R58, the same close-up as the shop's), the card with tabs by pictures - the magic shelf (R15, R59: five
  * places, one per world, which are also the "open lands"; no map), the secrets of the world played (R12), the pets with
- * their choice (R20) and the twelve achievements (R13). What is not found yet is a silhouette (R14).
+ * their choice (R20), the collections of the world played (PLAY-25) and the achievements (R13). What is not found yet
+ * is a silhouette (R14).
  *
  * Everything is read from the save and from the world being played at every opening: the game `g` is the one the
  * achievements are bound to (src/ui/achieve.ts), its `g.world` and `g.ws` are never kept here (the rule of the lead and
@@ -14,6 +15,7 @@ import { ACHIEVEMENTS } from '../game/achievements';
 import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
+import { COLLECT_KINDS, foundOf, itemsOf, kindsOf, setDone } from '../game/collections';
 import { achGame } from './achieve';
 import { heroCloseup } from './shop';
 import { say } from '../core/audio';
@@ -75,10 +77,10 @@ const PET_ICON: Record<string, string> = { fawn: '🦌', none: '🚫' };
 /** The pictures of a world's secrets: the chest has its own. */
 const SECRET_ICON = '✨', CHEST_ICON = '🎁';
 
-type Tab = 'shelf' | 'secrets' | 'pets' | 'ach';
+type Tab = 'shelf' | 'secrets' | 'collect' | 'pets' | 'ach';
 const TABS: readonly { id: Tab; icon: string; label: Key }[] = [
   { id: 'shelf', icon: '🏆', label: 'shelf_title' }, { id: 'secrets', icon: '🗝️', label: 'book_secrets_t' },
-  { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
+  { id: 'collect', icon: '🦋', label: 'book_collect_t' }, { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
 ];
 
 /** What window.__game reads of the book (src/game/debug.ts does not: the walkthrough reads the DOM and this). */
@@ -112,7 +114,7 @@ function renderTabs(save: Save) {
     b.dataset.tab = tb.id; b.setAttribute('aria-label', t(tb.label)); b.title = t(tb.label);
     box.appendChild(b);
   }
-  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
+  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['collect', 'bookCollect'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
     $(pane).classList.toggle('hidden', id !== tab);
   }
   bookState.tab = tab;
@@ -152,6 +154,30 @@ function renderSecrets(world: WorldEntry | null, ws: { flags: Record<string, boo
     box.appendChild(d);
   }
   $('secretsSay').textContent = tf('book_secrets', { n, of: list.length });
+}
+
+/**
+ * The collections of the world played (PLAY-25): a row a kind - its picture, its six finds (in colour when found, a
+ * silhouette until then, R14) and how many of them; the line under the rows counts the whole sets.
+ */
+function renderCollect(world: WorldEntry | null, ws: WorldState | null) {
+  const def = world?.collect, box = document.getElementById('collect');
+  if (!box) return;
+  box.innerHTML = '';
+  const found = ws ? foundOf(ws) : [];
+  const kinds = def ? kindsOf(def) : [];
+  for (const k of kinds) {
+    const ids = itemsOf(def!, k), got = ids.filter((i) => found.includes(i)).length;
+    const row = document.createElement('div');
+    row.className = 'crow' + (got === ids.length ? ' whole' : '');
+    row.dataset.kind = k; row.dataset.got = String(got);
+    row.innerHTML = `<span class="cname">${t(`collect_${k}` as Key)}</span>`
+      + ids.map((i) => `<span class="cell${found.includes(i) ? ' got' : ' sil'}" data-item="${i}">${COLLECT_KINDS[k].icon}</span>`).join('')
+      + `<span class="cn">${tf('book_count', { n: got, of: ids.length })}</span>`;
+    box.appendChild(row);
+  }
+  const whole = def ? kinds.filter((k) => setDone(def, k, found)).length : 0;
+  $('collectSay').textContent = kinds.length ? tf('book_collect', { n: whole, of: kinds.length }) : t('book_collect_none');
 }
 
 function renderPets(save: Save, persist: () => void) {
@@ -221,6 +247,7 @@ export function renderProfile(save: Save, persist: () => void = () => achGame?.p
   renderTabs(save);
   renderShelf(save, world);
   renderSecrets(world, ws);
+  renderCollect(world, ws);
   renderPets(save, persist);
   renderAch(save);
   renderStories();

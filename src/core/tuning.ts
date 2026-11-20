@@ -18,6 +18,9 @@ export const TUNING_DEFAULTS = {
   jump: 6.4,        // m/s: the speed upwards the jump starts with (gravity 17 m/s²: about 1.2 m high)
 } as const;
 
+/** m/s²: what pulls her down in a jump - not tuned: with `jump`, how high she jumps (src/game/collections.ts `jumpApex`). */
+export const GRAVITY = 17;
+
 export type TuningKey = keyof typeof TUNING_DEFAULTS;
 export const TUNING_KEYS = Object.keys(TUNING_DEFAULTS) as TuningKey[];
 

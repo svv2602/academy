@@ -125,6 +125,7 @@ const S = sameKeys({
     ach_clean_ten_t: 'Десять поспіль', ach_clean_ten_d: 'Розгадай десять завдань поспіль з першої спроби.',
     ach_days_3_t: 'Три дні пригод', ach_days_3_d: 'Грай у три різні дні.',
     ach_days_5_t: 'Пʼять днів пригод', ach_days_5_d: 'Грай у пʼять різних днів.',
+    ach_collector_t: 'Збирачка', ach_collector_d: 'Збери всі колекції одного світу.',
     // --- the cat's lines of the achievements' scenes, of the pet found and chosen (PLAY-08, PLAY-09): spoken
     ach_first_shard: 'Перша частинка вдома! Магія вже повертається.',
     ach_secret_chest: 'Ти знайшла таємну скриню! Справжня дослідниця!',
@@ -138,6 +139,7 @@ const S = sameKeys({
     ach_clean_ten: 'Десять завдань поспіль з першої спроби! Неймовірно!',
     ach_days_3: 'Ми разом уже три дні! Мені з тобою весело.',
     ach_days_5: 'Пʼять днів пригод разом! Ти моя найкраща подружка.',
+    ach_collector: 'Усі колекції світу в твоїй книзі! Ти справжня збирачка.',
     pet_found: 'Ой, оленятко! Тепер воно гулятиме з нами.',
     pet_chosen: 'Твій улюбленець іде з нами!',
     // --- the cat's lines of the break and of the welcome of a new day (PLAY-20, PLAY-21): spoken
@@ -160,6 +162,10 @@ const S = sameKeys({
     gift_star_2: 'Мур! Зірочка для тебе — просто так!',
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадкова зірка! Розвʼяжи — і вона твоя.', mystery_won: 'Зірка твоя! Аж три зірочки!',
+    collect_first: 'Ой, знахідка для колекції! Шукай таких ще.', collect_set: 'Колекцію зібрано! Ще пʼять зірочок!',
+    collect_all: 'І остання знахідка! Усі колекції світу зібрано!',
+    book_collect_t: 'Колекції', book_collect: 'Колекції цього світу: {n} з {of}', book_collect_none: 'У цьому світі колекцій немає.',
+    collect_butterfly: 'Метелики', collect_acorn: 'Жолуді', collect_mushroom: 'Грибочки', collect_feather: 'Пірʼїнки',
     mystery_wait: 'Зірка почекає тебе тут.', mystery_day: 'Сьогодні у світі зʼявилися нові загадкові зірки!', mystery_open: 'Зірка',
     left_new_world: 'Тут живуть нові друзі. Ходімо познайомимося!',
     left_mid_chain: 'Наш друг чекає на тебе. Біжімо за іскорками!',
@@ -284,6 +290,7 @@ const S = sameKeys({
     ach_clean_ten_t: 'Десять подряд', ach_clean_ten_d: 'Разгадай десять заданий подряд с первой попытки.',
     ach_days_3_t: 'Три дня приключений', ach_days_3_d: 'Играй в три разных дня.',
     ach_days_5_t: 'Пять дней приключений', ach_days_5_d: 'Играй в пять разных дней.',
+    ach_collector_t: 'Собирательница', ach_collector_d: 'Собери все коллекции одного мира.',
     // --- the cat's lines of the achievements' scenes, of the pet found and chosen (PLAY-08, PLAY-09): spoken
     ach_first_shard: 'Первая частичка дома! Волшебство уже возвращается.',
     ach_secret_chest: 'Ты нашла тайный сундук! Настоящая исследовательница!',
@@ -297,6 +304,7 @@ const S = sameKeys({
     ach_clean_ten: 'Десять заданий подряд с первой попытки! Невероятно!',
     ach_days_3: 'Мы вместе уже три дня! Мне с тобой весело.',
     ach_days_5: 'Пять дней приключений вместе! Ты моя лучшая подружка.',
+    ach_collector: 'Все коллекции мира в твоей книге! Ты настоящая собирательница.',
     pet_found: 'Ой, оленёнок! Теперь он будет гулять с нами.',
     pet_chosen: 'Твой питомец идёт с нами!',
     // --- the cat's lines of the break and of the welcome of a new day (PLAY-20, PLAY-21): spoken
@@ -319,6 +327,10 @@ const S = sameKeys({
     gift_star_2: 'Мур! Звёздочка для тебя — просто так!',
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадочная звезда! Реши — и она твоя.', mystery_won: 'Звезда твоя! Целых три звёздочки!',
+    collect_first: 'Ой, находка для коллекции! Ищи такие ещё.', collect_set: 'Коллекция собрана! Ещё пять звёздочек!',
+    collect_all: 'И последняя находка! Все коллекции мира собраны!',
+    book_collect_t: 'Коллекции', book_collect: 'Коллекции этого мира: {n} из {of}', book_collect_none: 'В этом мире коллекций нет.',
+    collect_butterfly: 'Бабочки', collect_acorn: 'Жёлуди', collect_mushroom: 'Грибочки', collect_feather: 'Пёрышки',
     mystery_wait: 'Звезда подождёт тебя здесь.', mystery_day: 'Сегодня в мире появились новые загадочные звёзды!', mystery_open: 'Звезда',
     left_new_world: 'Здесь живут новые друзья. Пойдём познакомимся!',
     left_mid_chain: 'Наш друг ждёт тебя. Бежим за искорками!',
@@ -383,13 +395,14 @@ export type Key = keyof typeof S.uk | WorldOwnKey | WorldKey;
 const SPOKEN = {
   welcome_back: 'joy',
   // PLAY-08, PLAY-09, PLAY-07: the achievements' scenes, the pet, the shelf (batch 1 of stage 4)
-  ach_first_shard: 'joy', ach_secret_chest: 'joy', ach_all_world_stars: 'joy', ach_first_artifact: 'joy', ach_three_secrets: 'joy', ach_first_task: 'joy', ach_try_again: 'joy', ach_all_skills: 'joy', ach_fifty_tasks: 'joy', ach_clean_ten: 'joy', ach_days_3: 'joy', ach_days_5: 'joy',
+  ach_first_shard: 'joy', ach_secret_chest: 'joy', ach_all_world_stars: 'joy', ach_first_artifact: 'joy', ach_three_secrets: 'joy', ach_first_task: 'joy', ach_try_again: 'joy', ach_all_skills: 'joy', ach_fifty_tasks: 'joy', ach_clean_ten: 'joy', ach_days_3: 'joy', ach_days_5: 'joy', ach_collector: 'joy',
   pet_found: 'joy', pet_chosen: 'warm', shelf_first: 'warm',
   // PLAY-20, PLAY-21: the break and the welcome of a new day (batch 2 of stage 4)
   break_1: 'warm', break_2: 'calm', break_3: 'warm', break_4: 'calm', break_5: 'warm', break_more_1: 'warm', break_more_2: 'joy', break_more_3: 'joy', break_bye_1: 'warm', break_bye_2: 'warm',
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
+  collect_first: 'joy', collect_set: 'joy', collect_all: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',

@@ -155,6 +155,21 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       unsolved: () => g.mystery.unsolved(),
       open(id: number) { const s = g.mystery.today.find((x) => x.id === id); const spot = s && g.mystery.spots.find((p) => p.pos === s.pos); if (spot?.on()) spot.run(); return !!spot; },
     },
+    /**
+     * The finds of the collections in the world played (src/game/collect-items.ts, PLAY-25), read only: each with its id,
+     * kind, way, where it is now (`pos`, a butterfly flies), the ground under it and whether it is found. Nothing here
+     * takes one: the walkthrough walks, jumps and taps as she would.
+     */
+    collect: {
+      get items() {
+        return g.collect.items.map((i) => ({ id: i.id, kind: i.kind, way: i.way, flock: i.flock, x: i.pos.x, y: i.pos.y, z: i.pos.z,
+          home: { x: i.home.x, z: i.home.z }, ground: g.groundY(i.pos.x, i.pos.z), taken: i.taken }));
+      },
+      /** The top of a support at (x, z) for feet that high (WorldGround.support), null where there is none. */
+      support: (x: number, z: number, feet: number) => g.ground.support?.(x, z, feet) ?? null,
+      /** The relief at (x, z), without the supports. */
+      ground: (x: number, z: number) => g.groundY(x, z),
+    },
     gift: {
       get held() { return giftState.held; },
       hold() { giftState.held = true; try { sessionStorage.setItem(GIFT_HOLD, '1'); } catch { /* ignore */ } },
