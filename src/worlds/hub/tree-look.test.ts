@@ -254,6 +254,7 @@ describe('life in the first looks', () => {
         const p = where(butterflies!, i), r = Math.hypot(p.x, p.z);
         expect(p.y).toBeGreaterThan(0.2); expect(p.y).toBeLessThan(3.5);
         expect(r).toBeGreaterThan(trunkR(0) + 0.3); expect(r).toBeLessThan(PORTAL_R - 2);
+        expect(r).toBeLessThan(7.5);   // the tour's camera keeps 8 m from the axis: no butterfly at its lens
       }
     }
     // the wings: two quads (four triangles) round a body; they beat in the vertex shader by the shared time

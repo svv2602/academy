@@ -531,6 +531,8 @@ export interface TreeLook { root: THREE.Group; update(time: number): void }
 const FLOWERS = 64, FIREFLIES = 36, TUFTS = 280, MUSHROOMS = 22, LANTERNS = 30, BIRDS = 8;
 /** Every look: the fireflies of the first (the second has FIREFLIES), the butterflies, the mushrooms on the roots and in the ring round the stump. */
 const EARLY_FIREFLIES = 8, BUTTERFLIES = 10, ROOT_MUSHROOMS = 8, RING_MUSHROOMS = 20;
+/** The butterflies: their scale (wingspan 0.42 m at 1) and the radii of their circles round the trunk's axis (± 0.8 m). */
+export const BUTTERFLY_SIZE = 0.8, BUTTERFLY_R = { from: trunkR(0) + 1.2, to: trunkR(0) + 3.4 } as const;
 /** The glow of a mushroom: the meadow's faint pink at the roots, the ring's soft lilac (breathing), emissive only. */
 const MUSH_GLOW = new THREE.Color('#ff5f8f').multiplyScalar(0.16), RING_GLOW = new THREE.Color('#d9a6ff').multiplyScalar(0.55);
 
@@ -670,14 +672,16 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
   }
 
   {
-    // Butterflies over the roots and the glade near the trunk, in every look: each loops round the tree on its own
-    // circle, rising and dipping; the wings beat in the material. Their paths in one array.
+    // Butterflies over the roots near the trunk, in every look: each loops round the tree on its own circle, rising and
+    // dipping; the wings beat in the material. Their paths in one array. Small (a wingspan of about a third of a metre)
+    // and close round the trunk, under 7.1 m from its axis: the camera of the tour keeps 8 m and more from it and the one
+    // behind her stands on the glade, so none flutters up at the lens as a big flat scrap.
     const tints = ['#ffd24a', '#ff9ed2', '#7fd8ff', '#ffffff', '#ff8a5c', '#c79bff'].map((h) => new THREE.Color(h));
     const brnd = mulberry32(2024), flutter = inst(butterflyGeo(), flapMaterial(), BUTTERFLIES);
     flutter.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const path = new Float32Array(BUTTERFLIES * 6);   // angle, radius, height, phase, speed, way round
     for (let i = 0; i < BUTTERFLIES; i++) {
-      path.set([brnd() * Math.PI * 2, trunkR(0) + 1.2 + brnd() * 5, 0.7 + brnd() * 1.6, brnd() * 6.28, 0.7 + brnd() * 0.6, brnd() < 0.5 ? -1 : 1], i * 6);
+      path.set([brnd() * Math.PI * 2, BUTTERFLY_R.from + brnd() * (BUTTERFLY_R.to - BUTTERFLY_R.from), 1.0 + brnd() * 1.8, brnd() * 6.28, 0.7 + brnd() * 0.6, brnd() < 0.5 ? -1 : 1], i * 6);
       flutter.setColorAt(i, tints[i % tints.length]);
     }
     const flit = (time: number) => {
@@ -688,7 +692,7 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
         const y = path[o + 2] + 0.3 * Math.sin(time * 1.7 * w + ph) + 0.12 * Math.sin(time * 4.1 + ph);
         // heading along the circle, the way it goes round
         q.setFromEuler(e.set(0.15 * Math.sin(time * 2.3 + ph), a + way * Math.PI / 2, 0, 'YXZ'));
-        flutter.setMatrixAt(i, m.compose(at.set(Math.sin(a) * r, y, Math.cos(a) * r), q, sc.set(1.4, 1.4, 1.4)));
+        flutter.setMatrixAt(i, m.compose(at.set(Math.sin(a) * r, y, Math.cos(a) * r), q, sc.setScalar(BUTTERFLY_SIZE)));
       }
       flutter.instanceMatrix.needsUpdate = true;
     };
