@@ -40,7 +40,7 @@ jobs:
     name: walkthrough ${{ matrix.size }} ${{ matrix.group }}
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -69,8 +69,9 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          # One piece of the world takes 5-9 minutes here; the limit leaves room for a slow runner.
-          E2E_RUN_TIMEOUT_MS: '1080000'
+          # One piece of the world takes 2-15 minutes here; the limit is tools/ci-pieces.mjs TRY_LIMITS.piece (the numbers
+          # are there).
+          E2E_RUN_TIMEOUT_MS: '1350000'
           # The probe world is played by the job "worlds", not by the step of the same name in the phone's shop.
           E2E_WORLDS: '0'
         run: |
@@ -151,7 +152,7 @@ jobs:
     name: walkthrough mobile, the whole session
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -171,7 +172,7 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          E2E_RUN_TIMEOUT_MS: '2400000'
+          E2E_RUN_TIMEOUT_MS: '3000000'
           E2E_WORLDS: '0'
         run: |
           set -o pipefail

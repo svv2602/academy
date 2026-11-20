@@ -22,6 +22,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { GROUPS, PIECES } from './e2e-saves.mjs';
+import { blocksOf, limitReport, reportToGitHub } from './run-limit.mjs';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
@@ -329,6 +330,9 @@ const resultsDir = opts.combine || join(root, 'shots-e2e');
 const modelsOut = (job) => join(resultsDir, `models-requested-${jobId(job)}.json`);
 const voiceOut = (job) => join(resultsDir, `voice-${jobId(job)}.json`);
 const summaryOut = (job) => join(resultsDir, `summary-${jobId(job)}.json`);
+const blocksOut = (job) => join(resultsDir, `blocks-${jobId(job)}.txt`);
+/** Each walkthrough's time against its limit (tools/run-limit.mjs), printed under the summary. */
+const limitLines = [];
 // What the walkthrough itself reports about its voice: { mute, clips, loud }, or null if it did not get that far.
 const voiceReport = (job) => { try { return JSON.parse(readFileSync(voiceOut(job), 'utf8')); } catch { return null; } };
 async function walkthrough(url, job) {
@@ -336,10 +340,16 @@ async function walkthrough(url, job) {
   rmSync(modelsOut(job), { force: true });   // never compare against the list of an earlier run
   rmSync(voiceOut(job), { force: true });
   rmSync(summaryOut(job), { force: true });
-  const env = { ...process.env, E2E_OFFLINE: offline(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(job),
+  rmSync(blocksOut(job), { force: true });
+  const env = { ...process.env, E2E_OFFLINE: offline(mode) ? '1' : '0', E2E_MODELS_OUT: modelsOut(job), E2E_BLOCKS_OUT: blocksOut(job),
     E2E_MUTE: muted(mode) ? '1' : '0', E2E_VOICE_OUT: voiceOut(job), E2E_COMMIT: sourceCommit(), E2E_ONLY: group };
   if (!process.env.E2E_LEVEL && LEVELS[mode]) env.E2E_LEVEL = LEVELS[mode];
+  const t0 = Date.now();
   const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), url, 'shots-e2e', mode], runTimeoutMs, env);
+  // how near its limit it came, whatever its end: a warning with less than 15 % left (tools/run-limit.mjs)
+  const report = limitReport({ name: walkthroughName(job), ms: Date.now() - t0, limitMs: runTimeoutMs, blocks: blocksOf(blocksOut(job)) });
+  limitLines.push(report.line);
+  reportToGitHub(report);
   if (timedOut) throw new Error(`killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
   if (code !== 0) throw new Error(`tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
   // The walkthrough says for itself how it was played: asked to be silent, it must have started every clip in silence.
@@ -540,5 +550,6 @@ const w = (k) => Math.max(...rows.map((r) => r[k].length));
 const [wn, wr, wt] = [w('name'), w('result'), w('time')];
 console.log('\n[e2e] summary');
 for (const r of rows) console.log(`  ${r.name.padEnd(wn)}  ${r.result.padEnd(wr)}  ${r.time.padStart(wt)}  ${r.note}`.trimEnd());
+if (limitLines.length) { console.log('[e2e] the walkthroughs against their limit (E2E_RUN_TIMEOUT_MS)'); for (const l of limitLines) console.log(`  ${l}`); }
 console.log(failed() ? '[e2e] FAILED' : '[e2e] PASSED');
 process.exitCode = failed() ? 1 : 0;
