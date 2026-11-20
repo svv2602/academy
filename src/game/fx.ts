@@ -60,3 +60,4 @@ export function numberSprite(n: number) {
   s.scale.setScalar(0.8); s.renderOrder = 20;
   return s;
 }
+
