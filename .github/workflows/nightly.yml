@@ -18,7 +18,7 @@ jobs:
   session:
     name: walkthrough mobile, the whole session (dev)
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,7 +38,7 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          E2E_RUN_TIMEOUT_MS: '3000000'
+          E2E_RUN_TIMEOUT_MS: '3600000'
           E2E_WORLDS: '0'
         run: |
           set -o pipefail

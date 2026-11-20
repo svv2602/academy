@@ -152,7 +152,7 @@ jobs:
     name: walkthrough mobile, the whole session
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -172,7 +172,7 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          E2E_RUN_TIMEOUT_MS: '3000000'
+          E2E_RUN_TIMEOUT_MS: '3600000'
           E2E_WORLDS: '0'
         run: |
           set -o pipefail

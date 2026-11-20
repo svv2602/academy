@@ -261,10 +261,12 @@ export const TRY_ALL_MAX = 3;
  * - a piece: the slowest of the gate desktop world2, 899 s on one runner (run 44717663093) and at the limit of 1080 s on
  *   a slow one -> 1350 s, a job of 30 minutes;
  * - the whole walkthrough of the phone: 1817-2281 s in the trials of the day, a turn killed by a flaky block at 2350 s
- *   of its 2400 -> 3000 s, a job of 60 minutes.
+ *   of its 2400 -> 3000 s, a job of 60 minutes; then, with the hub, the call to the Great Tree, the stars and the
+ *   collections of the same day, 2716 s of 3000 on 620013e (91 %: the warning of tools/run-limit.mjs; 1780 s on
+ *   410a28e) -> 3600 s, a job of 70 minutes.
  * tools/run-limit.mjs warns in the summary of every run whose walkthrough leaves less than 15 % of its limit.
  */
-export const TRY_LIMITS = { piece: { runMs: 1_350_000, minutes: 30 }, all: { runMs: 3_000_000, minutes: 60 } };
+export const TRY_LIMITS = { piece: { runMs: 1_350_000, minutes: 30 }, all: { runMs: 3_600_000, minutes: 70 } };
 // pages.yml (the job "session") and nightly.yml play the whole walkthrough with these very limits - their tests hold them so.
 /** The kinds of what the jobs leave for the job that sums them up (the names: `attemptName`). */
 export const RESULTS = 'results', TRY_TURN = 'try-turn';
