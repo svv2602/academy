@@ -2229,9 +2229,11 @@ try {
           await page.mouse.move(x + dx, y + dy, { steps: 5 }); await page.mouse.up();
           await gameWait(0.5);
           const to = await g(() => [__game.cam.yaw, __game.cam.pitch]);
-          await page.mouse.move(x, y); await page.mouse.down();                    // the same way back
+          // the same way back, not waited for: it is not measured. The yaw takes a drag at once (src/game/camera.ts), the
+          // tilt glides back, and every turn after a turn down is one across, which waits its own 0.5 s before it reads
+          await page.mouse.move(x, y); await page.mouse.down();
           await page.mouse.move(x - dx, y - dy, { steps: 5 }); await page.mouse.up();
-          await gameWait(0.5);
+          await framesDrawn(2);
           return dx ? from[0] - to[0] : to[1] - from[1];
         };
         await page.locator('#tune input[data-k=lookX]').fill(String(defaults.lookX * 2));
@@ -2918,10 +2920,22 @@ try {
             };
             window.__paceStop = false; requestAnimationFrame(tick);
           });
+          // after each way, until the pet stands (0.3 s of its log under 2 cm/s), at most 1.5 s of game time as before
+          const stands = (from) => {
+            const log = window.__paceLog, end = log.at(-1);
+            if (!end || end.t - from < 0.3) return false;
+            const i = log.findLastIndex((e) => e.t <= end.t - 0.3);
+            const a = log[i];
+            return i >= 0 && a.t >= from && Math.hypot(end.x - a.x, end.z - a.z) / (end.t - a.t) < 0.02;
+          };
+          const stood = [];
           for (const key of ['ArrowUp', 'ArrowDown']) {
             await page.keyboard.down(key); await gameUntil(() => false, null, 2); await page.keyboard.up(key);
-            await gameUntil(() => false, null, 1.5);
+            const t0 = await g(() => __game.time);
+            const still = await gameUntil(stands, t0, 1.5);
+            stood.push(`${(await g((t) => __game.time - t, t0)).toFixed(2)} s${still ? '' : ' (still moving)'}`);
           }
+          console.log(`pet: stood after ${stood.join(' and ')} of game time (at most 1.5)`);
           const paws = await g((ground) => {
             window.__paceStop = true;
             const log = window.__paceLog;
