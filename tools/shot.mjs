@@ -3492,13 +3492,20 @@ try {
           log.push('a touch');
           // caught up: a butterfly that flies off round its place
           const bf = of('butterfly', 'chase');
-          const b0 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z }; }, bf.id);
-          await face(b0.x, b0.z, 3);
+          // it flies off while she is near: she stands inside its ring (3.5 m from its middle - the ring of 6 m never
+          // comes within 2.5 m of her, she cannot catch it there), and in half a second of game time it covers more than
+          // 1.5 m (it flies 4.3 m/s near her) - measured in game time, whatever the frames of the machine
+          const b0 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z, hx: p.home.x, hz: p.home.z }; }, bf.id);
+          await g((b) => { const d = Math.hypot(b.x - b.hx, b.z - b.hz) || 1; const x = b.hx + (b.x - b.hx) / d * 3.5, z = b.hz + (b.z - b.hz) / d * 3.5; __game.teleport(x, z); }, b0);
+          const at0 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z }; }, bf.id);
+          await gameSeconds(0.5);
+          const flew = await g(([id, b]) => { const p = __game.collect.items[id]; return Math.hypot(p.x - b.x, p.z - b.z); }, [bf.id, at0]);
+          if (flew < 1.5) fail(`the butterfly did not fly off while she was near: ${flew.toFixed(2)} m in 0.5 s of game time (at least 1.5)`);
+          const b1 = await g((id) => { const p = __game.collect.items[id]; return { x: p.x, z: p.z }; }, bf.id);
+          await face(b1.x, b1.z, 3);
           const caught = await runTo(bf.id, 15, true);
           if (!caught) fail('she ran 15 s after the butterfly and did not catch it');
-          const flew = await g(([id, b]) => { const p = __game.collect.items[id]; return Math.hypot(p.x - b.x, p.z - b.z); }, [bf.id, b0]);
-          if (flew < 1) fail(`the butterfly did not fly off (${flew.toFixed(2)} m)`);
-          log.push(`caught up (it flew ${flew.toFixed(1)} m)`);
+          log.push(`caught up (it flew ${flew.toFixed(1)} m in half a second with her near)`);
           // a whole set: the mushrooms but one found already, the last one walked into: +1 and +5, the cat says so
           const last = items.find((i) => i.kind === 'mushroom' && i.way === 'run' && i.id !== mush.id);
           await g(([ids, keep]) => { const f = __game.save.worlds.fairy.found; for (const i of ids) if (i !== keep && !f.includes(i)) f.push(i); for (const it of __game.collect.items) if (ids.includes(it.id) && it.id !== keep) it.taken = true; }, [items.filter((i) => i.kind === 'mushroom').map((i) => i.id), last.id]);
@@ -3716,7 +3723,13 @@ try {
       const turned = {};
       for (const id of voice.dropped) turned[id] = (turned[id] ?? 0) + 1;
       console.log(`lines turned away by the planner: ${Object.entries(turned).map(([id, n]) => `${id} x${n}`).join(' ') || 'none'}`);
-      const lost = Object.keys(turned).filter((id) => id !== 'go_next' && id !== 't_stars_back');
+      // A find of the collections walked into on the way (PLAY-25: a teleport or a walk of the scenario across one, as a
+      // child would) says its line as a hint: one that comes while another line sounds is turned away - a reason the
+      // scenario has when a find was taken in this run.
+      const finds = await g(() => (__game.save.worlds.fairy?.found ?? []).length);
+      const COLLECT_LINES = ['collect_first', 'collect_set', 'collect_all'];
+      const lost = Object.keys(turned).filter((id) => id !== 'go_next' && id !== 't_stars_back' && !(finds > 0 && COLLECT_LINES.includes(id)));
+      if (finds && Object.keys(turned).some((id) => COLLECT_LINES.includes(id))) console.log(`lines of the collections turned away: ${finds} find(s) taken in this run, their hint said over another line`);
       if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
       if (voice.synth.length) errors.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
       if (!voice.clips) errors.push('not a single voice clip sounded during the walkthrough');
