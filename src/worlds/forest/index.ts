@@ -17,7 +17,8 @@ import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { MAZE, createMaze } from './maze';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
@@ -46,7 +47,8 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a' },
   { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a' },
   { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['odd', 'simon', 'add'], shard: '#36b56c' },
-  { id: 'kolyuchka', emoji: '🦔', x: ZONES.maze.x + 3, z: ZONES.maze.z + 1, heading: -1.6, steps: ['sub', 'order', 'pattern', 'part'], shard: '#7ff0b0' },
+  // by the arch of the maze's way in; the maze is the last of the hedgehog's tasks, the leaf lies at its end (WORLD-14)
+  { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 2.5, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0' },
 ];
 /** The steps played in the world (WorldDef.worldTasks): Mudrena's steps to her hollow (WORLD-16). */
 export const WORLD_TASKS: readonly string[] = [STEPS];
@@ -173,7 +175,15 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
   // Shustrik's nuts (WORLD-15): found by the tracks, then the question of counting them
   const nuts = createNutsSearch(g);
   scope.own(() => nuts.tracks.dispose());
-  const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask, [TRACKS]: nuts };
+  // Kolyuchka's maze (WORLD-14): walked through in the background; its end puts the fifth leaf just past it, waiting
+  const maze = createMaze(g);
+  scope.own(() => maze.dispose());
+  const mazeLeaf = leaves.find((l) => l.owner === 'kolyuchka')!;
+  const mazeTask: WorldTask = {
+    skill: maze.skill, active: maze.active, owner: maze.owner, reask: maze.reask,
+    start: (n, done) => maze.start!(n, () => { ws.flags[mazeLeaf.hint] = true; done(); }),
+  };
+  const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask, [TRACKS]: nuts, [MAZE]: mazeTask };
   const wrongTasks = worldTaskProblems(forest.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the forest: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -221,6 +231,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
           n.actor.update(dt);
         }
         nuts.update(dt, time, canMove);
+        maze.update(dt, time, canMove);
         for (const l of leaves) {
           l.mesh.visible = waiting(l);
           if (!l.mesh.visible) continue;
@@ -232,7 +243,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
         emerald.rotation.y = time;
       },
       goal: () => {
-        const nut = nuts.goal();
+        const nut = nuts.goal() ?? maze.goal();
         if (nut) return nut;
         const l = leaves.find(waiting);
         if (l) return l.mesh.position;
@@ -253,7 +264,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
-      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; if (nuts.cheat()) return 'tracks'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
+      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; if (nuts.cheat()) return 'tracks'; if (maze.cheat()) return 'maze'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
     },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),

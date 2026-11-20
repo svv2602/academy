@@ -67,9 +67,24 @@ export const STREAM: readonly Place[] = [at(48, 4), at(32, 11), at(16, 15), at(6
 /** m: the half-width of the stream's bed. */
 export const STREAM_HALF = 1.6;
 
-/** The maze (WORLD-14, later): its stones lie in a square here; the fifth leaf waits at its far end. */
-export const MAZE = { x: ZONES.maze.x - 9 * SCALE, z: ZONES.maze.z + 3 * SCALE, half: 6 };
-export const MAZE_END = { x: MAZE.x - MAZE.half + 1.2, z: MAZE.z + MAZE.half - 1.2 };
+/**
+ * The maze (WORLD-14, src/game/worldtasks/maze.ts): six lanes of paths between hedges, 20 m long and 6 m apart, west of
+ * its zone. Its way in is north-west of the zone, where the hedgehog waits by the arch; the lanes snake south, and its
+ * way out comes onto the path to the village. The fifth leaf waits at the far end, just inside the way out. The frame is
+ * in metres of the task, not stretched with the map (the stretch moves it with its zone).
+ */
+export const MAZE_FRAME = {
+  origin: { x: ZONES.maze.x - 5.8, z: ZONES.maze.z + 11.8 }, along: { x: -1, z: 0 }, across: { x: 0, z: -1 }, length: 20, gap: 6,
+} as const;
+/** The way in, just outside the hedge (the trunk of the maze starts here). */
+export const MAZE_IN = { x: MAZE_FRAME.origin.x + 2.5, z: MAZE_FRAME.origin.z };
+/** Where the leaf waits: the end of the last lane, 1.5 m inside the way out. */
+export const MAZE_END = { x: MAZE_FRAME.origin.x - 1.5, z: MAZE_FRAME.origin.z - 5 * MAZE_FRAME.gap };
+/** Is (x, z) within the hedge of the maze, or `margin` m round it (the outer lanes' hedge reaches 5 m past them)? */
+export function inMaze(x: number, z: number, margin = 0): boolean {
+  const { origin: o, length, gap } = MAZE_FRAME;
+  return x <= o.x + 1.2 + margin && x >= o.x - length - 1.2 - margin && z <= o.z + 5 + margin && z >= o.z - 5 * gap - 5 - margin;
+}
 /** The owl's tree with its hollow: the second leaf lies in it. */
 export const OWL_TREE = { x: ZONES.owl.x - 5, z: ZONES.owl.z - 3 };
 /** The hollow on the side of that tree, where the leaf waits (walked up to in the grey build). */
@@ -87,7 +102,7 @@ export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   oak: { x: ZONES.oak.x, z: ZONES.oak.z, top: 17 },
   village: { x: ZONES.village.x - 4.6, z: ZONES.village.z - 2, top: 8.5 },
   owl: { x: ZONES.owl.x - 5, z: ZONES.owl.z - 3, top: 11 },
-  maze: { x: ZONES.maze.x - 2, z: ZONES.maze.z, top: 3.2 },
+  maze: { x: ZONES.maze.x - 3.6, z: ZONES.maze.z + 11.8, top: 3.2 },       // the arch over its way in
   stream: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },
   grove: { x: ZONES.grove.x - 6, z: ZONES.grove.z + 4, top: 11 },
   ash: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },

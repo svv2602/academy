@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, type Place } from './layout';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
 
 /**
  * The forest of the grey build in simple shapes at their real sizes (WORLD-12): trees as a trunk and a crown, the
- * houses of the village as a stem and a cap, the stones of the maze, the stream and its bridges, the Old Oak. Each kind
+ * houses of the village as a stem and a cap, the arch of the maze, the stream and its bridges, the Old Oak. Each kind
  * is one instanced mesh; the colours are the zones' accents of the document (the gnomes red caps, the owl blue
  * fireflies, the squirrels orange leaves). Models replace them once the customer has accepted the grey build.
  */
@@ -37,7 +37,7 @@ export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   const sights = sightLines();
   const clear = (x: number, z: number) => pathDist(x, z) > 3.5 && lineDist(TRACKS, x, z) > CLEARING && sights.every((l) => lineDist(l, x, z) > SIGHT) && streamDist(x, z) > STREAM_HALF + 2
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > 8) && Math.hypot(OWL_TREE.x - x, OWL_TREE.z - z) > 5
-    && Math.hypot(MAZE.x - x, MAZE.z - z) > MAZE.half * 1.5 + 1 && Math.hypot(ALTAR.x - x, ALTAR.z - z) > 9;
+    && !inMaze(x, z, 1.5) && Math.hypot(ALTAR.x - x, ALTAR.z - z) > 9;
   // about one tree on 60 m² of the map: the density stays the same whatever the stretch of the map
   const want = Math.round((Math.PI * HALF * HALF) / 60);
   for (let tries = 0; trees.length < want && tries < want * 40; tries++) {
@@ -141,15 +141,7 @@ export function buildScenery(scene: THREE.Scene) {
   // over the heroine's head (at her height one showed on her face in the frame of the owl's steps)
   instances(scene, 'fireflies', new THREE.SphereGeometry(0.09, 6, 4).translate(0, 2.8, 0), new THREE.MeshBasicMaterial({ color: '#7fd0ff' }), flies, 0, false);
 
-  // the maze: its square of low stones (the paths inside come with WORLD-14)
-  const stones: Put[] = [];
-  for (let k = 0; k < 4; k++) for (let i = 0; i < 12; i++) {
-    const t = -MAZE.half + (i / 11) * MAZE.half * 2, side = k < 2 ? -1 : 1;
-    const [x, z] = k % 2 === 0 ? [MAZE.x + t, MAZE.z + side * MAZE.half] : [MAZE.x + side * MAZE.half, MAZE.z + t];
-    if (k === 1 && Math.abs(t) < 1.5) continue;     // its way in, toward the hedgehog
-    stones.push({ x, z, s: 1, rot: i });
-  }
-  instances(scene, 'maze-stones', new THREE.DodecahedronGeometry(0.35, 0).translate(0, 0.2, 0), mat('#a39d92'), stones);
+  // the maze (WORLD-14): its hedges and stones are the task's own (src/worlds/forest/maze.ts)
 
   // the stream: a ribbon of water over its bed, and a bridge where a path crosses it
   const pts = STREAM.map((p) => new THREE.Vector3(p.x, 0, p.z));

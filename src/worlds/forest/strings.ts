@@ -8,10 +8,10 @@
  */
 import type { WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Зачарований ліс', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}' };
+const uk = { subtitle: 'Зачарований ліс', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}' };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}' };
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}' };
 
 export const strings = { id: 'forest', table: { uk, ru }, spoken: {} } satisfies WorldStrings;
 
