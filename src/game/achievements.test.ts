@@ -12,7 +12,7 @@ const CTX: AchContext = {
     quests: [{ id: 'a', steps: [1, 2, 3] }, { id: 'b', steps: [1, 2, 3] }],
     chest: 'chest', secrets: ['chest', 'well', 'tree'],
   }, {
-    id: 'w2', groundStars: [0, 1], quests: [{ id: 'c', steps: [1, 2] }], secrets: ['cave'],
+    id: 'w2', groundStars: [0, 1], quests: [{ id: 'c', steps: [1, 2] }], secrets: ['cave'], collect: [0, 1, 2],
   }],
   skills: ['count', 'add', 'sub'],
 };
@@ -71,19 +71,24 @@ const CASES: Record<AchievementId, { below(s: Save): void; meet(s: Save): void }
     below: (s) => { for (const d of [1, 2, 2, 4, 9]) noteDay(s, noon(2026, 11, d)); },
     meet: (s) => noteDay(s, noon(2026, 12, 1)),
   },
+  collector: {
+    // a world without collections counts for none; finds of another world's numbers do not make a set
+    below: (s) => { worldState(s, 'w1').found = [0, 1, 2]; worldState(s, 'w2').found = [0, 2, 7]; },
+    meet: (s) => { worldState(s, 'w2').found!.push(1); },
+  },
 };
 
 describe('the catalogue (PLAY-08, R42)', () => {
-  it('has exactly the twelve of the decision of 2026-11-15, in snake_case, in the order of the texts', () => {
+  it('has exactly the twelve of the decision of 2026-11-15 and the collector of PLAY-25, in snake_case, in the order of the texts', () => {
     expect(ACHIEVEMENTS.map((a) => a.id)).toEqual(['first_shard', 'secret_chest', 'all_world_stars', 'first_artifact',
-      'three_secrets', 'first_task', 'try_again', 'all_skills', 'fifty_tasks', 'clean_ten', 'days_3', 'days_5']);
+      'three_secrets', 'first_task', 'try_again', 'all_skills', 'fifty_tasks', 'clean_ten', 'days_3', 'days_5', 'collector']);
     for (const a of ACHIEVEMENTS) expect(a.id).toMatch(/^[a-z0-9]+(_[a-z0-9]+)*$/);
     expect(Object.keys(CASES).sort()).toEqual(ACHIEVEMENTS.map((a) => a.id).sort());
   });
 
   it('for exploring, for trying and for keeping at it (R01), each with an icon', () => {
     expect(ACHIEVEMENTS.map((a) => a.group)).toEqual(['explore', 'explore', 'explore', 'explore', 'explore',
-      'effort', 'effort', 'effort', 'effort', 'series', 'series', 'series']);
+      'effort', 'effort', 'effort', 'effort', 'series', 'series', 'series', 'explore']);
     for (const a of ACHIEVEMENTS) expect(a.icon.length, a.id).toBeGreaterThan(0);
   });
 
