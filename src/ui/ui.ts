@@ -46,13 +46,18 @@ export function showNotice(key: 'no_webgl' | 'load_failed', onRetry?: () => void
 }
 
 let bubbleTimer = 0;
+/** The line the bubble shows now (its key and who says it): a new text of the same line does not pop it again. */
+let bubbleOf: { key: Key; speaker: string } | null = null;
 export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: string) {
   clearTimeout(bubbleTimer);
-  if (!key) { el.bubble.classList.add('hidden'); return; }
+  if (!key) { el.bubble.classList.add('hidden'); bubbleOf = null; return; }
+  // the same line shown, only its text new (a count going up, WORLD-15): the text changes, the bubble does not pop
+  const same = !el.bubble.classList.contains('hidden') && bubbleOf?.key === key && bubbleOf.speaker === speaker;
+  bubbleOf = { key, speaker };
   $('speaker').textContent = speaker;
   el.bubbleText.textContent = text ?? t(key);
   el.bubble.classList.remove('hidden');
-  el.bubble.style.animation = 'none'; void el.bubble.offsetWidth; el.bubble.style.animation = '';
+  if (!same) { el.bubble.style.animation = 'none'; void el.bubble.offsetWidth; el.bubble.style.animation = ''; }
   if (holdMs) bubbleTimer = window.setTimeout(() => el.bubble.classList.add('hidden'), holdMs);
 }
 
