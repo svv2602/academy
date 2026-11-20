@@ -3675,11 +3675,12 @@ try {
         const fail = (what) => { throw new Error(`welcome: ${what}`); };
         const left = [];
         const HELLOS = ['hello_1', 'hello_2', 'hello_3', 'hello_4', 'hello_5'], GIFTS = ['gift_star_1', 'gift_star_2'];
-        const LEFTS = ['left_new_world', 'left_mid_chain', 'left_between', 'left_before_final', 'left_after_artifact'];
-        // what the state of the world asks for (e4-texts.md §3), from the save of the page
+        const LEFTS = ['left_new_world', 'left_mid_chain', 'left_between', 'left_before_final', 'left_after_artifact', 'tree_calls'];
+        // what the state of the world asks for (e4-texts.md §3), from the save of the page; with the crystal whole, the way
+        // to the Great Tree open and the hub not visited yet the world's own word: "the Great Tree calls" (R28, WorldDef.left)
         const wantLeft = () => g(() => {
           const w = __game.save.worlds.fairy, at = __game.npcs.map((c) => [w.quests[c.def.id] ?? 0, c.def.steps.length]), n = __game.npcs.length;
-          if (w.final) return 'left_after_artifact';
+          if (w.final) return __game.treeWayOpen === true && __game.save.worlds.hub === undefined ? 'tree_calls' : 'left_after_artifact';
           if (at.filter(([v, len]) => v >= len).length >= n) return 'left_before_final';
           if (at.some(([v, len]) => v > 0 && v < len)) return 'left_mid_chain';
           return at.some(([v, len]) => v >= len) ? 'left_between' : 'left_new_world';
