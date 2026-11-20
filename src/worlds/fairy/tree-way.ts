@@ -21,7 +21,7 @@ import { TREE_WAY } from './layout';
  * The hub itself stays in the registry - `?debug&world=hub` opens it, and from there the arch of the fairies leads
  * back here (`arrive` still puts her where the arch would stand).
  */
-export const TREE_WAY_OPEN = true;
+export const TREE_WAY_OPEN = false;
 
 /** The id of the hub in the registry (src/worlds/index.ts). */
 export const HUB = 'hub';
