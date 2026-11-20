@@ -1006,6 +1006,9 @@ describe('tools/ci-pieces.mjs tryPlan: the name of a trial branch says what to t
     expect(tryPlan('try/desktop/shop/x1/offline/1a2b3c4dddd', C)).toMatchObject({ size: 'desktop', piece: 'shop', n: 1, offline: true, probe: false, title: 'shop desktop x1 offline' });
     for (const size of SIZES) for (const piece of PIECES) expect(tryPlan(`try/${size}/${piece}/x${TRY_MAX}/net/1a2b3c4`, C).error, `${size} ${piece}`).toBeUndefined();
     expect(tryPlan(`try/mobile/shop/x${TRY_MAX}/net/${C}`, C).matrix.include).toHaveLength(TRY_MAX);
+    // the piece of the collections (PLAY-25), tried like any other; the list of the pieces in the error names it
+    expect(tryPlan('try/mobile/collect/x2/net/1a2b3c4', C)).toMatchObject({ size: 'mobile', piece: 'collect', n: 2, offline: false, probe: false });
+    expect(tryPlan('try/mobile/collects/x2/net/1a2b3c4', C).error).toContain('pieces: world1, world2, finale, shop, collect');
   });
 
   it('a part of the probe world: the size is "probe", with the network only', () => {
