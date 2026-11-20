@@ -89,6 +89,12 @@ export interface Game extends GameWorld {
   auto: Auto | null;
   camOverride: number | null;
   /**
+   * The least pitch of the camera behind her (rad over the horizon) while a world asks for it, else null: in a maze
+   * between hedges the camera looks down steeper, so the path ahead and its stones show over the hedge and past her.
+   * Dragging up still raises it; the world clears it when she is out.
+   */
+  camPitchMin: number | null;
+  /**
    * The frame of a task played in the world (src/game/worldtasks/core.ts `taskFrame`): the camera looks at `target` from
    * `yaw`, `pitch` and `dist`, gliding there by the game's clock and back once it is null. `catAt`: where the cat sits
    * meanwhile (beside the heroine, off the task).
@@ -261,7 +267,7 @@ export function createGame(o: {
     get mystery() { return mystery!; },
     get collect() { return collect!; },
     plan: createPlanner(save),
-    busy: false, paused: false, still: false, auto: null, camOverride: null, camTask: null, finale: 0, failNext: false,
+    busy: false, paused: false, still: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),

@@ -109,10 +109,12 @@ describe("the hedgehog's maze (WORLD-14)", () => {
     }
   });
 
-  it('the trunk is long enough: 35 s at her top speed at the least (WORLD-14: 40-90 s with the forks)', () => {
+  // WORLD-14 asks 40-90 s with the forks; the lanes are as long as the map's edge lets them (the lead's decision
+  // 2026-11-20: a run of some 33 s, the forks make the rest)
+  it('the trunk is long enough: 34 s at her top speed at the least', () => {
     const { g } = host(5), m = createMaze(g as never);
     const len = m.geo.trunk.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - m.geo.trunk[i].x, p.z - m.geo.trunk[i].z), 0);
-    expect(len / tuning.speed).toBeGreaterThanOrEqual(35);
+    expect(len / tuning.speed).toBeGreaterThanOrEqual(34);
     m.dispose();
   });
 

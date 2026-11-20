@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
 import {
-  CLEAR, LANES, SEAL, LOOKS, MAZE_BY_LEVEL, TAKE, generateMaze, layMaze, lineDist, mazeWalk, showMaze,
+  CLEAR, LANES, ROW_SIDE, SEAL, LOOKS, MAZE_BY_LEVEL, TAKE, generateMaze, layMaze, lineDist, mazeWalk, showMaze,
   type MazeFrame, type MazeGeo, type MazeSpec, type Place,
 } from './maze';
 
@@ -124,8 +124,8 @@ describe('the paths in their frame', { timeout: 30000 }, () => {
             // its far part is off the trunk (a dead end of the hedge, not a way on)
             expect(Math.max(...w.line.map((p) => lineDist(geo.trunk, p.x, p.z)))).toBeGreaterThan(2 * SEAL);
           }
-          // the row lies on the trunk just before its fork, in its lane
-          for (const p of f.row) expect(lineDist(geo.trunk, p.x, p.z)).toBeLessThan(1e-6);
+          // the row lies beside the trunk just before its fork, a border of its path
+          for (const p of f.row) expect(lineDist(geo.trunk, p.x, p.z)).toBeCloseTo(ROW_SIDE, 6);
         }
         // the forks in the order she meets them along the trunk
         const order = geo.forks.map((f) => along(geo.trunk, f.at.x, f.at.z));
@@ -159,7 +159,7 @@ describe('the paths in their frame', { timeout: 30000 }, () => {
       const d = Math.min(...lines.map((l) => lineDist(l, b.x, b.z)));
       expect(geo.walls.includes(b)).toBe(d < CLEAR + 1.3);
     }
-    expect(geo.walls.length).toBeLessThan(geo.bushes.length * 0.8);
+    expect(geo.walls.length).toBeLessThan(geo.bushes.length);
   });
 
   it('is closed: from the way in she walks every path to the way out and to every loop, and never across a hedge to a farther part', () => {

@@ -26,6 +26,10 @@ import { colliders } from './terrain';
 export const MAZE = 'maze';
 /** s without a fork passed before the cat's sparkles lead to the right way. */
 export const STUCK = 40;
+/** rad: the least pitch of the camera behind her inside the maze: nearly from above, the maze read as a board (behind her elsewhere 0.36; a task's frame 0.8). */
+export const PITCH = 0.9;
+/** m: the camera's distance behind her inside the maze (out of it the camera's own, about 6 on a phone). */
+export const DIST = 8;
 
 export interface MazeStep extends WorldTask {
   /** The maze that stands in the forest now (its description, its paths, the judge of her walking). */
@@ -49,6 +53,7 @@ export function createMaze(g: Game): MazeStep {
   const { scene, groundY, hero, sparks } = g;
   let show: MazeShow | null = null, mine: { x: number; z: number; r: number }[] = [];
   let spec!: MazeSpec, geo!: MazeGeo, walk!: MazeWalk, seed = 0, level = 1;
+  let mine2 = false;            // the camera's distance is the maze's (set by it, given back by it)
   let on = false, owner: Npc | null = null, finished: () => void = () => {}, idle = 0, inside = false;
 
   /** The maze of `seed` on `level` in the scene (the old one taken away, its bushes out of the colliders). */
@@ -121,6 +126,12 @@ export function createMaze(g: Game): MazeStep {
     reask: async () => { bubble(); },
     update(dt, time, canMove) {
       show?.update(time, on && walk.glow ? walk.passed : -1);
+      // between its hedges the camera looks down steeper: the row of the pattern and the ways of the fork ahead show
+      // past her and over the hedge (src/game/camera.ts camPitchMin)
+      const within = inMaze(hero.root.position.x, hero.root.position.z);
+      g.camPitchMin = within ? PITCH : null;
+      // and from farther back: the row of the pattern and the ways of the fork in one look (the camera's own distance out)
+      if (within) { g.camOverride = DIST; mine2 = true; } else if (mine2) { g.camOverride = null; mine2 = false; }
       if (!on) return;
       if (!g.busy && g.speech.shown?.key !== 't_pattern') bubble();
       idle += dt;
@@ -164,6 +175,8 @@ export function createMaze(g: Game): MazeStep {
       return true;
     },
     dispose() {
+      g.camPitchMin = null;
+      if (mine2) { g.camOverride = null; mine2 = false; }
       show?.dispose(); show = null;
       for (const c of mine) { const i = colliders.indexOf(c); if (i >= 0) colliders.splice(i, 1); }
       mine = [];

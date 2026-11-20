@@ -253,7 +253,7 @@ export function createTravel(host: TravelHost): Travel {
     document.getElementById('task')?.classList.add('hidden');
     el.fanfare.classList.add('hidden');
     hideControls();
-    g.busy = true; g.auto = null; g.cam.focus = null; g.camOverride = null; g.finale = 0;
+    g.busy = true; g.auto = null; g.cam.focus = null; g.camOverride = null; g.camPitchMin = null; g.finale = 0;
     g.hero.play('Idle'); g.cat.play('Idle');
   }
 

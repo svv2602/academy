@@ -106,21 +106,27 @@ export interface MazeGeo {
 /** m: the stones of a row lie this far apart. */
 export const STONE_STEP = 0.8;
 /** m: from the middle of a path to the first bush; a bush stands this far from the next (a hedge she cannot pass). */
-export const CLEAR = 1.25, BUSH_STEP = 0.8;
+export const CLEAR = 1.75, BUSH_STEP = 0.8;
+/** m: the row of the pattern lies this far beside the middle of the path (a border of it, inside its hedge). */
+export const ROW_SIDE = 0.75;
+/** m: the last stone of a row lies this far before its fork. */
+export const ROW_GAP = 1.5;
 /**
  * m: a bush is a collider of BUSH_R, she one of 0.4: no bush nearer than BLOCK to another leaves room to pass between;
  * a bush that seals a narrow band between two paths stands SEAL from them (she still passes: SEAL > BUSH_R + 0.4).
  */
 export const BUSH_R = 0.45, BLOCK = 0.85, SEAL = 1.0;
+/** m: the half-width of the light floor of a path (its hedge stands CLEAR from its middle). */
+export const FLOOR = 0.8;
 /** m: walking this far from its fork along a way takes the way. */
 export const TAKE = 2.0;
 const MOUTH = 3.3;          // m: the right way's first leg
 const JOG = 2.8;            // m: then on beside the lane, before it comes back to the lane
 const LOOP = 4.2;           // m: how far a wrong loop reaches from its fork
-const RING = 1.05;          // m: a wrong loop goes round its bush this far from it (she passes: > BUSH_R + 0.4)
+const RING = 0.95;          // m: a wrong loop goes round its bush this far from it (she passes: > BUSH_R + 0.4)
 /** m: the hedge beside the outer lanes (a loop reaches this far, and a bush more). */
 export const SIDE = 5;
-const FAN: Readonly<Record<number, readonly number[]>> = { 2: [0.55, -0.55], 3: [0.75, 0, -0.75] };   // rad off the lane
+const FAN: Readonly<Record<number, readonly number[]>> = { 2: [0.55, -0.55], 3: [0.6, 0, -0.6] };   // rad off the lane
 
 /** Which lanes have a fork when there are `n` of them: spread over the six. */
 export const forkLanes = (n: number) => Array.from({ length: n }, (_, k) => Math.floor(((k + 0.5) * LANES) / n));
@@ -159,7 +165,9 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
       // her way along the lane is `dir`, her left `dir` times +across turned: angles are counted from her way, + left
       const Q = (ang: number, d: number, side = 0) => P(u + (Math.sin(ang) * d + Math.cos(ang) * side) * dir, vf + (Math.cos(ang) * d - Math.sin(ang) * side) * dir);
       const fork = P(u, vf);
-      const row = f.row.map((_, j) => P(u, vf - dir * STONE_STEP * (f.row.length - j + 0.6)));
+      // the row is a border of the path, ROW_SIDE off its middle: the camera behind her sees it past her, not under her
+      // and ends ROW_GAP before the fork: no hedge sealing the fork's ways from the path stands over its last stones
+      const row = f.row.map((_, j) => P(u + ROW_SIDE * dir, vf - dir * (STONE_STEP * (f.row.length - j - 1) + ROW_GAP)));
       const fan = FAN[f.ways.length] ?? FAN[3];
       let after = fork;
       const ways = f.ways.map((_, w): MazeWay => {
@@ -214,12 +222,23 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
     }
     return false;
   };
+  // a narrow band is one between two paths: two pieces of path, not next to each other, both nearer than CLEAR (beside a
+  // single path the band from SEAL to CLEAR stays its own width: no bush there)
+  // nor over the stones of a row: a sealing bush stands nearer a path than the others, its
+  // leaves over them would hide what is to be read
+  const stones = forks.flatMap((f) => f.row);
+  const clearOfStones = (p: Place) => stones.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 1.1);
+  const pieces = lines.flatMap((l, li) => l.slice(1).map((b, i) => ({ a: l[i], b, li, i })));
+  const between = (p: Place) => {
+    const near2 = pieces.filter((s) => lineDist([s.a, s.b], p.x, p.z) < CLEAR + 0.4);
+    return near2.some((s) => near2.some((t) => t.li !== s.li || Math.abs(t.i - s.i) > 1));
+  };
   for (let iv = 0; iv <= nv * 2; iv++) {
     for (let iu = 0; iu <= nu * 2; iu++) {
       const u = -SIDE + iu * BUSH_STEP / 2, v = -1.2 + iv * BUSH_STEP / 2;
       if (v > reach(u)) continue;
       const p = P(u, v);
-      if (!near(p) && lines.every((l) => lineDist(l, p.x, p.z) >= SEAL) && islands.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 0.6)) { bushes.push(p); add(p); }
+      if (!near(p) && between(p) && clearOfStones(p) && lines.every((l) => lineDist(l, p.x, p.z) >= SEAL) && islands.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 0.6)) { bushes.push(p); add(p); }
     }
   }
   // the bushes she can touch from a path: the colliders of the hedge (the rest stand deep in it, never reached)
@@ -293,10 +312,10 @@ export interface MazeShow {
   dispose(): void;
 }
 
-/** The outline of a flat stone of `shape`, on the ground (a prism 10 cm high, 0.85 m across: read from behind her). */
+/** The outline of a flat stone of `shape`, on the ground (a prism 10 cm high, 0.8 m across: a row of them a step apart, none over the next). */
 function stoneGeo(shape: (typeof LOOKS)[number]['shape']): THREE.BufferGeometry {
   const sides = { round: 18, square: 4, triangle: 3, hexagon: 6, diamond: 4 }[shape];
-  const g = new THREE.CylinderGeometry(0.42, 0.45, 0.1, sides).translate(0, 0.05, 0);
+  const g = new THREE.CylinderGeometry(0.38, 0.4, 0.1, sides).translate(0, 0.05, 0);
   if (shape === 'square') g.rotateY(Math.PI / 4);
   if (shape === 'diamond') g.scale(0.72, 1, 1.25);
   return g;
@@ -328,6 +347,36 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   hedge.computeBoundingSphere();
   group.add(hedge);
   owned.push(bushGeo, bushMat);
+  // the floor of the paths: a light sandy ribbon over the grass along every path (the trunk and every way), a hand
+  // over the ground at every metre and round every bend - the camera behind her shows where the path goes
+  const floorPos: number[] = [];
+  const at = (x: number, z: number) => groundY(x, z) + 0.03;
+  const tri = (ax: number, az: number, bx: number, bz: number, cx: number, cz: number) => floorPos.push(ax, at(ax, az), az, bx, at(bx, bz), bz, cx, at(cx, cz), cz);
+  for (const line of [geo.trunk, ...geo.forks.flatMap((f) => f.ways.filter((w) => !w.right).map((w) => w.line))]) {
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = line[i], b = line[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 1e-6) continue;
+      const nx = -(b.z - a.z) / len * FLOOR, nz = (b.x - a.x) / len * FLOOR, n = Math.max(1, Math.ceil(len));
+      for (let k = 0; k < n; k++) {
+        const x0 = a.x + ((b.x - a.x) * k) / n, z0 = a.z + ((b.z - a.z) * k) / n, x1 = a.x + ((b.x - a.x) * (k + 1)) / n, z1 = a.z + ((b.z - a.z) * (k + 1)) / n;
+        tri(x0 + nx, z0 + nz, x1 + nx, z1 + nz, x0 - nx, z0 - nz);
+        tri(x1 + nx, z1 + nz, x1 - nx, z1 - nz, x0 - nx, z0 - nz);
+      }
+    }
+    // a round joint at every point: no gap on the outside of a bend
+    for (const p of line) for (let k = 0; k < 10; k++) {
+      const a0 = (k / 10) * Math.PI * 2, a1 = ((k + 1) / 10) * Math.PI * 2;
+      tri(p.x, p.z, p.x + Math.cos(a1) * FLOOR, p.z + Math.sin(a1) * FLOOR, p.x + Math.cos(a0) * FLOOR, p.z + Math.sin(a0) * FLOOR);
+    }
+  }
+  const floorGeo = new THREE.BufferGeometry();
+  floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorPos, 3));
+  floorGeo.computeVertexNormals();
+  const floorMat = new THREE.MeshStandardMaterial({ color: '#dccb9e', roughness: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.name = 'maze-floor'; floor.receiveShadow = true;
+  group.add(floor);
+  owned.push(floorGeo, floorMat);
   // the grey stones of the trunk, one every 1.6 m but where a row lies
   const grey: Place[] = [];
   const rows = geo.forks.flatMap((f) => f.row);

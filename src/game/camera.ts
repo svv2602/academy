@@ -36,7 +36,7 @@ export function createCamera(g: Game, focusDist: () => number): { look(): void; 
         else v.set(hp.x, hp.y + 1.5 * hero.root.scale.y, hp.z);   // a tiny or a giant heroine (src/game/supplies.ts): her height
         cam.target.lerp(v, damp(t || cam.focus ? 3 : 9, dt));
         cam.dist = lerp(cam.dist, t ? t.dist : g.camOverride ?? (cam.focus ? focusDist() : camDistance(camera.aspect)), damp(3, dt));
-        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : userPitch, damp(t || cam.focus ? 3 : 10, dt));
+        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : Math.max(userPitch, g.camPitchMin ?? 0), damp(t || cam.focus ? 3 : g.camPitchMin !== null ? 3 : 10, dt));
       }
       camera.position.set(
         cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,
