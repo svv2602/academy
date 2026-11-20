@@ -6,6 +6,7 @@ vi.mock('./fairy', () => ({ fairy: { id: 'fairy' } }));
 vi.mock('./hub', () => ({ hub: { id: 'hub' } }));
 vi.mock('./probe', () => ({ probe: { id: 'probe' } }));
 vi.mock('./forest', () => ({ forest: { id: 'forest' } }));
+vi.mock('./sea', () => ({ sea: { id: 'sea' } }));
 const RAW = import.meta.glob(['./index.ts', './*/index.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 /** The registry as a build of `mode` makes it. */
@@ -33,12 +34,12 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
-  it('a build or a dev server made with --mode grey lists the forest of the grey build (WORLD-12), still playing the Fairy Kingdom', async () => {
+  it('a build or a dev server made with --mode grey lists the forest and the sea of the grey build (WORLD-12), still playing the Fairy Kingdom', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('grey');
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea']);
     expect(DEFAULT_WORLD).toBe('fairy');
-    expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/forest['"]/m);
-    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/forest'\)\)\.forest\] : \[\]/);
+    expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea)['"]/m);
+    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/forest'\)\)\.forest, \(await import\('\.\/sea'\)\)\.sea\] : \[\]/);
   });
 
   it.each(['test', 'probe', 'grey'])('in the mode "%s" no id is listed twice and the default world is listed', async (mode) => {
@@ -50,7 +51,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
 
   it('the stand-ins above have the ids of the real worlds, each named after its folder', () => {
     const folders = Object.keys(RAW).filter((p) => p !== './index.ts').map((p) => p.split('/')[1]).sort();
-    expect(folders).toEqual(['fairy', 'forest', 'hub', 'probe']);
+    expect(folders).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
     for (const id of folders) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*id: '${id}',$`, 'm'));
   });
 
@@ -85,7 +86,7 @@ describe('the folders of the worlds under public/ (TECH-09)', () => {
   });
 
   it.each(Object.keys(CORE_FOLDERS))('no world is named like a folder of the core under public/%s/', (kind) => {
-    expect(ids).toEqual(['fairy', 'forest', 'hub', 'probe']);
+    expect(ids).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
     expect(ids.filter((id) => CORE_FOLDERS[kind].includes(id))).toEqual([]);
   });
 

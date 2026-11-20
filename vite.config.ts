@@ -38,6 +38,23 @@ function probeFiles(): Plugin {
   };
 }
 
+// A grey build (WORLD-12, `--mode grey`) plays the worlds in simple shapes; the one file a grey world needs comes from
+// where it already lies, put into the build under the path its world asks for. The sea swims (WorldDef.move) with the
+// probe world's swimming clips (the same two clips of the UAL, worlds-test/probe/README.md): no second copy in git.
+const GREY_MODE = 'grey';
+const GREY_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
+function greyFiles(): Plugin {
+  let root = '.';
+  return {
+    name: 'grey-world-files',
+    apply: 'build',
+    configResolved(config) { root = config.root; },
+    generateBundle() {
+      for (const [fileName, from] of Object.entries(GREY_FILES)) this.emitFile({ type: 'asset', fileName, source: readFileSync(join(root, from)) });
+    },
+  };
+}
+
 // The next worlds of this build (TECH-09, decision Q14): every world of src/worlds/ after the first one; the probe
 // world only in its own mode. The installation caches the core and the first world; the folders of a next world
 // (models/<id>/, voice/<id>/, story/<id>/) stay out of the service worker's list, the build lists their files in
@@ -45,8 +62,8 @@ function probeFiles(): Plugin {
 // when the page first asks for it, and by the download in the background while the previous world is played
 // (src/core/worldcache.ts). A build without a next world - the published game today - gets none of this.
 export default defineConfig(({ mode }) => {
-  // the forest only in its grey build (WORLD-12, src/worlds/index.ts)
-  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, forest: 'grey' });
+  // the forest and the sea only in their grey build (WORLD-12, src/worlds/index.ts)
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
   return {
@@ -61,6 +78,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
+      ...(mode === GREY_MODE ? [greyFiles()] : []),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
       list,
       VitePWA({

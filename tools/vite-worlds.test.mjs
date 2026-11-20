@@ -3,7 +3,7 @@
 // route takes, and worlds.json itself. The real builds are checked by `npm run e2e` (the step "worlds").
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,21 +43,21 @@ describe('buildWorlds: the next worlds of a build', () => {
   });
 
   it('the sources as they are: the hub is installed, so the published build has no next world, the probe build the probe world', () => {
-    // the worlds of a mode as vite.config.ts names them (the grey forest has a folder of its own too)
-    const modes = { probe: 'probe', forest: 'grey' };
+    // the worlds of a mode as vite.config.ts names them (the grey forest and sea have folders of their own too)
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
     expect(buildWorlds('production', modes)).toEqual([]);
     expect(buildWorlds('probe', modes)).toEqual(['probe']);
   });
 
   it('a map of worlds and modes: each world of it only in its own mode (the grey forest, WORLD-12)', () => {
     const more = () => folder({ 'index.ts': "export const DEFAULT_WORLD = 'fairy';", 'fairy/index.ts': '', 'forest/index.ts': '', 'probe/index.ts': '' });
-    const modes = { probe: 'probe', forest: 'grey' };
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
     expect(buildWorlds('production', modes, more())).toEqual([]);
     expect(buildWorlds('grey', modes, more())).toEqual(['forest']);
     expect(buildWorlds('probe', modes, more())).toEqual(['probe']);
-    // the sources as they are: the grey build has the forest, the published one nothing
+    // the sources as they are: the grey build has the forest and the sea, the published one nothing
     expect(buildWorlds('production', modes)).toEqual([]);
-    expect(buildWorlds('grey', modes)).toEqual(['forest']);
+    expect(buildWorlds('grey', modes)).toEqual(['forest', 'sea']);
   });
 });
 
@@ -208,7 +208,18 @@ describe('vite.config.ts uses all of it', () => {
   const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 
   it('the next worlds are the ones of the sources, the probe world by the mode of the build', () => {
-    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, forest: 'grey' \}\);/);
+    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE \}\);/);
+    expect(config).toMatch(/^const GREY_MODE = 'grey';$/m);
+  });
+
+  it('a grey world takes its one file from where it lies: the sea swims with the probe world\'s clips, no second copy', () => {
+    const files = /const GREY_FILES: Record<string, string> = (\{[^\n]*\});/.exec(config);
+    expect(files, 'GREY_FILES in vite.config.ts').not.toBeNull();
+    const map = JSON.parse(files[1].replace(/'/g, '"'));
+    expect(map).toEqual({ 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' });
+    for (const from of Object.values(map)) expect(existsSync(join(root, from)), from).toBe(true);
+    expect(existsSync(join(root, 'public/models/sea')), 'the published build must not have the sea').toBe(false);
+    expect(config).toMatch(/\.\.\.\(mode === GREY_MODE \? \[greyFiles\(\)\] : \[\]\)/);
   });
 
   it('their folders are left out of the service worker\'s list, next to the bank', () => {
