@@ -6,6 +6,9 @@ import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
 import { declared, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
+import { worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
+import { generateSteps, showStepsInWorld } from '../../game/worldtasks/steps';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
@@ -13,7 +16,7 @@ import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
@@ -28,17 +31,23 @@ import { buildGround, colliders, ground } from './terrain';
 
 /**
  * The characters (docs/worlds/world-2.md). The steps that later become tasks in the world stand in as the panel task
- * of the same skill: Mudrena's steps to the hollow (WORLD-16) as `neighbors`, Shustrik's tracks (WORLD-15) as `count`,
+ * of the same skill: Shustrik's tracks (WORLD-15) as `count`,
  * Ash's "find the differences" (LEARN-18) as `odd`, Kolyuchka's maze (WORLD-14) as `pattern`. `part`: the leaf is not
  * handed over - the character says it lies in the world (the hollow, the end of the maze; WORLD-08).
  */
+/** The step of Mudrena's chain played in the world: the mushroom steps up to her hollow (./index.ts `stepsTask`). */
+export const STEPS = 'steps';
+
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a' },
-  { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', 'neighbors', 'compare', 'part'], shard: '#3fc27a' },
+  { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a' },
   { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: ['count', 'odd', 'pairs'], shard: '#5fe39a' },
   { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['odd', 'simon', 'add'], shard: '#36b56c' },
   { id: 'kolyuchka', emoji: '🦔', x: ZONES.maze.x + 3, z: ZONES.maze.z + 1, heading: -1.6, steps: ['sub', 'order', 'pattern', 'part'], shard: '#7ff0b0' },
 ];
+/** The steps played in the world (WorldDef.worldTasks): Mudrena's steps to her hollow (WORLD-16). */
+export const WORLD_TASKS: readonly string[] = [STEPS];
+
 /** The shape of each character in the grey build: its height and colour (the Ash is its tree: no figure of its own). */
 const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string }> = {
   borovik: { h: 1.1, r: 0.3, color: '#8a6a4a', hat: '#d8443a' },
@@ -144,7 +153,24 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
-  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks: { part } });
+  // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
+  const player = worldTaskPlayer(g, scope);
+  // Mudrena's steps (WORLD-16): the row rises across, before the hollow of her tree, the mushrooms on the ground toward
+  // the child; the number series, every level
+  const stepsTask: WorldTask = {
+    skill: 'series', inWorld: () => true,
+    run: (n, level) => {
+      const d = Math.hypot(OWL_TREE.x - n.pos.x, OWL_TREE.z - n.pos.z) || 1, ux = (OWL_TREE.x - n.pos.x) / d, uz = (OWL_TREE.z - n.pos.z) / d;
+      // the row across, between her and her tree: the child looks at it with the hollow behind
+      const mid = Math.max(1.8, d - 2.2);
+      const at = { x: n.pos.x + ux * mid, z: n.pos.z + uz * mid, facing: Math.atan2(ux, uz) };
+      return player.play(showStepsInWorld(scene, generateSteps(level, g.rng), at, g.hooksFor(n.def.emoji), { groundY, reach: g.touch ? 70 : 46, scope }));
+    },
+  };
+  const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask };
+  const wrongTasks = worldTaskProblems(forest.worldTasks, tasks);
+  if (wrongTasks.length) throw new Error(`the forest: ${wrongTasks.join('; ')}`);
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
   // ----- the tour, the finale -----
@@ -177,7 +203,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],
-      tap: () => false,
+      tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -205,7 +231,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
         if (n) return n.pos;
         return finaleItem.done() ? null : altar;
       },
-      animate: (_dt, time) => { flies.update(time); },
+      animate: (_dt, time) => { flies.update(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
@@ -217,7 +243,8 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
         forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
-      cheatWorld: () => { const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
+      // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
+      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
     },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
@@ -237,6 +264,7 @@ export const forest: WorldDef<Record<string, never>, WorldSky> = {
   spawn: SPAWN,
   ground,
   characters: FRIENDS,
+  worldTasks: WORLD_TASKS,
   strings,
   music: MUSIC,
   sky: buildSky,
