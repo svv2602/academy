@@ -9,7 +9,7 @@ import { join, posix } from 'node:path';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import {
-  FIT, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, ROOT, SRC_DIR,
+  FIT, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, PROVENANCE, ROOT, SRC_DIR,
   createIO, encodeTexture, listFiles, listSources, modelTextures, overBudget, readGlb, webpSize,
 } from './assets.mjs';
 
@@ -49,6 +49,21 @@ describe('public/models is the output of npm run assets', () => {
       }
     }
     expect(bad, `${bad.join('; ')}. ${RUN}`).toEqual([]);
+  });
+});
+
+describe('a model made with a service says so in its file (CREDITS.md)', () => {
+  it('the Meshy models carry asset.copyright and asset.extras.source; no other model claims Meshy', () => {
+    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'hero/child.glb']);
+    for (const [rel, made] of Object.entries(PROVENANCE)) {
+      const asset = json.get(rel)?.asset;
+      expect(asset?.copyright, `${rel}: ${RUN}`).toBe(made.copyright);
+      expect(asset?.copyright, rel).toMatch(/Meshy/);
+      expect(asset?.extras?.source, `${rel}: ${RUN}`).toEqual(made.source);
+    }
+    // the textured nature of tools/usd2glb.py says "Quaternius, CC0 1.0" there: its own, kept
+    const others = shippedGlb.filter((f) => !(f in PROVENANCE) && (/Meshy/.test(json.get(f).asset.copyright ?? '') || json.get(f).asset.extras?.source));
+    expect(others).toEqual([]);
   });
 });
 

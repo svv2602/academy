@@ -40,6 +40,23 @@ export const MAX_TOTAL = 10_000_000;
 /** WebP quality of colour maps: 40 dB PSNR or better on every texture of the first world. */
 export const COLOR_QUALITY = 90;
 
+/**
+ * Where a model made with a service came from, written into the shipped file as glTF `asset.copyright` and
+ * `asset.extras.source` (CREDITS.md has the same in words). Meshy's terms (https://www.meshy.ai/terms-of-use, §2.4)
+ * ask not to remove the marks of generation from its output; its textured models carry none, its rigged ones only
+ * the data of the skeleton, and Blender and this pipeline write their own `asset` - so the record is put back here.
+ */
+export const PROVENANCE = {
+  'extra/cat.glb': {
+    copyright: 'Generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-19; skeleton and clips: Meshy Service Assets',
+    source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated: '2026-11-19', terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
+  },
+  'hero/child.glb': {
+    copyright: 'Mesh and texture generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-15; skeleton and animations: Quaternius, CC0 1.0',
+    source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated: '2026-11-15', terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
+  },
+};
+
 const quiet = { debug() {}, info() {}, warn(m) { throw new Error(`gltf-transform warning: ${m}`); }, error(m) { throw new Error(m); } };
 
 export async function createIO() {
@@ -177,6 +194,8 @@ export async function packModel(io, rel, textures = new Map(), srcDir = join(ROO
   const { json, bin } = readGlb(await io.writeBinary(doc));
   if ((json.images ?? []).length !== uris.length) throw new Error(`${rel}: expected ${uris.length} images in the output, got ${(json.images ?? []).length}`);
   (json.images ?? []).forEach((image, i) => { image.uri = uris[i]; });
+  const made = PROVENANCE[rel];
+  if (made) json.asset = { ...json.asset, copyright: made.copyright, extras: { ...(json.asset.extras ?? {}), source: made.source } };
   out.set(rel, writeGlb(json, bin));
   return out;
 }
