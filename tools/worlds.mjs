@@ -1081,6 +1081,52 @@ async function hubScenarios({ url, shots, fail: report }) {
       told.push('with nothing new the sparkles lead back to the fairies\' arch and the cat says "the other worlds still sleep" on a tap and on a second entry, by its clip hub/hub_asleep');
       await p.close();
     }
+
+    // ----- "keepsakes": two secrets found and the acorns gathered in the first world; the ring of mushrooms plays -----
+    {
+      const save = HUB_SAVES.one();
+      const fw = save.worlds[FIRST_WORLD];
+      fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: false };
+      fw.found = [6, 7, 8, 9, 10, 11];   // the six acorns (src/worlds/fairy/collect.ts)
+      save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
+      const p = await open('keepsakes', save);
+      await p.page.goto(`${url}?debug&world=hub${q}`);
+      await p.play(false);
+      await p.inWorld('hub');
+      const want = ['fairy/secret:chest', 'fairy/secret:glade', 'fairy/set:acorn'];
+      const kept = await p.g(() => ({ list: __game.hub.keepsakes(), mesh: !!__game.scene.getObjectByName('keepsakes') }));
+      if (JSON.stringify(kept.list) !== JSON.stringify(want) || !kept.mesh) fail(`keepsakes: the tree shows ${JSON.stringify(kept)}, expected ${JSON.stringify(want)} in a mesh "keepsakes"`);
+      // a picture from the fairies' nest side, 9 m out
+      const arch = HUB_ARCH[0], fa = Math.atan2(arch.x, arch.z);
+      await p.g((a) => { const g = __game; g.teleport(Math.sin(a) * 9, Math.cos(a) * 9); g.hero.heading = a + Math.PI; g.hero.root.rotation.y = g.hero.heading; g.cam.yaw = g.hero.heading + Math.PI; }, fa);
+      await p.gameSeconds(1.5);
+      await p.shot('hub-keepsakes.png');
+      // the ring: she stands 3 m from the stump facing it; a tap on a cap plays its note, she does not walk
+      const ring = await p.g(() => __game.hub.ring());
+      const c = ring.tops.reduce((m, t) => ({ x: m.x + t.x / ring.tops.length, z: m.z + t.z / ring.tops.length }), { x: 0, z: 0 });
+      const out = Math.hypot(c.x, c.z), ox = c.x / out, oz = c.z / out;
+      await p.g(([x, z, h]) => { const g = __game; g.teleport(x, z); g.hero.heading = h; g.hero.root.rotation.y = h; g.cam.yaw = h + Math.PI; }, [c.x + ox * 3.2, c.z + oz * 3.2, Math.atan2(-ox, -oz)]);
+      await p.gameSeconds(1.5);
+      const target = await p.g(() => {
+        const g = __game, cv = g.renderer.domElement.getBoundingClientRect(), tops = g.hub.ring().tops, V = g.hero.root.position.constructor;
+        // the cap nearest the middle of the screen
+        let best = null;
+        tops.forEach((t, i) => { const v = new V(t.x, t.y, t.z).project(g.camera); const sx = cv.left + (v.x + 1) / 2 * cv.width, sy = cv.top + (1 - v.y) / 2 * cv.height, d = Math.hypot(sx - cv.width / 2, sy - cv.height / 2); if (v.z < 1 && (!best || d < best.d)) best = { i, sx, sy, d }; });
+        return best;
+      });
+      const before = await p.at();
+      if (!target) fail('keepsakes: no cap of the ring on the screen');
+      else {
+        await p.page.touchscreen.tap(target.sx, target.sy);
+        await p.gameSeconds(1);
+        const after = await p.at(), notes = (await p.g(() => __game.hub.ring())).notes;
+        if (!notes.includes(target.i)) fail(`keepsakes: a tap on the cap ${target.i} of the ring played ${JSON.stringify(notes)}`);
+        if (Math.hypot(after.x - before.x, after.z - before.z) > 0.3) fail(`keepsakes: a tap on a mushroom of the ring walked her ${Math.hypot(after.x - before.x, after.z - before.z).toFixed(2)} m`);
+        await p.shot('hub-ring.png');
+        told.push(`the tree shows the keepsakes of two secrets and the acorns (${want.length}); a tap on a mushroom of the ring played its note, she stood`);
+      }
+      await p.close();
+    }
   } finally {
     await browser.close();
   }

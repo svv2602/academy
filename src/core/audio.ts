@@ -75,6 +75,15 @@ export function sfx(kind: 'pop' | 'chime' | 'good' | 'soft' | 'fanfare' | 'jump'
   }
 }
 
+/** One bell note of `freq` Hz, as the music box's (a tap on a mushroom of the hub's ring): the voice of the effects. */
+export function note(freq: number) {
+  if (!ctx || hidden) return;
+  const t = ctx.currentTime;
+  tone(freq, t, 1.1, 'sine', 0.45, sfxGain);
+  tone(freq * 2, t, 0.5, 'triangle', 0.1, sfxGain);
+  tone(freq * 3, t, 0.25, 'sine', 0.05, sfxGain);
+}
+
 /** The notes of the world's music (`WorldDef.music`); null = the world has none and the bed stays silent. */
 let music: MusicParams | null = null;
 /** Fades out and takes apart the bed that plays now; null in silence. */
