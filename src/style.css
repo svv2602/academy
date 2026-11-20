@@ -41,7 +41,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 /* During the tour of a world (src/game/flyover.ts) the cat's line goes to the bottom, wide and short (two lines): the
    tour shows what is high - the crown, the nests, the towers - and the stick and the buttons are hidden then. */
 body.touring #bubble { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 12px; --w: min(820px, 86vw);
-  max-width: var(--w); padding: 6px 18px 6px 10px; }
+  max-width: var(--w); padding: 6px 18px 6px 10px; min-height: 48px; box-sizing: border-box; }
 body.touring #bubble p { font-size: clamp(14px, min(2.2vw, 4.4vh), 20px); }
 
 #answers { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: clamp(6px, 1.2vw, 12px);
