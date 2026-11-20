@@ -123,6 +123,11 @@ export interface Save {
    * day), `said` - the day the cat told of it in the shop (once a day). Dates `YYYY-MM-DD`; absent until first written.
    */
   deal?: { took?: string; said?: string };
+  /**
+   * The thing each pet wears (src/game/shop.ts `equipPet`, decision of 2026-11-20): an id of PET_ITEMS bought (in
+   * `owned`), null - none. Absent until the first one put on.
+   */
+  petGear?: { cat?: string | null; fawn?: string | null };
   /** The local date (`YYYY-MM-DD`) of the last gift of the day (PLAY-21): one star at the first launch of a new date. */
   gift?: string;
   /**
@@ -427,6 +432,11 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (s.deal !== undefined) {
     const d = isObject(s.deal) ? s.deal : {};
     out.deal = Object.fromEntries(['took', 'said'].filter((k) => typeof d[k] === 'string' && DAY.test(d[k] as string)).map((k) => [k, d[k]]));
+  }
+  // The things the pets wear: per pet an id or null; anything else is dropped (shop.ts petWorn checks the id itself).
+  if (s.petGear !== undefined) {
+    const g = isObject(s.petGear) ? s.petGear : {};
+    out.petGear = Object.fromEntries(['cat', 'fawn'].filter((k) => g[k] === null || (typeof g[k] === 'string' && g[k] !== '')).map((k) => [k, g[k]]));
   }
   // The helpers taken by day: a day keyed by its date, its counts whole and above zero; anything else is dropped.
   if (s.helps !== undefined) {

@@ -9,13 +9,15 @@ const buildHero = vi.fn();
 const loadGear = vi.fn();
 const showNotice = vi.fn();
 const shared = vi.fn();
+const loadPetGear = vi.fn();
 vi.mock('../core/assets', () => ({ rig, shared }));
 vi.mock('./hero', () => ({ buildHero }));
 vi.mock('./gear', () => ({ loadGear }));
+vi.mock('./petgear', () => ({ loadPetGear }));
 vi.mock('../ui/ui', () => ({ showNotice }));
 
 const SAVE = { dress: '#ff7fb5' } as unknown as Save;
-const HERO = { model: 'the heroine' }, GEAR = { wand_star: 'a wand' }, CAT = { model: 'the cat' };
+const HERO = { model: 'the heroine' }, GEAR = { wand_star: 'a wand' }, CAT = { model: 'the cat' }, PET_GEAR = { cat_bow: 'a bow' };
 /** A module of its own for every test: "the game said why it stopped" is remembered for the life of the page. */
 const boot = async () => { vi.resetModules(); return import('./boot'); };
 
@@ -25,6 +27,7 @@ beforeEach(() => {
   shared.mockReset();
   buildHero.mockReset().mockImplementation(async () => ({ ...HERO }));
   loadGear.mockReset().mockResolvedValue(GEAR);
+  loadPetGear.mockReset().mockResolvedValue(PET_GEAR);
   showNotice.mockReset();
   error = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -36,11 +39,23 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const got = await loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledExactlyOnceWith(SAVE);
     expect(rig.mock.calls[0]).toEqual(['extra/cat', 0.75, false]);
-    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])) });
+    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])), petGear: PET_GEAR });
+    // The pets' things on the very models of the cat and the fawn the game plays with (src/game/petgear.ts).
+    expect(loadPetGear).toHaveBeenCalledExactlyOnceWith({ cat: CAT, fawn: CAT });
     // The items are hung under the bones of the model the game plays with, not of a copy.
     expect(loadGear).toHaveBeenCalledExactlyOnceWith(got!.heroRig);
     expect(showNotice).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it('the things of the pets failing to load: the game plays on, the pets bare', async () => {
+    loadPetGear.mockRejectedValue(new Error('404'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { loadShared } = await boot();
+    expect((await loadShared(SAVE))?.petGear).toEqual({});
+    expect(showNotice).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 
   it('the heroine and the cat are asked for at once, not one after the other', async () => {

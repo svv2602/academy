@@ -7,6 +7,8 @@
  * The colours of the dress, the hair and the wings are free for ever (R15). The last tab sells the potions and the
  * compass (src/game/supplies.ts): a tap on one picks it, its button buys one more for her stock (no trying on, no
  * "for ever" - the cat says nothing, a chime and the new count).
+ * The tabs of the pets (decision of 2026-11-20): the cat's things, and the fawn's once it is found. A tap tries the thing
+ * on the pet as on the heroine; a rare thing on a day it is not the deal of the day is a silhouette "рідкісна річ".
  *
  * The rules are src/game/shop.ts: this screen spends stars only through `buy`, on the child's tap, and stores the save
  * at once after every choice (`persist`). What is tried on never reaches the save.
@@ -15,7 +17,7 @@ import { sfx, say } from '../core/audio';
 import type { Save } from '../core/save';
 import { GEAR, type Gear, type GearId } from '../game/gear';
 import { LOOKS, applyLook as putOnLook, lookOf } from '../game/looks';
-import { CATALOG, STOCK_MAX, SUPPLIES, buy, canBuy, dealOf, equip, has, item, itemState, priceOf, stock, type Slot, type SupplyId } from '../game/shop';
+import { CATALOG, PET_ITEMS, PET_WEARERS, STOCK_MAX, SUPPLIES, buy, canBuy, dealOf, equip, equipPet, has, item, itemState, petItem, petItemState, petOpen, petWorn, priceOf, stock, type PetWearer, type Slot, type SupplyId } from '../game/shop';
 import { dealDay } from '../game/deal';
 import { SUPPLY_LOOK } from './supplies';
 import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
@@ -26,15 +28,18 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 /** The free colours of the wings; the first is the one the petals always had (save.ts WING_COLOR). */
 export const WING_COLORS = ['#d8f6ff', '#ffd1ec', '#e6d4ff', '#fff3b8', '#c9ffe0'];
 const SLOTS: readonly Slot[] = ['head', 'wand', 'wings', 'trail'];
-type Tab = 'dress' | 'hair' | Slot | 'potions';
+type Tab = 'dress' | 'hair' | Slot | PetWearer | 'potions';
 const TABS: readonly { id: Tab; icon: string }[] = [
   { id: 'dress', icon: '👗' }, { id: 'hair', icon: '💇' }, { id: 'wings', icon: '🪽' },
-  { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' }, { id: 'potions', icon: '🧪' },
+  { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' },
+  { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'potions', icon: '🧪' },
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
 const ICON: Record<string, string> = {
   none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
+  cat_collar: '📿', cat_bow: '🎀', cat_hat: '🧙', cat_gold_bell: '🔔',
+  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑',
   tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
 /** The price of a tile: the deal of the day has its own price crossed out before the new one. */
@@ -54,6 +59,8 @@ export interface ShopHooks {
   pause(on: boolean): void;
   /** The camera comes close to the heroine, or goes back with null (g.camOverride). */
   closeup(dist: number | null): void;
+  /** Shows a thing on a pet (null: none; src/game/petgear.ts wearPetGear). */
+  wearPet?(pet: PetWearer, id: string | null): void;
 }
 
 let opener: (() => void) | null = null;
@@ -83,6 +90,11 @@ export function wearSaved(save: Save, gear: Gear): void {
   gear.tint(save.wingColor);
 }
 
+/** Puts on each pet the thing the save holds for it (none when it is not hers). */
+export function wearSavedPets(save: Save, wearPet: ShopHooks['wearPet']): void {
+  for (const pet of PET_WEARERS) wearPet?.(pet, petWorn(save, pet));
+}
+
 /** Sets up the screen once, before the first frame; returns its opener (the same as openShop). */
 export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   const root = $('shop'), tabs = $('shopTabs'), items = $('shopItems'), act = $('shopAct'), sayBox = $('shopSay'), sayText = $('shopSayText');
@@ -93,6 +105,8 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   let peek: string | null = null;
   /** The potion picked on its tab: its button buys one. */
   let potion: SupplyId | null = null;
+  /** What each pet tries on and is not bought (undefined: the save's own). */
+  let petTrial: Partial<Record<PetWearer, string>> = {};
 
   const speak = (key: SpokenKey) => {
     sayText.textContent = t(key);
@@ -183,15 +197,64 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     act.appendChild(b);
   }
 
+  /** The tab of a pet: none and its things; a tap tries one on the pet, the one tried on has its "buy" button. */
+  function renderPet(pet: PetWearer) {
+    const row = document.createElement('div');
+    row.className = 'tiles';
+    const shownPet = petTrial[pet] ?? petWorn(save, pet);
+    for (const id of [null, ...PET_ITEMS.filter((x) => x.pet === pet).map((x) => x.id)]) {
+      const st = id === null ? null : petItemState(save, id)!;
+      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : t('shop_rare');
+      const cls = 'tile' + ((peek === null ? shownPet === id : peek === id) ? ' sel' : '') + (st?.kind === 'rare' ? ' sil' : '')
+        + (st?.kind === 'price' && st.was ? ' deal' : '');
+      const b = button(cls, `<span class="ic">${ICON[id ?? 'none'] ?? '❔'}</span>${cap ? `<span class="cap">${cap}</span>` : ''}`, () => { tapPet(pet, id); render(); });
+      b.dataset.id = id ?? 'none';
+      row.appendChild(b);
+    }
+    items.appendChild(row);
+    act.innerHTML = '';
+    if (peek) { act.textContent = t('shop_rare'); return; }
+    const id = petTrial[pet];
+    const st = id ? petItemState(save, id) : undefined;
+    if (!id || st?.kind !== 'price') return;
+    const b = button('big small' + (st.short > 0 ? ' short' : ''), '', () => { tapBuyPet(pet, id); render(); });
+    b.id = 'shopBuy'; b.dataset.id = id;
+    b.textContent = st.short > 0 ? tf('shop_short', { n: st.short }) : tf('shop_buy', { n: st.price });
+    act.appendChild(b);
+  }
+
+  const tapPet = (pet: PetWearer, id: string | null) => {
+    peek = null;
+    if (id === null || save.owned.includes(id)) {
+      // Hers: worn for good at once.
+      equipPet(save, pet, id); delete petTrial[pet]; hooks.wearPet?.(pet, id); hooks.persist();
+      return;
+    }
+    const st = petItemState(save, id)!;
+    if (st.kind === 'rare') { peek = id; return; }
+    petTrial[pet] = id; hooks.wearPet?.(pet, id);
+    if (st.kind === 'price' && st.short > 0) speak('shop_more');
+  };
+
+  const tapBuyPet = (pet: PetWearer, id: string) => {
+    if (!buy(save, id)) { speak('shop_more'); return; }
+    equipPet(save, pet, id); delete petTrial[pet]; hooks.wearPet?.(pet, id);
+    hooks.persist(); hooks.refreshHud();
+    sfx('chime'); speak('shop_bought');
+  };
+
   function render() {
     tabs.innerHTML = '';
     for (const tb of TABS) {
+      if ((tb.id === 'cat' || tb.id === 'fawn') && !petOpen(save, tb.id)) continue;   // the fawn's tab once it is found
+      if (tb.id === 'cat') { const br = document.createElement('span'); br.className = 'tab-break'; tabs.appendChild(br); }
       const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; peek = null; potion = null; render(); });
       b.dataset.tab = tb.id;
       tabs.appendChild(b);
     }
     items.innerHTML = '';
     if (tab === 'potions') { renderPotions(); return; }
+    if (tab === 'cat' || tab === 'fawn') { renderPet(tab); return; }
     if (tab === 'dress' || tab === 'hair') {
       const key = tab;
       items.appendChild(swatches(key === 'dress' ? DRESS : HAIR, save[key], (c) => { save[key] = c; hooks.applyLook(); hooks.persist(); }));
@@ -217,10 +280,10 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
 
   const open = () => {
     if (!root.classList.contains('hidden')) return;
-    trial = {}; peek = null; potion = null; tab = 'dress';
+    trial = {}; petTrial = {}; peek = null; potion = null; tab = 'dress';
     // The deal of the day (src/game/deal.ts): the shop opens on its tab, and the cat tells of it once a day.
     const deal = dealOf(save), day = dealDay();
-    if (deal) tab = item(deal.id)?.slot ?? 'potions';
+    if (deal) tab = item(deal.id)?.slot ?? petItem(deal.id)?.pet ?? 'potions';
     const tell = deal !== null && save.deal?.said !== day;
     if (tell) { save.deal = { ...save.deal, said: day }; hooks.persist(); }
     $('shopDone').textContent = t('shop_done');
@@ -233,8 +296,9 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   const close = () => {
     // What was tried on and not bought comes off: the slot shows the save's thing again.
     for (const slot of Object.keys(trial) as Slot[]) wear(slot, null);
-    trial = {}; peek = null;
+    trial = {}; petTrial = {}; peek = null;
     wearSaved(save, gear);
+    wearSavedPets(save, hooks.wearPet);
     root.classList.add('hidden');
     hooks.closeup(null); hooks.pause(false);
   };
@@ -243,6 +307,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   closeupHook = hooks.closeup;
   initLooks(save, gear, hooks);
   wearSaved(save, gear);
+  wearSavedPets(save, hooks.wearPet);
   opener = open;
   return open;
 }

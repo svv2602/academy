@@ -1305,3 +1305,20 @@ describe('the deal of the day: `deal`, a field of version 4 without a new versio
     for (const bad of [3, 'x', null, ['2030-03-05']]) expect(load({ deal: bad }).deal, JSON.stringify(bad)).toEqual({});
   });
 });
+
+describe('the things the pets wear: `petGear`, a field of version 4 without a new version', () => {
+  const load = (fields: Record<string, unknown>) => {
+    storage.setItem(KEY, JSON.stringify({ ...defaultSave(), ...fields }));
+    return loadSave();
+  };
+  it('absent in a fresh save; read and written as it is', () => {
+    expect('petGear' in defaultSave()).toBe(false);
+    storeSave({ ...load({ petGear: { cat: 'cat_bow', fawn: null } }) });
+    expect(loadSave()?.petGear).toEqual({ cat: 'cat_bow', fawn: null });
+  });
+  it('a damaged id is dropped, a damaged field is empty', () => {
+    expect(load({ petGear: { cat: 3, fawn: '', dog: 'x' } }).petGear).toEqual({});
+    expect(load({ petGear: { cat: 'later_thing' } }).petGear).toEqual({ cat: 'later_thing' });   // a later version's: kept
+    for (const bad of [3, 'x', null, ['cat_bow']]) expect(load({ petGear: bad }).petGear, JSON.stringify(bad)).toEqual({});
+  });
+});

@@ -2960,6 +2960,8 @@ try {
       // stars is told of it beforehand) and is stored at once with every other choice; after the reload below she wears
       // what was bought and chosen.
       let shopped = null;
+      /** What the pets wear after the block pet-gear: checked after the reload of the block leave. */
+      let petShopped = null;
       if (has('shop')) {
         const fail = (what) => { throw new Error(`shop: ${what}`); };
         const stored = () => g(() => JSON.parse(localStorage.getItem('amw-save') || '{}'));
@@ -3215,6 +3217,62 @@ try {
         if (!next) fail('no deal on the next day');
         await g(() => { __game.deal.day(null); __game.deal.hold(); });
         console.log(`deal: on 2030-03-05 ${d.id} ${d.was} -> ${d.price} stars, the mark, the cat, the ribbon; bought at the deal's price, gone for the day with its mark; the next day ${next.id}`);
+      }
+      // ---- the things of the pets (decision of 2026-11-20, src/game/petgear.ts) ----
+      // No fawn found yet: no fawn's tab. The cat's tab: the rare golden bell a silhouette "рідкісна річ" (the deal held,
+      // so it is not the deal), no "buy"; the hat tried on - on the cat's bone at once -, bought (the watch of the stars
+      // told of it), worn and stored; the collar tried on and not bought comes off when the shop closes. The fawn found:
+      // its tab, the wreath bought and worn. The block leave checks both after its reload.
+      if (has('pet-gear')) {
+        const fail = (what) => { throw new Error(`pet gear: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const worn = () => g(() => __game.petWorn());
+        const buyIt = async (id, price) => {
+          await tap(`#shopItems [data-id=${id}]`); await calm();
+          const label = await page.textContent('#shopBuy').catch(() => '');
+          if (!label.includes(`${price} ⭐`)) fail(`the button under ${id} says "${label}", expected ${price} ⭐`);
+          const before = await g(() => __game.save.stars);
+          await g((it) => { window.__stars.buy = it; }, { id, price });
+          await tap('#shopBuy'); await calm();
+          await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of ${id} at ${price}`));
+          const after = await g(() => ({ stars: __game.save.stars, owned: __game.save.owned }));
+          if (after.stars !== before - price || !after.owned.includes(id)) fail(`after buying ${id}: ${before} -> ${after.stars} stars, owned ${after.owned.join()}`);
+        };
+        await g(() => { __game.save.stars += 50; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+        await calm();
+        // the whole session (no --only) finds the fawn in the block pet before; a piece comes here without it
+        const fawnFound = await g(() => (__game.save.pets ?? []).includes('fawn') || __game.save.worlds.fairy?.flags?.pet === true);
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        if (await g(() => !!document.querySelector('#shopTabs [data-tab=fawn]')) !== fawnFound) fail(fawnFound ? 'no fawn\'s tab with the fawn found' : 'the fawn\'s tab is there before the fawn is found');
+        await tap('#shopTabs [data-tab=cat]'); await calm();
+        const rare = await g(() => { const e = document.querySelector('#shopItems [data-id=cat_gold_bell]'); return e && { sil: e.classList.contains('sil'), cap: e.textContent }; });
+        if (!rare?.sil || !/рідкісна|редкая/.test(rare.cap)) fail(`the golden bell on a day it is not the deal: ${JSON.stringify(rare)}, expected a silhouette "рідкісна річ"`);
+        const was = (await worn()).cat;   // the bow, when the block deal bought it
+        await tap('#shopItems [data-id=cat_gold_bell]'); await calm();
+        if (await visible('#shopBuy')) fail('the rare golden bell has a "buy" button on a day it is not the deal');
+        if ((await worn()).cat !== was) fail(`the silhouette changed what the cat wears: ${was} -> ${JSON.stringify(await worn())}`);
+        await tap('#shopItems [data-id=cat_hat]'); await calm();
+        const tried = await worn();
+        if (tried.cat !== 'cat_hat' || tried.catBone !== 'head') fail(`the hat tried on: the cat wears ${JSON.stringify(tried)}, expected cat_hat under the bone head`);
+        await shot('pet-gear-cat');
+        await buyIt('cat_hat', 25);
+        // tried on and not bought: the collar (the block deal bought the bow, the deal of its day)
+        await tap('#shopItems [data-id=cat_collar]'); await calm();
+        if ((await worn()).cat !== 'cat_collar') fail('the collar tried on is not on the cat');
+        await tap('#shopDone'); await calm();
+        const off = await worn(), stored = await g(() => JSON.parse(localStorage.getItem('amw-save') || '{}').petGear ?? null);
+        if (off.cat !== 'cat_hat') fail(`after the shop closed the cat wears ${off.cat}, expected the bought hat (the collar tried on comes off)`);
+        if (stored?.cat !== 'cat_hat') fail(`the stored petGear: ${JSON.stringify(stored)}`);
+        await g(() => { __game.save.pets = [...new Set([...(__game.save.pets ?? []), 'fawn'])]; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        await tap('#shopTabs [data-tab=fawn]'); await calm();
+        await buyIt('fawn_wreath', 15);
+        const both = await worn();
+        if (both.fawn !== 'fawn_wreath' || both.fawnBone !== 'Head') fail(`the fawn wears ${JSON.stringify(both)}, expected fawn_wreath under the bone Head`);
+        await shot('pet-gear-fawn');
+        await tap('#shopDone'); await calm();
+        petShopped = { cat: 'cat_hat', fawn: 'fawn_wreath' };
+        console.log(`pet gear: ${fawnFound ? 'the fawn found before: its tab there' : 'no fawn tab before the fawn'}; the golden bell a silhouette, no "buy"; the cat's hat tried on under its bone, bought for 25, the collar tried on came off; the fawn found - its tab, the wreath bought for 15 under its bone; stored`);
       }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
       // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.
@@ -3908,6 +3966,13 @@ try {
           if (left.length) errors.push(`shop: ${mode}: after the reload ${left.join('; ')}`);
           else console.log(`shop: after the reload she holds ${a.wand}, has no wings, hair ${a.hair}, wing colour ${a.wingColor}`);
         } else if (listed('shop')) errors.push(`shop: ${mode}: the shop was not played`);
+        // the things of the pets bought in the block pet-gear: on their bones again after the reload
+        if (petShopped) {
+          await page.waitForFunction(() => typeof window.__game?.petWorn === 'function', null, { timeout: T(30000) }).catch(() => { throw new Error('pet gear: no __game.petWorn after the reload'); }); /* clock: page-load */
+          const w = await g(() => __game.petWorn());
+          if (w.cat !== petShopped.cat || w.fawn !== petShopped.fawn) errors.push(`pet gear: ${mode}: after the reload the cat wears ${w.cat} and the fawn ${w.fawn}, bought ${JSON.stringify(petShopped)}`);
+          else console.log(`pet gear: after the reload the cat wears ${w.cat}, the fawn ${w.fawn}`);
+        }
       }
       // ---- the four looks of the start screen (PLAY-06, R24-R26): played on the start screen of the reload above.
       // Each button puts its whole look on the save and on her at once, stored, the trail and the purchases kept; its

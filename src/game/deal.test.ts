@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
 import { DEAL_MIN, dealState, discounted, ranked } from './deal';
-import { CATALOG, SUPPLIES, buy, canBuy, dealOf, priceOf, stock } from './shop';
+import { CATALOG, PET_ITEMS, SUPPLIES, buy, canBuy, dealOf, priceOf, stock } from './shop';
 
 // The deal of the day (decision of 2026-11-20): one thing 40 % off, one purchase at that price a day.
-const SOLD = [...CATALOG.filter((i) => i.price !== undefined).map((i) => [i.id, i.price!] as const), ...SUPPLIES.map((x) => [x.id, x.price] as const)];
+// the rare things of the pets are sold only as the deal (src/game/petshop.test.ts), the others as any thing
+const SOLD = [...CATALOG.filter((i) => i.price !== undefined).map((i) => [i.id, i.price!] as const), ...SUPPLIES.map((x) => [x.id, x.price] as const),
+  ...PET_ITEMS.filter((x) => !x.rare).map((x) => [x.id, x.price] as const)];
 const day = (n: number) => `2030-${String(1 + (n % 12)).padStart(2, '0')}-${String(1 + (n % 28)).padStart(2, '0')}`;
 let s: Save;
 beforeEach(() => { s = defaultSave(); s.stars = 1000; dealState.held = false; dealState.day = null; });
@@ -52,8 +54,8 @@ describe('which thing', () => {
     expect(dealOf(s, today)!.id).toBe(d.id);
   });
 
-  it('everything to wear bought: the deal is a supply', () => {
-    s.owned = CATALOG.filter((i) => i.price !== undefined).map((i) => i.id);
+  it('everything to wear bought, hers and the pets\': the deal is a supply', () => {
+    s.owned = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...PET_ITEMS.map((x) => x.id)];
     for (let n = 0; n < 30; n++) expect(SUPPLIES.map((x) => x.id as string)).toContain(dealOf(s, day(n))!.id);
   });
 
