@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [walk, cache, transition, travel]   # the parts of tools/worlds.mjs, a job each
+        part: [walk, cache, transition, travel, hub]   # the parts of tools/worlds.mjs, a job each
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

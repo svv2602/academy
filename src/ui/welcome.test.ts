@@ -184,4 +184,12 @@ describe('the wiring (src/game/start.ts)', () => {
     expect(said).toEqual(['go_next']);
     expect(gifts).toEqual([]);
   });
+
+  it('the first entry of a world with no characters (the hub) has no hint: there is no friend to run to', async () => {
+    const { enterWorld } = await import('../game/start');
+    const { g, raw, said } = game('2000-01-01');
+    raw.world = { characters: [] };
+    await enterWorld(g as never, true);
+    expect(said).toEqual([]);
+  });
 });

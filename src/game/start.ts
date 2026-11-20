@@ -17,12 +17,16 @@ import type { BookInfo, WorldLines } from './world';
  * The order of an entry into the world once "play" is pressed (R35): the opening scene of a new save (WORLD-13,
  * src/game/story.ts: the world's `story_intro`, once - a save already played has none), then the tour of the world
  * (src/game/flyover.ts: only for a world not visited yet - neither toured nor played in an earlier session), then the
- * game with the cat's first hint. The world's old welcome (`lines.intro`) is no longer said here.
+ * game with the cat's first hint - "run after the sparkles to a new friend", so only in a world with characters (the hub
+ * has none, R5). The world's old welcome (`lines.intro`) is no longer said here.
  */
 export async function enterWorld(g: Game, first: boolean): Promise<void> {
   if (first) await playStory(g, 'story_intro');
   await tour(g);
-  if (first) { firstDay(g); void g.speech.line('go_next', 'hint', 6000); }   // PLAY-21: the first day is marked, no star
+  if (first) {
+    firstDay(g);   // PLAY-21: the first day is marked, no star
+    if (g.world.characters?.length) void g.speech.line('go_next', 'hint', 6000);
+  }
   else await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
 }
 

@@ -217,6 +217,9 @@ export const probe: WorldDef<ProbeLoads, WorldSky> = {
   id: 'probe',
   spawn: SPAWN,
   arrive: (from) => (from === PORTAL.to ? ARRIVAL : null),
+  // The stand-in of the second world: the forest's place on the shelf (R32) - it stands behind the forest's arch of the
+  // hub, and its finale lights the forest's nest (src/worlds/hub/, the part "hub" of tools/worlds.mjs).
+  shelf: 1,
   ground,
   characters: FRIENDS,
   worldTasks: WORLD_TASKS,

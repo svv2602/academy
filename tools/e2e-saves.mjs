@@ -155,3 +155,17 @@ export function startSave(group, { mute = false } = {}) {
   if (mute) s.vol.voice = 0;
   return JSON.stringify(s);
 }
+
+/**
+ * The saves of the hub (WORLD-01, the part "hub" of tools/worlds.mjs, R02): the Great Tree with one artifact back - the
+ * first world done, the hub not visited yet - and with two: the probe world, which stands for the second world in the
+ * probe build (its place on the shelf is the forest's, src/worlds/probe/index.ts), done too.
+ */
+export const HUB_SAVES = {
+  one: () => GROUPS.shop.save(),
+  two: () => {
+    const s = GROUPS.shop.save();
+    s.worlds.probe = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+    return s;
+  },
+};

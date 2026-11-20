@@ -1,8 +1,8 @@
 // The probe world is a test world: the sources have it, the published game does not (TECH-15, TECH-09):
 //   node tools/worlds.mjs [distDir] [--only <part>[,<part>...]]
 // tools/e2e.mjs runs it as the step "worlds", once per run (with the mobile size, like "update"), on the dist/ it built.
-// The run has four parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5),
-// "transition" (6) and "travel" (7). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
+// The run has five parts, played one after another on one probe build: "walk" (1, 3 and 4 below), "cache" (5),
+// "transition" (6), "travel" (7) and "hub" (8). --only plays the parts named and leaves the rest out; the probe build (2) is made and checked for
 // every part - each of them plays it. CI gives each part a job of its own (ARCH-16: a new scenario is a new part and a
 // new job, not more minutes in an old one); without --only everything is played, as tools/e2e.mjs does.
 //   1. The published build (distDir; without the argument `vite build` makes dist/ anew, as `npm run build` does) holds
@@ -97,6 +97,14 @@
 //      nightly.yml: 20), and the later half of them is held to the same rule (`roundProblems`). Then the network goes off, the page is
 //      reloaded: the progress of both worlds is where it was, and the probe world opens from the cache.
 // A failed check of 1 or 2 ends the run before the walkthrough: there is nothing to play then.
+//   8. The hub, the Great Tree (WORLD-01, `hubScenarios`): with the first world done (tools/e2e-saves.mjs HUB_SAVES)
+//      she goes to the hub - its tour on the first entry, every point pictured; she at the arch of the fairies facing
+//      the tree; the crystal's nest alone glows; the forest's arch leads to the probe world (the second world's
+//      stand-in: the forest's place on the shelf), the other three sleep; its description is its tour alone (the short
+//      template, decision Q4); no hint "to a new friend". Through the forest's arch by the action button to the probe
+//      world and back to that arch, no second tour; a reload opens the hub where she stood. With the probe world done
+//      too, the forest's nest glows as well. Pictures shots-e2e/worlds-probe/hub-*.png (the tree with one and with two
+//      artifacts: hub-tree-1.png, hub-tree-2.png).
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
@@ -112,6 +120,7 @@ import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { WORLDS_LIST } from './vite-worlds.mjs';
 import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
+import { HUB_SAVES } from './e2e-saves.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the probe world (src/worlds/probe/) and the mode of the build that lists it (vite.config.ts). */
@@ -128,7 +137,17 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub'];
+/** The hub (src/worlds/hub/layout.ts): where she stands arriving through the arch of the place `shelf` (arrivalAt). */
+export const HUB_ARRIVAL = [0, 1, 2, 3, 4].map((shelf) => {
+  const a = (shelf / 5) * Math.PI * 2, d = 12.5 - 4;
+  return { x: Math.sin(a) * d, z: Math.cos(a) * d, facing: a + Math.PI };
+});
+/** The arch of a place of the shelf, where its action spot is (layout.ts PORTALS, r 12.5). */
+export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) * Math.PI * 2; return { x: Math.sin(a) * 12.5, z: Math.cos(a) * 12.5 }; });
+/** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
+export const HUB_NEED = { chain: 0, part: 0, scene: 0, finale: 0, secret: 0, pet: 0, flyover: 1 };
+
 /**
  * The walkthroughs of the part "walk", in the order they are played: the size, whether the network is switched off
  * after the first load, and the level of the tasks (as the sizes of the first world: the phone plays level 3, the
@@ -872,8 +891,163 @@ async function main() {
   } finally {
     blocked = null;
   }
+  // ---- 8. the hub ----
+  if (play('hub')) try {
+    const summary = await hubScenarios({ url, shots, fail });
+    if (summary) console.log(`[worlds] ${summary}`);
+  } catch (e) {
+    fail(`the hub: ${e.stack ?? e}`);
+  }
   server.close(); server.closeAllConnections();
   end();
+}
+
+/**
+ * The hub, the Great Tree (WORLD-01, R02, R30, R32; 8 above), on the probe build served at `url`, in the mobile size;
+ * the pictures go to `shots` (hub-*.png). Two saves (tools/e2e-saves.mjs HUB_SAVES):
+ * "one" - the first world done, the hub never visited: launched in the first world, she goes to the hub
+ * (`__game.travel`). There its tour plays on the first entry (a picture of every point, then a tap ends it), she
+ * stands at the arch of the fairies facing the tree, the crystal's nest alone glows, the arch of the forest leads to
+ * the probe world (the second world's stand-in) and the other three sleep; its description has the tour alone (the
+ * short template). Walked up to, the arch of the forest takes her to the probe world by its action button; back in the
+ * hub (no tour any more) she stands at the arch of the forest. A reload launches the game in the hub, where she stood.
+ * "two" - the probe world done too, launched in the hub: the forest's nest glows as well (a picture of the tree).
+ * No error, warning or failed request in the console. Returns the line to print, '' after a failure.
+ */
+async function hubScenarios({ url, shots, fail: report }) {
+  let failures = 0;
+  const fail = (msg) => { failures++; report(`the hub: ${msg}`); };
+  const { chromium } = await import('playwright-core');
+  const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+  const gl = process.env.E2E_GL || 'gl';
+  if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+  const slow = Number(process.env.E2E_SLOW || 1);
+  const T = (ms) => Math.round(ms * slow); /* clock: helper */
+  const origin = new URL(url).origin;
+  const q = process.env.Q ? `&q=${process.env.Q}` : '';
+  const own = (u) => { try { const x = new URL(u); return x.protocol === 'data:' || x.protocol === 'blob:' || x.origin === origin; } catch { return false; } };
+  const started = Date.now(); /* clock: log-time */
+  const told = [];
+  const browser = await chromium.launch({
+    executablePath: '/usr/bin/google-chrome', headless: true,
+    args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'],
+  });
+  try {
+    /** A page of the game with `save` in a context of its own (the gift of a new day held, as in tools/shot.mjs). */
+    const open = async (name, save) => {
+      const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await ctx.addInitScript((s) => { if (!localStorage.getItem('amw-save')) localStorage.setItem('amw-save', s); sessionStorage.setItem('amw-gift-hold', '1'); }, JSON.stringify(save));
+      await ctx.route((u) => !own(u.href), (route) => route.abort());
+      const page = await ctx.newPage();
+      page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`${name}: console ${m.type()}: ${m.text()}`); });
+      page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
+      page.on('requestfailed', (r) => fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`));
+      page.on('response', (r) => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
+      const g = (fn, arg) => page.evaluate(fn, arg);
+      const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); }); /* clock: helper */
+      /** `s` seconds of game time (the camera of a held point settles by it). */
+      const gameSeconds = async (sec) => { const t0 = await g(() => __game.time); await until((t) => __game.time > t, t0 + sec, 'the game stopped'); };
+      /** "Play"; the scenes of a start (a cutscene, the tour of the first world, an achievement) are left to `keepTour`. */
+      const play = async (keepTour) => {
+        await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) }); /* clock: page-load */
+        await until(() => typeof window.__game?.travel === 'function' && __game.time > 0, null, 'no window.__game with ?debug', 30000);
+        await page.click('#play');
+        await until((keep) => {
+          if (__game.story?.active) { __game.story.skip(); return false; }
+          if (__game.flyoverPlayer?.active) { if (keep) return true; __game.flyoverPlayer.skip(); return false; }
+          if (!document.querySelector('#fanfare').classList.contains('hidden')) { document.querySelector('#fanfareOk')?.click(); return false; }
+          return !__game.busy;
+        }, keepTour, 'the game stayed busy after "Play"');
+      };
+      /** She is in the world `id`, its change over, the heroine given back (the tour of a first entry left to `keepTour`). */
+      const inWorld = (id, keepTour = false) => until(([w, keep]) => __game.world === w && !__game.transitioning && (keep && __game.flyoverPlayer?.active || !__game.busy), [id, keepTour], `not in the world "${id}"`, 120000);
+      const at = () => g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, heading: __game.hero.heading }));
+      const near = (p, want, what) => { if (Math.hypot(p.x - want.x, p.z - want.z) > 1.5) fail(`${name}: ${what}: she stands at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}, not at ${want.x.toFixed(1)}, ${want.z.toFixed(1)}`); };
+      const facing = (p, want, what) => { if (Math.cos(p.heading - want) < 0.9) fail(`${name}: ${what}: she faces ${p.heading.toFixed(2)}, not ${want.toFixed(2)} (toward the tree)`); };
+      const shot = async (file) => { await page.screenshot({ path: join(root, shots, file) }); };
+      return { page, g, until, gameSeconds, play, inWorld, at, near, facing, shot, close: () => ctx.close() };
+    };
+
+    // ----- "one": the first world done, the hub not visited -----
+    {
+      const p = await open('one artifact', HUB_SAVES.one());
+      await p.page.goto(`${url}?debug${q}`);
+      await p.play(false);
+      if ((await p.g(() => __game.world)) !== FIRST_WORLD) fail(`one artifact: launched in "${await p.g(() => __game.world)}", not in the first world`);
+      // every line the cat shows from here on, frame by frame (the hub has no friend to send her to)
+      await p.g(() => { const seen = window.__hubLines = new Set(); const look = () => { if (__game.line) seen.add(__game.line); requestAnimationFrame(look); }; look(); });
+      if ((await p.g(() => __game.travel('hub'))) !== true) throw new Error('one artifact: the change of world to the hub was refused');
+      await p.inWorld('hub', true);
+      // the tour of the first entry: from the roots up to the crystal's nest, round the arches - a picture of each point
+      if (!(await p.g(() => __game.flyoverPlayer?.active === true))) fail('one artifact: no tour of the hub on its first entry');
+      else {
+        const n = await p.g(() => __game.flyoverPlayer.times.length);
+        for (let i = 0; i < n; i++) {
+          await p.g((k) => __game.flyoverPlayer.hold(k), i);
+          await p.gameSeconds(0.8);   // the camera settles on the held point
+          await p.shot(`hub-tour-${i}.png`);
+          if (i === 2) await p.shot('hub-tree-1.png');   // the tree over the glade, the crystal's nest on its side
+        }
+        await p.g(() => __game.flyoverPlayer.skip());
+        await p.inWorld('hub');
+        told.push(`its tour on the first entry (${n} points pictured)`);
+      }
+      const look = await p.g(() => ({ nests: __game.hub.nests(), portals: __game.hub.portals().map((x) => x.world), toured: __game.save.worlds.hub?.flags?.toured === true }));
+      const lacks = await p.g((need) => __game.missing(need), HUB_NEED);
+      const pos = await p.at();
+      p.near(pos, HUB_ARRIVAL[0], 'come from the first world'); p.facing(pos, HUB_ARRIVAL[0].facing, 'come from the first world');
+      if (JSON.stringify(look.nests) !== JSON.stringify([true, false, false, false, false])) fail(`one artifact: the nests ${JSON.stringify(look.nests)}, the crystal's alone should glow`);
+      if (JSON.stringify(look.portals) !== JSON.stringify([FIRST_WORLD, PROBE, null, null, null])) fail(`one artifact: the arches lead to ${JSON.stringify(look.portals)}, not the fairies', the probe world behind the forest's and three asleep`);
+      if (!look.toured) fail('one artifact: the tour of the hub is not marked in its part of the save');
+      if (lacks?.length) fail(`one artifact: the description of the hub against its short template: ${lacks.join('; ')}`);
+      await p.gameSeconds(3);   // the time the first hint of a world comes in
+      const lines = await p.g(() => [...window.__hubLines]);
+      if (lines.includes('go_next')) fail(`one artifact: in the hub the cat sends her "to a new friend" (go_next) - the hub has none; lines: ${lines.join(', ')}`);
+      await p.shot('hub-arrival.png');
+      told.push('she at the arch of the fairies facing the tree, the crystal\'s nest alone glowing, the forest\'s arch to the probe world, three asleep, the description its tour alone, no hint "to a new friend"');
+      // through the forest's arch by its action button
+      await p.g(([x, z]) => { __game.teleport(x, z); }, [HUB_ARCH[1].x * 0.9, HUB_ARCH[1].z * 0.9]);
+      await p.until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 'no action button at the arch of the forest', 20000);
+      await p.page.locator('#btnAct').dispatchEvent('pointerdown');   // as tools/shot.mjs presses it: the button breathes, it is never "stable"
+      await p.inWorld(PROBE);
+      if ((await p.g(() => __game.world)) !== PROBE) fail('one artifact: the arch of the forest did not take her to the probe world');
+      // back: at the arch of the forest, facing the tree; no tour any more
+      if ((await p.g(() => __game.travel('hub'))) !== true) throw new Error('one artifact: the way back to the hub was refused');
+      await p.inWorld('hub', true);
+      if (await p.g(() => __game.flyoverPlayer?.active === true)) fail('one artifact: the tour of the hub played again on the second entry');
+      await p.inWorld('hub');
+      const back = await p.at();
+      p.near(back, HUB_ARRIVAL[1], 'back from the probe world'); p.facing(back, HUB_ARRIVAL[1].facing, 'back from the probe world');
+      told.push('through the forest\'s arch to the probe world and back to that arch, no second tour');
+      // a reload launches the game in the hub, where she stood
+      await p.page.reload();   // the page hidden on the way stores the save (where she stands, the world she is in)
+      await p.play(false);
+      if ((await p.g(() => __game.world)) !== 'hub') fail(`one artifact: after a reload the game opened "${await p.g(() => __game.world)}", not the hub where she stopped`);
+      else { p.near(await p.at(), HUB_ARRIVAL[1], 'after a reload'); told.push('a reload opened the hub where she stood'); }
+      await p.close();
+    }
+
+    // ----- "two": the probe world done too: the forest's nest glows as well -----
+    {
+      const p = await open('two artifacts', HUB_SAVES.two());
+      await p.page.goto(`${url}?debug&world=hub${q}`);
+      await p.play(true);
+      const nests = await p.g(() => __game.hub.nests());
+      if (JSON.stringify(nests) !== JSON.stringify([true, true, false, false, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's and the forest's should glow`);
+      if (await p.g(() => __game.flyoverPlayer?.active === true)) {
+        await p.g(() => __game.flyoverPlayer.hold(2));   // the tree over the glade: both nests on its side
+        await p.gameSeconds(0.8);
+        await p.shot('hub-tree-2.png');
+        await p.g(() => __game.flyoverPlayer.skip());
+      } else fail('two artifacts: no tour of the hub on its first entry');
+      told.push('with two artifacts the crystal\'s and the forest\'s nests glow');
+      await p.close();
+    }
+  } finally {
+    await browser.close();
+  }
+  if (failures) return '';
+  return `the hub: ${told.join('; ')}; pictures: ${shots}/hub-*.png; ${((Date.now() - started) / 1000).toFixed(0)} s`; /* clock: log-time */
 }
 
 /**
