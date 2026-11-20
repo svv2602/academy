@@ -4,7 +4,8 @@
  * docs/worlds/hub.md, WORLD-01, WORLD-11.
  */
 import { describe, expect, it } from 'vitest';
-import { pathProblems } from '../../game/flyover';
+import * as THREE from 'three';
+import { createFlyover, pathProblems } from '../../game/flyover';
 import { SHELF } from '../../ui/book';
 import { HUB_FLYOVER } from './flyover-path';
 import { ARRIVE_IN, NESTS, PORTALS, PORTAL_R, RADIUS, TREE, arrivalAt, trunkR } from './layout';
@@ -60,6 +61,18 @@ describe('the tour of the hub (WORLD-11)', () => {
     expect(second.look[1]).toBeCloseTo(NESTS[0].y);
     const start = arrivalAt(0);
     expect(last.look[0]).toBeCloseTo(start.x); expect(last.look[2]).toBeCloseTo(start.z);
+  });
+
+  it('all the way the camera keeps clear of the trunk and its roots, and never comes to her head', async () => {
+    const tour = createFlyover(HUB_FLYOVER), pos = new THREE.Vector3(), look = new THREE.Vector3();
+    const her = arrivalAt(0);
+    void tour.start();
+    for (let t = 0; t <= HUB_FLYOVER.seconds; t += 0.1) {
+      tour.pose(pos, look);
+      expect(Math.hypot(pos.x - TREE.x, pos.z - TREE.z), `at ${t.toFixed(1)} s`).toBeGreaterThan(8);
+      expect(Math.hypot(pos.x - her.x, pos.y - 1.2, pos.z - her.z), `at ${t.toFixed(1)} s`).toBeGreaterThan(3);
+      tour.update(0.1);
+    }
   });
 
   it('every point stands on the glade, out of the trunk and under the crown', () => {
