@@ -89,9 +89,21 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
     rocks.setMatrixAt(nRock++, m4);
     ground.block(x, z, r * 0.9);
   };
-  // the ring and the two pillars of the entrance (./hiding.ts), then the boulders the mysterious stars hide behind - one
-  // mesh, one draw call for all of them
-  for (const k of [...gladeRocks(), ...BOULDERS]) rock(k.x, k.z, k.r, k.h, k.spin);
+  // the ring and the two pillars of the entrance (./hiding.ts): one mesh for the glade
+  for (const k of gladeRocks()) rock(k.x, k.z, k.r, k.h, k.spin);
+  // the boulders the mysterious stars hide behind, across the valley: a mesh of their own (in the glade's they made it
+  // span the valley, the glade's 40 rocks drawn from anywhere): ten boulders of 12 triangles drawn always, two calls with
+  // the shadow - fewer than a mesh each, culled one by one
+  const boulders = new THREE.InstancedMesh(rockGeo, mat.stone(), BOULDERS.length);
+  boulders.name = 'boulders';
+  BOULDERS.forEach((k, i) => {
+    q.setFromEuler(new THREE.Euler(0, k.spin, 0.2 * Math.sin(k.spin * 3)));
+    boulders.setMatrixAt(i, m4.compose(pv.set(k.x, groundY(k.x, k.z) + k.h * 0.45, k.z), q, sv.set(k.r, k.h, k.r)));
+    ground.block(k.x, k.z, k.r * 0.9);
+  });
+  boulders.castShadow = true; boulders.receiveShadow = true;
+  boulders.computeBoundingSphere();
+  group.add(boulders);
   const ex = GLADE.x + Math.sin(face) * R, ez = GLADE.z + Math.cos(face) * R, ey = groundY(ex, ez);
   q.setFromEuler(new THREE.Euler(0, face, 0));
   m4.compose(pv.set(ex, ey + 4.1, ez), q, sv.set(2.6, 0.9, 1.3));

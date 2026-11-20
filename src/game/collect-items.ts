@@ -35,6 +35,8 @@ const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
 const LIVE = 30;
+/** m: a kind of find is drawn while one of it not taken lies nearer than this to her (a mesh of a kind spans the world). */
+const SHOWN = 45;
 
 /** The shapes of the kinds, a few dozen triangles each, coloured by vertex; their middle at the origin. */
 function shapes(): Record<CollectKind, THREE.BufferGeometry> {
@@ -99,7 +101,8 @@ export function createCollections(g: CollectHost): CollectInWorld {
     own.forEach((it, i) => { it.slot = i; });
     const mesh = new THREE.InstancedMesh(geos[kind], material(), own.length);
     mesh.name = `collect-${kind}`;
-    mesh.frustumCulled = false;       // a handful of small finds across the valley, like the ground stars, not worth culling
+    // culled by the sphere of its finds near her (`update`): one sphere over the valley would draw it from anywhere
+    mesh.boundingSphere = new THREE.Sphere();
     mesh.castShadow = false;
     g.scene.add(mesh);
     meshes.set(kind, mesh);
@@ -151,6 +154,13 @@ export function createCollections(g: CollectHost): CollectInWorld {
       const sparkle = (twinkle += dt) > TWINKLE;
       if (sparkle) twinkle = 0;
       dirty.clear();
+      // a kind is drawn by its finds near her: their sphere is what the camera culls by; none near - not drawn at all
+      // (the far ones stand still and small in the haze: a mesh of a kind spans the valley)
+      for (const [kind, mesh] of meshes) {
+        const near = items.filter((it) => it.kind === kind && !it.taken && Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) < SHOWN);
+        mesh.visible = near.length > 0;
+        if (near.length) mesh.boundingSphere!.setFromPoints(near.map((it) => it.pos)).radius += 1 + (kind === 'butterfly' ? CHASE.ring : 0);
+      }
       for (const it of items) {
         const mesh = meshes.get(it.kind)!;
         if (it.taken) { if (it.posed !== 'gone') { mesh.setMatrixAt(it.slot, m4.makeScale(0, 0, 0)); it.posed = 'gone'; dirty.add(mesh); } continue; }

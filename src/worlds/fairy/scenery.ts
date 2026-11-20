@@ -35,6 +35,8 @@ export const NEAR_TREES: readonly (readonly [string, number, number])[] = [
 ];
 /** The tree of NEAR_TREES the acorns of the collections hang on (CommonTree1: a bare trunk under a high crown). */
 const OAK = 0;
+/** m: a tree of the acorns takes the place of the near tree of the valley within this of it. */
+export const ACORN_SWAP = 20;
 const FAR_TREES: readonly (readonly [string, number, Record<string, string>?])[] = [
   ['nature_pack/CommonTree_1', 7.5], ['nature_pack/CommonTree_2', 8], ['nature_pack/CommonTree_3', 6.5], ['nature_pack/PineTree_1', 8.5],
   ['nature_pack/CommonTree_4', 6.5, { Green: '#ffb7d5', DarkGreen: '#f794bd' }],
@@ -52,6 +54,7 @@ export function placeTrees(rnd: () => number, density: number) {
   const weights = NEAR_TREES.map((d) => d[2]), wsum = weights.reduce((a, b) => a + b, 0);
   const nearItems: Placement[][] = NEAR_TREES.map(() => []), farItems: Placement[][] = FAR_TREES.map(() => []);
   const placed: TreeSpot[] = [];
+  const itemOf = new Map<TreeSpot, Placement>(), kindOf = new Map<Placement, number>();
   let tries = 0;
   while (placed.length < 150 * density && tries++ < 6000) {
     const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (WORLD_R + 22);
@@ -65,8 +68,21 @@ export function placeTrees(rnd: () => number, density: number) {
       let pick = rnd() * wsum, k = 0;
       while ((pick -= weights[k]) > 0) k++;
       nearItems[k].push(item); h = NEAR_TREES[k][1];
+      kindOf.set(item, k);
     } else { const k = Math.floor(rnd() * FAR_TREES.length); farItems[k].push(item); h = FAR_TREES[k][1]; }
     placed.push({ x, z, s: item.s, h: h * item.s, near, collide: r < WORLD_R });
+    itemOf.set(placed[placed.length - 1], item);
+  }
+  // The trees the acorns of the collections hang on (./collect.ts OAKS) are more trees of the valley: each takes the
+  // place of the near tree nearest to it (within ACORN_SWAP m), so the valley draws as many trees as it did.
+  const swapped: TreeSpot[] = [];
+  for (const o of OAKS) {
+    let best = -1, bd = ACORN_SWAP;
+    placed.forEach((p, j) => { const d = Math.hypot(p.x - o.x, p.z - o.z); if (p.near && d < bd) { bd = d; best = j; } });
+    if (best < 0) continue;
+    const gone = itemOf.get(placed[best])!, k = kindOf.get(gone)!;
+    nearItems[k].splice(nearItems[k].indexOf(gone), 1);
+    swapped.push(...placed.splice(best, 1));
   }
   // A grove that hides the secret chest (not in `placed`: the under-growth hugs the trees of the loop only).
   const grove: TreeSpot[] = [];
@@ -76,7 +92,7 @@ export function placeTrees(rnd: () => number, density: number) {
     nearItems[i % 5].push(item);
     grove.push({ x, z, s: item.s, h: NEAR_TREES[i % 5][1] * item.s, near: true, collide: true });
   }
-  return { nearItems, farItems, placed, grove };
+  return { nearItems, farItems, placed, grove, swapped };
 }
 
 export async function buildScenery(scene: THREE.Scene, density: number) {
@@ -100,11 +116,12 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     staticGeo('nature_pack/Lilypad', 0.12),
   ]);
 
-  const { nearItems, farItems, placed, grove } = placeTrees(rnd, density);
+  const { nearItems, farItems, placed, grove, swapped } = placeTrees(rnd, density);
   for (const t of [...placed, ...grove]) if (t.collide) colliders.push({ x: t.x, z: t.z, r: 0.6 });
   nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
   farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
-  // the trees the acorns of the collections hang on (PLAY-25, ./collect.ts), of the valley's own kind
+  // the trees the acorns of the collections hang on (PLAY-25, ./collect.ts), of the valley's own kind, in place of others
+  // (placeTrees); their shadows are cast near her only (./index.ts OAK_SHADOW)
   for (const c of instancedParts(scene, height, nearTrees[OAK], OAKS.map((p, i) => ({ x: p.x, z: p.z, s: p.h / NEAR_TREES[OAK][1], rot: i * 2.3 })), 0.0035, true)) c.mesh.name = 'acorn-oak';
   buildCollectProps(scene);
 
@@ -121,15 +138,20 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   };
   const split = (items: Placement[], n: number) => Array.from({ length: n }, (_, i) => items.filter((_, j) => j % n === i));
 
-  // nothing of chance stands on a find of the collections: filtered after, the chance of what follows is as it was
-  const rocks = scatter(40 * density, 1.5, undefined, 56).filter((r) => clearOfFinds(r.x, r.z));
-  rocks.forEach((r) => { if (r.s > 1.05) colliders.push({ x: r.x, z: r.z, r: r.s * 0.45 }); });
-  split(rocks, 3).forEach((it, i) => instancedParts(scene, height, rocks3[i], it, 0, true));
-  split(scatter(60 * density, 1.2, undefined, 56).filter((b) => clearOfFinds(b.x, b.z)), 2).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
+  // nothing of chance stands on a find of the collections: filtered after, the chance of what follows is as it was -
+  // and after the split into kinds, so every other rock or bush keeps its kind and its cell (filtered before, the
+  // kinds shuffled over the cells: a few draw calls more on the phone from anywhere)
+  const clear = (items: Placement[]) => items.filter((r) => clearOfFinds(r.x, r.z));
+  const rocks = split(scatter(40 * density, 1.5, undefined, 56), 3).map(clear);
+  rocks.flat().forEach((r) => { if (r.s > 1.05) colliders.push({ x: r.x, z: r.z, r: r.s * 0.45 }); });
+  rocks.forEach((it, i) => instancedParts(scene, height, rocks3[i], it, 0, true));
+  split(scatter(60 * density, 1.2, undefined, 56), 2).map(clear).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
   instanced(scene, height, stumpGeo, solid, scatter(8, 2).filter((s) => clearOfFinds(s.x, s.z)), true);
 
   // Under-growth: ferns and big leaves hug the trees, clover carpets the open meadow.
-  const nearTree = (x: number, z: number) => placed.some((p) => Math.hypot(p.x - x, p.z - z) < 4.5);
+  // (by the trees as placed, the ones the acorns' trees took the place of too: the chance of all that is scattered after
+  // stays as it was - the under-growth and the grass in the cells they were in, not a few draw calls more)
+  const nearTree = (x: number, z: number) => [...placed, ...swapped].some((p) => Math.hypot(p.x - x, p.z - z) < 4.5);
   split(scatter(110 * density, 0.4, nearTree, 56), 2).forEach((it, i) => instancedParts(scene, height, smalls[i === 0 ? 0 : 3], it, 0.25, false, 46));
   split(scatter(110 * density, 0.2, undefined, 50), 2).forEach((it, i) => instancedParts(scene, height, smalls[1 + i], it, 0, false, 40));
   // its purple leaves were the loudest colour of the valley, louder than its stars and friends (WORLD-10): greyed to a third
