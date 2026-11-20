@@ -22,7 +22,7 @@ const WORLD_CLIPS: Record<string, string> = { Swim: 'Swim_Fwd_Loop', Float: 'Swi
  */
 export const SWIM_NAMES: Readonly<Record<string, string>> = { Idle: 'Float', Walk: 'Swim', Run: 'Swim' };
 /** Crown height of the heroine standing in Idle: the same as the adult-body heroine had before TECH-14 (R17). */
-const HERO_TOP = 1.53;
+export const HERO_TOP = 1.53;
 
 const skinned = (root: THREE.Object3D) => {
   const out: THREE.SkinnedMesh[] = [];
