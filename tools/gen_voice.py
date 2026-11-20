@@ -212,11 +212,28 @@ def synth(text, style, voice, model, key, strict=False):
     raise RuntimeError(f'gemini: no audio ({last})')
 
 
+TRIM = ('silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,'
+        'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,areverse')
+
+
+LEVELED = set()   # the files `encode` levelled in this run (a stand-in encode of the tests levels nothing)
+
+
+def loudness():
+    """tools/voice_loudness.py, next to this file (found also when Python is run with -I)."""
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import voice_loudness  # noqa: E402  (ffmpeg only, nothing sent)
+    return voice_loudness
+
+
 def encode(pcm, out):
-    trim = ('silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.04,areverse,'
-            'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,areverse')
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', '-',
-                    '-af', trim, '-ac', '1', '-ar', '24000', '-b:a', '32k', str(out)], input=pcm, check=True)
+    """The line's PCM, its silence trimmed, levelled to the loudness of every clip (tools/voice_loudness.py: -18 LUFS,
+    true peak at most -1.5 dBTP) and encoded once, MP3 of 32 kbit/s."""
+    voice_loudness = loudness()
+    voice_loudness.level_pcm(pcm, out, TRIM, '32k')
+    LEVELED.add(Path(out).with_suffix('').with_suffix('').as_posix())
 
 
 def norm(s):
@@ -386,6 +403,15 @@ def main():
                 continue
             qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=1) + '\n')
 
+    # The loudness of every clip recorded now (tools/voice_loudness.py, voice/loudness.json): held by its test.
+    made = [(cid, clip_file(audio, cid)) for cid, *_ in todo if cid not in failed]
+    made = [(cid, clip) for cid, clip in made if clip.exists() and clip.with_suffix('').as_posix() in LEVELED]
+    if made:
+        voice_loudness = loudness()
+        rec = voice_loudness.read_record(ROOT)
+        for cid, clip in made:
+            voice_loudness.note(rec, ROOT, clip.relative_to(ROOT).as_posix(), voice_loudness.measure(clip))
+        voice_loudness.write_record(rec, ROOT)
     # The game only requests clips listed here; everything else falls back to on-device speech or subtitles.
     # The core's list is public/voice/ itself, without the folders of the worlds inside it.
     (ROOT / 'src' / 'core' / 'clips.json').write_text(json.dumps(recorded(audio)))
