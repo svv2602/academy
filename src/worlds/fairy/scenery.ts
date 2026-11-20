@@ -105,7 +105,7 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   nearTrees.forEach((parts, i) => instancedParts(scene, height, parts, nearItems[i], 0.0035, true));
   farGeos.forEach((g, i) => instanced(scene, height, g, tree, farItems[i], false));
   // the trees the acorns of the collections hang on (PLAY-25, ./collect.ts), of the valley's own kind
-  instancedParts(scene, height, nearTrees[OAK], OAKS.map((p, i) => ({ x: p.x, z: p.z, s: p.h / NEAR_TREES[OAK][1], rot: i * 2.3 })), 0.0035, true);
+  for (const c of instancedParts(scene, height, nearTrees[OAK], OAKS.map((p, i) => ({ x: p.x, z: p.z, s: p.h / NEAR_TREES[OAK][1], rot: i * 2.3 })), 0.0035, true)) c.mesh.name = 'acorn-oak';
   buildCollectProps(scene);
 
   const scatter = (n: number, margin: number, ok?: (x: number, z: number) => boolean, maxR = WORLD_R - 6, rand = rnd) => {
