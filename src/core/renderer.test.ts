@@ -13,10 +13,10 @@ const fakeRenderer = () => ({
   info: { reset: vi.fn(), render: { triangles: 0, calls: 0 } }, domElement: { width: 800, height: 400 }, autoClear: true,
 }) as unknown as THREE.WebGLRenderer;
 
-async function quality(o: { param: string | null; tier: number }) {
+async function quality(o: { param: string | null; tier: number; last?: number; pin?: number | null }) {
   vi.resetModules();   // the transition is one per page
   const [{ createQuality }, { transition }] = await Promise.all([import('./renderer'), import('../game/transition')]);
-  const save = { tier: o.tier, launches: 1, pinTier: null } as unknown as Save;
+  const save = { tier: o.tier, launches: 1, pinTier: o.pin ?? null, ...(o.last !== undefined ? { session: { min: 3, last: o.last, quiet: 0 } } : {}) } as unknown as Save;
   const sun = new THREE.DirectionalLight();
   const scene = new THREE.Scene();
   scene.add(sun);
@@ -27,6 +27,11 @@ async function quality(o: { param: string | null; tier: number }) {
 /** `seconds` of slow frames: 20 a second, well under what the fallback takes for slow. */
 function slowFrames(q: { meter(dt: number, persist: () => void): void }, seconds: number, each: () => void = () => {}) {
   for (let i = 0; i < seconds * 20; i++) { each(); q.meter(0.05, () => {}); }
+}
+
+/** `seconds` of good frames: 60 a second. */
+function fastFrames(q: { meter(dt: number, persist: () => void): void }, seconds: number, each: () => void = () => {}) {
+  for (let i = 0; i < seconds * 60; i++) { each(); q.meter(1 / 60, () => {}); }
 }
 
 beforeEach(() => { localStorage.clear(); });
@@ -99,5 +104,38 @@ describe('the automatic fallback of the tier and the change of world (TECH-15, T
     expect(q.tier).toBe(1);
     slowFrames(q, 4);
     expect(q.tier).toBe(0);
+  });
+});
+
+describe('the game raises its own tier (TECH-16)', () => {
+  it('only while the frame of a change of world is fully closed, after three good minutes; the change is stored', async () => {
+    // 0 -> 1: the stand-in renderer has no bloom (tier 2); the wiring is the same for each tier
+    const { q, save, transition } = await quality({ param: null, tier: 0 });
+    fastFrames(q, 200);                       // past the 3 minutes and the 30 good seconds
+    expect(q.tier).toBe(0);                   // no change of world: no raise
+    transition.start();
+    fastFrames(q, 0.2, () => { transition.frame(1 / 60); });
+    expect(transition.phase).toBe('closing');
+    expect(q.tier).toBe(0);                   // closing: the change would show in the frame still seen
+    fastFrames(q, 1, () => { transition.frame(1 / 60); });
+    expect(transition.closed).toBe(true);
+    expect(q.tier).toBe(1);
+    expect(save.tier).toBe(1);
+  });
+
+  it('a tier fixed by ?q= or by the parent is never raised', async () => {
+    for (const o of [{ param: '0', tier: 0 }, { param: null, tier: 0, pin: 0 }]) {
+      const { q, transition } = await quality(o);
+      fastFrames(q, 200);
+      transition.start();
+      fastFrames(q, 2, () => { transition.frame(1 / 60); });
+      expect(q.tier).toBe(0);
+    }
+  });
+
+  it('a launch half an hour after the last frame of play starts one tier higher; a sooner one does not', async () => {
+    expect((await quality({ param: null, tier: 0, last: Date.now() - 31 * 60_000 })).q.tier).toBe(1);
+    expect((await quality({ param: null, tier: 0, last: Date.now() - 10 * 60_000 })).q.tier).toBe(0);
+    expect((await quality({ param: null, tier: 0 })).q.tier).toBe(0);
   });
 });

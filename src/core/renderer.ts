@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { startTier, type Tier } from './quality';
+import { autoMayRaise, autoRaise, autoSecond, autoStart, startTier, type Tier } from './quality';
 import { storeSave, type Save } from './save';
 import { setDrawRange } from './instancing';
 import { el } from '../ui/ui';
@@ -42,7 +42,9 @@ export interface Quality {
 
 /**
  * The quality tiers. 2: bloom+shadows, 1: shadows, 0: plain. TECH-04: ?q= > the parent's pin > the tier the last session
- * ended on (every tenth launch one higher). A launch is a page load: the counter and the tier are stored at once.
+ * ended on (every tenth launch, and a launch after a break of half an hour, one higher). A launch is a page load: the
+ * counter and the tier are stored at once. TECH-16: while it is played the game lowers and raises its own tier by the
+ * frames of each second (src/core/quality.ts), and stores every change at once.
  */
 export function createQuality(o: {
   renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; sun: THREE.DirectionalLight;
@@ -50,14 +52,21 @@ export function createQuality(o: {
 }): Quality {
   const { renderer, scene, camera, save, touch, debug } = o;
   let sun = o.sun;
-  const start = startTier({ param: o.param, pinned: save.pinTier, saved: save.tier, launches: save.launches });
+  // the time since the last frame of play (the session's own clock, src/game/session.ts): a cooled phone tries higher
+  const last = save.session?.last;
+  const start = startTier({ param: o.param, pinned: save.pinTier, saved: save.tier, launches: save.launches,
+    gapMs: typeof last === 'number' && Number.isFinite(last) ? Date.now() - last : null });
   let tier: Tier = start.tier;
   const byParam = start.by === 'param';         // ?q= fixes the tier for this page and leaves the remembered one alone
   save.launches = start.launches;
   if (!byParam) save.tier = tier;
   storeSave(save);
   let composer: EffectComposer | null = null;
-  let fpsT = 0, fpsN = 0, slow = 0, warm = 0;
+  let fpsT = 0, fpsN = 0;
+  /** What the game keeps of its own tier (src/core/quality.ts); a raise at the launch starts on trial. */
+  let auto = autoStart(tier, start.raised);
+  /** The frame of a change of world was closed in the second being counted. */
+  let closedInSecond = false;
 
   function apply() {
     const dpr = Math.min(devicePixelRatio, tier === 2 ? 2 : tier === 1 ? 1.5 : 1);
@@ -96,20 +105,31 @@ export function createQuality(o: {
     transition.render(renderer, dt);
   }
 
-  // fps meter + automatic quality fallback. The frames are measured with or without ?debug: the fallback needs them.
+  /** A tier the game chose by itself: applied, and stored at once - the next launch starts from it (TECH-04). */
+  function setTier(next: Tier, persist: () => void) {
+    tier = next; apply(); save.tier = tier; persist();
+  }
+
+  // fps meter + the game's own tier (TECH-16). The frames are measured with or without ?debug: the tier needs them.
   function meter(dt: number, persist: () => void) {
-    fpsT += dt; fpsN++; warm += dt;
-    // TECH-15: while the frame is closed for a change of world, a world is loaded and built behind it - slow frames
-    // that say nothing of the tier. The fallback starts over: no slow second is carried into the new world.
-    if (transition.active) { slow = 0; warm = 0; }
+    fpsT += dt; fpsN++;
+    // ?q= and the parent's pin fix the tier; back to automatic, the game keeps on from the tier it is at
+    const free = !byParam && save.pinTier === null;
+    if (free && auto.tier !== tier) auto = autoStart(tier);
+    // TECH-15: while the frame is closed for a change of world, a world is loaded and built behind it - slow frames that
+    // say nothing of the tier (autoSecond starts over after it). A try up is made there, unseen: the frame is closed.
+    if (transition.active) {
+      closedInSecond = true;
+      if (free && transition.closed && autoMayRaise(auto)) { auto = autoRaise(auto); setTier(auto.tier, persist); }
+    }
     if (fpsT >= 1) {
       const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
       if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
-      if (warm > 4 && !byParam && save.pinTier === null && !document.hidden) {
-        slow = fps < 34 ? slow + 1 : 0;
-        // the lowered tier is saved at once: the next launch starts from it (TECH-04)
-        if (slow >= 3 && tier > 0) { tier = (tier - 1) as Tier; slow = 0; warm = 0; apply(); save.tier = tier; persist(); }
+      if (free) {
+        auto = autoSecond(auto, fps, { closed: closedInSecond, hidden: document.hidden });
+        if (auto.tier !== tier) setTier(auto.tier, persist);
       }
+      closedInSecond = false;
     }
   }
 
