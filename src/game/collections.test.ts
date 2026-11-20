@@ -12,6 +12,7 @@ import {
 import { HERO_TOP } from './hero';
 import { groundUnder, jumpStep } from './player';
 import { EFFECT_TUNING, SCALE } from './supplies';
+import { HUB_COLLECT } from '../worlds/hub/feathers';
 
 vi.mock('../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 vi.mock('./fx', () => ({ glowTex: null, Sparks: class {} }));
@@ -88,7 +89,9 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
   it('every world that lays out finds lays them out right', () => {
     for (const w of WORLDS) if (w.collect) expect(collectProblems(w.collect), w.id).toEqual([]);
     const fairy = WORLDS.find((w) => w.id === 'fairy')!.collect!;
-    expect(kindsOf(fairy).sort()).toEqual(Object.keys(COLLECT_KINDS).sort());
+    // the fairy world lays out every kind but the hub's own feathers of the Great Tree (src/worlds/hub/feathers.ts)
+    expect(kindsOf(fairy).sort()).toEqual(Object.keys(COLLECT_KINDS).filter((k) => k !== 'treefeather').sort());
+    expect(kindsOf(HUB_COLLECT)).toEqual(['treefeather']);
     // every way, the catching ones one or two in a world (the decision of 2026-11-20)
     for (const way of COLLECT_WAYS) expect(fairy.items.some((i) => i.way === way), way).toBe(true);
     const chase = fairy.items.filter((i) => i.way === 'chase').length;

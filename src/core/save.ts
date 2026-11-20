@@ -40,6 +40,8 @@ export interface WorldState {
    * version: an optional field, mended where read (src/game/worldtasks/kept.ts); a task solved takes its step away.
    */
   tasks?: Record<string, number[]>;
+  /** The day (dayKey) the last find of the day was taken (the hub's feathers, src/worlds/hub/feathers.ts): absent until then. */
+  day?: string;
 }
 export interface Save {
   v: number;                    // SAVE_VERSION; a save of a later version keeps its number (it is never lowered)

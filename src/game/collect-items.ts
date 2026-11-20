@@ -30,7 +30,7 @@ export type CollectHost = Pick<Game, 'scene' | 'ws' | 'world' | 'ground' | 'grou
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, butterfly: 2.2 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 2.2, butterfly: 2.2 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -58,7 +58,9 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
     0, -0.2, 0, 0, 0.2, 0, 0.06, -0.05, 0, 0, -0.2, 0, -0.06, -0.05, 0, 0, 0.2, 0,
   ], 3));
   f.computeVertexNormals();
-  const feather = paint(f.rotateX(-1.2), COLLECT_KINDS.feather.color);
+  const feather = paint(f.clone().rotateX(-1.2), COLLECT_KINDS.feather.color);
+  // the Great Tree's bird's: the same blade, golden
+  const treefeather = paint(f.rotateX(-1.2), COLLECT_KINDS.treefeather.color);
   // a butterfly: two wings that open and close by the instance's scale across (no shader of its own)
   const w = new THREE.BufferGeometry();
   w.setAttribute('position', new THREE.Float32BufferAttribute([
@@ -68,7 +70,7 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
   w.computeVertexNormals();
   const butterfly = paint(w, COLLECT_KINDS.butterfly.color);
   return {
-    mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, butterfly,
+    mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
   };
 }
 

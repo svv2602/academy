@@ -525,11 +525,25 @@ function birdGeo(): THREE.BufferGeometry {
   return mergeGeometries([body, head, beak, tail, wing(-1), wing(1), eye(-1), eye(1)], false)!;
 }
 
+/** The golden bird of the feathers asleep: a round body, the head tucked under a wing (no eyes, no beak), its tail. */
+function sleepingBirdGeo(): THREE.BufferGeometry {
+  const body = painted(new THREE.IcosahedronGeometry(0.15, 1).scale(1, 0.85, 1.15).translate(0, 0.14, 0), '#ffc94a');
+  const head = painted(new THREE.IcosahedronGeometry(0.09, 0).translate(0.07, 0.2, 0.1), '#ffd979');
+  const wing = painted(new THREE.ConeGeometry(0.09, 0.26, 4).scale(0.5, 1, 1).rotateX(-Math.PI / 2 + 0.25).translate(0.1, 0.19, 0.02), '#e8a82e');
+  const tail = painted(new THREE.ConeGeometry(0.06, 0.2, 3).rotateX(-Math.PI / 2 - 0.3).translate(0, 0.14, -0.22), '#e8a82e');
+  return mergeGeometries([body, head, wing, tail], false)!;
+}
+
 /** What `buildTreeLook` puts into the scene: the tree under `root`, `update(time)` for the frame's animate. */
 export interface TreeLook {
   root: THREE.Group; update(time: number): void;
   /** The ring of mushrooms round the stump, in its order round: where each cap is (the map's metres), and its flash. */
   ring: { tops: readonly THREE.Vector3[]; flash(i: number): void };
+  /**
+   * The bird of the feathers (./feathers.ts) asleep, head under its wing, on the low branch of the gap `gap` (null -
+   * none: hidden, no draw call). `at` - where it sits now, the map's metres.
+   */
+  bird: { show(gap: number | null): void; at(): THREE.Vector3 | null };
 }
 /** The flash of a ring mushroom touched: its glow times this at once, back to its own over RING_FLASH_S. */
 export const RING_FLASH = 4, RING_FLASH_S = 0.9;
@@ -827,7 +841,25 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
   }
 
   scene.add(root);
-  return { root, update: (time) => { for (const u of updates) u(time); }, ring: { tops: ringTops, flash: (i) => flashRing(i) } };
+  // The sleeping bird of the feathers: one mesh, moved to its branch, hidden on the other days (./feathers.ts).
+  const sleeper = new THREE.Mesh(sleepingBirdGeo(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, flatShading: true }));
+  sleeper.name = 'sleeping-bird'; sleeper.visible = false; sleeper.castShadow = false;
+  root.add(sleeper);
+  const sleepAt = (gap: number) => {
+    const b = shape.branches[gap % shape.branches.length], t = 0.36, p = b.curve.getPointAt(t, new THREE.Vector3());
+    return { p: p.setY(p.y + (b.r0 + (b.r1 - b.r0) * t) * 0.92), heading: Math.atan2(p.x, p.z) + Math.PI / 2 };
+  };
+  updates.push((time) => { if (sleeper.visible) sleeper.scale.setScalar(1 + 0.04 * Math.sin(time * 1.4)); });   // it breathes
+  const bird = {
+    show(gap: number | null) {
+      sleeper.visible = gap !== null;
+      if (gap === null) return;
+      const { p, heading } = sleepAt(gap);
+      sleeper.position.copy(p); sleeper.rotation.y = heading;
+    },
+    at: () => (sleeper.visible ? sleeper.position.clone().add(root.position) : null),
+  };
+  return { root, update: (time) => { for (const u of updates) u(time); }, ring: { tops: ringTops, flash: (i) => flashRing(i) }, bird };
 }
 
 /**
@@ -838,7 +870,7 @@ export function lookCost(root: THREE.Object3D): { triangles: number; draws: numb
   let triangles = 0, draws = 0, instances = 0;
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
+    if (!mesh.isMesh || !mesh.visible) return;   // a hidden mesh (the sleeping bird on other days) is not drawn
     const g = mesh.geometry, tris = (g.index ? g.index.count : g.getAttribute('position').count) / 3;
     const n = (o as THREE.InstancedMesh).isInstancedMesh ? (o as THREE.InstancedMesh).count : 1, passes = mesh.castShadow ? 2 : 1;
     triangles += tris * n * passes; draws += passes; instances += n;

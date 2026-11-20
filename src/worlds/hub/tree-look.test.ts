@@ -313,3 +313,23 @@ describe('the ring of mushrooms round the stump (the notes: ./ring-notes.ts)', (
     expect(glow.getX(j)).toBeCloseTo(own);
   });
 });
+
+describe('the sleeping bird of the feathers (./feathers.ts)', () => {
+  it('hidden and free of cost until shown; on the low branch of its gap, over the ground, out of the trunk', () => {
+    const { look } = build(1), before = lookCost(look.root);
+    expect(look.bird.at()).toBeNull();
+    for (let gap = 0; gap < 5; gap++) {
+      look.bird.show(gap);
+      const p = look.bird.at()!;
+      expect(p.y).toBeGreaterThan(5);
+      expect(p.y).toBeLessThan(9);
+      expect(Math.hypot(p.x, p.z)).toBeGreaterThan(trunkR(p.y) + 0.3);
+      const side = Math.atan2(p.x, p.z) - (PORTALS[gap].facing + Math.PI / 5);
+      expect(Math.abs(Math.atan2(Math.sin(side), Math.cos(side)))).toBeLessThan(0.3);
+    }
+    expect(lookCost(look.root).draws).toBe(before.draws + 1);
+    look.bird.show(null);
+    expect(look.bird.at()).toBeNull();
+    expect(lookCost(look.root)).toEqual(before);
+  });
+});
