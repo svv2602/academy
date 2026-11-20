@@ -1,5 +1,5 @@
 /**
- * Achievements (PLAY-08): the twelve of the customer's decision of 2026-11-15 (R42), for exploring, for trying and for
+ * Achievements (PLAY-08): the twelve of the customer's decision of 2026-11-15 (R42) and the collector of PLAY-25 (2026-11-20), for exploring, for trying and for
  * keeping at it. Each condition is a pure function of the save and of what the open worlds are made of (`AchContext`);
  * none reads the time of an answer, a frame count or the length of a session (R04). A received achievement is written
  * into `save.achievements` for ever (R51): nothing here removes one, and a mistake moves no counter but the current run
@@ -15,7 +15,7 @@ import type { SkillId } from './skills';
 export type AchievementId =
   | 'first_shard' | 'secret_chest' | 'all_world_stars' | 'first_artifact' | 'three_secrets'
   | 'first_task' | 'try_again' | 'all_skills' | 'fifty_tasks'
-  | 'clean_ten' | 'days_3' | 'days_5';
+  | 'clean_ten' | 'days_3' | 'days_5' | 'collector';
 
 /** What a world is made of, as the conditions need it; the world gives it (no world's names in this file). */
 export interface WorldFacts {
@@ -29,6 +29,8 @@ export interface WorldFacts {
   chest?: string;
   /** The flags of its secrets (the chest is one of them). */
   secrets: readonly string[];
+  /** The numbers of the finds of its collections (PLAY-25, ws.found); absent or empty - it has none. */
+  collect?: readonly number[];
 }
 
 export interface AchContext {
@@ -58,7 +60,7 @@ const flag = (w: Partial<WorldState>, name: string) => w.flags?.[name] === true;
 const solved = (s: Save) => Object.values(s.skills).reduce((n, k) => n + (k.tasks || 0), 0);
 const afterMistake = (s: Save) => Object.values(s.skills).reduce((n, k) => n + Math.max(0, (k.tasks || 0) - (k.first || 0)), 0);
 
-/** The twelve, in the order of the texts (e4-texts.md §1): exploring, trying, keeping at it. */
+/** The twelve in the order of the texts (e4-texts.md §1): exploring, trying, keeping at it; then the collector. */
 export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: 'first_shard', group: 'explore', icon: '💎',
     test: (s, ctx) => anyWorld(ctx, s, (w, f) => f.quests.some((q) => (w.quests?.[q.id] ?? 0) >= q.steps.length)) },
@@ -78,6 +80,9 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: 'clean_ten', group: 'series', icon: '🎯', test: (s) => (s.clean?.best ?? 0) >= 10 },
   { id: 'days_3', group: 'series', icon: '🌤️', test: (s) => (s.days?.n ?? 0) >= 3 },
   { id: 'days_5', group: 'series', icon: '🌈', test: (s) => (s.days?.n ?? 0) >= 5 },
+  // PLAY-25 (the decision of 2026-11-20): every collection of one world whole
+  { id: 'collector', group: 'explore', icon: '🧺',
+    test: (s, ctx) => anyWorld(ctx, s, (w, f) => (f.collect?.length ?? 0) > 0 && f.collect!.every((i) => w.found?.includes(i))) },
 ];
 
 /** The achievements whose condition is met and that the save does not hold yet, in the order of ACHIEVEMENTS. */

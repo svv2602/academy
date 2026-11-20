@@ -5504,5 +5504,37 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_collector": {
+  "text": "Усі колекції світу в твоїй книзі! Ти справжня збирачка.",
+  "heard": "Усі колекції світу в твоїй книзі, ти справжня збирачка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "collect_first": {
+  "text": "Ой, знахідка для колекції! Шукай таких ще.",
+  "heard": "Ой, знахідка для колекції, шукай таких ще!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "collect_set": {
+  "text": "Колекцію зібрано! Ще пʼять зірочок!",
+  "heard": "В колекцію зібрано ще п'ять зірочок.",
+  "score": 0.971,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "collect_all": {
+  "text": "І остання знахідка! Усі колекції світу зібрано!",
+  "heard": "І остання знахідка — усі колекції світу зібрано!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -109,13 +109,14 @@ export async function achievementStop(save: Save, ctx: AchContext, show: ((id: A
 }
 
 /** A world's facts for the conditions, from its description (src/game/world.ts). */
-export function worldFacts(w: Pick<WorldDef, 'id' | 'characters' | 'secrets' | 'chest' | 'groundStars'>): WorldFacts {
+export function worldFacts(w: Pick<WorldDef, 'id' | 'characters' | 'secrets' | 'chest' | 'groundStars' | 'collect'>): WorldFacts {
   return {
     id: w.id,
     quests: w.characters.map((c) => ({ id: c.id, steps: c.steps })),
     groundStars: Array.from({ length: w.groundStars ?? 0 }, (_, i) => i),
     ...(w.chest === undefined ? {} : { chest: w.chest }),
     secrets: w.secrets ?? [],
+    ...(w.collect?.items.length ? { collect: w.collect.items.map((_, i) => i) } : {}),
   };
 }
 
@@ -135,7 +136,7 @@ export function achContext(worlds: readonly Parameters<typeof worldFacts>[0][], 
  * ground stars counts none (`secret_chest`, `all_world_stars` cannot come of it). The shared code may not import the
  * registry (ARCH-10): the other worlds' achievements already received stay in the save.
  */
-export function worldContext(w: Pick<WorldEntry, 'id' | 'characters' | 'secrets' | 'chest' | 'groundStars'>,
+export function worldContext(w: Pick<WorldEntry, 'id' | 'characters' | 'secrets' | 'chest' | 'groundStars' | 'collect'>,
   skillOf: (step: string) => SkillId | null): AchContext {
-  return achContext([{ id: w.id, characters: w.characters ?? [], secrets: w.secrets, chest: w.chest, groundStars: w.groundStars }], skillOf);
+  return achContext([{ id: w.id, characters: w.characters ?? [], secrets: w.secrets, chest: w.chest, groundStars: w.groundStars, collect: w.collect }], skillOf);
 }
