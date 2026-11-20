@@ -11,16 +11,19 @@ const SPAWN = arrivalAt(0);
  * where the camera behind her will be, so the tour hands over without a jump.
  */
 export const HUB_FLYOVER: FlyoverPath = {
-  seconds: 13,
+  seconds: 14,
   line: 'hub_tour',
   points: [
     { pos: [4.5, 1.4, 9.5], look: [0, 1.0, 1.5] },
     { pos: [3.5, 5.0, 8.5], look: [0, NESTS[0].y, trunkR(NESTS[0].y) + 0.35] },
     { pos: [12, 8.5, 9], look: [0, 9, 0] },
-    // round the arches, from between them at the edge of the glade (r 17-18, inside the ring of trees)
-    { pos: [17.5, 7, -2], look: [PORTALS[1].x, 2.5, PORTALS[1].z] },
-    { pos: [0, 6.5, -17.5], look: [0, 2.5, PORTALS[2].z] },
-    { pos: [-17, 6, -3], look: [PORTALS[4].x, 2.5, PORTALS[4].z] },
+    // round the arches from the edge of the glade (r 18.5, inside the ring of trees) and over them (7.5 m: the curve
+    // between two points cuts inside the circle, right over an arch, whose top with its crest is 5.3 m high)
+    { pos: [18.4, 7.5, -1.9], look: [PORTALS[1].x, 2.5, PORTALS[1].z] },
+    { pos: [0, 7.5, -18.5], look: [0, 2.5, PORTALS[2].z] },
+    { pos: [-17.6, 7.5, -5.7], look: [PORTALS[4].x, 2.5, PORTALS[4].z] },
+    // on over the arch of the sky to the fairies' side, then down behind her (past the arches, not through one)
+    { pos: [-10.9, 7.5, 15], look: [PORTALS[0].x, 2.5, PORTALS[0].z] },
     { pos: [-3.5, 2.8, 12], look: [SPAWN.x, 1.2, SPAWN.z] },
   ],
 };

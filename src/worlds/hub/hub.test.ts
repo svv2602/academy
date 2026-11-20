@@ -71,6 +71,8 @@ describe('the tour of the hub (WORLD-11)', () => {
       tour.pose(pos, look);
       expect(Math.hypot(pos.x - TREE.x, pos.z - TREE.z), `at ${t.toFixed(1)} s`).toBeGreaterThan(8);
       expect(Math.hypot(pos.x - her.x, pos.y - 1.2, pos.z - her.z), `at ${t.toFixed(1)} s`).toBeGreaterThan(3);
+      // never in an arch's stones: 3 m from its middle on the ground, or over its top and crest (5.3 m) with a margin
+      for (const p of PORTALS) expect(Math.hypot(pos.x - p.x, pos.z - p.z) > 3 || pos.y > 6.3, `at ${t.toFixed(1)} s by the arch ${p.shelf}`).toBe(true);
       tour.update(0.1);
     }
   });
