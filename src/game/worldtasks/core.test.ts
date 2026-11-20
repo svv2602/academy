@@ -86,7 +86,7 @@ describe('the debug door of the walkthrough (__game.worldTask)', () => {
     } as WorldTaskShow;
     setWorldTask(g, show);
     expect(door.state).toEqual({ kind: 'test', phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [2] });
-    expect(door.targets()).toEqual({ reach: 70, all: [{ pos: [1, 2, 3], right: true }] });
+    expect(door.targets()).toEqual({ reach: 70, all: [{ pos: [1, 2, 3], right: true, r: null }] });
     expect(door.wrong()).toBe(true);
     expect(door.solve()).toBe(true);
     expect(door.close()).toBe(true);

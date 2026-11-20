@@ -77,13 +77,14 @@ export interface WorldSteps extends WorldTaskShow {
   readonly choices: readonly THREE.Mesh[];
 }
 
-const STEP = 0.7;         // m between two steps along the row
+const STEP = 0.95;        // m between two steps along the row
 const RISE = 0.18;        // m one step is higher than the one before it
-const LABEL = 0.5;        // m: the size of a number
-const GAP = 1.0;          // m between two mushrooms on the ground
-const FRONT = 1.3;        // m from the foot of the row to the mushrooms on the ground, toward the child
+const LABEL = 0.7;        // m: the size of a number (on a phone not smaller than a finger: tools/world-pass.mjs MIN_TAP_PX)
+const GAP = 1.35;         // m between two mushrooms on the ground
+const FRONT = 1.5;        // m from the row to the mushrooms on the ground, toward the child
 const HOP = 0.5;          // s of game time a mushroom takes to hop onto its step
-const TAP_UP = 0.3;       // m over a mushroom's middle where a tap on it is measured from
+const TAP_UP = 0.35;      // m over a mushroom's middle where a tap on it is measured from
+const SHROOM = 0.38;      // m: the radius of a mushroom on the ground
 
 export function showStepsInWorld(scene: THREE.Scene, spec: NeighborsSpec, at: StepsPlace, hooks: Pick<TaskHooks, 'prompt' | 'wrong' | 'hint' | 'good'>, o: WorldStepsOptions): WorldSteps {
   const st = neighbors.start(spec), { cells, gap, options, answer } = spec.body;
@@ -102,7 +103,7 @@ export function showStepsInWorld(scene: THREE.Scene, spec: NeighborsSpec, at: St
   };
 
   // The steps: mushrooms of growing height, a hand higher each; the empty one is a pale ring on its stem.
-  const capGeo = new THREE.CylinderGeometry(0.34, 0.38, 0.12, 14);
+  const capGeo = new THREE.CylinderGeometry(0.42, 0.46, 0.14, 14);
   const stemGeo = new THREE.CylinderGeometry(0.12, 0.15, 1, 10).translate(0, 0.5, 0);
   const capMat = new THREE.MeshStandardMaterial({ color: '#d9534a', emissive: '#ffd27a', emissiveIntensity: 0, roughness: 0.7 });
   const stemMat = new THREE.MeshStandardMaterial({ color: '#f2e6cf', roughness: 0.9 });
@@ -116,27 +117,28 @@ export function showStepsInWorld(scene: THREE.Scene, spec: NeighborsSpec, at: St
     const cap = new THREE.Mesh(capGeo, i === gap ? emptyMat : capMat.clone());
     cap.position.set(x, y + h, z);
     cap.userData = { n: i === gap ? null : n, i };
-    if (i !== gap) { const l = label(n, 0.42); if (l) cap.add(l); }
+    if (i !== gap) { const l = label(n, 0.5); if (l) cap.add(l); }
     group.add(cap);
     tops.push(cap.position.clone().setY(cap.position.y + 0.1));
     return cap;
   });
 
   // The mushrooms on the ground, toward the child, in a row across.
-  const shroomGeo = new THREE.SphereGeometry(0.26, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const shroomGeo = new THREE.SphereGeometry(SHROOM, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
   const choices = options.map((n, i) => {
     const off = (i - (options.length - 1) / 2) * GAP, x = at.x + sx * off - fx * FRONT, z = at.z + sz * off - fz * FRONT;
     const m = new THREE.Mesh(shroomGeo, new THREE.MeshStandardMaterial({ color: '#e06b5a', emissive: '#ffd27a', emissiveIntensity: 0, roughness: 0.7 }));
     m.position.set(x, ground(x, z) + 0.12, z);
     m.userData = { n, home: m.position.clone(), placed: false };
-    const l = label(n, 0.5); if (l) m.add(l);
+    const l = label(n, 0.62); if (l) m.add(l);
     group.add(m);
     return m;
   });
   // where the camera looks: between the mushrooms and the row
   const mid = -FRONT / 2;
-  // the target over the middle of the row's height: the numbers of the top steps stay clear of the bubble over the screen
-  const center = new THREE.Vector3(at.x + fx * mid, ground(at.x + fx * mid, at.z + fz * mid) + 0.75, at.z + fz * mid);
+  // the target a little over the ground: the row and the mushrooms fill the middle of the screen, the numbers of the
+  // top steps stay clear of the bubble over it
+  const center = new THREE.Vector3(at.x + fx * mid, ground(at.x + fx * mid, at.z + fz * mid) + 0.9, at.z + fz * mid);
   scene.add(group);
   hooks.prompt(spec.prompt);
 
@@ -172,7 +174,7 @@ export function showStepsInWorld(scene: THREE.Scene, spec: NeighborsSpec, at: St
     extent: {
       side: Math.max(...[...choices.map((m) => m.position), ...tops].map((p) => Math.abs((p.x - center.x) * sx + (p.z - center.z) * sz))) + 0.5,
       // with room over the numbers of the steps for the bubble at the top of the screen
-      depth: Math.max(...[...choices.map((m) => m.position), ...tops].map((p) => Math.abs((p.x - center.x) * fx + (p.z - center.z) * fz))) + 1.0,
+      depth: Math.max(...[...choices.map((m) => m.position), ...tops].map((p) => Math.abs((p.x - center.x) * fx + (p.z - center.z) * fz))) + 0.6,
     },
     tap: (screenDist) => {
       if (!core.alive) return false;
@@ -192,7 +194,8 @@ export function showStepsInWorld(scene: THREE.Scene, spec: NeighborsSpec, at: St
     close: () => core.close(),
     state: () => ({ kind: 'steps', phase: core.phase, wrongs: core.wrongs, moves: right().userData.placed ? 1 : 0, rung: core.rung, progress: [] }),
     reach: o.reach,
-    targets: () => (core.alive ? choices.filter((m) => !m.userData.placed).map((m) => ({ pos: tapPoint(m), right: m.userData.n === answer })) : []),
+    // a mushroom with its number over it: as big as the larger of the two
+    targets: () => (core.alive ? choices.filter((m) => !m.userData.placed).map((m) => ({ pos: tapPoint(m), right: m.userData.n === answer, r: Math.max(SHROOM, LABEL / 2) })) : []),
     progress: () => [],
     resume: () => {},
     update: (t) => {

@@ -59,8 +59,12 @@ export interface WorldTaskShow {
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
   /** The farthest a tap may land from a thing on the screen, in pixels. */
   readonly reach: number;
-  /** The things a tap can take now, where a tap is measured from, and whether taking it is the right move. */
-  targets(): { pos: THREE.Vector3; right: boolean }[];
+  /**
+   * The things a tap can take now, where a tap is measured from, and whether taking it is the right move; `r` - how big
+   * the thing is around that point (m, its number included), where a kind gives it: the walkthrough checks it is not
+   * smaller than a finger on the screen (tools/world-pass.mjs MIN_TAP_PX).
+   */
+  targets(): { pos: THREE.Vector3; right: boolean; r?: number }[];
   /** Solves the task through the same handler a tap goes through. */
   solve(): void;
   /** Makes one wrong move through the same handler a tap goes through; false when no wrong move is possible now. */
@@ -178,7 +182,7 @@ export function worldTaskDoor(g: object) {
     close: () => { const s = cur(); if (!s) return false; s.close(); return true; },
     /** Where the open task stands; null - none is open. */
     get state(): WorldTaskState | null { return cur()?.state() ?? null; },
-    /** What a real tap on the screen can take now (the walkthrough projects them): [x, y, z] and right or not; the reach in px. */
-    targets: () => { const s = cur(); return s ? { reach: s.reach, all: s.targets().map((t) => ({ pos: t.pos.toArray(), right: t.right })) } : null; },
+    /** What a real tap on the screen can take now (the walkthrough projects them): [x, y, z], right or not, its size (m) if the kind gives it; the reach in px. */
+    targets: () => { const s = cur(); return s ? { reach: s.reach, all: s.targets().map((t) => ({ pos: t.pos.toArray(), right: t.right, r: t.r ?? null })) } : null; },
   };
 }
