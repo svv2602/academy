@@ -6,7 +6,7 @@ import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
-  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petProblems, createPets, followStep, foundPets, markFound, petPlace,
+  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
@@ -227,6 +227,26 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     for (let i = 0; i < 600; i++) pets.update(1 / 60);
     expect(Math.hypot(p.x + 6, p.z)).toBeLessThan(0.6);
     second();
+  });
+
+  it('its shadow off where a world asks (petShadows): no mesh of it casts one; undone, each casts what it did before', () => {
+    const save = defaultSave();
+    worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
+    const g = host(save), rig = fakeRig();
+    const big = new THREE.Mesh(new THREE.BoxGeometry()), small = new THREE.Mesh(new THREE.BoxGeometry());
+    big.castShadow = true; small.castShadow = false;   // a small part of a model casts none (src/game/actor.ts)
+    rig.root.add(big, small);
+    const pets = createPets(g, { rigs: { [FAWN.id]: rig }, chainDone: () => false });
+    const casting = () => { const out: boolean[] = []; pets.follower!.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) out.push(o.castShadow); }); return out; };
+    pets.update(1 / 60);
+    const before = casting();
+    expect(before).toContain(true);
+    const undo = petShadows(false);
+    pets.update(1 / 60);
+    expect(casting().every((c) => !c)).toBe(true);
+    undo();
+    pets.update(1 / 60);
+    expect(casting()).toEqual(before);
   });
 
   it('stands while a scene runs (g.busy)', () => {
