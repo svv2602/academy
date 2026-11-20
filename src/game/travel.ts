@@ -137,7 +137,7 @@ export interface TravelHost {
   show(built: BuiltWorld, sky: WorldSky): void;
   /** Settles once the next frame of the game has been drawn (the loop). */
   drawn(): Promise<void>;
-  /** The entry into the world once its frame is open (src/game/start.ts `enterWorld`); `first` - she has not been in it yet. */
+  /** The entry into the world once its frame is open (src/game/start.ts `enterWorld`, 'travel': no meeting); `first` - she has not been in it yet. */
   welcome(first: boolean): Promise<void>;
   /**
    * She is in the world `id` asked for, its frame open (called before `welcome`): the game starts the download of the

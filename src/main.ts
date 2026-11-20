@@ -113,7 +113,7 @@ async function boot() {
   // of a world's description that `g` needs is added to this literal. The counter is read only once the world is built
   // (the first frame, the start button, a reward).
   const entryOf = (world: WorldDef): WorldEntry => ({
-    id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '',
+    id: world.id, ground: world.ground, spawn: world.spawn, crystals: () => travel.built?.hud() ?? '', crystalsIcon: () => travel.built?.hudIcon ?? '💎',
     pet: world.pet, characters: world.characters, secrets: world.secrets, chest: world.chest, groundStars: world.groundStars,
     move: world.move, worldTasks: world.worldTasks, arrive: world.arrive?.bind(world), left: world.left?.bind(world),
   });
@@ -134,7 +134,7 @@ async function boot() {
     setFrame: (frame) => loop.setWorld(frame),
     show: (built, sky) => { quality.setSun(sky.sun); showDebug?.(built.debug); },
     drawn: () => loop.drawn(),
-    welcome: (first) => enterWorld(g, first),
+    welcome: (first) => enterWorld(g, first, 'travel'),
     arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },
     gate, cache: worlds, refuse,
   });

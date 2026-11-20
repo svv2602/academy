@@ -194,6 +194,28 @@ describe('the wiring (src/game/start.ts)', () => {
     expect(gifts).toEqual([]);
   });
 
+  it('back from another world (a change of world): no meeting and no "welcome back", only the world\'s own word', async () => {
+    const { enterWorld } = await import('../game/start');
+    const a = game('2000-01-01');
+    await enterWorld(a.g as never, false, 'travel');
+    expect(a.said).toEqual([]);
+    expect(a.gifts).toEqual([]);
+    const b = game('2000-01-01');
+    (b.raw.world as { left?: () => string | null }).left = () => 'hub_asleep';
+    await enterWorld(b.g as never, false, 'travel');
+    expect(b.said).toEqual(['hub_asleep']);
+  });
+
+  it('on "Play" the world\'s own word waits for the stop point (an achievement\'s scene would cut it off)', async () => {
+    const { enterWorld } = await import('../game/start');
+    const { g, raw, said } = game();
+    (raw.world as { left?: () => string | null }).left = () => 'tree_calls';
+    await enterWorld(g as never, false);
+    expect(said).not.toContain('tree_calls');   // said by sayLeft after atPlay
+    const src = (await import('node:fs')).readFileSync('src/game/start.ts', 'utf8');
+    expect(src).toMatch(/void atPlay\(g\)\.then\(\(\) => \{ if \(!first\) sayLeft\(g\); \}\);/);
+  });
+
   it('the first entry of a world with no characters (the hub) has no hint: there is no friend to run to', async () => {
     const { enterWorld } = await import('../game/start');
     const { g, raw, said } = game('2000-01-01');

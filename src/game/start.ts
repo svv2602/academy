@@ -21,20 +21,26 @@ import type { BookInfo, WorldLines } from './world';
  * game with the cat's first hint - "run after the sparkles to a new friend", so only in a world with characters (the hub
  * has none, R5). The world's old welcome (`lines.intro`) is no longer said here.
  */
-export async function enterWorld(g: Game, first: boolean): Promise<void> {
+export async function enterWorld(g: Game, first: boolean, via: 'launch' | 'travel' = 'launch'): Promise<void> {
   if (first) await playStory(g, 'story_intro');
   await tour(g);
   if (first) {
     firstDay(g);   // PLAY-21: the first day is marked, no star
     if (g.world.characters?.length) void g.speech.line('go_next', 'hint', 6000);
-  }
-  else {
-    await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
-    // the world's own word for where she stopped (WorldDef.left; the first world: the Great Tree calls, R28; the hub:
-    // the other worlds still sleep)
-    const left = g.world.left?.(g.ws, g.save, 'entry');
-    if (left) void g.speech.line(left, 'hint', 6000);
-  }
+  } else if (via === 'launch') await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
+  // Back from another world a moment ago (a change of world): no meeting, no "welcome back" - she has not been away.
+  // The world's own word comes now; on a launch it waits for the stop point of "Play" (`sayLeft` after `atPlay`), or
+  // an achievement's scene there would cut it off.
+  else sayLeft(g);
+}
+
+/**
+ * The world's own word for where she stopped, as she comes in again (WorldDef.left; the first world: the Great Tree
+ * calls, R28; the hub: the other worlds still sleep). None - nothing is said.
+ */
+export function sayLeft(g: Game): void {
+  const left = g.world.left?.(g.ws, g.save, 'entry');
+  if (left) void g.speech.line(left, 'hint', 6000);
 }
 
 /**
@@ -64,7 +70,9 @@ export function initStartScreen(g: Game, o: {
     hero.once('Wave', 'Idle');
     await enterWorld(g, first);
     if (o.launched.refused) o.launched.refuse();
-    void atPlay(g);   // PLAY-08: the day of play is counted, then a stop point - at once, not when a chunk has loaded
+    // PLAY-08: the day of play is counted, then a stop point - at once, not when a chunk has loaded; the world's own word
+    // for where she stopped after it, so an achievement's scene at the point does not cut it off
+    void atPlay(g).then(() => { if (!first) sayLeft(g); });
   }, { once: true });
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.
   const openShop = initShop(save, o.gear, {
