@@ -3397,6 +3397,9 @@ try {
         const until = async (pred, arg, what, seconds = 10) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
         const bookOpen = await visible('#book');
         if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        // where she stood: put back at the end - the blocks after this one tap the cat where she was (a find far off has
+        // a character near: a tap there would walk her to it)
+        const home = await g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, yaw: __game.cam.yaw, heading: __game.hero.heading }));
         const items = await g(() => __game.collect.items);
         if (items.length !== 24) fail(`${items.length} finds in the world, not 24`);
         const of = (kind, way) => items.find((i) => i.kind === kind && i.way === way && !i.taken) ?? fail(`no ${kind} to take by "${way}"`);
@@ -3515,6 +3518,8 @@ try {
         await shot('collect-book');
         await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
         if (!bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        await g((h) => { __game.teleport(h.x, h.z); __game.cam.yaw = h.yaw; __game.hero.heading = h.heading; }, home);
+        await gameSeconds(0.5);
         console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
       }
       // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----

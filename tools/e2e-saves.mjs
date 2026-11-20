@@ -136,18 +136,19 @@ export const GROUPS = {
   // the world done, the crystal restored, the 52 stars the whole walkthrough comes to the shop with: the star wand and
   // the hat, then too few for the sparkles. The heroine and her items go here (her look is still a new player's): the
   // pieces take about the same time.
-  // The collections (PLAY-25) go here too, after the shop's own blocks: the potions are this piece's, and in world1 the
-  // desktop run went past its 1080 s with them.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'deal', 'pet-gear', 'shop-sign', 'collect', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'deal', 'pet-gear', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
+  // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
+  // shop's on desktop has no room either (it came to them at 976 s). A world with no friend to play: the finds alone.
+  collect: { save: () => played({ done: [], stars: 0, tasks: {} }), friends: [], blocks: ['collect'], ach: [] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };
 
 /** The groups that together play the whole world: CI plays each of them in each size. */
-export const PIECES = ['world1', 'world2', 'finale', 'shop'];
+export const PIECES = ['world1', 'world2', 'finale', 'shop', 'collect'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice
