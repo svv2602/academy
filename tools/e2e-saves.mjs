@@ -141,8 +141,9 @@ export const GROUPS = {
     friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'deal', 'pet-gear', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
-  // shop's on desktop has no room either (it came to them at 976 s). A world with no friend to play: the finds alone.
-  collect: { save: () => played({ done: [], stars: 0, tasks: {} }), friends: [], blocks: ['collect'], ach: [] },
+  // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
+  // is a stop point and earns its achievements there; then no friend to play, the finds alone.
+  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['collect'], ach: ['first_shard', 'first_task'] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };
