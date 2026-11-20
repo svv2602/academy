@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Part } from './assets';
-import { NEAR_FADE, NEAR_FADE_GLSL, forgetPartMaterials, forgetRanged, instanced, instancedParts, updateRanged } from './instancing';
+import { forgetPartMaterials, forgetRanged, instanced, instancedParts, updateRanged } from './instancing';
+import { FADE_GLSL, NEAR_FADE, SEE_THROUGH, seeThrough, uSeeThrough } from './materials';
 
 /** One triangle: the tests must stay light (the heap of the test run is capped). */
 const triangle = () => new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
@@ -95,9 +96,11 @@ describe('NEAR_FADE: a part of the scenery by the camera dissolves, the camera k
       for (const sway of [0, 0.0035]) {
         const { sh, key } = compiled(cutout, sway);
         const f = sh.fragmentShader;
-        expect(f, `cutout ${cutout}, sway ${sway}`).toContain(NEAR_FADE_GLSL);
-        expect(f.indexOf(NEAR_FADE_GLSL)).toBeLessThan(f.indexOf('#include <map_fragment>'));
-        expect(key).toContain('near');
+        expect(f, `cutout ${cutout}, sway ${sway}`).toContain(FADE_GLSL);
+        expect(f).toMatch(/^uniform vec4 uSeeThrough;/);
+        expect(sh.uniforms).toHaveProperty('uSeeThrough', uSeeThrough);
+        expect(f.indexOf(FADE_GLSL)).toBeLessThan(f.indexOf('#include <map_fragment>'));
+        expect(key).toContain('fade');
         // the wind still bends what sways
         if (sway) expect(sh.vertexShader).toContain('uSway');
       }
@@ -115,7 +118,19 @@ describe('NEAR_FADE: a part of the scenery by the camera dissolves, the camera k
     expect(NEAR_FADE.in).toBeGreaterThan(0);
     expect(NEAR_FADE.out).toBeGreaterThan(NEAR_FADE.in);
     expect(NEAR_FADE.out).toBeLessThan(4);
-    expect(NEAR_FADE_GLSL).toContain('length(vViewPosition)');
-    expect(NEAR_FADE_GLSL).toContain('discard');
+    expect(FADE_GLSL).toContain('discard');
+  });
+
+  it('what stands between the camera and the heroine: her middle in the camera\'s space, set each frame', () => {
+    const cam = new THREE.PerspectiveCamera();
+    cam.position.set(0, 2, 6); cam.lookAt(0, 1, 0); cam.updateMatrixWorld();
+    seeThrough(cam, new THREE.Vector3(0, 1, 0));
+    const v = uSeeThrough.value;
+    expect(v.w).toBe(1);
+    expect(v.x).toBeCloseTo(0);
+    expect(v.z).toBeLessThan(-5.5);   // in front of the camera, 6 m off
+    expect(Math.hypot(v.x, v.y, v.z)).toBeCloseTo(Math.hypot(1, 6));
+    expect(SEE_THROUGH.r).toBeGreaterThan(SEE_THROUGH.in);
+    expect(SEE_THROUGH.before).toBeGreaterThan(0);   // what stands at her or behind her stays
   });
 });
