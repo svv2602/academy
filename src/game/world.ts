@@ -145,9 +145,10 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   arrive?(from: string): Arrival | null;
   /**
    * The world's own word for where she stopped, when it knows better than the shared ones (src/ui/welcome.ts
-   * `leftKey`): the cat says it on a tap and after the meeting of a game played before. Null or absent: the shared one.
+   * `leftKey`): the cat says it on a tap (`why` 'tap') and as she comes into the world again - after the meeting of
+   * a game played before or a change of world (`why` 'entry'). Null or absent: the shared one on a tap, none on entry.
    */
-  left?(ws: WorldState, save: Save): SpokenKey | null;
+  left?(ws: WorldState, save: Save, why: 'tap' | 'entry'): SpokenKey | null;
   readonly ground: WorldGround;
   readonly characters: readonly CharacterDef[];
   /**

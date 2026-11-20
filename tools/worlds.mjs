@@ -1015,6 +1015,13 @@ async function hubScenarios({ url, shots, fail: report }) {
       await p.shot('hub-arrival.png');
       told.push('the cat\'s line of the tour by its clip hub/hub_tour');
       told.push('she at the arch of the fairies facing the tree, the crystal\'s nest alone glowing, the forest\'s arch to the probe world, three asleep, the description its tour alone, no hint "to a new friend"');
+      // by a sleeping arch (the sea's) the cat says its world sleeps, by its clip in voice/hub/
+      await p.g(([x, z]) => { __game.teleport(x, z); }, [HUB_ARCH[2].x * 0.85, HUB_ARCH[2].z * 0.85]);
+      await p.gameSeconds(3);
+      const byArch = await p.g(() => ({ lines: [...window.__hubLines], clip: __game.clipFor('hub_sleeping'), synth: __game.voice.synth.includes('hub_sleeping') }));
+      if (!byArch.lines.includes('hub_sleeping')) fail(`one artifact: by the sleeping arch of the sea the cat did not say "hub_sleeping"; lines: ${byArch.lines.join(', ')}`);
+      if (byArch.clip !== 'hub/hub_sleeping' || byArch.synth) fail(`one artifact: the line "hub_sleeping" has the clip "${byArch.clip}"${byArch.synth ? ' and was left to the synthesizer' : ''}, expected "hub/hub_sleeping"`);
+      told.push('by a sleeping arch the cat says its world sleeps, by its clip hub/hub_sleeping');
       // through the forest's arch by its action button
       await p.g(([x, z]) => { __game.teleport(x, z); }, [HUB_ARCH[1].x * 0.9, HUB_ARCH[1].z * 0.9]);
       await p.until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 'no action button at the arch of the forest', 20000);
@@ -1051,6 +1058,23 @@ async function hubScenarios({ url, shots, fail: report }) {
         await p.g(() => __game.flyoverPlayer.skip());
       } else fail('two artifacts: no tour of the hub on its first entry');
       told.push('with two artifacts the crystal\'s and the forest\'s nests glow');
+      // nothing new (both open worlds done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
+      // "the other worlds still sleep" (not the shared "new friends live here"), its clip in voice/hub/
+      await p.inWorld('hub');
+      const quiet = await p.g(() => ({ goal: __game.hub.goal(), tap: __game.hub.left('tap'), clip: __game.clipFor('hub_asleep') }));
+      if (!quiet.goal || Math.hypot(quiet.goal.x - HUB_ARCH[0].x, quiet.goal.z - HUB_ARCH[0].z) > 0.5) fail(`two artifacts: with nothing new the sparkles lead to ${JSON.stringify(quiet.goal)}, not to the fairies' arch ${JSON.stringify(HUB_ARCH[0])}`);
+      if (quiet.tap !== 'hub_asleep') fail(`two artifacts: with nothing new a tap on the cat says "${quiet.tap}", expected "hub_asleep"`);
+      if (quiet.clip !== 'hub/hub_asleep') fail(`two artifacts: the line "hub_asleep" has the clip "${quiet.clip}", expected "hub/hub_asleep"`);
+      // a second entry (a reload: no tour any more) - the cat says it as she comes in
+      await p.page.reload();
+      await p.play(false);
+      await p.g(() => { const seen = window.__hubLines = new Set(); const look = () => { if (__game.line) seen.add(__game.line); requestAnimationFrame(look); }; look(); });
+      await p.inWorld('hub');
+      await p.gameSeconds(8);   // the meeting (welcome back), then the hub's word
+      const said = await p.g(() => [...window.__hubLines]);
+      if (!said.includes('hub_asleep')) fail(`two artifacts: on a second entry with nothing new the cat did not say "hub_asleep"; lines: ${said.join(', ')}`);
+      if (await p.g(() => __game.voice.synth.includes('hub_asleep'))) fail('two artifacts: the line "hub_asleep" was left to the synthesizer');
+      told.push('with nothing new the sparkles lead back to the fairies\' arch and the cat says "the other worlds still sleep" on a tap and on a second entry, by its clip hub/hub_asleep');
       await p.close();
     }
   } finally {

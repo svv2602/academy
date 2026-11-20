@@ -12,7 +12,7 @@ import { travel } from '../../game/travel';
 import type { BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
 import { HUB_FLYOVER } from './flyover-path';
 import { PORTALS, RADIUS, arrivalAt } from './layout';
-import { portalWorlds } from './portals';
+import { portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
 import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
@@ -40,6 +40,23 @@ import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
 const SPAWN = arrivalAt(0);
 /** m: how near the arch the action button opens it. */
 const PORTAL_SPOT = 2.0;
+/**
+ * Nothing new in the hub (every open world done, the others asleep): as she comes in, the cat says so and its sparkles
+ * lead to the arch of the fairies, back to the world she knows - not into the empty glade (the customer's decision
+ * 2026-11-20, reversible: false - she comes in to silence and no sparkles, as before).
+ */
+export const LEAD_HOME = true;
+/** Her world's final reached (read from the save, never creating its part). */
+const doneIn = (save: Save) => (id: string) => (save.worlds[id] as { final?: boolean } | undefined)?.final === true;
+/**
+ * The cat's word for where she stopped, in the hub (WorldDef.left): with nothing new, "the other worlds still sleep,
+ * shall we go back to the fairies?" - on a tap always (the shared words speak of friends, the hub has none), as she
+ * comes in only while LEAD_HOME. With an open world not done yet - the shared words.
+ */
+export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME): 'hub_asleep' | null {
+  if (somethingNew(portalWorlds(knownWorlds()), doneIn(save))) return null;
+  return why === 'tap' || leadHome ? 'hub_asleep' : null;
+}
 /** The flag of the hub's part of the save that marks the tour done (the id of its item). */
 export const TOUR = 'toured';
 
@@ -150,15 +167,23 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const flyover = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
 
   const open = portals.filter((p) => p.world !== null);
-  const done = (id: string) => (save.worlds[id] as { final?: boolean } | undefined)?.final === true;
+  const done = doneIn(save);
+  const sleeping = portals.filter((p) => p.world === null), heard = new Set<number>();
+  const home = portals[0];   // the arch of the first world: the fairies' (R9)
+  // The cat leads to the next open arch whose world is not done yet (R10); none - back to the fairies' (LEAD_HOME).
+  const frameGoal = () => open.find((p) => !done(p.world!))?.at ?? (LEAD_HOME && home.world !== null ? home.at : null);
   return {
     frame: {
       spots: open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
       tap: () => false,
       afterMove: (time, grounded) => gear.update(time, grounded),
-      update: () => {},
-      // The cat leads to the next open arch whose world is not done yet (R10); none - she is free.
-      goal: () => open.find((p) => !done(p.world!))?.at ?? null,
+      // By a sleeping arch the cat says its world sleeps (D) - once as she comes near, not while something else is said.
+      update: (_dt, _time, canMove) => {
+        if (!canMove || g.busy) return;
+        const at = g.hero.root.position, shelf = sleepingToSpeakOf(at.x, at.z, sleeping, heard);
+        if (shelf !== null) void g.speech.line('hub_sleeping', 'hint', 5000);
+      },
+      goal: frameGoal,
       animate: (_dt, time) => {
         flies.update(time);
         tree.update(time); breathe(time); glow(time); dressed.update(time);
@@ -168,7 +193,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },
@@ -190,6 +215,7 @@ export const hub: WorldDef<HubLoads, WorldSky> = {
     return at < 0 ? null : arrivalAt(at);
   },
   ground,
+  left: (_ws, save, why) => hubLeft(save, why),
   characters: [],
   strings,
   music: MUSIC,

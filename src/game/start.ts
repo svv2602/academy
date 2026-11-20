@@ -29,8 +29,9 @@ export async function enterWorld(g: Game, first: boolean): Promise<void> {
   }
   else {
     await meet(g);   // PLAY-21: hello and the star of a new day, else welcome back (src/ui/welcome.ts)
-    // the world's own word for where she stopped (WorldDef.left; the first world: the Great Tree calls, R28)
-    const left = g.world.left?.(g.ws, g.save);
+    // the world's own word for where she stopped (WorldDef.left; the first world: the Great Tree calls, R28; the hub:
+    // the other worlds still sleep)
+    const left = g.world.left?.(g.ws, g.save, 'entry');
     if (left) void g.speech.line(left, 'hint', 6000);
   }
 }
