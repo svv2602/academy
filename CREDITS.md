@@ -26,6 +26,10 @@ Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wand
 of the four looks: tiara, little wizard cap, elf ears, flower, moon and leaf wands; `models-src/items/`): our own simple shapes made in Blender for this game with
 `tools/items/items.py` — not taken from any pack or service.
 
+The pets' items (the cat's bow, collar, gold bell and hat; the fawn's bell, ribbon, star crown and wreath;
+`models-src/pet_items/`): our own simple shapes made in Blender for this game with `tools/items/pet_items.py` on
+2026-11-20 — not taken from any pack or service.
+
 Creatures of the first world (`models-src/creatures/`): Quaternius "Bird" (https://poly.pizza/m/gYYC0gYMnw),
 "Clownfish" (https://poly.pizza/m/769fHo3eEB) and "Fish" (https://poly.pizza/m/XWl86YFtpF), single models fetched
 from https://poly.pizza (its fish packs, https://quaternius.com/packs/animatedfish.html, are CC0 too) — each CC0 1.0
@@ -49,5 +53,15 @@ Their depth maps `w1_intro_1_depth.webp`, `w1_intro_2_depth.webp`, `w1_intro_3_d
 `w1_intro_5_depth.webp`, `w1_crystal_1_depth.webp`, `w1_crystal_2_depth.webp`, `w1_crystal_3_depth.webp` — computed
 from those frames on 2026-11-15 with Depth Anything V2 Small (Apache-2.0, the ONNX export of onnx-community) by
 `tools/depth.py`, locally; the model is not part of the game. Dedicated to the public domain under CC0 1.0.
+
+Voice (`public/voice/`, `public/bank/`; every clip has its record in `voice/qa.json`: text, intonation, model, voice):
+synthesized speech of the Gemini API (Google), model `gemini-2.5-flash-preview-tts`, its prebuilt voices (the
+narrator Puck; each character's voice is set in `src/worlds/<id>/voices.ts`). 249 clips were recorded for this game
+with `tools/gen_voice.py` on 2026-11-13 to 2026-11-20 (a paid API key); 394 clips of the earlier game, recorded with
+the same model and voice, were copied with `tools/import_old_voice.py` (VOICE-07), without any clip that speaks a
+name. Each clip was checked by transcribing it back with an OpenAI speech-to-text model; the transcription is not
+part of the game. Rights: the Gemini API Additional Terms of Service (https://ai.google.dev/gemini-api/terms, effective
+March 23, 2026), "Use of Generated Content": "Google won't claim ownership over that content", and "You're responsible
+for your use of generated content, and for the use of that content by anyone you share it with."
 
 Code: Three.js (MIT).
