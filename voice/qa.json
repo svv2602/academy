@@ -5536,5 +5536,13 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_feather": {
+  "text": "Це перо птаха з Великого Дерева! Завтра тут знайдеться ще одне.",
+  "heard": "Це перо птаха з великого дерева. Завтра тут знайдеться ще одне.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
