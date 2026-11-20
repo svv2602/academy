@@ -108,15 +108,26 @@ export function createCollections(g: CollectHost): CollectInWorld {
     meshes.set(kind, mesh);
   }
   for (const k of Object.keys(geos) as CollectKind[]) if (!meshes.has(k)) geos[k].dispose();
+  // the finds out now (CollectDef.shown): all, or those the world says; `outKey` - to see them change between frames
+  let out: ReadonlySet<number> | null = null, outKey = '';
+  const isOut = (it: (typeof items)[number]) => out === null || out.has(it.id);
+  const readOut = () => {
+    if (!def?.shown) return false;
+    const ids = def.shown(g.ws), key = ids.join(',');
+    if (key === outKey) return false;
+    out = new Set(ids); outKey = key;
+    return true;
+  };
+  readOut();
   const unfound: THREE.Vector3[] = [];
-  const refresh = () => { unfound.length = 0; for (const it of items) if (!it.taken) unfound.push(it.pos); };
+  const refresh = () => { unfound.length = 0; for (const it of items) if (!it.taken && isOut(it)) unfound.push(it.pos); };
   refresh();
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3();
   let gone = false, twinkle = 0;
   const dirty = new Set<THREE.InstancedMesh>();
 
   function take(it: (typeof items)[number]) {
-    if (it.taken || !def) return;
+    if (it.taken || !def || !isOut(it)) return;
     it.taken = true;
     const first = !found.some((i) => def.items[i].kind === it.kind);
     found.push(it.id);
@@ -141,7 +152,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
       const hp = g.hero.root.position;
       let best: (typeof items)[number] | null = null, bestD = TAP_PX;
       for (const it of items) {
-        if (it.taken || it.way !== 'tap' || Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) > TAP_R) continue;
+        if (it.taken || !isOut(it) || it.way !== 'tap' || Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) > TAP_R) continue;
         const d = screenDist(it.pos);
         if (d < bestD) { best = it; bestD = d; }
       }
@@ -154,16 +165,18 @@ export function createCollections(g: CollectHost): CollectInWorld {
       const sparkle = (twinkle += dt) > TWINKLE;
       if (sparkle) twinkle = 0;
       dirty.clear();
+      if (readOut()) refresh();
       // a kind is drawn by its finds near her: their sphere is what the camera culls by; none near - not drawn at all
       // (the far ones stand still and small in the haze: a mesh of a kind spans the valley)
       for (const [kind, mesh] of meshes) {
-        const near = items.filter((it) => it.kind === kind && !it.taken && Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) < SHOWN);
+        const near = items.filter((it) => it.kind === kind && !it.taken && isOut(it) && Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) < SHOWN);
         mesh.visible = near.length > 0;
         if (near.length) mesh.boundingSphere!.setFromPoints(near.map((it) => it.pos)).radius += 1 + (kind === 'butterfly' ? CHASE.ring : 0);
       }
       for (const it of items) {
         const mesh = meshes.get(it.kind)!;
-        if (it.taken) { if (it.posed !== 'gone') { mesh.setMatrixAt(it.slot, m4.makeScale(0, 0, 0)); it.posed = 'gone'; dirty.add(mesh); } continue; }
+        // taken, or not out now: drawn as nothing (one not out comes back at rest once it is out)
+        if (it.taken || !isOut(it)) { if (it.posed !== 'gone') { mesh.setMatrixAt(it.slot, m4.makeScale(0, 0, 0)); it.posed = 'gone'; dirty.add(mesh); } continue; }
         // far from her a find stands still at rest, drawn as it was laid: no matrix of it to send each frame (the
         // desktop walkthrough of world2 ran a quarter longer with all of them moving)
         if (Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) > LIVE) {

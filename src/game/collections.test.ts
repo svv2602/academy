@@ -217,6 +217,25 @@ describe('the finds in the world (src/game/collect-items.ts)', () => {
     expect(m.boundingSphere!.radius).toBeLessThan(45 + 8);
   });
 
+  it('a world that puts its finds out one at a time (CollectDef.shown): the others are not drawn, taken or led to; numbers stay their own', () => {
+    let out: number[] = [2];
+    const h = host({ ...def, shown: () => out }), c = createCollections(h.g);
+    const m = h.g.scene.getObjectByName('collect-mushroom') as THREE.InstancedMesh, scaleOf = (slot: number) => {
+      const e = new THREE.Matrix4(); m.getMatrixAt(slot, e); return new THREE.Vector3().setFromMatrixScale(e).x;
+    };
+    // she walks into the find 0, not out: nothing; the find 2 is the only one led to
+    at(h, def.items[0].x, 0, def.items[0].z); c.update(0.016, 0, true);
+    expect(h.ws.found ?? []).toEqual([]);
+    expect(scaleOf(0)).toBe(0);
+    expect(c.unfound().map((p) => p.x)).toEqual([def.items[2].x]);
+    // out now: drawn and taken, as itself
+    out = [0, 2];
+    c.update(0.016, 0.1, true);
+    expect(scaleOf(0)).toBeGreaterThan(0);
+    expect(h.ws.found).toEqual([0]);
+    expect(c.unfound().map((p) => p.x)).toEqual([def.items[2].x]);
+  });
+
   it('one of a flock taken, the other flies up for a moment and settles back within reach', () => {
     const h = host(def), c = createCollections(h.g), [a, b] = [c.items[10], c.items[11]];
     at(h, a.x, 0, a.z); c.update(0.016, 0, true);

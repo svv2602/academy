@@ -40,7 +40,15 @@ export interface CollectItem {
 }
 
 /** What a world lays out: every kind it names has exactly SET_SIZE finds. */
-export interface CollectDef { readonly items: readonly CollectItem[] }
+export interface CollectDef {
+  readonly items: readonly CollectItem[];
+  /**
+   * The finds out in the world now, by their numbers in `items` (a world that lays them out one a day, the hub's
+   * feathers); unset - all of them. A find not out is not drawn, not taken and not led to; its number stays its own,
+   * so `ws.found` keeps meaning the same finds. Read every frame: keep it cheap.
+   */
+  shown?(ws: WorldState): readonly number[];
+}
 
 export const SET_SIZE = 6;
 /** Stars for a find, and for a whole set (literals at `addStars`, as src/game/no-penalties.test.ts reads them). */
