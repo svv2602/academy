@@ -72,7 +72,7 @@
 import { chromium } from 'playwright-core';
 import { gameWaits } from './game-wait.mjs';
 import { createHash } from 'crypto';
-import { mkdirSync, writeFileSync } from 'fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'fs';
 import { inflateRawSync } from 'zlib';
 import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
@@ -127,6 +127,8 @@ const blocksPlayed = [];     // the blocks the walkthrough came to, in order
 const has = (block) => {
   if (group && !group.blocks.includes(block)) return false;
   blocksPlayed.push(block); console.log(`block ${block}: ${((Date.now() - t00) / 1000).toFixed(0)}s`); /* clock: log-time */
+  // tools/run-limit.mjs: the time of each block against the limit of the walkthrough, kept even if it is killed
+  if (process.env.E2E_BLOCKS_OUT) appendFileSync(process.env.E2E_BLOCKS_OUT, `${block} ${((Date.now() - t00) / 1000).toFixed(1)}\n`); /* clock: log-time */
   return true;
 };
 const listed = (block) => !group || group.blocks.includes(block);   // the same, without counting it as played

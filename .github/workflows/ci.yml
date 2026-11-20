@@ -99,7 +99,7 @@ jobs:
     # No walkthrough planned: the job is skipped (an empty matrix would be an error), and "check" expects exactly that.
     if: ${{ needs.plan.outputs.walk == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false        # every size reports, not only the first that failed
       # A size and a piece of the world per job (tools/world-pieces.mjs, tools/e2e-saves.mjs): each piece starts from
@@ -128,8 +128,9 @@ jobs:
         env:
           E2E_GL: swiftshader
           Q: '0'
-          # One piece of the world takes 5-9 minutes here; the limit leaves room for a slow runner.
-          E2E_RUN_TIMEOUT_MS: '1080000'
+          # One piece of the world takes 2-15 minutes here; the limit is tools/ci-pieces.mjs TRY_LIMITS.piece (the numbers
+          # are there).
+          E2E_RUN_TIMEOUT_MS: '1350000'
           # The probe world is played by the job "worlds", not by the step of the same name in the phone's shop.
           E2E_WORLDS: '0'
           # workflow_dispatch "break": every quest of this size counts as stuck at once, so its walkthrough fails.

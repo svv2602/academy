@@ -780,6 +780,16 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(combine).not.toContain('continue-on-error');
   });
 
+  it('a piece of the gate and of the publication has the limits of a trial of a piece (TRY_LIMITS.piece, 2026-11-20)', () => {
+    for (const walk of [workflow('ci.yml').jobs.walk, pages.jobs.walk]) {
+      expect(key(walk, 'timeout-minutes')).toBe(String(TRY_LIMITS.piece.minutes));
+      expect(walk).toContain(`          E2E_RUN_TIMEOUT_MS: '${TRY_LIMITS.piece.runMs}'\n`);
+    }
+    // a quarter over the slowest piece seen; the job is longer than its walkthrough by the install and the build
+    expect(TRY_LIMITS.piece.minutes * 60000).toBeGreaterThan(TRY_LIMITS.piece.runMs);
+    expect(TRY_LIMITS.all.minutes * 60000).toBeGreaterThan(TRY_LIMITS.all.runMs);
+  });
+
   it('session: the whole walkthrough of the phone in one session, with the limits of a trial of it, and "check" waits for it', () => {
     const session = pages.jobs.session;
     expect(key(session, 'needs')).toBe('build');
@@ -990,7 +1000,7 @@ describe('tools/ci-pieces.mjs tryPlan: the name of a trial branch says what to t
   const C = `1a2b3c4${'d'.repeat(33)}`;
   it('a piece of the walkthrough in a size, N times, with the network or without', () => {
     expect(tryPlan('try/mobile/world2/x5/net/1a2b3c4', C)).toEqual({
-      size: 'mobile', piece: 'world2', n: 5, offline: false, probe: false, all: false, runMs: 1080000, minutes: 25, title: 'world2 mobile x5',
+      size: 'mobile', piece: 'world2', n: 5, offline: false, probe: false, all: false, runMs: 1350000, minutes: 30, title: 'world2 mobile x5',
       matrix: { include: [{ turn: 1 }, { turn: 2 }, { turn: 3 }, { turn: 4 }, { turn: 5 }] },
     });
     expect(tryPlan('try/desktop/shop/x1/offline/1a2b3c4dddd', C)).toMatchObject({ size: 'desktop', piece: 'shop', n: 1, offline: true, probe: false, title: 'shop desktop x1 offline' });
@@ -1069,13 +1079,14 @@ describe('tools/ci-pieces.mjs tryPlan: the whole walkthrough of a size as a tria
   const C = `1a2b3c4${'d'.repeat(33)}`;
   it('"all" is the whole walkthrough of any of the four sizes, with limits of its own', () => {
     expect(tryPlan('try/mobile/all/x1/net/1a2b3c4', C)).toEqual({
-      size: 'mobile', piece: 'all', n: 1, offline: false, probe: false, all: true, runMs: 2400000, minutes: 50, title: 'all mobile x1',
+      size: 'mobile', piece: 'all', n: 1, offline: false, probe: false, all: true, runMs: 3000000, minutes: 60, title: 'all mobile x1',
       matrix: { include: [{ turn: 1 }] },
     });
     for (const size of SIZES) expect(tryPlan(`try/${size}/all/x${TRY_ALL_MAX}/offline/1a2b3c4`, C)).toMatchObject({ size, all: true, offline: true, n: TRY_ALL_MAX, ...TRY_LIMITS.all });
     expect(TRY_ALL).toBe('all');
     // the limits are the piece's parameter: a piece and a part of the probe world keep the gate's, the whole walk is longer
-    expect(TRY_LIMITS.piece).toEqual({ runMs: 1080000, minutes: 25 });
+    expect(TRY_LIMITS.piece).toEqual({ runMs: 1350000, minutes: 30 });
+    expect(TRY_LIMITS.all).toEqual({ runMs: 3000000, minutes: 60 });
     expect(TRY_LIMITS.all.runMs).toBeGreaterThan(TRY_LIMITS.piece.runMs);
     expect(TRY_LIMITS.all.minutes * 60000).toBeGreaterThan(TRY_LIMITS.all.runMs);
     for (const part of PARTS) expect(tryPlan(`try/probe/${part}/x1/net/1a2b3c4`, C)).toMatchObject({ all: false, ...TRY_LIMITS.piece });
@@ -1094,12 +1105,12 @@ describe('tools/ci-pieces.mjs tryPlan: the whole walkthrough of a size as a tria
       const out = join(dir, 'out');
       const r = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/desktop/all/x2/offline/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
       expect(r.status, r.stderr).toBe(0);
-      expect(r.stdout).toContain('[ci] trial: all desktop x2 offline (the whole walkthrough in the size desktop, without the network, 2 time(s); a walkthrough within 40 min, a turn within 50 min)');
+      expect(r.stdout).toContain('[ci] trial: all desktop x2 offline (the whole walkthrough in the size desktop, without the network, 2 time(s); a walkthrough within 50 min, a turn within 60 min)');
       const written = readFileSync(out, 'utf8');
-      for (const line of ['size=desktop', 'piece=all', 'n=2', 'offline=true', 'probe=false', 'all=true', 'run_ms=2400000', 'minutes=50']) expect(written.split('\n'), line).toContain(line);
+      for (const line of ['size=desktop', 'piece=all', 'n=2', 'offline=true', 'probe=false', 'all=true', 'run_ms=3000000', 'minutes=60']) expect(written.split('\n'), line).toContain(line);
       const piece = spawnSync(process.execPath, [join(root, 'tools/ci-pieces.mjs'), 'try', 'try/mobile/shop/x1/net/1a2b3c4', C], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: out } });
-      expect(piece.stdout).toContain('(the piece "shop" in the size mobile, with the network, 1 time(s); a walkthrough within 18 min, a turn within 25 min)');
-      expect(readFileSync(out, 'utf8')).toContain('all=false\nrun_ms=1080000\nminutes=25\n');
+      expect(piece.stdout).toContain('(the piece "shop" in the size mobile, with the network, 1 time(s); a walkthrough within 22.5 min, a turn within 30 min)');
+      expect(readFileSync(out, 'utf8')).toContain('all=false\nrun_ms=1350000\nminutes=30\n');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }, 60000);
 });

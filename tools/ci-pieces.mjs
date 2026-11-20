@@ -252,12 +252,20 @@ export const TRY_ALL = 'all';
 export const TRY_ALL_MAX = 3;
 /**
  * The limits of a turn, by what is played: `runMs` - of one walkthrough process (E2E_RUN_TIMEOUT_MS), `minutes` - of
- * the job that plays it. A piece and a part of the probe world keep the limits of the gate (ci.yml); the whole
- * walkthrough is the four pieces in one session and has limits of its own.
+ * the job that plays it. A piece keeps the limits of the gate (the job "walk" of ci.yml and the pieces of pages.yml,
+ * held so by their tests), and a part of the probe world takes them as well; the whole walkthrough is the pieces in one
+ * session and has limits of its own. The job is longer than the walkthrough by the install and the download of the build.
+ *
+ * The numbers (2026-11-20; the slowest seen plus a quarter - one runner is up to 15 % slower than another with the same
+ * commit, and each new block of a world adds 30-150 s):
+ * - a piece: the slowest of the gate desktop world2, 899 s on one runner (run 44717663093) and at the limit of 1080 s on
+ *   a slow one -> 1350 s, a job of 30 minutes;
+ * - the whole walkthrough of the phone: 1817-2281 s in the trials of the day, a turn killed by a flaky block at 2350 s
+ *   of its 2400 -> 3000 s, a job of 60 minutes.
+ * tools/run-limit.mjs warns in the summary of every run whose walkthrough leaves less than 15 % of its limit.
  */
-export const TRY_LIMITS = { piece: { runMs: 1_080_000, minutes: 25 }, all: { runMs: 2_400_000, minutes: 50 } };
-// The whole walkthrough of the phone's size took 1494 s on the runner (trial 44231962833); 40 minutes leave room for a
-// slow runner. pages.yml (the job "session") and nightly.yml play it with these very limits - their tests hold them so.
+export const TRY_LIMITS = { piece: { runMs: 1_350_000, minutes: 30 }, all: { runMs: 3_000_000, minutes: 60 } };
+// pages.yml (the job "session") and nightly.yml play the whole walkthrough with these very limits - their tests hold them so.
 /** The kinds of what the jobs leave for the job that sums them up (the names: `attemptName`). */
 export const RESULTS = 'results', TRY_TURN = 'try-turn';
 /**
