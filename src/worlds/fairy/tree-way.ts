@@ -16,14 +16,13 @@ import { TREE_WAY } from './layout';
  */
 
 /**
- * Open: after the crystal she goes to the hub, and the arch stands. Closed 2026-11-20 until the route is finished -
- * the way out of the arch, the look of the arch in this world, the points of the hub's tour (it was opened the same
- * day, once the hub had its look and passed on the S22). Closed: "walk around" after the finale as before, no arch, no
- * sparkles to it.
+ * Open: after the crystal she goes to the hub, and the arch stands. Opened once the route was finished (2026-11-20:
+ * the way out of the arch 7 m, the stone arch in this world, the points of the hub's tour; it had been closed for the
+ * publication of that day). Closed: "walk around" after the finale as before, no arch, no sparkles to it.
  * The hub itself stays in the registry - `?debug&world=hub` opens it, and from there the arch of the fairies leads
  * back here (`arrive` still puts her where the arch would stand).
  */
-export const TREE_WAY_OPEN = false;
+export const TREE_WAY_OPEN = true;
 
 /** The id of the hub in the registry (src/worlds/index.ts). */
 export const HUB = 'hub';
