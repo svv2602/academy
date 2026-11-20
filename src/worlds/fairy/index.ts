@@ -417,7 +417,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   // Out of the arch to the Great Tree, back from the hub (./tree-way.ts); from elsewhere - where she was left.
   arrive: (from) => (from === HUB ? FROM_HUB : null),
   // the crystal whole and the hub not visited: "the Great Tree calls" on a tap on the cat and back in the game (R28)
-  left: treeCalls,
+  left: (ws, save) => treeCalls(ws, save),
   ground,
   characters: FRIENDS,
   secrets: ['chest', 'glade', 'house'],

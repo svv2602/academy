@@ -5456,5 +5456,21 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_asleep": {
+  "text": "Інші світи ще сплять. Повернемося до фей?",
+  "heard": "Інші світи ще сплять. Повернемося до фей?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sleeping": {
+  "text": "Цей світ ще спить. Він прокинеться згодом!",
+  "heard": "Цей світ ще спить, він прокинеться згодом.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
