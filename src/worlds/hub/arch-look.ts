@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { fadeAtCamera } from '../../core/materials';
 import { staticGeo } from '../../core/assets';
 import { NESTS, PORTALS, trunkR, type PortalPlace } from './layout';
 
@@ -258,6 +259,22 @@ function crestStar(): THREE.BufferGeometry[] {
   return [bake(ridged(outline, [0, 0.46], 0.17), _m.identity(), WHITE)];
 }
 
+/**
+ * The crest of the Great Tree, on the arch to it in the first world: a short trunk under a round faceted crown, about
+ * as tall as the other crests.
+ */
+export function crestTree(): THREE.BufferGeometry {
+  const parts = [
+    bake(new THREE.CylinderGeometry(0.08, 0.12, 0.4, 6), place(0, 0.2, 0), WHITE),
+    bake(new THREE.IcosahedronGeometry(0.36, 0), place(0, 0.66, 0, 0.3, 0.2, 0, 1, 0.9, 0.8), WHITE),
+    bake(new THREE.IcosahedronGeometry(0.22, 0), place(-0.28, 0.52, 0.04, 0.5, 0, 0), WHITE),
+    bake(new THREE.IcosahedronGeometry(0.22, 0), place(0.28, 0.54, -0.04, 0, 0.6, 0), WHITE),
+  ];
+  const g = mergeGeometries(parts, false)!;
+  for (const p of parts) p.dispose();
+  return g;
+}
+
 /** The crest of the place `shelf` (one shape per place; a place past the five takes the star). */
 export function crestShape(shelf: number): THREE.BufferGeometry {
   const parts = [crestCrystal, crestLeaf, crestShell, crestCandy, crestStar][shelf]?.() ?? crestStar();
@@ -368,69 +385,107 @@ export type Arch = PortalPlace & { world: string | null; veil: THREE.Mesh; at: T
 /** The stone of an open arch; the stone of a sleeping one (grey, colder) and of its crest; the vines; the wood of the sign. */
 const COLOURS = { open: '#b4ada2', sleeping: '#7d7a76', crest: '#8f8b86', stem: '#4a6b33', leaf: '#4f8f3c', wood: '#8a6142' } as const;
 
+/** What one arch is built of: where it stands and faces, its colour and crest, open or asleep. */
+export interface ArchSpec {
+  x: number; z: number;
+  /** The arch's turn (as PortalPlace.facing): its local +z points out, away from where she comes up to it. */
+  facing: number;
+  colour: string; icon: string;
+  /** The sign of the world on the keystone (`crestShape`), not yet placed. */
+  crest: THREE.BufferGeometry;
+  open: boolean;
+  /** The seed of its stones' jitter, and the phase of its breath. */
+  seed: number; phase: number;
+}
+
+/**
+ * One stone arch (the hub's five, and the arch to the Great Tree in the first world): its stones (with vines and the
+ * sign when asleep), the veil facing the side she comes from, the glowing runes and crest when open. `block` gets its
+ * posts. Returns its group, its veil and the material of its runes (breathed by `breathe`).
+ */
+export function buildArch(scene: THREE.Scene, a: ArchSpec, stoneMat: THREE.Material, block: (x: number, z: number, r: number) => void) {
+  const rnd = seeded(a.seed);
+  const group = new THREE.Group();
+  group.position.set(a.x, 0, a.z); group.rotation.y = a.facing;
+  for (const side of [-1, 1]) {
+    // the posts keep a walker out; she passes between them
+    block(a.x + Math.cos(a.facing) * side * ARCH.post, a.z - Math.sin(a.facing) * side * ARCH.post, ARCH.postR);
+  }
+  const parts = archStones(rnd, new THREE.Color(a.open ? COLOURS.open : COLOURS.sleeping), true);
+  // the crest on the keystone: grey stone on a sleeping arch (in its stones), glowing with the runes on an open one
+  const crest = a.crest.applyMatrix4(place(0, CREST.y, 0));
+  if (!a.open) parts.push(bake(crest, _m.identity(), new THREE.Color(COLOURS.crest)));
+  if (!a.open) {
+    const stem = new THREE.Color(COLOURS.stem), leaf = new THREE.Color(COLOURS.leaf), wood = new THREE.Color(COLOURS.wood);
+    parts.push(...vine(rnd, -1, stem, leaf), ...vine(rnd, 1, stem, leaf));
+    // the sign's post and the board behind its picture
+    parts.push(bake(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 6, 1, true), place(SIGN.x, 0.45, SIGN.z + 0.05), wood));
+    parts.push(bake(new THREE.BoxGeometry(SIGN.size + 0.1, SIGN.size + 0.1, 0.06), place(SIGN.x, SIGN.y, SIGN.z + 0.04, 0, 0, jit(rnd, 0.05)), wood));
+  }
+  const geo = mergeGeometries(parts, false)!;
+  for (const g of parts) g.dispose();
+  const stones = new THREE.Mesh(geo, stoneMat);
+  stones.castShadow = true; stones.receiveShadow = true;
+  group.add(stones);
+
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H), veilMaterial(a.colour, a.phase));
+  // one-sided, facing the side she comes from (the plane's front is its +z, turned to local -z)
+  veil.position.y = VEIL_H / 2; veil.rotation.y = Math.PI; veil.visible = a.open;
+  veil.renderOrder = 1;
+  group.add(veil);
+
+  let glow: THREE.MeshStandardMaterial | null = null;
+  if (a.open) {
+    glow = new THREE.MeshStandardMaterial({ color: a.colour, emissive: a.colour, emissiveIntensity: 1, roughness: 0.4, flatShading: true });
+    const glyphs = [archRunes(rnd), bake(crest, _m.identity(), new THREE.Color(1, 1, 1))];
+    const runes = new THREE.Mesh(mergeGeometries(glyphs, false)!, glow);
+    for (const g of glyphs) g.dispose();
+    runes.castShadow = true;
+    group.add(runes);
+  } else {
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(SIGN.size, SIGN.size), new THREE.MeshStandardMaterial({ map: signTexture(a.icon, a.colour), roughness: 0.9 }));
+    // facing the side she comes from (beside the arch, a step in front of it)
+    sign.position.set(SIGN.x, SIGN.y, SIGN.z); sign.rotation.y = Math.PI;
+    sign.receiveShadow = true;
+    group.add(sign);
+  }
+  scene.add(group);
+  return { group, veil, glow };
+}
+
+/** The stone of the arches: vertex-coloured, faceted, dissolving at the lens and looked through (fadeAtCamera). */
+export function archStoneMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true });
+  m.onBeforeCompile = (sh) => fadeAtCamera(sh);
+  m.customProgramCacheKey = () => 'arch-stone|fade';
+  return m;
+}
+
+/** Breathes veils and runes: in step, the veil's breath is the runes'. */
+export function breathe(time: number, glows: readonly { mat: THREE.MeshStandardMaterial; phase: number }[]): void {
+  veilTime.value = time;
+  for (const g of glows) g.mat.emissiveIntensity = 0.9 + 0.5 * Math.sin(time * 1.6 + g.phase);
+}
+
 /**
  * The five arches round the tree: open ones breathe in their colour - the veil, the keystone and the runes - the
  * others sleep, grey and under vines, with the sign of their world. `block` gets the posts of every arch.
  */
 export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null)[], block: (x: number, z: number, r: number) => void) {
-  const stoneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true });
+  const stoneMat = archStoneMaterial();
   const glows: { mat: THREE.MeshStandardMaterial; phase: number }[] = [];
   const arches: Arch[] = PORTALS.map((p) => {
-    const world = leadsTo[p.shelf] ?? null, open = world !== null, rnd = seeded(101 + p.shelf * 7919);
-    const group = new THREE.Group();
-    group.position.set(p.x, 0, p.z); group.rotation.y = p.facing;
-    for (const side of [-1, 1]) {
-      // the posts keep a walker out; she passes between them
-      block(p.x + Math.cos(p.facing) * side * ARCH.post, p.z - Math.sin(p.facing) * side * ARCH.post, ARCH.postR);
-    }
-    const parts = archStones(rnd, new THREE.Color(open ? COLOURS.open : COLOURS.sleeping), true);
-    // the crest on the keystone: grey stone on a sleeping arch (in its stones), glowing with the runes on an open one
-    const crest = crestShape(p.shelf).applyMatrix4(place(0, CREST.y, 0));
-    if (!open) parts.push(bake(crest, _m.identity(), new THREE.Color(COLOURS.crest)));
-    if (!open) {
-      const stem = new THREE.Color(COLOURS.stem), leaf = new THREE.Color(COLOURS.leaf), wood = new THREE.Color(COLOURS.wood);
-      parts.push(...vine(rnd, -1, stem, leaf), ...vine(rnd, 1, stem, leaf));
-      // the sign's post and the board behind its picture
-      parts.push(bake(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 6, 1, true), place(SIGN.x, 0.45, SIGN.z + 0.05), wood));
-      parts.push(bake(new THREE.BoxGeometry(SIGN.size + 0.1, SIGN.size + 0.1, 0.06), place(SIGN.x, SIGN.y, SIGN.z + 0.04, 0, 0, jit(rnd, 0.05)), wood));
-    }
-    const geo = mergeGeometries(parts, false)!;
-    for (const g of parts) g.dispose();
-    const stones = new THREE.Mesh(geo, stoneMat);
-    stones.castShadow = true; stones.receiveShadow = true;
-    group.add(stones);
-
-    const veil = new THREE.Mesh(new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H), veilMaterial(p.colour, p.shelf * 1.3));
-    // one-sided, facing the glade (the plane's front is its +z, turned to the tree)
-    veil.position.y = VEIL_H / 2; veil.rotation.y = Math.PI; veil.visible = open;
-    veil.renderOrder = 1;
-    group.add(veil);
-
-    if (open) {
-      const mat = new THREE.MeshStandardMaterial({ color: p.colour, emissive: p.colour, emissiveIntensity: 1, roughness: 0.4, flatShading: true });
-      glows.push({ mat, phase: p.shelf * 1.3 });
-      const glyphs = [archRunes(rnd), bake(crest, _m.identity(), new THREE.Color(1, 1, 1))];
-      const runes = new THREE.Mesh(mergeGeometries(glyphs, false)!, mat);
-      for (const g of glyphs) g.dispose();
-      runes.castShadow = true;
-      group.add(runes);
-    } else {
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(SIGN.size, SIGN.size), new THREE.MeshStandardMaterial({ map: signTexture(p.icon, p.colour), roughness: 0.9 }));
-      // facing the glade, where she comes from (beside the arch, a step in front of it)
-      sign.position.set(SIGN.x, SIGN.y, SIGN.z); sign.rotation.y = Math.PI;
-      sign.receiveShadow = true;
-      group.add(sign);
-    }
-    scene.add(group);
+    const world = leadsTo[p.shelf] ?? null, open = world !== null;
+    const { group, veil, glow } = buildArch(scene, {
+      x: p.x, z: p.z, facing: p.facing, colour: p.colour, icon: p.icon, crest: crestShape(p.shelf), open, seed: 101 + p.shelf * 7919, phase: p.shelf * 1.3,
+    }, stoneMat, block);
+    if (glow) glows.push({ mat: glow, phase: p.shelf * 1.3 });
     return { ...p, world, veil, at: new THREE.Vector3(p.x, 0, p.z), group };
   });
   return {
     arches,
     /** Breathes the veils and the runes of the open arches: in step, the veil's breath is the runes'. */
-    update(time: number) {
-      veilTime.value = time;
-      for (const g of glows) g.mat.emissiveIntensity = 0.9 + 0.5 * Math.sin(time * 1.6 + g.phase);
-    },
+    update(time: number) { breathe(time, glows); },
   };
 }
 

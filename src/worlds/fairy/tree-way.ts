@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { fadeAtCamera } from '../../core/materials';
 import type { Save, WorldState } from '../../core/save';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
 import { travel } from '../../game/travel';
+import { archStoneMaterial, breathe, buildArch, crestTree } from '../hub/arch-look';
 import type { Arrival } from '../../game/world';
 import { TREE_WAY } from './layout';
 
@@ -33,6 +33,8 @@ export const HUB = 'hub';
  * portrait window (8 m) it is at the arch, whose stone dissolves at the lens.
  */
 export const OUT = 7;
+/** The green-gold of the Great Tree's light: the veil and the runes of its arch. */
+const TREE_LIGHT = '#b6e88a';
 /** m: how near the arch the action button takes her through it. */
 const SPOT_R = 2;
 
@@ -56,35 +58,21 @@ export interface TreeWay { spot: Spot; pos: THREE.Vector3; update(time: number):
 export function createTreeWay(g: Game): TreeWay {
   const { scene, ws } = g;
   const y = g.groundY(TREE_WAY.x, TREE_WAY.z);
-  const stone = new THREE.MeshStandardMaterial({ color: '#b9b2a6', roughness: 0.9, flatShading: true });
-  // dissolves at the lens and is looked through (src/core/materials.ts): back from the hub the camera stands near it
-  stone.onBeforeCompile = (sh) => fadeAtCamera(sh);
-  stone.customProgramCacheKey = () => 'tree-way|fade';
-  const arch = new THREE.Group();
-  arch.position.set(TREE_WAY.x, y, TREE_WAY.z); arch.rotation.y = TREE_WAY.facing;
-  for (const side of [-1, 1]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.55, 3.4, 0.55), stone);
-    post.position.set(side * 1.4, 1.6, 0);   // a little into the ground: it is not flat here
-    arch.add(post);
-    // hidden, it keeps nobody out
-    if (TREE_WAY_OPEN) g.ground.block(TREE_WAY.x + Math.cos(TREE_WAY.facing) * side * 1.4, TREE_WAY.z - Math.sin(TREE_WAY.facing) * side * 1.4, 0.45);
-  }
-  const top = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.55, 0.65), stone);
-  top.position.y = 3.55;
-  // the veil in the green-gold of the tree's light, facing the valley (one-sided: not drawn from behind the arch)
-  const veilMat = new THREE.MeshBasicMaterial({ color: '#b6e88a', transparent: true, opacity: 0.5, depthWrite: false });
-  const veil = new THREE.Mesh(new THREE.PlaneGeometry(2.25, 3.1), veilMat);
-  veil.position.y = 1.7;
-  arch.add(top, veil);
-  arch.traverse((o) => { if ((o as THREE.Mesh).isMesh && o !== veil) { o.castShadow = true; o.receiveShadow = true; } });
-  scene.add(arch);
+  // The stone arch of the hub (src/worlds/hub/arch-look.ts), open, in the green-gold of the tree's light, the Great
+  // Tree on its keystone. Turned so that its veil faces the valley, where she comes up to it from; its stone
+  // dissolves at the lens and is looked through. Hidden (the way closed), it keeps nobody out.
+  const { group: arch, glow } = buildArch(scene, {
+    x: TREE_WAY.x, z: TREE_WAY.z, facing: TREE_WAY.facing + Math.PI, colour: TREE_LIGHT, icon: '🌳', crest: crestTree(), open: true, seed: 4049, phase: 0,
+  }, archStoneMaterial(), (x, z, r) => { if (TREE_WAY_OPEN) g.ground.block(x, z, r); });
+  arch.position.y = y - 0.1;   // a little into the ground: it is not flat here
+  const glows = glow ? [{ mat: glow, phase: 0 }] : [];
   const pos = new THREE.Vector3(TREE_WAY.x, y, TREE_WAY.z);
   return {
     pos,
     spot: { pos, r: SPOT_R, label: 'to_tree', on: () => TREE_WAY_OPEN && ws.final, run: () => { void travel(HUB); } },
     update(time) {
       arch.visible = TREE_WAY_OPEN && ws.final;
-      veilMat.opacity = 0.4 + 0.18 * Math.sin(time * 1.6);
+      if (arch.visible) breathe(time, glows);
     },
   };
 }
