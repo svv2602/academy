@@ -63,5 +63,9 @@ name. Each clip was checked by transcribing it back with an OpenAI speech-to-tex
 part of the game. Rights: the Gemini API Additional Terms of Service (https://ai.google.dev/gemini-api/terms, effective
 March 23, 2026), "Use of Generated Content": "Google won't claim ownership over that content", and "You're responsible
 for your use of generated content, and for the use of that content by anyone you share it with."
+The same terms, "Age Requirements", say the Services are not to be used "as part of a website, application, or other
+service (collectively, "API Clients") that is directed towards or is likely to be accessed by individuals under the
+age of 18". Decision of the customer, 2026-11-20: the game does not call the API, its clips are recorded beforehand;
+the service is kept, and the voice goes on being recorded with it.
 
 Code: Three.js (MIT).
