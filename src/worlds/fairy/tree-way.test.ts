@@ -40,3 +40,21 @@ describe('the way to the Great Tree', () => {
     expect(treeCalls({ final: true }, s, true)).toBeNull();
   });
 });
+
+describe('the arch to the Great Tree: the hub\'s stone arch', () => {
+  it('its veil faces the valley she comes up from, its posts stand across the path, the Great Tree on its keystone', async () => {
+    const THREE = await import('three');
+    const { archStoneMaterial, buildArch, crestTree } = await import('../hub/arch-look');
+    const scene = new THREE.Scene(), posts: [number, number, number][] = [];
+    const { group, veil, glow } = buildArch(scene, {
+      x: TREE_WAY.x, z: TREE_WAY.z, facing: TREE_WAY.facing + Math.PI, colour: '#b6e88a', icon: '🌳', crest: crestTree(), open: true, seed: 4049, phase: 0,
+    }, archStoneMaterial(), (x, z, r) => posts.push([x, z, r]));
+    scene.updateMatrixWorld(true);
+    const front = new THREE.Vector3(0, 0, 1).transformDirection(veil.matrixWorld);
+    expect(front.z).toBeCloseTo(-1);            // toward the valley (-z), the side of the spawn
+    expect(veil.visible).toBe(true);
+    expect(glow).not.toBeNull();
+    expect(posts.map(([x, z]) => [Math.round(x * 10) / 10, Math.round(z * 10) / 10]).sort((a, b) => a[0] - b[0])).toEqual([[-1.5, TREE_WAY.z], [1.5, TREE_WAY.z]]);
+    expect(group.parent).toBe(scene);
+  });
+});
