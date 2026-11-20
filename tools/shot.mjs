@@ -3083,6 +3083,10 @@ try {
       if (has('potions')) {
         const fail = (what) => { throw new Error(`potions: ${what}`); };
         const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        // The first purchase and the first potion are real taps (nothing covers the button, it stands still); the others
+        // are clicks of the same buttons from the page - the same handlers, without Playwright's wait for two still
+        // frames, which costs seconds each on a CI runner (2026-11-20: the block took 76-102 s there).
+        const press1 = async (sel) => { if (!(await g((s) => { const e = document.querySelector(s); e?.click(); return !!e; }, sel))) fail(`no ${sel} to press`); await framesDrawn(1); };
         const st = () => g(() => ({ stars: __game.save.stars, supplies: { ...(__game.save.supplies ?? {}) }, effects: { ...(__game.save.effects ?? {}) },
           speed: __game.tuning.speed, jump: __game.tuning.jump, camDist: __game.tuning.camDist, scale: __game.hero.root.scale.x,
           halo: __game.hero.root.getObjectByName('glow halo')?.visible ?? null,
@@ -3095,13 +3099,13 @@ try {
         await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
         await tap('#shopTabs [data-tab=potions]'); await calm();
         const buys = [['speed', 25], ['speed', 25], ['jump', 25], ['funny', 20], ['glow', 30], ['compass', 30]];
-        for (const [id, price] of buys) {
-          await tap(`#shopItems [data-id=${id}]`); await calm();
+        for (const [n, [id, price]] of buys.entries()) {
+          if (n === 0) { await tap(`#shopItems [data-id=${id}]`); await calm(); } else await press1(`#shopItems [data-id=${id}]`);
           const before = await st();
           const label = await page.textContent('#shopBuy').catch(() => '');
           if (!label.includes(`${price} ⭐`)) fail(`the button under ${id} (${price} ⭐) with ${before.stars} stars: "${label}"`);
           await g((it) => { window.__stars.buy = it; }, { id, price, stock: (before.supplies[id] ?? 0) + 1 });
-          await tap('#shopBuy'); await calm();
+          if (n === 0) { await tap('#shopBuy'); await calm(); } else await press1('#shopBuy');
           const after = await st();
           if (after.stars !== before.stars - price || after.supplies[id] !== (before.supplies[id] ?? 0) + 1) fail(`buying ${id}: ${before.stars} -> ${after.stars} stars, the stock ${before.supplies[id] ?? 0} -> ${after.supplies[id]}`);
           await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
@@ -3115,8 +3119,8 @@ try {
         // the compass: dimmed and not spent
         await tap('#supplies [data-id=compass]'); await calm();
         if ((await st()).supplies.compass !== 1) fail('the compass was spent in a world without mysterious stars');
-        // drunk by one tap each
-        for (const id of ['speed', 'jump', 'glow', 'funny']) { await tap(`#supplies [data-id=${id}]`); await calm(); }
+        // drunk by one tap each (the first a real tap, see press1)
+        for (const id of ['speed', 'jump', 'glow', 'funny']) { if (id === 'speed') { await tap(`#supplies [data-id=${id}]`); await calm(); } else await press1(`#supplies [data-id=${id}]`); }
         await gameSeconds(1);
         const on = await st();
         const size = on.effects.tiny ? 0.5 : on.effects.giant ? 1.6 : null;
@@ -3131,13 +3135,13 @@ try {
         // the time stands while the game stands: the shop open for a while
         await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
         const t0 = (await st()).effects.speed;
-        await gameSeconds(1.5);   // the game's clock runs on while the shop holds the game
+        await gameSeconds(0.5);   // the game's clock runs on while the shop holds the game; a running effect would lose 0.5 s
         const t1 = (await st()).effects.speed;
         await tap('#shopDone'); await calm();
         if (t1 !== t0) fail(`the time of the speed ran while the shop was open: ${t0} -> ${t1}`);
         // the end: everything as before
-        await g(() => { for (const k of Object.keys(__game.save.effects)) __game.save.effects[k] = 0.2; });
-        await gameSeconds(1.5);
+        await g(() => { for (const k of Object.keys(__game.save.effects)) __game.save.effects[k] = 0.1; });
+        await gameSeconds(1);   // her size eases back within about 0.7 s of game time (src/game/supplyfx.ts)
         const off = await st();
         if (Object.keys(off.effects).length || off.speed !== base.speed || off.jump !== base.jump || off.camDist !== base.camDist || Math.abs(off.scale - 1) > 0.001 || off.halo !== false) fail(`after the end: ${JSON.stringify(off)}, before: speed ${base.speed}, jump ${base.jump}, camera ${base.camDist}`);
         console.log(`potions: bought ${buys.length} for ${base.stars - bought.stars} stars, drunk four by one tap each (speed x1.5, jump x1.41, the halo, ${size === 0.5 ? 'tiny' : 'a giant'}), the time stood while the shop was open, stored, ended as before; the compass dimmed and kept`);
@@ -3155,10 +3159,12 @@ try {
         await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
         await tap('#shopTabs [data-tab=potions]'); await calm();
         for (const [id, price] of [['owl', 15], ['abacus', 20]]) {
-          await tap(`#shopItems [data-id=${id}]`); await calm();
+          // the owl by real taps; the abacus by clicks of the same buttons from the page (as the potions, press1 there)
+          const press = async (sel) => { if (id === 'owl') { await tap(sel); await calm(); } else { await g((s) => document.querySelector(s)?.click(), sel); await framesDrawn(1); } };
+          await press(`#shopItems [data-id=${id}]`);
           const before = await st();
           await g((it) => { window.__stars.buy = it; }, { id, price, stock: (before.supplies[id] ?? 0) + 1 });
-          await tap('#shopBuy'); await calm();
+          await press('#shopBuy');
           const after = await st();
           if (after.stars !== before.stars - price || after.supplies[id] !== (before.supplies[id] ?? 0) + 1) fail(`buying ${id}: ${before.stars} -> ${after.stars} stars, the stock ${after.supplies[id]}`);
           await gameFor(() => !window.__stars.buy, null, 10).catch(() => fail(`the watch of the stars did not see the purchase of ${id}`));
