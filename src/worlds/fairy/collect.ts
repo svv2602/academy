@@ -40,7 +40,7 @@ const onWater = (x: number, z: number): CollectItem => ({ kind: 'feather', way: 
 export const COLLECT: CollectDef = {
   items: [
     // mushrooms: four in the grass, two on the stumps
-    { kind: 'mushroom', way: 'run', x: -28.7, z: 33.6, y: 0.28 }, { kind: 'mushroom', way: 'run', x: 22.2, z: 10.6, y: 0.28 },
+    { kind: 'mushroom', way: 'run', x: -28.7, z: 33.6, y: 0.28 }, { kind: 'mushroom', way: 'run', x: 36, z: 28.5, y: 0.28 },
     { kind: 'mushroom', way: 'run', x: -39, z: 39, y: 0.28 }, { kind: 'mushroom', way: 'run', x: -18, z: -33, y: 0.28 },
     onTop(SUPPORTS[0], 'mushroom'), onTop(SUPPORTS[1], 'mushroom'),
     // acorns: four a jump high, two only with the jumping potion (src/game/collections.ts, ./collect.test.ts)
@@ -49,7 +49,7 @@ export const COLLECT: CollectDef = {
     // feathers: three on the pond (out of her wading reach: touched), two on the flat stones, one in the grass
     onWater(POND.x + 3.3, POND.z + 2.3), onWater(POND.x - 4.2, POND.z + 2), onWater(POND.x - 0.6, POND.z - 5.4),
     onTop(SUPPORTS[2], 'feather'), onTop(SUPPORTS[3], 'feather'),
-    { kind: 'feather', way: 'run', x: 27, z: 0, y: 0.15 },
+    { kind: 'feather', way: 'run', x: 40.5, z: -24, y: 0.15 },
     // butterflies: two flocks of two on meadows, two that fly off round their place
     { kind: 'butterfly', way: 'run', x: -48, z: -12, y: 0.6, flock: 0 }, { kind: 'butterfly', way: 'run', x: -49.6, z: -12.8, y: 0.6, flock: 0 },
     { kind: 'butterfly', way: 'run', x: -51, z: 36, y: 0.6, flock: 1 }, { kind: 'butterfly', way: 'run', x: -52.6, z: 35.2, y: 0.6, flock: 1 },
