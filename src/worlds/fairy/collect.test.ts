@@ -12,6 +12,7 @@ import { BOULDERS } from './hiding';
 /** m: how far from the middle of the pond she wades at most (./terrain.ts `resolve`). */
 const WADE = POND.r - 1.3;
 const busy = [SPAWN, CRYSTAL, SHOP_SIGN, UNICORN, CHEST, SHRINE, ...QUESTS];
+const DEER = QUESTS.find((q) => q.id === 'deer')!;
 const ground = COLLECT.items.filter((i) => i.way !== 'tap');
 const ringOf = (i: { x: number; z: number; way: string }) => (i.way === 'chase' ? 6 : 0);
 
@@ -28,6 +29,9 @@ describe('the collections of the fairy world (PLAY-25)', () => {
       Math.hypot(it.x - HOUSE.x, it.z - HOUSE.z) < 5 && 'in the house',
       busy.some((p) => Math.hypot(it.x - p.x, it.z - p.z) < 6) && 'at a character or a thing of the world',
       Math.hypot(it.x - PATCH.x, it.z - PATCH.z) < 10 && 'among the butterflies of the task',
+      // the deer hides its stars 5-12 m round it (./star-search.ts): a find there is walked into on the way to a star,
+      // and its line comes over the search's (the finale's walkthrough, 2026-11-20)
+      Math.hypot(it.x - DEER.x, it.z - DEER.z) < 14 && 'in the ring of the deer\'s stars',
       MYSTERY_SPOTS.some((p) => Math.hypot(it.x - p.x, it.z - p.z) < 3) && 'at a place of the mysterious stars',
       BOULDERS.some((b) => Math.hypot(it.x - b.x, it.z - b.z) < b.r + 1.5) && 'at a boulder',
     ].filter(Boolean).map((w) => `find ${i} ${it.kind}/${it.way} (${it.x}, ${it.z}): ${w}`));
