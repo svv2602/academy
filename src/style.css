@@ -380,7 +380,7 @@ button.it { min-width: 44px; min-height: 44px; }
 #book .crow .cell { width: 30px; height: 30px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
 #book .crow .cell.sil { filter: brightness(0); opacity: .25; }
 #book .crow .cn { width: 52px; font-size: 12px; font-weight: 800; color: #8a6bb0; text-align: right; }
-.ach-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; width: 100%; }
+.ach-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; width: 100%; }
 .ach { min-height: 62px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1; display: flex; flex-direction: column;
   align-items: center; justify-content: center; padding: 2px; overflow: hidden; }
 .ach .ic { font-size: 24px; line-height: 1.1; } .ach .cap { font-size: 10px; font-weight: 800; color: #8a6bb0; line-height: 1.1; overflow-wrap: anywhere; }
@@ -392,7 +392,7 @@ button.it { min-width: 44px; min-height: 44px; }
   #book { background: linear-gradient(180deg, rgba(120,90,180,0) 30%, rgba(120,90,180,.28)); }
   #book .book-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
   #bookSay { width: auto; }
-  .ach-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ach-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .ach { min-height: 58px; }
   #book .big.small { padding: 6px 14px; font-size: 18px; }
 }
