@@ -6,7 +6,7 @@ import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
-  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, petProblems, createPets, followStep, foundPets, markFound, petPlace,
+  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, followerOf, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
@@ -292,5 +292,44 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
   it('the game makes the pets of the world played, with the models of the shared load', () => {
     // `g.world`, not the world of the launch: the pets are made anew for every world entered (TECH-15, src/game/travel.ts)
     expect(raw['./context.ts']).toMatch(/createPets\(g, \{\n\s*pet: g\.world\.pet, rigs: o\.shared\.petRigs,/);
+  });
+});
+
+describe('which pet walks after her where (the rule of 2026-11-20: a pet lives in its own world and comes to the Tree)', () => {
+  const OWL = { ...FAWN, id: 'owl', world: 'forest' };
+  const CATALOG = [FAWN, OWL];
+  const FAIRY = { id: 'fairy', shelf: 0 }, FOREST = { id: 'forest', shelf: 1 }, HUB = { id: 'hub' }, PROBE = { id: 'probe', shelf: 1, test: true };
+  const saveWith = (pets: string[], pet: string | null) => { const s = defaultSave(); s.pets = pets; s.pet = pet; return s; };
+  const who = (s: Save, w: { id: string; shelf?: number; test?: boolean }) => followerOf(s, w, CATALOG)?.id ?? null;
+
+  it('in a world of the shelf its own pet, if found; whichever is chosen in the book', () => {
+    expect(who(saveWith(['fawn'], 'fawn'), FAIRY)).toBe('fawn');
+    expect(who(saveWith(['fawn', 'owl'], 'owl'), FAIRY)).toBe('fawn');
+    expect(who(saveWith(['fawn', 'owl'], 'fawn'), FOREST)).toBe('owl');
+  });
+
+  it('a pet of another world does not come into a world: none there if its own is not found', () => {
+    expect(who(saveWith(['fawn'], 'fawn'), FOREST)).toBeNull();
+  });
+
+  it('in the hub and in a test world the one chosen in the book', () => {
+    expect(who(saveWith(['fawn', 'owl'], 'owl'), HUB)).toBe('owl');
+    expect(who(saveWith(['fawn', 'owl'], 'fawn'), HUB)).toBe('fawn');
+    expect(who(saveWith(['fawn'], 'fawn'), PROBE)).toBe('fawn');
+    expect(who(saveWith([], 'fawn'), HUB)).toBeNull();
+  });
+
+  it('nothing chosen in the book: none anywhere', () => {
+    for (const w of [FAIRY, FOREST, HUB, PROBE]) expect(who(saveWith(['fawn', 'owl'], null), w)).toBeNull();
+  });
+
+  it('in the game: the fawn chosen walks in the fairy world and in the hub, not in the forest', () => {
+    for (const [world, walks] of [[FAIRY, true], [HUB, true], [FOREST, false]] as const) {
+      const save = defaultSave();
+      worldState(save, 'fairy').flags.pet = true; save.pet = FAWN.id;
+      const g = host(save, world.id);
+      const pets = createPets(g, { rigs: rigs(), chainDone: () => false, world });
+      expect(pets.follower !== null, world.id).toBe(walks);
+    }
   });
 });

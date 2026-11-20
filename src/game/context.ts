@@ -297,7 +297,7 @@ export function createGame(o: {
   // The chain a pet waits for is read through `g` each time (the world played, its progress): nothing kept from now.
   // TECH-15: the pets are made anew for every world entered (`enter` above): the pet of a world is its own.
   const petsOf = (): PetsInWorld => createPets(g, {
-    pet: g.world.pet, rigs: o.shared.petRigs,
+    pet: g.world.pet, rigs: o.shared.petRigs, world: g.world,
     chainDone: (id) => { const c = g.world.characters?.find((x) => x.id === id); return !!c && (g.ws.quests[c.id] ?? 0) >= c.steps.length; },
   });
   pets = petsOf();

@@ -83,9 +83,26 @@ const flagsOf = (save: Save, world: string): Record<string, unknown> | null => {
  * The ids of the pets found so far, in the order of PETS: the species of `save.pets` (written by the find, in the world
  * where it was made), and for a save written before that list the flag `pet` of each pet's own world.
  */
-export function foundPets(save: Save): string[] {
+export function foundPets(save: Save, catalog: readonly PetSpecies[] = PETS): string[] {
   const listed = Array.isArray(save.pets) ? save.pets : [];
-  return PETS.filter((p) => listed.includes(p.id) || flagsOf(save, p.world)?.[PET_FLAG] === true).map((p) => p.id);
+  return catalog.filter((p) => listed.includes(p.id) || flagsOf(save, p.world)?.[PET_FLAG] === true).map((p) => p.id);
+}
+
+/** A world as the rule of the follower reads it (WorldDef): its id, its place on the shelf, whether it is a test world. */
+export interface PetWorld { readonly id: string; readonly shelf?: number; readonly test?: boolean }
+
+/**
+ * Which pet walks after her in a world (the customer's rule of 2026-11-20, «Свой мир и Древо», docs/12-gameplay.md
+ * PLAY-09): a pet lives in its own world and comes to the Great Tree. In a world of the shelf the pet of THAT world, if
+ * found; in the hub (no place on the shelf) and in a test world, the one chosen in the book. Nothing chosen in the book
+ * (`save.pet` null) - none anywhere: the child's choice. The cat goes everywhere, as ever.
+ */
+export function followerOf(save: Save, world: PetWorld, catalog: readonly PetSpecies[] = PETS): PetSpecies | undefined {
+  const chosen = catalog.find((p) => p.id === save.pet), found = foundPets(save, catalog);
+  if (!chosen) return undefined;
+  if (world.shelf === undefined || world.test) return found.includes(chosen.id) ? chosen : undefined;
+  const local = catalog.find((p) => p.world === world.id);
+  return local && found.includes(local.id) ? local : undefined;
 }
 
 /** Chooses the pet that walks after the heroine (null: none). A pet not found yet, or unknown, is refused: false. */
@@ -179,6 +196,8 @@ export type PetHost = Pick<Game, 'scene' | 'save' | 'ws' | 'hero' | 'cat' | 'bus
  */
 export function createPets(g: PetHost, o: {
   pet?: WorldPet; rigs: Readonly<Record<string, Rig>>; chainDone(id: string): boolean;
+  /** The world played, for the rule of the follower (`followerOf`); absent - the one chosen, wherever. */
+  world?: PetWorld;
 }): PetsInWorld {
   const actors = new Map<string, Actor>();
   const actorOf = (s: PetSpecies): Actor | null => {
@@ -224,7 +243,7 @@ export function createPets(g: PetHost, o: {
   /** The waiting pet and the follower as the save says now. */
   const refresh = () => {
     const chosen = petSpecies(g.save.pet);
-    const walker = chosen && foundPets(g.save).includes(chosen.id) ? chosen : undefined;
+    const walker = o.world ? followerOf(g.save, o.world) : chosen && foundPets(g.save).includes(chosen.id) ? chosen : undefined;
     const wait = mine && !found() && ready() ? mine : undefined;
     const nextFollower = walker ? actorOf(walker) : null;
     const nextWaiting = wait ? actorOf(wait) : null;
