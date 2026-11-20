@@ -129,6 +129,7 @@ export async function tour(g: Game, o: { record?: boolean } = {}): Promise<boole
   g.busy = true; g.auto = null; setAct(null);
   const hide = [el.joy, el.btnJump], was = hide.map((e) => e.classList.contains('hidden'));
   for (const e of hide) e.classList.add('hidden');
+  document.body.classList.add('touring');   // the cat's line at the bottom while the tour shows what is high (style.css)
   // A capturing listener of the window: the tap reaches neither the canvas (no walk) nor a button.
   const skip = (e: Event) => { e.preventDefault(); e.stopPropagation(); t.player.skip(); };
   addEventListener('pointerdown', skip, { capture: true });
@@ -140,6 +141,7 @@ export async function tour(g: Game, o: { record?: boolean } = {}): Promise<boole
   } finally {
     removeEventListener('pointerdown', skip, { capture: true });
     hide.forEach((e, i) => e.classList.toggle('hidden', was[i]));
+    document.body.classList.remove('touring');
     g.busy = false;
   }
   return true;

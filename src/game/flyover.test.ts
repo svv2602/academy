@@ -108,10 +108,12 @@ describe('the tour on an entry (src/game/start.ts plays it)', () => {
     expect(g.busy).toBe(true);
     expect(said).toEqual(['tour']);
     expect(flags.toured).toBe(true);
+    expect(document.body.classList.contains('touring')).toBe(true);   // the line at the bottom (style.css)
     tap();
     expect(await played).toBe(true);
     expect(player.active).toBe(false);
     expect(g.busy).toBe(false);
+    expect(document.body.classList.contains('touring')).toBe(false);
     // the next entry: no tour
     expect(await tour(g)).toBe(false);
     expect(player.active).toBe(false);

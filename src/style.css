@@ -38,6 +38,11 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 #bubble .cat { font-size: clamp(28px, 8vh, 40px); line-height: 1; flex: none; }
 #bubble p { margin: 0; font-size: clamp(16px, min(2.6vw, 5.2vh), 24px); font-weight: 600; line-height: 1.25; }
 @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+/* During the tour of a world (src/game/flyover.ts) the cat's line goes to the bottom, wide and short (two lines): the
+   tour shows what is high - the crown, the nests, the towers - and the stick and the buttons are hidden then. */
+body.touring #bubble { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; right: 12px; --w: min(820px, 86vw);
+  max-width: var(--w); padding: 6px 18px 6px 10px; }
+body.touring #bubble p { font-size: clamp(14px, min(2.2vw, 4.4vh), 20px); }
 
 #answers { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: clamp(6px, 1.2vw, 12px);
   flex-wrap: wrap; justify-content: center; width: min(98vw, 940px); }
