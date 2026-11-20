@@ -260,7 +260,9 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
       // the tour as the first world's: played without a mark, its points with the moment each is passed, its player
       more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: FOREST_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // the map as the measurements of the grey build read it (tools/forest-grey.mjs): its stretch, zones, paths, landmarks
-        forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) } },
+        forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) },
+        // the maze that stands now (WORLD-14): its paths and forks, where she is in it - for its pictures and its time on foot
+        forestMaze: maze },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
