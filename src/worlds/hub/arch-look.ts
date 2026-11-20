@@ -311,20 +311,31 @@ function vine(rnd: Rnd, side: number, stem: THREE.Color, leaf: THREE.Color): THR
 
 /** The sign of a sleeping world: a board with its symbol by the arch (ported from the grey build, ./index.ts). */
 function signTexture(icon: string, colour: string) {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
+  // A light board with the world's symbol as a silhouette in its colour, darkened, and a frame in its colour: read from
+  // close by (a dark board with a grey symbol showed nearly nothing). 256 px: crisp at a step from it.
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d');
   if (x) {
-    x.fillStyle = '#5b5148'; x.fillRect(0, 0, 128, 128);
-    x.globalAlpha = 0.85; x.font = '84px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.filter = 'grayscale(1) brightness(0.35)'; x.fillText(icon, 64, 70);
-    x.filter = 'none'; x.globalAlpha = 1; x.strokeStyle = colour; x.lineWidth = 6; x.strokeRect(3, 3, 122, 122);
+    x.fillStyle = '#efe2c4'; x.fillRect(0, 0, S, S);
+    const shape = document.createElement('canvas'); shape.width = shape.height = S;
+    const sx = shape.getContext('2d');
+    if (sx) {
+      sx.font = `${Math.round(S * 0.66)}px sans-serif`; sx.textAlign = 'center'; sx.textBaseline = 'middle';
+      sx.fillText(icon, S / 2, S * 0.54);
+      // the symbol's shape filled with the world's colour, darker: a silhouette, not the emoji's own colours
+      sx.globalCompositeOperation = 'source-in';
+      sx.fillStyle = new THREE.Color(colour).multiplyScalar(0.62).getStyle(); sx.fillRect(0, 0, S, S);
+      x.drawImage(shape, 0, 0);
+    }
+    x.strokeStyle = colour; x.lineWidth = 14; x.strokeRect(7, 7, S - 14, S - 14);
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
   return t;
 }
 
 /** Where the sign stands by a sleeping arch (local): beside it, a step in front of it on the glade's side. */
-const SIGN = { x: 2.6, y: 1.2, z: -0.3, size: 0.9 } as const;
+const SIGN = { x: 2.6, y: 1.3, z: -0.3, size: 1.1 } as const;
 
 /**
  * The veil (own GLSL): a light in the world's colour swirling in the passage and breathing - brighter at the middle
