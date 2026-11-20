@@ -31,6 +31,21 @@ const FIND_R = 1.5;
  * to `GLADE_CAM_IN` m, the usual distance from `GLADE_CAM_OUT` m on, a smooth step between - walking through the
  * entrance the camera moves with her steps, never a jump; standing still, it stays.
  */
+/**
+ * Out of the fairy's room: where she stands in front of the house's door (EXIT_OUT m out of it, facing away from the
+ * house) and how the camera is turned round her. Straight behind her the camera stood in the house (the model reaches
+ * about 3.6 m from its middle, the camera 5.8 m behind her) and the house vanished from the frame, its walls seen
+ * from inside; 2 m farther it would still be in it. Turned by EXIT_CAM_TURN it stands at the house's side, outside it,
+ * the house in the frame beside her, and the well (on the other side) out of the line to her.
+ */
+export const EXIT_OUT = 2.8, EXIT_CAM_TURN = -1.0;
+export function exitPlace(): { at: { x: number; z: number }; facing: number; camTurn: number } {
+  const hx = Math.sin(HOUSE.rot), hz = Math.cos(HOUSE.rot), d = DOOR_OUT + EXIT_OUT;
+  return { at: { x: HOUSE.x + hx * d, z: HOUSE.z + hz * d }, facing: HOUSE.rot, camTurn: EXIT_CAM_TURN };
+}
+/** m from the house's middle to the spot in front of its door (where "go in" is offered). */
+export const DOOR_OUT = 4.1;
+
 export const GLADE_CAM = 2.4, GLADE_CAM_IN = GLADE.r - 0.6, GLADE_CAM_OUT = GLADE.r + 2.2;
 /** The distance of the glade's camera with her `d` m from its middle and the usual distance `far`. */
 export function gladeCamDist(d: number, far: number): number {
@@ -145,7 +160,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
 
   // ---------- the fairy house and its room ----------
   const hx = Math.sin(HOUSE.rot), hz = Math.cos(HOUSE.rot);
-  const outAt = { x: HOUSE.x + hx * 4.1, z: HOUSE.z + hz * 4.1 };
+  const outAt = { x: HOUSE.x + hx * DOOR_OUT, z: HOUSE.z + hz * DOOR_OUT };
   const doorOut = new THREE.Vector3(outAt.x, groundY(outAt.x, outAt.z), outAt.z);
   const wall = mat.cloth('plaster');
   const wood = mat.wood();
@@ -194,8 +209,11 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
   document.body.appendChild(veil);
   scope.own(() => { veil.remove(); });
   let moving = false;
-  /** The heroine (the cat and the pet with her) to `to`, facing `facing`: under the fade, the camera behind her at once. */
-  function moveTo(to: { x: number; z: number }, facing: number, inside: boolean) {
+  /**
+   * The heroine (the cat and the pet with her) to `to`, facing `facing`: under the fade, the camera behind her at once -
+   * turned by `camTurn` round her (out of the room: to the side, so it stands outside the house, see `exitPlace`).
+   */
+  function moveTo(to: { x: number; z: number }, facing: number, inside: boolean, camTurn = 0) {
     if (moving) return;
     moving = true; g.busy = true;
     veil.style.opacity = '1';
@@ -205,7 +223,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
       cat.root.position.set(to.x + Math.cos(facing) * 0.9, y, to.z - Math.sin(facing) * 0.9);
       const pet = g.pets.follower;
       if (pet) pet.root.position.copy(petPlace(to, facing)).setY(y);
-      g.cam.target.set(to.x, y + 1.5, to.z); g.cam.yaw = facing + Math.PI;
+      g.cam.target.set(to.x, y + 1.5, to.z); g.cam.yaw = facing + Math.PI + camTurn;
       g.camOverride = inside ? 4.2 : null;
       veil.style.opacity = '0';
       scope.timeout(() => { moving = false; g.busy = false; }, 250);
@@ -230,7 +248,7 @@ export function createSecrets(g: Game, scope: WorldScope): Secrets {
 
   const spots: Spot[] = [
     { pos: doorOut, r: 2.0, label: 'house_in', on: () => !moving, run: () => moveTo(doorIn, Math.PI, true) },
-    { pos: doorIn, r: 1.6, label: 'house_out', on: () => !moving, run: () => moveTo({ x: outAt.x + hx * 0.8, z: outAt.z + hz * 0.8 }, HOUSE.rot, false) },
+    { pos: doorIn, r: 1.6, label: 'house_out', on: () => !moving, run: () => { const o = exitPlace(); moveTo(o.at, o.facing, false, o.camTurn); } },
     { pos: new THREE.Vector3(boxAt.x, ROOM.y, boxAt.z), r: 1.7, label: 'house_look', on: () => !houseFound(), run: openBox },
   ];
 

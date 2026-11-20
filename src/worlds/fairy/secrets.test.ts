@@ -54,3 +54,25 @@ describe('the camera on the glade', () => {
     }
   });
 });
+
+describe('out of the fairy\'s room', () => {
+  it('she stands 2 m farther from the door than before, and the camera stands outside the house, the well off the line', async () => {
+    const { exitPlace, DOOR_OUT, EXIT_OUT } = await import('./secrets');
+    const { HOUSE } = await import('./layout');
+    const o = exitPlace();
+    expect(Math.hypot(o.at.x - HOUSE.x, o.at.z - HOUSE.z)).toBeCloseTo(DOOR_OUT + 0.8 + 2);   // 0.8 m out before
+    expect(EXIT_OUT).toBeCloseTo(2.8);
+    const yaw = o.facing + Math.PI + o.camTurn;
+    for (const dist of [6.2, 8]) {   // a landscape window, a portrait one (src/core/tuning.ts camDistance)
+      const back = dist * Math.cos(0.36), cam = { x: o.at.x + Math.sin(yaw) * back, z: o.at.z + Math.cos(yaw) * back };
+      // the house model reaches 4.9 m from its middle at its corners (7.2 x 6.6 m): the camera is outside it
+      expect(Math.hypot(cam.x - HOUSE.x, cam.z - HOUSE.z), `camera at ${dist} m`).toBeGreaterThan(5);
+      // the line from the camera to her clears the house's walls (3.3 m) and the well (at -5, 7.5, 1.2 m round)
+      for (let t = 0; t <= 1; t += 0.05) {
+        const x = cam.x + (o.at.x - cam.x) * t, z = cam.z + (o.at.z - cam.z) * t;
+        expect(Math.hypot(x - HOUSE.x, z - HOUSE.z)).toBeGreaterThan(3.3);
+        expect(Math.hypot(x + 5, z - 7.5)).toBeGreaterThan(1.6);
+      }
+    }
+  });
+});

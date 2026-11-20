@@ -2372,6 +2372,11 @@ try {
           await act();
           await until(() => !__game.secrets.inRoom() && !__game.busy, null, 'the door inside did not lead out of the room');
           await gameSeconds(0.5);
+          // out of the room the camera stands outside the house, at its side, the house in the frame (secrets.ts exitPlace):
+          // straight behind her it stood in the house and the house vanished from the frame
+          const outCam = await g(() => { const c = __game.camera.position, h = __game.secrets.house; return Math.hypot(c.x - h.x, c.z - h.z); });
+          if (!(outCam > 5)) fail(`out of the room the camera stands ${outCam.toFixed(1)} m from the house's middle - in the house (its model reaches 4.9 m)`);
+          await shot('house-exit');
           const reachOut = await g(() => __game.camera.far);
           if (reachOut < 100) fail(`out of the room the camera reaches only ${reachOut} m`);
           const s1 = await state();

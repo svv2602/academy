@@ -31,7 +31,7 @@ import { FRIENDS, createCharacters } from './characters';
 import { createChestStars } from './chest-stars';
 import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
-import { MYSTERY_SPOTS, ROOM, SHOP_SIGN } from './layout';
+import { HOUSE, MYSTERY_SPOTS, ROOM, SHOP_SIGN } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
@@ -306,7 +306,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       // the magic of the world (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
       magic, setMagic: (v: number | null) => magic.set(v),
       // the two other secrets (./secrets.ts): the doors of the house outside and inside, is she in the room, where each is found
-      secrets: { doorOut: secrets.doorOut, doorIn: secrets.doorIn, inRoom: secrets.inRoom, gladeAt: secrets.gladeAt, boxAt: secrets.boxAt },
+      secrets: { doorOut: secrets.doorOut, doorIn: secrets.doorIn, inRoom: secrets.inRoom, gladeAt: secrets.gladeAt, boxAt: secrets.boxAt, house: { x: HOUSE.x, z: HOUSE.z } },
       // the parts hidden in the world (./parts.ts): waiting(id) - the part of `id`'s chain waiting at its place, else null
       parts: { waiting: (id: string) => parts.waiting(id) },
       // the cut-scenes (WORLD-13): their player (active, id, index, elapsed, pass, fading, log; play(id) shows one without
