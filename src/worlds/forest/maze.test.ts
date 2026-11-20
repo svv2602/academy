@@ -119,7 +119,8 @@ describe("the hedgehog's maze (WORLD-14)", () => {
   it('its hedge is in the colliders while it stands, and out once it is gone', () => {
     const before = colliders.length;
     const { g } = host(2), m = createMaze(g as never);
-    expect(colliders.length - before).toBe(m.geo.bushes.length);
+    expect(colliders.length - before).toBe(m.geo.walls.length);
+    expect(m.geo.walls.length).toBeLessThan(m.geo.bushes.length);
     m.dispose();
     expect(colliders.length).toBe(before);
     expect(g.scene.children).toHaveLength(0);

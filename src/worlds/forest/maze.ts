@@ -60,7 +60,7 @@ export function createMaze(g: Game): MazeStep {
     geo = layMaze(spec, MAZE_FRAME);
     walk = mazeWalk(geo, passed);
     show = showMaze(scene, spec, geo, groundY);
-    mine = geo.bushes.map((b) => ({ x: b.x, z: b.z, r: BUSH_R }));
+    mine = geo.walls.map((b) => ({ x: b.x, z: b.z, r: BUSH_R }));
     colliders.push(...mine);
   }
   const kept = () => keptOf(g.ws, MAZE);

@@ -56,9 +56,9 @@ describe('the description by the level of "Patterns"', () => {
   });
 });
 
-/** Is (x, z) free for her (radius 0.4) among the bushes (colliders of 0.45)? */
+/** Is (x, z) free for her (radius 0.4) among the colliders of the hedge (`walls`, 0.45 each)? */
 function freeAt(geo: MazeGeo, x: number, z: number): boolean {
-  return geo.bushes.every((b) => Math.hypot(b.x - x, b.z - z) >= 0.85);
+  return geo.walls.every((b) => Math.hypot(b.x - x, b.z - z) >= 0.85);
 }
 
 /**
@@ -150,6 +150,16 @@ describe('the paths in their frame', { timeout: 30000 }, () => {
         for (const p of walk(line)) expect(freeAt(geo, p.x, p.z), `${p.x.toFixed(2)}, ${p.z.toFixed(2)}`).toBe(true);
       }
     }
+  });
+
+  it('its colliders are the bushes she can reach: every bush within a step of a path, none deep in the hedge', () => {
+    const geo = layMaze(specs(5, 1)[0], FRAME);
+    const lines = [geo.trunk, ...geo.forks.flatMap((f) => f.ways.map((w) => w.line))];
+    for (const b of geo.bushes) {
+      const d = Math.min(...lines.map((l) => lineDist(l, b.x, b.z)));
+      expect(geo.walls.includes(b)).toBe(d < CLEAR + 1.3);
+    }
+    expect(geo.walls.length).toBeLessThan(geo.bushes.length * 0.8);
   });
 
   it('is closed: from the way in she walks every path to the way out and to every loop, and never across a hedge to a farther part', () => {

@@ -99,6 +99,8 @@ export interface MazeGeo {
   islands: Place[];
   /** The bushes of the hedge: everywhere in the frame but on the paths. */
   bushes: Place[];
+  /** Those of them she can reach from a path, the colliders of the hedge (the others stand deep in it). */
+  walls: Place[];
 }
 
 /** m: the stones of a row lie this far apart. */
@@ -187,12 +189,17 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
   lines.push(trunk);
   // the hedge: a bush wherever the frame is clear of every path, and in the middle of every loop
   const bushes: Place[] = [...islands];
+  // no farther along than the lanes beside it reach (a short lane leaves no hedge past its end), and its end wall: the
+  // row clear of the path and the one behind it
+  const reach = (u: number) => Math.max(...lengths.filter((_, i) => Math.abs(u - i * gap) < gap)) + CLEAR + BUSH_STEP + 0.1;
   // (beside the outer lanes as wide as a loop reaches: their forks fan out over the edge of the frame)
   // (counted in whole steps: a sum of steps misses the last row by a rounding)
   const nv = Math.ceil((L + 2.4) / BUSH_STEP), nu = Math.ceil(((LANES - 1) * gap + 2 * SIDE) / BUSH_STEP);
   for (let iv = 0; iv <= nv; iv++) {
     for (let iu = 0; iu <= nu; iu++) {
-      const p = P(-SIDE + iu * BUSH_STEP, -1.2 + iv * BUSH_STEP);
+      const u = -SIDE + iu * BUSH_STEP, v = -1.2 + iv * BUSH_STEP;
+      if (v > reach(u)) continue;
+      const p = P(u, v);
       if (lines.every((l) => lineDist(l, p.x, p.z) >= CLEAR) && islands.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 0.6)) bushes.push(p);
     }
   }
@@ -209,11 +216,15 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
   };
   for (let iv = 0; iv <= nv * 2; iv++) {
     for (let iu = 0; iu <= nu * 2; iu++) {
-      const p = P(-SIDE + iu * BUSH_STEP / 2, -1.2 + iv * BUSH_STEP / 2);
+      const u = -SIDE + iu * BUSH_STEP / 2, v = -1.2 + iv * BUSH_STEP / 2;
+      if (v > reach(u)) continue;
+      const p = P(u, v);
       if (!near(p) && lines.every((l) => lineDist(l, p.x, p.z) >= SEAL) && islands.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 0.6)) { bushes.push(p); add(p); }
     }
   }
-  return { start: trunk[0], end: trunk[trunk.length - 2], out: trunk[trunk.length - 1], trunk, forks, islands, bushes };
+  // the bushes she can touch from a path: the colliders of the hedge (the rest stand deep in it, never reached)
+  const walls = bushes.filter((b) => lines.some((l) => lineDist(l, b.x, b.z) < CLEAR + 1.3));
+  return { start: trunk[0], end: trunk[trunk.length - 2], out: trunk[trunk.length - 1], trunk, forks, islands, bushes, walls };
 }
 
 /** What a step of her walking did: took the right way at the fork, a wrong one, or came to the end of the last lane. */
