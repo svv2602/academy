@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { ARCH } from './arch-look';
 import { HUB_FLYOVER } from './flyover-path';
 import { NESTS, PORTALS, PORTAL_R, TREE, arrivalAt, trunkR } from './layout';
-import { STUMP, TREE_BUDGET, barkRadius, buildTreeLook, crownOf, lookCost, stumpAt, treeHollow, treeShape, treeStage, type TreeLoads, type TreeStage } from './tree-look';
+import { RING_FLASH, RING_FLASH_S, STUMP, TREE_BUDGET, barkRadius, buildTreeLook, crownOf, lookCost, stumpAt, treeHollow, treeShape, treeStage, type TreeLoads, type TreeStage } from './tree-look';
 
 /** A green crown of 600 triangles, as `crownOf` gives them: non-indexed, with normals and colours, 1 m in radius. */
 function fakeCrown(): THREE.BufferGeometry {
@@ -283,5 +283,33 @@ describe('crownOf: the leaves of a model of the valley', () => {
     expect(Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z)).toBeCloseTo(2);
     expect(bb.max.x + bb.min.x).toBeCloseTo(0);
     expect(bb.max.y + bb.min.y).toBeCloseTo(0);
+  });
+});
+
+describe('the ring of mushrooms round the stump (the notes: ./ring-notes.ts)', () => {
+  it('twenty caps round the stump at the ring\'s distance, over the ground', () => {
+    const { look } = build(1), c = stumpAt();
+    expect(look.ring.tops).toHaveLength(20);
+    for (const p of look.ring.tops) {
+      expect(Math.abs(Math.hypot(p.x - c.x, p.z - c.z) - STUMP.ring)).toBeLessThan(0.2);
+      expect(p.y).toBeGreaterThan(0.1);
+    }
+  });
+
+  it('a touched one flashes and comes back to its own glow; the others keep theirs', () => {
+    const { look, scene } = build(1);
+    let mush: THREE.InstancedMesh | undefined;
+    scene.traverse((o) => { if ((o as THREE.InstancedMesh).isInstancedMesh && (o as THREE.Mesh).geometry.getAttribute('aGlow')) mush = o as THREE.InstancedMesh; });
+    const glow = mush!.geometry.getAttribute('aGlow');
+    const ringAt = (i: number) => { for (let j = 0; j < glow.count; j++) { const v = new THREE.Vector3(); const m = new THREE.Matrix4(); mush!.getMatrixAt(j, m); v.setFromMatrixPosition(m).add(look.root.position); const t = look.ring.tops[i]; if (Math.hypot(v.x - t.x, v.z - t.z) < 1e-4) return j; } return -1; };
+    const j = ringAt(3), k = ringAt(4), own = glow.getX(j), other = glow.getX(k);
+    expect(j).toBeGreaterThanOrEqual(0);
+    look.update(10);
+    look.ring.flash(3);
+    look.update(10.016);
+    expect(glow.getX(j)).toBeGreaterThan(own * (RING_FLASH - 0.5));
+    expect(glow.getX(k)).toBeCloseTo(other);
+    for (let t = 10.1; t < 10 + RING_FLASH_S + 0.3; t += 0.05) look.update(t);
+    expect(glow.getX(j)).toBeCloseTo(own);
   });
 });

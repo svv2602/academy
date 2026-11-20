@@ -526,7 +526,13 @@ function birdGeo(): THREE.BufferGeometry {
 }
 
 /** What `buildTreeLook` puts into the scene: the tree under `root`, `update(time)` for the frame's animate. */
-export interface TreeLook { root: THREE.Group; update(time: number): void }
+export interface TreeLook {
+  root: THREE.Group; update(time: number): void;
+  /** The ring of mushrooms round the stump, in its order round: where each cap is (the map's metres), and its flash. */
+  ring: { tops: readonly THREE.Vector3[]; flash(i: number): void };
+}
+/** The flash of a ring mushroom touched: its glow times this at once, back to its own over RING_FLASH_S. */
+export const RING_FLASH = 4, RING_FLASH_S = 0.9;
 
 const FLOWERS = 64, FIREFLIES = 36, TUFTS = 280, MUSHROOMS = 22, LANTERNS = 30, BIRDS = 8;
 /** Every look: the fireflies of the first (the second has FIREFLIES), the butterflies, the mushrooms on the roots and in the ring round the stump. */
@@ -704,7 +710,8 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
 
   // The mushrooms, one InstancedMesh: a few on the roots and the ring round the stump in every look, the meadow's
   // groups by the roots from the third (`stage >= 3` below adds them).
-  const mushAt: THREE.Matrix4[] = [], mushGlow: THREE.Color[] = [];
+  const mushAt: THREE.Matrix4[] = [], mushGlow: THREE.Color[] = [], ringTops: THREE.Vector3[] = [];
+  let flashRing: (i: number) => void = () => {};
   {
     const mrnd = mulberry32(5150);
     for (let i = 0; i < ROOT_MUSHROOMS; i++) {
@@ -722,6 +729,7 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
       at.set(c.x - TREE.x + Math.sin(a) * d, -0.02, c.z - TREE.z + Math.cos(a) * d);
       mushAt.push(m.compose(at, q.setFromAxisAngle(up, mrnd() * 6.28), sc.set(s, s, s)).clone());
       mushGlow.push(RING_GLOW);
+      ringTops.push(new THREE.Vector3(TREE.x + at.x, s * 0.75, TREE.z + at.z));
     }
   }
 
@@ -755,6 +763,23 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
     const mush = inst(geo, mushMaterial(), mushAt.length);
     mushAt.forEach((x, i) => mush.setMatrixAt(i, x));
     finish(mush);
+    // the ring's flashes: a touched mushroom glows RING_FLASH times as much, fading back over RING_FLASH_S
+    const glowAttr = geo.getAttribute('aGlow') as THREE.InstancedBufferAttribute, left = new Float32Array(RING_MUSHROOMS);
+    let last = -1, lit = false;
+    flashRing = (i) => { left[i] = RING_FLASH_S; lit = true; };
+    updates.push((time) => {
+      const dt = last < 0 ? 0 : Math.min(0.1, time - last); last = time;
+      if (!lit) return;
+      lit = false;
+      for (let i = 0; i < RING_MUSHROOMS; i++) {
+        if (left[i] <= 0) continue;
+        left[i] = Math.max(0, left[i] - dt);
+        const k = 1 + (RING_FLASH - 1) * (left[i] / RING_FLASH_S), j = ROOT_MUSHROOMS + i;
+        glowAttr.setXYZ(j, RING_GLOW.r * k, RING_GLOW.g * k, RING_GLOW.b * k);
+        if (left[i] > 0) lit = true;
+      }
+      glowAttr.needsUpdate = true;
+    });
   }
 
   if (stage >= 4) {
@@ -802,7 +827,7 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
   }
 
   scene.add(root);
-  return { root, update: (time) => { for (const u of updates) u(time); } };
+  return { root, update: (time) => { for (const u of updates) u(time); }, ring: { tops: ringTops, flash: (i) => flashRing(i) } };
 }
 
 /**

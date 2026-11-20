@@ -17,6 +17,8 @@ import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
 import { buildKeepsakes } from './keepsakes';
+import { ringNote, ringTapped } from './ring-notes';
+import { note } from '../../core/audio';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
 
@@ -153,6 +155,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const tree = buildTreeLook(scene, treeStage(artifactCount(save)), L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
   const keepsakes = buildKeepsakes(scene, save);
+  // the ring's notes played (for the walkthrough: ?debug)
+  const notes: number[] = [];
   const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
   const { nests, update: glow } = buildNestLook(scene, L.arch);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
@@ -178,7 +182,14 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   return {
     frame: {
       spots: open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
-      tap: () => false,
+      // a tap on a mushroom of the ring round the stump: its note and its flash (./ring-notes.ts); only while she is free
+      tap: (screenDist) => {
+        if (g.busy || !g.started()) return false;
+        const i = ringTapped(tree.ring.tops, screenDist, g.touch ? 56 : 40);
+        if (i === null) return false;
+        tree.ring.flash(i); note(ringNote(i, tree.ring.tops.length)); notes.push(i);
+        return true;
+      },
       afterMove: (time, grounded) => gear.update(time, grounded),
       // By a sleeping arch the cat says its world sleeps (D) - once as she comes near, not while something else is said.
       update: (_dt, _time, canMove) => {
@@ -196,7 +207,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },
