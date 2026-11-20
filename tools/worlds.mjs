@@ -140,7 +140,7 @@ export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub'];
 /** The hub (src/worlds/hub/layout.ts): where she stands arriving through the arch of the place `shelf` (arrivalAt). */
 export const HUB_ARRIVAL = [0, 1, 2, 3, 4].map((shelf) => {
-  const a = (shelf / 5) * Math.PI * 2, d = 12.5 - 4;
+  const a = (shelf / 5) * Math.PI * 2, d = 12.5 - 6;
   return { x: Math.sin(a) * d, z: Math.cos(a) * d, facing: a + Math.PI };
 });
 /** The arch of a place of the shelf, where its action spot is (layout.ts PORTALS, r 12.5). */

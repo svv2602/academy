@@ -21,10 +21,10 @@ export const PORTALS: readonly PortalPlace[] = COLOURS.map((colour, shelf) => {
 });
 
 /**
- * m inside an arch where she stands arriving from its world, toward the tree: the camera behind her stays a step
- * outside the arch and sees her through it.
+ * m inside an arch where she stands arriving from its world, toward the tree: the camera behind her stands on the
+ * glade already, the arch behind it - from outside the arch its stones (H) filled half the frame.
  */
-export const ARRIVE_IN = 4;
+export const ARRIVE_IN = 6;
 /** The five nests on the trunk: heights over the ground, round the trunk as the arches are. */
 export const NESTS = PORTALS.map((p, i) => ({ shelf: p.shelf, a: p.facing, y: 4.2 + i * 1.6 }));
 

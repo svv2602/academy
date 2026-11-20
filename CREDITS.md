@@ -33,6 +33,13 @@ on its page; made static (no skeleton, no animation; the bird's texture turned i
 The fairies and their little flowers are our own simple shapes built in code (`src/worlds/fairy/creatures.ts`),
 not taken from any pack or service.
 
+The hub, the Great Tree (`src/worlds/hub/tree-look.ts`, `src/worlds/hub/arch-look.ts`): the trunk, roots and branches,
+the stone arches, their veil (a shader), the vines, the nests, the artifacts of the four next worlds, the flowers,
+fireflies, grass, lantern fruits and birds are our own simple shapes built in code, not taken from any pack or
+service. Its crown reuses the leaves of Quaternius "Ultimate Nature" CommonTree_1-4, its mushrooms the single
+mushroom model and the crystal's nest the Crystal2 of "Ultimate RPG" (all CC0 1.0, credited above) - files the first
+world already has, no new files.
+
 Cut-scene frames of the first world (WORLD-13; `public/story/`), each file:
 `w1_intro_1.webp`, `w1_intro_2.webp`, `w1_intro_3.webp`, `w1_intro_4.webp`, `w1_intro_5.webp`, `w1_crystal_1.webp`,
 `w1_crystal_2.webp`, `w1_crystal_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter
