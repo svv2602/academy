@@ -67,6 +67,17 @@ export const ONE_OF_EACH = Object.fromEntries(ITEM_KINDS.map((k) => [k, 1]));
  */
 export const GREY_BUILD = { chain: 5, part: 2, flyover: 1, finale: 1, secret: 0, pet: 0, scene: 0 };
 
+/**
+ * px: the smallest thing a finger takes on the screen (the norm of the project; the interface's buttons keep it): a
+ * thing of a task in the world whose kind gives its size (`r` of the door's targets) is measured on the screen by it.
+ */
+export const MIN_TAP_PX = 48;
+
+/** The things of a task in the world smaller on the screen than a finger: `seen` - [{ px, right }] (the diameter in px). */
+export function tapSizeProblems(seen) {
+  return seen.filter((t) => t.px !== null && t.px < MIN_TAP_PX).map((t) => `a ${t.right ? 'right' : 'wrong'} thing ${Math.round(t.px)} px across, under ${MIN_TAP_PX}`);
+}
+
 /** Seconds of game time: after a teleport the action button on the screen is the one of the new place. */
 export const SETTLES = 0.2;
 /** Seconds of game time in which the game answers an action (a press, a tap, standing at a place). */
@@ -550,6 +561,22 @@ export async function playWorld(h, o = {}) {
       if (st === 'open') {
         bad('a) open', openProblems(await worldState(), first.kind));
         before = await g(RECORD, worldId);
+        // the camera glides to the task's frame: its size on the screen is measured once it is there
+        await gameUntil(() => false, null, 2);
+        const sizes = await g(() => {
+          const d = window.__game.worldTask.targets?.(), cam = window.__game.camera, V = window.__game.THREE?.Vector3;
+          if (!d || !cam || !V) return [];
+          const right = new V(1, 0, 0).applyQuaternion(cam.quaternion);
+          const px = (p) => { const s = p.clone().project(cam); return new V((s.x * 0.5 + 0.5) * innerWidth, (-s.y * 0.5 + 0.5) * innerHeight, 0); };
+          return (d?.all ?? []).map((t) => {
+            if (t.r === null || t.r === undefined) return { px: null, right: t.right };
+            const p = new V(...t.pos);
+            return { px: 2 * px(p).distanceTo(px(p.clone().addScaledVector(right, t.r))), right: t.right };
+          });
+        });
+        bad('a) open, the size of its things on the screen', tapSizeProblems(sizes));
+        const measured = sizes.filter((t) => t.px !== null);
+        if (measured.length) console.log(`world task: ${first.kind}: the things to tap ${measured.map((t) => Math.round(t.px)).join(', ')} px across (at least ${MIN_TAP_PX})`);
         await shot(`world-task-${first.kind}`);
       } else if (st === 'wrong') {
         const v0 = await g(() => ({ starts: { ...(window.__starts ?? {}) }, synth: window.__game.voice.synth.length }));

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
-  GREY_BUILD, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
+  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
   unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
@@ -1006,5 +1006,13 @@ describe('tools/world-pass.mjs in the sources (R34, ARCH-16)', () => {
     const call = /await playWorld\(\{ ([^\n]*) \}\);/.exec(shot)[1];
     const given = call.replace(/\{[^}]*\}/g, '').split(',').map((n) => n.trim().split(':')[0].trim());
     expect(taken.sort()).toEqual(given.sort());
+  });
+});
+
+describe('the size of the things of a task in the world on the screen (MIN_TAP_PX)', () => {
+  it('a thing smaller than a finger is a problem; one with no size given is not measured', () => {
+    expect(MIN_TAP_PX).toBe(48);
+    expect(tapSizeProblems([{ px: 60, right: true }, { px: null, right: false }])).toEqual([]);
+    expect(tapSizeProblems([{ px: 31.6, right: false }])).toEqual(['a wrong thing 32 px across, under 48']);
   });
 });
