@@ -1,4 +1,5 @@
 import type { Save, WorldState } from '../core/save';
+import type { CollectDef } from './collections';
 
 /**
  * The artifacts the heroine has brought back (WORLD-01, the hub's tree, the shelf of the book): one per world that
@@ -10,7 +11,11 @@ import type { Save, WorldState } from '../core/save';
  * game's own code never imports the registry (it imports the game).
  */
 /** `test`: a test world (WorldDef.test) - the hub puts it behind a free arch (src/worlds/hub/portals.ts). */
-export interface ArtifactWorld { readonly id: string; readonly shelf?: number; readonly test?: boolean }
+/** `secrets`, `collect`: the world's secrets and collections (WorldDef) - the keepsakes of the hub's tree (src/worlds/hub/keepsakes.ts). */
+export interface ArtifactWorld {
+  readonly id: string; readonly shelf?: number; readonly test?: boolean;
+  readonly secrets?: readonly string[]; readonly collect?: CollectDef;
+}
 
 let known: readonly ArtifactWorld[] = [];
 /** The worlds of the registry with their places on the shelf (src/main.ts, at the start). */

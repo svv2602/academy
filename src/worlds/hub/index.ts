@@ -16,6 +16,7 @@ import { portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
 import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
+import { buildKeepsakes } from './keepsakes';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
 
@@ -150,6 +151,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   scene.add(glade);
   // The Great Tree in the stage of the artifacts back (R33), the arches round it, the nests on its trunk.
   const tree = buildTreeLook(scene, treeStage(artifactCount(save)), L.tree, ground.block);
+  // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
+  const keepsakes = buildKeepsakes(scene, save);
   const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
   const { nests, update: glow } = buildNestLook(scene, L.arch);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
@@ -193,7 +196,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },
