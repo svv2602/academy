@@ -138,7 +138,8 @@ export function buildScenery(scene: THREE.Scene) {
   scene.add(owlTree);
   colliders.push({ x: OWL_TREE.x, z: OWL_TREE.z, r: 1 });
   const flies: Put[] = Array.from({ length: 14 }, (_, i) => ({ x: ZONES.owl.x + Math.cos(i * 2.4) * (2 + (i % 4)), z: ZONES.owl.z + Math.sin(i * 2.4) * (2 + (i % 4)), s: 1 }));
-  instances(scene, 'fireflies', new THREE.SphereGeometry(0.09, 6, 4).translate(0, 1.6, 0), new THREE.MeshBasicMaterial({ color: '#7fd0ff' }), flies, 0, false);
+  // over the heroine's head (at her height one showed on her face in the frame of the owl's steps)
+  instances(scene, 'fireflies', new THREE.SphereGeometry(0.09, 6, 4).translate(0, 2.8, 0), new THREE.MeshBasicMaterial({ color: '#7fd0ff' }), flies, 0, false);
 
   // the maze: its square of low stones (the paths inside come with WORLD-14)
   const stones: Put[] = [];

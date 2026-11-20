@@ -9,6 +9,7 @@ import { createDialogue } from '../../game/dialogue';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { generateSteps, showStepsInWorld } from '../../game/worldtasks/steps';
+import { createNutsSearch } from './tracks';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
@@ -31,17 +32,19 @@ import { buildGround, colliders, ground } from './terrain';
 
 /**
  * The characters (docs/worlds/world-2.md). The steps that later become tasks in the world stand in as the panel task
- * of the same skill: Shustrik's tracks (WORLD-15) as `count`,
+ * of the same skill:
  * Ash's "find the differences" (LEARN-18) as `odd`, Kolyuchka's maze (WORLD-14) as `pattern`. `part`: the leaf is not
  * handed over - the character says it lies in the world (the hollow, the end of the maze; WORLD-08).
  */
 /** The step of Mudrena's chain played in the world: the mushroom steps up to her hollow (./index.ts `stepsTask`). */
 export const STEPS = 'steps';
+/** The step of Shustrik's chain in the background: its lost nuts found by the tracks on the ground (./tracks.ts). */
+export const TRACKS = 'tracks';
 
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a' },
   { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a' },
-  { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: ['count', 'odd', 'pairs'], shard: '#5fe39a' },
+  { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a' },
   { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['odd', 'simon', 'add'], shard: '#36b56c' },
   { id: 'kolyuchka', emoji: '🦔', x: ZONES.maze.x + 3, z: ZONES.maze.z + 1, heading: -1.6, steps: ['sub', 'order', 'pattern', 'part'], shard: '#7ff0b0' },
 ];
@@ -167,7 +170,10 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
       return player.play(showStepsInWorld(scene, generateSteps(level, g.rng), at, g.hooksFor(n.def.emoji), { groundY, reach: g.touch ? 70 : 46, scope }));
     },
   };
-  const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask };
+  // Shustrik's nuts (WORLD-15): found by the tracks, then the question of counting them
+  const nuts = createNutsSearch(g);
+  scope.own(() => nuts.tracks.dispose());
+  const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask, [TRACKS]: nuts };
   const wrongTasks = worldTaskProblems(forest.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the forest: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -214,6 +220,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
           n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, FIGURE[n.def.id].h + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
           n.actor.update(dt);
         }
+        nuts.update(dt, time, canMove);
         for (const l of leaves) {
           l.mesh.visible = waiting(l);
           if (!l.mesh.visible) continue;
@@ -225,6 +232,8 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
         emerald.rotation.y = time;
       },
       goal: () => {
+        const nut = nuts.goal();
+        if (nut) return nut;
         const l = leaves.find(waiting);
         if (l) return l.mesh.position;
         const n = npcs.find((x) => !finished(x));
@@ -244,7 +253,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
-      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
+      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; if (nuts.cheat()) return 'tracks'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
     },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
