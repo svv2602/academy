@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { staticGeo } from '../../core/assets';
+import { gltf, staticGeo } from '../../core/assets';
 import { propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { PORTALS, TREE, trunkR } from './layout';
@@ -19,19 +19,24 @@ import { PORTALS, TREE, trunkR } from './layout';
  *   2 - flowers on the low branches, fireflies round the trunk;
  *   3 - a denser, greener crown; grass and mushrooms round the roots;
  *   4 - lantern fruits under the crown, birds on the low branches.
- * Five artifacts are the final (WORLD-06), not this file: until then they look as four.
+ * Five artifacts are the final (WORLD-06), not this file: until then they look as four. In every look, up close where
+ * she stands by the roots: the bark of the MegaKit (T_BarkTwistedTree_D over the bark's colours, flat facets kept), a
+ * hollow at a child's eyes between two arches (`treeHollow`), moss on the roots and the foot, a few mushrooms on the
+ * roots, the mossy stump with a ring of softly glowing mushrooms (`STUMP`), butterflies and a handful of fireflies.
  *
  * The API, as the hub (./index.ts) uses it:
  *   `treeStage(artifacts)` - the look for a number of artifacts back (pure);
- *   `loadTreeLook()` - the models the look is made from (`TreeLoads`: the four crowns, a mushroom), in the hub's load;
+ *   `loadTreeLook()` - the models the look is made from (`TreeLoads`: the four crowns, a mushroom, the stump, the bark
+ *     picture), in the hub's load;
  *   `buildTreeLook(scene, stage, loads, block)` - puts the tree of that look into the scene and the trunk's collider
- *     into the ground (`block`: `ground.block` of the hub); returns its `root` and `update(time)`, called from the
- *     frame's `animate`: the leaves sway, the fireflies drift and blink, the lanterns glow, the birds peck.
+ *     and the stump's colliders into the ground (`block`: `ground.block` of the hub); returns its `root` and
+ *     `update(time)`, called from the frame's `animate`: the leaves sway, the fireflies drift and blink, the butterflies
+ *     flit, the ring of mushrooms breathes, the lanterns glow, the birds peck.
  * The stage is read once, as the hub is built: a new artifact comes back in its world, so the hub is built anew for it.
  *
  * TECH-06, the S22: every repeated thing is one draw call (one merged geometry or one InstancedMesh), nothing is
- * allocated per frame, the lanterns and fireflies glow by their colour (no light of their own), only the trunk and the
- * crown cast shadows. `lookCost` counts what a look draws; TREE_BUDGET is what stage 4 stays under (the test checks it).
+ * allocated per frame, the lanterns, fireflies and mushrooms glow by their colour (no light of their own), only the
+ * bark (with the stump) and the crown cast shadows. `lookCost` counts what a look draws; TREE_BUDGET is what stage 4 stays under (the test checks it).
  * The trunk and the crown dissolve at the lens (`lensFade`): the camera never shows a wall of bark or leaves.
  */
 
@@ -46,17 +51,36 @@ export function treeStage(artifacts: number): TreeStage {
 
 /**
  * What the look is made from. `crowns`: leaf clusters, each non-indexed with position, normal and color, centred on
- * the origin and one metre in radius across x/z (`crownOf`); `mushroom`: one geometry standing on y = 0, 1 m tall.
+ * the origin and one metre in radius across x/z (`crownOf`); `mushroom`: one geometry standing on y = 0, 1 m tall;
+ * `stump`: the mossy stump, vertex-coloured, standing on y = 0, STUMP.h tall; `bark`: the bark picture the trunk,
+ * the roots and the limbs are drawn with (null: a test, the flat colours of the bark alone).
  */
-export interface TreeLoads { crowns: THREE.BufferGeometry[]; mushroom: THREE.BufferGeometry }
+export interface TreeLoads { crowns: THREE.BufferGeometry[]; mushroom: THREE.BufferGeometry; stump: THREE.BufferGeometry; bark: THREE.Texture | null }
 
-/** The models of the crown (their leaves only) and the mushroom of the fairy meadow (as its giant ones are coloured). */
+/**
+ * The models of the crown (their leaves only), the mushroom and the mossy stump of the fairy meadow (as its giant
+ * mushrooms are coloured), and the bark of its TwistedTree1 (Stylized Nature MegaKit, T_BarkTwistedTree_D): all of
+ * them the first world's, already in the installation.
+ */
 export async function loadTreeLook(): Promise<TreeLoads> {
-  const [t1, t2, t3, t4, mushroom] = await Promise.all([
-    ...[1, 2, 3, 4].map((i) => staticGeo(`nature_pack/CommonTree_${i}`, 7)),
-    staticGeo('extra/mush1', 1, { LightRed: '#ff6f91', White: '#fff6e8' }),
+  const [[t1, t2, t3, t4, mushroom, stump], twisted] = await Promise.all([
+    Promise.all([
+      ...[1, 2, 3, 4].map((i) => staticGeo(`nature_pack/CommonTree_${i}`, 7)),
+      staticGeo('extra/mush1', 1, { LightRed: '#ff6f91', White: '#fff6e8' }),
+      staticGeo('nature_pack/TreeStump_Moss', STUMP.h),
+    ]),
+    gltf('nature2/TwistedTree1'),
   ]);
-  return { crowns: [t1, t2, t3, t4].map(crownOf), mushroom };
+  let bark: THREE.Texture | null = null;
+  twisted.scene.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+    if (mat && !Array.isArray(mat) && mat.map && /bark/i.test(mat.name)) bark = mat.map;
+  });
+  if (bark) {
+    const t = bark as THREE.Texture;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  }
+  return { crowns: [t1, t2, t3, t4].map(crownOf), mushroom, stump, bark };
 }
 
 /**
@@ -89,16 +113,20 @@ export function crownOf(tree: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /**
- * What the tree may draw per frame at stage 4 (`lookCost`: the sun's shadow pass included), the +40k triangles and
- * +25 draw calls TECH-06 left over the grey hub (≈57k, ≈131 on the S22). With the real crowns (CommonTree_1..4:
- * 528, 590, 640, 343 triangles of leaves) the looks draw, triangles / draw calls:
- *   1 - 19.0k / 4 (the bark 3.2k and a crown of 12 clumps 6.3k, both twice for the shadow);
- *   2 - 20.3k / 6 (+ 64 flowers of 15, 36 fireflies of 8);
- *   3 - 34.5k / 8 (a crown of 20 clumps 10.5k; + 280 tufts of 10, 22 mushrooms of 138);
- *   4 - 36.3k / 10 (+ 30 lanterns of 38, 8 birds of 82).
- * The grey tree it replaces drew ≈1.5k / 28 (14 meshes, each in the shadow pass too).
+ * What the tree may draw per frame at stage 4 (`lookCost`: the sun's shadow pass included): the +40k triangles and
+ * +25 draw calls TECH-06 left over the grey hub (≈57k, ≈131 on the S22), and +5k of the up-close detail of the trunk
+ * (the hollow, the moss, the stump, the mushrooms by the roots and round the stump, the butterflies; the customer's
+ * +15k for the trunk and the arches together). With the real crowns (CommonTree_1..4: 528, 590, 640, 343 triangles of
+ * leaves), the mushroom (138) and the stump (232) the looks draw, triangles / draw calls:
+ *   1 - 24.9k / 7 (the bark 4.1k - trunk, roots, limbs, hollow, moss, stump - and a crown of 12 clumps 6.3k, both twice
+ *       for the shadow; 8 fireflies of 8, 10 butterflies of 12, 28 mushrooms of 138: 8 on the roots, 20 in the ring);
+ *   2 - 26.0k / 8 (+ 64 flowers of 15, the fireflies 36);
+ *   3 - 40.3k / 9 (a crown of 20 clumps 10.5k; + 280 tufts of 10, 22 more mushrooms);
+ *   4 - 42.1k / 11 (+ 30 lanterns of 38, 8 birds of 82).
+ * Before the detail: 19.0k / 4, 20.3k / 6, 34.5k / 8, 36.3k / 10. The grey tree drew ≈1.5k / 28 (14 meshes, each in
+ * the shadow pass too).
  */
-export const TREE_BUDGET = { triangles: 40_000, draws: 25 };
+export const TREE_BUDGET = { triangles: 45_000, draws: 25 };
 
 /**
  * m: the radius of the bark at height `y`, angle `a` (0 = +z, as the arches): the map's `trunkR(y)` with a few
@@ -114,13 +142,22 @@ export function barkRadius(y: number, a: number): number {
 /** The trunk's faces round, its ring step in metres, how far above TREE.h it runs up into the crown. */
 const TRUNK = { sides: 18, step: 0.55, over: 2 };
 
-/** A ring of a tapered tube of bark: its colour, a little darker in the grooves. */
-const BARK = new THREE.Color('#8a6142'), BARK_DARK = new THREE.Color('#6a4630');
+/**
+ * The bark's colours: what the bark picture (T_BarkTwistedTree_D, grey, ≈0.08 linear on average) is multiplied by -
+ * vertex colours over 1 lift it to the warm brown of the grey build's bark (#8a6142); a little darker in the grooves.
+ * Moss the same way: a green that comes out at the meadow's moss over the picture.
+ */
+const BARK = new THREE.Color(2.7, 1.75, 1.15), BARK_DARK = new THREE.Color(1.75, 1.05, 0.7);
+const MOSS = [new THREE.Color(1.15, 3.3, 0.7), new THREE.Color(1.45, 3.6, 0.6), new THREE.Color(0.95, 2.7, 0.75)];
+/** m of bark one repeat of the picture covers, round and along. */
+const BARK_TILE = 2.4;
 
-/** The trunk: rings of `barkRadius` from just under the ground up into the crown (indexed, position + color). */
+/** The trunk: rings of `barkRadius` from just under the ground up into the crown (indexed, position + color + uv). */
 function trunkGeo(): THREE.BufferGeometry {
   const { sides, step, over } = TRUNK, rings = Math.ceil((TREE.h + over + 0.3) / step) + 1;
-  const p: number[] = [], c: number[] = [], idx: number[] = [], col = new THREE.Color();
+  const p: number[] = [], c: number[] = [], uv: number[] = [], idx: number[] = [], col = new THREE.Color();
+  // a whole number of repeats round, so the seam closes; along: by the height
+  const round = Math.max(1, Math.round((2 * Math.PI * trunkR(0)) / BARK_TILE));
   for (let j = 0; j < rings; j++) {
     const y = -0.3 + j * step;
     for (let i = 0; i <= sides; i++) {
@@ -128,6 +165,7 @@ function trunkGeo(): THREE.BufferGeometry {
       p.push(Math.sin(a) * r, y, Math.cos(a) * r);
       col.copy(BARK).lerp(BARK_DARK, 0.5 + 0.5 * Math.sin(7 * a + y * 0.8));
       c.push(col.r, col.g, col.b);
+      uv.push((i / sides) * round, y / BARK_TILE);
     }
   }
   for (let j = 0; j < rings - 1; j++) {
@@ -139,14 +177,19 @@ function trunkGeo(): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   return g;
 }
 
-/** A limb: a tube along `points` narrowing from `r0` to `r1`, `sides` round, `segs` along (indexed, position + color). */
+/**
+ * A limb: a tube along `points` narrowing from `r0` to `r1`, `sides` round, `segs` along (indexed, position + color +
+ * uv: the picture runs along the limb, a whole number of repeats round it, so it is not stretched).
+ */
 function limbGeo(points: THREE.Vector3[], r0: number, r1: number, sides: number, segs: number): THREE.BufferGeometry {
-  const curve = new THREE.CatmullRomCurve3(points), frames = curve.computeFrenetFrames(segs, false);
-  const p: number[] = [], c: number[] = [], idx: number[] = [], at = new THREE.Vector3(), v = new THREE.Vector3();
+  const curve = new THREE.CatmullRomCurve3(points), frames = curve.computeFrenetFrames(segs, false), len = curve.getLength();
+  const round = Math.max(1, Math.round((2 * Math.PI * (r0 + r1) / 2) / BARK_TILE));
+  const p: number[] = [], c: number[] = [], uv: number[] = [], idx: number[] = [], at = new THREE.Vector3(), v = new THREE.Vector3();
   for (let j = 0; j <= segs; j++) {
     const t = j / segs, r = r0 + (r1 - r0) * t;
     curve.getPointAt(t, at);
@@ -156,6 +199,7 @@ function limbGeo(points: THREE.Vector3[], r0: number, r1: number, sides: number,
       p.push(at.x + v.x * r, at.y + v.y * r, at.z + v.z * r);
       const k = 0.35 + 0.35 * Math.sin(3 * a + t * 5);
       c.push(BARK.r + (BARK_DARK.r - BARK.r) * k, BARK.g + (BARK_DARK.g - BARK.g) * k, BARK.b + (BARK_DARK.b - BARK.b) * k);
+      uv.push((i / sides) * round, (t * len) / BARK_TILE);
     }
   }
   for (let j = 0; j < segs; j++) {
@@ -167,6 +211,7 @@ function limbGeo(points: THREE.Vector3[], r0: number, r1: number, sides: number,
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   return g;
 }
@@ -207,6 +252,48 @@ export function treeShape() {
   return { roots, limbs, branches, clumps };
 }
 
+/**
+ * The hollow (дупло) of the trunk, at a child's eyes on the side of the glade between the two arches whose gap the
+ * roots leave freest (in this tree: between the third and the fourth, the north of the glade): `a` its side (0 = +z,
+ * as the arches), `y` the middle of its mouth, `w` and `h` the half-width and half-height of the mouth, `r` how far
+ * from the axis its mouth stands - the outermost the bark gets behind it, so the mouth lies on the bark, never in it.
+ */
+export function treeHollow(shape: ReturnType<typeof treeShape> = treeShape()) {
+  const exits = shape.roots.map((pts) => Math.atan2(pts[1].x, pts[1].z));
+  const gap = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  let a = 0, clear = -1;
+  for (const p of PORTALS) {
+    const mid = p.facing + Math.PI / PORTALS.length, near = Math.min(...exits.map((e) => gap(mid, e)));
+    if (near > clear) { clear = near; a = mid; }
+  }
+  const y = 1.3, w = 0.4, h = 0.52;
+  // how far out along its side the bark gets behind the mouth: the bark's own radius and the flat faces of the built
+  // trunk between its vertices (`trunkGeo`), sampled over the mouth
+  const { sides, step } = TRUNK, built = (yy: number, aa: number) => {
+    const j = Math.floor((yy + 0.3) / step), fy = (yy + 0.3) / step - j, u = ((aa % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2) * sides;
+    const i = Math.floor(u), fx = u - i, at = (jj: number, ii: number) => barkRadius(-0.3 + jj * step, (ii / sides) * Math.PI * 2);
+    return (at(j, i) * (1 - fx) + at(j, i + 1) * fx) * (1 - fy) + (at(j + 1, i) * (1 - fx) + at(j + 1, i + 1) * fx) * fy;
+  };
+  let r = 0;
+  for (let yy = y - h; yy <= y + h + 1e-9; yy += h / 10) {
+    for (let k = -10; k <= 10; k++) {
+      const da = (k / 10) * (w / trunkR(yy));
+      r = Math.max(r, barkRadius(yy, a + da) * Math.cos(da), built(yy, a + da) * Math.cos(da));
+    }
+  }
+  return { a, y, w, h, r };
+}
+
+/**
+ * The mossy stump (nature_pack/TreeStump_Moss) by the roots and the ring of glowing mushrooms round it: between the
+ * second and the third arches, just past the tip of the root there - clear of both passages, of the spots she arrives
+ * at and of the tour's camera (the test holds them apart). `a`: its side, `d`: m from the trunk's middle, `h`: m tall,
+ * `ring`: m from its middle to the ring, `r`: its collider.
+ */
+export const STUMP = { a: PORTALS[1].facing + Math.PI / PORTALS.length, d: 6.8, h: 0.8, ring: 1.2, r: 0.6 } as const;
+/** Where the stump stands (the map's metres). */
+export const stumpAt = () => ({ x: TREE.x + Math.sin(STUMP.a) * STUMP.d, z: TREE.z + Math.cos(STUMP.a) * STUMP.d });
+
 /** How the clumps are squashed: flatter than round, as the crowns of the valley. */
 const CLUMP_Y = 0.72;
 /** The leaves of each look: how much grey (toward an olive of their own brightness) and how bright. */
@@ -234,11 +321,15 @@ function lensFade(sh: THREE.WebGLProgramParametersWithUniforms): void {
   ${LENS_FADE_GLSL}`);
 }
 
-/** The time the leaves of the crown sway by (set in `update`; the crown is one mesh at the origin). */
+/** The time the leaves of the crown sway by, the wings beat by and the ring of mushrooms breathes by (set in `update`). */
 const uLeaf = { value: 0 };
 
-function barkMaterial() {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true });
+/**
+ * The bark: the MegaKit picture times the vertex colours (BARK), flat-shaded - the big facets stay. Without the
+ * picture (a test) the colour stands in for its average, so the bark is the same brown.
+ */
+function barkMaterial(map: THREE.Texture | null) {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true, map, color: map ? '#ffffff' : new THREE.Color(0.085, 0.075, 0.065) });
   m.onBeforeCompile = (sh) => lensFade(sh);
   m.customProgramCacheKey = () => 'tree-bark';
   return m;
@@ -287,14 +378,103 @@ function crownGeo(crowns: THREE.BufferGeometry[], clumps: ReturnType<typeof tree
   return out;
 }
 
-/** The bark: the trunk, the roots, the limbs and the low branches as one geometry. */
-function barkGeo(shape: ReturnType<typeof treeShape>): THREE.BufferGeometry {
-  const parts = [
+/**
+ * Takes a shape into the bark: placed by `m`, painted `colour` (or per vertex by `paint`), with the picture laid on
+ * it from the side (`tile`: m per repeat; 0 - one spot of the picture, for moss and the dark of the hollow).
+ */
+function barkPart(src: THREE.BufferGeometry, m: THREE.Matrix4, colour: THREE.Color | ((c: THREE.Color, i: number) => void), tile = BARK_TILE): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry(), flat = src.index ? src.toNonIndexed() : src;
+  g.setAttribute('position', flat.getAttribute('position').clone());
+  g.applyMatrix4(m);
+  const pos = g.getAttribute('position'), n = pos.count, col = new Float32Array(n * 3), uv = new Float32Array(n * 2), c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    if (typeof colour === 'function') colour(c.setRGB(0, 0, 0), i); else c.copy(colour);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    uv[i * 2] = tile ? (x + z) / tile : 0.5 + x * 0.02; uv[i * 2 + 1] = tile ? y / tile : 0.5 + z * 0.02;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  if (flat !== src) flat.dispose();
+  src.dispose();
+  return g;
+}
+
+const _hm = new THREE.Matrix4(), _hq = new THREE.Quaternion(), _hv = new THREE.Vector3(), _hs = new THREE.Vector3();
+
+/**
+ * The hollow (`treeHollow`): a dark cup with its deepest point on the bark, under a ring of swollen bark lips and a
+ * thicker lip at its foot - its own shapes, in the bark's mesh. The cup faces the glade (its concave side out).
+ */
+function hollowParts(h: ReturnType<typeof treeHollow>): THREE.BufferGeometry[] {
+  const n = new THREE.Vector3(Math.sin(h.a), 0, Math.cos(h.a)), t = new THREE.Vector3(Math.cos(h.a), 0, -Math.sin(h.a)), up = new THREE.Vector3(0, 1, 0);
+  const basis = new THREE.Matrix4().makeBasis(t, up, n);
+  const at = (d: number) => new THREE.Vector3(0, h.y, 0).addScaledVector(n, d);
+  // the cup: a fan from its deepest point (on the bark) to the edge of the mouth, a little out of the bark
+  const sides = 12, deep = at(h.r + 0.01), p: number[] = [], dark: number[] = [];
+  for (let k = 0; k < sides; k++) {
+    for (const [kk, isDeep] of [[-1, true], [k, false], [k + 1, false]] as const) {
+      if (isDeep) { p.push(deep.x, deep.y, deep.z); dark.push(0.04); continue; }
+      const th = (kk / sides) * Math.PI * 2, q = at(h.r + 0.11).addScaledVector(t, Math.cos(th) * h.w).addScaledVector(up, Math.sin(th) * h.h);
+      p.push(q.x, q.y, q.z); dark.push(0.2);
+    }
+  }
+  const cup = new THREE.BufferGeometry();
+  cup.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  const lips = new THREE.TorusGeometry(1, 0.22, 4, 12);
+  _hm.copy(basis).setPosition(at(h.r + 0.05)).multiply(new THREE.Matrix4().makeScale(h.w + 0.1, h.h + 0.1, 0.85));
+  const foot = new THREE.IcosahedronGeometry(1, 0);
+  const footM = new THREE.Matrix4().copy(basis).setPosition(at(h.r + 0.1).addScaledVector(up, -h.h - 0.06)).multiply(new THREE.Matrix4().makeScale(h.w + 0.2, 0.16, 0.24));
+  return [
+    barkPart(cup, new THREE.Matrix4(), (c, i) => c.copy(BARK).multiplyScalar(dark[i]), 0),
+    barkPart(lips, _hm, (c, i) => c.copy(BARK).lerp(BARK_DARK, (i % 5) / 5)),
+    barkPart(foot, footM, BARK),
+  ];
+}
+
+/** Moss on the roots (on their top, along them) and round the foot of the trunk: flat lumps of green. */
+function mossParts(shape: ReturnType<typeof treeShape>): THREE.BufferGeometry[] {
+  const rnd = mulberry32(77), parts: THREE.BufferGeometry[] = [], tan = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3();
+  shape.roots.forEach((pts) => {
+    const curve = new THREE.CatmullRomCurve3(pts);
+    for (const t0 of [0.18, 0.42, 0.63]) {
+      const t = t0 + (rnd() - 0.5) * 0.08, r = 0.85 + (0.14 - 0.85) * t, s = 1 - t * 0.6;
+      curve.getPointAt(t, _hv); curve.getTangentAt(t, tan);
+      _hq.setFromAxisAngle(up, Math.atan2(tan.x, tan.z) + (rnd() - 0.5) * 0.4);
+      _hv.y += r * 0.86;
+      parts.push(barkPart(new THREE.IcosahedronGeometry(1, 0), _hm.compose(_hv, _hq, _hs.set(r * 0.9 * s + 0.12, 0.08, (0.4 + rnd() * 0.15) * s + 0.1)), MOSS[Math.floor(rnd() * MOSS.length)], 0));
+    }
+  });
+  for (let k = 0; k < 9; k++) {
+    const a = (k / 9) * Math.PI * 2 + rnd() * 0.4, y = 0.15 + rnd() * 0.4;
+    side.set(Math.sin(a) * 0.75, 0.66, Math.cos(a) * 0.75).normalize();
+    _hq.setFromUnitVectors(up, side);
+    _hv.set(Math.sin(a), 0, Math.cos(a)).multiplyScalar(barkRadius(y, a) - 0.03).setY(y);
+    parts.push(barkPart(new THREE.IcosahedronGeometry(1, 0), _hm.compose(_hv, _hq, _hs.set(0.5 + rnd() * 0.2, 0.09, 0.38 + rnd() * 0.12)), MOSS[k % MOSS.length], 0));
+  }
+  return parts;
+}
+
+/** The stump, its wood in the bark's picture and colours, its moss in the moss's: one more part of the bark's mesh. */
+function stumpPart(stump: THREE.BufferGeometry): THREE.BufferGeometry {
+  const col = stump.getAttribute('color'), at = stumpAt(), src = stump.clone();
+  _hq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), STUMP.a + 1.1);
+  return barkPart(src, _hm.compose(_hv.set(at.x - TREE.x, -0.04, at.z - TREE.z), _hq, _hs.set(1, 1, 1)), (c, i) => {
+    const flat = stump.index ? stump.index.getX(i) : i;
+    const green = col ? col.getY(flat) > col.getX(flat) : false;
+    c.copy(green ? MOSS[0] : BARK);
+  });
+}
+
+/** The bark: the trunk, the roots, the limbs, the low branches, the hollow, the moss and the stump as one geometry. */
+function barkGeo(shape: ReturnType<typeof treeShape>, stump: THREE.BufferGeometry): THREE.BufferGeometry {
+  const tubes = [
     trunkGeo(),
     ...shape.roots.map((pts) => limbGeo(pts, 0.85, 0.14, 8, 10)),
     ...shape.limbs.map((l) => limbGeo(l.points, 0.62, 0.2, 7, 8)),
     ...shape.branches.map((b) => limbGeo(b.curve.points, b.r0, b.r1, 7, 8)),
   ];
+  const parts = [...tubes.map((g) => { if (!g.index) return g; const f = g.toNonIndexed(); g.dispose(); return f; }), ...hollowParts(treeHollow(shape)), ...mossParts(shape), stumpPart(stump)];
   const out = mergeGeometries(parts, false)!;
   for (const p of parts) p.dispose();
   out.computeVertexNormals();
@@ -368,6 +548,67 @@ function birdGeo(): THREE.BufferGeometry {
 export interface TreeLook { root: THREE.Group; update(time: number): void }
 
 const FLOWERS = 64, FIREFLIES = 36, TUFTS = 280, MUSHROOMS = 22, LANTERNS = 30, BIRDS = 8;
+/** Every look: the fireflies of the first (the second has FIREFLIES), the butterflies, the mushrooms on the roots and in the ring round the stump. */
+const EARLY_FIREFLIES = 8, BUTTERFLIES = 10, ROOT_MUSHROOMS = 8, RING_MUSHROOMS = 20;
+/** The glow of a mushroom: the meadow's faint pink at the roots, the ring's soft lilac (breathing), emissive only. */
+const MUSH_GLOW = new THREE.Color('#ff5f8f').multiplyScalar(0.16), RING_GLOW = new THREE.Color('#d9a6ff').multiplyScalar(0.55);
+
+/**
+ * A butterfly, facing +z: two wings, a quad each, hinged on its body (x = 0) - the material flaps them (`flapMaterial`),
+ * the body a thin dark spindle. White: each takes its colour from its instance.
+ */
+function butterflyGeo(): THREE.BufferGeometry {
+  const p: number[] = [], c: number[] = [];
+  for (const s of [-1, 1]) {
+    const hf = [0, 0, 0.07], hb = [0, 0, -0.09], of = [s * 0.21, 0, 0.14], ob = [s * 0.17, 0, -0.13];
+    // both triangles wound to face up (the material draws both sides)
+    const tris = s > 0 ? [hf, ob, of, hf, hb, ob] : [hf, of, ob, hf, ob, hb];
+    for (const v of tris) { p.push(...v); const k = v[0] === 0 ? 0.8 : 1; c.push(k, k, k); }
+  }
+  const body = new THREE.OctahedronGeometry(1, 0).scale(0.022, 0.022, 0.12), bp = body.getAttribute('position');
+  for (let i = 0; i < bp.count; i++) { p.push(bp.getX(i), bp.getY(i), bp.getZ(i)); c.push(0.22, 0.2, 0.25); }
+  body.dispose();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** The wings beat: every vertex off the body turns about it, each butterfly in its own phase (by its instance). */
+function flapMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, flatShading: true, side: THREE.DoubleSide });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uLeaf = uLeaf;
+    sh.vertexShader = 'uniform float uLeaf;\n' + sh.vertexShader.replace('#include <begin_vertex>', `
+      vec3 transformed = vec3(position);
+      if (abs(position.x) > 0.03) {
+        float beat = 0.35 + 0.85 * sin(uLeaf * 13.0 + float(gl_InstanceID) * 2.3);
+        transformed.x = position.x * cos(beat);
+        transformed.y = position.y + abs(position.x) * sin(beat);
+      }`);
+  };
+  m.customProgramCacheKey = () => 'tree-butterfly';
+  return m;
+}
+
+/**
+ * The mushrooms: vertex-coloured, each glowing by its own emissive (`aGlow`, per instance; the strong ones breathe
+ * slowly), no light of their own; and the lens fade.
+ */
+function mushMaterial() {
+  const m = propMaterial(0, { emissive: '#ffffff' });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uLeaf = uLeaf;
+    sh.vertexShader = 'uniform float uLeaf;\nattribute vec3 aGlow;\nvarying vec3 vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vGlow = aGlow * (1.0 + 0.3 * step(0.5, aGlow.r + aGlow.g + aGlow.b) * sin(uLeaf * 1.3 + float(gl_InstanceID) * 2.1));`);
+    sh.fragmentShader = 'varying vec3 vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      totalEmissiveRadiance = vGlow;`);
+    lensFade(sh);
+  };
+  m.customProgramCacheKey = () => 'tree-mush';
+  return m;
+}
 
 /**
  * The Great Tree of look `stage` (./tree-look.ts header), built from `loads` (`loadTreeLook`, or any geometries of
@@ -380,10 +621,12 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
   const shape = treeShape(), rnd = mulberry32(4711 + stage);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), at = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
-  const bark = new THREE.Mesh(barkGeo(shape), barkMaterial());
+  const bark = new THREE.Mesh(barkGeo(shape, loads.stump), barkMaterial(loads.bark));
   const crown = new THREE.Mesh(crownGeo(loads.crowns, shape.clumps, stage), crownMaterial());
   for (const o of [bark, crown]) { o.castShadow = true; o.receiveShadow = true; root.add(o); }
   block(TREE.x, TREE.z, trunkR(0) + 0.4);
+  const stumpSpot = stumpAt();
+  block(stumpSpot.x, stumpSpot.z, STUMP.r);
 
   const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, n: number) => {
     const im = new THREE.InstancedMesh(geo, mat, n);
@@ -419,14 +662,18 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
       flowers.setColorAt(i, tints[Math.floor(rnd() * tints.length)]);
     }
     finish(flowers);
+  }
 
+  {
     // Fireflies: each drifts round its own point by the trunk and under the crown, blinking. Their paths in one array.
-    const flies = inst(new THREE.OctahedronGeometry(0.075, 0), new THREE.MeshBasicMaterial({ color: '#f4ff8a' }), FIREFLIES);
+    // A handful in the first look (the tree is not dead), all of them from the second.
+    const flyN = stage >= 2 ? FIREFLIES : EARLY_FIREFLIES;
+    const flies = inst(new THREE.OctahedronGeometry(0.075, 0), new THREE.MeshBasicMaterial({ color: '#f4ff8a' }), flyN);
     flies.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    const path = new Float32Array(FIREFLIES * 6);   // angle, radius, height, phase, speed, blink
-    for (let i = 0; i < FIREFLIES; i++) path.set([rnd() * Math.PI * 2, trunkR(0) + 0.8 + rnd() * 6.5, 0.8 + rnd() * 7, rnd() * 6.28, 0.6 + rnd() * 0.8, 1.5 + rnd() * 2], i * 6);
+    const path = new Float32Array(flyN * 6);   // angle, radius, height, phase, speed, blink
+    for (let i = 0; i < flyN; i++) path.set([rnd() * Math.PI * 2, trunkR(0) + 0.8 + rnd() * 6.5, 0.8 + rnd() * 7, rnd() * 6.28, 0.6 + rnd() * 0.8, 1.5 + rnd() * 2], i * 6);
     const fly = (time: number) => {
-      for (let i = 0; i < FIREFLIES; i++) {
+      for (let i = 0; i < flyN; i++) {
         const o = i * 6, ph = path[o + 3], w = path[o + 4];
         const a = path[o] + 0.08 * Math.sin(time * 0.21 * w + ph), r = path[o + 1] + 0.5 * Math.sin(time * 0.53 * w + ph * 2);
         const y = path[o + 2] + 0.4 * Math.sin(time * 0.8 * w + ph);
@@ -441,6 +688,58 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
     updates.push(fly);
   }
 
+  {
+    // Butterflies over the roots and the glade near the trunk, in every look: each loops round the tree on its own
+    // circle, rising and dipping; the wings beat in the material. Their paths in one array.
+    const tints = ['#ffd24a', '#ff9ed2', '#7fd8ff', '#ffffff', '#ff8a5c', '#c79bff'].map((h) => new THREE.Color(h));
+    const brnd = mulberry32(2024), flutter = inst(butterflyGeo(), flapMaterial(), BUTTERFLIES);
+    flutter.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    const path = new Float32Array(BUTTERFLIES * 6);   // angle, radius, height, phase, speed, way round
+    for (let i = 0; i < BUTTERFLIES; i++) {
+      path.set([brnd() * Math.PI * 2, trunkR(0) + 1.2 + brnd() * 5, 0.7 + brnd() * 1.6, brnd() * 6.28, 0.7 + brnd() * 0.6, brnd() < 0.5 ? -1 : 1], i * 6);
+      flutter.setColorAt(i, tints[i % tints.length]);
+    }
+    const flit = (time: number) => {
+      for (let i = 0; i < BUTTERFLIES; i++) {
+        const o = i * 6, ph = path[o + 3], w = path[o + 4], way = path[o + 5];
+        const a = path[o] + way * time * 0.11 * w + 0.15 * Math.sin(time * 0.9 * w + ph);
+        const r = path[o + 1] + 0.8 * Math.sin(time * 0.31 * w + ph * 2);
+        const y = path[o + 2] + 0.3 * Math.sin(time * 1.7 * w + ph) + 0.12 * Math.sin(time * 4.1 + ph);
+        // heading along the circle, the way it goes round
+        q.setFromEuler(e.set(0.15 * Math.sin(time * 2.3 + ph), a + way * Math.PI / 2, 0, 'YXZ'));
+        flutter.setMatrixAt(i, m.compose(at.set(Math.sin(a) * r, y, Math.cos(a) * r), q, sc.set(1.4, 1.4, 1.4)));
+      }
+      flutter.instanceMatrix.needsUpdate = true;
+    };
+    flit(0);
+    finish(flutter);
+    flutter.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1.5, 0), trunkR(0) + 8);
+    updates.push(flit);
+  }
+
+  // The mushrooms, one InstancedMesh: a few on the roots and the ring round the stump in every look, the meadow's
+  // groups by the roots from the third (`stage >= 3` below adds them).
+  const mushAt: THREE.Matrix4[] = [], mushGlow: THREE.Color[] = [];
+  {
+    const mrnd = mulberry32(5150);
+    for (let i = 0; i < ROOT_MUSHROOMS; i++) {
+      // on the top of a root, toward its tip, in pairs on four roots
+      const pts = shape.roots[[0, 2, 3, 5][i % 4]], curve = new THREE.CatmullRomCurve3(pts);
+      const t = (i < 4 ? 0.52 : 0.7) + mrnd() * 0.08, r = 0.85 + (0.14 - 0.85) * t, s = 0.26 + mrnd() * 0.16;
+      curve.getPointAt(t, at);
+      at.y += r * 0.8;
+      mushAt.push(m.compose(at, q.setFromAxisAngle(up, mrnd() * 6.28), sc.set(s, s, s)).clone());
+      mushGlow.push(MUSH_GLOW);
+    }
+    const c = stumpAt();
+    for (let i = 0; i < RING_MUSHROOMS; i++) {
+      const a = (i / RING_MUSHROOMS) * Math.PI * 2 + (mrnd() - 0.5) * 0.18, d = STUMP.ring + (mrnd() - 0.5) * 0.22, s = 0.24 + mrnd() * 0.18;
+      at.set(c.x - TREE.x + Math.sin(a) * d, -0.02, c.z - TREE.z + Math.cos(a) * d);
+      mushAt.push(m.compose(at, q.setFromAxisAngle(up, mrnd() * 6.28), sc.set(s, s, s)).clone());
+      mushGlow.push(RING_GLOW);
+    }
+  }
+
   if (stage >= 3) {
     // Grass round the roots, thicker by the trunk; a tuft never stands inside it.
     const tufts = inst(tuftGeo(rnd), propMaterial(3.2, { roughness: 1 }), TUFTS);
@@ -452,16 +751,24 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
     finish(tufts);
 
     // Mushrooms in little groups by the tips of the roots and between them, glowing a little as the meadow's.
-    const mushMat = propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.16 });
-    mushMat.onBeforeCompile = (sh) => lensFade(sh);
-    mushMat.customProgramCacheKey = () => 'tree-mush';
-    const mush = inst(loads.mushroom, mushMat, MUSHROOMS);
     for (let i = 0; i < MUSHROOMS; i++) {
       const root0 = shape.roots[i % 6], end = root0[root0.length - 1];
       const near = i < 12, a = Math.atan2(end.x, end.z) + (near ? (rnd() - 0.5) * 0.5 : Math.PI / 6 + (rnd() - 0.5) * 0.4);
       const r = near ? Math.hypot(end.x, end.z) - 0.4 + rnd() * 1.2 : trunkR(0) + 0.6 + rnd() * 1.8, s = 0.3 + rnd() * rnd() * 0.45;
-      mush.setMatrixAt(i, m.compose(at.set(Math.sin(a) * r, -0.02, Math.cos(a) * r), q.setFromAxisAngle(up, rnd() * 6.28), sc.set(s, s, s)));
+      at.set(Math.sin(a) * r, -0.02, Math.cos(a) * r);
+      // not into the stump and its ring: out past the ring
+      const st = stumpAt(), dx = at.x + TREE.x - st.x, dz = at.z + TREE.z - st.z, d = Math.hypot(dx, dz);
+      if (d < STUMP.ring + 0.4) at.set(st.x - TREE.x + (dx / d) * (STUMP.ring + 0.45), -0.02, st.z - TREE.z + (dz / d) * (STUMP.ring + 0.45));
+      mushAt.push(m.compose(at, q.setFromAxisAngle(up, rnd() * 6.28), sc.set(s, s, s)).clone());
+      mushGlow.push(MUSH_GLOW);
     }
+  }
+  {
+    const geo = loads.mushroom.clone(), glow = new Float32Array(mushAt.length * 3);
+    mushGlow.forEach((g, i) => g.toArray(glow, i * 3));
+    geo.setAttribute('aGlow', new THREE.InstancedBufferAttribute(glow, 3));
+    const mush = inst(geo, mushMaterial(), mushAt.length);
+    mushAt.forEach((x, i) => mush.setMatrixAt(i, x));
     finish(mush);
   }
 

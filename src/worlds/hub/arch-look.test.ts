@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ARCH, LOOK_BUDGET, buildArches, buildNestLook, seeded, type ArchLoads } from './arch-look';
+import { ARCH, CREST, LOOK_BUDGET, buildArches, buildNestLook, crestShape, seeded, type ArchLoads } from './arch-look';
 import { NESTS, PORTALS, TREE, trunkR } from './layout';
 
 /** A stand-in for Crystal2: no file is loaded in a unit test. */
@@ -43,7 +43,7 @@ describe('the arches of the hub', () => {
     expect(ARCH.inner * 2).toBeCloseTo(2.4);   // the passage as wide as the grey one
   });
 
-  it('every arch where its place is, turned out of the middle, about 4 m high; the world behind it as given', () => {
+  it('every arch where its place is, turned out of the middle, about 4 m of stones and its crest on top; the world behind it as given', () => {
     const { look } = build(['fairy', 'probe', null, null, null]);
     expect(look.arches.map((a) => a.world)).toEqual(['fairy', 'probe', null, null, null]);
     for (const a of look.arches) {
@@ -51,7 +51,12 @@ describe('the arches of the hub', () => {
       expect(a.group.rotation.y).toBeCloseTo(a.facing);
       expect(a.at.x).toBeCloseTo(a.x); expect(a.at.z).toBeCloseTo(a.z);
       const box = new THREE.Box3().setFromObject(a.group);
-      expect(box.max.y).toBeGreaterThan(3.8); expect(box.max.y).toBeLessThan(4.8);
+      expect(box.max.y).toBeGreaterThan(CREST.y + 0.55); expect(box.max.y).toBeLessThan(CREST.y + CREST.h + 0.15);
+      // the stones themselves: as high as before, the keystone under the crest
+      const stones = (a.group.children[0] as THREE.Mesh).geometry.getAttribute('position');
+      let top = 0;
+      for (let i = 0; i < stones.count; i++) if (Math.abs(stones.getX(i)) > 0.6) top = Math.max(top, stones.getY(i));
+      expect(top).toBeGreaterThan(3.3); expect(top).toBeLessThan(4.6);
     }
   });
 
@@ -89,6 +94,76 @@ describe('the arches of the hub', () => {
     const b = build(['fairy', null, null, null, null]).look.arches[1].group.children[0] as THREE.Mesh;
     expect(Array.from(a.geometry.getAttribute('position').array)).toEqual(Array.from(b.geometry.getAttribute('position').array));
     expect(seeded(5)()).toBe(seeded(5)());
+  });
+});
+
+describe('the crest: the sign of the world on top of every arch, seen across the glade', () => {
+  /** The meshes of an arch with vertices up in the crest (over the keystone), and how many such vertices each has. */
+  const crestIn = (a: { group: THREE.Group }) => a.group.children.map((o) => {
+    const g = (o as THREE.Mesh).geometry, pos = g?.getAttribute('position');
+    let n = 0;
+    if (pos) for (let i = 0; i < pos.count; i++) if (pos.getY(i) > CREST.y + 0.25) n++;
+    return { mesh: o as THREE.Mesh, n };
+  }).filter((x) => x.n > 0);
+
+  it('on every arch: glowing in the world\'s colour on an open one, grey stone on a sleeping one', () => {
+    const leads = ['fairy', null, 'sea', null, 'sky'];
+    const { look } = build(leads);
+    for (const a of look.arches) {
+      const up = crestIn(a);
+      expect(up, `arch ${a.shelf}`).toHaveLength(1);
+      const mat = up[0].mesh.material as THREE.MeshStandardMaterial;
+      if (a.world !== null) {
+        expect('#' + mat.emissive.getHexString()).toBe(a.colour);
+        expect(mat.emissiveIntensity).toBeGreaterThan(0.5);
+        expect(mat.vertexColors).toBe(false);
+      } else {
+        // in the stones' mesh, grey: no glow anywhere on a sleeping arch but the veil (hidden)
+        expect(up[0].mesh).toBe(a.group.children[0]);
+        expect(mat.emissive.getHex()).toBe(0);
+        const col = up[0].mesh.geometry.getAttribute('color'), pos = up[0].mesh.geometry.getAttribute('position');
+        for (let i = 0; i < pos.count; i++) if (pos.getY(i) > CREST.y + 0.25) expect(Math.abs(col.getX(i) - col.getZ(i))).toBeLessThan(0.05);
+        for (const o of a.group.children) {
+          const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
+          if (o.visible && m.emissive) expect(m.emissive.getHex(), `arch ${a.shelf}`).toBe(0);
+        }
+      }
+    }
+    // breathing with the runes: the open crest's light changes with the time
+    const mat = crestIn(look.arches[0])[0].mesh.material as THREE.MeshStandardMaterial;
+    look.update(0); const e0 = mat.emissiveIntensity; look.update(1); expect(mat.emissiveIntensity).not.toBe(e0);
+  });
+
+  it('a big shape of its own per world (≈1 m, ≈28 px high at 25 m in 1280 x 720), closed, facing out, faceted', () => {
+    const counts = new Set<number>();
+    const px = (h: number) => (h / (2 * 25 * Math.tan((55 / 2) * Math.PI / 180))) * 720;
+    for (const shelf of [0, 1, 2, 3, 4]) {
+      const g = crestShape(shelf), pos = g.getAttribute('position');
+      g.computeBoundingBox();
+      const bb = g.boundingBox!, size = bb.getSize(new THREE.Vector3());
+      expect(Math.max(size.x, size.y), `shelf ${shelf}`).toBeGreaterThan(0.95);
+      expect(Math.max(size.x, size.y)).toBeLessThan(1.25);
+      expect(px(Math.max(size.x, size.y))).toBeGreaterThan(26);
+      expect(size.z).toBeGreaterThan(0.2);   // a solid, not a card: it reads from the side too
+      expect(bb.min.y).toBeGreaterThan(-0.1); expect(bb.min.y).toBeLessThan(0.15);   // on the keystone
+      // low-poly
+      expect(pos.count / 3).toBeLessThan(200);
+      counts.add(pos.count);
+      // closed solids wound outward: most faces look away from the middle, and the signed volume is the shape's own
+      // (a part wound inward would take twice its volume off)
+      const mid = bb.getCenter(new THREE.Vector3()), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+      let out = 0, volume = 0;
+      for (let t = 0; t < pos.count; t += 3) {
+        a.fromBufferAttribute(pos, t); b.fromBufferAttribute(pos, t + 1); c.fromBufferAttribute(pos, t + 2);
+        const nrm = b.clone().sub(a).cross(c.clone().sub(a)), centre = a.clone().add(b).add(c).divideScalar(3).sub(mid);
+        if (nrm.dot(centre) > 0) out++;
+        volume += a.dot(b.clone().cross(c)) / 6;
+      }
+      expect(out / (pos.count / 3), `shelf ${shelf}`).toBeGreaterThan(0.7);
+      console.log(`crest ${shelf}: ${pos.count / 3} triangles, ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)} m, volume ${volume.toFixed(3)} of a box ${(size.x * size.y * size.z).toFixed(3)}`);
+      expect(volume, `shelf ${shelf}`).toBeGreaterThan(0.12 * size.x * size.y * size.z);
+    }
+    expect(counts.size).toBe(5);
   });
 });
 

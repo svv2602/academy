@@ -17,6 +17,7 @@ import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
+import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
 
 /**
  * The hub, the Great Tree (WORLD-01, docs/worlds/hub.md): the home between the worlds the heroine comes back to after
@@ -31,7 +32,8 @@ import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch
  * the arch of the world she came from (R9, `arrive`); the cat leads to the next open arch whose world is not done
  * (R10). The tour flies from the roots up to the nest of the crystal, then round the arches (R12, R19), the cat
  * saying its line (R34). The hub is part of the installation (R31): no files of its own but its one clip, precached; the
- * models it loads (CommonTree, the mushroom, Crystal2) are the first world's.
+ * models it loads (CommonTree, TwistedTree1 for its bark, TreeStump_Moss, the mushroom, Crystal2, and the Stylized
+ * Nature MegaKit's pebbles, rocks, bushes, ferns, clover and flowers of nature2/) are the first world's.
  */
 
 /** The heroine's first entry: from the arch of the Fairy Kingdom (R9). */
@@ -82,10 +84,10 @@ function buildSky(scene: THREE.Scene): WorldSky {
 }
 
 /** What the hub loads: models already in the installation (the first world's), its look made of its own shapes (H). */
-interface HubLoads { tree: TreeLoads; arch: ArchLoads }
+interface HubLoads { tree: TreeLoads; arch: ArchLoads; glade: GladeLoads }
 const loadHub = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<HubLoads> => {
-  const [tree, arch] = await Promise.all([loadTreeLook(), loadArchLook()]);
-  return { tree, arch };
+  const [tree, arch, glade] = await Promise.all([loadTreeLook(), loadArchLook(), loadGladeLook()]);
+  return { tree, arch, glade };
 };
 
 const std = (color: string, o: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, ...o });
@@ -133,6 +135,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const tree = buildTreeLook(scene, treeStage(artifactCount(save)), L.tree, ground.block);
   const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
   const { nests, update: glow } = buildNestLook(scene, L.arch);
+  // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
+  const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);
   buildRing(scene);
 
   // The light of each artifact back, in the nest of its place (read from the save: it comes back with the final).
@@ -157,7 +161,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       goal: () => open.find((p) => !done(p.world!))?.at ?? null,
       animate: (_dt, time) => {
         flies.update(time);
-        tree.update(time); breathe(time); glow(time);
+        tree.update(time); breathe(time); glow(time); dressed.update(time);
       },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },

@@ -7,8 +7,10 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { NESTS, PORTALS, TREE, trunkR } from './layout';
-import { TREE_BUDGET, barkRadius, buildTreeLook, crownOf, lookCost, treeShape, treeStage, type TreeLoads, type TreeStage } from './tree-look';
+import { ARCH } from './arch-look';
+import { HUB_FLYOVER } from './flyover-path';
+import { NESTS, PORTALS, PORTAL_R, TREE, arrivalAt, trunkR } from './layout';
+import { STUMP, TREE_BUDGET, barkRadius, buildTreeLook, crownOf, lookCost, stumpAt, treeHollow, treeShape, treeStage, type TreeLoads, type TreeStage } from './tree-look';
 
 /** A green crown of 600 triangles, as `crownOf` gives them: non-indexed, with normals and colours, 1 m in radius. */
 function fakeCrown(): THREE.BufferGeometry {
@@ -20,7 +22,13 @@ function fakeCrown(): THREE.BufferGeometry {
 }
 /** The mushroom of the meadow has 138 triangles; a cone of about as many stands in for it. */
 const fakeMushroom = () => new THREE.ConeGeometry(0.5, 1, 23, 2).translate(0, 0.5, 0);
-const loads = (): TreeLoads => ({ crowns: [fakeCrown(), fakeCrown(), fakeCrown(), fakeCrown()], mushroom: fakeMushroom() });
+/** The mossy stump has 232 triangles, wood and moss: a cylinder of about as many, its top green. */
+function fakeStump(): THREE.BufferGeometry {
+  const g = new THREE.CylinderGeometry(0.6, 0.85, 0.8, 38, 2).translate(0, 0.4, 0), pos = g.getAttribute('position');
+  g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: pos.count }, (_, i) => (pos.getY(i) > 0.75 ? [0.4, 0.77, 0.32] : [0.66, 0.46, 0.31])).flat(), 3));
+  return g;
+}
+const loads = (): TreeLoads => ({ crowns: [fakeCrown(), fakeCrown(), fakeCrown(), fakeCrown()], mushroom: fakeMushroom(), stump: fakeStump(), bark: new THREE.Texture() });
 
 function build(stage: TreeStage) {
   const scene = new THREE.Scene(), blocks: [number, number, number][] = [];
@@ -61,7 +69,8 @@ describe('the trunk keeps the map (./layout.ts)', () => {
 
   it('the trunk collider as in the grey build, six roots, a low branch between every two arches', () => {
     const { blocks } = build(4);
-    expect(blocks).toEqual([[TREE.x, TREE.z, trunkR(0) + 0.4]]);
+    const stump = stumpAt();
+    expect(blocks).toEqual([[TREE.x, TREE.z, trunkR(0) + 0.4], [stump.x, stump.z, STUMP.r]]);
     const shape = treeShape();
     expect(shape.roots).toHaveLength(6);
     expect(shape.branches).toHaveLength(PORTALS.length);
@@ -90,8 +99,10 @@ describe('every look adds to the one before, within the budget (TECH-06)', () =>
     }
     expect(costs[3].triangles).toBeLessThan(TREE_BUDGET.triangles);
     expect(costs[3].draws).toBeLessThanOrEqual(TREE_BUDGET.draws);
-    // the first look: the bark and the crown only, each also in the shadow pass
-    expect(costs[0].draws).toBe(4);
+    // the first look: the bark and the crown, each also in the shadow pass; the fireflies, the butterflies, the mushrooms
+    expect(costs[0].draws).toBe(7);
+    expect(costs[3].draws).toBe(11);
+    console.log(`tree looks: ${costs.map((c, i) => `${i + 1} - ${c.triangles} / ${c.draws}`).join(', ')}`);
   });
 
   it('only the trunk and the crown cast shadows', () => {
@@ -109,7 +120,7 @@ describe('every look adds to the one before, within the budget (TECH-06)', () =>
     const before = matrices(a.look.root), children = a.look.root.children.length;
     a.look.update(3.7);
     const after = matrices(a.look.root);
-    expect(after.filter((m, i) => m.some((v, k) => v !== before[i][k])).length).toBe(2);   // the fireflies and the birds
+    expect(after.filter((m, i) => m.some((v, k) => v !== before[i][k])).length).toBe(3);   // the fireflies, the butterflies, the birds
     expect(a.look.root.children.length).toBe(children);
   });
 
@@ -121,6 +132,135 @@ describe('every look adds to the one before, within the budget (TECH-06)', () =>
       return sat;
     };
     expect(colours(1) / build(1).cost.triangles).toBeLessThan(colours(3) / build(3).cost.triangles);
+  });
+});
+
+/** The instanced meshes of a look by what they are: the butterflies (two-sided), the fireflies (unlit), the mushrooms (`aGlow`). */
+function parts(root: THREE.Object3D) {
+  const inst = root.children.filter((o): o is THREE.InstancedMesh => (o as THREE.InstancedMesh).isInstancedMesh);
+  return {
+    butterflies: inst.find((o) => (o.material as THREE.Material).side === THREE.DoubleSide && (o.material as THREE.MeshStandardMaterial).flatShading),
+    fireflies: inst.find((o) => (o.material as THREE.MeshBasicMaterial).isMeshBasicMaterial && !(o.material as THREE.MeshBasicMaterial).vertexColors),
+    mushrooms: inst.find((o) => o.geometry.getAttribute('aGlow')),
+  };
+}
+const where = (im: THREE.InstancedMesh, i: number) => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().fromArray(im.instanceMatrix.array, i * 16));
+const angleGap = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+
+describe('the trunk and the roots up close (bark, the hollow, moss, the stump)', () => {
+  it('the hollow faces the glade between two arches, at a child\'s eyes, clear of the roots', () => {
+    const h = treeHollow(), shape = treeShape();
+    const mids = PORTALS.map((p) => p.facing + Math.PI / PORTALS.length);
+    expect(Math.min(...mids.map((m) => angleGap(h.a, m)))).toBeLessThan(1e-9);
+    for (const p of PORTALS) expect(angleGap(h.a, p.facing), `arch ${p.shelf}`).toBeGreaterThan(0.6);
+    for (const pts of shape.roots) expect(angleGap(h.a, Math.atan2(pts[1].x, pts[1].z))).toBeGreaterThan(0.45);
+    expect(h.y - h.h).toBeGreaterThan(0.6); expect(h.y + h.h).toBeLessThan(2);
+    expect(h.y).toBeGreaterThan(1); expect(h.y).toBeLessThan(1.5);
+  });
+
+  it('the hollow lies on the trunk\'s surface: its dark cup on the bark, out of it by a hand at most, facing out', () => {
+    const h = treeHollow(), bark = build(1).look.root.children[0] as THREE.Mesh, g = bark.geometry;
+    const pos = g.getAttribute('position'), col = g.getAttribute('color');
+    const n = new THREE.Vector3(Math.sin(h.a), 0, Math.cos(h.a)), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    // the bark round the mouth is never further out than the mouth: the cup is seen, not buried
+    for (let y = h.y - h.h; y <= h.y + h.h; y += 0.05) {
+      for (let da = -h.w / trunkR(y); da <= h.w / trunkR(y); da += 0.02) expect(barkRadius(y, h.a + da) * Math.cos(da)).toBeLessThanOrEqual(h.r + 0.01);
+    }
+    expect(h.r - barkRadius(h.y, h.a)).toBeLessThan(0.2);
+    let dark = 0;
+    for (let t = 0; t < pos.count; t += 3) {
+      if (col.getX(t) > 0.6 || col.getX(t + 1) > 0.6 || col.getX(t + 2) > 0.6) continue;   // the cup: a near-black fan
+      a.fromBufferAttribute(pos, t); b.fromBufferAttribute(pos, t + 1); c.fromBufferAttribute(pos, t + 2);
+      const centre = a.clone().add(b).add(c).divideScalar(3), out = centre.dot(n);
+      if (Math.abs(centre.y - h.y) > h.h + 0.1 || out < 0) continue;
+      dark++;
+      expect(out).toBeGreaterThanOrEqual(h.r - 0.01); expect(out).toBeLessThan(h.r + 0.2);
+      expect(b.clone().sub(a).cross(c.clone().sub(a)).dot(n), 'faces the glade').toBeGreaterThan(0);
+    }
+    expect(dark).toBe(12);
+  });
+
+  it('bark, moss and the stump in one mesh: the bark picture over warm vertex colours, with uvs, the stump at its place', () => {
+    const { look } = build(2), bark = look.root.children[0] as THREE.Mesh, mat = bark.material as THREE.MeshStandardMaterial;
+    expect(mat.map).toBeInstanceOf(THREE.Texture);
+    expect(mat.flatShading).toBe(true);
+    const g = bark.geometry, uv = g.getAttribute('uv'), pos = g.getAttribute('position'), col = g.getAttribute('color');
+    expect(uv.count).toBe(pos.count);
+    // the picture is not stretched along the trunk: one repeat per 2.4 m of height
+    let maxV = -Infinity;
+    for (let i = 0; i < uv.count; i++) if (Math.hypot(pos.getX(i), pos.getZ(i)) < trunkR(0) + 0.5) maxV = Math.max(maxV, uv.getY(i));
+    expect(maxV).toBeGreaterThan(5); expect(maxV).toBeLessThan(8);
+    // moss: green vertices on the roots and at the foot; the stump: vertices where it stands
+    let moss = 0, stump = 0;
+    const s = stumpAt();
+    for (let i = 0; i < pos.count; i++) {
+      if (col.getY(i) > col.getX(i) * 2) moss++;
+      if (Math.hypot(pos.getX(i) + TREE.x - s.x, pos.getZ(i) + TREE.z - s.z) < 1.1 && pos.getY(i) < STUMP.h + 0.1) stump++;
+    }
+    expect(moss).toBeGreaterThan(27 * 60);
+    expect(stump).toBeGreaterThan(200 * 3);
+  });
+
+  it('mushrooms on the roots and the glowing ring round the stump in every look; the ring glows more', () => {
+    for (const stage of [1, 2, 3, 4] as const) {
+      const { mushrooms } = parts(build(stage).look.root), glow = mushrooms!.geometry.getAttribute('aGlow');
+      const strength = (i: number) => glow.getX(i) + glow.getY(i) + glow.getZ(i);
+      const ring = Array.from({ length: mushrooms!.count }, (_, i) => i).filter((i) => strength(i) > 0.5);
+      expect(ring, `stage ${stage}`).toHaveLength(20);
+      expect(mushrooms!.count).toBe(stage >= 3 ? 50 : 28);
+      const s = stumpAt();
+      for (const i of ring) {
+        const p = where(mushrooms!, i);
+        expect(Math.hypot(p.x + TREE.x - s.x, p.z + TREE.z - s.z)).toBeGreaterThan(STUMP.ring - 0.2);
+        expect(Math.hypot(p.x + TREE.x - s.x, p.z + TREE.z - s.z)).toBeLessThan(STUMP.ring + 0.2);
+      }
+      // the ones on the roots stand on them, over the ground
+      for (let i = 0; i < 8; i++) expect(where(mushrooms!, i).y).toBeGreaterThan(0.1);
+      // none of the meadow's groups stands in the stump or its ring
+      for (let i = 28; i < mushrooms!.count; i++) { const p = where(mushrooms!, i); expect(Math.hypot(p.x + TREE.x - s.x, p.z + TREE.z - s.z)).toBeGreaterThan(STUMP.ring + 0.3); }
+    }
+  });
+
+  it('the stump and its ring are clear of the arches\' passages, the spots she arrives at and the tour (≥ 2.5 m)', () => {
+    const { mushrooms } = parts(build(4).look.root), s = stumpAt();
+    const spots = [{ x: s.x, z: s.z, r: 0.9 }];
+    for (let i = 0; i < mushrooms!.count; i++) {
+      const p = where(mushrooms!, i);
+      if (Math.hypot(p.x + TREE.x - s.x, p.z + TREE.z - s.z) < STUMP.ring + 0.3) spots.push({ x: p.x + TREE.x, z: p.z + TREE.z, r: 0.15 });
+    }
+    expect(spots).toHaveLength(21);
+    for (const sp of spots) {
+      for (const p of PORTALS) {
+        const arrive = arrivalAt(p.shelf);
+        expect(Math.hypot(sp.x - arrive.x, sp.z - arrive.z) - sp.r, `arrival ${p.shelf}`).toBeGreaterThan(2.5);
+        // the passage: the strip from the trunk out through the arch, as wide as the arch with a margin
+        const along = sp.x * Math.sin(p.facing) + sp.z * Math.cos(p.facing), across = Math.abs(sp.x * Math.cos(p.facing) - sp.z * Math.sin(p.facing));
+        if (along > 0 && along < PORTAL_R + 2) expect(across - sp.r, `passage ${p.shelf}`).toBeGreaterThan(ARCH.inner + 0.6);
+      }
+      for (const [k, pt] of HUB_FLYOVER.points.entries()) expect(Math.hypot(sp.x - pt.pos[0], sp.z - pt.pos[2]) - sp.r, `tour point ${k}`).toBeGreaterThan(2.5);
+    }
+  });
+});
+
+describe('life in the first looks', () => {
+  it('butterflies from the first look on, flapping, near the ground round the trunk; a handful of fireflies too', () => {
+    for (const stage of [1, 4] as const) {
+      const { look } = build(stage), { butterflies, fireflies } = parts(look.root);
+      expect(butterflies, `stage ${stage}`).toBeDefined();
+      expect(butterflies!.count).toBe(10);
+      expect(fireflies!.count).toBe(stage === 1 ? 8 : 36);
+      look.update(12.3);
+      for (let i = 0; i < butterflies!.count; i++) {
+        const p = where(butterflies!, i), r = Math.hypot(p.x, p.z);
+        expect(p.y).toBeGreaterThan(0.2); expect(p.y).toBeLessThan(3.5);
+        expect(r).toBeGreaterThan(trunkR(0) + 0.3); expect(r).toBeLessThan(PORTAL_R - 2);
+      }
+    }
+    // the wings: two quads (four triangles) round a body; they beat in the vertex shader by the shared time
+    const b = parts(build(1).look.root).butterflies!, pos = b.geometry.getAttribute('position');
+    let wing = 0;
+    for (let t = 0; t < pos.count; t += 3) if ([0, 1, 2].some((k) => Math.abs(pos.getX(t + k)) > 0.03)) wing++;
+    expect(wing).toBe(4);
   });
 });
 

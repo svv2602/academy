@@ -173,6 +173,99 @@ function archRunes(rnd: Rnd): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * The crest of an arch: the sign of its world, big and plain, standing on the keystone (in the arch's plane, its faces
+ * to the glade and away) - so an arch is known by its world from across the glade, 20-30 m off, where the runes are
+ * too small (≈1 m at 25 m: ≈28 px high in a 1280 x 720 frame, the camera's 55°). One shape per place of the shelf, as
+ * its icon (PORTALS[shelf].icon): a crystal (💎), a leaf (💚), a scallop shell (🦪), a wrapped candy (♦️), a star (🌟).
+ * Big facets, nothing smooth; local metres, the foot at y 0, white - painted by the caller.
+ */
+export const CREST = { y: ARCH.spring + ARCH.post + 0.42, h: 1.0 } as const;
+
+/** Points of a flat outline turned into a faceted solid: a ridge down its middle on both faces (a star, a leaf). */
+function ridged(outline: [number, number][], centre: [number, number], ridge: number): THREE.BufferGeometry {
+  const p: number[] = [], n = outline.length;
+  for (let i = 0; i < n; i++) {
+    const [ax, ay] = outline[i], [bx, by] = outline[(i + 1) % n];
+    // front (+z) and back (-z): a fan from the raised middle; the outline itself is the sharp edge
+    p.push(centre[0], centre[1], ridge, ax, ay, 0, bx, by, 0);
+    p.push(centre[0], centre[1], -ridge, bx, by, 0, ax, ay, 0);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  return g;
+}
+
+const WHITE = new THREE.Color(1, 1, 1);
+
+function crestCrystal(): THREE.BufferGeometry[] {
+  // a tall six-sided gem (a point up, a short point down) and two small ones leaning out of its foot
+  const gem = (r: number, up: number, down: number, m: THREE.Matrix4) => [
+    bake(new THREE.ConeGeometry(r, up, 6, 1, true), _m.copy(m).multiply(new THREE.Matrix4().makeTranslation(0, down + up / 2, 0)), WHITE),
+    bake(new THREE.ConeGeometry(r, down, 6, 1, true), _m.copy(m).multiply(new THREE.Matrix4().makeTranslation(0, down / 2, 0)).multiply(new THREE.Matrix4().makeRotationX(Math.PI)), WHITE),
+  ];
+  return [
+    ...gem(0.27, 0.68, 0.3, new THREE.Matrix4()),
+    ...gem(0.13, 0.36, 0.12, place(-0.24, 0.02, 0, 0, 0, 0.55).clone()),
+    ...gem(0.13, 0.3, 0.12, place(0.24, 0.02, 0, 0, 0, -0.5).clone()),
+  ];
+}
+
+function crestLeaf(): THREE.BufferGeometry[] {
+  // a pointed leaf, folded along its midrib (a ridge on each face), leaning a little, on a short stem
+  const outline: [number, number][] = [[0, 0.16], [0.24, 0.3], [0.37, 0.52], [0.33, 0.74], [0.18, 0.92], [0, 1.04], [-0.18, 0.92], [-0.33, 0.74], [-0.37, 0.52], [-0.24, 0.3]];
+  return [
+    bake(ridged(outline, [0, 0.6], 0.11), place(0, 0, 0, 0, 0, -0.18), WHITE),
+    bake(new THREE.BoxGeometry(0.07, 0.24, 0.07), place(0.02, 0.1, 0, 0, 0, -0.18), WHITE),
+  ];
+}
+
+function crestShell(): THREE.BufferGeometry[] {
+  // a scallop: a fan of ribs from its hinge (raised ribs, sunk furrows, a scalloped rim) on a flat back, and its ears
+  const p: number[] = [], ribs = 14, hinge = [0, 0.12, 0.02];
+  const rim = (k: number) => {
+    const a = Math.PI * (0.1 + 0.8 * (k / ribs)), r = k % 2 ? 0.5 : 0.56;
+    return [Math.cos(a) * r, 0.12 + Math.sin(a) * r * 1.05, k % 2 ? 0.02 : 0.14];
+  };
+  for (let k = 0; k < ribs; k++) {
+    const a = rim(k), b = rim(k + 1), ab = [a[0], a[1], -0.08], bb = [b[0], b[1], -0.08];
+    p.push(...hinge, ...a, ...b);                       // the ribbed face
+    p.push(0, 0.12, -0.08, ...bb, ...ab);              // the flat back
+    p.push(...a, ...bb, ...b, ...a, ...ab, ...bb);     // the rim between them
+  }
+  // close the two straight sides of the fan
+  const first = rim(0), last = rim(ribs);
+  p.push(...hinge, first[0], first[1], -0.08, ...first, ...hinge, 0, 0.12, -0.08, first[0], first[1], -0.08);
+  p.push(...hinge, ...last, last[0], last[1], -0.08, ...hinge, last[0], last[1], -0.08, 0, 0.12, -0.08);
+  const fan = new THREE.BufferGeometry();
+  fan.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  return [bake(fan, _m.identity(), WHITE), bake(new THREE.BoxGeometry(0.42, 0.16, 0.18), place(0, 0.08, -0.02), WHITE)];
+}
+
+function crestCandy(): THREE.BufferGeometry[] {
+  // a wrapped sweet: a faceted ball and the two twists of its paper, wide at the ends
+  const twist = (side: number) => bake(new THREE.ConeGeometry(0.22, 0.3, 5), place(side * 0.42, 0.34, 0, 0, 0, side * Math.PI / 2), WHITE);
+  return [bake(new THREE.IcosahedronGeometry(0.31, 0), place(0, 0.34, 0, 0.3, 0.2, 0), WHITE), twist(-1), twist(1)];
+}
+
+function crestStar(): THREE.BufferGeometry[] {
+  // five points round a raised middle on both faces
+  const outline: [number, number][] = [];
+  for (let i = 0; i < 10; i++) {
+    const a = Math.PI / 2 + (i / 10) * Math.PI * 2, r = i % 2 ? 0.22 : 0.52;
+    outline.push([Math.cos(a) * r, 0.46 + Math.sin(a) * r]);
+  }
+  return [bake(ridged(outline, [0, 0.46], 0.17), _m.identity(), WHITE)];
+}
+
+/** The crest of the place `shelf` (one shape per place; a place past the five takes the star). */
+export function crestShape(shelf: number): THREE.BufferGeometry {
+  const parts = [crestCrystal, crestLeaf, crestShell, crestCandy, crestStar][shelf]?.() ?? crestStar();
+  const g = mergeGeometries(parts, false)!;
+  for (const p of parts) p.dispose();
+  return g;
+}
+
 /** A vine: a tube that winds up a post and on over half the top, with leaves along it. */
 function vine(rnd: Rnd, side: number, stem: THREE.Color, leaf: THREE.Color): THREE.BufferGeometry[] {
   const pts: THREE.Vector3[] = [], x0 = side * ARCH.post, turns = 2.2 + rnd(), up = ARCH.spring, phase = rnd() * Math.PI * 2;
@@ -272,8 +365,8 @@ function veilMaterial(colour: string, phase: number) {
 /** One arch as `buildPortals` returned it, and the group it is built in. */
 export type Arch = PortalPlace & { world: string | null; veil: THREE.Mesh; at: THREE.Vector3; group: THREE.Group };
 
-/** The stone of an open arch; the stone of a sleeping one (grey, colder); the vines; the wood of the sign. */
-const COLOURS = { open: '#b4ada2', sleeping: '#7d7a76', stem: '#4a6b33', leaf: '#4f8f3c', wood: '#8a6142' } as const;
+/** The stone of an open arch; the stone of a sleeping one (grey, colder) and of its crest; the vines; the wood of the sign. */
+const COLOURS = { open: '#b4ada2', sleeping: '#7d7a76', crest: '#8f8b86', stem: '#4a6b33', leaf: '#4f8f3c', wood: '#8a6142' } as const;
 
 /**
  * The five arches round the tree: open ones breathe in their colour - the veil, the keystone and the runes - the
@@ -291,6 +384,9 @@ export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null
       block(p.x + Math.cos(p.facing) * side * ARCH.post, p.z - Math.sin(p.facing) * side * ARCH.post, ARCH.postR);
     }
     const parts = archStones(rnd, new THREE.Color(open ? COLOURS.open : COLOURS.sleeping), true);
+    // the crest on the keystone: grey stone on a sleeping arch (in its stones), glowing with the runes on an open one
+    const crest = crestShape(p.shelf).applyMatrix4(place(0, CREST.y, 0));
+    if (!open) parts.push(bake(crest, _m.identity(), new THREE.Color(COLOURS.crest)));
     if (!open) {
       const stem = new THREE.Color(COLOURS.stem), leaf = new THREE.Color(COLOURS.leaf), wood = new THREE.Color(COLOURS.wood);
       parts.push(...vine(rnd, -1, stem, leaf), ...vine(rnd, 1, stem, leaf));
@@ -313,7 +409,9 @@ export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null
     if (open) {
       const mat = new THREE.MeshStandardMaterial({ color: p.colour, emissive: p.colour, emissiveIntensity: 1, roughness: 0.4, flatShading: true });
       glows.push({ mat, phase: p.shelf * 1.3 });
-      const runes = new THREE.Mesh(archRunes(rnd), mat);
+      const glyphs = [archRunes(rnd), bake(crest, _m.identity(), new THREE.Color(1, 1, 1))];
+      const runes = new THREE.Mesh(mergeGeometries(glyphs, false)!, mat);
+      for (const g of glyphs) g.dispose();
       runes.castShadow = true;
       group.add(runes);
     } else {
