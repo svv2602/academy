@@ -2690,11 +2690,11 @@ try {
             const nests = await g(() => __game.hub.nests());
             if (JSON.stringify(nests) !== JSON.stringify([true, false, false, false, false])) fail(`the nests ${JSON.stringify(nests)}: the crystal's alone should glow`);
             await shot('23-hub');
-            // back through the arch of the fairies: out of the arch to the tree, facing the valley (tree-way.ts FROM_HUB: 0, 18.5)
+            // back through the arch of the fairies: out of the arch to the tree, facing the valley (tree-way.ts FROM_HUB: 0, 14.5)
             if ((await g(() => __game.travel('fairy'))) !== true) fail('the way back to the Fairy Kingdom was refused');
             if (!(await gameUntil(() => __game.world === 'fairy' && !__game.transitioning && !__game.busy, null, 60))) fail('she is not back in the Fairy Kingdom');
             const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-            if (Math.hypot(back[0] - 0, back[1] - 18.5) > 1.5) fail(`back from the hub at ${back.map((v) => v.toFixed(1))}, not in front of the arch to the tree (0, 18.5)`);
+            if (Math.hypot(back[0] - 0, back[1] - 14.5) > 1.5) fail(`back from the hub at ${back.map((v) => v.toFixed(1))}, not in front of the arch to the tree (0, 14.5)`);
             console.log('after the finale: "let\'s go to the Great Tree", the stop point, then the hub by itself (its tour, she at the arch of the fairies, the nest of the crystal glows), and back out of the arch to the tree');
             await shot('23-restored');
           }
