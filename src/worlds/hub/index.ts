@@ -20,7 +20,8 @@ import { buildKeepsakes } from './keepsakes';
 import { ringNote, ringTapped } from './ring-notes';
 import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
-import { steerPet } from '../../game/pets';
+import { petShadows, steerPet } from '../../game/pets';
+import { petBlob, petCastsShadow } from './pet-shadow';
 import { ringPlay } from './ring-play';
 import { stumpAt } from './tree-look';
 import { note } from '../../core/audio';
@@ -158,11 +159,15 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   glade.rotation.x = -Math.PI / 2; glade.receiveShadow = true;
   scene.add(glade);
   // The Great Tree in the stage of the artifacts back (R33), the arches round it, the nests on its trunk.
-  const tree = buildTreeLook(scene, treeStage(artifactCount(save)), L.tree, ground.block);
+  const stage = treeStage(artifactCount(save));
+  const tree = buildTreeLook(scene, stage, L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
   const keepsakes = buildKeepsakes(scene, save);
   // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
   scope.own(steerPet(ringPlay(stumpAt(), () => g.hero.root.position, () => g.busy)));
+  // the pet's shadow: none on the fourth stage (the budget of 80 draw calls), a spot under it instead (./pet-shadow.ts)
+  const blob = petCastsShadow(stage) ? null : petBlob(scene);
+  if (blob) scope.own(petShadows(false));
   // the ring's notes played (for the walkthrough: ?debug)
   const notes: number[] = [];
   // The feather of the day (./feathers.ts): when the hub's found grows, today is its day, the bird of the next one falls
@@ -223,13 +228,14 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       animate: (_dt, time) => {
         flies.update(time);
         tree.update(time); breathe(time); glow(time); dressed.update(time);
+        blob?.place(g.pets.follower?.root.position ?? null);
       },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },

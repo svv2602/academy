@@ -145,6 +145,17 @@ export function steerPet(fn: PetSteer): () => void {
   return () => { if (steer === fn) steer = null; };
 }
 
+let shadows = true;
+/**
+ * Whether the pets cast a shadow (each of their meshes is drawn once more, in the pass of the shadows). A world turns
+ * it off where its budget of draw calls is short (the hub on its fourth stage, src/worlds/hub/index.ts); returns the undo,
+ * owned by the world's scope.
+ */
+export function petShadows(on: boolean): () => void {
+  shadows = on;
+  return () => { shadows = true; };
+}
+
 /** What the game holds of the pets in the world being played. */
 export interface PetsInWorld {
   /** The action spot of the world's pet while it waits to be found (none once found, or before its chain is done). */
@@ -245,6 +256,12 @@ export function createPets(g: PetHost, o: {
     get waiting() { return waiting; },
     update: (dt) => {
       if (gone) return;
+      for (const a of [follower, waiting]) {
+        if (!a || a.root.userData.shadow === shadows) continue;
+        a.root.userData.shadow = shadows;
+        // each mesh back to what it cast before (the small parts of a model cast none, src/game/actor.ts)
+        a.root.traverse((o) => { if (!(o as THREE.Mesh).isMesh) return; o.userData.cast ??= o.castShadow; o.castShadow = shadows && o.userData.cast === true; });
+      }
       const f = found(), r = ready();
       if (f !== wasFound || r !== wasReady || (g.save.pet ?? null) !== followed) { wasFound = f; wasReady = r; refresh(); }
       if (follower) {
