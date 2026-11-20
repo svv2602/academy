@@ -38,6 +38,8 @@ function game(gift?: string) {
   let repeats = 0;
   const g = {
     save, cat: { root: { position: { x: 0, y: 0, z: 0 } } }, above: (p: unknown) => p, persist: () => {},
+    // the heroine where she stands (sayLeft gives up once she has walked off): she stays
+    hero: { root: { position: { clone: () => ({}), distanceTo: () => 0 } } },
     // the game's own adding of stars (the one writer of the stars, src/game/no-penalties.test.ts)
     addStars: (n: number) => { gifts.push(n); save.stars += n; },
     speech: { line: (key: string) => { said.push(key); return Promise.resolve(); }, repeat: () => { repeats++; } },
@@ -218,23 +220,23 @@ describe('the wiring (src/game/start.ts)', () => {
 
   it('the world\'s own word waits for the game at rest (an achievement\'s line still sounding would turn it away)', async () => {
     const { sayLeft, LEFT_WAIT_FRAMES } = await import('../game/start');
-    const { g, raw, said } = game();
-    (raw.world as { left?: () => string | null }).left = () => 'tree_calls';
-    let busyFor = 3, frames = 0;
-    const queue: (() => void)[] = [];
-    sayLeft(g as never, () => busyFor-- <= 0, (fn) => { frames++; queue.push(fn); });
-    while (queue.length) queue.shift()!();
-    expect(said).toEqual(['tree_calls']);
-    expect(frames).toBe(3);
-    // never at rest: it gives up after LEFT_WAIT_FRAMES, nothing said
-    const b = game();
-    (b.raw.world as { left?: () => string | null }).left = () => 'tree_calls';
-    let n = 0;
-    const q2: (() => void)[] = [];
-    sayLeft(b.g as never, () => false, (fn) => { n++; q2.push(fn); });
-    while (q2.length) q2.shift()!();
-    expect(b.said).toEqual([]);
-    expect(n).toBe(LEFT_WAIT_FRAMES - 1);
+    const run = (watch: { held(): boolean; quiet(): boolean; gone(): boolean }) => {
+      const t = game();
+      (t.raw.world as { left?: () => string | null }).left = () => 'tree_calls';
+      let frames = 0;
+      const q: (() => void)[] = [];
+      sayLeft(t.g as never, watch, (fn) => { frames++; q.push(fn); });
+      while (q.length) q.shift()!();
+      return { said: t.said, frames };
+    };
+    // a card held 5000 frames (far past the limit), then a line sounding 3 more frames: said once, after them
+    let card = 5000, busy = 3;
+    expect(run({ held: () => card-- > 0, quiet: () => busy-- <= 0, gone: () => false })).toEqual({ said: ['tree_calls'], frames: 5003 });
+    // never quiet with no card: gives up after LEFT_WAIT_FRAMES
+    expect(run({ held: () => false, quiet: () => false, gone: () => false })).toEqual({ said: [], frames: LEFT_WAIT_FRAMES - 1 });
+    // she walked off (or a task opened) while the card was up: nothing, at once
+    let walk = 10;
+    expect(run({ held: () => true, quiet: () => true, gone: () => walk-- <= 0 })).toEqual({ said: [], frames: 10 });
   });
 
   it('the first entry of a world with no characters (the hub) has no hint: there is no friend to run to', async () => {

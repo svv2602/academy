@@ -1,10 +1,11 @@
-import { speaking, unlockAudio } from '../core/audio';
+import { inTask, speaking, unlockAudio } from '../core/audio';
 import { initInput } from '../core/input';
 import { applyControls } from '../core/tuning';
 import { clearSave } from '../core/save';
 import '../ui/session';   // PLAY-20: the cat's offer of a break joins the stop points (its card and the sleeping cat)
 import { initShop } from '../ui/shop';
 import { wearPetGear, type PetGearId } from './petgear';
+import { achState } from '../ui/achieve';
 import { el, initBook } from '../ui/ui';
 import { firstDay, meet } from '../ui/welcome';   // PLAY-21: the cat's meeting on a new day
 import type { Game } from './context';
@@ -34,23 +35,42 @@ export async function enterWorld(g: Game, first: boolean, via: 'launch' | 'trave
   else sayLeft(g);
 }
 
-/** How many frames `sayLeft` waits for the game to come to rest at most (about 20 s); then a tap on the cat says it. */
+/** How many frames at rest with no card `sayLeft` waits for silence at most (about 20 s); then a tap on the cat says it. */
 export const LEFT_WAIT_FRAMES = 1200;
+/** m: she has walked off on her own this far - the word comes too late, a tap on the cat still says it. */
+export const LEFT_GONE_M = 2;
+
+/** What `sayLeft` watches, each frame: an achievement's card or scene on screen, the game quiet, the heroine gone on. */
+export interface LeftWatch { held(): boolean; quiet(): boolean; gone(): boolean }
+
+/** The game's own: the card of an achievement (its scene), a line sounding or the game busy, she walked or a task opened. */
+export function leftWatch(g: Game): LeftWatch {
+  const at = g.hero.root.position.clone();
+  return {
+    held: () => achState.scene !== null || !el.fanfare.classList.contains('hidden'),
+    quiet: () => !speaking() && !g.busy,
+    gone: () => inTask() || g.hero.root.position.distanceTo(at) > LEFT_GONE_M,
+  };
+}
 
 /**
  * The world's own word for where she stopped, as she comes in again (WorldDef.left; the first world: the Great Tree
  * calls, R28; the hub: the other worlds still sleep). None - nothing is said. It is a hint, and the planner turns a hint
  * away while another line sounds (src/core/voice.ts `willSay`): after the stop point of "Play" the line of an
- * achievement's card still sounded and "the Great Tree calls" was lost. So it waits, frame by frame, for the game at
- * rest - nothing sounding, the heroine not busy, no card on screen - and gives up after LEFT_WAIT_FRAMES.
+ * achievement's card still sounded and "the Great Tree calls" was lost. So it waits, frame by frame: with no limit
+ * while an achievement's card or scene is on screen (it ends when the child taps "Далі", however long that takes),
+ * then for the game quiet - for LEFT_WAIT_FRAMES at most. It gives up when the child has gone on by herself (walked off
+ * LEFT_GONE_M or a task opened): the word would come too late, and a tap on the cat says it.
  */
-export function sayLeft(g: Game, quiet: () => boolean = () => !speaking() && !g.busy && el.fanfare.classList.contains('hidden'),
+export function sayLeft(g: Game, watch: LeftWatch = leftWatch(g),
   next: (fn: () => void) => void = (fn) => { requestAnimationFrame(fn); }): void {
   const left = g.world.left?.(g.ws, g.save, 'entry');
   if (!left) return;
   let frames = 0;
   const go = () => {
-    if (quiet()) { void g.speech.line(left, 'hint', 6000); return; }
+    if (watch.gone()) return;
+    if (watch.held()) { next(go); return; }
+    if (watch.quiet()) { void g.speech.line(left, 'hint', 6000); return; }
     if (++frames < LEFT_WAIT_FRAMES) next(go);
   };
   go();
