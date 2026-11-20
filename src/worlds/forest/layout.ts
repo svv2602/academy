@@ -2,7 +2,8 @@
  * The map of the Enchanted Forest, the grey build (WORLD-12; the map of docs/worlds/world-2.md, ≈90 × 90 m). Every place
  * is given at the size of the document and multiplied by SCALE: the whole map is stretched by one number, the sizes of
  * things (a character, a house, the Old Oak) stay real. SCALE comes from `?scale=` (the grey build only: the forest is
- * listed in the registry in `--mode grey`, src/worlds/index.ts), 1 by default - the customer compares 1 and 1.6.
+ * listed in the registry in `--mode grey`, src/worlds/index.ts), DEFAULT_SCALE without it: the customer chose 1.6 on
+ * 2026-11-20 (the paths 5-13 s on foot; the time of the world is made by its tasks, not by running).
  *
  *            [Owl glade]                    [Old Oak - the shrine of the Emerald]
  *                 |                                 |
@@ -15,10 +16,12 @@
  * x to the east, z to the south (the top of the drawing is -z, as in the first world).
  */
 
-/** The stretch of the map asked for in the address (`?scale=1.6`), kept within 0.5-3; 1 without it or outside a page. */
+/** The stretch of the map the customer chose (2026-11-20, docs/worlds/world-2.md). */
+export const DEFAULT_SCALE = 1.6;
+/** The stretch of the map asked for in the address (`?scale=1`, for debugging), kept within 0.5-3; DEFAULT_SCALE without it or outside a page. */
 export function readScale(search: string | undefined): number {
-  const v = Number(new URLSearchParams(search ?? '').get('scale'));
-  return Number.isFinite(v) && v > 0 ? Math.min(3, Math.max(0.5, v)) : 1;
+  const raw = new URLSearchParams(search ?? '').get('scale'), v = Number(raw);
+  return raw !== null && Number.isFinite(v) && v > 0 ? Math.min(3, Math.max(0.5, v)) : DEFAULT_SCALE;
 }
 export const SCALE = readScale(typeof location === 'undefined' ? undefined : location.search);
 
@@ -77,7 +80,7 @@ export const ALTAR = { x: ZONES.oak.x, z: ZONES.oak.z + 7 };
 /**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m.
  * The village - the elder's tall mushroom house (its red caps alone, 3.6 m, hid behind the trees); the maze and the central glade - an arch of stones (the glade's stands where the hub's
- * arch will lead in); the grove - its orange crowns, taller than the forest's; the stream - its bridge's rails are low: its landmark is the Ash.
+ * arch will lead in); the grove - its great orange tree at the edge of its glade (and its crowns, taller than the forest's); the stream - its bridge's rails are low: its landmark is the Ash.
  */
 export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   center: { ...ZONES.center, top: 3.2 },
@@ -86,7 +89,7 @@ export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   owl: { x: ZONES.owl.x - 5, z: ZONES.owl.z - 3, top: 11 },
   maze: { x: ZONES.maze.x - 2, z: ZONES.maze.z, top: 3.2 },
   stream: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },
-  grove: { ...ZONES.grove, top: 9.5 },
+  grove: { x: ZONES.grove.x - 6, z: ZONES.grove.z + 4, top: 11 },
   ash: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },
 };
 /** The order she goes through the zones in the measurement of WORLD-12: every path of the map once, the Oak last. */

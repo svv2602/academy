@@ -3,7 +3,7 @@ import { lengthOf, pathBetween, readArgs, routeLegs } from './forest-grey.mjs';
 
 describe('tools/forest-grey.mjs: the walkthrough and the measurements of the grey forest (WORLD-12)', () => {
   it('reads its arguments', () => {
-    expect(readArgs([]).scales).toEqual([1, 1.6]);
+    expect(readArgs([]).scales).toEqual([1.6]);
     expect(readArgs(['--scales', '1,2', '--no-pass'])).toMatchObject({ scales: [1, 2], pass: false, measure: true });
     expect(readArgs(['--no-measure']).measure).toBe(false);
     expect(readArgs(['--scales', '9']).error).toMatch(/0\.5-3/);

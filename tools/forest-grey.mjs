@@ -1,6 +1,6 @@
 // The grey build of the forest (WORLD-12): its walkthrough and its measurements.
 //
-//   node tools/forest-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--out <dir>]
+//   node tools/forest-grey.mjs [--scales 1.6] [--no-pass] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the forest in that mode only (src/worlds/index.ts).
 // 2. dist-grey/ served on E2E_PORT (4183 by default).
@@ -28,7 +28,7 @@ const DIST = 'dist-grey';
 
 /** The arguments: { scales, pass, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1, 1.6], pass: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
+  const o = { scales: [1.6], pass: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
@@ -62,6 +62,12 @@ export function pathBetween(paths, zones, a, b) {
   }
   return null;
 }
+
+/**
+ * m from the end of a path where she has come: the end of a path is the middle of its zone - the Oak's is its trunk
+ * (its radius 2.1 m and hers 0.4 keep her 2.5 m away).
+ */
+export const REACHED = 3.5;
 
 export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - line[i].x, p.z - line[i].z), 0);
 
@@ -140,7 +146,7 @@ async function measure(browser, url, scale, out) {
     const len = lengthOf(line);
     await stand(line[0], line[1]); await settle(0.5);
     await page.keyboard.down('KeyW');
-    const run = await page.evaluate((line) => new Promise((done) => {
+    const run = await page.evaluate(([line, REACHED]) => new Promise((done) => {
       const t0 = __game.time, hp = __game.hero.root.position;
       let i = 1, mark = { t: t0, x: hp.x, z: hp.z }, stuck = false;
       const f = () => {
@@ -150,13 +156,13 @@ async function measure(browser, url, scale, out) {
         const p = line[i];
         __game.cam.yaw = Math.atan2(-(p.x - hp.x), -(p.z - hp.z));
         const end = line[line.length - 1], left = Math.hypot(end.x - hp.x, end.z - hp.z);
-        if (left < 2.5 || stuck || __game.time - t0 > 90) done({ s: __game.time - t0, left, at: { x: +hp.x.toFixed(1), z: +hp.z.toFixed(1) } }); else requestAnimationFrame(f);
+        if (left < REACHED || stuck || __game.time - t0 > 90) done({ s: __game.time - t0, left, at: { x: +hp.x.toFixed(1), z: +hp.z.toFixed(1) } }); else requestAnimationFrame(f);
       };
       f();
-    }), line);
+    }), [line, REACHED]);
     await page.keyboard.up('KeyW');
-    legs.push({ from: a, to: b, metres: +len.toFixed(1), byLength: +(len / speed).toFixed(1), walked: +run.s.toFixed(1), reached: run.left < 2.5, stopped: run.left < 2.5 ? null : run.at });
-    console.log(`[grey]   ${a} -> ${b}: ${run.left < 2.5 ? `${run.s.toFixed(1)} s` : `stopped at ${run.at.x}, ${run.at.z}, ${run.left.toFixed(1)} m short`}`);
+    legs.push({ from: a, to: b, metres: +len.toFixed(1), byLength: +(len / speed).toFixed(1), walked: +run.s.toFixed(1), reached: run.left < REACHED, stopped: run.left < REACHED ? null : run.at });
+    console.log(`[grey]   ${a} -> ${b}: ${run.left < REACHED ? `${run.s.toFixed(1)} s` : `stopped at ${run.at.x}, ${run.at.z}, ${run.left.toFixed(1)} m short`}`);
   }
   // from every target: the next landmark seen, the draw, a picture
   const views = [];
@@ -168,23 +174,30 @@ async function measure(browser, url, scale, out) {
     const seen = await page.evaluate(([b, lm]) => {
       const { THREE, scene, camera } = __game;
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };
-      const name = { center: 'landmark-center', oak: 'landmark-oak', village: 'landmark-village', owl: 'landmark-owl', maze: 'landmark-maze', stream: 'landmark-ash', grove: 'crowns-grove', ash: 'landmark-ash' }[b];
+      // what counts as the landmark of the target: the village is its tower and its red caps
+      const names = { center: ['landmark-center'], oak: ['landmark-oak'], village: ['landmark-village', 'house-caps'], owl: ['landmark-owl'], maze: ['landmark-maze'], stream: ['landmark-ash'], grove: ['landmark-grove', 'crowns-grove'], ash: ['landmark-ash'] }[b];
       const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root) return true; return false; };
       const targets = scene.children.filter((o) => o.visible && !skip(o));
       const ray = new THREE.Raycaster(), from = camera.position.clone();
       let hits = 0;
+      const met = [];
+      const nameOf = (o) => { for (let x = o; x; x = x.parent) if (x.name) return x.name; return o.type; };
       const tops = [lm.top, lm.top - 1, lm.top - 2].map((y) => new THREE.Vector3(lm.x, __game.forestMap.ground(lm.x, lm.z) + y, lm.z));
+      // and the middle of the zone at the height of a roof (the village's caps, the arches)
+      const z = __game.forestMap.zones[b];
+      tops.push(new THREE.Vector3(z.x, __game.forestMap.ground(z.x, z.z) + 3.3, z.z));
       for (const p of tops) {
         const dir = p.clone().sub(from); const far = dir.length(); dir.normalize();
         ray.set(from, dir); ray.far = far + 8;
         const first = ray.intersectObjects(targets, true).find((h) => (h.object.isMesh || h.object.isInstancedMesh) && h.object.material?.visible !== false);
-        if (first && named(first.object, name)) hits++;
+        if (first && names.some((n) => named(first.object, n))) hits++;
+        met.push(first ? `${nameOf(first.object)}@${first.distance.toFixed(0)}` : 'nothing');
       }
-      return { hits, of: tops.length, metres: +from.distanceTo(tops[0]).toFixed(0) };
+      return { hits, of: tops.length, metres: +from.distanceTo(tops[0]).toFixed(0), met };
     }, [b, map.landmarks[b]]);
     const d = await draw();
     await page.screenshot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
-    views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, ...d });
+    views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, met: seen.met, ...d });
   }
   // the tour
   const tour = [];
@@ -206,7 +219,7 @@ async function measure(browser, url, scale, out) {
   console.log(`[grey] scale ${scale}: top speed ${speed} m/s`);
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s run (${l.byLength} s by its length)${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
-  for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : 'NOT seen'} (${v.rays} rays), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
+  for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, heaviest };
 }

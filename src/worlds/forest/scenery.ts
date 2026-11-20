@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE, OAK, OWL_TREE, PATHS, SCALE, STREAM, STREAM_HALF, ZONES, type Place } from './layout';
-import { WATER_Y, colliders, height, pathDist, streamDist } from './terrain';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, type Place } from './layout';
+import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
 
 /**
  * The forest of the grey build in simple shapes at their real sizes (WORLD-12): trees as a trunk and a crown, the
@@ -10,6 +10,21 @@ import { WATER_Y, colliders, height, pathDist, streamDist } from './terrain';
  * fireflies, the squirrels orange leaves). Models replace them once the customer has accepted the grey build.
  */
 
+/** The squirrel's tracks (the path from the grove to the Ash) and the half-width of the clearing along them, m. */
+const TRACKS = PATHS[PATHS.length - 1];
+export const CLEARING = 7;
+/**
+ * The lines of sight of the route (WORLD-10): from every target to the landmark of the next one, no tree stands within
+ * SIGHT m (a crown's width) - the landmark of the next target is seen from each (tools/forest-grey.mjs measures it).
+ */
+export const SIGHT = 3.2;
+export const SIGHT_SHORT = 8;
+/** The lines of sight, each stopped SIGHT_SHORT m before its landmark: the trees that are the landmark (the grove) stay. */
+export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
+  const from = ZONES[ROUTE[i]], to = LANDMARKS[b], d = Math.hypot(to.x - from.x, to.z - from.z) || 1, k = Math.max(0, d - SIGHT_SHORT) / d;
+  return [from, { x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k }];
+});
+
 /** A placed thing: where, how big, turned how. */
 interface Put { x: number; z: number; s: number; rot?: number }
 
@@ -17,7 +32,10 @@ interface Put { x: number; z: number; s: number; rot?: number }
 export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   const rnd = mulberry32(seed), trees: Put[] = [], rim: Put[] = [];
   const zones = Object.values(ZONES);
-  const clear = (x: number, z: number) => pathDist(x, z) > 3.5 && streamDist(x, z) > STREAM_HALF + 2
+  // the clearing along the squirrel's tracks: from the grove the Ash is seen over its whole length (WORLD-10; the grove's
+  // tall crowns hid it at 51 and 77 m)
+  const sights = sightLines();
+  const clear = (x: number, z: number) => pathDist(x, z) > 3.5 && lineDist(TRACKS, x, z) > CLEARING && sights.every((l) => lineDist(l, x, z) > SIGHT) && streamDist(x, z) > STREAM_HALF + 2
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > 8) && Math.hypot(OWL_TREE.x - x, OWL_TREE.z - z) > 5
     && Math.hypot(MAZE.x - x, MAZE.z - z) > MAZE.half * 1.5 + 1 && Math.hypot(ALTAR.x - x, ALTAR.z - z) > 9;
   // about one tree on 60 m² of the map: the density stays the same whatever the stretch of the map
@@ -87,6 +105,16 @@ export function buildScenery(scene: THREE.Scene) {
   for (const h of houses) colliders.push({ x: h.x, z: h.z, r: 1.4 });
   instances(scene, 'house-stems', new THREE.CylinderGeometry(1.1, 1.3, 2.4, 8).translate(0, 1.2, 0), mat('#f2e6cf'), houses);
   instances(scene, 'house-caps', new THREE.ConeGeometry(2.3, 1.6, 9).translate(0, 3.1, 0), mat('#d8443a'), houses);
+  // the grove's great orange tree at the edge of its glade: the grove's landmark (WORLD-10)
+  const big = new THREE.Group();
+  big.add(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1, 6, 9).translate(0, 3, 0), mat('#7a5a3e')));
+  big.add(new THREE.Mesh(new THREE.IcosahedronGeometry(3.6, 0).translate(0, 8, 0), mat('#f0952e')));
+  big.position.set(LANDMARKS.grove.x, height(LANDMARKS.grove.x, LANDMARKS.grove.z), LANDMARKS.grove.z);
+  big.name = 'landmark-grove';
+  big.traverse((o) => { o.castShadow = true; });
+  scene.add(big);
+  colliders.push({ x: LANDMARKS.grove.x, z: LANDMARKS.grove.z, r: 1.1 });
+
   // the elder's house: a mushroom tower over the trees, the village's landmark (WORLD-10)
   const tower = new THREE.Group();
   tower.add(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 6.5, 10).translate(0, 3.25, 0), mat('#f2e6cf')));

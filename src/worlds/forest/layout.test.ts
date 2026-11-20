@@ -12,14 +12,17 @@ async function mapAt(scale: number | null) {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('the map of the forest, the grey build (WORLD-12)', () => {
-  it('the stretch comes from ?scale=, kept within 0.5-3, 1 without it', async () => {
-    const { readScale } = await mapAt(null);
-    expect(readScale('')).toBe(1);
+  it('the stretch comes from ?scale=, kept within 0.5-3, the chosen 1.6 without it', async () => {
+    const { readScale, SCALE, DEFAULT_SCALE } = await mapAt(null);
+    expect(DEFAULT_SCALE).toBe(1.6);
+    expect(SCALE).toBe(1.6);
+    expect(readScale('')).toBe(1.6);
+    expect(readScale('?scale=1')).toBe(1);
     expect(readScale('?scale=1.6')).toBe(1.6);
     expect(readScale('?scale=9')).toBe(3);
     expect(readScale('?scale=0.1')).toBe(0.5);
-    expect(readScale('?scale=x')).toBe(1);
-    expect(readScale(undefined)).toBe(1);
+    expect(readScale('?scale=x')).toBe(1.6);
+    expect(readScale(undefined)).toBe(1.6);
   });
 
   for (const scale of [1, 1.6]) {
@@ -41,8 +44,11 @@ describe('the map of the forest, the grey build (WORLD-12)', () => {
       const m = await mapAt(scale);
       const { trees } = m.placeTrees();
       expect(trees.length).toBeGreaterThan(80 * scale * scale);
+      const tracks = m.PATHS[m.PATHS.length - 1];
       for (const t of trees) {
         expect(m.pathDist(t.x, t.z)).toBeGreaterThan(3.5);
+        expect(m.lineDist(tracks, t.x, t.z)).toBeGreaterThan(m.CLEARING);
+        for (const l of m.sightLines()) expect(m.lineDist(l, t.x, t.z)).toBeGreaterThan(m.SIGHT);
         expect(m.streamDist(t.x, t.z)).toBeGreaterThan(m.STREAM_HALF + 2);
       }
       // a tree is at most 5.2 + 2.3 m high (scaled 1.3): the Oak's crown starts above that
