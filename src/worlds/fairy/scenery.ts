@@ -5,7 +5,7 @@ import { SHOP_SIGN } from './layout';
 import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
-import { propMaterial } from '../../core/materials';
+import { fadeAtCamera, propMaterial } from '../../core/materials';
 import type { MagicCount, MagicGlow } from './magic';
 
 /** How many more flowers (at the full density) the magic of the world grows over the drifts. */
@@ -176,6 +176,9 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     }
   }
   const mushMat = propMaterial(0, { emissive: '#ff5f8f', emissiveIntensity: 0.12 });
+  // a big mushroom at the lens or between the camera and the heroine dissolves, as the trees do
+  mushMat.onBeforeCompile = (sh) => fadeAtCamera(sh);
+  mushMat.customProgramCacheKey = () => 'mush|fade';
   mushMat.userData.magicGlow = { base: 0.12, full: 0.42 } satisfies MagicGlow;     // they glow brighter with the magic
   instanced(scene, height, mushGeo, mushMat, mush, true);
 

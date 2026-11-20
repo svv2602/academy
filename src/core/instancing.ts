@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Part } from './assets';
-import { propMaterial } from './materials';
+import { fadeAtCamera, propMaterial } from './materials';
 
 export interface Placement { x: number; z: number; s: number; rot: number; }
 /** The ground height of the world at x, z: every instance stands on it. */
@@ -72,7 +72,8 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
     let mat = partMats.get(key);
     if (!mat) {
       mat = propMaterial(sway, { vertexColors: false, map: p.map, alphaTest: p.cutout ? 0.5 : 0, side: p.cutout ? THREE.DoubleSide : THREE.FrontSide, roughness: 0.9, color: p.map ? '#ffffff' : '#63c356' });
-      // A leaf card is lit the same on both sides (no dark undersides); every part dissolves by the camera (NEAR_FADE).
+      // A leaf card is lit the same on both sides (no dark undersides); every part dissolves at the lens
+      // and in front of the heroine (src/core/materials.ts fadeAtCamera).
       const base = mat.onBeforeCompile.bind(mat), cutout = p.cutout;
       mat.onBeforeCompile = (sh, r) => {
         base(sh, r);
@@ -80,10 +81,9 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
           sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>',
             THREE.ShaderChunk.normal_fragment_begin.replace(/gl_FrontFacing \? 1\.0 : - ?1\.0/, '1.0'));
         }
-        sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-          ${NEAR_FADE_GLSL}`);
+        fadeAtCamera(sh);
       };
-      mat.customProgramCacheKey = () => `${cutout ? 'leaf' : 'part'}${sway}|near`;
+      mat.customProgramCacheKey = () => `${cutout ? 'leaf' : 'part'}${sway}|fade`;
       if (saturation !== 1) {
         const before = mat.onBeforeCompile, key0 = mat.customProgramCacheKey.bind(mat);
         mat.onBeforeCompile = (sh, r) => {
@@ -102,29 +102,6 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
 }
 const partMats = new Map<string, THREE.MeshStandardMaterial>();
 
-/**
- * m from the camera: a part of a textured model of the scenery (the leaves, the trunks and the crowns of the trees,
- * the bushes) nearer than `out` dissolves into a pattern of dots, nearer than `in` it is gone. When the camera behind
- * the heroine comes into a crown (the trees of the valley stand close; docs/perf.md, the glade 52 fps), what stands at
- * the lens no longer fills the screen - the camera keeps its place behind her, so it never comes up to the back of
- * her head. Never seen in play otherwise: the camera stands 5 m and more behind her. Shadows are not touched: they are
- * drawn by the depth materials.
- */
-export const NEAR_FADE = { in: 1.0, out: 2.6 };
-/**
- * The fragment code of NEAR_FADE (first in the part's material, before anything is read): the distance to the camera
- * (vViewPosition) against a 4x4 ordered dither, so a part thins evenly instead of fading through blending.
- */
-export const NEAR_FADE_GLSL = `{
-  float nearKeep = smoothstep(${NEAR_FADE.in.toFixed(2)}, ${NEAR_FADE.out.toFixed(2)}, length(vViewPosition));
-  if (nearKeep < 1.0) {
-    ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
-    int k = q.x + q.y * 4;
-    float bayer = float(k == 0 ? 0 : k == 1 ? 8 : k == 2 ? 2 : k == 3 ? 10 : k == 4 ? 12 : k == 5 ? 4 : k == 6 ? 14 : k == 7 ? 6
-      : k == 8 ? 3 : k == 9 ? 11 : k == 10 ? 1 : k == 11 ? 9 : k == 12 ? 15 : k == 13 ? 7 : k == 14 ? 13 : 5) / 16.0 + 1.0 / 32.0;
-    if (nearKeep < bayer) discard;
-  }
-}`;
 
 /**
  * TECH-15: a world that leaves the scene takes its cells out of the distance list: `updateRanged` would go on

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pollInput } from '../core/input';
 import type { Quality } from '../core/renderer';
-import { uTime } from '../core/materials';
+import { seeThrough, uTime } from '../core/materials';
 import { createCamera } from './camera';
 import { createCompanion } from './companion';
 import type { Game } from './context';
@@ -57,6 +57,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   const companion = createCompanion(g);
   const camera = createCamera(g, () => world.focusDist());
   const clock = new THREE.Clock();
+  const middle = new THREE.Vector3();
   // The world's spots and the pets' (PLAY-09: the spot of the world's pet, without a change to the world), read anew
   // each frame into one list: a world may change its own. Without a pet's spot the world's list is used as it is.
   const spots: Spot[] = [];
@@ -98,6 +99,9 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
 
     camera.update(dt, time, mag);
     world.beforeRender(hp);
+    // the scenery between the camera and the heroine's middle dissolves (src/core/materials.ts SEE_THROUGH)
+    g.camera.updateMatrixWorld();
+    seeThrough(g.camera, middle.copy(hp).setY(hp.y + 0.7 * hero.root.scale.y));
 
     // A cut-scene covers the whole screen with its own canvas (./story.ts): the world under it is neither drawn nor
     // measured - drawing both lost frames on the S22, and the quality would be judged by the scene's frames.
