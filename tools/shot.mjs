@@ -791,11 +791,14 @@ try {
         p.on('pageerror', (e) => errors.push('without ?debug: pageerror: ' + e.message));
         // Slow frames (about 18 a second), so that the game lowers its quality by itself; on a phone screen
         // (2 device pixels per pixel) that shows as a smaller canvas: q2 draws 2 pixels per pixel, q1 1.5.
-        if (!process.env.Q) await p.addInitScript(() => { const raf = requestAnimationFrame.bind(window); window.requestAnimationFrame = (cb) => setTimeout(() => raf(cb), 40); });
-        await p.goto(url + (process.env.Q ? `?q=${process.env.Q}` : ''));
+        // Without ?q= whatever Q is: the published game has none, and the CI plays Q=0 on swiftshader - where a frame
+        // is slower than 50 ms and the meter must count it by its real time (TECH-16 meterTime: handed the game's time,
+        // cut to 0.05 s, the lowering took 28 s at 7 fps and missed the 30 s below; 2026-11-20).
+        await p.addInitScript(() => { const raf = requestAnimationFrame.bind(window); window.requestAnimationFrame = (cb) => setTimeout(() => raf(cb), 40); });
+        await p.goto(url);
         await p.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
         await p.waitForTimeout(T(1500)); /* clock: no-debug */
-        if (!process.env.Q && touch) {
+        if (touch) {
           const w0 = await p.evaluate(() => document.querySelector('#c').width);
           const lowered = await p.waitForFunction((w) => document.querySelector('#c').width < w, w0, { timeout: T(30000) }) /* clock: no-debug */
             .then(async () => { const w1 = await p.evaluate(() => document.querySelector('#c').width); console.log(`without ?debug: slow frames lowered the quality by itself (canvas ${w0} -> ${w1} px wide)`); return true; })
