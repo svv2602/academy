@@ -61,10 +61,14 @@ function instancedCell(scene: THREE.Scene, height: Height, geo: THREE.BufferGeom
 }
 
 /** Instances every part of a textured model at the same placements; returns the cells of every part. */
-export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[], items: Placement[], sway: number, shadow: boolean, range = 0): Cell[] {
+/**
+ * `saturation` below 1 greys the parts' colours toward their brightness (WORLD-10: a plant whose colour is louder than
+ * the stars and the friends it would take the eye from).
+ */
+export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[], items: Placement[], sway: number, shadow: boolean, range = 0, saturation = 1): Cell[] {
   const out: Cell[] = [];
   for (const p of parts) {
-    const key = `${p.map?.uuid}|${p.cutout}|${sway}`;
+    const key = `${p.map?.uuid}|${p.cutout}|${sway}|${saturation}`;
     let mat = partMats.get(key);
     if (!mat) {
       mat = propMaterial(sway, { vertexColors: false, map: p.map, alphaTest: p.cutout ? 0.5 : 0, side: p.cutout ? THREE.DoubleSide : THREE.FrontSide, roughness: 0.9, color: p.map ? '#ffffff' : '#63c356' });
@@ -77,6 +81,15 @@ export function instancedParts(scene: THREE.Scene, height: Height, parts: Part[]
             THREE.ShaderChunk.normal_fragment_begin.replace(/gl_FrontFacing \? 1\.0 : - ?1\.0/, '1.0'));
         };
         mat.customProgramCacheKey = () => 'leaf' + sway;
+      }
+      if (saturation !== 1) {
+        const before = mat.onBeforeCompile, key0 = mat.customProgramCacheKey.bind(mat);
+        mat.onBeforeCompile = (sh, r) => {
+          before(sh, r);
+          sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+            diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114))), diffuseColor.rgb, ${saturation.toFixed(3)});`);
+        };
+        mat.customProgramCacheKey = () => key0() + '|sat' + saturation;
       }
       partMats.set(key, mat);
     }

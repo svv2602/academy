@@ -25,6 +25,9 @@ function reserved(x: number, z: number, margin: number) {
 }
 
 // Detailed textured trees near the play area; cheap flat-colour ones for the distant forest ring.
+/** How much of its colour the purple-leaved plant keeps (WORLD-10, the accents). */
+export const PLANT_SATURATION = 0.3;
+
 export const NEAR_TREES: readonly (readonly [string, number, number])[] = [
   ['CommonTree1', 8, 3], ['CommonTree2', 7.5, 3], ['CommonTree3', 6.5, 3], ['CommonTree4', 7, 3], ['CommonTree5', 6, 3],
   ['TwistedTree1', 7, 1], ['TwistedTree2', 6.5, 1], ['Pine5', 7.5, 2], ['Pine2', 9, 1],
@@ -122,7 +125,8 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   const nearTree = (x: number, z: number) => placed.some((p) => Math.hypot(p.x - x, p.z - z) < 4.5);
   split(scatter(110 * density, 0.4, nearTree, 56), 2).forEach((it, i) => instancedParts(scene, height, smalls[i === 0 ? 0 : 3], it, 0.25, false, 46));
   split(scatter(110 * density, 0.2, undefined, 50), 2).forEach((it, i) => instancedParts(scene, height, smalls[1 + i], it, 0, false, 40));
-  instancedParts(scene, height, smalls[4], scatter(60 * density, 0.4, undefined, 56), 0.25, false, 46);
+  // its purple leaves were the loudest colour of the valley, louder than its stars and friends (WORLD-10): greyed to a third
+  instancedParts(scene, height, smalls[4], scatter(60 * density, 0.4, undefined, 56), 0.25, false, 46, PLANT_SATURATION);
   split(scatter(160 * density, 0.5, (x, z) => vnoise(x * 0.2, z * 0.2) > 0.55, 56), 2).forEach((it, i) => instancedParts(scene, height, tallGrass[i], it, 0.6, false, 46));
   instancedParts(scene, height, mushSmall, scatter(40 * density, 0.5, nearTree, 56), 0, false, 40);
 

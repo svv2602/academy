@@ -40,7 +40,7 @@ import { buildShrine, createFinale, shardCount } from './shrine';
 import { FROM_HUB, HUB, createTreeWay, hubVisited } from './tree-way';
 import { travel } from '../../game/travel';
 import { SIGN_H } from './scenery';
-import { SKY_RADIUS, buildSky } from './sky';
+import { SKY_RADIUS, VALLEY_FAR, buildSky } from './sky';
 import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
 import { HIDDEN_PARTS, createParts, settleOldParts } from './parts';
 import { createStarSearch } from './star-search';
@@ -68,22 +68,22 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const chestStars = createChestStars(g, L, starMat);
   // the two other secrets: the glade behind the waterfall, the fairy house and its room (./secrets.ts)
   const secrets = createSecrets(g, scope);
-  // In the room of the house the camera sees no farther than its walls: the valley - its trees, friends, stars,
-  // ground - lies some 140 m away behind them and drawn it cost about 170 calls and 500k triangles a frame
-  // (tools/calls.mjs, the room of the fairy house); the shadow pass has its own camera. The sky, 400 m round the
-  // valley, comes along round the camera, small enough to be seen: its colours go by direction alone.
-  const valleyFar = camera.far, skyDome = sky.sky;
-  let roomReach = false;
+  // The camera of the valley sees as far as its haze (VALLEY_FAR, ./sky.ts, WORLD-10); in the room of the house no
+  // farther than its walls: the valley - its trees, friends, stars, ground - lies some 140 m away behind them and drawn
+  // it cost about 170 calls and 500k triangles a frame (tools/calls.mjs, the room of the fairy house); the shadow pass
+  // has its own camera. The sky, 400 m round, goes round the camera (./sky.ts), small enough to be inside its reach:
+  // its colours go by direction alone.
+  const worldFar = camera.far, skyDome = sky.sky;
+  let roomReach: boolean | null = null;
   const reach = () => {
     const inside = secrets.inRoom();
-    if (inside) skyDome.position.copy(camera.position);
     if (inside === roomReach) return;
     roomReach = inside;
-    camera.far = inside ? ROOM_FAR : valleyFar; camera.updateProjectionMatrix();
-    skyDome.scale.setScalar(inside ? (ROOM_FAR * 0.8) / SKY_RADIUS : 1);
-    if (!inside) skyDome.position.set(0, 0, 0);
+    camera.far = inside ? ROOM_FAR : VALLEY_FAR; camera.updateProjectionMatrix();
+    skyDome.scale.setScalar((camera.far * 0.8) / SKY_RADIUS);
   };
-  scope.own(() => { camera.far = valleyFar; camera.updateProjectionMatrix(); skyDome.scale.setScalar(1); skyDome.position.set(0, 0, 0); });
+  reach();
+  scope.own(() => { camera.far = worldFar; camera.updateProjectionMatrix(); skyDome.scale.setScalar(1); skyDome.position.set(0, 0, 0); });
   // the shards of the fox and the mushroom king hidden in the secrets (./parts.ts); a save from before keeps its shards
   if (settleOldParts(ws)) g.persist();
   let stepDone: (n: Npc, k: number) => void = () => {};

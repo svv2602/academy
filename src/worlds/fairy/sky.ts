@@ -10,22 +10,32 @@ import { POND, WATER_Y, height } from './terrain';
  * and with all of it (./magic.ts, WORLD-09): warmer and brighter, never darker than without.
  */
 export const SKY_LOOK = {
-  fog: ['#d9ecf7', '#f9e0f0'], fogFar: [300, 380], hemi: [1.25, 1.55], sun: [2.6, 3.0],
+  fog: ['#d9ecf7', '#f9e0f0'], fogNear: 70, fogFar: [130, 140], hemi: [1.25, 1.55], sun: [2.6, 3.0],
 } as const;
 
 /** The radius of the sky's sphere, m. Its colours go by direction alone: smaller and moved, it looks the same. */
 export const SKY_RADIUS = 400;
 
+/**
+ * How far the camera sees in the valley (WORLD-10): a little past the end of the haze, so what is cut is already of
+ * the haze's colour, and the sky below the horizon is of that colour too - the cut is never seen. Before, the camera
+ * reached 600 m and the haze ended at 300-380 m, past the hill round the valley (some 75-90 m): the far hills stood
+ * green to the top of the frame.
+ */
+export const VALLEY_FAR = 160;
+
 /** The sky (its shader's `uGlow` is the magic of the world), the haze and the two lights. */
 export function buildSky(scene: THREE.Scene) {
+  const fog = new THREE.Fog(SKY_LOOK.fog[0], SKY_LOOK.fogNear, SKY_LOOK.fogFar[0]);
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(SKY_RADIUS, 24, 16),
     new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { uGlow: { value: 0 } },
+      // uFog is the haze's own colour (the magic changes it, ./magic.ts): the sky at and below the horizon is that
+      uniforms: { uGlow: { value: 0 }, uFog: { value: fog.color } },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `
-        varying vec3 vDir; uniform float uGlow;
+        varying vec3 vDir; uniform float uGlow; uniform vec3 uFog;
         void main(){
           float h = clamp(vDir.y, -0.1, 1.0);
           vec3 horizon = mix(vec3(1.0, 0.86, 0.80), vec3(1.0, 0.86, 0.90), uGlow);
@@ -37,13 +47,16 @@ export function buildSky(scene: THREE.Scene) {
           float s = max(dot(normalize(vDir), sunDir), 0.0);
           c += vec3(1.0, 0.9, 0.7) * (pow(s, 600.0) * 3.0 + pow(s, 12.0) * (0.28 + 0.3 * uGlow));
           c += vec3(1.0, 0.82, 0.55) * uGlow * 0.12 * (1.0 - smoothstep(0.0, 0.35, h));
+          c = mix(uFog, c, smoothstep(0.0, 0.16, vDir.y));
           gl_FragColor = vec4(c, 1.0);
         }`,
     }),
   );
   sky.renderOrder = -10;
+  // round whatever camera draws it, inside its far plane (the camera's reach, ../index.ts): its size is set there
+  sky.frustumCulled = false;
+  sky.onBeforeRender = (_r, _s, cam) => { sky.position.copy(cam.position); sky.updateMatrixWorld(); };
   scene.add(sky);
-  const fog = new THREE.Fog(SKY_LOOK.fog[0], 70, SKY_LOOK.fogFar[0]);
   scene.fog = fog;
 
   const hemi = new THREE.HemisphereLight('#d6ecff', '#d2dcae', SKY_LOOK.hemi[0]);
