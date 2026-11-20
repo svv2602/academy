@@ -152,3 +152,23 @@ export function buildScenery(scene: THREE.Scene) {
   const shells = Array.from({ length: 12 }, (_, i) => ({ x: ZONES.garden.x + Math.cos(i * 2.1) * (3 + (i % 3) * 1.6), z: ZONES.garden.z + Math.sin(i * 2.1) * (3 + (i % 3) * 1.6), s: 1, rot: i }));
   instances(scene, 'shells', new THREE.SphereGeometry(0.35, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1.3), mat('#f4e8f0'), shells);
 }
+
+/**
+ * Shafts of light from the surface (docs/worlds/world-3.md: light, sun through the water): tall pale beams, slanted,
+ * swaying slowly, added over what is behind them. One instanced mesh - one draw call; no light of their own.
+ */
+export function buildShafts(scene: THREE.Scene, n: number) {
+  const geo = new THREE.CylinderGeometry(1.4, 2.6, 30, 10, 1, true).translate(0, 15, 0);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), n);
+  mesh.name = 'light-shafts'; mesh.frustumCulled = false;
+  const zones = Object.values(ZONES);
+  const at = Array.from({ length: n }, (_, i) => { const z = zones[i % zones.length]; return { x: z.x + Math.sin(i * 2.7) * 6, z: z.z + Math.cos(i * 2.7) * 6, ph: i * 1.3 }; });
+  const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(1, 1, 1);
+  const sway = (time: number) => {
+    at.forEach((a, i) => mesh.setMatrixAt(i, m4.compose(p.set(a.x, height(a.x, a.z) - 1, a.z), q.setFromEuler(e.set(0.25 + Math.sin(time * 0.3 + a.ph) * 0.05, 0.6, 0.1)), s)));
+    mesh.instanceMatrix.needsUpdate = true;
+  };
+  sway(0);
+  scene.add(mesh);
+  return { mesh, sway };
+}

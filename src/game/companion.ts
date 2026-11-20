@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Game } from './context';
 import { CAT_RUN_MAX, CAT_WALK_BACK, CAT_WALK_MAX, GROUND, followSpeed, pace, paceFollower, speedometer } from './stride';
+import { catLift } from './water';
 
 /** The cat's height, m (the model is scaled to it; the customer chose 0.75 for the Meshy cat on 2026-11-19). */
 export const CAT_HEIGHT = 0.75;
@@ -39,7 +40,7 @@ export function createCompanion(g: Game): { update(dt: number): void } {
         cat.face(hero.heading, dt, 4);
       }
       if (g.busy) moving = '';
-      cp.y = groundY(cp.x, cp.z);
+      cp.y = groundY(cp.x, cp.z) + catLift(g);   // under water in its bubble: on the floor, or carried at her height (src/game/water.ts)
     },
   };
 }
