@@ -45,7 +45,8 @@ function probeFiles(): Plugin {
 // when the page first asks for it, and by the download in the background while the previous world is played
 // (src/core/worldcache.ts). A build without a next world - the published game today - gets none of this.
 export default defineConfig(({ mode }) => {
-  const next = buildWorlds(mode, PROBE_MODE);
+  // the forest only in its grey build (WORLD-12, src/worlds/index.ts)
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, forest: 'grey' });
   const list = worldList(next);
   const route = worldRoute(next);
   return {

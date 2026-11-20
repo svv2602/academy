@@ -20,13 +20,15 @@ const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 /**
  * The next worlds of a build of `mode`: the folders of src/worlds/ but the first world's (`sourceWorlds`) and those of
- * the installation (`installedWorlds`: the hub - its voice is precached with the core), and but the test world
- * `testWorld` unless the build is made in the mode of the same name - the registry (src/worlds/index.ts) lists that
- * world under the same condition.
+ * the installation (`installedWorlds`: the hub - its voice is precached with the core), and but a world of `modes`
+ * unless the build is made in that world's mode - the registry (src/worlds/index.ts) lists such a world under the same
+ * condition. `modes`: { <world id>: <mode> } (the probe world, the grey forest); a string is a test world of the mode
+ * of its name.
  */
-export function buildWorlds(mode, testWorld, dir = undefined) {
+export function buildWorlds(mode, modes, dir = undefined) {
   const installed = installedWorlds(dir);
-  return sourceWorlds(dir).worlds.filter((id) => !installed.includes(id) && (id !== testWorld || mode === testWorld));
+  const only = typeof modes === 'string' ? { [modes]: modes } : modes ?? {};
+  return sourceWorlds(dir).worlds.filter((id) => !installed.includes(id) && (!(id in only) || mode === only[id]));
 }
 
 /** The folders of the next `worlds` as patterns for the service worker's `globIgnores`: they are not precached. */

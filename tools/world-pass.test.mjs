@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
-  marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
+  GREY_BUILD, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
   unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
@@ -41,7 +41,9 @@ describe('the description of a world as the pass reads it (ARCH-16)', () => {
     expect(readNeed('')).toEqual({ need: undefined, label: 'the numbers of the world template' });
     expect(readNeed('template')).toEqual(readNeed(''));
     expect(readNeed('one')).toEqual({ need: ONE_OF_EACH, label: 'one item of every kind' });
-    expect(readNeed('two').error).toBe('bad E2E_WORLD_NEED="two": expected "one" (one item of every kind) or "template" (the numbers of the world template)');
+    expect(readNeed('grey')).toEqual({ need: GREY_BUILD, label: 'what a grey build has (WORLD-12)' });
+    expect(Object.keys(GREY_BUILD).sort()).toEqual([...ITEM_KINDS].sort());
+    expect(readNeed('two').error).toBe('bad E2E_WORLD_NEED="two": expected "one" (one item of every kind), "grey" (a grey build) or "template" (the numbers of the world template)');
   });
 
   it('a whole description of the one shape has no problem, with as many items of a kind as the world has', () => {
@@ -745,7 +747,7 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     const r = await pass({}, { need: '', out: '' });
     expect(r.log.missingAsked[0]).toBeUndefined();
     expect(r.printed[0]).toContain('the world template asks for the numbers of the world template (E2E_WORLD_NEED)');
-    expect((await pass({}, { need: 'some', out: '' })).thrown).toBe('world "meadow": bad E2E_WORLD_NEED="some": expected "one" (one item of every kind) or "template" (the numbers of the world template)');
+    expect((await pass({}, { need: 'some', out: '' })).thrown).toBe('world "meadow": bad E2E_WORLD_NEED="some": expected "one" (one item of every kind), "grey" (a grey build) or "template" (the numbers of the world template)');
   });
 
   it('a point of the world template that the description lacks: the pass ends before "play", with the number and the name of the point', async () => {

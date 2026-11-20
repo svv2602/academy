@@ -1,0 +1,245 @@
+import * as THREE from 'three';
+import { sfx } from '../../core/audio';
+import type { Rig } from '../../core/assets';
+import type { Save } from '../../core/save';
+import { Actor } from '../../game/actor';
+import { createStage, type Game } from '../../game/context';
+import { declared, marked, ready } from '../../game/describe';
+import { createDialogue } from '../../game/dialogue';
+import { flyoverOf, setTour, tour } from '../../game/flyover';
+import { createGear } from '../../game/gear';
+import type { Spot } from '../../game/player';
+import type { WorldScope } from '../../game/scope';
+import { playScene } from '../../game/stage';
+import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
+import { FOREST_FLYOVER } from './flyover-path';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { buildScenery } from './scenery';
+import { strings } from './strings';
+import { buildGround, colliders, ground } from './terrain';
+
+/**
+ * The Enchanted Forest (WORLD-02), its grey build (WORLD-12): the map of docs/worlds/world-2.md in simple shapes at
+ * their real sizes, stretched by one number (./layout.ts SCALE, `?scale=`), its five characters with their chains of
+ * tasks the game already has, the two leaves of the Emerald that lie in the world, the finale at the Old Oak and the
+ * tour. It loads no file. The registry lists it only in a build made with `--mode grey` (src/worlds/index.ts): the
+ * published game and the hub do not change. What the measurements of the grey build read: tools/forest-grey.mjs.
+ */
+
+/**
+ * The characters (docs/worlds/world-2.md). The steps that later become tasks in the world stand in as the panel task
+ * of the same skill: Mudrena's steps to the hollow (WORLD-16) as `neighbors`, Shustrik's tracks (WORLD-15) as `count`,
+ * Ash's "find the differences" (LEARN-18) as `odd`, Kolyuchka's maze (WORLD-14) as `pattern`. `part`: the leaf is not
+ * handed over - the character says it lies in the world (the hollow, the end of the maze; WORLD-08).
+ */
+export const FRIENDS: readonly CharacterDef[] = [
+  { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a' },
+  { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', 'neighbors', 'compare', 'part'], shard: '#3fc27a' },
+  { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: ['count', 'odd', 'pairs'], shard: '#5fe39a' },
+  { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['odd', 'simon', 'add'], shard: '#36b56c' },
+  { id: 'kolyuchka', emoji: '🦔', x: ZONES.maze.x + 3, z: ZONES.maze.z + 1, heading: -1.6, steps: ['sub', 'order', 'pattern', 'part'], shard: '#7ff0b0' },
+];
+/** The shape of each character in the grey build: its height and colour (the Ash is its tree: no figure of its own). */
+const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string }> = {
+  borovik: { h: 1.1, r: 0.3, color: '#8a6a4a', hat: '#d8443a' },
+  mudrena: { h: 0.7, r: 0.3, color: '#9a8466' },
+  shustrik: { h: 0.45, r: 0.16, color: '#e07a2c' },
+  yasen: { h: 0, r: 0, color: '#000' },
+  kolyuchka: { h: 0.4, r: 0.22, color: '#6a5442' },
+};
+
+/** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
+export const LEAVES = [
+  { owner: 'mudrena', flag: 'leaf_hollow', hint: 'mudrena_hint', at: HOLLOW },
+  { owner: 'kolyuchka', flag: 'leaf_maze', hint: 'kolyuchka_hint', at: MAZE_END },
+] as const;
+export const FINALE = 'final';
+const TOUR = 'toured';
+/** m: walking this near a leaf takes it; the altar's spot. */
+const TAKE_R = 1.1, ALTAR_R = 2.4;
+
+const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'forest_part', partText: 'forest_count' };
+const MUSIC: MusicParams = {
+  scale: [220, 246.9, 277.2, 329.6, 370, 440, 493.9],
+  chords: [[110, 164.8, 277.2], [123.5, 185, 293.7], [98, 146.8, 246.9]],
+};
+
+/** An evening sky of the grey build: its colour, the haze at the edge of the map, two lights. */
+function buildSky(scene: THREE.Scene): WorldSky {
+  scene.background = new THREE.Color('#f3d9b1');
+  scene.fog = new THREE.Fog('#e9d3b4', HALF * 0.9, HALF * 2.4);
+  const sun = new THREE.DirectionalLight('#ffe3b8', 2.4);
+  sun.castShadow = true;
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+  const cam = sun.shadow.camera;
+  cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26; cam.near = 1; cam.far = 120;
+  scene.add(new THREE.HemisphereLight('#fff1d8', '#6f8a5a', 1.3), sun, sun.target);
+  return { sun, sunOffset: new THREE.Vector3(-20, 34, 16) };
+}
+
+/** Nothing to load: the grey build is made of shapes (and the heroine and the cat are the game's). */
+const loadForest = (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<Record<string, never>> => Promise.resolve({});
+
+/** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */
+function figure(id: string): Rig {
+  const f = FIGURE[id], root = new THREE.Group(), model = new THREE.Group();
+  if (f.h > 0) {
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(f.r, Math.max(0.01, f.h - f.r * 2), 4, 10), new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.8 }));
+    body.position.y = f.h / 2; body.castShadow = true;
+    model.add(body);
+    if (f.hat) {
+      const hat = new THREE.Mesh(new THREE.ConeGeometry(f.r * 1.9, f.h * 0.35, 10), new THREE.MeshStandardMaterial({ color: f.hat, roughness: 0.7 }));
+      hat.position.y = f.h + f.h * 0.12; hat.castShadow = true;
+      model.add(hat);
+    }
+  }
+  root.add(model);
+  return { root, model, clips: new Map() };
+}
+
+function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: WorldScope): BuiltWorld {
+  const { scene, hero, save, ws, flies, groundY } = g;
+  // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
+  scope.own(() => { colliders.length = 0; });
+  scene.add(buildGround(160));
+  buildScenery(scene);
+  const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
+  const point = (p: { x: number; z: number }, y = 0) => new THREE.Vector3(p.x, groundY(p.x, p.z) + y, p.z);
+
+  const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
+  const markGeo = new THREE.OctahedronGeometry(0.22);
+  const npcs: Npc[] = FRIENDS.map((def) => {
+    const actor = new Actor(figure(def.id));
+    const pos = point(def);
+    actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
+    if (FIGURE[def.id].h > 0) g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
+    const mark = new THREE.Mesh(markGeo, starMat);
+    scene.add(actor.root, mark);
+    return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
+  });
+  const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
+  const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
+
+  // ----- the leaves that lie in the world (WORLD-08): the step `part` of the owl's and the hedgehog's chains -----
+  const leafGeo = new THREE.OctahedronGeometry(0.3, 0).scale(0.7, 1.3, 0.4);
+  const leaves = LEAVES.map((l) => {
+    const def = FRIENDS.find((c) => c.id === l.owner)!;
+    const m = new THREE.Mesh(leafGeo, new THREE.MeshStandardMaterial({ color: def.shard, emissive: def.shard, emissiveIntensity: 0.7, roughness: 0.3 }));
+    m.position.copy(point(l.at, 1.0)); m.visible = false;
+    scene.add(m);
+    return { ...l, mesh: m, step: def.steps.indexOf('part') };
+  });
+  const waiting = (l: (typeof leaves)[number]) => ws.flags[l.hint] === true && (ws.quests[l.owner] ?? 0) === l.step;
+  let stepDone: (n: Npc, k: number) => void = () => {};
+  const take = (l: (typeof leaves)[number]) => {
+    ws.flags[l.flag] = true; l.mesh.visible = false;
+    sfx('chime'); g.sparks.burst(l.mesh.position, '#7ff0b0', 36, 3);
+    stepDone(npc(l.owner), l.step);
+  };
+  const part: WorldTask = {
+    skill: 'count',     // a step of no skill: the conversation reads the skill of a task it runs, never of this one
+    start: (n) => { const l = leaves.find((x) => x.owner === n.def.id); if (l) { ws.flags[l.hint] = true; g.persist(); } },
+    active: () => leaves.some(waiting),
+    owner: () => leaves.find(waiting)?.owner ?? null,
+  };
+
+  const stage = createStage(g, () => g.speech.caption(null));
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks: { part } });
+  stepDone = dialogue.stepDone;
+
+  // ----- the tour, the finale -----
+  const flyover = setTour(g, { path: FOREST_FLYOVER, visited: () => ws.flags[TOUR] === true, mark: () => { ws.flags[TOUR] = true; g.persist(); } });
+  const altar = point(ALTAR);
+  const emerald = new THREE.Mesh(new THREE.OctahedronGeometry(0.6), new THREE.MeshStandardMaterial({ color: '#5fe39a', emissive: '#2fbf6a', emissiveIntensity: 0.9, roughness: 0.25 }));
+  emerald.position.copy(altar).setY(altar.y + 2.6);
+  scene.add(emerald);
+  // the finale's few seconds run in game time, counted down by the frame (./index.ts update)
+  let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
+  const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
+  const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
+  const before = [...declared(g), tourItem, ...leafItems];
+  const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
+  const all = [...before, finaleItem];
+  const own: readonly WorldItem[] = [tourItem, ...leafItems, finaleItem];
+  const restore = () => playScene(stage, 'forest finale', async () => {
+    finaleOn = true;
+    g.cam.focus = g.above(altar, 2);
+    sfx('fanfare');
+    g.sparks.burst(g.above(altar, 2.6), '#7ff0b0', 60, 5);
+    await new Promise<void>((done) => { finaleLeft = 2; finaleEnd = done; });
+    ws.final = true; g.persist();
+    finaleOn = false; g.cam.focus = null;
+  });
+
+  return {
+    frame: {
+      spots: [
+        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
+      ],
+      tap: () => false,
+      afterMove: (time, grounded) => gear.update(time, grounded),
+      update: (dt, time, canMove) => {
+        const hp = hero.root.position;
+        for (const n of npcs) {
+          n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
+          n.mark.visible = !finished(n) && !g.busy;
+          n.mark.rotation.y = time * 2;
+          n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, FIGURE[n.def.id].h + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
+          n.actor.update(dt);
+        }
+        for (const l of leaves) {
+          l.mesh.visible = waiting(l);
+          if (!l.mesh.visible) continue;
+          l.mesh.rotation.y = time * 1.4;
+          if (canMove && Math.hypot(hp.x - l.at.x, hp.z - l.at.z) < TAKE_R) take(l);
+        }
+        if (finaleEnd && (finaleLeft -= dt) <= 0) { const done = finaleEnd; finaleEnd = null; done(); }
+        emerald.visible = ws.final;
+        emerald.rotation.y = time;
+      },
+      goal: () => {
+        const l = leaves.find(waiting);
+        if (l) return l.mesh.position;
+        const n = npcs.find((x) => !finished(x));
+        if (n) return n.pos;
+        return finaleItem.done() ? null : altar;
+      },
+      animate: (_dt, time) => { flies.update(time); },
+      focusDist: () => 6.5,
+      beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
+    },
+    debug: {
+      npcs,
+      // the tour as the first world's: played without a mark, its points with the moment each is passed, its player
+      more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: FOREST_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
+        // the map as the measurements of the grey build read it (tools/forest-grey.mjs): its stretch, zones, paths, landmarks
+        forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) } },
+      talk: (id) => { void dialogue.talk(npc(id)); },
+      // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
+      cheatWorld: () => { const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
+    },
+    book: {
+      parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
+      stats: () => [{ icon: '⭐', label: 'col_stars', value: String(save.stars) }],
+    },
+    lines: LINES,
+    hud: () => `${npcs.filter(finished).length}/${npcs.length}`,
+    gear,
+    items: () => own,
+  };
+}
+
+/** The Enchanted Forest, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
+export const forest: WorldDef<Record<string, never>, WorldSky> = {
+  id: 'forest',
+  shelf: 1,
+  spawn: SPAWN,
+  ground,
+  characters: FRIENDS,
+  strings,
+  music: MUSIC,
+  sky: buildSky,
+  load: loadForest,
+  build: buildForest,
+};

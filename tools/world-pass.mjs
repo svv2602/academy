@@ -47,8 +47,10 @@
 // the times printed to the log.
 //
 // Environment (read here; tools/worlds.mjs sets both for the probe world):
-//   E2E_WORLD_NEED=one|template   how many items of a kind the description must have: "one" - one of every kind, enough
-//                                 for a test world; "template" (default) - the numbers of the world template
+//   E2E_WORLD_NEED=one|grey|template   how many items of a kind the description must have: "one" - one of every kind,
+//                                 enough for a test world; "grey" - what a grey build has (WORLD-12): the chains, the
+//                                 parts in the world, the tour and the finale of the template, no secret, pet or
+//                                 cutscene yet; "template" (default) - the numbers of the world template
 //   E2E_WORLD_OUT=<file>          write the report of a pass that came to its end: the world, the size, was the page
 //                                 online, the items and the order they were done in
 import { writeFileSync } from 'node:fs';
@@ -59,6 +61,11 @@ export const ITEM_KINDS = ['chain', 'secret', 'part', 'scene', 'flyover', 'pet',
 export const HOWS = ['act', 'walk', 'tap', 'auto'];
 /** What a test world needs of the world template: one item of every kind (the argument of window.__game.missing). */
 export const ONE_OF_EACH = Object.fromEntries(ITEM_KINDS.map((k) => [k, 1]));
+/**
+ * What a grey build needs (WORLD-12): the characters and their chains, the parts of the artifact in the world, the tour
+ * and the finale as the template counts them; the secrets, the pet and the cutscenes come after the customer took it.
+ */
+export const GREY_BUILD = { chain: 5, part: 2, flyover: 1, finale: 1, secret: 0, pet: 0, scene: 0 };
 
 /** Seconds of game time: after a teleport the action button on the screen is the one of the new place. */
 export const SETTLES = 0.2;
@@ -82,7 +89,8 @@ export const MAY_DROP = ['go_next'];
 export function readNeed(text) {
   if (text === '' || text === 'template') return { need: undefined, label: 'the numbers of the world template' };
   if (text === 'one') return { need: ONE_OF_EACH, label: 'one item of every kind' };
-  return { error: `bad E2E_WORLD_NEED="${text}": expected "one" (one item of every kind) or "template" (the numbers of the world template)` };
+  if (text === 'grey') return { need: GREY_BUILD, label: 'what a grey build has (WORLD-12)' };
+  return { error: `bad E2E_WORLD_NEED="${text}": expected "one" (one item of every kind), "grey" (a grey build) or "template" (the numbers of the world template)` };
 }
 
 /**

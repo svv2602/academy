@@ -8,7 +8,13 @@ import { hub } from './hub';
 // (tools/worlds.mjs builds dist-probe/ and plays it there). In any other mode the condition is a constant false, so
 // the build holds neither its code nor its files: `npm run e2e` checks dist/ for that (the step "worlds").
 // The hub (./hub, WORLD-01) is the home between the worlds: part of the installation (INSTALLED below).
-export const WORLDS = [fairy, hub, ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : [])];
+// The forest (./forest, WORLD-02) is in its grey build (WORLD-12): listed only in a build or a dev server made with
+// `--mode grey` (tools/forest-grey.mjs), never in the published game, until the customer has taken the grey build.
+export const WORLDS = [
+  fairy, hub,
+  ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : []),
+  ...(import.meta.env.MODE === 'grey' ? [(await import('./forest')).forest] : []),
+];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';
 /**
