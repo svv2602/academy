@@ -2,8 +2,8 @@
  * The map of the Underwater Kingdom, the grey build (WORLD-12; the map of docs/worlds/world-3.md, ≈90 × 90 m). Every
  * place is given at the size of the document and multiplied by SCALE: the whole map is stretched by one number, the
  * sizes of things (a character, the castle, the ship) stay real. SCALE comes from `?scale=` (the grey build only: the sea
- * is listed in the registry in `--mode grey`, src/worlds/index.ts), DEFAULT_SCALE without it - the forest's 1.6 until the
- * customer has chosen by the pictures of the grey build.
+ * is listed in the registry in `--mode grey`, src/worlds/index.ts), DEFAULT_SCALE without it - the customer chose 1.6
+ * by the pictures of the grey build on 2026-11-20.
  *
  *      [Dark trench - the lantern fish]          [Sunken ship - the turtle]
  *                   |                                     |
@@ -17,7 +17,7 @@
  * x to the east, z to the south (the top of the drawing is -z, as in the first world).
  */
 
-/** The stretch of the map until the customer has chosen (the forest's choice of 2026-11-20). */
+/** The stretch of the map the customer chose (2026-11-20, docs/worlds/world-3.md), the forest's too. */
 export const DEFAULT_SCALE = 1.6;
 /** The stretch of the map asked for in the address (`?scale=1`), kept within 0.5-3; DEFAULT_SCALE without it or outside a page. */
 export function readScale(search: string | undefined): number {
