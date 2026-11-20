@@ -15,7 +15,6 @@
  * show (`showMaze`). The world makes it a step of its chain.
  */
 import * as THREE from 'three';
-import { fadeAtCamera } from '../../core/materials';
 import { randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
 import { UNITS } from '../tasks/pattern';
@@ -322,8 +321,7 @@ function stoneGeo(shape: (typeof LOOKS)[number]['shape']): THREE.BufferGeometry 
 }
 
 /**
- * The maze in the scene: the hedge (one instanced mesh, dissolving at the lens and between the camera and her -
- * fadeAtCamera - and casting no shadow), the stones of the paths (grey ones every few steps, those of the rows and of
+ * The maze in the scene: the hedge (one instanced mesh casting no shadow, lower than her: nothing of it to dissolve), the stones of the paths (grey ones every few steps, those of the rows and of
  * the ways' starts in their looks: one instanced mesh per look) and the glow of the right way at every fork.
  */
 export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groundY: (x: number, z: number) => number): MazeShow {
@@ -338,8 +336,9 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   // the hedge
   // low (0.85 m): the camera behind her sees the floor of the path and the stones of the row over it, and the way out
   const bushGeo = new THREE.IcosahedronGeometry(0.62, 0).scale(1, 0.75, 1).translate(0, 0.38, 0);
+  // no dissolving at the lens (fadeAtCamera): lower than her, the hedge never stands between the camera and her, and its
+  // dithered discard costs every fragment of it - from the tour above, half the screen
   const bushMat = new THREE.MeshStandardMaterial({ color: '#3f7a3a', roughness: 0.9, flatShading: true });
-  bushMat.onBeforeCompile = (sh) => fadeAtCamera(sh);
   const hedge = new THREE.InstancedMesh(bushGeo, bushMat, geo.bushes.length);
   hedge.name = 'maze-hedge';
   geo.bushes.forEach((p, i) => put(hedge, i, p, 0.9 + ((i * 37) % 7) * 0.04, i * 1.7));
@@ -372,7 +371,7 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   const floorGeo = new THREE.BufferGeometry();
   floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorPos, 3));
   floorGeo.computeVertexNormals();
-  const floorMat = new THREE.MeshStandardMaterial({ color: '#dccb9e', roughness: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const floorMat = new THREE.MeshStandardMaterial({ color: '#dccb9e', roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.name = 'maze-floor'; floor.receiveShadow = true;
   group.add(floor);
