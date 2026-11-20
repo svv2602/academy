@@ -1,4 +1,4 @@
-import { unlockAudio } from '../core/audio';
+import { speaking, unlockAudio } from '../core/audio';
 import { initInput } from '../core/input';
 import { applyControls } from '../core/tuning';
 import { clearSave } from '../core/save';
@@ -34,13 +34,26 @@ export async function enterWorld(g: Game, first: boolean, via: 'launch' | 'trave
   else sayLeft(g);
 }
 
+/** How many frames `sayLeft` waits for the game to come to rest at most (about 20 s); then a tap on the cat says it. */
+export const LEFT_WAIT_FRAMES = 1200;
+
 /**
  * The world's own word for where she stopped, as she comes in again (WorldDef.left; the first world: the Great Tree
- * calls, R28; the hub: the other worlds still sleep). None - nothing is said.
+ * calls, R28; the hub: the other worlds still sleep). None - nothing is said. It is a hint, and the planner turns a hint
+ * away while another line sounds (src/core/voice.ts `willSay`): after the stop point of "Play" the line of an
+ * achievement's card still sounded and "the Great Tree calls" was lost. So it waits, frame by frame, for the game at
+ * rest - nothing sounding, the heroine not busy, no card on screen - and gives up after LEFT_WAIT_FRAMES.
  */
-export function sayLeft(g: Game): void {
+export function sayLeft(g: Game, quiet: () => boolean = () => !speaking() && !g.busy && el.fanfare.classList.contains('hidden'),
+  next: (fn: () => void) => void = (fn) => { requestAnimationFrame(fn); }): void {
   const left = g.world.left?.(g.ws, g.save, 'entry');
-  if (left) void g.speech.line(left, 'hint', 6000);
+  if (!left) return;
+  let frames = 0;
+  const go = () => {
+    if (quiet()) { void g.speech.line(left, 'hint', 6000); return; }
+    if (++frames < LEFT_WAIT_FRAMES) next(go);
+  };
+  go();
 }
 
 /**

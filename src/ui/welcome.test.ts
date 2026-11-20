@@ -216,6 +216,27 @@ describe('the wiring (src/game/start.ts)', () => {
     expect(src).toMatch(/void atPlay\(g\)\.then\(\(\) => \{ if \(!first\) sayLeft\(g\); \}\);/);
   });
 
+  it('the world\'s own word waits for the game at rest (an achievement\'s line still sounding would turn it away)', async () => {
+    const { sayLeft, LEFT_WAIT_FRAMES } = await import('../game/start');
+    const { g, raw, said } = game();
+    (raw.world as { left?: () => string | null }).left = () => 'tree_calls';
+    let busyFor = 3, frames = 0;
+    const queue: (() => void)[] = [];
+    sayLeft(g as never, () => busyFor-- <= 0, (fn) => { frames++; queue.push(fn); });
+    while (queue.length) queue.shift()!();
+    expect(said).toEqual(['tree_calls']);
+    expect(frames).toBe(3);
+    // never at rest: it gives up after LEFT_WAIT_FRAMES, nothing said
+    const b = game();
+    (b.raw.world as { left?: () => string | null }).left = () => 'tree_calls';
+    let n = 0;
+    const q2: (() => void)[] = [];
+    sayLeft(b.g as never, () => false, (fn) => { n++; q2.push(fn); });
+    while (q2.length) q2.shift()!();
+    expect(b.said).toEqual([]);
+    expect(n).toBe(LEFT_WAIT_FRAMES - 1);
+  });
+
   it('the first entry of a world with no characters (the hub) has no hint: there is no friend to run to', async () => {
     const { enterWorld } = await import('../game/start');
     const { g, raw, said } = game('2000-01-01');
