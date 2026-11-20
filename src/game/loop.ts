@@ -5,6 +5,7 @@ import { meterTime } from '../core/quality';
 import { seeThrough, uTime } from '../core/materials';
 import { createCamera } from './camera';
 import { createCompanion } from './companion';
+import { createWater } from './water';
 import type { Game } from './context';
 import { createGuide } from './guide';
 import { createPlayer, type Spot } from './player';
@@ -56,6 +57,8 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   const guide = createGuide(g);
   const player = createPlayer(g);
   const companion = createCompanion(g);
+  // under water: the cat's bubble, her bubbles, the motes (src/game/water.ts); seen only in a water world
+  const water = createWater(g);
   const camera = createCamera(g, () => world.focusDist());
   const clock = new THREE.Clock();
   const middle = new THREE.Vector3();
@@ -103,6 +106,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     sparks.update(dt);
 
     camera.update(dt, time, mag);
+    water.update(dt, mag > 0.08, q.tier);   // after the cat and the camera: its bubble and the motes follow them
     world.beforeRender(hp);
     // the scenery between the camera and the heroine's middle dissolves (src/core/materials.ts SEE_THROUGH)
     g.camera.updateMatrixWorld();

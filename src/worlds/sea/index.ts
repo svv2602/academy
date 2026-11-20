@@ -13,10 +13,11 @@ import { swimming, type Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
+import { waterOf } from '../../game/water';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { SEA_FLYOVER } from './flyover-path';
 import { CABIN, CORAL_NEST, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, THRONE, ZONES } from './layout';
-import { buildScenery } from './scenery';
+import { buildScenery, buildShafts } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -26,8 +27,9 @@ import { buildGround, colliders, ground } from './terrain';
  * height with their chains of tasks the game already has, the two pearls that lie in the world, the finale at the
  * shell of the throne and the tour. The heroine swims (WorldDef.move): the swimming clips are the world's one file,
  * models/sea/swim.glb - put into the grey build only (vite.config.ts), from the probe world's copy of the same two
- * clips. The cat swims in a bubble: a sphere of this world's own, the grey build's stand-in for the shared bubble of
- * the platform (a pet goes to no world but its own and the Great Tree: decision of the customer 2026-11-20). The registry lists the sea only in a build made with `--mode grey`
+ * clips. The cat swims in its bubble, and the camera, her bubbles and the motes are the game's under water
+ * (src/game/water.ts, src/game/camera.ts); a pet goes to no world but its own and the Great Tree (decision of the
+ * customer 2026-11-20). The registry lists the sea only in a build made with `--mode grey`
  * (src/worlds/index.ts): the published game and the hub do not change. Its measurements: tools/sea-grey.mjs.
  */
 
@@ -75,16 +77,23 @@ const SWIM_CLIPS = 'sea/swim';
 /** m: how high she swims over the floor (the probe world's height). */
 const SWIM_HEIGHT = 0.6;
 
-/** Light blue water: its colour, the haze of the water at the edge of the map, light from above. */
+/** The colour of the water: the background and its haze are one - no sky under water; light, never deep blue (world-3.md). */
+export const WATER_COLOR = '#a8e2ea';
+/** The haze of the water, from and to, in halves of the map: thicker than the air's, the far landmarks still seen. */
+export const FOG_NEAR = 0.3, FOG_FAR = 2;
+/** Shafts of light from the surface: how many, swaying slowly; one mesh (one draw call). */
+export const SHAFTS = 8;
+
+/** Light water: its colour, its haze, light from above (the shafts are in ./scenery.ts `buildShafts`). */
 function buildSky(scene: THREE.Scene): WorldSky {
-  scene.background = new THREE.Color('#8fd3e8');
-  scene.fog = new THREE.Fog('#9fdcec', HALF * 0.6, HALF * 2);
+  scene.background = new THREE.Color(WATER_COLOR);
+  scene.fog = new THREE.Fog(WATER_COLOR, HALF * FOG_NEAR, HALF * FOG_FAR);
   const sun = new THREE.DirectionalLight('#f2fbff', 2.2);
   sun.castShadow = true;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   const cam = sun.shadow.camera;
   cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26; cam.near = 1; cam.far = 120;
-  scene.add(new THREE.HemisphereLight('#e8fbff', '#b8a77a', 1.4), sun, sun.target);
+  scene.add(new THREE.HemisphereLight('#effcff', '#c4b483', 1.5), sun, sun.target);
   return { sun, sunOffset: new THREE.Vector3(-8, 36, 10) };
 }
 
@@ -111,14 +120,6 @@ function figure(id: string): Rig {
   return { root, model, clips: new Map() };
 }
 
-/** A clear bubble round `actor` at its middle (the cat under water: docs/worlds/world-3.md). */
-function bubbleOf(scene: THREE.Scene, r: number, y: number) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshStandardMaterial({ color: '#dff6ff', transparent: true, opacity: 0.28, roughness: 0.1, depthWrite: false }));
-  mesh.name = 'bubble'; mesh.renderOrder = 2; mesh.visible = false;
-  scene.add(mesh);
-  return { mesh, follow: (a: Actor | null) => { mesh.visible = !!a; if (a) mesh.position.copy(a.root.position).setY(a.root.position.y + y); } };
-}
-
 function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
@@ -127,10 +128,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(hero.lend(g.heroRig.worldClips(L.swim)));
   scene.add(buildGround(160));
   buildScenery(scene);
+  const shafts = buildShafts(scene, SHAFTS);
   // In the water her wand and petals are hidden (src/game/gear.ts).
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks, () => swimming(g));
   const point = (p: { x: number; z: number }, y = 0) => new THREE.Vector3(p.x, groundY(p.x, p.z) + y, p.z);
-  const catBubble = bubbleOf(scene, 0.62, 0.35);
 
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
@@ -237,11 +238,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (n) return n.pos;
         return finaleItem.done() ? null : throne;
       },
-      animate: (_dt, time) => { flies.update(time); },
+      animate: (_dt, time) => { flies.update(time); shafts.sway(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => {
         sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp);
-        catBubble.follow(g.cat);
       },
     },
     debug: {
@@ -250,7 +250,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
       more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SEA_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // the map as the measurements of the grey build read it (tools/sea-grey.mjs): its stretch, zones, ways, landmarks
         seaMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, swim: SWIM_HEIGHT, ground: (x: number, z: number) => groundY(x, z) },
-        bubbles: () => ({ cat: catBubble.mesh.visible }),
+        bubbles: () => ({ cat: waterOf(g)?.catBubble.visible === true }),
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },
