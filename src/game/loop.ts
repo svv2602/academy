@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pollInput } from '../core/input';
 import type { Quality } from '../core/renderer';
+import { meterTime } from '../core/quality';
 import { seeThrough, uTime } from '../core/materials';
 import { createCamera } from './camera';
 import { createCompanion } from './companion';
@@ -111,7 +112,7 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     // measured - drawing both lost frames on the S22, and the quality would be judged by the scene's frames.
     if (storyOf(g)?.active !== true) {
       q.render(dt);
-      q.meter(dt, g.persist);
+      q.meter(meterTime(real, g.still), g.persist);   // the real time of the frame, not the game's cut one
     }
     for (const done of waiting.splice(0)) done();
   }

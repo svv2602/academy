@@ -82,6 +82,14 @@ describe('the automatic fallback of the tier and the change of world (TECH-15, T
     expect(save.tier).toBe(0);
   });
 
+  it('frames slower than 20 a second (7 fps, swiftshader): lowered within 12 s of them, not after 28 (meterTime)', async () => {
+    // the game cuts its own time of a frame to 0.05 s; with that, a "second" of the meter was 20 frames (2026-11-20)
+    const { meterTime } = await import('./quality');
+    const { q } = await quality({ param: null, tier: 1 });   // q2 asks for the bloom: not in the stand-in
+    for (let i = 0; i < 84; i++) q.meter(meterTime(1 / 7, false), () => {});   // 12 s of frames
+    expect(q.tier).toBe(0);
+  });
+
   it('while the frame is closed for a change of world slow frames lower nothing, however long the world loads', async () => {
     const { q, transition } = await quality({ param: null, tier: 1 });
     slowFrames(q, 6);                       // warmed up, two slow seconds counted already

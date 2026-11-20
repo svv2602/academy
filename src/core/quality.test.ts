@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COOL_GAP_MS, DOWN_FPS, DOWN_SECONDS, TRIAL_S, UP_FAILS, UP_FLOOR, UP_FPS, UP_GAP_S, UP_SECONDS, UP_SLOW_MAX, WARM_S, RETRY_EVERY,
-  autoMayRaise, goodFrames, autoRaise, autoSecond, autoStart, startTier, upGap, type Auto, type Tier,
+  COOL_GAP_MS, DOWN_FPS, DOWN_SECONDS, TRIAL_S, UP_FAILS, UP_FLOOR, UP_FPS, UP_GAP_S, UP_SECONDS, UP_SLOW_MAX, WARM_S, RETRY_EVERY, METER_GAP_S,
+  meterTime, autoMayRaise, goodFrames, autoRaise, autoSecond, autoStart, startTier, upGap, type Auto, type Tier,
 } from './quality';
 import { RESET_GAP_MS } from '../game/session';
 
@@ -233,5 +233,18 @@ describe('the frames good enough for a try up: a window, not a streak (the check
     expect(autoRaise(play(down, [60, 40])).recent).toEqual([]);
     const before = play(down, [60, 10]);
     expect(autoSecond(before, 5, { closed: true }).recent).toEqual(before.recent);
+  });
+});
+
+describe('the time of a frame for the meter (meterTime)', () => {
+  it('is the real time of the frame, not the cut time of the game: a frame of 140 ms counts as 140 ms', () => {
+    expect(meterTime(0.14, false)).toBe(0.14);
+    expect(meterTime(1 / 60, false)).toBeCloseTo(1 / 60);
+  });
+  it('a gap longer than METER_GAP_S (a page back from hidden) is one second; the debug stop counts nothing', () => {
+    expect(METER_GAP_S).toBe(1);
+    expect(meterTime(30, false)).toBe(1);
+    expect(meterTime(-0.01, false)).toBe(0);
+    expect(meterTime(0.14, true)).toBe(0);
   });
 });

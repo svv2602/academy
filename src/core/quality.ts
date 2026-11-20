@@ -42,6 +42,17 @@ export const TRIAL_S = 15;
 export const UP_FAILS = 2;
 /** Seconds after a change of tier or of world before the frames count: the new tier or world settles first. */
 export const WARM_S = 4;
+/** The longest frame the meter takes as it is: a longer one (the page back from hidden, a tab that slept) is one second. */
+export const METER_GAP_S = 1;
+
+/**
+ * The time of a frame for the meter (src/core/renderer.ts `meter`): the real one. The game's own time of a frame is cut
+ * to 0.05 s (src/game/loop.ts), so a frame slower than 20 a second counted as 0.05 s: the "second" of the meter was 20
+ * frames, the fps it saw never below 20, and DOWN_SECONDS stretched on a slow phone (7 fps: 28 s in place of 10) - the
+ * walkthrough without ?debug on swiftshader waited 31 s for it in vain (2026-11-20). `still` (the debug stop of game
+ * time, window.__game.still) counts nothing, as before.
+ */
+export const meterTime = (real: number, still: boolean): number => (still ? 0 : Math.min(Math.max(real, 0), METER_GAP_S));
 
 export const isTier = (v: unknown): v is Tier => v === 0 || v === 1 || v === 2;
 

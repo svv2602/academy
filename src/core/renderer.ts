@@ -31,7 +31,7 @@ export interface Quality {
   /** The parent pinned a tier (or went back to automatic): it applies at once, unless ?q= holds this page. */
   applyPin(): void;
   render(dt: number): void;
-  /** The frame counter and the automatic fallback; call once a frame after `render`. */
+  /** The frame counter and the game's own tier; call once a frame after `render`, with `meterTime` (src/core/quality.ts). */
   meter(dt: number, persist: () => void): void;
   /**
    * TECH-15: the sun of the world played from now on (a change of world; the sun of the world left is gone with its
