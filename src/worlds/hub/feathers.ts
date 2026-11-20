@@ -23,8 +23,14 @@ const at = (k: number, r: number): CollectItem => {
   const a = gapSide(k);
   return { kind: 'treefeather', way: 'run', x: Math.sin(a) * r, z: Math.cos(a) * r, y: 0.2 };
 };
-/** The six feathers, in the order they are given (their numbers in the save: only ever added to at the end). */
-export const HUB_COLLECT: CollectDef = { items: [at(0, FEATHER_R), at(2, FEATHER_R), at(4, FEATHER_R), at(1, FEATHER_R + 1.4), at(3, FEATHER_R), at(0, FEATHER_R + 3.2)] };
+/**
+ * The six feathers, in the order they are given (their numbers in the save: only ever added to at the end); out on the
+ * glade, the one of the day alone (CollectDef.shown, asked by the game each frame).
+ */
+export const HUB_COLLECT: CollectDef = {
+  items: [at(0, FEATHER_R), at(2, FEATHER_R), at(4, FEATHER_R), at(1, FEATHER_R + 1.4), at(3, FEATHER_R), at(0, FEATHER_R + 3.2)],
+  shown: (ws) => { const i = featherOfDay(ws, featherDay()); return i === null ? [] : [i]; },
+};
 
 /** The gap of the feather `i` (where its bird sleeps). */
 export const gapOf = (i: number) => [0, 2, 4, 1, 3, 0][i];

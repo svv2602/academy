@@ -1124,6 +1124,32 @@ async function hubScenarios({ url, shots, fail: report }) {
         if (Math.hypot(after.x - before.x, after.z - before.z) > 0.3) fail(`keepsakes: a tap on a mushroom of the ring walked her ${Math.hypot(after.x - before.x, after.z - before.z).toFixed(2)} m`);
         await p.shot('hub-ring.png');
         told.push(`the tree shows the keepsakes of two secrets and the acorns (${want.length}); a tap on a mushroom of the ring played its note, she stood`);
+        // the feather of the day (src/worlds/hub/feathers.ts): the first lies in the first gap; taken, the cat says
+        // hub_feather, none more today, the golden bird sleeps on its branch; the next day the second lies out
+        await p.g(() => { const seen = window.__hubLines = new Set(); const look = () => { if (__game.line) seen.add(__game.line); requestAnimationFrame(look); }; look(); });
+        const f0 = await p.g(() => __game.hub.feathers('2026-11-20'));
+        if (f0.lying !== 0 || f0.bird) fail(`keepsakes: on a new day with no feather found ${JSON.stringify(f0)}, expected the first lying, no bird`);
+        const gap = Math.PI / 5, fx = Math.sin(gap) * 9.2, fz = Math.cos(gap) * 9.2;
+        // the picture: she 3 m off it toward the trunk, the camera on the feather
+        await p.g(([x, z]) => { const g = __game; g.teleport(x * 0.68, z * 0.68); g.hero.heading = Math.atan2(x, z); g.hero.root.rotation.y = g.hero.heading; g.cam.yaw = g.hero.heading + Math.PI + 0.5; g.cam.focus = g.hero.root.position.clone().set(x, 0.3, z); g.closeup(5); }, [fx, fz]);
+        await p.gameSeconds(1.5);
+        await p.shot('hub-feather.png');
+        await p.g(() => { const g = __game; g.cam.focus = null; g.closeup(null); });
+        await p.g(([x, z]) => __game.teleport(x, z), [fx, fz]);
+        await p.gameSeconds(6);
+        const f1 = await p.g(() => ({ ...__game.hub.feathers(), clip: __game.clipFor('hub_feather'), found: __game.save.worlds.hub.found, day: __game.save.worlds.hub.day, said: [...window.__hubLines] }));
+        if (JSON.stringify(f1.found) !== '[0]' || f1.day !== '2026-11-20' || f1.lying !== null || !f1.bird || !f1.said.includes('hub_feather') || f1.clip !== 'hub/hub_feather') fail(`keepsakes: the first feather taken: ${JSON.stringify(f1)}`);
+        else {
+          // the picture: she on the glade under its branch, the camera on the bird
+          await p.g(([x, y, z]) => { const r = Math.hypot(x, z), g = __game; g.teleport(x / r * 8.5, z / r * 8.5); g.hero.heading = Math.atan2(-x, -z); g.hero.root.rotation.y = g.hero.heading; g.cam.yaw = g.hero.heading + Math.PI; g.cam.focus = g.hero.root.position.clone().set(x, y, z); g.closeup(6); }, [f1.bird.x, f1.bird.y, f1.bird.z]);
+          await p.gameSeconds(1.5);
+          await p.shot('hub-bird-asleep.png');
+          await p.g(() => { const g = __game; g.cam.focus = null; g.closeup(null); });
+          const f2 = await p.g(() => __game.hub.feathers('2026-11-21'));
+          if (f2.lying !== 1 || f2.bird) fail(`keepsakes: the next day ${JSON.stringify(f2)}, expected the second lying, no bird`);
+          else told.push('the feather of the day: the first taken, the cat said hub_feather by its clip, the golden bird asleep that day, the second out the next day');
+        }
+        await p.g(() => __game.hub.feathers(null));
       }
       await p.close();
     }

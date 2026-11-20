@@ -2264,6 +2264,11 @@
   "tp": -2.07,
   "sha256": "467ffe8640da90da803769850a54d99e70b3aa655e4aac8b9790b42a4bfb4703"
  },
+ "public/voice/hub/hub_feather.mp3": {
+  "lufs": -18.1,
+  "tp": -3.55,
+  "sha256": "ad1027ee376a913891c1dc1f6d30693c4438b6c8d3bd3ce48f76431445565f67"
+ },
  "public/voice/hub/hub_sleeping.mp3": {
   "lufs": -17.96,
   "tp": -1.66,
