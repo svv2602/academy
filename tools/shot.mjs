@@ -1469,7 +1469,7 @@ try {
         if (await sounding()) cutOff++;
         await (touch ? page.tap('#answersClose', { timeout: T(5000) }) : page.click('#answersClose', { timeout: T(5000) })) /* clock: input-event */
           .catch((e) => fail(`the close button cannot be pressed: ${why(e)}`));
-        for (const pause of [0.1, 0.3]) {             // a moment of game time later, and a while later
+        for (const pause of [0.1, 0.2]) {             // a moment of game time later, and a while later (0.3 s in all)
           await gameSeconds(pause);
           const left = await held();
           left.push(...await g((n) => {
