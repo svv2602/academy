@@ -6,7 +6,7 @@ import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
-  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, petProblems, createPets, followStep, foundPets, markFound, petPlace,
+  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
@@ -205,6 +205,28 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     }
     const place = petPlace(g.hero.root.position, g.hero.heading);
     expect(Math.hypot(p.x - place.x, p.z - place.z)).toBeLessThan(1);
+  });
+
+  it('a world may lead it elsewhere for a while (steerPet): it goes there, and by her side again once undone', () => {
+    const save = defaultSave();
+    worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
+    const g = host(save);
+    const pets = createPets(g, { rigs: rigs(), chainDone: () => false });
+    const p = pets.follower!.root.position;
+    g.cat.root.position.set(-30, 0, -30);
+    const undo = steerPet(() => ({ x: 6, z: 2 }));
+    for (let i = 0; i < 600; i++) pets.update(1 / 60);
+    expect(Math.hypot(p.x - 6, p.z - 2)).toBeLessThan(0.6);
+    undo();
+    for (let i = 0; i < 600; i++) pets.update(1 / 60);
+    const place = petPlace(g.hero.root.position, g.hero.heading);
+    expect(Math.hypot(p.x - place.x, p.z - place.z)).toBeLessThan(0.6);
+    // an undo of a steer replaced since is nothing
+    const second = steerPet(() => ({ x: -6, z: 0 }));
+    undo();
+    for (let i = 0; i < 600; i++) pets.update(1 / 60);
+    expect(Math.hypot(p.x + 6, p.z)).toBeLessThan(0.6);
+    second();
   });
 
   it('stands while a scene runs (g.busy)', () => {

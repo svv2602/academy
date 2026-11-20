@@ -132,6 +132,19 @@ export function followStep(p: { x: number; z: number }, place: { x: number; z: n
   return d;
 }
 
+/** Where a world leads the follower now instead of her side (`steerPet`), null - by her side as always. */
+export type PetSteer = (dt: number, pet: { readonly x: number; readonly z: number }) => { x: number; z: number } | null;
+let steer: PetSteer | null = null;
+/**
+ * A world leads the follower for a while somewhere else than by her side (the hub: it plays round the ring of mushrooms,
+ * src/worlds/hub/ring-play.ts), asked each frame it walks; the follower keeps its walk, its run and its way round the
+ * cat. Returns the undo (the world's scope owns it): the next world has no steer of the one left.
+ */
+export function steerPet(fn: PetSteer): () => void {
+  steer = fn;
+  return () => { if (steer === fn) steer = null; };
+}
+
 /** What the game holds of the pets in the world being played. */
 export interface PetsInWorld {
   /** The action spot of the world's pet while it waits to be found (none once found, or before its chain is done). */
@@ -238,7 +251,8 @@ export function createPets(g: PetHost, o: {
         const p = follower.root.position, hp = g.hero.root.position;
         if (g.busy) { moving = ''; follower.play('Idle', 0.3); }
         else {
-          petPlace(hp, g.hero.heading, place);
+          const lead = steer?.(dt, p);
+          if (lead) place.set(lead.x, 0, lead.z); else petPlace(hp, g.hero.heading, place);
           const x0 = p.x, z0 = p.z;
           const d = followStep(p, place, g.cat.root.position, dt);
           g.ground.resolve(p, 0.3);

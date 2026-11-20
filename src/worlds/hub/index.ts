@@ -20,6 +20,9 @@ import { buildKeepsakes } from './keepsakes';
 import { ringNote, ringTapped } from './ring-notes';
 import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
+import { steerPet } from '../../game/pets';
+import { ringPlay } from './ring-play';
+import { stumpAt } from './tree-look';
 import { note } from '../../core/audio';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
@@ -30,7 +33,8 @@ import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
  * of its own shapes: the Tree in four stages by the artifacts back (./tree-look.ts, R33), the stone arches with their
  * veils and the nests (./arch-look.ts).
  *
- * No tasks, no secrets, no pet (R5, R30). An arch whose world the registry has is open: it breathes, and walking up
+ * No tasks, no secrets, no pet of its own to find (R5, R30): the pet chosen walks after her here too, and plays round
+ * the ring of mushrooms while she stands by the stump (./ring-play.ts). An arch whose world the registry has is open: it breathes, and walking up
  * to it changes the world (`travel`, through the gate: a world not downloaded, without the network, stays shut and
  * the cat says so, R16). The others sleep, grey and overgrown, with the sign of their world. A nest glows in the
  * colour of its world once that world's artifact is back (its light, not the artifact itself - R7). She appears at
@@ -157,6 +161,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const tree = buildTreeLook(scene, treeStage(artifactCount(save)), L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
   const keepsakes = buildKeepsakes(scene, save);
+  // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
+  scope.own(steerPet(ringPlay(stumpAt(), () => g.hero.root.position, () => g.busy)));
   // the ring's notes played (for the walkthrough: ?debug)
   const notes: number[] = [];
   // The feather of the day (./feathers.ts): when the hub's found grows, today is its day, the bird of the next one falls

@@ -1088,6 +1088,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       const fw = save.worlds[FIRST_WORLD];
       fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: false };
       fw.found = [6, 7, 8, 9, 10, 11];   // the six acorns (src/worlds/fairy/collect.ts)
+      fw.flags.pet = true; save.pets = ['fawn']; save.pet = 'fawn';   // the fawn chosen: it walks after her into the hub
       save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
       const p = await open('keepsakes', save);
       await p.page.goto(`${url}?debug&world=hub${q}`);
@@ -1123,6 +1124,25 @@ async function hubScenarios({ url, shots, fail: report }) {
         if (!notes.includes(target.i)) fail(`keepsakes: a tap on the cap ${target.i} of the ring played ${JSON.stringify(notes)}`);
         if (Math.hypot(after.x - before.x, after.z - before.z) > 0.3) fail(`keepsakes: a tap on a mushroom of the ring walked her ${Math.hypot(after.x - before.x, after.z - before.z).toFixed(2)} m`);
         await p.shot('hub-ring.png');
+        // the pet plays round the ring while she stands by the stump (src/worlds/hub/ring-play.ts), and comes back to her
+        const st = await p.g(() => __game.hub.ring().tops);
+        const mid = st.reduce((m, t) => ({ x: m.x + t.x / st.length, z: m.z + t.z / st.length }), { x: 0, z: 0 });
+        const petAt = () => p.g(() => { const o = __game.scene.getObjectByName('pet:fawn'); return o && { x: o.position.x, z: o.position.z }; });
+        await p.gameSeconds(4);
+        const a = await petAt();
+        await p.gameSeconds(1);
+        const b = await petAt();
+        if (!a || !b) fail('keepsakes: the chosen fawn is not in the hub');
+        else {
+          const ra = Math.hypot(a.x - mid.x, a.z - mid.z), rb = Math.hypot(b.x - mid.x, b.z - mid.z), went = Math.hypot(b.x - a.x, b.z - a.z);
+          if (Math.abs(ra - 2.0) > 0.8 || Math.abs(rb - 2.0) > 0.8 || went < 0.5) fail(`keepsakes: by the stump the fawn does not run round the ring: ${ra.toFixed(2)} and ${rb.toFixed(2)} m from its middle, ${went.toFixed(2)} m in a second`);
+          await p.shot('hub-pet-ring.png');
+          await p.g(([x, z]) => __game.teleport(x, z), [mid.x + (mid.x / Math.hypot(mid.x, mid.z)) * 9, mid.z + (mid.z / Math.hypot(mid.x, mid.z)) * 9]);
+          await p.gameSeconds(4);
+          const c = await petAt(), h = await p.at();
+          if (Math.hypot(c.x - h.x, c.z - h.z) > 2.5) fail(`keepsakes: she walked off the stump, the fawn stayed ${Math.hypot(c.x - h.x, c.z - h.z).toFixed(1)} m from her`);
+          else told.push('the fawn chosen walked after her into the hub, ran round the ring while she stood by the stump and came back to her side');
+        }
         told.push(`the tree shows the keepsakes of two secrets and the acorns (${want.length}); a tap on a mushroom of the ring played its note, she stood`);
         // the feather of the day (src/worlds/hub/feathers.ts): the first lies in the first gap; taken, the cat says
         // hub_feather, none more today, the golden bird sleeps on its branch; the next day the second lies out
