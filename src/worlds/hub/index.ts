@@ -18,7 +18,7 @@ import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
 import { buildKeepsakes } from './keepsakes';
 import { ringNote, ringTapped } from './ring-notes';
-import { birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
+import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
 import { note } from '../../core/audio';
 import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
@@ -249,6 +249,8 @@ export const hub: WorldDef<HubLoads, WorldSky> = {
   ground,
   left: (_ws, save, why) => hubLeft(save, why),
   characters: [],
+  // the feathers of the Great Tree's bird, one a day (./feathers.ts, the customer's word of 2026-11-20)
+  collect: HUB_COLLECT,
   strings,
   music: MUSIC,
   sky: buildSky,
