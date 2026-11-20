@@ -190,12 +190,24 @@ describe('the finds in the world (src/game/collect-items.ts)', () => {
     expect(h.ws.found).toContain(9);
   });
 
+  it('far from her the finds stand still: after their first frame no matrix of them is sent again', () => {
+    const h = host(def), c = createCollections(h.g);
+    const versions = () => meshes(h.g.scene).map((m) => m.instanceMatrix.version);
+    c.update(0.016, 0, true);
+    const v0 = versions();
+    for (let i = 1; i < 30; i++) c.update(0.016, i * 0.016, true);
+    expect(versions()).toEqual(v0);
+    at(h, 0.5 * 10 + 30, 0, 5);                          // near the mushrooms: they move again
+    c.update(0.016, 1, true);
+    expect(versions()).not.toEqual(v0);
+  });
+
   it('one of a flock taken, the other flies up for a moment and settles back within reach', () => {
     const h = host(def), c = createCollections(h.g), [a, b] = [c.items[10], c.items[11]];
     at(h, a.x, 0, a.z); c.update(0.016, 0, true);
     expect(a.taken).toBe(true); expect(b.taken).toBe(false);
     const y0 = b.home.y;
-    at(h, 100, 0, 100); c.update(0.5, 0, true);
+    at(h, a.x, 0, a.z + 4); c.update(0.5, 0, true);          // she stays by the flock (far from her a find stands still)
     expect(b.pos.y).toBeGreaterThan(y0 + 0.5);
     for (let i = 0; i < 10; i++) c.update(0.5, 0, true);
     expect(b.pos.y).toBeLessThan(y0 + 0.1);
