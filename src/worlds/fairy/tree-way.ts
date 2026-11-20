@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fadeAtCamera } from '../../core/materials';
 import type { Save, WorldState } from '../../core/save';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
@@ -26,8 +27,12 @@ export const TREE_WAY_OPEN = false;
 
 /** The id of the hub in the registry (src/worlds/index.ts). */
 export const HUB = 'hub';
-/** m in front of the arch, toward the valley, where she comes out of it. */
-const OUT = 3;
+/**
+ * m in front of the arch, toward the valley, where she comes out of it: far enough that the camera behind her (6.2 m in
+ * a landscape window) stands in front of the arch, not in its stones (at 3 m the posts filled half the frame); in a
+ * portrait window (8 m) it is at the arch, whose stone dissolves at the lens.
+ */
+export const OUT = 7;
 /** m: how near the arch the action button takes her through it. */
 const SPOT_R = 2;
 
@@ -52,6 +57,9 @@ export function createTreeWay(g: Game): TreeWay {
   const { scene, ws } = g;
   const y = g.groundY(TREE_WAY.x, TREE_WAY.z);
   const stone = new THREE.MeshStandardMaterial({ color: '#b9b2a6', roughness: 0.9, flatShading: true });
+  // dissolves at the lens and is looked through (src/core/materials.ts): back from the hub the camera stands near it
+  stone.onBeforeCompile = (sh) => fadeAtCamera(sh);
+  stone.customProgramCacheKey = () => 'tree-way|fade';
   const arch = new THREE.Group();
   arch.position.set(TREE_WAY.x, y, TREE_WAY.z); arch.rotation.y = TREE_WAY.facing;
   for (const side of [-1, 1]) {
