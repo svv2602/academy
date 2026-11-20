@@ -5,7 +5,7 @@ import { TAKE_R, TAP_R, collectProblems, reaches } from '../../game/collections'
 import { COLLECT, OAKS, STEP_UP, SUPPORTS, clearOfFinds, support } from './collect';
 import { CASTLE, CHEST, CRYSTAL, GLADE, HOUSE, MYSTERY_SPOTS, PATCH, POND, SHOP_SIGN, SPAWN, UNICORN, WORLD_R } from './layout';
 import { QUESTS, SHRINE } from './quests';
-import { placeTrees } from './scenery';
+import { ACORN_SWAP, placeTrees } from './scenery';
 import { height, pathDist } from './terrain';
 import { BOULDERS } from './hiding';
 
@@ -45,6 +45,19 @@ describe('the collections of the fairy world (PLAY-25)', () => {
       if (Math.hypot(a.x - b.x, a.z - b.z) < 5) bad.push(`${i} and ${j}`);
     }));
     expect(bad).toEqual([]);
+  });
+
+  it('the trees of the acorns take the place of trees of the valley: as many near trees are drawn, the chance of the rest as it was', () => {
+    for (const density of [0.75, 1]) {
+      const { nearItems, placed, grove, swapped } = placeTrees(mulberry32(2024), density);
+      expect(swapped.length).toBeGreaterThan(0);
+      expect(swapped.length).toBeLessThanOrEqual(OAKS.length);
+      // every near tree drawn is a tree placed or of the grove; the swapped ones are no more there (nor their colliders)
+      expect(nearItems.flat().length).toBe(placed.filter((t) => t.near).length + grove.length);
+      for (const t of swapped) expect(placed).not.toContain(t);
+      // each swapped one was the near tree nearest to an acorns' tree, within ACORN_SWAP
+      for (const t of swapped) expect(Math.min(...OAKS.map((o) => Math.hypot(o.x - t.x, o.z - t.z)))).toBeLessThan(ACORN_SWAP);
+    }
   });
 
   for (const [what, density] of [['the phone', 0.75], ['the computer', 1]] as const) {

@@ -92,17 +92,16 @@ export function buildCollectProps(scene: THREE.Scene) {
     stone: paint(new THREE.CylinderGeometry(1, 1.08, 1, 7).translate(0, 0.5, 0), '#9a9aa0', '#b8b8bf', 0.98),
   } as const;
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), sc = new THREE.Vector3();
-  for (const kind of ['stump', 'stone'] as const) {
-    const own = SUPPORTS.filter((s) => s.kind === kind);
-    const mesh = new THREE.InstancedMesh(kinds[kind], mat, own.length);
-    mesh.name = `support-${kind}`;
-    own.forEach((s, i) => {
-      // sunk a little into the ground, so a slope shows no gap under it
-      const y = height(s.x, s.z);
-      mesh.setMatrixAt(i, m4.compose(at.set(s.x, y - 0.25, s.z), q.setFromAxisAngle(up, i * 1.7), sc.set(s.r, s.top + 0.25, s.r)));
-    });
-    mesh.castShadow = true; mesh.receiveShadow = true;
+  // a mesh each, culled by itself: an instanced mesh of a kind spans the valley and is drawn from anywhere. A stump or a
+  // flat stone a hand high casts no shadow worth a draw of its own (on the S22 every call counts).
+  SUPPORTS.forEach((s, i) => {
+    const mesh = new THREE.Mesh(kinds[s.kind], mat);
+    mesh.name = `support-${s.kind}`;
+    // sunk a little into the ground, so a slope shows no gap under it
+    mesh.position.set(s.x, height(s.x, s.z) - 0.25, s.z);
+    mesh.rotation.y = i * 1.7;
+    mesh.scale.set(s.r, s.top + 0.25, s.r);
+    mesh.castShadow = false; mesh.receiveShadow = true;
     scene.add(mesh);
-  }
+  });
 }

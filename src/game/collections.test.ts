@@ -202,6 +202,21 @@ describe('the finds in the world (src/game/collect-items.ts)', () => {
     expect(versions()).not.toEqual(v0);
   });
 
+  it('a kind is drawn by its finds near her: none within 45 m - not drawn; its sphere is round the near ones only', () => {
+    const h = host(def), c = createCollections(h.g);
+    c.update(0.016, 0, true);                       // she is far from every find
+    for (const m of meshes(h.g.scene)) expect(m.visible).toBe(false);
+    const it0 = def.items[0];
+    at(h, it0.x + 2, 0, it0.z);
+    c.update(0.016, 0, true);
+    const m = h.g.scene.getObjectByName(`collect-${it0.kind}`) as THREE.InstancedMesh;
+    expect(m.visible).toBe(true);
+    expect(m.frustumCulled).toBe(true);
+    expect(m.boundingSphere!.containsPoint(new THREE.Vector3(it0.x, it0.y, it0.z))).toBe(true);
+    // the sphere spans the near finds, not the valley
+    expect(m.boundingSphere!.radius).toBeLessThan(45 + 8);
+  });
+
   it('one of a flock taken, the other flies up for a moment and settles back within reach', () => {
     const h = host(def), c = createCollections(h.g), [a, b] = [c.items[10], c.items[11]];
     at(h, a.x, 0, a.z); c.update(0.016, 0, true);

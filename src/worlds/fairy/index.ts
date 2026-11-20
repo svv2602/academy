@@ -56,6 +56,14 @@ import { voices } from './voices';
  */
 export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldScope): BuiltWorld {
   const { scene, camera, renderer, save, ws, hero, flies, speech } = g;
+  // The trees of the acorns (./scenery.ts, PLAY-25) cast their shadows only near her: far off each is a draw of its own
+  // in the shadow pass from anywhere in the valley (on the S22 every call counts); near, its shadow is what one sees.
+  let acornTrees: THREE.InstancedMesh[] | null = null;
+  const oakShadows = () => {
+    acornTrees ??= scene.children.filter((o): o is THREE.InstancedMesh => o.name === 'acorn-oak');
+    const hp = hero.root.position;
+    for (const m of acornTrees) { const c = m.boundingSphere?.center; m.castShadow = !!c && Math.hypot(c.x - hp.x, c.z - hp.z) < OAK_SHADOW; }
+  };
   const { motes, updateClouds, starGeo } = L;
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
@@ -240,6 +248,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     afterMove: (time, grounded) => characters.wings(time, grounded),
     // The characters, then the collectibles, then the shrine: the order they were always updated in.
     update: (dt, time, canMove) => {
+      oakShadows();
       characters.update(dt, time);
       chestStars.update(time, canMove);
       secrets.update(dt, time, canMove);
@@ -357,6 +366,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
 type FairySky = ReturnType<typeof buildSky>;
 /** How far the camera sees in the room of the house, m: past its far corner with the camera 4.2 m behind her. */
 const ROOM_FAR = 30;
+/** m: a tree of the acorns casts its shadow while she is nearer than this to it. */
+export const OAK_SHADOW = 22;
 
 /**
  * The badge over the shop's signboard: a bag drawn on a small canvas (no file, no font), always facing the camera -
