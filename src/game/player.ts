@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { sfx } from '../core/audio';
 import { input } from '../core/input';
-import { tuning } from '../core/tuning';
+import { GRAVITY, tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
 import { catTap } from '../ui/welcome';
 import { CAT_TAP_Y } from './companion';
@@ -11,6 +11,7 @@ import { GROUND, pace, speedometer } from './stride';
 import type { Key } from '../ui/strings';
 import type { Game } from './context';
 import type { WorldFrame } from './loop';
+import type { WorldGround } from './world';
 
 /** A place the heroine can do something at: the last one that fits wins (the world lists them in that order). */
 export interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
@@ -22,6 +23,24 @@ export interface Player {
   move(dt: number, canMove: boolean): number;
   prompt(canMove: boolean, spots: readonly Spot[]): void;
   fadeRing(dt: number): void;
+}
+
+/**
+ * The ground under her feet: the relief, or the top of a support of the world she stands on (WorldGround.support) -
+ * a world without supports is its relief alone, as it always was.
+ */
+export function groundUnder(ground: Pick<WorldGround, 'support'>, relief: number, x: number, z: number, feet: number): number {
+  const top = ground.support?.(x, z, feet);
+  return top !== undefined && top !== null && top > relief ? top : relief;
+}
+
+/**
+ * A step of a jump: the height and the speed upwards after `dt` s under GRAVITY. The exact parabola, not a step of
+ * Euler: the top of a jump is the same at 20 frames a second as at 60 (Euler lost 0.2 m of the 2.4 m of the jumping
+ * potion at 20, enough to miss what hangs that high, PLAY-25).
+ */
+export function jumpStep(y: number, vy: number, dt: number): [number, number] {
+  return [y + vy * dt - 0.5 * GRAVITY * dt * dt, vy - GRAVITY * dt];
 }
 
 /** The world played has the heroine swim (WorldDef.move): the one test of the mode, for the frame and for her items. */
@@ -94,7 +113,7 @@ export function createPlayer(g: Game): Player {
         // her radius grows and shrinks with her (the funny potion, src/game/supplies.ts)
         g.ground.resolve(hp, 0.4 * hero.root.scale.x);
       } else if (cam.focus) hero.face(Math.atan2(cam.focus.x - hp.x, cam.focus.z - hp.z), dt, 5);
-      const ground = groundY(hp.x, hp.z);
+      const ground = groundUnder(g.ground, groundY(hp.x, hp.z), hp.x, hp.z, hp.y);
       // In the water (WorldDef.move): no gravity and no jump, she keeps her height above the ground; standing, walking
       // and running are played by the swimming clips (the swap is the heroine's own, Actor.rename).
       const swim = swimming(g);
@@ -102,7 +121,7 @@ export function createPlayer(g: Game): Player {
       if (swim) { vy = 0; grounded = true; hp.y = ground + g.world.move!.height; }
       else {
         if (input.jump && grounded && canMove) { vy = tuning.jump; grounded = false; sfx('jump'); }
-        vy -= 17 * dt; hp.y += vy * dt;
+        [hp.y, vy] = jumpStep(hp.y, vy, dt);
         if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
       }
       input.jump = false;

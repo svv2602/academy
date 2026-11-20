@@ -242,7 +242,8 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
   it('the frame moves the pets after the cat and hands their spots to the heroine with the world\'s', () => {
     const loop = raw['./loop.ts'];
     expect(loop).toMatch(/\n\s*companion\.update\(dt\);\n\s*g\.pets\.update\(dt\);/);
-    expect(loop).toMatch(/player\.tap\(canMove, here, world\.tap\)/);
+    // a find of the collections touched while she is free to move first, then the world's tap (PLAY-25)
+    expect(loop).toMatch(/player\.tap\(canMove, here, \(dist\) => \(canMove && g\.collect\.tap\(dist\)\) \|\| world\.tap\(dist\)\)/);
     expect(loop).toMatch(/player\.prompt\(canMove, here\)/);
     expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots, \.\.\.g\.mystery\.spots\)/);
   });
