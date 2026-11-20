@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COOL_GAP_MS, DOWN_FPS, DOWN_SECONDS, TRIAL_S, UP_FAILS, UP_FPS, UP_GAP_S, UP_SECONDS, WARM_S, RETRY_EVERY,
-  autoMayRaise, autoRaise, autoSecond, autoStart, startTier, upGap, type Auto, type Tier,
+  COOL_GAP_MS, DOWN_FPS, DOWN_SECONDS, TRIAL_S, UP_FAILS, UP_FLOOR, UP_FPS, UP_GAP_S, UP_SECONDS, UP_SLOW_MAX, WARM_S, RETRY_EVERY,
+  autoMayRaise, goodFrames, autoRaise, autoSecond, autoStart, startTier, upGap, type Auto, type Tier,
 } from './quality';
 import { RESET_GAP_MS } from '../game/session';
 
@@ -143,7 +143,7 @@ describe('the game keeps its own tier (TECH-16, the measure of 2026-11-20)', () 
     expect(autoMayRaise(ready)).toBe(true);
     expect(ready.tier).toBe(1);
     expect(travel(ready).tier).toBe(2);
-    // 29 good seconds after a slow one are not enough
+    // a second below UP_FLOOR among the last 30 holds the try back, 29 good seconds after it are not enough
     expect(autoMayRaise(play(down, [60, UP_GAP_S], 40, [60, UP_SECONDS - 1]))).toBe(false);
   });
 
@@ -200,5 +200,38 @@ describe('the game keeps its own tier (TECH-16, the measure of 2026-11-20)', () 
     expect(a.tier).toBe(1);
     expect(a.fails).toBe(UP_FAILS);
     expect(changes).toBe(1 + 2 * UP_FAILS);   // the first fall, then two tries up and their falls
+  });
+});
+
+describe('the frames good enough for a try up: a window, not a streak (the check on S22 of 2026-11-20)', () => {
+  it('has the numbers taken: 30 seconds, at most 2 below 58, none below 50', () => {
+    expect([UP_SECONDS, UP_SLOW_MAX, UP_FPS, UP_FLOOR]).toEqual([30, 2, 58, 50]);
+  });
+  it('a phone at 60 with a second of 57.9 every 20 seconds is good enough: the streak of old never came', () => {
+    const fps = (i: number) => (i % 20 === 19 ? 57.9 : 60);
+    let a = play(settled(2), [36, 5]);
+    for (let i = 0; i < UP_GAP_S; i++) a = autoSecond(a, fps(i));
+    expect(autoMayRaise(a)).toBe(true);
+    expect(travel(a).tier).toBe(2);
+  });
+  it('the window: two seconds below 58 pass, three do not; one below 50 does not; fewer than 30 seconds do not', () => {
+    const w = (slow: number[]) => [...Array(30 - slow.length).fill(60), ...slow];
+    expect(goodFrames(w([57, 56]))).toBe(true);
+    expect(goodFrames(w([57, 57, 57]))).toBe(false);
+    expect(goodFrames(w([49.9]))).toBe(false);
+    expect(goodFrames(w([50]))).toBe(true);
+    expect(goodFrames(Array(29).fill(60))).toBe(false);
+  });
+  it('the last 30 seconds only: a bad second older than that no longer counts', () => {
+    let a = play(settled(2), [36, 5], [60, UP_GAP_S - 31], 40);
+    expect(autoMayRaise(play(a, [60, 29]))).toBe(false);
+    expect(autoMayRaise(play(a, [60, 30]))).toBe(true);
+  });
+  it('the window starts empty after every change of tier, and the closed frame of a change of world adds nothing to it', () => {
+    const down = play(settled(2), [36, 5]);
+    expect(down.recent).toEqual([]);
+    expect(autoRaise(play(down, [60, 40])).recent).toEqual([]);
+    const before = play(down, [60, 10]);
+    expect(autoSecond(before, 5, { closed: true }).recent).toEqual(before.recent);
   });
 });

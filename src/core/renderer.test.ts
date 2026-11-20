@@ -123,6 +123,16 @@ describe('the game raises its own tier (TECH-16)', () => {
     expect(save.tier).toBe(1);
   });
 
+  it('real frames that dip now and then (the phone of 2026-11-20): still raised at the change of world', async () => {
+    const { q, transition } = await quality({ param: null, tier: 0 });
+    // 200 seconds at 60 fps, every 20th of them at 57 (a dip of the phone), the frames of each second as they come
+    for (let s = 0; s < 200; s++) { const fps = s % 20 === 19 ? 57 : 60; for (let i = 0; i < fps; i++) q.meter(1 / fps, () => {}); }
+    transition.start();
+    fastFrames(q, 1.5, () => { transition.frame(1 / 60); });
+    expect(transition.closed).toBe(true);
+    expect(q.tier).toBe(1);
+  });
+
   it('a tier fixed by ?q= or by the parent is never raised', async () => {
     for (const o of [{ param: '0', tier: 0 }, { param: null, tier: 0, pin: 0 }]) {
       const { q, transition } = await quality(o);

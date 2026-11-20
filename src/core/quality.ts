@@ -8,7 +8,9 @@
  * 2026-11-20 (docs/perf.md, "Замер на S22 (2026-11-20)"): the first world on a warm phone gave 36 fps on q2 with a
  * third of its frames late, where q1 gives about 53 and the hub on q2 about 48.
  * - down: below DOWN_FPS for DOWN_SECONDS seconds in a row;
- * - up: at UP_FPS or more for UP_SECONDS seconds in a row, no sooner than UP_GAP_S after the last change, and only
+ * - up: the last UP_SECONDS counted seconds at UP_FPS or more, but for at most UP_SLOW_MAX of them and none below
+ *   UP_FLOOR (a phone's real frames dip now and then: a streak of 30 good seconds in a row was broken by one second of
+ *   57.9 and never came - the check on S22 of 2026-11-20); no sooner than UP_GAP_S after the last change, and only
  *   while the frame of a change of world is closed (the bloom coming back is not seen);
  * - a raise that falls back within its trial (TRIAL_S seconds of open frames) failed: the gap before the next try
  *   doubles, and after UP_FAILS failures no other try is made this session. A raise at the launch (`startTier`:
@@ -26,8 +28,12 @@ export const DOWN_FPS = 45;
 export const DOWN_SECONDS = 5;
 /** Up: the frames of a second at this or more... */
 export const UP_FPS = 58;
-/** ...this many seconds in a row. */
+/** ...over the last this many counted seconds... */
 export const UP_SECONDS = 30;
+/** ...all but at most this many of them... */
+export const UP_SLOW_MAX = 2;
+/** ...and none of them below this. */
+export const UP_FLOOR = 50;
 /** Seconds since the last change before a try up; doubled after each failed try. */
 export const UP_GAP_S = 180;
 /** Seconds of open frames after a raise in which falling back means the raise failed. */
@@ -75,8 +81,8 @@ export interface Auto {
   readonly warm: number;
   /** Seconds in a row below DOWN_FPS. */
   readonly slow: number;
-  /** Seconds in a row at UP_FPS or more. */
-  readonly good: number;
+  /** The frames of the last UP_SECONDS counted seconds (open frame, past the warm-up), the oldest first. */
+  readonly recent: readonly number[];
   /** Seconds since the last change of tier. */
   readonly since: number;
   /** Failed tries up this session. */
@@ -86,7 +92,7 @@ export interface Auto {
 }
 
 /** The start of a session at `tier`; `raised` - the launch raised it (`StartTier.raised`): on trial from the start. */
-export const autoStart = (tier: Tier, raised = false): Auto => ({ tier, warm: 0, slow: 0, good: 0, since: 0, fails: 0, trial: raised ? 0 : null });
+export const autoStart = (tier: Tier, raised = false): Auto => ({ tier, warm: 0, slow: 0, recent: [], since: 0, fails: 0, trial: raised ? 0 : null });
 
 /**
  * One second of frames: `fps` of it, `closed` - the frame of a change of world was closed in it (a world loaded and
@@ -100,24 +106,29 @@ export function autoSecond(a: Auto, fps: number, o: { closed?: boolean; hidden?:
   const warm = a.warm + 1;
   if (warm <= WARM_S) return { ...a, since, warm };
   const slow = fps < DOWN_FPS ? a.slow + 1 : 0;
-  const good = fps >= UP_FPS ? a.good + 1 : 0;
+  const recent = [...a.recent, fps].slice(-UP_SECONDS);
   const trial = a.trial === null ? null : a.trial + 1;
   if (slow >= DOWN_SECONDS && a.tier > 0) {
     const failed = trial !== null && trial <= TRIAL_S;
-    return { tier: (a.tier - 1) as Tier, warm: 0, slow: 0, good: 0, since: 0, fails: a.fails + (failed ? 1 : 0), trial: null };
+    return { tier: (a.tier - 1) as Tier, warm: 0, slow: 0, recent: [], since: 0, fails: a.fails + (failed ? 1 : 0), trial: null };
   }
-  return { ...a, since, warm, slow, good, trial: trial !== null && trial > TRIAL_S ? null : trial };
+  return { ...a, since, warm, slow, recent, trial: trial !== null && trial > TRIAL_S ? null : trial };
 }
 
 /** The gap before a try up: UP_GAP_S, doubled for each failed try (3, 6 minutes). */
 export const upGap = (fails: number): number => UP_GAP_S * 2 ** fails;
 
+/** The frames of the last seconds are good enough for a try up: UP_SECONDS of them, few below UP_FPS, none below UP_FLOOR. */
+export function goodFrames(recent: readonly number[]): boolean {
+  return recent.length >= UP_SECONDS && recent.filter((f) => f < UP_FPS).length <= UP_SLOW_MAX && recent.every((f) => f >= UP_FLOOR);
+}
+
 /** Whether a try up may be made now (the caller makes it only while the frame of a change of world is closed). */
 export function autoMayRaise(a: Auto): boolean {
-  return a.tier < 2 && a.fails < UP_FAILS && a.trial === null && a.good >= UP_SECONDS && a.since >= upGap(a.fails);
+  return a.tier < 2 && a.fails < UP_FAILS && a.trial === null && a.since >= upGap(a.fails) && goodFrames(a.recent);
 }
 
 /** The try up: one tier higher, on trial. */
 export function autoRaise(a: Auto): Auto {
-  return { ...a, tier: Math.min(2, a.tier + 1) as Tier, warm: 0, slow: 0, good: 0, since: 0, trial: 0 };
+  return { ...a, tier: Math.min(2, a.tier + 1) as Tier, warm: 0, slow: 0, recent: [], since: 0, trial: 0 };
 }
