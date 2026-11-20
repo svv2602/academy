@@ -47,6 +47,12 @@ export const NEAR_FADE = { in: 1.0, out: 2.6 };
  */
 export const SEE_THROUGH = { in: 0.55, r: 0.95, before: 0.6 };
 /**
+ * The window through a big building (the castle): narrower, so a wall that is looked through keeps more of itself - a
+ * wide hole in a big model shows its empty inside and its far wall through it.
+ */
+export const SEE_THROUGH_NARROW = { in: 0.35, r: 0.65, before: 0.6 };
+export type SeeThrough = typeof SEE_THROUGH;
+/**
  * The heroine's middle in the camera's space (xyz) and whether to look through to her (w: 1 on), set every frame by
  * the loop (src/game/loop.ts `seeThrough`); one uniform for every material of the scenery, no program is rebuilt.
  */
@@ -62,14 +68,14 @@ const f2 = (n: number) => n.toFixed(2);
  * The fragment code of NEAR_FADE and SEE_THROUGH (first in the material, before anything is read): how much of the
  * part is kept against a 4x4 ordered dither, so it thins evenly instead of fading through blending.
  */
-export const FADE_GLSL = `{
+export const fadeGlsl = (see: SeeThrough = SEE_THROUGH) => `{
   vec3 fadeP = -vViewPosition;
   float keep = smoothstep(${f2(NEAR_FADE.in)}, ${f2(NEAR_FADE.out)}, length(fadeP));
   if (uSeeThrough.w > 0.5) {
     vec3 h = uSeeThrough.xyz;
     float hl = length(h);
     float t = dot(fadeP, h) / max(hl * hl, 1e-4);
-    if (t > 0.0 && t * hl < hl - ${f2(SEE_THROUGH.before)}) keep = min(keep, smoothstep(${f2(SEE_THROUGH.in)}, ${f2(SEE_THROUGH.r)}, length(fadeP - h * t)));
+    if (t > 0.0 && t * hl < hl - ${f2(see.before)}) keep = min(keep, smoothstep(${f2(see.in)}, ${f2(see.r)}, length(fadeP - h * t)));
   }
   if (keep < 1.0) {
     ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
@@ -81,8 +87,10 @@ export const FADE_GLSL = `{
 }`;
 
 /** Puts NEAR_FADE and SEE_THROUGH into a standard material's shader (inside its onBeforeCompile). */
-export function fadeAtCamera(sh: THREE.WebGLProgramParametersWithUniforms): void {
+export function fadeAtCamera(sh: THREE.WebGLProgramParametersWithUniforms, see: SeeThrough = SEE_THROUGH): void {
   sh.uniforms.uSeeThrough = uSeeThrough;
   sh.fragmentShader = 'uniform vec4 uSeeThrough;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-  ${FADE_GLSL}`);
+  ${fadeGlsl(see)}`);
 }
+/** The fade of the scenery with the usual window (SEE_THROUGH). */
+export const FADE_GLSL = fadeGlsl();

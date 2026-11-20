@@ -134,3 +134,21 @@ describe('NEAR_FADE: a part of the scenery by the camera dissolves, the camera k
     expect(SEE_THROUGH.before).toBeGreaterThan(0);   // what stands at her or behind her stays
   });
 });
+
+describe('the window through a big building (the castle)', () => {
+  it('is narrower than the scenery\'s: its own radii in its fade, the same near fade', async () => {
+    const { SEE_THROUGH, SEE_THROUGH_NARROW, fadeGlsl, NEAR_FADE } = await import('./materials');
+    expect(SEE_THROUGH_NARROW.r).toBeLessThan(SEE_THROUGH.r);
+    expect(SEE_THROUGH_NARROW.in).toBeLessThan(SEE_THROUGH_NARROW.r);
+    const narrow = fadeGlsl(SEE_THROUGH_NARROW);
+    expect(narrow).toContain(`smoothstep(${SEE_THROUGH_NARROW.in.toFixed(2)}, ${SEE_THROUGH_NARROW.r.toFixed(2)}`);
+    expect(narrow).toContain(`smoothstep(${NEAR_FADE.in.toFixed(2)}, ${NEAR_FADE.out.toFixed(2)}`);
+  });
+
+  it('the buildings of the first world dissolve: the house, the well, the gazebo by the usual window, the castle by the narrow one', async () => {
+    const src = (await import('node:fs')).readFileSync('src/worlds/fairy/scenery.ts', 'utf8');
+    expect(src).toMatch(/solid\.onBeforeCompile = \(sh\) => fadeAtCamera\(sh\);/);
+    expect(src).toMatch(/castleMat\.onBeforeCompile = \(sh\) => fadeAtCamera\(sh, SEE_THROUGH_NARROW\);/);
+    expect(src).toMatch(/place\(castleGeo, [^\n]*castleMat\);/);
+  });
+});

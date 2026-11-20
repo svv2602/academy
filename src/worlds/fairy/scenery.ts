@@ -6,7 +6,7 @@ import { OAKS, buildCollectProps, clearOfFinds } from './collect';
 import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
-import { fadeAtCamera, propMaterial } from '../../core/materials';
+import { SEE_THROUGH_NARROW, fadeAtCamera, propMaterial } from '../../core/materials';
 import type { MagicCount, MagicGlow } from './magic';
 
 /** How many more flowers (at the full density) the magic of the world grows over the drifts. */
@@ -97,7 +97,14 @@ export function placeTrees(rnd: () => number, density: number) {
 
 export async function buildScenery(scene: THREE.Scene, density: number) {
   const rnd = mulberry32(2024);
-  const tree = propMaterial(0.0035), solid = propMaterial();
+  const tree = propMaterial(0.0035), solid = propMaterial(), castleMat = propMaterial();
+  // The buildings (the fairy's house, the castle, the well, the gazebo; the stumps and the lilies) dissolve at the lens
+  // and are looked through where they stand between the camera and her (src/core/materials.ts fadeAtCamera) - the
+  // castle by a narrower window: a wide hole in it shows its empty inside and its far wall.
+  solid.onBeforeCompile = (sh) => fadeAtCamera(sh);
+  solid.customProgramCacheKey = () => 'solid|fade';
+  castleMat.onBeforeCompile = (sh) => fadeAtCamera(sh, SEE_THROUGH_NARROW);
+  castleMat.customProgramCacheKey = () => 'castle|fade';
   const N = (n: string, h: number, normals: 'model' | 'up' | 'sphere' = 'model') => texturedParts('nature2/' + n, h, normals);
 
   const [nearTrees, farGeos, rocks3, bushes, flowerKinds, smalls, tallGrass, mushSmall, pathStones, pebbles, mushGeo, stumpGeo, lilyGeo] = await Promise.all([
@@ -228,15 +235,15 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
     staticGeo('medieval_village_pack/Well', 2.2),
     staticGeo('medieval_village_pack/Gazebo', 4, {}),
   ]);
-  const place = (g: THREE.BufferGeometry, x: number, z: number, rot: number, r: number) => {
-    const mesh = new THREE.Mesh(g, solid);
+  const place = (g: THREE.BufferGeometry, x: number, z: number, rot: number, r: number, m: THREE.Material = solid) => {
+    const mesh = new THREE.Mesh(g, m);
     mesh.position.set(x, height(x, z) - 0.1, z); mesh.rotation.y = rot;
     mesh.castShadow = true; mesh.receiveShadow = true;
     scene.add(mesh);
     if (r) colliders.push({ x, z, r });
     return mesh;
   };
-  place(castleGeo, CASTLE.x, CASTLE.z - 4, 0, 13);
+  place(castleGeo, CASTLE.x, CASTLE.z - 4, 0, 13, castleMat);
   place(houseGeo, -9.5, 2.5, 1.2, 3.2);
   place(wellGeo, -5, 7.5, 0.4, 1.2);
   place(gazeboGeo, 22.5, -8, 0, 0);
