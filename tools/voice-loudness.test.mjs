@@ -21,6 +21,8 @@ const clips = [...new Set(['public/voice/**/*.mp3', 'public/bank/**/*.mp3', 'wor
   .flatMap((p) => globSync(p, { cwd: root })).map((p) => p.split('\\').join('/')))].sort();
 const sha = (path) => createHash('sha256').update(readFileSync(join(root, path))).digest('hex');
 const ffmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
+// One line in the log of every run: whether the measures were also checked against the files here.
+console.log(`[voice-loudness] ffmpeg: ${ffmpeg ? 'yes, three clips measured again and the levelling tried' : 'no, the measuring again is skipped (the record and its hashes are checked)'}`);
 const tmp = mkdtempSync(join(tmpdir(), 'loudness-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
