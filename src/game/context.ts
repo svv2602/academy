@@ -10,6 +10,7 @@ import { Actor } from './actor';
 import type { HeroModel, Shared } from './boot';
 import { Sparks } from './fx';
 import { taskHelpers } from './helpers';
+import type { PetGearModels } from './petgear';
 import type { Stage } from './stage';
 import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './taskviews/panel';
@@ -64,6 +65,8 @@ export interface Game extends GameWorld {
   readonly hero: Actor; readonly cat: Actor; readonly sparks: Sparks; readonly flies: Butterflies; readonly cam: Cam;
   /** The heroine's model with her items (the shared load): a world makes her gear and her wings of it. */
   readonly heroRig: HeroModel;
+  /** The things of the cat and the fawn, hung hidden under their bones (src/game/petgear.ts); empty in a test without them. */
+  readonly petGear: PetGearModels;
   /**
    * The pets in the world played (PLAY-09, src/game/pets.ts): the world's own waiting at its place, the chosen one after
    * the heroine. Its spots join the world's and it moves in the frame (src/game/loop.ts); `dispose` on leaving the world.
@@ -233,7 +236,7 @@ export function createGame(o: {
   let pets: PetsInWorld | null = null;
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
-    hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, rng: o.rng,
+    hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, petGear: o.shared.petGear ?? {}, rng: o.rng,
     get pets() { return pets!; },
     busy: false, paused: false, still: false, auto: null, camOverride: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it

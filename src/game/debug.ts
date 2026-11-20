@@ -6,6 +6,7 @@ import { CAT_TAP_Y } from './companion';
 import { uTime } from '../core/materials';
 import { cheatTask, runTask, type TaskResult } from './taskviews/panel';
 import { dealState } from './deal';
+import { PET_GEAR, wearPetGear, type PetGearId, type PetWearer } from './petgear';
 import { dealOf } from './shop';
 import type { TaskType } from './tasks/types';
 import { worldTaskDoor } from './worldtasks/core';
@@ -176,6 +177,18 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     task(type: TaskType, level: number): Promise<TaskResult> {
       g.busy = true;
       return runTask(type, level, g.hooksFor('🐱'), g.rng).finally(() => { g.busy = false; });
+    },
+    /** Puts a thing of the pets on (src/game/petgear.ts; null: none), for the pictures of the fitting and the walkthrough. */
+    wearPet(pet: PetWearer, id: PetGearId | null) { wearPetGear(g.petGear, pet, id); return Object.keys(g.petGear).length; },
+    /** The thing shown on each pet and the bone it hangs under (null: none shown). */
+    petWorn() {
+      const out: Record<string, string | null> = { cat: null, fawn: null, catBone: null, fawnBone: null };
+      for (const [id, o] of Object.entries(g.petGear)) {
+        if (!o?.visible) continue;
+        const pet = PET_GEAR[id as PetGearId].pet;
+        out[pet] = id; out[`${pet}Bone`] = o.parent?.name ?? null;
+      }
+      return out;
     },
     /** Does the right thing for whatever task is on screen; returns what it did. */
     cheat() {

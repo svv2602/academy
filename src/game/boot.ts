@@ -4,6 +4,7 @@ import { showNotice } from '../ui/ui';
 import { CAT_HEIGHT } from './companion';
 import { loadGear, type GearModels } from './gear';
 import { buildHero } from './hero';
+import { loadPetGear, type PetGearModels } from './petgear';
 import { PETS } from './pets';
 
 /**
@@ -23,6 +24,8 @@ export interface Shared {
    * per file (src/core/assets.ts `gltf`), each `rig` is a clone of its own.
    */
   petRigs: Record<string, Rig>;
+  /** The things of the cat and the fawn hung, hidden, under their bones (src/game/petgear.ts). */
+  petGear: PetGearModels;
 }
 
 let failed = false;
@@ -50,5 +53,14 @@ export function loadShared(save: Save): Promise<Shared | null> {
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
     rig('extra/cat', CAT_HEIGHT, false),
     Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
-  ]).then(([heroRig, catRig, pets]): Shared => ({ heroRig, catRig, petRigs: Object.fromEntries(pets) }), (e: unknown) => { loadFailed(e); return null; });
+  ]).then(async ([heroRig, catRig, pets]): Promise<Shared> => {
+    const petRigs = Object.fromEntries(pets);
+    // The pets' things hang under their bones while the models are still in their rest pose (src/game/petgear.ts).
+    // They are only worn: without them the game plays on, the pets bare.
+    const petGear = await loadPetGear({ cat: catRig, fawn: petRigs.fawn }).catch((e: unknown) => {
+      console.warn('the things of the pets did not load', e);
+      return {};
+    });
+    return { heroRig, catRig, petRigs, petGear };
+  }).catch((e: unknown) => { loadFailed(e); return null; });
 }

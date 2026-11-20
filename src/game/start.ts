@@ -4,6 +4,7 @@ import { applyControls } from '../core/tuning';
 import { clearSave } from '../core/save';
 import '../ui/session';   // PLAY-20: the cat's offer of a break joins the stop points (its card and the sleeping cat)
 import { initShop } from '../ui/shop';
+import { wearPetGear, type PetGearId } from './petgear';
 import { el, initBook } from '../ui/ui';
 import { firstDay, meet } from '../ui/welcome';   // PLAY-21: the cat's meeting on a new day
 import type { Game } from './context';
@@ -67,6 +68,8 @@ export function initStartScreen(g: Game, o: {
   // The shop and the fitting room (PLAY-04, PLAY-05): what she wears is the save's from the first frame on.
   const openShop = initShop(save, o.gear, {
     persist, refreshHud, applyLook: o.applyLook,
+    // the things of the cat and the fawn (src/game/petgear.ts), hung under their bones
+    wearPet: (pet, id) => wearPetGear(g.petGear, pet, id as PetGearId | null),
     // The cat's line of the game gives way to the shop's own (the card would cover its bubble).
     pause: (v) => { g.paused = v; if (v) g.speech.caption(null); },
     // Close up, and the picture moves over so that the heroine stands on the free side of the card: left of it, or

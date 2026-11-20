@@ -10,10 +10,15 @@
  * The potions and the compass (`SUPPLIES`) are bought the same way, by `buy`, but are used up: each purchase adds one to
  * her stock (`save.supplies`), which src/game/supplies.ts spends when she drinks one. None of them gives an answer or
  * skips a task.
+ * The things of the pets (`PET_ITEMS`, decision of 2026-11-20): the cat's and the fawn's, bought by `buy` as well, kept
+ * for ever in `save.owned`, worn by `equipPet` (`save.petGear`, one thing on each pet). The fawn's are sold only once
+ * the fawn is found. A rare thing is sold only on the day it is the deal of the day, at the deal's price; on the other
+ * days it is a silhouette.
  */
 import type { Gear, Save } from '../core/save';
 import { dealDay, dealState, discounted, ranked } from './deal';
 import { artifactBack } from './artifacts';
+import { foundPets } from './pets';
 
 export type Slot = keyof Gear;
 /** The world whose artifact is the Crystal of Light. */
@@ -96,9 +101,33 @@ export function stock(s: Save, id: SupplyId): number {
   return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : 0;
 }
 
-/** Anything the shop sells or keeps: a thing to wear or a supply. */
-const goods = (id: string): Item | Supply | undefined => item(id) ?? SUPPLIES.find((x) => x.id === id);
-const isSupply = (x: Item | Supply): x is Supply => 'supply' in x;
+/** The pets that wear things: the cat (the companion) and the fawn (the pet of the first world, src/game/pets.ts). */
+export type PetWearer = 'cat' | 'fawn';
+export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn'];
+/** A thing of a pet: its pet, its price; `rare` - sold only on the day it is the deal of the day. */
+export interface PetItem { id: string; pet: PetWearer; price: number; rare?: true }
+/** The models are src/game/petgear.ts PET_GEAR (the same ids, petgear.test.ts checks it). */
+export const PET_ITEMS: readonly PetItem[] = [
+  { id: 'cat_collar', pet: 'cat', price: 15 },
+  { id: 'cat_bow', pet: 'cat', price: 15 },
+  { id: 'cat_hat', pet: 'cat', price: 25 },
+  { id: 'cat_gold_bell', pet: 'cat', price: 30, rare: true },
+  { id: 'fawn_wreath', pet: 'fawn', price: 15 },
+  { id: 'fawn_ribbon', pet: 'fawn', price: 15 },
+  { id: 'fawn_bell', pet: 'fawn', price: 20 },
+  { id: 'fawn_star_crown', pet: 'fawn', price: 30, rare: true },
+];
+export const petItem = (id: string): PetItem | undefined => PET_ITEMS.find((x) => x.id === id);
+
+/** Whether the things of a pet are shown in the shop: the cat's always, the fawn's once it is found. */
+export function petOpen(s: Save, pet: PetWearer): boolean {
+  return pet === 'cat' || foundPets(s).includes(pet);
+}
+
+/** Anything the shop sells or keeps: a thing to wear, a supply or a thing of a pet. */
+const goods = (id: string): Item | Supply | PetItem | undefined => item(id) ?? SUPPLIES.find((x) => x.id === id) ?? petItem(id);
+const isSupply = (x: Item | Supply | PetItem): x is Supply => 'supply' in x;
+const isPetItem = (x: Item | Supply | PetItem): x is PetItem => 'pet' in x;
 
 /**
  * Whether the reward of a thing that is not sold has been earned. The Crystal of Light: the first world's final.
@@ -124,11 +153,12 @@ export function has(s: Save, id: string): boolean {
 function forSale(s: Save, id: string): boolean {
   const it = goods(id);
   if (!it || it.price === undefined) return false;
+  if (isPetItem(it)) return !s.owned.includes(id) && petOpen(s, it.pet);
   return isSupply(it) ? stock(s, it.id) < STOCK_MAX : !has(s, id);
 }
 
-/** Every id the shop sells, in the order of the catalog: the things to wear, then the supplies. */
-const SOLD: readonly string[] = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...SUPPLIES.map((x) => x.id)];
+/** Every id the shop sells, in the order of the catalog: the things to wear, the supplies, the things of the pets. */
+const SOLD: readonly string[] = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...SUPPLIES.map((x) => x.id), ...PET_ITEMS.map((x) => x.id)];
 
 /** The deal of `day` (src/game/deal.ts): its thing and both prices; null - held, taken that day already, or nothing to sell. */
 export function dealOf(s: Save, day = dealDay()): { id: string; price: number; was: number } | null {
@@ -139,10 +169,15 @@ export function dealOf(s: Save, day = dealDay()): { id: string; price: number; w
   return { id, price: discounted(was), was };
 }
 
-/** What the thing costs now: the deal's price for the deal of the day, else its own (undefined: not sold). */
+/**
+ * What the thing costs now: the deal's price for the deal of the day, else its own (undefined: not sold - a rare thing
+ * of a pet on any day it is not the deal).
+ */
 export function priceOf(s: Save, id: string, day = dealDay()): number | undefined {
   const deal = dealOf(s, day);
-  return deal?.id === id ? deal.price : goods(id)?.price;
+  if (deal?.id === id) return deal.price;
+  const it = goods(id);
+  return it && isPetItem(it) && it.rare ? undefined : it?.price;
 }
 
 /** Whether a tap on "buy" would buy the thing: it is for sale, not hers yet, and she has the stars for its price now. */
@@ -162,7 +197,7 @@ export function buy(s: Save, id: string): boolean {
   const it = goods(id)!, day = dealDay(), deal = dealOf(s, day), price = priceOf(s, id, day)!;
   s.stars -= price;
   if (isSupply(it)) s.supplies = { ...s.supplies, [it.id]: stock(s, it.id) + 1 };
-  else s.owned.push(id);
+  else s.owned.push(id);   // a thing of the heroine or of a pet
   // the deal of the day taken: no other deal today (src/game/deal.ts)
   if (deal?.id === id) s.deal = { ...s.deal, took: day };
   return true;
@@ -179,6 +214,37 @@ export function equip(s: Save, slot: Slot, id: string | null): boolean {
   }
   s.gear[slot] = id;
   return true;
+}
+
+/** The thing a pet wears (null: none); a thing she does not have, or of another pet, is none. */
+export function petWorn(s: Save, pet: PetWearer): string | null {
+  const id = s.petGear?.[pet];
+  return typeof id === 'string' && petItem(id)?.pet === pet && s.owned.includes(id) ? id : null;
+}
+
+/**
+ * Puts a thing of a pet she has on it, or takes the pet's thing off with null. Refused, the save left as it was, for a
+ * thing she does not have or of another pet. The caller stores the save.
+ */
+export function equipPet(s: Save, pet: PetWearer, id: string | null): boolean {
+  if (id !== null && (petItem(id)?.pet !== pet || !s.owned.includes(id))) return false;
+  s.petGear = { ...s.petGear, [pet]: id };
+  return true;
+}
+
+/**
+ * How the screen shows a thing of a pet: `owned` (worn or not), `price` as a thing of the heroine (`was` on the deal of
+ * the day), `rare` - a rare thing on a day it is not the deal: a silhouette "рідкісна річ".
+ */
+export type PetItemState = { kind: 'owned'; worn: boolean } | { kind: 'price'; price: number; short: number; was?: number } | { kind: 'rare' };
+
+export function petItemState(s: Save, id: string): PetItemState | undefined {
+  const it = petItem(id);
+  if (!it) return undefined;
+  if (s.owned.includes(id)) return { kind: 'owned', worn: petWorn(s, it.pet) === id };
+  const price = priceOf(s, id);
+  if (price === undefined) return { kind: 'rare' };
+  return { kind: 'price', price, short: Math.max(0, price - s.stars), ...(price < it.price ? { was: it.price } : {}) };
 }
 
 /**
