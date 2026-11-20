@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { texturedParts, type Part } from '../../core/assets';
 import type { Placement } from '../../core/instancing';
-import { propMaterial, uSway, uTime } from '../../core/materials';
+import { fadeAtCamera, propMaterial, uSway, uTime } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { HUB_FLYOVER } from './flyover-path';
 import { PORTALS, RADIUS, TREE, arrivalAt, trunkR } from './layout';
@@ -336,8 +336,9 @@ function gladeMaterial(part: Part, sways: boolean): THREE.MeshStandardMaterial {
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>',
         THREE.ShaderChunk.normal_fragment_begin.replace(/gl_FrontFacing \? 1\.0 : - ?1\.0/, '1.0'));
     }
+    fadeAtCamera(sh);   // a bush at the lens dissolves, one between the camera and her is looked through
   };
-  mat.customProgramCacheKey = () => `glade|${sways}|${part.cutout}`;
+  mat.customProgramCacheKey = () => `glade|${sways}|${part.cutout}|fade`;
   return mat;
 }
 
