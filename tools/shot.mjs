@@ -2682,9 +2682,11 @@ try {
             if (await gameUntil(() => __game.flyoverPlayer?.active === true, null, 10)) await g(() => __game.flyoverPlayer.skip());
             else fail('no tour of the hub on its first entry');
             if (!(await gameUntil(() => !__game.busy, null, 20))) fail('the heroine is not given back after the tour of the hub');
-            // she appears at the arch of the fairies, 4 m into the glade (src/worlds/hub/layout.ts arrivalAt(0): 0, 8.5)
+            // she appears at the arch of the fairies, 6 m into the glade (src/worlds/hub/layout.ts arrivalAt(0): 0, 6.5)
             const at = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
-            if (Math.hypot(at[0] - 0, at[1] - 8.5) > 1.5) fail(`she appears at ${at.map((v) => v.toFixed(1))}, not at the arch of the fairies (0, 8.5)`);
+            if (Math.hypot(at[0] - 0, at[1] - 6.5) > 1.5) fail(`she appears at ${at.map((v) => v.toFixed(1))}, not at the arch of the fairies (0, 6.5)`);
+            // instead of "walk around" the cat said "let's go to the Great Tree" (R29), by its clip
+            if (!((await g(() => window.__starts.go_tree ?? 0)) > 0)) fail('"go_tree" ("let\'s go to the Great Tree") was not said after the finale');
             const nests = await g(() => __game.hub.nests());
             if (JSON.stringify(nests) !== JSON.stringify([true, false, false, false, false])) fail(`the nests ${JSON.stringify(nests)}: the crystal's alone should glow`);
             await shot('23-hub');
@@ -2693,7 +2695,7 @@ try {
             if (!(await gameUntil(() => __game.world === 'fairy' && !__game.transitioning && !__game.busy, null, 60))) fail('she is not back in the Fairy Kingdom');
             const back = await g(() => [__game.hero.root.position.x, __game.hero.root.position.z]);
             if (Math.hypot(back[0] - 0, back[1] - 18.5) > 1.5) fail(`back from the hub at ${back.map((v) => v.toFixed(1))}, not in front of the arch to the tree (0, 18.5)`);
-            console.log('after the finale: the stop point, then the hub by itself (its tour, she at the arch of the fairies, the nest of the crystal glows), and back out of the arch to the tree');
+            console.log('after the finale: "let\'s go to the Great Tree", the stop point, then the hub by itself (its tour, she at the arch of the fairies, the nest of the crystal glows), and back out of the arch to the tree');
             await shot('23-restored');
           }
         }
