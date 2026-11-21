@@ -64,13 +64,27 @@ export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: str
 /** The icon of a counter (the world's: the hub counts artifacts, not the shards of a world). */
 export function setCounterIcon(which: 'stars' | 'crystals', icon: string) {
   const span = el[which].parentElement?.querySelector('span');
-  if (span && span.textContent !== icon) span.textContent = icon;
+  if (span && span.textContent !== icon) { span.textContent = icon; fitBubble(); }
+}
+
+/** px between the right edge of the counters and the bubble (src/style.css #bubble: --hud). */
+export const HUD_GAP = 6;
+/**
+ * The bubble keeps clear of the counters as they are now: the stylesheet reserves room for a star count of three
+ * digits, a child with a thousand stars or more has a wider row - the bubble moves right by what it grew (never left
+ * of the stylesheet's room). The layout width is read, not the box on the screen: a counter's bump scales it a moment.
+ */
+export function fitBubble() {
+  const w = el.hud.offsetWidth;
+  if (w <= 0) return;                                  // hidden: measured again once a counter changes
+  el.bubble.style.setProperty('--hud', `max(268px + max(12px, env(safe-area-inset-left)), ${el.hud.offsetLeft + w + HUD_GAP}px)`);
 }
 
 export function setCounter(which: 'stars' | 'crystals', text: string) {
   const node = el[which];
   if (node.textContent === text) return;
   node.textContent = text;
+  fitBubble();
   const pill = node.parentElement!;
   pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump');
 }
