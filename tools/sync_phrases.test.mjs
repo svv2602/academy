@@ -34,7 +34,9 @@ describe('npm run voice:sync -- --check', { timeout: 60_000 }, () => {
       const { strings } = await import(`../src/worlds/${id}/strings.ts`);
       const spoken = Object.keys(strings.spoken);
       all += spoken.length;
-      expect({ world: id, notInFile: spoken.filter((k) => !Object.hasOwn(file, k)) }).toEqual({ world: id, notInFile: [] });
+      // a line only the characters say (`only` of its voices.ts) is there in their voices alone: `<key>@<voice>`
+      const listed = (k) => Object.hasOwn(file, k) || Object.keys(file).some((f) => f.startsWith(`${k}@`));
+      expect({ world: id, notInFile: spoken.filter((k) => !listed(k)) }).toEqual({ world: id, notInFile: [] });
     }
     expect(all, 'no world folder gave a spoken line: the folders were not read').toBeGreaterThan(0);
   });
@@ -75,7 +77,7 @@ describe('the world of a line (the voice of a next world)', { timeout: 60_000 },
   it('the first world\'s lines and the shared ones - also in the voice of a character - have no world', async () => {
     const mine = await spokenOf(first);
     expect(mine.length).toBeGreaterThan(0);
-    expect(mine.filter((k) => file[k]?.length !== 3)).toEqual([]);
+    expect(mine.filter((k) => Object.hasOwn(file, k) && file[k].length !== 3)).toEqual([]);
     expect(Object.keys(file).filter((k) => k.includes('@') && mine.includes(k.split('@')[0]) && file[k].length !== 3)).toEqual([]);
     for (const k of ['npc_next', 'npc_next@Leda', 'npc_again@Orus', 't_count@Charon', 'welcome_back', 'q_add_1_2']) expect(file[k], k).toHaveLength(3);
     expect(withWorld.filter((k) => file[k][3] === first)).toEqual([]);
@@ -91,7 +93,7 @@ describe('the world of a line (the voice of a next world)', { timeout: 60_000 },
   it('--check names the line whose world differs: one that lost it, and one of the first world that got one', () => {
     const lost = join(tmp, 'lost.json'), given = join(tmp, 'given.json');
     writeFileSync(lost, text.replace(', "cat", "probe"]', ', "cat"]'));
-    writeFileSync(given, text.replace(/("unicorn_hi": \[[^\]]*)\]/, `$1, "${first}"]`));
+    writeFileSync(given, text.replace(/("intro": \[[^\]]*)\]/, `$1, "${first}"]`));
     expect(readFileSync(lost, 'utf8')).not.toBe(text);
     expect(readFileSync(given, 'utf8')).not.toBe(text);
     const a = sync('--check', `--out=${lost}`);
@@ -100,7 +102,7 @@ describe('the world of a line (the voice of a next world)', { timeout: 60_000 },
     expect(a.stderr.split('\n').filter((line) => line.startsWith('  '))).toEqual(['  changed: probe_hi']);
     const b = sync('--check', `--out=${given}`);
     expect(b.status).toBe(1);
-    expect(b.stderr.split('\n').filter((line) => line.startsWith('  '))).toEqual(['  changed: unicorn_hi']);
+    expect(b.stderr.split('\n').filter((line) => line.startsWith('  '))).toEqual(['  changed: intro']);
     // --check wrote nothing; without it the file given is written, and the list of the repository is not touched
     expect(readFileSync(lost, 'utf8')).not.toBe(text);
     const c = sync(`--out=${lost}`);

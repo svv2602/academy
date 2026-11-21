@@ -476,9 +476,11 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
     const total = Object.keys(JSON.parse(readFileSync(join(root, 'voice/phrases.json'), 'utf8'))).length;
     expect(run('--only=welcome_back')).toBe(`1 of ${total} lines to record, model gemini-2.5-flash-preview-tts: welcome_back\nby voice (model gemini-2.5-flash-preview-tts): Puck 1\n`);
     // a key brings its lines in the characters' voices along, and the run names them
-    const both = run('--only=npc_next@Leda,unicorn_hi').split('\n');
-    expect(both[0]).toBe(`3 of ${total} lines to record, model gemini-2.5-flash-preview-tts: npc_next@Leda unicorn_hi unicorn_hi@Sulafat`);
-    expect(both[1]).toBe('also by voices: unicorn_hi@Sulafat');
+    const both = run('--only=npc_next@Leda,npc_again').split('\n');
+    expect(both[0]).toBe(`6 of ${total} lines to record, model gemini-2.5-flash-preview-tts: npc_next@Leda npc_again npc_again@Sulafat npc_again@Leda npc_again@Orus npc_again@Charon`);
+    expect(both[1]).toBe('also by voices: npc_again@Sulafat npc_again@Leda npc_again@Orus npc_again@Charon');
+    // a key only the characters say (`only` of src/worlds/fairy/voices.ts) has no narrator's line: it names their voices
+    expect(run('--only=unicorn_hi').split('\n')[0]).toBe(`1 of ${total} lines to record, model gemini-2.5-flash-preview-tts: unicorn_hi@Sulafat`);
   });
 });
 
@@ -527,7 +529,10 @@ describe('recorded clips', () => {
   it.runIf(AWAITING.length > 0)('a line that waits for its voice has the cat\'s clip of the same text to play meanwhile', () => {
     const waiting = Object.keys(phrases).filter((k) => k.includes('@') && waits(k));
     expect(waiting.length, 'nothing waits: empty AWAITING').toBeGreaterThan(0);
-    const bare = waiting.filter((k) => { const [text, style] = phrases[k]; return !upToDate(k.split('@')[0], text, style); });
+    // A line only the characters say (`only` of src/worlds/<id>/voices.ts) has no cat's clip by design: until its voice
+    // is recorded the synthesizer says it - allowed off main, the test of main below wants every voice recorded.
+    const bare = waiting.filter((k) => Object.hasOwn(phrases, k.split('@')[0]))
+      .filter((k) => { const [text, style] = phrases[k]; return !upToDate(k.split('@')[0], text, style); });
     expect(bare, `lines whose voice is not recorded and that have no cat's clip either: ${bare.join(' ')}`).toEqual([]);
   });
 
@@ -560,6 +565,9 @@ describe('recorded clips', () => {
     // Besides its clips public/voice holds only the folders of the next worlds (voice/<id>/, TECH-09).
     const stray = here.filter((f) => (f.isDirectory() ? !next.includes(f.name) : !f.name.endsWith('.mp3') || f.name.endsWith('.tmp.mp3'))).map((f) => f.name);
     expect(stray, 'stray files in public/voice').toEqual([]);
+    // every clip of the core is a line of voice/phrases.json: a clip nobody speaks (a narrator's copy of a line only the
+    // characters say, `only` of src/worlds/<id>/voices.ts) would be dead weight of the installation
+    expect(clips.filter((k) => !Object.hasOwn(phrases, k)), 'clips of public/voice that are no line of voice/phrases.json').toEqual([]);
   });
 
   it('every line of a next world has its clip in the folder of its world, and no line of the core or the first world has a world', () => {

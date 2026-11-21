@@ -31,57 +31,9 @@
   "model": "gemini-2.5-flash-preview-tts",
   "voice": "Puck"
  },
- "unicorn_hi": {
-  "text": "Мої метелики розлетілися! Допоможи їх порахувати.",
-  "heard": "Мої метелики розлетілися, допоможи їх порахувати.",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "fox_hi": {
-  "text": "Привіт! Я лисичка. Розгадаєш мої хитрі загадки?",
-  "heard": "Привіт, я Лисичка. Розгадаєш мої хитрі загадки?",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "mushking_hi": {
-  "text": "Я Грибний Король. Допоможи навести лад у моєму лісі!",
-  "heard": "Я грибний король, допоможи навести лад у моєму лісі.",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "deer_hi": {
-  "text": "Мої зірочки сховалися в траві. Знайдеш їх?",
-  "heard": "Мої зірочки сховалися в траві. Знайдеш їх?",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "queen_hi": {
-  "text": "Вітаю, Хранителько! Останній уламок у мене. Пройди три випробування.",
-  "heard": "Вітаю, хранителько! Останній уламок у мене. Пройди три випробування.",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
  "npc_next": {
   "text": "Чудово! А ось іще одне завдання.",
   "heard": "Чудово! А ось іще одне завдання.",
-  "score": 1.0,
-  "style": "joy",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "npc_done": {
-  "text": "Дякую тобі! Тримай уламок Кристала світла!",
-  "heard": "Дякую тобі. Тримай уламок кристала світла.",
   "score": 1.0,
   "style": "joy",
   "model": "gemini-2.5-flash-preview-tts",
@@ -194,14 +146,6 @@
  "t_simon_repeat": {
   "text": "Тепер повтори!",
   "heard": "Тепер повтори.",
-  "score": 1.0,
-  "style": "warm",
-  "model": "gemini-2.5-flash-preview-tts",
-  "voice": "Puck"
- },
- "t_stars": {
-  "text": "Знайди пʼять зірочок, що сховалися поруч!",
-  "heard": "Знайди п'ять зірочок, що сховалися поруч.",
   "score": 1.0,
   "style": "warm",
   "model": "gemini-2.5-flash-preview-tts",
@@ -5337,22 +5281,6 @@
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "fox_part_hint": {
-  "text": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
-  "heard": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "mushking_part_hint": {
-  "text": "Мій уламок лежить на полиці в будиночку феї біля криниці.",
-  "heard": "Мій уламок лежить на полиці, в будиночку феї біля криниці.",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "fox_part_hint@Leda": {
   "text": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
   "heard": "Мій уламок я сховала за водоспадом, на таємній галявині. Знайдеш?",
@@ -5681,28 +5609,12 @@
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "unicorn_trade_ask": {
-  "text": "Поміняємося? Я дуже люблю знахідки з галявин!",
-  "heard": "Поміняємося. Я дуже люблю знахідки з галявин.",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "unicorn_trade_ask@Sulafat": {
   "text": "Поміняємося? Я дуже люблю знахідки з галявин!",
   "heard": "Поміняємося? Я дуже люблю знахідки з галявин.",
   "score": 1.0,
   "style": "warm",
   "voice": "Sulafat",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "unicorn_trade_far": {
-  "text": "Золоте перо з Великого Дерева! Так хочу на нього подивитися!",
-  "heard": "Золоте перо з великого дерева. Так хочу на нього подивитися!",
-  "score": 1.0,
-  "style": "joy",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "unicorn_trade_far@Sulafat": {
@@ -5713,28 +5625,12 @@
   "voice": "Sulafat",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "unicorn_trade_thanks": {
-  "text": "Дякую! Тримай подарунок від мене.",
-  "heard": "Дякую, тримай подарунок від мене!",
-  "score": 1.0,
-  "style": "joy",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "unicorn_trade_thanks@Sulafat": {
   "text": "Дякую! Тримай подарунок від мене.",
   "heard": "Дякую, тримай подарунок від мене.",
   "score": 1.0,
   "style": "joy",
   "voice": "Sulafat",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "fox_trade_ask": {
-  "text": "Я все збираю на зиму! Поміняєшся зі мною?",
-  "heard": "Я все збираю на зиму. Поміняєшся зі мною?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "fox_trade_ask@Leda": {
@@ -5745,28 +5641,12 @@
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "fox_trade_far": {
-  "text": "Кажуть, у Великого Дерева є золоті пера. Ой, як хочеться хоч одне!",
-  "heard": "Кажуть, у великого дерева є золоті пера. Ой, як хочеться хоч одне!",
-  "score": 1.0,
-  "style": "joy",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "fox_trade_far@Leda": {
   "text": "Кажуть, у Великого Дерева є золоті пера. Ой, як хочеться хоч одне!",
   "heard": "Кажуть, у великого дерева є золоті пера. Ой, як хочеться хоч одне!",
   "score": 1.0,
   "style": "joy",
   "voice": "Leda",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "fox_trade_thanks": {
-  "text": "Чудово! Тримай подарунок від лисички.",
-  "heard": "Чудово! Тримай подарунок від Лисички!",
-  "score": 1.0,
-  "style": "joy",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "fox_trade_thanks@Leda": {
@@ -5777,28 +5657,12 @@
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "mushking_trade_ask": {
-  "text": "Для королівського супу бракує знахідок. Поміняємося?",
-  "heard": "Для королівського супу бракує знахідок. Поміняємося?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "mushking_trade_ask@Orus": {
   "text": "Для королівського супу бракує знахідок. Поміняємося?",
   "heard": "Для королівського супу бракує знахідок. Поміняємося?",
   "score": 1.0,
   "style": "warm",
   "voice": "Orus",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "mushking_trade_far": {
-  "text": "У моєму королівстві немає золотих пер. Принесеш їх із Великого Дерева?",
-  "heard": "У моєму королівстві немає золотих пер. Принесеш їх із Великого Дерева?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "mushking_trade_far@Orus": {
@@ -5809,28 +5673,12 @@
   "voice": "Orus",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "mushking_trade_thanks": {
-  "text": "Королівська подяка! Ось твій подарунок.",
-  "heard": "Королівська подяка! Ось твій подарунок!",
-  "score": 1.0,
-  "style": "joy",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "mushking_trade_thanks@Orus": {
   "text": "Королівська подяка! Ось твій подарунок.",
   "heard": "Королівська подяка – ось твій подарунок!",
   "score": 1.0,
   "style": "joy",
   "voice": "Orus",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "deer_trade_ask": {
-  "text": "Я знаю ціну кожній знахідці. Поміняємося?",
-  "heard": "Я знаю ціну кожній знахідці. Поміняємося?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "deer_trade_ask@Charon": {
@@ -5841,28 +5689,12 @@
   "voice": "Charon",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "deer_trade_far": {
-  "text": "Золоте перо Великого Дерева — справжнє диво. Покажеш мені?",
-  "heard": "Золоте перо великого дерева — справжнє диво. Покажеш мені?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "deer_trade_far@Charon": {
   "text": "Золоте перо Великого Дерева — справжнє диво. Покажеш мені?",
   "heard": "Золоте перо великого дерева – справжнє диво. Покажеш мені?",
   "score": 1.0,
   "style": "warm",
   "voice": "Charon",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "deer_trade_thanks": {
-  "text": "Дякую тобі! Нехай подарунок тебе радує.",
-  "heard": "Дякую тобі, нехай подарунок тебе радує.",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "deer_trade_thanks@Charon": {
@@ -5873,14 +5705,6 @@
   "voice": "Charon",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "queen_trade_ask": {
-  "text": "Феям потрібні знахідки для балу. Поміняємося?",
-  "heard": "Феям потрібні знахідки для балу. Поміняємося?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "queen_trade_ask@Sulafat": {
   "text": "Феям потрібні знахідки для балу. Поміняємося?",
   "heard": "Феям потрібні знахідки для балу. Поміняємося?",
@@ -5889,28 +5713,12 @@
   "voice": "Sulafat",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "queen_trade_far": {
-  "text": "Кажуть, перо Великого Дерева світиться золотом. Принесеш мені одне?",
-  "heard": "Кажуть, перо великого дерева світиться золотом. Принесеш мені одне?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Puck",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "queen_trade_far@Sulafat": {
   "text": "Кажуть, перо Великого Дерева світиться золотом. Принесеш мені одне?",
   "heard": "Кажуть, перо великого дерева світиться золотом. Принесеш мені одне?",
   "score": 1.0,
   "style": "warm",
   "voice": "Sulafat",
-  "model": "gemini-2.5-flash-preview-tts"
- },
- "queen_trade_thanks": {
-  "text": "Дякую, моя люба! Цей подарунок — для тебе.",
-  "heard": "Дякую, моя люба! Цей подаруночок для тебе!",
-  "score": 0.974,
-  "style": "joy",
-  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
  "queen_trade_thanks@Sulafat": {

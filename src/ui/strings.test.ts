@@ -242,8 +242,9 @@ describe('lines to record (voice/phrases.json)', () => {
   const texts = () => Object.entries(file).map(([k, v]) => ({ key: k, text: Array.isArray(v) ? String(v[0]) : String(v) }));
 
   it('lists exactly the lines marked as spoken (shared, then each world), in the order of the marks', () => {
-    // A line a character says in its own voice is listed again as `<key>@<voice>` (VOICE-10): its key is the line's.
-    const keys = Object.keys(file).filter((k) => !k.includes('@'));
+    // A line a character says in its own voice is listed again as `<key>@<voice>` (VOICE-10): its key is the line's. A
+    // line only the characters say (`only` of src/worlds/<id>/voices.ts) is there in their voices alone.
+    const keys = [...new Set(Object.keys(file).map((k) => k.split('@')[0]))];
     // Named lists first, so a failure says which key to mark or which mark to sync.
     expect({
       notInFile: spoken.filter((k) => !keys.includes(k)),
@@ -375,7 +376,8 @@ describe('the world of a line to record (the voice of a next world)', () => {
     expect(Object.keys(expected).length).toBeGreaterThan(0);
     const first = worlds.find((w) => w.id === FIRST);
     expect(Object.keys(first?.spoken ?? {}).length).toBeGreaterThan(0);
-    expect(Object.keys(first?.spoken ?? {}).filter((k) => file[k].length !== 3)).toEqual([]);
+    const ofFirst = new Set(Object.keys(first?.spoken ?? {}));
+    expect(Object.entries(file).filter(([k, row]) => ofFirst.has(k.split('@')[0]) && row.length !== 3).map(([k]) => k)).toEqual([]);
   });
 
   it('no shared line has a world, in the narrator\'s voice or in a character\'s: its clip is the core\'s (R78)', () => {
@@ -404,6 +406,28 @@ describe('the world of a line to record (the voice of a next world)', () => {
     // and in the committed list every key is there once, with or without a world
     const text = JSON.stringify(phrases);
     expect(Object.keys(file).filter((k) => text.split(`"${k}":`).length !== 2)).toEqual([]);
+  });
+
+  // Decision of 2026-11-21: a line only the characters say has no narrator's clip - recorded in their voices alone.
+  it('a line of `only` is listed in the characters\' voices alone; one said in no voice of a character is refused', () => {
+    const list = recordingList([lake], bank, [{ ...lakeCast, only: ['own'] }], 'home');
+    expect(Object.keys(list).filter((k) => k.startsWith('heron_hi'))).toEqual(['heron_hi@Leda']);
+    expect(list['heron_hi@Leda']).toEqual(['Привіт! Я чапля.', 'warm', 'heron', 'lake']);
+    expect(list.lake_hi).toBeDefined();   // the world's own line the narrator says stays his
+    expect(Object.keys(recordingList([lake], bank, [{ ...lakeCast, only: ['npc_next'] }], 'home')).filter((k) => k.startsWith('npc_next'))).toEqual(['npc_next@Leda']);
+    expect(() => recordingList([lake], bank, [{ ...lakeCast, only: ['lake_hi'] }], 'home')).toThrow(/"lake_hi" of `only` is said in no voice of a character/);
+    expect(() => recordingList([lake], bank, [{ ...lakeCast, only: ['no_such'] }], 'home')).toThrow(/"no_such" is no spoken line/);
+  });
+
+  it('the committed list: the lines of the first world\'s `only` have no narrator\'s row, every one has its voices', () => {
+    const fairy = casts.find((c) => c.id === FIRST);
+    expect(fairy?.only?.length).toBeGreaterThan(0);
+    const alone = Object.keys(recordingList(worlds, bank, casts.map((c) => ({ ...c, only: [] })), FIRST)).filter((k) => !k.includes('@') && !Object.hasOwn(file, k));
+    const residents = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
+    // the greetings and the trades of the residents, the hints of the parts, the thanks for a shard, the star search
+    const own = residents.flatMap((r) => [`${r}_hi`, `${r}_trade_ask`, `${r}_trade_far`, `${r}_trade_thanks`]);
+    expect(alone.sort()).toEqual([...own, 'fox_part_hint', 'mushking_part_hint', 'npc_done', 't_stars'].sort());
+    for (const k of alone) expect(Object.keys(file).filter((f) => f.startsWith(`${k}@`)).length, k).toBeGreaterThan(0);
   });
 });
 
