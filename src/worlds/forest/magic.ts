@@ -27,7 +27,7 @@ import { uBloom } from './undergrowth';
 
 /** The evening with no magic (the customer's, 2026-11-21: ./index.ts SKY) and with all of it. */
 export const MAGIC_LOOK = {
-  background: ['#f4c79a', '#f8d08c'], haze: ['#ecc6a0', '#f3d29e'], sun: ['#ffc685', '#ffd28e'],
+  background: ['#f4c79a', '#fcdc88'], haze: ['#ecc6a0', '#f6d8a0'], sun: ['#ffc685', '#ffd28e'],
   sunPower: [2.3, 2.8], hemiPower: [1.2, 1.45],
   /** m: where the haze begins (it ends where it did: the camera sees just past it). */
   fogNear: [HALF * 0.9, HALF * 1.2],
@@ -48,8 +48,45 @@ export const BLOOM = 0.4;
 export const MAGIC_BUTTERFLIES = 8;
 export const BUTTERFLY_FROM = 2 * PART_MAGIC;
 /** The rays through the crowns: over these glades, as bright as this with the Emerald back. */
-export const RAY_GLADES: readonly ZoneId[] = ['center', 'oak', 'owl', 'village', 'grove', 'ash', 'stream'];
-export const RAY_ALPHA = 0.35;
+export const RAY_GLADES: readonly ZoneId[] = ['center', 'owl', 'village', 'grove', 'ash', 'stream'];
+export const RAY_ALPHA = 0.3;
+export const RAY_COLOUR = '#fff0c8';
+/**
+ * The shader of a ray: a soft edge (seen side-on a cone's side fades, so it is a shaft of light, not a slab), gone near
+ * the camera (RAY_NEAR m: one the camera stands in is not a white wall) and into the haze.
+ */
+export const RAY_NEAR: readonly [number, number] = [5, 16];
+const RAY_VERTEX = `
+attribute float aAlpha;
+varying float vAlpha; varying vec3 vNormal; varying vec3 vView; varying float vDist;
+#include <common>
+#include <fog_pars_vertex>
+void main() {
+  mat4 world = modelMatrix * instanceMatrix;
+  vec4 wp = world * vec4(position, 1.0);
+  vNormal = normalize(mat3(world) * normal);
+  vView = cameraPosition - wp.xyz;
+  vDist = length(vView);
+  vAlpha = aAlpha;
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+const RAY_FRAGMENT = `
+uniform vec3 uColor; uniform float uOpacity;
+varying float vAlpha; varying vec3 vNormal; varying vec3 vView; varying float vDist;
+#include <common>
+#include <fog_pars_fragment>
+void main() {
+  float face = abs(dot(normalize(vNormal), normalize(vView)));
+  float a = vAlpha * uOpacity * face * face * smoothstep(${RAY_NEAR[0].toFixed(1)}, ${RAY_NEAR[1].toFixed(1)}, vDist);
+  #ifdef USE_FOG
+    a *= 1.0 - smoothstep(fogNear, fogFar, vFogDepth);
+  #endif
+  gl_FragColor = vec4(uColor, a);
+}`;
+/** How far a ray leans from the upright toward the sun (radians): light from above the crowns, not along the ground. */
+export const RAY_LEAN = 0.35;
 
 /** Whether `c`'s chain is done: every step of it taken (its leaf given back). */
 export const chainDone = (ws: Pick<Game['ws'], 'quests'>, c: CharacterDef) => (ws.quests[c.id] ?? 0) >= c.steps.length;
@@ -60,21 +97,27 @@ export function forestMagicOf(ws: Pick<Game['ws'], 'quests' | 'final'>, characte
 }
 
 /**
- * The rays of the evening (our own shape): an open cone from every glade of RAY_GLADES up toward the sun, narrow at
- * the crowns and wide on the glade, faded at both ends, laid on what is behind (additive): one instanced mesh, no
- * shadow, hidden until the Emerald is back.
+ * The rays of the evening (our own shape): an open cone from every glade of RAY_GLADES up over the crowns, leaning
+ * RAY_LEAN toward the sun, narrow at the top and wide on the glade, faded at both ends, laid on what is behind
+ * (additive): one instanced mesh, no shadow, hidden until the Emerald is back. Not at the Oak: its trunk stands in
+ * the middle of its glade.
  */
 export function buildRays(scene: THREE.Scene, groundY: (x: number, z: number) => number, toSun: THREE.Vector3) {
-  const len = 16, geo = new THREE.CylinderGeometry(1.3, 2.6, len, 10, 4, true).translate(0, len / 2, 0);
+  const len = 22, geo = new THREE.CylinderGeometry(0.7, 2.2, len, 10, 4, true).translate(0, len / 2, 0);
   // alpha by height: none where it meets the ground and the crowns, most a third of the way up
-  const pos = geo.getAttribute('position'), col = new Float32Array(pos.count * 4);
-  for (let i = 0; i < pos.count; i++) col.set([1, 1, 1, Math.sin(Math.PI * Math.pow(pos.getY(i) / len, 0.75))], i * 4);
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
-  const material = new THREE.MeshBasicMaterial({
-    color: '#fff0c8', vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
+  const pos = geo.getAttribute('position'), alpha = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) alpha[i] = Math.sin(Math.PI * Math.pow(pos.getY(i) / len, 0.75));
+  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
+  const material = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: new THREE.Color(RAY_COLOUR) }, uOpacity: { value: 0 } }]),
+    vertexShader: RAY_VERTEX, fragmentShader: RAY_FRAGMENT, fog: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
+  material.name = 'forest-rays';
   const mesh = new THREE.InstancedMesh(geo, material, RAY_GLADES.length);
-  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), toSun.clone().normalize()), m = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
+  const side = new THREE.Vector3(toSun.x, 0, toSun.z).normalize(), up = new THREE.Vector3(0, 1, 0);
+  const lean = up.clone().multiplyScalar(Math.cos(RAY_LEAN)).addScaledVector(side, Math.sin(RAY_LEAN));
+  const q = new THREE.Quaternion().setFromUnitVectors(up, lean), m = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
   RAY_GLADES.forEach((id, i) => { const z = ZONES[id]; mesh.setMatrixAt(i, m.compose(new THREE.Vector3(z.x, groundY(z.x, z.z), z.z), q, one)); });
   mesh.computeBoundingSphere();
   mesh.name = 'forest-rays'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.visible = false;
@@ -162,7 +205,7 @@ export function createForestMagic(g: Game, scope: WorldScope, o: { sky: WorldSky
     flies.mesh.visible = first > 0 || bfs.some((f) => f.scale > 0);
     // the rays are the Emerald's: only over the magic the leaves cannot give
     const ray = THREE.MathUtils.clamp((m - top) / (1 - top), 0, 1);
-    rays.material.opacity = ray * RAY_ALPHA;
+    rays.material.uniforms.uOpacity.value = ray * RAY_ALPHA;
     rays.mesh.visible = ray > 0;
   });
   return {
