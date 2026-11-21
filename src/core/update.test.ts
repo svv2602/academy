@@ -110,6 +110,34 @@ describe('the start screen: a waiting new version is switched on with one reload
     expect(p.s.reloads).toBe(1);
   });
 
+  it('another page that answers late (its frame took 2.5 s) still holds the update back; "Play" is free meanwhile', async () => {
+    const b = bus(), w = new FakeWorker('installed');
+    const other = b(), asked: unknown[] = [];
+    other.onmessage = (e) => { asked.push(e.data); };
+    const p = page({ bus: b, waiting: w });
+    await p.pass(0);
+    expect(asked).toEqual([{ t: 'who' }]);
+    await p.pass(2500);
+    expect(w.sent).toEqual([]);
+    expect(p.s.held).toEqual([]);              // the child may press "Play" while the page asks
+    other.postMessage({ t: 'here' });
+    await p.pass(ASK_MS - 2500);
+    expect(w.sent).toEqual([]);
+    expect(p.u.held()).toBe('other-page');
+    expect(p.s.reloads).toBe(0);
+  });
+
+  it('"Play" pressed while the page asks: the update waits for the next launch, no reload', async () => {
+    const w = new FakeWorker('installed');
+    const p = page({ bus: bus(), waiting: w });
+    await p.pass(1000);
+    p.s.playing = true;
+    await p.pass(ASK_MS);
+    expect(w.sent).toEqual([]);
+    expect(p.u.held()).toBe('playing');
+    expect(p.s.reloads).toBe(0);
+  });
+
   it('the first worker taking the page (clientsClaim) is no update: no reload', async () => {
     const p = page({ bus: bus() });
     await p.pass(0);
