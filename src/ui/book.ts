@@ -16,8 +16,9 @@ import { ACHIEVEMENTS } from '../game/achievements';
 import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
-import { foundOf, itemsOf, kindsOf, setDone } from '../game/collections';
+import { foundOf, itemsOf, piecesOf, pictureDone, setDone, setKindsOf } from '../game/collections';
 import { achGame } from './achieve';
+import { showPicture } from './picture';
 import { heroCloseup } from './shop';
 import { say } from '../core/audio';
 import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
@@ -78,10 +79,10 @@ const PET_ICON: Record<string, string> = { fawn: '🦌', none: '🚫' };
 /** The pictures of a world's secrets: the chest has its own. */
 const SECRET_ICON = '✨', CHEST_ICON = '🎁';
 
-type Tab = 'shelf' | 'secrets' | 'collect' | 'pets' | 'ach';
+type Tab = 'shelf' | 'secrets' | 'collect' | 'picture' | 'pets' | 'ach';
 const TABS: readonly { id: Tab; icon: string; label: Key }[] = [
   { id: 'shelf', icon: '🏆', label: 'shelf_title' }, { id: 'secrets', icon: '🗝️', label: 'book_secrets_t' },
-  { id: 'collect', icon: '🦋', label: 'book_collect_t' }, { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
+  { id: 'collect', icon: '🦋', label: 'book_collect_t' }, { id: 'picture', icon: '🧩', label: 'book_pic_t' }, { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
 ];
 
 /** What window.__game reads of the book (src/game/debug.ts does not: the walkthrough reads the DOM and this). */
@@ -115,7 +116,7 @@ function renderTabs(save: Save) {
     b.dataset.tab = tb.id; b.setAttribute('aria-label', t(tb.label)); b.title = t(tb.label);
     box.appendChild(b);
   }
-  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['collect', 'bookCollect'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
+  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['collect', 'bookCollect'], ['picture', 'bookPicture'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
     $(pane).classList.toggle('hidden', id !== tab);
   }
   bookState.tab = tab;
@@ -166,7 +167,7 @@ function renderCollect(world: WorldEntry | null, ws: WorldState | null) {
   if (!box) return;
   box.innerHTML = '';
   const found = ws ? foundOf(ws) : [];
-  const kinds = def ? kindsOf(def) : [];
+  const kinds = def ? setKindsOf(def) : [];        // the pieces of the picture are on their own tab
   for (const k of kinds) {
     const ids = itemsOf(def!, k), got = ids.filter((i) => found.includes(i)).length;
     const row = document.createElement('div');
@@ -179,6 +180,35 @@ function renderCollect(world: WorldEntry | null, ws: WorldState | null) {
   }
   const whole = def ? kinds.filter((k) => setDone(def, k, found)).length : 0;
   $('collectSay').textContent = kinds.length ? tf('book_collect', { n: whole, of: kinds.length }) : t('book_collect_none');
+}
+
+/**
+ * The picture of the world played (PLAY-29): its frame cut into cells; a piece found lies in its cell (the part of the
+ * frame that is its), one not found is a silhouette (R14). Whole, a tap on it plays its scene again: it comes alive.
+ */
+function renderPicture(world: WorldEntry | null, ws: WorldState | null) {
+  const def = world?.collect, pic = def?.picture, box = document.getElementById('picture');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!def || !pic) { $('pictureSay').textContent = t('book_pic_none'); return; }
+  const found = ws ? foundOf(ws) : [], ids = piecesOf(def), whole = pictureDone(def, found);
+  const url = `${import.meta.env.BASE_URL}${pic.image}.webp`;
+  box.style.setProperty('--cols', String(pic.cols)); box.style.setProperty('--rows', String(pic.rows));
+  box.classList.toggle('whole', whole);
+  ids.forEach((id, i) => {
+    const c = document.createElement('span'), got = found.includes(id), col = i % pic.cols, row = Math.floor(i / pic.cols);
+    c.className = 'pcell' + (got ? ' got' : ' sil');
+    c.dataset.item = String(id); c.dataset.cell = String(i);
+    if (got) {
+      c.style.backgroundImage = `url("${url}")`;
+      c.style.backgroundSize = `${pic.cols * 100}% ${pic.rows * 100}%`;
+      c.style.backgroundPosition = `${pic.cols > 1 ? (col / (pic.cols - 1)) * 100 : 0}% ${pic.rows > 1 ? (row / (pic.rows - 1)) * 100 : 0}%`;
+    } else c.innerHTML = findIcon('piece');
+    box.appendChild(c);
+  });
+  box.onclick = whole ? () => showPicture(pic) : null;
+  const got = ids.filter((i) => found.includes(i)).length;
+  $('pictureSay').textContent = whole ? t('book_pic_done') : tf('book_pic', { n: got, of: ids.length });
 }
 
 function renderPets(save: Save, persist: () => void) {
@@ -249,6 +279,7 @@ export function renderProfile(save: Save, persist: () => void = () => achGame?.p
   renderShelf(save, world);
   renderSecrets(world, ws);
   renderCollect(world, ws);
+  renderPicture(world, ws);
   renderPets(save, persist);
   renderAch(save);
   renderStories();

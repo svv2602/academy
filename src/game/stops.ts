@@ -14,6 +14,7 @@ import type { WorldEntry } from './context';
 import { breakStop } from './session';
 import type { SkillId } from './skills';
 import type { WorldDef } from './world';
+import { setItems } from './collections';
 
 /**
  * Where the point is. `task` and `part` come inside a conversation, which holds the controls itself (`busy`): the
@@ -116,7 +117,8 @@ export function worldFacts(w: Pick<WorldDef, 'id' | 'characters' | 'secrets' | '
     groundStars: Array.from({ length: w.groundStars ?? 0 }, (_, i) => i),
     ...(w.chest === undefined ? {} : { chest: w.chest }),
     secrets: w.secrets ?? [],
-    ...(w.collect?.items.length ? { collect: w.collect.items.map((_, i) => i) } : {}),
+    // the finds of the sets: «Збирачка» counts no piece of the picture (PLAY-29)
+    ...(w.collect?.items.length ? { collect: setItems(w.collect) } : {}),
   };
 }
 

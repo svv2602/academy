@@ -382,6 +382,13 @@ button.it { min-width: 44px; min-height: 44px; }
 #book .crows { display: flex; flex-direction: column; gap: 5px; width: 100%; align-items: center; }
 #book .crow { display: flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1; }
 #book .crow.whole { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e; }
+/* The picture of the pieces (PLAY-29): its frame in cells, a found piece shows its part, a silhouette until then */
+#book .pic-frame { display: grid; grid-template-columns: repeat(var(--cols, 3), 1fr); grid-template-rows: repeat(var(--rows, 2), 1fr);
+  gap: 3px; width: min(100%, 330px); aspect-ratio: 960 / 536; padding: 6px; border-radius: 16px; background: #c9a6ef; box-shadow: 0 4px 0 #a986d4; box-sizing: border-box; }
+#book .pic-frame.whole { gap: 0; background: #ffd95e; box-shadow: 0 0 0 3px #ffb84d, 0 4px 0 #e0a92a; cursor: pointer; }
+#book .pic-frame .pcell { display: grid; place-items: center; border-radius: 6px; font-size: 26px; background: #efe4fa no-repeat; }
+#book .pic-frame .pcell.sil { opacity: .55; filter: grayscale(1); }
+#book .pic-frame.whole .pcell { border-radius: 0; }
 #book .crow .cname { width: 78px; font-size: 12px; font-weight: 800; color: #8a6bb0; text-align: left; }
 #book .crow .cell { width: 30px; height: 30px; display: grid; place-items: center; font-size: 22px; line-height: 1; }
 #book .crow .cell.sil { filter: brightness(0); opacity: .25; }

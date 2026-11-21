@@ -23,8 +23,18 @@ export const COLLECT_KINDS = {
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
    * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
   treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },
+  /**
+   * a piece of the picture of a world (PLAY-29): not a set (`set: false` - no row of the book's sets, no stars of a set,
+   * no «Збирачка»), of every world that has a picture (`world: 'any'`, never an open world: no recipe, no trade asks it),
+   * never in the stash and never the find of the day; its number among the world's pieces is its cell in the frame
+   */
+  piece: { icon: '🧩', color: '#ffb84d', world: 'any', set: false },
 } as const;
 export type CollectKind = keyof typeof COLLECT_KINDS;
+/** The picture of a world's pieces (PLAY-29, CollectDef.picture). */
+export interface Picture { readonly image: string; readonly cols: number; readonly rows: number }
+/** Whether a kind makes a set (PLAY-25): every kind but the pieces of a picture. */
+export const isSet = (k: CollectKind) => (COLLECT_KINDS[k] as { set?: boolean } | undefined)?.set !== false;
 
 /**
  * How a find is taken:
@@ -54,6 +64,12 @@ export interface CollectDef {
    * so `ws.found` keeps meaning the same finds. Read every frame: keep it cheap.
    */
   shown?(ws: WorldState): readonly number[];
+  /**
+   * The picture its pieces (kind `piece`, PLAY-29) make: a frame of the world's story (`image`, without its extension,
+   * as src/worlds/<id>/story.ts names it) cut into `cols` x `rows` cells, a piece a cell in the order of the pieces.
+   * Whole, it comes alive (src/ui/picture.ts).
+   */
+  readonly picture?: Picture;
 }
 
 export const SET_SIZE = 6;
@@ -95,6 +111,10 @@ export function foundOf(ws: WorldState): number[] {
 
 /** The kinds of a world's finds, in the order they first come in its list. */
 export const kindsOf = (def: CollectDef): CollectKind[] => [...new Set(def.items.map((i) => i.kind))];
+/** The kinds of a world's sets: its kinds but the pieces of its picture. */
+export const setKindsOf = (def: CollectDef): CollectKind[] => kindsOf(def).filter(isSet);
+/** The numbers of the finds of every set (the pieces of the picture are not one). */
+export const setItems = (def: CollectDef): number[] => def.items.flatMap((it, i) => (isSet(it.kind) ? [i] : []));
 
 /** The numbers of the finds of a kind. */
 export const itemsOf = (def: CollectDef, kind: CollectKind): number[] =>
@@ -103,16 +123,29 @@ export const itemsOf = (def: CollectDef, kind: CollectKind): number[] =>
 /** A set is whole when every find of its kind is found. */
 export const setDone = (def: CollectDef, kind: CollectKind, found: readonly number[]) => itemsOf(def, kind).every((i) => found.includes(i));
 
-/** What is wrong with a world's finds: each kind has SET_SIZE of them, of a known kind and way. */
+/** The numbers of a world's pieces of its picture, in the order of their cells. */
+export const piecesOf = (def: CollectDef): number[] => itemsOf(def, 'piece');
+/** Whether the picture is whole: every piece found (false for a world without one). */
+export const pictureDone = (def: CollectDef, found: readonly number[]) => {
+  const ids = piecesOf(def);
+  return ids.length > 0 && ids.every((i) => found.includes(i));
+};
+
+/**
+ * What is wrong with a world's finds: each kind of a set has SET_SIZE of them, the pieces as many as the cells of its
+ * picture; every find of a known kind and way.
+ */
 export function collectProblems(def: CollectDef): string[] {
   const out: string[] = [];
   for (const [i, it] of def.items.entries()) {
     if (!(it.kind in COLLECT_KINDS)) out.push(`find ${i}: the kind "${it.kind}" is not in COLLECT_KINDS`);
     if (!COLLECT_WAYS.includes(it.way)) out.push(`find ${i}: the way "${it.way}" is not one of the six`);
   }
-  for (const k of kindsOf(def)) {
+  for (const k of setKindsOf(def)) {
     const n = itemsOf(def, k).length;
     if (n !== SET_SIZE) out.push(`the set "${k}" has ${n} finds, not ${SET_SIZE}`);
   }
+  const pieces = piecesOf(def).length, cells = def.picture ? def.picture.cols * def.picture.rows : 0;
+  if (pieces !== cells) out.push(`the picture has ${cells} cells and ${pieces} pieces`);
   return out;
 }

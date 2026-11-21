@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { sfx } from '../core/audio';
 import type { WorldState } from '../core/save';
-import { kindsOf, reaches, type CollectDef, type CollectKind } from './collections';
+import { reaches, setKindsOf, type CollectDef, type CollectKind } from './collections';
 import { dayKey } from './playtime';
 import { addToStash } from './stash';
 import type { Game } from './context';
@@ -27,7 +27,7 @@ export function dayNumber(day: string): number {
 
 /** What lies out today: its kind and place, or null - the world has none, or it was taken today. Asking changes nothing. */
 export function dailyOf(world: { daily?: DailyDef; collect?: CollectDef }, ws: Partial<WorldState>, day: string): { kind: CollectKind; x: number; z: number } | null {
-  const places = world.daily?.places ?? [], kinds = world.collect ? kindsOf(world.collect) : [];
+  const places = world.daily?.places ?? [], kinds = world.collect ? setKindsOf(world.collect) : [];   // never a piece of the picture (PLAY-29)
   if (!places.length || !kinds.length || ws.daily === day) return null;
   const n = ((dayNumber(day) % 1e6) + 1e6) % 1e6;
   const at = places[(n * 5 + 3) % places.length];

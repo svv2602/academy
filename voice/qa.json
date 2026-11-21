@@ -5920,5 +5920,21 @@
   "style": "joy",
   "voice": "Sulafat",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "piece_first": {
+  "text": "Ой, шматочок картинки! Знайдемо решту?",
+  "heard": "Ой, шматочок картинки! Знайдемо решту?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "picture_done": {
+  "text": "Картинку складено! Дивись, вона ожила!",
+  "heard": "Картинку складено, дивись, вона ожила!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Save, WorldState } from '../../core/save';
 import { fadeAtCamera } from '../../core/materials';
-import { setDone, kindsOf } from '../../game/collections';
+import { setDone, setKindsOf } from '../../game/collections';
 import { knownWorlds, type ArtifactWorld } from '../../game/artifacts';
 import { NESTS, PORTALS } from './layout';
 import { barkRadius, treeHollow } from './tree-look';
@@ -44,7 +44,7 @@ export function keepsakesOf(save: Save, worlds: readonly ArtifactWorld[] = known
     const found = Array.isArray(ws.found) ? ws.found.filter((n) => Number.isInteger(n)) : [];
     const mine: Keepsake[] = [];
     for (const s of w.secrets ?? []) if (flags[s] === true) mine.push({ world: w.id, id: `secret:${s}` });
-    if (w.collect) for (const k of kindsOf(w.collect)) if (setDone(w.collect, k, found)) mine.push({ world: w.id, id: `set:${k}` });
+    if (w.collect) for (const k of setKindsOf(w.collect)) if (setDone(w.collect, k, found)) mine.push({ world: w.id, id: `set:${k}` });
     out.push(...mine.slice(0, KEEPSAKES_PER_WORLD));
   }
   return out;

@@ -2574,6 +2574,16 @@
   "tp": -6.19,
   "sha256": "2f2aa0b94c7486e103be798eb55f558466046a1bcb55d275410a66830aeaa5c1"
  },
+ "public/voice/picture_done.mp3": {
+  "lufs": -17.97,
+  "tp": -2.47,
+  "sha256": "76db60008f4114a844b2ee47f855dd160ba4f88526a9275a2b13aa73880c78a8"
+ },
+ "public/voice/piece_first.mp3": {
+  "lufs": -18.09,
+  "tp": -2.61,
+  "sha256": "0717d83c38f3b4f883085850d6202799129e9a97dbf3589acdb1d802a9cbce83"
+ },
  "public/voice/praise_0.mp3": {
   "lufs": -18.08,
   "tp": -6.68,

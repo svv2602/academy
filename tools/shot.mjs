@@ -3561,7 +3561,7 @@ try {
         // a character near: a tap there would walk her to it)
         const home = await g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, yaw: __game.cam.yaw, heading: __game.hero.heading }));
         const items = await g(() => __game.collect.items);
-        if (items.length !== 24) fail(`${items.length} finds in the world, not 24`);
+        if (items.length !== 30) fail(`${items.length} finds in the world, not 24 of the sets and 6 pieces of the picture`);
         const of = (kind, way) => items.find((i) => i.kind === kind && i.way === way && !i.taken) ?? fail(`no ${kind} to take by "${way}"`);
         const taken = (id) => g((id) => __game.collect.items[id].taken && (__game.save.worlds.fairy.found ?? []).includes(id), id);
         const stars = () => g(() => __game.save.stars);
@@ -3688,6 +3688,59 @@ try {
         await g((h) => { __game.teleport(h.x, h.z); __game.cam.yaw = h.yaw; __game.hero.heading = h.heading; }, home);
         await gameSeconds(0.5);
         console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
+        // ---- the picture of the pieces (PLAY-29): each piece taken as a player would (walked into, a jump), no star of a
+        // set and nothing to spend; half of them - half of the frame in the book; the last - the picture comes alive
+        const pieces = items.filter((i) => i.kind === 'piece');
+        if (pieces.length !== 6) fail(`${pieces.length} pieces of the picture, not 6`);
+        const bookPicture = async () => {
+          await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
+          await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open', 5);
+          await tapOn('#bookTabs [data-tab=picture]').catch((e) => fail(`the tab of the picture cannot be pressed: ${why(e)}`));
+          await until(() => !document.querySelector('#bookPicture').classList.contains('hidden'), null, 'the tab of the picture did not open', 5);
+          return g(() => ({ cells: [...document.querySelectorAll('#picture .pcell')].map((c) => ({ item: +c.dataset.item, cell: +c.dataset.cell, got: c.classList.contains('got') })),
+            whole: document.querySelector('#picture').classList.contains('whole'), found: __game.save.worlds.fairy.found ?? [] }));
+        };
+        const stash0 = await g(() => JSON.stringify(__game.save.stash ?? {}));
+        await holdAchDuring(async () => {
+          for (const [n, p] of pieces.entries()) {
+            const s0 = await stars();
+            if (p.way === 'jump') {
+              await g((q) => { __game.teleport(q.x, q.z); }, p); await gameSeconds(1);
+              if (await taken(p.id)) fail(`the piece ${n} a jump high was taken standing`);
+              await page.keyboard.press('Space');
+              await until((id) => __game.collect.items[id].taken, p.id, `a jump under the piece ${n} did not take it`, 3);
+            } else {
+              await face(p.x, p.z, 3.5); await gameSeconds(0.3);
+              if (!(await runTo(p.id, 4, true))) fail(`walking into the piece ${n} did not take it`);
+            }
+            if ((await stars()) !== s0 + 1) fail(`the piece ${n} gave ${(await stars()) - s0} stars, not 1 (no stars of a set)`);
+            if (n === 2) {
+              // half of the frame: the three found in their cells, the others silhouettes
+              const half = await bookPicture();
+              const want = pieces.map((q, i) => ({ item: q.id, cell: i, got: i <= 2 }));
+              if (JSON.stringify(half.cells) !== JSON.stringify(want) || half.whole) fail(`the frame with 3 pieces: ${JSON.stringify(half)}`);
+              await shot('picture-half');
+              await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+            }
+          }
+          await until(() => !!document.querySelector('#pictureAlive:not(.hidden) .pa-img'), null, 'the whole picture did not come alive', 5);
+          await gameSeconds(1.5);
+          await shot('picture-alive');
+          await tapOn('#pictureAlive').catch((e) => fail(`the picture come alive cannot be closed by a tap: ${why(e)}`));
+          if (await visible('#pictureAlive')) fail('a tap did not close the picture');
+        });
+        if ((await g(() => JSON.stringify(__game.save.stash ?? {}))) !== stash0) fail('a piece of the picture went to the stash');
+        const whole = await bookPicture();
+        if (!whole.whole || whole.cells.some((c) => !c.got)) fail(`the frame with every piece: ${JSON.stringify(whole)}`);
+        await tapOn('#picture').catch((e) => fail(`the whole frame cannot be tapped: ${why(e)}`));
+        await until(() => !!document.querySelector('#pictureAlive:not(.hidden)'), null, 'a tap on the whole frame did not make it come alive again', 5);
+        await tapOn('#pictureAlive').catch(() => {});
+        await tapOn('#bookTabs [data-tab=shelf]').catch(() => {});
+        await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        if (bookOpen) await tapOn('#btnBook').catch(() => {});
+        await g((h) => { __game.teleport(h.x, h.z); __game.cam.yaw = h.yaw; __game.hero.heading = h.heading; }, home);
+        await gameSeconds(0.5);
+        console.log('collect: the picture - 6 pieces walked into or jumped for, a star each, none to the stash; 3 - half of the frame in the book; the last - it came alive, a tap closed it; the whole frame in the book comes alive again');
       }
       // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----
       if (has('story')) {
