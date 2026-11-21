@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { STOCK_MAX, SUPPLIES, buy, canBuy, stock } from './shop';
+import { dealState } from './deal';
+import { STOCK_MAX, SUPPLIES, buy, canBuy, priceOf, stock } from './shop';
 import { EFFECT_MAX, EFFECT_SECONDS, SCALE, acting, drink, left, mysteriesLeft, refusal, sizeOf, tick, tuningOf } from './supplies';
 
 // The potions and the compass (decision of 2026-11-19): bought by `buy`, drunk from the stock, a minute of play each.
@@ -28,6 +29,27 @@ describe('the shop sells the supplies again and again (src/game/shop.ts)', () =>
     expect(canBuy(s, 'funny')).toBe(false);
     expect(buy(s, 'funny')).toBe(false);
     expect([stock(s, 'funny'), s.stars]).toEqual([STOCK_MAX, 1000 - STOCK_MAX * 20]);
+  });
+
+  it('on no day of a year does a test pay the price of the deal: the deal is held for every test (src/test-setup.ts)', () => {
+    expect(dealState.held).toBe(true);
+    const off: string[] = [];
+    for (let d = 0; d < 366; d++) {
+      const day = new Date(Date.UTC(2026, 0, 1 + d)).toISOString().slice(0, 10);
+      dealState.day = day;
+      for (const x of SUPPLIES) if (priceOf(s, x.id) !== x.price) off.push(`${day} ${x.id}`);
+    }
+    dealState.day = null;
+    expect(off).toEqual([]);
+    // and the lever is what does it: released, some day of the year sells a supply at the deal's price
+    dealState.held = false;
+    let deals = 0;
+    for (let d = 0; d < 366; d++) {
+      const day = new Date(Date.UTC(2026, 0, 1 + d)).toISOString().slice(0, 10);
+      if (SUPPLIES.some((x) => priceOf(s, x.id, day) !== x.price)) deals++;
+    }
+    dealState.held = true;
+    expect(deals).toBeGreaterThan(0);
   });
 
   it('a damaged count is none', () => {
