@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { CABIN, CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, THRONE, TOWERS, ZONES, type Place } from './layout';
+import { CABIN, CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, THRONE, TOWERS, ZONES, type Place } from './layout';
 import { colliders, height, lineDist, pathDist } from './terrain';
 
 /**
@@ -110,6 +110,14 @@ export function buildScenery(scene: THREE.Scene) {
   for (const t of towers) colliders.push({ x: t.x, z: t.z, r: CASTLE.towerR + 0.2 });
   instances(scene, 'castle-towers', new THREE.CylinderGeometry(CASTLE.towerR * 0.85, CASTLE.towerR, CASTLE.towerH, 10).translate(0, CASTLE.towerH / 2, 0), mat('#c9d8e6'), towers);
   instances(scene, 'castle-roofs', new THREE.ConeGeometry(CASTLE.towerR * 1.3, 3, 10).translate(0, CASTLE.towerH + 1.5, 0), mat('#7fb6d6', { emissive: '#2f6f9a', emissiveIntensity: 0.3 }), towers);
+  // the arch of the way in on the square (the landmark of the square: the castle stands behind her coming from the
+  // grotto): two pillars of mother-of-pearl and a glowing ring over them
+  const arch = SQUARE_ARCH, pillar = (sx: number) => new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, arch.top - 1.2, 8).translate(sx, (arch.top - 1.2) / 2, 0), mat('#e9dcef'));
+  put(scene, 'landmark-square', arch.x, arch.z, [
+    pillar(-arch.w / 2), pillar(arch.w / 2),
+    new THREE.Mesh(new THREE.TorusGeometry(arch.w / 2, 0.35, 8, 20, Math.PI).translate(0, arch.top - 1.2, 0), mat('#bfefff', { emissive: '#7fd8ff', emissiveIntensity: 0.6 })),
+  ], 0);
+  for (const sx of [-arch.w / 2, arch.w / 2]) colliders.push({ x: arch.x + sx, z: arch.z, r: 0.6 });
   // the gate (with its shell lock, WORLD-19 later): two posts and a lintel at the north of the ring
   const gate = LANDMARKS.gate;
   put(scene, 'castle-gate', gate.x, gate.z, [

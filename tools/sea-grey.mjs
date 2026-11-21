@@ -159,7 +159,7 @@ async function measure(browser, url, scale, out) {
       const { THREE, scene, camera } = __game;
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };
       // what counts as the landmark of the target: the castle is its towers and roofs, the reef its corals
-      const names = { square: ['castle-towers', 'castle-roofs'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-branch', 'reef-ball'], garden: ['landmark-garden', 'shells'], grotto: ['landmark-grotto', 'pots'] }[b];
+      const names = { square: ['landmark-square'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-branch', 'reef-ball'], garden: ['landmark-garden', 'shells'], grotto: ['landmark-grotto', 'pots'] }[b];
       // the heroine, the cat and the clear things of the water hide nothing: the light shafts, the motes, the bubbles
       const CLEAR = ['light-shafts', 'water-motes', 'swim-bubbles', 'cat-bubble'];
       const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root || CLEAR.includes(x.name)) return true; return false; };
@@ -168,7 +168,8 @@ async function measure(browser, url, scale, out) {
       let hits = 0;
       const met = [];
       const nameOf = (o) => { for (let x = o; x; x = x.parent) if (x.name) return x.name; return o.type; };
-      const tops = [lm.top, lm.top - 1, lm.top - 2].map((y) => new THREE.Vector3(lm.x, __game.seaMap.ground(lm.x, lm.z) + y, lm.z));
+      // points up the whole landmark: a near tall one (the castle's towers from the gate) shows its body, not its top
+      const tops = [1, 0.75, 0.5, 0.3].map((k) => lm.top * k).map((y) => new THREE.Vector3(lm.x, __game.seaMap.ground(lm.x, lm.z) + y, lm.z));
       // and the middle of the zone at the height of a roof
       const z = __game.seaMap.zones[b];
       tops.push(new THREE.Vector3(z.x, __game.seaMap.ground(z.x, z.z) + 3.3, z.z));

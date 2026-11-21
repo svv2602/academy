@@ -76,16 +76,18 @@ export const THRONE = { x: ZONES.throne.x, z: ZONES.throne.z };
 
 /**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m.
- * The square and the throne - the castle's towers; the gate - its lintel; the ship - its mast; the reef - its tall fan corals; the trench - the
+ * The square - the arch of the way in (where the hub's arch will stand; the castle is behind her from the grotto); the throne - the castle's towers; the gate - its lintel; the ship - its mast; the reef - its tall fan corals; the trench - the
  * glowing arch of rock over it; the garden - its great shell; the grotto - the rock of the grotto with its chimney.
  */
+/** The arch of the way in on the square, east of its middle: its two pillars stand ARCH_W apart across x. */
+export const SQUARE_ARCH = { x: ZONES.square.x + 5, z: ZONES.square.z + 1, top: 9, w: 3.6 };
 /** The towers of the castle, round the throne hall: six, the gate between the two of the north. */
 export const TOWERS: readonly Place[] = Array.from({ length: 6 }, (_, i) => {
   const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
   return { x: CASTLE.x + Math.sin(a) * CASTLE.ring, z: CASTLE.z - Math.cos(a) * CASTLE.ring };
 });
 export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
-  square: { ...TOWERS[0], top: CASTLE.towerH },
+  square: { ...SQUARE_ARCH, top: SQUARE_ARCH.top },
   ship: { x: SHIP.x, z: SHIP.z, top: SHIP.mastH },
   trench: { x: ZONES.trench.x - 3, z: ZONES.trench.z - 4, top: 9 },
   reef: { x: ZONES.reef.x - 4, z: ZONES.reef.z - 2, top: 7 },
