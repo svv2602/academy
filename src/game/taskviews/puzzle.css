@@ -1,6 +1,5 @@
 /* The puzzle (LEARN-19): the frame of the picture (4:3) beside the scattered pieces; one under the other held upright.
-   A piece and a cell are one size: the frame's width over its columns, at least 44 px on the narrowest screen
-   (12 pieces: about 70 px on a phone held sideways). */
+   A piece has the shape of its cell (--shape, ./puzzle.ts), at least 44 px on the narrowest screen. */
 .t-stage.t-puzzle { flex-wrap: nowrap; padding: 4px 2px 8px; }
 .t-puzzle .pzwrap { display: flex; gap: clamp(8px, 2vw, 18px); align-items: center; justify-content: center; width: 100%; }
 .t-puzzle .pzframe { position: relative; flex: none; display: grid; grid-template-columns: repeat(var(--cols), 1fr);
@@ -11,7 +10,7 @@
 .t-puzzle .pzcell.glow, .t-puzzle .pzpiece.glow { box-shadow: inset 0 0 0 4px #ffcf3a, 0 0 14px #ffe58a; }
 .t-puzzle .pztray { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 6px; flex: none;
   width: min(46%, calc((100vh - 150px) * 4 / 3)); }
-.t-puzzle .pzpiece { aspect-ratio: 4 / 3; border-radius: 6px; background-color: #8fcf6a; background-repeat: no-repeat;
+.t-puzzle .pzpiece { aspect-ratio: var(--shape, 4 / 3); border-radius: 6px; background-color: #8fcf6a; background-repeat: no-repeat;
   box-shadow: 0 2px 6px #0003; transform: rotate(var(--turn)); touch-action: none; cursor: grab; }
 .t-puzzle .pzpiece.drag { z-index: 3; cursor: grabbing; box-shadow: 0 8px 18px #0004; }
 .t-puzzle .pzpiece.back { transition: transform .3s ease-out; }

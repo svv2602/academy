@@ -3,12 +3,12 @@
  * The picture is the glade of "find the differences" (./diff.ts things, drawn by src/game/taskviews/diff-scene.ts):
  * the generator lays out its things, cuts it into COLS x ROWS pieces, scatters them and, on the top level, turns some.
  *
- * The ladder (docs/11-learning.md, «Сборка картинки», agreed by the customer on 2026-11-21):
- *   1 - 4 pieces (2 x 2), a bright full glade, a pale picture in the frame to go by;
- *   2 - 6 (3 x 2), the picture in the frame paler;
- *   3 - 9 (3 x 3), the frame empty;
- *   4 - 12 (4 x 3), a calmer glade - fewer things, more grass and sky, pieces alike;
- *   5 - 12 (4 x 3), some pieces turned: a touch turns a piece a quarter round.
+ * The ladder (docs/11-learning.md, «Сборка картинки», changed by the customer on 2026-11-21: 2 x 2 was too easy at 6):
+ *   1 - 6 pieces (3 x 2), a bright full glade, a pale picture in the frame to go by;
+ *   2 - 9 (3 x 3), the picture in the frame paler;
+ *   3 - 12 (4 x 3), the frame empty;
+ *   4 - 16 (4 x 4), a calmer glade - fewer things, more grass and sky, pieces alike;
+ *   5 - 20 (5 x 4), some pieces turned: a touch turns a piece a quarter round.
  * A piece dropped anywhere but its place, or turned wrong, goes back - no mistake (LEARN-14); the hints come with time.
  */
 import { pick, shuffle } from '../../core/util';
@@ -18,11 +18,11 @@ import type { Outcome, Spec, TaskModel } from './types';
 
 /** The cut and the frame of each level. `guide`: how strongly the picture shows in the frame (0 - not at all). */
 export const PUZZLE_LEVELS: Record<number, { cols: number; rows: number; guide: number; calm: boolean; turn: boolean }> = {
-  1: { cols: 2, rows: 2, guide: 0.45, calm: false, turn: false },
-  2: { cols: 3, rows: 2, guide: 0.25, calm: false, turn: false },
-  3: { cols: 3, rows: 3, guide: 0, calm: false, turn: false },
-  4: { cols: 4, rows: 3, guide: 0, calm: true, turn: false },
-  5: { cols: 4, rows: 3, guide: 0, calm: false, turn: true },
+  1: { cols: 3, rows: 2, guide: 0.45, calm: false, turn: false },
+  2: { cols: 3, rows: 3, guide: 0.25, calm: false, turn: false },
+  3: { cols: 4, rows: 3, guide: 0, calm: false, turn: false },
+  4: { cols: 4, rows: 4, guide: 0, calm: true, turn: false },
+  5: { cols: 5, rows: 4, guide: 0, calm: false, turn: true },
 };
 export const levelOf = (level: number) => PUZZLE_LEVELS[Math.min(5, Math.max(1, level))];
 

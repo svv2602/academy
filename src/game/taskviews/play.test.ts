@@ -300,7 +300,7 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(all(pics[0], '.diffring').length === want && all(pics[1], '.diffring').length === want, 'every difference found is ringed on both pictures');
   },
   puzzle(level) {
-    const pieces = all(stage(), '.pzpiece'), want = { 1: 4, 2: 6, 3: 9 }[level as 1 | 2 | 3];
+    const pieces = all(stage(), '.pzpiece'), want = { 1: 6, 2: 9, 3: 12 }[level as 1 | 2 | 3];
     seen = `${pieces.length} pieces`;
     must(pieces.length === want, `${want} pieces`);
     must(all(stage(), '.pzcell').length === want, 'as many cells as pieces');
