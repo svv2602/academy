@@ -40,7 +40,8 @@ export function height(x: number, z: number): number {
 }
 
 const C = (hex: string) => new THREE.Color(hex);
-const sand = C('#e3d2a4'), sand2 = C('#d6c391'), way = C('#efe2bd'), deep = C('#5b8c9a'), rock = C('#7d8f99');
+// the sand under water: pale grey-blue (a warm yellow one read as beige water, 2026-11-21)
+const sand = C('#cfdad0'), sand2 = C('#c2cfc4'), way = C('#e2ebe2'), deep = C('#5b8c9a'), rock = C('#7d8f99');
 /** The colour of the floor: sand, the ways lighter, the trench blue-grey, the rim grey (grey build). */
 export function groundColor(x: number, z: number, out: THREE.Color): THREE.Color {
   out.copy(sand).lerp(sand2, smoothstep(0.35, 0.7, fbm(x * 0.08, z * 0.08, 2)));
