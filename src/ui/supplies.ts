@@ -17,12 +17,14 @@ export const SUPPLY_LOOK: Record<SupplyId, { icon: string; color: string }> = {
   glow: { icon: '✨', color: '#ffe36e' },
   funny: { icon: '🍄', color: '#ff9ed2' },
   compass: { icon: '🧭', color: '#ffc46b' },
+  rainbow: { icon: '🌈', color: '#ffb3e6' },
   owl: { icon: '🦉', color: '#d9b98c' },
   abacus: { icon: '🧮', color: '#b8e0ff' },
 };
 
 /** The cat's line when an effect starts. */
-const SAID: Record<EffectId, SpokenKey> = {
+/** The cat's line when an effect starts; the rainbow's (sup_rainbow) comes with its recording. */
+const SAID: Partial<Record<EffectId, SpokenKey>> = {
   speed: 'sup_speed', jump: 'sup_jump', glow: 'sup_glow', tiny: 'sup_tiny', giant: 'sup_giant', compass: 'sup_compass',
 };
 
@@ -38,7 +40,7 @@ export function initSupplyRow(supplies: Supplies, hooks: SupplyRowHooks): (canMo
   row.id = 'supplies';
   row.className = 'hidden';
   document.body.appendChild(row);
-  supplies.onDrink((e) => hooks.say(SAID[e]));
+  supplies.onDrink((e) => { const k = SAID[e]; if (k) hooks.say(k); });
   let drawn = '';
 
   return (canMove) => {
