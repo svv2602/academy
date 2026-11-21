@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SAVE_VERSION, defaultSave, defaultWorld, loadSave } from '../src/core/save';
 import { QUESTS } from '../src/worlds/fairy/quests';
 import { settleOldParts } from '../src/worlds/fairy/parts';
-import { BLOCKS, CHAINS, FRIENDS, GROUPS, PIECES, baseSave, startSave } from './e2e-saves.mjs';
+import { BLOCKS, CHAINS, FRIENDS, GROUPS, PIECES, PIECES_ONLY, baseSave, startSave } from './e2e-saves.mjs';
 
 /** In-memory stand-in for localStorage: save.ts talks to the global directly and node has none. */
 function memoryStorage() {
@@ -84,6 +84,18 @@ describe('tools/e2e-saves.mjs: the saves the groups of the walkthrough start fro
     expect(keys(JSON.parse(startSave('world2')).worlds.fairy.quests)).toEqual(keys(Object.fromEntries(GROUPS.world1.friends.map((f) => [f, 1]))));
     expect(JSON.parse(startSave('shop')).worlds.fairy.final).toBe(true);
     expect(JSON.parse(startSave('finale')).worlds.fairy.final).toBe(false);
+  });
+
+  it('the blocks the whole walkthrough leaves out are each played by a piece; the build without ?debug is not one of them', () => {
+    const inPieces = new Set(PIECES.flatMap((p) => GROUPS[p].blocks));
+    expect(PIECES_ONLY.length).toBeGreaterThan(0);
+    for (const b of PIECES_ONLY) {
+      expect(BLOCKS).toContain(b);
+      expect(inPieces.has(b), `${b} is left out of the whole walkthrough and played by no piece`).toBe(true);
+    }
+    expect(PIECES_ONLY).not.toContain('no-debug');
+    // the puzzle's level 3 and the twins of level 4 are played in the piece of the puzzle (tools/shot.mjs)
+    expect(GROUPS.tasks2.blocks).toContain('puzzle');
   });
 
   it('a new player\'s group has no save, and an unknown group is an error', () => {

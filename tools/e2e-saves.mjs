@@ -164,6 +164,16 @@ export const GROUPS = {
 export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'];
 
 /**
+ * The blocks the whole walkthrough (no group: the nightly run and "try all") leaves to the pieces (2026-11-22: the
+ * whole run came to 77 % of its 3600 s on a slow runner). Each of them is a check of its own: no reload, the save, the
+ * tuning and the queue of the achievements as they were, and no block after it reads what it did. "no-debug" stays in
+ * the whole run: it checks the build without ?debug, for a few seconds. The puzzle of the whole run plays its levels 1
+ * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
+ * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
+ */
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks'];
+
+/**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice
  * the save holds the voice volume 0, as the parents' section writes it.
  */
