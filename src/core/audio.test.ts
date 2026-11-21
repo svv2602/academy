@@ -730,6 +730,30 @@ describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
     expect(a.done).toBe(true);
   });
 
+  it('the picture lost (holdSound, src/core/contextloss.ts) holds the sound as a hidden page; either reason keeps it held', async () => {
+    const { page, say, unlockAudio, holdSound } = await loadPage(fakeSynth([UK]));
+    unlockAudio();
+    const ctx = FakeCtx.made[0];
+    const a = track(say(CLIP_A, 'один', 'task'));
+    const clip = FakeAudio.made[0];
+    clip.start();
+    holdSound(true);
+    expect(clip.paused).toBe(true);
+    expect(ctx.suspend).toHaveBeenCalledTimes(1);
+    page.set(true); page.set(false);                 // the page hidden and shown meanwhile: the picture is still lost
+    expect(clip.paused).toBe(true);
+    expect(ctx.resume).not.toHaveBeenCalled();
+    await tick(60000);
+    expect(a.done).toBe(false);
+    page.set(true);
+    holdSound(false);                                // the picture back on a hidden page: still silent
+    expect(clip.paused).toBe(true);
+    page.set(false);
+    expect(clip.paused).toBe(false);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(ctx.resume).toHaveBeenCalledTimes(1);
+  });
+
   it('a safety timer due in the background counts its whole time again after the return', async () => {
     const { page, say } = await loadPage(fakeSynth([UK]));
     const a = track(say(CLIP_A, 'один', 'task'));

@@ -34,6 +34,7 @@ export const BLOCKS = [
   'pet',            // the pet of the first world: found by the action button, chosen in the book, after her after a reload (PLAY-09)
   'mystery',        // the mysterious stars: the line of the day, a star's task - a mistake, closed and it stays, solved for 3 stars; the next day other places
   'collect',        // the collections: each of the six ways to take a find once, a whole set for 5 more, the page of the book
+  'context-loss',   // the picture lost: the game stands and goes on when it is back; not back in 10 s - saved, then "reload"
   'shop',           // the shop and the fitting room (PLAY-04, PLAY-05)
   'potions',        // the potions and the compass: bought, drunk by one tap, the time stands with the game, the end
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
@@ -144,7 +145,7 @@ export const GROUPS = {
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
   // is a stop point and earns its achievements there; then no friend to play, the finds alone.
-  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['collect'], ach: ['first_shard', 'first_task'] },
+  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };

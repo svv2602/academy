@@ -3625,6 +3625,62 @@ try {
         await gameSeconds(0.5);
         console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
       }
+      // ---- the picture lost (src/core/contextloss.ts, decision of 2026-11-21): the WebGL context taken away by the
+      // browser's own extension. Meanwhile the game stands (its clock, the heroine); given back, it goes on by itself and
+      // draws the world again, she walks. Not given back for 10 s: the save is written, then the grown-ups see the
+      // message with "reload" over the start screen; given back even then, the message goes and the game goes on.
+      if (has('context-loss')) {
+        const fail = (what) => { throw new Error(`context loss: ${what}`); };
+        if (await visible('#book')) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        await calm();
+        if (!(await g(() => { window.__lose = __game.renderer.getContext().getExtension('WEBGL_lose_context'); return !!window.__lose; }))) fail('the browser has no WEBGL_lose_context');
+        const look = () => g(() => ({ dark: __game.dark, lost: __game.renderer.getContext().isContextLost(), time: __game.time, at: [__game.hero.root.position.x, __game.hero.root.position.z] }));
+        const lostFor = (ms) => page.waitForTimeout(T(ms)); /* clock: context-lost */
+        // 1. lost and given back after 2 s
+        await g(() => window.__lose.loseContext());
+        const a = await look();
+        await lostFor(2000);
+        const b = await look();
+        if (!a.lost || !a.dark) fail(`taken away, the game does not know it: ${JSON.stringify(a)}`);
+        if (Math.abs(b.time - a.time) > 1e-6 || Math.hypot(b.at[0] - a.at[0], b.at[1] - a.at[1]) > 1e-6) fail(`the game went on with no picture: its time ${a.time.toFixed(3)} -> ${b.time.toFixed(3)}, she ${JSON.stringify(a.at)} -> ${JSON.stringify(b.at)}`);
+        await g(() => window.__lose.restoreContext());
+        await within('the picture given back', g(() => new Promise((r) => { const f = () => (__game.dark ? requestAnimationFrame(f) : r()); f(); })), T(10000)); /* clock: context-lost */
+        await framesDrawn(3);
+        const c = await g(() => ({ time: __game.time, calls: __game.renderer.info.render.calls, notice: !document.getElementById('notice').classList.contains('hidden') }));
+        if (!(c.time > b.time)) fail(`given back, the game's time does not go on (${b.time} -> ${c.time})`);
+        if (!(c.calls > 0)) fail('given back, the world is not drawn (0 calls)');
+        if (c.notice) fail('given back in 2 s, the message of the lost picture is shown');
+        if (!(await walks())) fail('given back, the heroine does not walk');
+        await shot('context-back');
+        // 2. not given back: the save is written before the message (the child loses nothing)
+        await g(() => {
+          window.__savedAt = 0; window.__noticeAt = 0;
+          const set = Storage.prototype.setItem;
+          Storage.prototype.setItem = function (k, v) { if (k === 'amw-save') window.__savedAt = performance.now(); return set.call(this, k, v); };
+          new MutationObserver(() => { if (!window.__noticeAt && !document.getElementById('notice').classList.contains('hidden')) window.__noticeAt = performance.now(); })
+            .observe(document.getElementById('notice'), { attributes: true });
+          window.__lostAt = performance.now();
+          window.__lose.loseContext();
+        });
+        await within('the message of the lost picture', page.waitForFunction(() => window.__noticeAt > 0, null, { timeout: T(30000) }), T(31000)); /* clock: context-lost */
+        const d = await g(() => ({
+          after: window.__noticeAt - window.__lostAt, saved: window.__savedAt - window.__noticeAt,
+          text: document.getElementById('noticeText').textContent, button: document.getElementById('retry').textContent,
+          button44: (() => { const r = document.getElementById('retry').getBoundingClientRect(); return r.width >= 44 && r.height >= 44; })(),
+          start: !document.getElementById('start').classList.contains('hidden'),
+        }));
+        if (d.after < 9500) fail(`the message came ${d.after.toFixed(0)} ms after the loss, before the 10 s`);
+        if (!(d.saved <= 0 && d.saved > -200)) fail(`the save was not written right before the message (${d.saved.toFixed(0)} ms from it)`);
+        if (!d.start || !d.text || !d.button || !d.button44) fail(`the message: ${JSON.stringify(d)}`);
+        await shot('context-lost');   // its layout is checked with the picture
+        // given back even then: the message goes, the game goes on
+        await g(() => window.__lose.restoreContext());
+        await within('the picture given back after the message', g(() => new Promise((r) => { const f = () => (__game.dark ? requestAnimationFrame(f) : r()); f(); })), T(10000)); /* clock: context-lost */
+        await framesDrawn(3);
+        if (await visible('#notice') || await visible('#start')) fail('given back after the message, the message or the start screen stays');
+        if (!(await walks())) fail('given back after the message, the heroine does not walk');
+        console.log(`context loss: the game stood 2 s with no picture and went on when it was back; not back - saved, then "${d.button}" after ${(d.after / 1000).toFixed(1)} s; back even then - the game went on`);
+      }
       // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----
       if (has('story')) {
         if (!(await visible('#book'))) { await tapOn('#btnBook').catch((e) => storyFail(`the book cannot be opened: ${why(e)}`)); await calm(); }

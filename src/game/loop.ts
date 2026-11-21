@@ -74,6 +74,9 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
 
   function frame() {
     requestAnimationFrame(frame);
+    // The picture is lost (src/core/contextloss.ts): the frame is not played, as on a hidden page - the time of the
+    // gap is not counted (the clock is read and thrown away), and the first frame after it starts from where it stood.
+    if (g.dark) { clock.getDelta(); return; }
     const real = clock.getDelta(), dt = g.still ? 0 : Math.min(real, 0.05);
     const time = (uTime.value += dt);
     // The minutes played (R33): the real time of a seen frame once the game is started, a long gap (the page came back

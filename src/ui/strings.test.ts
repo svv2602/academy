@@ -411,7 +411,7 @@ describe('messages of a device that cannot run the game and of a failed load (TE
   afterEach(() => {
     setLang('uk');
   });
-  const NOTICES = ['no_webgl', 'load_failed', 'retry'] as const;
+  const NOTICES = ['no_webgl', 'load_failed', 'retry', 'gpu_lost', 'reload'] as const;
   // Letters that only one of the two languages has: a Russian text copied into the Ukrainian block (or the other
   // way round) is caught, which the parity of the keys alone would not see.
   const UK_ONLY = /[іїєґ]/i, RU_ONLY = /[ыэъё]/i;

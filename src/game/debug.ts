@@ -67,6 +67,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   const game: Record<string, unknown> = {
     hero, cat, cam, save, flies, scene, camera, renderer, THREE, npcs: world.npcs, voice: voiceLog, dropped, tuning,
     get busy() { return g.busy; },
+    /** The picture is lost (src/core/contextloss.ts): the game stands. */
+    get dark() { return g.dark; },
     /** Where a tap on the cat aims, m over its feet (src/game/companion.ts). */
     catTapY: CAT_TAP_Y,
     /** The pet that follows the heroine (PLAY-09), null when none: its actor, for the measure of the feet (tools/feet.mjs). */

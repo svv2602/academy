@@ -35,7 +35,15 @@ function show() {
   resumeVoice();
 }
 
-if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); else show(); });
+/** The two reasons for the silence: the page is hidden, or its picture is lost (`holdSound`); either one holds it. */
+let pageHidden = false, held = false;
+const sync = () => { if (pageHidden || held) hide(); else show(); };
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { pageHidden = document.hidden; sync(); });
+/**
+ * The picture of the game is lost (src/core/contextloss.ts): the sound waits as on a hidden page - a line goes on
+ * from where it stopped when the picture is back (and the page is shown).
+ */
+export function holdSound(on: boolean) { held = on; sync(); }
 
 export function unlockAudio() {
   if (ctx) { void ctx.resume(); return; }
