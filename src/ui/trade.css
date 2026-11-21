@@ -1,0 +1,24 @@
+/* The trades of the characters (PLAY-28): a card over the conversation, low on the screen so the character stays seen.
+   Every button is 48 px at least. */
+#trade { position: fixed; inset: 0; z-index: 6; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px; pointer-events: none; }
+#trade.hidden { display: none; }
+.tr-card { pointer-events: auto; width: min(96vw, 720px); max-height: calc(100vh - 16px); overflow: auto; box-sizing: border-box;
+  background: #fffdf8; border-radius: 26px; padding: 10px 14px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 16px 50px #0004; font: 700 20px/1.2 system-ui, sans-serif; color: #4a2f7a; }
+.tr-choice { flex-direction: row; align-items: center; width: auto; }
+.tr-who { font-size: 40px; }
+.tr-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.tr-row button { min-height: 52px; min-width: 120px; }
+.tr-deal { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.tr-take { display: flex; gap: 10px; flex-wrap: wrap; }
+.tr-kind { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 10px; border-radius: 16px; background: #f6f0fb; }
+.tr-need { font-size: 26px; }
+.tr-kind .dots { display: flex; gap: 2px; }
+.tr-kind .dots i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid #7fc96a; box-sizing: border-box; }
+.tr-kind .dots i.have { background: #7fc96a; }
+.tr-sum { font-size: 15px; font-weight: 600; color: #5d4a7f; }
+.tr-gift { display: flex; align-items: center; gap: 8px; }
+.tr-arrow { font-size: 30px; color: #9b7fd0; }
+.tr-gives { font-size: 34px; }
+.tr-from { font-size: 14px; padding: 2px 8px; border-radius: 10px; background: #ffe9b8; color: #8a5a00; }
+.tr-go:disabled { opacity: .45; }

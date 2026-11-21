@@ -24,7 +24,7 @@ export type Slot = keyof Gear;
 /** The world whose artifact is the Crystal of Light. */
 const FIRST_WORLD = 'fairy';
 /** What opens a thing that is not sold: the Crystal of Light restored (the end of the first world), an achievement. */
-export type Reward = 'crystal' | 'three_secrets';
+export type Reward = 'crystal' | 'three_secrets' | 'trade';
 
 export interface Item {
   id: string;
@@ -52,6 +52,9 @@ export const CATALOG: readonly Item[] = [
   { id: 'trail_sparkle', slot: 'trail', price: 40 },
   { id: 'wand_crystal', slot: 'wand', reward: 'crystal' },
   { id: 'earrings_star', slot: 'head', reward: 'three_secrets' },
+  // the gifts of the characters for a trade (PLAY-28, src/game/trade.ts): never sold, "від жителя" in the shop
+  { id: 'feather_crown', slot: 'head', reward: 'trade' },
+  { id: 'acorn_cap', slot: 'head', reward: 'trade' },
   { id: 'wings_petals', slot: 'wings', free: true },
   // The things of the four looks (PLAY-06, decision 3 of 2026-11-15): simple versions, free, never sold; the full ones
   // (the crown, the hat with stars, the star and crystal wands) stay in the shop and the rewards.
@@ -107,8 +110,11 @@ export function stock(s: Save, id: SupplyId): number {
 /** The pets that wear things: the cat (the companion) and the fawn (the pet of the first world, src/game/pets.ts). */
 export type PetWearer = 'cat' | 'fawn';
 export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn'];
-/** A thing of a pet: its pet, its price; `rare` - sold only on the day it is the deal of the day. */
-export interface PetItem { id: string; pet: PetWearer; price: number; rare?: true }
+/**
+ * A thing of a pet: its pet, its price; `rare` - sold only on the day it is the deal of the day; `reward: 'trade'` - not
+ * sold, a character's gift for a trade (PLAY-28), no price.
+ */
+export interface PetItem { id: string; pet: PetWearer; price?: number; rare?: true; reward?: 'trade' }
 /** The models are src/game/petgear.ts PET_GEAR (the same ids, petgear.test.ts checks it). */
 export const PET_ITEMS: readonly PetItem[] = [
   { id: 'cat_collar', pet: 'cat', price: 15 },
@@ -119,6 +125,7 @@ export const PET_ITEMS: readonly PetItem[] = [
   { id: 'fawn_ribbon', pet: 'fawn', price: 15 },
   { id: 'fawn_bell', pet: 'fawn', price: 20 },
   { id: 'fawn_star_crown', pet: 'fawn', price: 30, rare: true },
+  { id: 'fawn_leaf_bow', pet: 'fawn', reward: 'trade' },
 ];
 export const petItem = (id: string): PetItem | undefined => PET_ITEMS.find((x) => x.id === id);
 
@@ -143,6 +150,7 @@ export function unlocked(s: Save, id: string): boolean {
   // Read without worldState, which would create the world in the save: asking must change nothing.
   if (it.reward === 'crystal') return artifactBack(s, FIRST_WORLD);
   // Three secrets: the achievement of PLAY-08, received for good (src/game/achievements.ts).
+  // A gift of a trade is hers once given: it is in `owned` (src/game/trade.ts), which `has` reads.
   return it.reward === 'three_secrets' && 'three_secrets' in s.achievements;
 }
 
@@ -161,7 +169,7 @@ function forSale(s: Save, id: string): boolean {
 }
 
 /** Every id the shop sells, in the order of the catalog: the things to wear, the supplies, the things of the pets. */
-const SOLD: readonly string[] = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...SUPPLIES.map((x) => x.id), ...PET_ITEMS.map((x) => x.id)];
+const SOLD: readonly string[] = [...CATALOG.filter((i) => i.price !== undefined).map((i) => i.id), ...SUPPLIES.map((x) => x.id), ...PET_ITEMS.filter((x) => x.price !== undefined).map((x) => x.id)];
 
 /** The deal of `day` (src/game/deal.ts): its thing and both prices; null - held, taken that day already, or nothing to sell. */
 export function dealOf(s: Save, day = dealDay()): { id: string; price: number; was: number } | null {
@@ -239,15 +247,16 @@ export function equipPet(s: Save, pet: PetWearer, id: string | null): boolean {
  * How the screen shows a thing of a pet: `owned` (worn or not), `price` as a thing of the heroine (`was` on the deal of
  * the day), `rare` - a rare thing on a day it is not the deal: a silhouette "рідкісна річ".
  */
-export type PetItemState = { kind: 'owned'; worn: boolean } | { kind: 'price'; price: number; short: number; was?: number } | { kind: 'rare' };
+export type PetItemState = { kind: 'owned'; worn: boolean } | { kind: 'price'; price: number; short: number; was?: number } | { kind: 'rare' } | { kind: 'trade' };
 
 export function petItemState(s: Save, id: string): PetItemState | undefined {
   const it = petItem(id);
   if (!it) return undefined;
   if (s.owned.includes(id)) return { kind: 'owned', worn: petWorn(s, it.pet) === id };
+  if (it.reward === 'trade') return { kind: 'trade' };
   const price = priceOf(s, id);
   if (price === undefined) return { kind: 'rare' };
-  return { kind: 'price', price, short: Math.max(0, price - s.stars), ...(price < it.price ? { was: it.price } : {}) };
+  return { kind: 'price', price, short: Math.max(0, price - s.stars), ...(price < it.price! ? { was: it.price } : {}) };
 }
 
 /**
@@ -255,7 +264,7 @@ export function petItemState(s: Save, id: string): PetItemState | undefined {
  * - `owned`: hers (bought, opened or free), worn or not;
  * - `price`: for sale at `price` now (`was`: its own price, when it is the deal of the day); `short` is the stars she still
  *   needs ("ещё N звёзд", no red, no error sound), 0 when she can buy it;
- * - `reward`: not sold and not opened yet, its reward is reachable now (the Crystal of Light): shown with what opens it;
+ * - `reward`: not sold and not opened yet, its reward is reachable now (the Crystal of Light, a trade): shown with what opens it;
  * - `silhouette`: not sold, its reward does not exist yet (the earrings until PLAY-08): a silhouette "за досягнення".
  */
 export type ItemState =
@@ -265,7 +274,7 @@ export type ItemState =
   | { kind: 'silhouette'; reward: Reward };
 
 /** The rewards the game can give now; the others wait for their part of the game. */
-const REACHABLE: readonly Reward[] = ['crystal'];
+const REACHABLE: readonly Reward[] = ['crystal', 'trade'];
 
 export function itemState(s: Save, id: string): ItemState | undefined {
   const it = item(id);

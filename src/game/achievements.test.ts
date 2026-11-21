@@ -93,7 +93,7 @@ describe('the catalogue (PLAY-08, R42)', () => {
   });
 
   it('the reward of the star earrings is one of them (src/game/shop.ts)', () => {
-    const rewards = CATALOG.filter((i) => i.reward && i.reward !== 'crystal').map((i) => i.reward);
+    const rewards = CATALOG.filter((i) => i.reward && i.reward !== 'crystal' && i.reward !== 'trade').map((i) => i.reward);
     expect(rewards).toEqual(['three_secrets']);
     expect(ACHIEVEMENTS.map((a) => a.id as string)).toContain('three_secrets');
   });

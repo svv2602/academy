@@ -17,6 +17,10 @@ import type { TaskType } from './tasks/types';
 import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
 import type { TaskResult } from './taskviews/panel';
 import type { CharacterDef, Npc, WorldLines, WorldTask } from './world';
+import { todayOffer, trade, tradeHooks, type Offer, type Trades } from './trade';
+import { dailyDay } from './daily-find';
+import { chooseTalk, openTrade } from '../ui/trade';
+import type { SpokenKey } from '../ui/strings';
 
 export interface Dialogue {
   /** A conversation with a character: the next steps of its chain, or one of its games again once it is finished. */
@@ -35,6 +39,8 @@ export interface DialogueWorld {
   readonly characters: readonly CharacterDef[];
   readonly lines: WorldLines;
   readonly tasks: Readonly<Record<string, WorldTask>>;
+  /** The asks of its characters for a trade (PLAY-28, src/game/trade.ts), by their ids; none - no trades in this world. */
+  readonly trades?: Trades;
 }
 
 /**
@@ -46,7 +52,10 @@ export interface DialogueWorld {
 export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dialogue {
   const { save, ws, hero, cat, cam, sparks, persist, refreshHud, addStars, above, fault, praise, task, hooksFor } = g;
   const { line } = g.speech;
-  const { characters, lines, tasks } = world;
+  const { characters, lines, tasks, trades } = world;
+  /** The cat tells what a trade is the first time a character offers one in a session. */
+  let tradeTold = false;
+  tradeHooks.offer = trades ? (who, day) => (trades[who] ? todayOffer(save, ws, who, trades[who], day) : null) : null;
   const background = Object.values(tasks).filter((t) => t.start);
   // Every panel task of the conversations is planned (src/game/planner.ts, one planner for the session, `g.plan`): the
   // examples with mistakes come back, the same task never twice in a row.
@@ -75,6 +84,14 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       const own = background.find((t) => t.active?.() && t.owner?.() === q.id);
       if (own) { await own.reask?.(n); return; }
       if (done >= q.steps.length) {           // the chain is finished: replay its game of the weakest skill for stars (LEARN-16)
+        // a trade asked today (PLAY-28): the choice first - play, trade or goodbye; without an ask, as it always was
+        const offer = trades?.[q.id] ? todayOffer(save, ws, q.id, trades[q.id], dailyDay()) : null;
+        if (offer) {
+          if (!tradeTold) { tradeTold = true; await line('trade_hi', 'story'); }
+          const pick = await chooseTalk(q.emoji);
+          if (pick === 'bye') return;
+          if (pick === 'trade') { await tradeWith(n, offer); return; }
+        }
         await line('npc_again', 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
@@ -106,6 +123,25 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       onward = await givePart(n);
     });
     onward();
+  }
+
+  /**
+   * A trade with `n` (PLAY-28): it says its ask in its own voice, the card shows what goes and what comes; on
+   * «Обміняти» the finds go, the gift comes (5 stars for its own finds, 15 for far ones), it thanks, the cat says the trade is done.
+   */
+  async function tradeWith(n: Npc, offer: Offer) {
+    const q = n.def;
+    void line(`${q.id}_trade_${offer.far ? 'far' : 'ask'}` as SpokenKey, 'story', 0, q.emoji);
+    if (!await openTrade(save, q.emoji, offer)) return;
+    const gift = trade(save, ws, q.id, offer, dailyDay());
+    if (!gift) return;
+    if (gift === 'stars') addStars(offer.far ? 15 : 5, above(hero.root.position, 1.4));
+    else { sfx('chime'); sparks.burst(above(hero.root.position, 1.6), '#ffd36b', 40, 4); refreshHud(); persist(); }
+    hero.play('Dance');
+    if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
+    await line(`${q.id}_trade_thanks` as SpokenKey, 'story', 0, q.emoji);
+    await line('trade_done', 'story');
+    hero.play('Idle');
   }
 
   /**

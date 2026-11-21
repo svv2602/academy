@@ -6,7 +6,7 @@ import { CATALOG, PET_ITEMS, SUPPLIES, buy, canBuy, dealOf, priceOf, stock } fro
 // The deal of the day (decision of 2026-11-20): one thing 40 % off, one purchase at that price a day.
 // the rare things of the pets are sold only as the deal (src/game/petshop.test.ts), the others as any thing
 const SOLD = [...CATALOG.filter((i) => i.price !== undefined).map((i) => [i.id, i.price!] as const), ...SUPPLIES.map((x) => [x.id, x.price] as const),
-  ...PET_ITEMS.filter((x) => !x.rare).map((x) => [x.id, x.price] as const)];
+  ...PET_ITEMS.filter((x) => !x.rare && x.price !== undefined).map((x) => [x.id, x.price!] as const)];
 const day = (n: number) => `2030-${String(1 + (n % 12)).padStart(2, '0')}-${String(1 + (n % 28)).padStart(2, '0')}`;
 let s: Save;
 beforeEach(() => { s = defaultSave(); s.stars = 1000; dealState.held = false; dealState.day = null; });

@@ -3453,6 +3453,84 @@ try {
         petShopped = { cat: 'cat_hat', fawn: 'fawn_wreath' };
         console.log(`pet gear: ${fawnFound ? 'the fawn found before: its tab there' : 'no fawn tab before the fawn'}; the golden bell a silhouette, no "buy"; the cat's hat tried on under its bone, bought for 25, the collar tried on came off; the fawn found - its tab, the wreath bought for 15 under its bone; stored`);
       }
+      // ---- the trades of the characters (PLAY-28, src/game/trade.ts): a character whose chain is finished asks for finds
+      // of the stash once a day. A day is taken on which the fox asks acorns for its cap, so that the gift reaches the
+      // shop; the trade, "not now", too few finds and "goodbye" are each played by a tap; no far ask without the hub open.
+      if (has('trade')) {
+        const fail = (what) => { throw new Error(`trade: ${what}`); };
+        const tap = (sel) => tapOn(sel).catch((e) => fail(`${sel} cannot be pressed: ${why(e)}`));
+        const day = await g(() => {
+          for (let n = 0; n < 200; n++) {
+            const d = new Date(Date.UTC(2031, 0, 1 + n)).toISOString().slice(0, 10), o = __game.trade.offer('fox', d);
+            if (o && o.gives !== 'stars' && o.gives.item === 'acorn_cap') return d;
+          }
+          return null;
+        });
+        if (!day) fail('no day in 200 on which the fox asks acorns for its cap');
+        await g((d) => __game.trade.day(d), day);
+        const asks = await g(() => Object.fromEntries(['unicorn', 'fox', 'mushking', 'deer', 'queen'].map((id) => [id, __game.trade.offer(id)])));
+        const hub = await g(() => 'hub' in __game.save.worlds);
+        for (const [id, o] of Object.entries(asks)) {
+          if (!o) fail(`${id} asks nothing on ${day}, its chain finished`);
+          if (o.far && !hub) fail(`${id} asks for finds of the hub (${JSON.stringify(o.need)}) and the hub is not open`);
+        }
+        const stash = () => g(() => ({ ...(__game.save.stash ?? {}) }));
+        const talkTo = async (id) => {
+          await g((q) => { const n = __game.npcs.find((x) => x.def.id === q); __game.teleport(n.pos.x + 1.4, n.pos.z + 1.4); __game.talk(q); }, id);
+          await gameFor(() => !!document.querySelector('#talk_trade'), null, 30).catch(() => fail(`no choice "Грати / Обмін / Бувай" in the talk with ${id}`));
+          for (const b of ['#talk_play', '#talk_trade', '#talk_bye']) if (!(await page.isVisible(b))) fail(`${b} is not shown in the talk with ${id}`);
+        };
+        await g(() => { __game.save.stash = { butterfly: 9, acorn: 9, mushroom: 9, feather: 9 }; });
+        // 1. the trade: what goes and what stays is shown before the tap; then exactly the ask goes and the cap comes
+        await talkTo('fox');
+        await shot('trade-choice');
+        await tap('#talk_trade');
+        await gameFor(() => !!document.querySelector('#tradeGo'), null, 20).catch(() => fail('«Обмін» did not open the card of the trade'));
+        const sums = await page.textContent('#trade .tr-sum');
+        if (!/9\D+6/.test(sums)) fail(`the card of 3 acorns of 9 says "${sums}", not "у тебе 9 → залишиться 6"`);
+        await shot('trade-card');
+        await tap('#tradeGo');
+        await controlsBack(60, 'the end of the trade');
+        const after = await stash(), got = await g(() => ({ owned: __game.save.owned.includes('acorn_cap'), done: __game.save.worlds.fairy.trade, again: __game.trade.offer('fox') }));
+        if (after.acorn !== 6 || after.butterfly !== 9 || after.mushroom !== 9 || after.feather !== 9) fail(`the stash after 3 acorns: ${JSON.stringify(after)}`);
+        if (!got.owned) fail('the acorn cap is not hers after the trade');
+        if (got.done?.day !== day || !got.done.done.includes('fox')) fail(`the day of trades: ${JSON.stringify(got.done)}`);
+        if (got.again) fail(`the fox asks again the same day: ${JSON.stringify(got.again)}`);
+        // 2. "not now": nothing spent, the same ask waits
+        const before = await stash();
+        await talkTo('mushking'); await tap('#talk_trade');
+        await gameFor(() => !!document.querySelector('#tradeLater'), null, 20).catch(() => fail('no "Не зараз" on the card'));
+        await tap('#tradeLater'); await controlsBack(30, 'the end of "not now"');
+        if (JSON.stringify(await stash()) !== JSON.stringify(before)) fail(`"not now" spent finds: ${JSON.stringify(before)} -> ${JSON.stringify(await stash())}`);
+        if ((await g(() => __game.trade.offer('mushking')))?.id !== asks.mushking.id) fail('after "not now" the ask of the mushroom king changed');
+        // 3. too few finds: «Обміняти» is off, "ще N" instead of what stays, nothing is spent by a tap on it
+        await g(() => { __game.save.stash = {}; });
+        await talkTo('unicorn'); await tap('#talk_trade');
+        await gameFor(() => !!document.querySelector('#tradeGo'), null, 20).catch(() => fail('no card of the trade with no finds'));
+        if (!(await g(() => document.querySelector('#tradeGo').disabled))) fail('«Обміняти» is on with no finds');
+        if (!/ще|ещё/.test(await page.textContent('#trade .tr-sum'))) fail('the card with no finds does not say how many are still to find');
+        await shot('trade-short');
+        await tap('#tradeLater'); await controlsBack(30, 'the end of the card with no finds');
+        if (Object.keys(await stash()).length) fail('the stash changed with no trade');
+        // 4. "goodbye": the talk ends, nothing played, nothing spent
+        const stars0 = await g(() => __game.save.stars);
+        await talkTo('deer'); await tap('#talk_bye'); await controlsBack(30, 'the end of "goodbye"');
+        if ((await g(() => __game.save.stars)) !== stars0 || (await g(() => __game.trade.card.open))) fail('"goodbye" did something');
+        // 5. the gift in the shop: the cap hers, the crown of feathers "від жителя", no "buy" under it
+        await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
+        await tap('#shopTabs [data-tab=head]'); await calm();
+        const tiles = await g(() => Object.fromEntries(['acorn_cap', 'feather_crown'].map((id) => [id, document.querySelector(`#shopItems [data-id=${id}]`)?.textContent ?? null])));
+        if (tiles.acorn_cap === null || /жителя/.test(tiles.acorn_cap)) fail(`the acorn cap in the shop: ${JSON.stringify(tiles.acorn_cap)}, expected hers`);
+        if (!/від жителя|от жителя/.test(tiles.feather_crown ?? '')) fail(`the crown of feathers in the shop: ${JSON.stringify(tiles.feather_crown)}, expected "від жителя"`);
+        await tap('#shopItems [data-id=feather_crown]'); await calm();
+        if (await visible('#shopBuy')) fail('a gift of a trade has a "buy" button');
+        await tap('#shopItems [data-id=acorn_cap]'); await calm();
+        if ((await g(() => __game.gear.get('head'))) !== 'acorn_cap') fail('the acorn cap is not worn after a tap on it');
+        await shot('trade-shop');
+        await tap('#shopDone'); await calm();
+        await g(() => __game.trade.day(null));
+        console.log(`trade: on ${day} the fox took 3 of 9 acorns for its cap (6 left), once a day; "not now" spent nothing and kept the ask; with no finds «Обміняти» off; "goodbye" did nothing; the cap hers in the shop, the crown of feathers "від жителя" with no "buy"${hub ? '' : '; no far ask with the hub closed'}`);
+      }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same
       // screen as the book; "done" closes it and the heroine walks again. Seen from where she starts first.
       if (has('shop-sign')) {

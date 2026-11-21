@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { gltf, type Rig } from '../core/assets';
 import type { PetWearer } from './shop';
+import { BUILT } from './gear-shapes';
 
 export type { PetWearer };
 
@@ -21,6 +22,7 @@ export const PET_GEAR = {
   fawn_ribbon: { pet: 'fawn', bone: 'Neck2' },
   fawn_bell: { pet: 'fawn', bone: 'Neck2' },
   fawn_star_crown: { pet: 'fawn', bone: 'Head' },
+  fawn_leaf_bow: { pet: 'fawn', bone: 'Head' },
 } as const satisfies Record<string, { pet: PetWearer; bone: string }>;
 export type PetGearId = keyof typeof PET_GEAR;
 export const PET_GEAR_IDS = Object.keys(PET_GEAR) as PetGearId[];
@@ -34,7 +36,8 @@ export type PetGearModels = Partial<Record<PetGearId, THREE.Object3D>>;
  */
 export async function loadPetGear(rigs: Partial<Record<PetWearer, Rig>>): Promise<PetGearModels> {
   const ids = PET_GEAR_IDS.filter((id) => rigs[PET_GEAR[id].pet]);
-  const loaded = await Promise.all(ids.map((id) => gltf(`pet_items/${id}`)));
+  // a thing built by code (./gear-shapes.ts) has no file
+  const loaded = await Promise.all(ids.map((id) => (BUILT[id] ? null : gltf(`pet_items/${id}`))));
   const out: PetGearModels = {};
   ids.forEach((id, i) => {
     const { model } = rigs[PET_GEAR[id].pet]!;
@@ -43,7 +46,7 @@ export async function loadPetGear(rigs: Partial<Record<PetWearer, Rig>>): Promis
     if (!bone) throw new Error(`the bone "${PET_GEAR[id].bone}" of ${id} is not in the model of the ${PET_GEAR[id].pet}`);
     model.updateMatrixWorld(true);
     const toModel = model.matrixWorld.clone().invert();
-    const object = loaded[i].scene.clone();
+    const object = BUILT[id]?.() ?? loaded[i]!.scene.clone();
     object.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
     object.applyMatrix4(toModel.multiply(bone.matrixWorld).invert());   // inverse rest matrix of the bone in model space
     object.visible = false;
