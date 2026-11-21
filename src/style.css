@@ -472,3 +472,11 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 :root { --card-foot: max(18px, calc(env(safe-area-inset-bottom) + 10px)); }
 #shop .shop-card, #book .book-card, #task .t-card, #parents .sheet, #fanfare .card, #breakCard .card, #start .panel,
 #cauldron .cd-card, #trade .tr-card { padding-bottom: var(--card-foot); }
+
+/* The row of the book's tabs and its scenes again (PLAY-29 brought a sixth tab, the picture): on one line on a phone
+   held flat - the tabs 44 px, the scenes' buttons narrower - else the row went onto two lines and the shelf under it
+   rode up over it (the layout check of the book, 844x390, 2026-11-21). */
+#book .shop-tabs { gap: 4px; }
+#book .shop-tabs button { width: 44px; height: 44px; font-size: 24px; border-radius: 14px; }
+#book .book-row { gap: 6px 10px; flex: none; }
+#book .story-row button.story-again { padding: 4px 9px; }
