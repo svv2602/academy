@@ -60,8 +60,13 @@ export interface UpdateDeps {
 }
 
 export const CHANNEL = 'amw-pages';
-/** How long a page waits for an answer of another page of the game before it takes the update. */
-export const ASK_MS = 400;
+/**
+ * How long a page waits for an answer of another page of the game before it takes the update. A page that is played
+ * answers from its main thread, between its frames: on a slow device a frame may take a second (the software renderer
+ * of the walkthrough drew one a second, and 400 ms let a second page take the update from under the game, 2026-11-21).
+ * The wait is on the start screen only, before "Play", and only while a new version waits; "Play" is not held meanwhile.
+ */
+export const ASK_MS = 3000;
 /** How long the new worker gets to take the page after SKIP_WAITING; nothing happens if it does not. */
 export const TAKE_MS = 5000;
 /** A page hidden at least this long asks for a new version when it comes back (it may have been open for days). */
