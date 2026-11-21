@@ -74,7 +74,7 @@ import { gameWaits } from './game-wait.mjs';
 import { createHash } from 'crypto';
 import { appendFileSync, mkdirSync, writeFileSync } from 'fs';
 import { inflateRawSync } from 'zlib';
-import { ACH_WHOLE, GROUPS, startSave } from './e2e-saves.mjs';
+import { ACH_WHOLE, GROUPS, PIECES_ONLY, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
 import { storySheets } from './story-sheet.mjs';
 
@@ -125,13 +125,13 @@ if (only && worldId) usage('E2E_ONLY and E2E_WORLD exclude each other: the group
 const t00 = Date.now(); /* clock: log-time */
 const blocksPlayed = [];     // the blocks the walkthrough came to, in order
 const has = (block) => {
-  if (group && !group.blocks.includes(block)) return false;
+  if (group ? !group.blocks.includes(block) : PIECES_ONLY.includes(block)) return false;
   blocksPlayed.push(block); console.log(`block ${block}: ${((Date.now() - t00) / 1000).toFixed(0)}s`); /* clock: log-time */
   // tools/run-limit.mjs: the time of each block against the limit of the walkthrough, kept even if it is killed
   if (process.env.E2E_BLOCKS_OUT) appendFileSync(process.env.E2E_BLOCKS_OUT, `${block} ${((Date.now() - t00) / 1000).toFixed(1)}\n`); /* clock: log-time */
   return true;
 };
-const listed = (block) => !group || group.blocks.includes(block);   // the same, without counting it as played
+const listed = (block) => (group ? group.blocks.includes(block) : !PIECES_ONLY.includes(block));   // the same, without counting it as played
 const plays = (friend) => !group || group.friends.includes(friend);
 // The cat's "go on" after a shard is checked on the first two shards a walkthrough gets from friends it plays.
 const shardTalks = !group || group.friends.length >= 2;
@@ -3378,7 +3378,9 @@ try {
         const press = async (r) => { if (touch) await page.touchscreen.tap(r.x + r.w / 2, r.y + r.h / 2); else await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2); await framesDrawn(2); };
         const placed = () => g(() => Number(document.getElementById('taskStage').dataset.placed ?? 0));
         const told = [];
-        for (const level of [1, 3, 5]) {
+        // the whole walkthrough plays the smallest and the largest (PIECES_ONLY of tools/e2e-saves.mjs); the piece tasks2
+        // also level 3 (its picture task-puzzle-3) and the twins of level 4
+        for (const level of group ? [1, 3, 5] : [1, 5]) {
           await g((l) => { window.__puzzle = null; void __game.task('puzzle', l).then((r) => { window.__puzzle = r; }); }, level);
           await page.locator('#taskStage .pzframe').waitFor({ timeout: 20000 }).catch(() => fail(`level ${level}: no frame on the panel`));
           // the frame of the story loaded: its cells compared
@@ -3423,7 +3425,7 @@ try {
         // pieces alike (a calm frame of level 4: sky, grass): a piece dropped on the free cell of its twin stays there,
         // the twin takes its cell - the child cannot tell them apart, so there is nothing to refuse
         let twins = '';
-        for (let tries = 0; tries < 4 && !twins; tries++) {
+        for (let tries = 0; group && tries < 4 && !twins; tries++) {
           await g(() => { window.__puzzle = null; void __game.task('puzzle', 4).then((r) => { window.__puzzle = r; }); });
           await page.locator('#taskStage .pzframe').waitFor({ timeout: 20000 }).catch(() => fail('level 4: no frame on the panel'));
           await gameFor(() => !!document.getElementById('taskStage').dataset.alike, null, 20).catch(() => fail('level 4: the cells alike were never told (the frame not loaded?)'));
@@ -3443,10 +3445,10 @@ try {
           if (!(r.solved && r.wrong === 0)) fail(`level 4: the result ${JSON.stringify(r)}`);
           await calm();
         }
-        if (!twins) fail('level 4: four calm frames and no two cells alike');
+        if (group && !twins) fail('level 4: four calm frames and no two cells alike');
         const after = await mem();
         if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after the tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
-        console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}), a piece taken by its twin's cell ${twins}; the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
+        console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}), ${twins ? `a piece taken by its twin's cell ${twins}` : 'the twins of level 4 left to the piece tasks2'}; the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
