@@ -525,6 +525,8 @@ function birdGeo(): THREE.BufferGeometry {
   return mergeGeometries([body, head, beak, tail, wing(-1), wing(1), eye(-1), eye(1)], false)!;
 }
 
+/** The scale of the sleeping bird over its shape: it sits 6-7 m over the glade. */
+const SLEEPER_SIZE = 2;
 /** The golden bird of the feathers asleep: a round body, the head tucked under a wing (no eyes, no beak), its tail. */
 function sleepingBirdGeo(): THREE.BufferGeometry {
   const body = painted(new THREE.IcosahedronGeometry(0.15, 1).scale(1, 0.85, 1.15).translate(0, 0.14, 0), '#ffc94a');
@@ -849,7 +851,8 @@ export function buildTreeLook(scene: THREE.Scene, stage: TreeStage, loads: TreeL
     const b = shape.branches[gap % shape.branches.length], t = 0.36, p = b.curve.getPointAt(t, new THREE.Vector3());
     return { p: p.setY(p.y + (b.r0 + (b.r1 - b.r0) * t) * 0.92), heading: Math.atan2(p.x, p.z) + Math.PI / 2 };
   };
-  updates.push((time) => { if (sleeper.visible) sleeper.scale.setScalar(1 + 0.04 * Math.sin(time * 1.4)); });   // it breathes
+  // seen from the glade 6-7 m below: a bird twice the size of the branches' own; it breathes
+  updates.push((time) => { if (sleeper.visible) sleeper.scale.setScalar(SLEEPER_SIZE * (1 + 0.04 * Math.sin(time * 1.4))); });
   const bird = {
     show(gap: number | null) {
       sleeper.visible = gap !== null;
