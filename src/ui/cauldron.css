@@ -1,0 +1,28 @@
+/* The cauldron (PLAY-26): a card over the game, the recipes in pictures on the left, the cauldron and the stash on the
+   right (one under the other held upright). Every button is 48 px at least. */
+#cauldron { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: #0003; }
+#cauldron.hidden { display: none; }
+.cd-card { position: relative; width: min(96vw, 820px); max-height: calc(100vh - 16px); overflow: auto; box-sizing: border-box;
+  background: #fffdf8; border-radius: 26px; padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  box-shadow: 0 16px 50px #0004; }
+.cd-close { position: absolute; top: 6px; right: 6px; width: 48px; height: 48px; border-radius: 50%; font-size: 26px; background: #f3ecfa; }
+.cd-recipes, .cd-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cd-recipe { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 10px; border-radius: 16px;
+  background: #f6f0fb; font: 700 22px/1.1 system-ui, sans-serif; color: #4a2f7a; text-align: left; }
+.cd-recipe.sel { background: #ffe9b8; box-shadow: 0 0 0 3px #ffcf3a; }
+.cd-recipe .need { display: inline-flex; flex-direction: column; align-items: center; }
+.cd-recipe .dots { display: flex; gap: 2px; }
+.cd-recipe .dots i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid #7fc96a; box-sizing: border-box; }
+.cd-recipe .dots i.have { background: #7fc96a; }
+.cd-recipe .gives { margin-left: auto; font-size: 28px; }
+.cd-pot { position: relative; height: 96px; border-radius: 0 0 48px 48px; background: radial-gradient(ellipse at 50% 20%, #9b5de5 0 30%, #3b3b46 32%);
+  display: grid; place-items: center; font-size: 34px; color: #fff; }
+.cd-pot.boil { animation: cdboil .5s ease-out; }
+.cd-pot.done { box-shadow: 0 0 24px #ffe58a; }
+.cd-stash { display: flex; flex-wrap: wrap; gap: 8px; }
+.cd-stash button { min-width: 60px; height: 56px; border-radius: 16px; background: #eef7e8; font: 700 22px/1 system-ui, sans-serif; color: #2d6a2d; }
+.cd-stash button.no { animation: cdno .35s; }
+.cd-stash button:disabled { opacity: .4; }
+@keyframes cdboil { 30% { transform: scale(1.06); } }
+@keyframes cdno { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@media (orientation: portrait) { .cd-card { grid-template-columns: 1fr; } }

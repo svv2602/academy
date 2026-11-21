@@ -1089,6 +1089,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: false };
       fw.found = [6, 7, 8, 9, 10, 11];   // the six acorns (src/worlds/fairy/collect.ts)
       fw.flags.pet = true; save.pets = ['fawn']; save.pet = 'fawn';   // the fawn chosen: it walks after her into the hub
+      save.stash = { acorn: 3, feather: 1, mushroom: 1 };   // the finds to brew with (PLAY-26)
       save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
       const p = await open('keepsakes', save);
       await p.page.goto(`${url}?debug&world=hub${q}`);
@@ -1170,6 +1171,31 @@ async function hubScenarios({ url, shots, fail: report }) {
           else told.push('the feather of the day: the first taken, the cat said hub_feather by its clip, the golden bird asleep that day, the second out the next day');
         }
         await p.g(() => __game.hub.feathers(null));
+      }
+      // the cauldron by the roots (PLAY-26): reached by walking up to it, its button "brew"; the recipes of the open
+      // worlds; a find the recipe does not ask is refused and nothing is spent; the jumping potion brewed by touches
+      // goes to the stock, the stash loses exactly the recipe; closed - the game goes on
+      {
+        const pot = await p.g(() => __game.hub.cauldron());
+        await p.g(([x, z]) => { const g = __game; g.teleport(x, z + 1.6); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; }, [pot.x, pot.z]);
+        await p.gameSeconds(1);
+        await p.page.locator('#btnAct').waitFor({ state: 'visible', timeout: 10000 }).catch(() => fail('keepsakes: no action button by the cauldron'));
+        await p.page.locator('#btnAct').tap().catch(async () => { await p.page.locator('#btnAct').click(); });
+        await p.page.locator('#cauldron .cd-recipe').first().waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the cauldron did not open'));
+        const shown = await p.g(() => [...document.querySelectorAll('#cauldron .cd-recipe')].map((b) => b.dataset.recipe));
+        if (JSON.stringify(shown) !== JSON.stringify(pot.recipes)) fail(`keepsakes: the cauldron shows ${shown}, the open worlds give ${pot.recipes}`);
+        const before = await p.g(() => ({ stash: { ...__game.save.stash }, jump: __game.save.supplies?.jump ?? 0 }));
+        const press = (sel) => p.page.locator(sel).first().tap().catch(() => p.page.locator(sel).first().click());
+        await press('#cauldron [data-recipe=jump]');
+        await press('#cauldron [data-kind=mushroom]');          // not in the recipe: refused, nothing spent
+        await p.shot('hub-cauldron.png');
+        for (const k of ['acorn', 'acorn', 'feather']) await press(`#cauldron [data-kind=${k}]`);
+        const after = await p.g(() => ({ stash: { ...__game.save.stash }, jump: __game.save.supplies?.jump ?? 0 }));
+        if (after.jump !== before.jump + 1 || after.stash.acorn !== 1 || after.stash.feather !== undefined || after.stash.mushroom !== 1) fail(`keepsakes: brewing the jumping potion: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        await p.shot('hub-cauldron-done.png');
+        await press('#cauldronClose');
+        if (await p.g(() => __game.paused === true || !document.getElementById('cauldron').classList.contains('hidden'))) fail('keepsakes: the cauldron closed, the game still stands');
+        told.push(`the cauldron by the roots: ${shown.length} recipes of the open worlds, a mushroom not asked refused, the jumping potion brewed by touches (the stash ${JSON.stringify(before.stash)} -> ${JSON.stringify(after.stash)})`);
       }
       await p.close();
     }

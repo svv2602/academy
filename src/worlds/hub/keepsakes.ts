@@ -18,7 +18,7 @@ import { barkRadius, treeHollow } from './tree-look';
  * The Fairy Kingdom has seven of its own shapes (below); a secret or a set of another world, not drawn yet, hangs a
  * glowing bead of its world's colour by its nest, so nothing it found goes unseen.
  *
- * All the keepsakes are one geometry, one draw call: vertex-coloured, glowing a little by their own colour (no light),
+ * All the keepsakes are one geometry, one draw call (with the cauldron by the roots, PLAY-26): vertex-coloured, glowing a little by their own colour (no light),
  * dissolving at the lens with the trunk they sit on (`fadeAtCamera`).
  */
 
@@ -206,8 +206,12 @@ export function keepsakeMaterial(): THREE.MeshStandardMaterial {
 }
 
 /** Hangs the keepsakes earned on the Tree: one mesh (or none), named `keepsakes`. */
-export function buildKeepsakes(scene: THREE.Scene, save: Save, worlds: readonly ArtifactWorld[] = knownWorlds()): { mesh: THREE.Mesh | null; list: Keepsake[] } {
-  const list = keepsakesOf(save, worlds), geo = keepsakeGeometry(list, worlds);
+export function buildKeepsakes(scene: THREE.Scene, save: Save, worlds: readonly ArtifactWorld[] = knownWorlds(), extra: readonly THREE.BufferGeometry[] = []): { mesh: THREE.Mesh | null; list: Keepsake[] } {
+  const list = keepsakesOf(save, worlds), own = keepsakeGeometry(list, worlds);
+  // what else of the Tree is drawn with them in the same call (the cauldron, PLAY-26): the hub's budget is short
+  const parts = [...(own ? [own] : []), ...extra];
+  const geo = parts.length > 1 ? mergeGeometries(parts, false) : parts[0] ?? null;
+  if (parts.length > 1) parts.forEach((p) => p.dispose());
   if (!geo) return { mesh: null, list };
   const mesh = new THREE.Mesh(geo, keepsakeMaterial());
   mesh.name = 'keepsakes';
