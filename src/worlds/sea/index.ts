@@ -86,8 +86,9 @@ const SWIM_HEIGHT = 0.6;
  * after a pale '#a8e2ea' that looked beige and a cold '#5cb6e4' over grey sand that looked wintry).
  */
 export const WATER_COLOR = '#2fb0d6';
-/** The haze of the water, from and to, in halves of the map: thicker than the air's, the far landmarks still seen. */
-export const FOG_NEAR = 0.3, FOG_FAR = 2;
+/** The haze of the water, from and to, in halves of the map: it begins a few metres from her - the floor goes turquoise
+ * there (the customer, 2026-11-21: "the turquoise haze nearer") - and the far landmarks are still seen. */
+export const FOG_NEAR = 0.12, FOG_FAR = 2;
 /** Shafts of light from the surface: how many, swaying slowly; one mesh (one draw call). */
 export const SHAFTS = 8;
 
