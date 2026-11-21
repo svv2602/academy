@@ -23,7 +23,8 @@ another file). The service is paid: a line is sent only if it has no clip yet or
 Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new] [--help]
 An argument it does not know stops it before anything is read or sent (2026-11-19: `--help` was not known then, and
 the run recorded seven lines for real); `--help` prints this text and sends nothing.
-`--only` takes the names above; a plain key works for a line of a world too (the keys are one set for the whole game).
+`--only` takes the names above; a plain key works for a line of a world too (the keys are one set for the whole game),
+and takes its lines in the characters' voices with it (`<key>@<voice>`); `<key>@<voice>` takes that one alone.
 """
 import base64
 import difflib
@@ -352,6 +353,7 @@ def main():
     qa = json.loads(qa_path.read_text()) if qa_path.exists() else {}
     only = arg('only')
     only = only.split(',') if only else None
+    extra = []
     if only:
         # A name of a clip, or a plain key: the keys are one set for the whole game, so a key names one line (R75).
         only = [o if o in lines or o not in phrases else clip_name(o, phrases[o]) for o in only]
@@ -361,6 +363,10 @@ def main():
             named = [f'{o} (it is {clip_name(o.split("/", 1)[1], phrases[o.split("/", 1)[1]])})' if '/' in o and o.split('/', 1)[1] in phrases else o
                      for o in unknown]
             sys.exit('gen_voice: nothing was sent. Not in voice/phrases.json: ' + ' '.join(named))
+        # A key also names its lines in the characters' voices (`<key>@<voice>`, which voice:sync writes with it): asked
+        # for one, all its recordings come, and the run says which (2026-11-21: a dry run of t_diff showed 1 of 5).
+        extra = [cid for o in dict.fromkeys(only) if '@' not in o for cid in lines if cid.startswith(o + '@') and cid not in only]
+        only += extra
     # A recorded clip is never recorded again just because the other model is chosen (VOICE-14): only a missing clip
     # or a changed text or intonation is sent; --only / --force record a line anew on purpose.
     todo = [(cid, row[0], row[1]) for cid, row in lines.items()
@@ -368,6 +374,8 @@ def main():
     other = [cid for cid, row in lines.items()
              if not stale(cid, row[0], row[1], qa, audio, bank) and stale(cid, row[0], row[1], qa, audio, bank, model)]
     print(f'{len(todo)} of {len(lines)} lines to record, model {model}: ' + ' '.join(cid for cid, *_ in todo), flush=True)
+    if extra:
+        print('also by voices: ' + ' '.join(extra), flush=True)
     if other:
         print(f'{len(other)} recorded clips are of another model or voice and are kept (not recorded again)', flush=True)
     by_voice = {}

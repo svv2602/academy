@@ -420,6 +420,27 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
     expect(r.lines).toContain('by voice (model gemini-2.5-flash-preview-tts): Puck 2, Leda 1');
   });
 
+  it('--only of a key takes its lines in the characters\' voices too, and says so; <key>@<voice> takes that one alone', () => {
+    // 2026-11-21: a dry run of one key showed one line where voice:sync had written five (<key>@<voice> with it)
+    for (const only of ['heron_hi', 'lake/heron_hi']) {
+      const dir = tree();
+      const dry = run(dir, '--dry-run', `--only=${only}`);
+      expect(dry.lines, only).toContain('also by voices: lake/heron_hi@Leda');
+      expect(dry.lines.find((l) => l.includes('lines to record')), only).toBe('2 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/heron_hi lake/heron_hi@Leda');
+      expect(dry.sent, only).toEqual([]);
+      const real = run(dir, `--only=${only}`);
+      expect(real.sent, only).toEqual(['Я чапля.', 'Я чапля.']);
+      expect(under(dir, 'public/voice'), only).toEqual(['lake/heron_hi.mp3', 'lake/heron_hi@Leda.mp3']);
+    }
+    const one = run(tree(), '--dry-run', '--only=lake/heron_hi@Leda');
+    expect(one.lines.some((l) => l.startsWith('also by voices'))).toBe(false);
+    expect(one.lines[0]).toBe('1 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/heron_hi@Leda');
+    // both asked for: each once, nothing added
+    const both = run(tree(), '--dry-run', '--only=heron_hi,heron_hi@Leda');
+    expect(both.lines.some((l) => l.startsWith('also by voices'))).toBe(false);
+    expect(both.lines[0]).toBe('2 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/heron_hi lake/heron_hi@Leda');
+  });
+
   it('--only with the name of another world, or of no line, sends nothing and names the line', () => {
     const dir = tree();
     const wrong = run(dir, '--only=trial/lake_hi');
@@ -454,7 +475,10 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
       { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
     const total = Object.keys(JSON.parse(readFileSync(join(root, 'voice/phrases.json'), 'utf8'))).length;
     expect(run('--only=welcome_back')).toBe(`1 of ${total} lines to record, model gemini-2.5-flash-preview-tts: welcome_back\nby voice (model gemini-2.5-flash-preview-tts): Puck 1\n`);
-    expect(run('--only=npc_next@Leda,unicorn_hi').split('\n')[0]).toBe(`2 of ${total} lines to record, model gemini-2.5-flash-preview-tts: npc_next@Leda unicorn_hi`);
+    // a key brings its lines in the characters' voices along, and the run names them
+    const both = run('--only=npc_next@Leda,unicorn_hi').split('\n');
+    expect(both[0]).toBe(`3 of ${total} lines to record, model gemini-2.5-flash-preview-tts: npc_next@Leda unicorn_hi unicorn_hi@Sulafat`);
+    expect(both[1]).toBe('also by voices: unicorn_hi@Sulafat');
   });
 });
 
