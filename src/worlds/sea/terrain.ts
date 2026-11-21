@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { uTier, uTime } from '../../core/materials';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
 import { EDGE, HALF, PATHS, ZONES, type Place } from './layout';
@@ -91,6 +92,44 @@ export const ground: WorldGround = {
 };
 
 /** The floor as one mesh, coloured by vertex: the map and the rim around it. */
+/**
+ * The colour of the caustics: a bright turquoise the sand is mixed towards on their lines (the sand itself stays warm
+ * between them). Added on top, any colour went white over the bright sand.
+ */
+export const CAUSTIC_COLOR = '#4fd6d0';
+/** How far the sand goes towards CAUSTIC_COLOR on the brightest lines (0..1). */
+export const CAUSTIC_STRENGTH = 0.45;
+
+/**
+ * Turquoise caustics on the sand (the customer, 2026-11-21: "д) turquoise caustics"): the light the waves above focus
+ * into a net of bright lines that sways slowly. Drawn by the floor's own shader - no texture, no mesh, no draw call more:
+ * three crossing waves of the world position, bent by two slow ones; the light is the thin ridges where their sum is
+ * near zero. It runs on the game's time (uTime: it stands with the game). On the weakest tier (q0) it is left out - one
+ * uniform branch skips it, the floor costs what it cost.
+ */
+export function causticMaterial<M extends THREE.MeshStandardMaterial>(m: M): M {
+  const color = new THREE.Color(CAUSTIC_COLOR);
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = uTime;
+    sh.uniforms.uTier = uTier;
+    sh.vertexShader = 'varying vec2 vCausticAt;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n  vCausticAt = (modelMatrix * vec4(position, 1.0)).xz;');
+    sh.fragmentShader = `uniform float uTime;
+uniform float uTier;
+varying vec2 vCausticAt;
+float caustic(vec2 p, float t) {
+  p *= 0.42;
+  vec2 q = p + vec2(sin(t * 0.31 + p.y * 1.3), cos(t * 0.27 + p.x * 1.1)) * 0.55;
+  float a = sin(q.x * 2.1 + t * 0.45) + sin(q.y * 2.3 - t * 0.38) + sin((q.x + q.y) * 1.6 + t * 0.29);
+  return pow(clamp(1.0 - abs(a) * 0.9, 0.0, 1.0), 5.0);
+}
+` + sh.fragmentShader.replace('#include <opaque_fragment>', `if (uTier > 0.5) outgoingLight = mix(outgoingLight, vec3(${color.r.toFixed(4)}, ${color.g.toFixed(4)}, ${color.b.toFixed(4)}) * 1.2, caustic(vCausticAt, uTime) * ${CAUSTIC_STRENGTH.toFixed(3)});
+  #include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => 'sea-caustics';
+  return m;
+}
+
 export function buildGround(segments: number): THREE.Mesh {
   const size = (HALF + 40) * 2;
   const geo = new THREE.PlaneGeometry(size, size, segments, segments);
@@ -103,7 +142,7 @@ export function buildGround(segments: number): THREE.Mesh {
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+  const mesh = new THREE.Mesh(geo, causticMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })));
   mesh.receiveShadow = true;
   mesh.name = 'sea-ground';
   return mesh;

@@ -6,6 +6,8 @@ export const uTime = { value: 0 };
  * world's magic (src/worlds/fairy/magic.ts) changes it; the shaders read it as a uniform, so no program is rebuilt.
  */
 export const uSway = { value: 1 };
+/** The quality tier the frame is drawn at (0, 1, 2; src/core/renderer.ts sets it): a shader may leave out what a weak tier does not draw. */
+export const uTier = { value: 2 };
 
 /** Vertex-coloured standard material; with `sway` the top of every instance bends in the wind. */
 export function propMaterial(sway = 0, opts: THREE.MeshStandardMaterialParameters = {}) {

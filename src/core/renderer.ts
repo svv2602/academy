@@ -6,6 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { autoMayRaise, autoRaise, autoSecond, autoStart, startTier, type Tier } from './quality';
 import { storeSave, type Save } from './save';
 import { setDrawRange } from './instancing';
+import { uTier } from './materials';
 import { el } from '../ui/ui';
 import { transition } from '../game/transition';
 
@@ -69,6 +70,7 @@ export function createQuality(o: {
   let closedInSecond = false;
 
   function apply() {
+    uTier.value = tier;
     const dpr = Math.min(devicePixelRatio, tier === 2 ? 2 : tier === 1 ? 1.5 : 1);
     renderer.setPixelRatio(dpr);
     renderer.setSize(innerWidth, innerHeight, false);
