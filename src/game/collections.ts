@@ -18,7 +18,7 @@ export const COLLECT_KINDS = {
   mushroom: { icon: '🍄', color: '#ff5f7e' },
   feather: { icon: '🪶', color: '#7fb8ff' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts) */
-  treefeather: { icon: '✨', color: '#ffc94a' },
+  treefeather: { icon: '✨', color: '#ffa31a' },
 } as const;
 export type CollectKind = keyof typeof COLLECT_KINDS;
 

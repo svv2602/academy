@@ -30,7 +30,7 @@ export type CollectHost = Pick<Game, 'scene' | 'ws' | 'world' | 'ground' | 'grou
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 2.2, butterfly: 2.2 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
