@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { sfx } from '../../core/audio';
-import type { Rig } from '../../core/assets';
+import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
@@ -53,7 +53,7 @@ export const FRIENDS: readonly CharacterDef[] = [
 /** The steps played in the world (WorldDef.worldTasks): Mudrena's steps to her hollow (WORLD-16). */
 export const WORLD_TASKS: readonly string[] = [STEPS];
 
-/** The shape of each character in the grey build: its height and colour (the Ash is its tree: no figure of its own). */
+/** The size of each character: its height and the radius it keeps clear (the Ash is its tree: no figure of its own). */
 const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string }> = {
   borovik: { h: 1.1, r: 0.3, color: '#8a6a4a', hat: '#d8443a' },
   mudrena: { h: 0.7, r: 0.3, color: '#9a8466' },
@@ -61,6 +61,19 @@ const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string
   yasen: { h: 0, r: 0, color: '#000' },
   kolyuchka: { h: 0.4, r: 0.22, color: '#6a5442' },
 };
+
+/**
+ * The characters' models (the customer's decision 2026-11-21: Meshy instead of the simple shapes; CREDITS.md), the
+ * world's own files (models/forest/, TECH-09): one per character, and two who stand by without a chain of their own -
+ * Tropka in the village a step aside from Borovik (out of the way to him), and the owlet, Mudrena's little one, in the
+ * squirrel grove where the pet of the world is to be found (world-2.md, PLAY-09; it follows her once that is made).
+ */
+const MODELS: Record<string, number> = { borovik: 1.1, mudrena: 0.7, shustrik: 0.45, kolyuchka: 0.4, tropka: 1.0, owlet: 0.38 };
+export const BYSTANDERS = [
+  { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
+  { id: 'owlet', x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2, heading: 2.0, r: 0.2 },
+] as const;
+type ForestModels = Record<string, Rig>;
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
 export const LEAVES = [
@@ -91,10 +104,11 @@ function buildSky(scene: THREE.Scene): WorldSky {
   return { sun, sunOffset: new THREE.Vector3(-20, 34, 16) };
 }
 
-/** Nothing to load: the grey build is made of shapes (and the heroine and the cat are the game's). */
-const loadForest = (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<Record<string, never>> => Promise.resolve({});
+/** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
+const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<ForestModels> =>
+  Object.fromEntries(await Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)));
 
-/** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */
+/** A character without a model (none now but the Ash, which is its tree): a figure of its height and colour on a rig with no clips. */
 function figure(id: string): Rig {
   const f = FIGURE[id], root = new THREE.Group(), model = new THREE.Group();
   if (f.h > 0) {
@@ -111,7 +125,7 @@ function figure(id: string): Rig {
   return { root, model, clips: new Map() };
 }
 
-function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: WorldScope): BuiltWorld {
+function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
@@ -123,13 +137,22 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
   const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(figure(def.id));
+    const actor = new Actor(L[def.id] ?? figure(def.id));
     const pos = point(def);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
+    actor.play('Idle');
     if (FIGURE[def.id].h > 0) g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
     const mark = new THREE.Mesh(markGeo, starMat);
     scene.add(actor.root, mark);
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
+  });
+  const bystanders = BYSTANDERS.map((b) => {
+    const actor = new Actor(L[b.id]);
+    actor.root.position.copy(point(b)); actor.heading = b.heading; actor.root.rotation.y = b.heading;
+    g.ground.block(b.x, b.z, b.r + 0.3);
+    actor.play('Idle');
+    scene.add(actor.root);
+    return actor;
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
@@ -230,6 +253,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
           n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, FIGURE[n.def.id].h + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
           n.actor.update(dt);
         }
+        for (const a of bystanders) a.update(dt);
         nuts.update(dt, time, canMove);
         maze.update(dt, time, canMove);
         for (const l of leaves) {
@@ -280,7 +304,7 @@ function buildForest(g: Game, _L: Record<string, never>, sky: WorldSky, scope: W
 }
 
 /** The Enchanted Forest, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
-export const forest: WorldDef<Record<string, never>, WorldSky> = {
+export const forest: WorldDef<ForestModels, WorldSky> = {
   id: 'forest',
   shelf: 1,
   spawn: SPAWN,

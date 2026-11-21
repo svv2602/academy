@@ -1,7 +1,10 @@
 // The asset pipeline: npm run assets
 //
 // Reads the source models from models-src/ (never shipped) and writes what the game downloads into public/models/
-// under the same relative paths:
+// under the same relative paths - but a next world's (TECH-09, decision Q14: models-src/<id>/ of a world that is not the
+// first one nor the installation's) goes to worlds-data/<id>/models/<id>/, outside public/: public/ is copied into
+// every build, and a world's models belong only to a build that has the world (vite.config.ts `greyFiles` puts
+// worlds-data/<id>/ into it under models/<id>/, the path the game asks for):
 //   - geometry and animation: EXT_meshopt_compression. Nothing is quantized, simplified or resampled — every float
 //     the loader reads is bit-identical to the source, so src/core/assets.ts needs the decoder and nothing else.
 //     Unindexed models are welded first (identical vertices only), then vertices are reordered for the codec;
@@ -9,11 +12,12 @@
 //     .glb references by relative URI (models share them and no .glb carries megabytes of images). Colour maps are
 //     lossy (quality COLOR_QUALITY, alpha lossless); normal and other data maps are lossless. Colour under
 //     transparent texels is kept (`exact`): the leaf textures are edge-bled on purpose, see tools/usd2glb.py.
-// public/models/ is rebuilt from scratch on every run and the output is byte-reproducible on one machine: a second
-// run changes nothing. The script fails if a file exceeds MAX_FILE or the directory exceeds MAX_TOTAL; the same
-// limits are checked by tools/assets.test.mjs in `npm test`.
+// public/models/ and every worlds-data/<id>/models/ are rebuilt from scratch on every run and the output is
+// byte-reproducible on one machine: a second run changes nothing. The script fails if a file exceeds MAX_FILE, the core
+// (public/models/) exceeds MAX_TOTAL or a next world's models exceed MAX_WORLD (tools/dist-size.mjs); the same limits
+// are checked by tools/assets.test.mjs in `npm test`.
 //
-//   node tools/assets.mjs [--check]     --check: build in memory, write nothing, fail if public/models/ differs
+//   node tools/assets.mjs [--check]     --check: build in memory, write nothing, fail if the output differs
 //
 // Adding a model: put the source .glb into models-src/, npm run assets, npm run e2e -- --update-models.
 import { NodeIO, PropertyType } from '@gltf-transform/core';
@@ -25,17 +29,21 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, posix, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { MAX_WORLD, installedWorlds, sourceWorlds } from './dist-size.mjs';
+import { WORLDS_DATA } from './vite-worlds.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const SRC_DIR = 'models-src';
 export const OUT_DIR = 'public/models';
+/** The next worlds' own files, outside public/: worlds-data/<id>/ holds them at their paths in the build (models/<id>/…). */
+export { WORLDS_DATA };
 /** Longest side of a shipped texture, pixels (docs/15-tech.md, TECH-02). */
 export const MAX_TEXTURE = 1024;
 /** sharp resize options that bring any image within MAX_TEXTURE and never enlarge it. */
 export const FIT = { width: MAX_TEXTURE, height: MAX_TEXTURE, fit: 'inside', withoutEnlargement: true };
 /** One shipped file, bytes (docs/15-tech.md, "Бюджет": one file up to 1 MB). */
 export const MAX_FILE = 1_000_000;
-/** All of public/models, bytes: the 12 MB first-load budget minus code, voice and headroom for both. */
+/** All of public/models (the core with the first world), bytes: the 12 MB first-load budget minus code, voice and headroom for both. */
 export const MAX_TOTAL = 10_000_000;
 /** WebP quality of colour maps: 40 dB PSNR or better on every texture of the first world. */
 export const COLOR_QUALITY = 90;
@@ -46,6 +54,12 @@ export const COLOR_QUALITY = 90;
  * ask not to remove the marks of generation from its output; its textured models carry none, its rigged ones only
  * the data of the skeleton, and Blender and this pipeline write their own `asset` - so the record is put back here.
  */
+function forest(generated, rest) {
+  return {
+    copyright: `Generated with Meshy (https://www.meshy.ai) on a paid plan on ${generated}; ${rest}`,
+    source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated, terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
+  };
+}
 export const PROVENANCE = {
   'extra/cat.glb': {
     copyright: 'Generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-19; skeleton and clips: Meshy Service Assets',
@@ -55,6 +69,15 @@ export const PROVENANCE = {
     copyright: 'Mesh and texture generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-15; skeleton and animations: Quaternius, CC0 1.0',
     source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated: '2026-11-15', terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
   },
+  // the forest (2026-11-20/21, the customer's decision 2026-11-21): Meshy's meshes and textures; the gnomes with Meshy's
+  // skeleton and clips, the squirrel and the hedgehog with Meshy's skeleton and our own clips, the owls with our own
+  // skeleton and clips (no rig of Meshy for a bird)
+  'forest/borovik.glb': forest('2026-11-21', 'skeleton and clips: Meshy Service Assets'),
+  'forest/tropka.glb': forest('2026-11-21', 'skeleton and clips: Meshy Service Assets'),
+  'forest/kolyuchka.glb': forest('2026-11-21', 'skeleton: Meshy Service Assets; clips: our own'),
+  'forest/shustrik.glb': forest('2026-11-20', 'skeleton: Meshy Service Assets; clips: our own'),
+  'forest/mudrena.glb': forest('2026-11-20', 'skeleton and clips: our own'),
+  'forest/owlet.glb': forest('2026-11-20', 'the owl made small and pale; skeleton and clips: our own'),
 };
 
 const quiet = { debug() {}, info() {}, warn(m) { throw new Error(`gltf-transform warning: ${m}`); }, error(m) { throw new Error(m); } };
@@ -211,11 +234,42 @@ export async function buildAll(srcDir = join(ROOT, SRC_DIR), log = () => {}) {
   return new Map([...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
-/** Size problems of a set of shipped files ({path, size}); empty when it fits the budget. */
-export function overBudget(files) {
+/** The next worlds of the sources: every folder of src/worlds/ but the first world's and the installation's (the hub). */
+export function nextWorlds() {
+  const installed = installedWorlds();
+  return sourceWorlds().worlds.filter((id) => !installed.includes(id));
+}
+
+/** The next world a model belongs to (its first folder is the world's id), or null: the core's. */
+export function worldOfModel(rel, worlds = nextWorlds()) {
+  const id = rel.split('/')[0];
+  return rel.includes('/') && worlds.includes(id) ? id : null;
+}
+
+/** Where a shipped file of `rel` (a path under models/) lies, relative to the root: public/models/… or worlds-data/<id>/models/…. */
+export function shippedPath(rel, worlds = nextWorlds()) {
+  const id = worldOfModel(rel, worlds);
+  return id === null ? posix.join(OUT_DIR, rel) : posix.join(WORLDS_DATA, id, 'models', rel);
+}
+
+/** Every shipped file, as paths under models/, sorted: the core's (public/models/) and the next worlds'. */
+export function listShipped(worlds = nextWorlds(), root = ROOT) {
+  const own = worlds.flatMap((id) => listFiles(join(root, WORLDS_DATA, id, 'models')).filter((f) => worldOfModel(f, worlds) === id));
+  return [...listFiles(join(root, OUT_DIR)), ...own].sort();
+}
+
+/**
+ * Size problems of a set of shipped files ({path, size}, paths under models/); empty when it fits the budget. The core
+ * (public/models/) and each next world (TECH-09) are counted apart: MAX_TOTAL and MAX_WORLD.
+ */
+export function overBudget(files, worlds = nextWorlds()) {
   const problems = files.filter((f) => f.size > MAX_FILE).map((f) => `${f.path}: ${f.size} bytes, the limit for one file is ${MAX_FILE}`);
-  const total = files.reduce((s, f) => s + f.size, 0);
-  if (total > MAX_TOTAL) problems.push(`${OUT_DIR}: ${total} bytes in total, the limit is ${MAX_TOTAL}`);
+  const parts = new Map();
+  for (const f of files) { const id = worldOfModel(f.path, worlds); parts.set(id, (parts.get(id) ?? 0) + f.size); }
+  for (const [id, total] of parts) {
+    const max = id === null ? MAX_TOTAL : MAX_WORLD;
+    if (total > max) problems.push(`${id === null ? OUT_DIR : posix.join(WORLDS_DATA, id, 'models')}: ${total} bytes in total, the limit is ${max}`);
+  }
   return problems;
 }
 
@@ -231,22 +285,26 @@ async function main() {
 
   const sizes = [...files].map(([path, bytes]) => ({ path, size: bytes.length }));
   const total = sizes.reduce((s, f) => s + f.size, 0), heaviest = sizes.reduce((a, b) => (b.size > a.size ? b : a));
-  console.log(`\n${SRC_DIR}: ${(before / 1e6).toFixed(2)} MB -> ${OUT_DIR}: ${(total / 1e6).toFixed(2)} MB in ${sizes.length} files; `
+  const part = (id) => sizes.filter((f) => worldOfModel(f.path) === id).reduce((s, f) => s + f.size, 0);
+  const own = nextWorlds().filter((id) => part(id) > 0).map((id) => `, ${WORLDS_DATA}/${id}: ${(part(id) / 1e6).toFixed(2)} MB`).join('');
+  console.log(`\n${SRC_DIR}: ${(before / 1e6).toFixed(2)} MB -> ${(total / 1e6).toFixed(2)} MB in ${sizes.length} files (${OUT_DIR}: ${(part(null) / 1e6).toFixed(2)} MB${own}); `
     + `heaviest: ${heaviest.path}, ${(heaviest.size / 1e6).toFixed(2)} MB`);
 
+  const worlds = nextWorlds();
   if (check) {
-    const onDisk = listFiles(outDir);
-    const stale = [...files].filter(([path, bytes]) => !existsSync(join(outDir, path)) || !readFileSync(join(outDir, path)).equals(bytes)).map(([path]) => path);
+    const onDisk = listShipped(worlds);
+    const stale = [...files].filter(([path, bytes]) => { const at = join(ROOT, shippedPath(path, worlds)); return !existsSync(at) || !readFileSync(at).equals(bytes); }).map(([path]) => path);
     const extra = onDisk.filter((path) => !files.has(path));
     if (stale.length || extra.length) {
-      console.error(`${OUT_DIR} is not what the sources produce. Run: npm run assets\n  differs or missing: ${stale.join(', ') || '-'}\n  not produced: ${extra.join(', ') || '-'}`);
+      console.error(`the models are not what the sources produce. Run: npm run assets\n  differs or missing: ${stale.join(', ') || '-'}\n  not produced: ${extra.join(', ') || '-'}`);
       process.exitCode = 1;
     }
   } else {
     rmSync(outDir, { recursive: true, force: true });
-    for (const [path, bytes] of files) { mkdirSync(dirname(join(outDir, path)), { recursive: true }); writeFileSync(join(outDir, path), bytes); }
+    for (const id of worlds) rmSync(join(ROOT, WORLDS_DATA, id, 'models'), { recursive: true, force: true });
+    for (const [path, bytes] of files) { const at = join(ROOT, shippedPath(path, worlds)); mkdirSync(dirname(at), { recursive: true }); writeFileSync(at, bytes); }
   }
-  const problems = overBudget(sizes);
+  const problems = overBudget(sizes, worlds);
   if (problems.length) { console.error(`over budget:\n  ${problems.join('\n  ')}`); process.exitCode = 1; }
 }
 

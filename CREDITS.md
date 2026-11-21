@@ -22,6 +22,16 @@ plan on 2026-11-19; under Meshy's terms for paid plans the model belongs to the 
 the clips are Meshy's "Service Assets", licensed for use as part of the model. Joined, simplified and its texture
 shrunk in Blender for this game.
 
+The characters of the forest (world 2; `models-src/forest/`, shipped with the world from `worlds-data/forest/`): the
+meshes and textures of Borovik and Tropka (the gnomes), Kolyuchka (the hedgehog), Shustrik (the squirrel) and Mudrena
+(the owl) were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-20 (the squirrel and
+the owl) and 2026-11-21 (the gnomes and the hedgehog); under Meshy's terms for paid plans the models belong to the
+customer (not CC0). Skeletons and clips: the gnomes' skeleton and clips (idle, "Big Wave Hello" for their talk, walk,
+run) are Meshy's "Service Assets", licensed for use as part of the model; the squirrel and the hedgehog have Meshy's
+skeleton ("Service Assets") with our own clips made in Blender for this game; the owl has our own skeleton and clips
+(Meshy rigs no birds). The owlet is the owl's model made small, its texture paler and its head larger, in Blender.
+Joined and their textures shrunk in Blender for this game.
+
 Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wands, butterfly wings, and the free items
 of the four looks: tiara, little wizard cap, elf ears, flower, moon and leaf wands; `models-src/items/`): our own simple shapes made in Blender for this game with
 `tools/items/items.py` — not taken from any pack or service.

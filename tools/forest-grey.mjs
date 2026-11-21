@@ -3,9 +3,13 @@
 //   node tools/forest-grey.mjs [--scales 1.6] [--no-pass] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the forest in that mode only (src/worlds/index.ts).
+//    The build must fit the size budget (tools/dist-size.mjs): the forest's own models (models/forest/, from
+//    worlds-data/forest/ - tools/assets.mjs, vite.config.ts `greyFiles`) count as a next world's, apart from the core.
 // 2. dist-grey/ served on E2E_PORT (4183 by default).
 // 3. The walkthrough every world shares, by the forest's description, from its entry to its finale (tools/world-pass.mjs,
 //    E2E_WORLD=forest E2E_WORLD_NEED=grey, the phone size); pictures in shots-e2e/forest-grey/. --no-pass leaves it out.
+//    The page itself must have asked for every file of the forest's own models (models/forest/…): a model the world
+//    never loads would only weigh on the download of the world.
 // 4. For every stretch of the map in --scales (`?scale=`, src/worlds/forest/layout.ts), in the phone size:
 //    - the time on foot of every path of the map: she runs it with the key held, turned along the path at every frame,
 //      timed in game seconds; next to it, the length of the path over her top speed;
@@ -22,6 +26,8 @@ import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
+import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { greyWorldFiles } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';
@@ -79,6 +85,10 @@ async function main() {
   // ---- 1. the grey build ----
   rmSync(dist, { recursive: true, force: true });
   execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', DIST], { cwd: root, stdio: 'inherit' });
+  let failed = false;
+  const size = checkDistSize(dist);
+  console.log(`[grey] the size of the build: ${sizeSummary(size)}`);
+  if (size.problems.length) { console.log(`[grey] over the budget:\n  ${size.problems.join('\n  ')}`); failed = true; }
   // ---- 2. served ----
   const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
     '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg' };
@@ -93,15 +103,22 @@ async function main() {
   await new Promise((r) => server.listen(port, '127.0.0.1', r));
   const url = `http://127.0.0.1:${port}/`;
   console.log(`[grey] ${DIST}/ served on ${url}`);
-  let failed = false;
   // ---- 3. the walkthrough ----
   if (args.pass) {
     const shots = join('shots-e2e', 'forest-grey');
     mkdirSync(join(root, shots), { recursive: true });
-    const env = { ...process.env, E2E_WORLD: 'forest', E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: join(root, shots, 'pass-mobile.json'), E2E_ONLY: '', E2E_MUTE: '0' };
+    const modelsOut = join(root, shots, 'models-requested-mobile.json');
+    rmSync(modelsOut, { force: true });
+    const env = { ...process.env, E2E_WORLD: 'forest', E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: join(root, shots, 'pass-mobile.json'), E2E_MODELS_OUT: modelsOut, E2E_ONLY: '', E2E_MUTE: '0' };
     const code = await new Promise((r) => spawn(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, 'mobile'], { cwd: root, stdio: 'inherit', env }).on('exit', r));
     console.log(`[grey] the walkthrough of the forest by its description (phone): ${code === 0 ? 'ok' : `FAILED (code ${code})`}`);
     if (code !== 0) failed = true;
+    // every file of the forest's own models asked for by the page in the walkthrough
+    const own = Object.keys(greyWorldFiles(['forest'], {}, root)).filter((p) => p.startsWith('models/forest/'));
+    const asked = existsSync(modelsOut) ? new Set(JSON.parse(readFileSync(modelsOut, 'utf8'))) : new Set();
+    const never = own.filter((p) => !asked.has(p));
+    console.log(`[grey] the forest's own models: ${own.length - never.length} of ${own.length} asked for by the page${never.length ? `; never: ${never.join(', ')}` : ''}`);
+    if (!own.length || never.length) failed = true;
   }
   // ---- 4. the measurements ----
   if (!args.measure) { server.close(); process.exit(failed ? 1 : 0); }
