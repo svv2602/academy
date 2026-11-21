@@ -26,6 +26,8 @@ const S = sameKeys({
     need_net: 'Щоб відкрити цей портал, потрібен інтернет. Попроси дорослих увімкнути його.',
     t_count: 'Скільки їх тут? Торкайся і рахуй.', t_add: 'Скільки буде разом?', t_sub: 'Дехто втік. Скільки залишилось?',
     t_compare_more: 'Де більше?', t_compare_less: 'Де менше?', t_pattern: 'Що буде далі?', t_odd: 'Що тут зайве?',
+    // LEARN-18, find the differences: the task, its short repeat, its hints (half, then a quarter of a picture glows)
+    t_diff: 'Знайди відмінності!', h_diff: 'Чим ці картинки різняться?', h1_diff: 'Подивись уважно на цю половинку.', h2_diff: 'Одна сховалася ось у цьому куточку!',
     t_pairs: 'Знайди однакові картки.', t_order: 'Натискай числа від найменшого.', t_sort: 'Поклади кристал у кошик такого ж кольору.',
     t_simon_watch: 'Дивись і запамʼятовуй!', t_simon_repeat: 'Тепер повтори!',
     h_count: 'Порахуймо разом!', h_left: 'Порахуймо тих, хто залишився.', h_compare: 'Порахуй тут і тут.', h_pattern: 'Подивись, що повторюється.',
@@ -202,6 +204,7 @@ const S = sameKeys({
     need_net: 'Чтобы открыть этот портал, нужен интернет. Попроси взрослых включить его.',
     t_count: 'Сколько их здесь? Касайся и считай.', t_add: 'Сколько будет вместе?', t_sub: 'Кое-кто убежал. Сколько осталось?',
     t_compare_more: 'Где больше?', t_compare_less: 'Где меньше?', t_pattern: 'Что будет дальше?', t_odd: 'Что здесь лишнее?',
+    t_diff: 'Найди отличия!', h_diff: 'Чем эти картинки отличаются?', h1_diff: 'Посмотри внимательно на эту половинку.', h2_diff: 'Одно спряталось вот в этом уголке!',
     t_pairs: 'Найди одинаковые карточки.', t_order: 'Нажимай числа от самого маленького.', t_sort: 'Положи кристалл в корзину такого же цвета.',
     t_simon_watch: 'Смотри и запоминай!', t_simon_repeat: 'Теперь повтори!',
     h_count: 'Посчитаем вместе!', h_left: 'Посчитаем тех, кто остался.', h_compare: 'Посчитай здесь и здесь.', h_pattern: 'Посмотри, что повторяется.',
@@ -412,7 +415,7 @@ const SPOKEN = {
   h2_signs: 'warm', h2_order: 'warm', h1_neighbors: 'warm', h2_neighbors: 'warm', h1_missing: 'warm', h1_missing_ten: 'warm',
   h2_missing: 'warm', h1_house: 'warm', h2_house: 'warm', h2_pattern: 'warm', h1_pattern_grow: 'warm', h2_pattern_grow: 'warm',
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
-  h2_odd: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
+  h2_odd: 'warm', t_diff: 'warm', h_diff: 'warm', h1_diff: 'warm', h2_diff: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
   shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy', shop_deal: 'joy',
   sup_speed: 'joy', sup_jump: 'joy', sup_glow: 'joy', sup_tiny: 'joy', sup_giant: 'joy', sup_compass: 'warm', sup_all_found: 'warm',
   // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists

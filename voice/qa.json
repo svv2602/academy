@@ -5544,5 +5544,37 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_diff": {
+  "text": "Знайди відмінності!",
+  "heard": "Знайди відмінності.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h_diff": {
+  "text": "Чим ці картинки різняться?",
+  "heard": "Чим ці картинки різняться?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_diff": {
+  "text": "Подивись уважно на цю половинку.",
+  "heard": "Подивись уважно на цю половинку.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h2_diff": {
+  "text": "Одна сховалася ось у цьому куточку!",
+  "heard": "Од нас ховалася ось у цьому куточку.",
+  "score": 0.957,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
