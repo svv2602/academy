@@ -8,16 +8,18 @@ import { readFileSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
+import { MAX_WORLD } from './dist-size.mjs';
 import {
-  FIT, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, PROVENANCE, ROOT, SRC_DIR,
-  createIO, encodeTexture, listFiles, listSources, modelTextures, overBudget, readGlb, webpSize,
+  FIT, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, PROVENANCE, ROOT, SRC_DIR, WORLDS_DATA,
+  createIO, encodeTexture, listShipped, listSources, modelTextures, overBudget, readGlb, shippedPath, webpSize, worldOfModel,
 } from './assets.mjs';
 
-const RUN = 'Run: npm run assets (rebuilds public/models from models-src), then commit both directories.';
-const srcDir = join(ROOT, SRC_DIR), outDir = join(ROOT, OUT_DIR);
-const sources = listSources(), shipped = listFiles(outDir);
+const RUN = 'Run: npm run assets (rebuilds public/models and worlds-data/<id>/models from models-src), then commit them.';
+// the shipped files as paths under models/: public/models/ and a next world's worlds-data/<id>/models/ (shippedPath)
+const srcDir = join(ROOT, SRC_DIR), at = (f) => join(ROOT, shippedPath(f));
+const sources = listSources(), shipped = listShipped();
 const shippedGlb = shipped.filter((f) => f.endsWith('.glb'));
-const json = new Map(shippedGlb.map((f) => [f, readGlb(readFileSync(join(outDir, f))).json]));
+const json = new Map(shippedGlb.map((f) => [f, readGlb(readFileSync(at(f))).json]));
 
 describe('public/models is the output of npm run assets', () => {
   it('has a compressed model for every source model and nothing without a source', () => {
@@ -54,7 +56,7 @@ describe('public/models is the output of npm run assets', () => {
 
 describe('a model made with a service says so in its file (CREDITS.md)', () => {
   it('the Meshy models carry asset.copyright and asset.extras.source; no other model claims Meshy', () => {
-    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'hero/child.glb']);
+    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'forest/borovik.glb', 'forest/kolyuchka.glb', 'forest/mudrena.glb', 'forest/owlet.glb', 'forest/shustrik.glb', 'forest/tropka.glb', 'hero/child.glb']);
     for (const [rel, made] of Object.entries(PROVENANCE)) {
       const asset = json.get(rel)?.asset;
       expect(asset?.copyright, `${rel}: ${RUN}`).toBe(made.copyright);
@@ -68,14 +70,14 @@ describe('a model made with a service says so in its file (CREDITS.md)', () => {
 });
 
 describe('asset budget (docs/15-tech.md)', () => {
-  it(`keeps every file within ${MAX_FILE} bytes and public/models within ${MAX_TOTAL} bytes`, () => {
-    const problems = overBudget(shipped.map((path) => ({ path, size: statSync(join(outDir, path)).size })));
+  it(`keeps every file within ${MAX_FILE} bytes, public/models within ${MAX_TOTAL} bytes and a next world within ${MAX_WORLD}`, () => {
+    const problems = overBudget(shipped.map((path) => ({ path, size: statSync(at(path)).size })));
     expect(problems, `${problems.join('; ')}. A file from ${SRC_DIR}/ copied as is? ${RUN}`).toEqual([]);
   });
 
   it(`keeps every texture within ${MAX_TEXTURE} pixels on its longest side`, () => {
     const textures = shipped.filter((f) => !f.endsWith('.glb'));
-    const big = textures.map((f) => [f, webpSize(readFileSync(join(outDir, f)))]).filter(([, [w, h]]) => Math.max(w, h) > MAX_TEXTURE);
+    const big = textures.map((f) => [f, webpSize(readFileSync(at(f)))]).filter(([, [w, h]]) => Math.max(w, h) > MAX_TEXTURE);
     expect(big.map(([f, size]) => `${f} ${size.join('x')}`), `texture(s) above ${MAX_TEXTURE} px. ${RUN}`).toEqual([]);
   });
 
@@ -84,6 +86,22 @@ describe('asset budget (docs/15-tech.md)', () => {
     expect(overBudget([{ path: 'a.glb', size: MAX_FILE + 1 }])).toHaveLength(1);
     const many = Array.from({ length: 10 }, (_, i) => ({ path: `${i}.glb`, size: MAX_TOTAL / 10 + 1 }));
     expect(overBudget(many).join()).toContain('in total');
+  });
+
+  it('counts a next world apart from the core (TECH-09): its models go to worlds-data/<id>/, up to MAX_WORLD of their own', () => {
+    expect(worldOfModel('forest/borovik.glb', ['forest'])).toBe('forest');
+    expect(worldOfModel('extra/cat.glb', ['forest'])).toBeNull();
+    expect(worldOfModel('forest.glb', ['forest'])).toBeNull();
+    expect(shippedPath('forest/tex/borovik.webp', ['forest'])).toBe(`${WORLDS_DATA}/forest/models/forest/tex/borovik.webp`);
+    expect(shippedPath('extra/cat.glb', ['forest'])).toBe(`${OUT_DIR}/extra/cat.glb`);
+    // the core full and a world beside it: neither counts the other's bytes
+    const core = Array.from({ length: 10 }, (_, i) => ({ path: `extra/${i}.glb`, size: MAX_TOTAL / 10 }));
+    const world = Array.from({ length: 8 }, (_, i) => ({ path: `forest/${i}.glb`, size: MAX_WORLD / 8 }));
+    expect(overBudget([...core, ...world], ['forest'])).toEqual([]);
+    expect(overBudget([...core, ...world, { path: 'forest/more.glb', size: 1 }], ['forest']).join()).toContain(`${WORLDS_DATA}/forest/models: ${MAX_WORLD + 1} bytes`);
+    // the shipped forest is a world of its own, within its budget
+    const forest = shipped.filter((f) => worldOfModel(f) === 'forest');
+    expect(forest.length, 'the forest ships its own models').toBeGreaterThan(0);
   });
 });
 
@@ -195,7 +213,7 @@ describe('compression is lossless', () => {
     const io = await createIO(), changed = [];
     let triangles = 0;
     for (const f of sources.filter((s) => shippedGlb.includes(s))) {
-      const before = signature(await io.read(join(srcDir, f))), after = signature(await io.read(join(outDir, f)));
+      const before = signature(await io.read(join(srcDir, f))), after = signature(await io.read(at(f)));
       triangles += after.meshes.flatMap(([, prims]) => prims).reduce((n, p) => n + p.triangles, 0);
       for (const part of Object.keys(before)) if (JSON.stringify(before[part]) !== JSON.stringify(after[part])) changed.push(`${f}: ${part}`);
     }
@@ -216,7 +234,7 @@ describe('textures keep their quality', () => {
       for (const { texture, role, path } of modelTextures(await io.read(join(srcDir, f)), f)) {
         if (seen.has(path) || !shipped.includes(path)) continue;   // a missing file is reported by the tests above
         seen.add(path);
-        const a = await rgba(texture.getImage()), b = await sharp(readFileSync(join(outDir, path))).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const a = await rgba(texture.getImage()), b = await sharp(readFileSync(at(path))).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
         if (a.info.width !== b.info.width || a.info.height !== b.info.height) { bad.push(`${path}: ${b.info.width}x${b.info.height}, the source gives ${a.info.width}x${a.info.height}`); continue; }
         if (role === 'normal') { if (!a.data.equals(b.data)) bad.push(`${path}: a normal map must be lossless, it differs from its source`); continue; }
         let visible = 0, squares = 0, hidden = 0, hiddenError = 0, alpha = 0;

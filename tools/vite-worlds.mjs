@@ -7,7 +7,7 @@
 // vite.config.ts uses everything here; the pure parts are tested by tools/vite-worlds.test.mjs.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { installedWorlds, sourceWorlds } from './dist-size.mjs';
 import { WORLD_FOLDERS, worldOf } from './world-files.mjs';
 
@@ -15,6 +15,29 @@ import { WORLD_FOLDERS, worldOf } from './world-files.mjs';
 export const WORLDS_LIST = 'worlds.json';
 /** The cache of the next worlds' files. The list names it, so the page and the service worker cannot disagree. */
 export const WORLDS_CACHE = 'worlds';
+
+/** A next world's own files outside public/ (tools/assets.mjs WORLDS_DATA): worlds-data/<id>/ at their paths in the build. */
+export const WORLDS_DATA = 'worlds-data';
+
+/**
+ * The files a grey build (WORLD-12) puts in besides public/, { <path in the build>: <source path from the root> }:
+ * `extra` (a file a grey world takes from where it already lies) and every file of worlds-data/<id>/ of the next worlds
+ * `next` of this build, at the same path (worlds-data/forest/models/forest/x.glb -> models/forest/x.glb). A world not
+ * in `next` gets nothing: the published build has no next world, so it carries none of them.
+ */
+export function greyWorldFiles(next, extra = {}, root = '.') {
+  const out = { ...extra };
+  for (const id of next) {
+    const dir = join(root, WORLDS_DATA, id);
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+      if (!f.isFile()) continue;
+      const file = join(f.parentPath, f.name);
+      out[relative(dir, file).split(sep).join('/')] = relative(root, file).split(sep).join('/');
+    }
+  }
+  return Object.fromEntries(Object.entries(out).sort(([a], [b]) => (a < b ? -1 : 1)));
+}
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 

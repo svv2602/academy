@@ -64,6 +64,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     await playScene(stage, `talk ${q.id}`, async () => {
       cam.focus = above(n.pos, 1.1);
       hero.play('Talk');
+      // a character with a clip of its talk says its first words with it (the forest's, 2026-11-21), then stands again
+      if (n.actor.has('Talk')) n.actor.once('Talk', 'Idle');
       fault();
       const done = ws.quests[q.id] ?? 0;
       // The character's own task of the world is on: it asks its question again, under that task's bubble.

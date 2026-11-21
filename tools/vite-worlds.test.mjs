@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { WORLDS_CACHE, WORLDS_LIST, buildWorlds, listWorlds, publicWorldFiles, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
+import { WORLDS_CACHE, WORLDS_LIST, buildWorlds, greyWorldFiles, listWorlds, publicWorldFiles, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -219,7 +219,23 @@ describe('vite.config.ts uses all of it', () => {
     expect(map).toEqual({ 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' });
     for (const from of Object.values(map)) expect(existsSync(join(root, from)), from).toBe(true);
     expect(existsSync(join(root, 'public/models/sea')), 'the published build must not have the sea').toBe(false);
-    expect(config).toMatch(/\.\.\.\(mode === GREY_MODE \? \[greyFiles\(\)\] : \[\]\)/);
+    expect(config).toMatch(/\.\.\.\(mode === GREY_MODE \? \[greyFiles\(next\)\] : \[\]\)/);
+    expect(config).toMatch(/greyWorldFiles\(next, GREY_FILES, root\)/);
+  });
+
+  it('a grey world\'s own files (worlds-data/<id>/) are in the grey build at their paths, and in no published build', () => {
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
+    const grey = greyWorldFiles(buildWorlds('grey', modes), {}, root);
+    const forest = Object.keys(grey).filter((p) => p.startsWith('models/forest/'));
+    // every file of worlds-data/forest, at the path the game asks for (models/forest/…), from where it lies
+    expect(forest.length, 'the forest has its own models in worlds-data/forest').toBeGreaterThan(0);
+    expect(forest).toContain('models/forest/borovik.glb');
+    expect(grey['models/forest/borovik.glb']).toBe('worlds-data/forest/models/forest/borovik.glb');
+    for (const from of Object.values(grey)) expect(existsSync(join(root, from)), from).toBe(true);
+    // the published build (and the probe one) has no grey world: none of its files
+    for (const mode of ['production', 'probe']) expect(greyWorldFiles(buildWorlds(mode, modes), {}, root), mode).toEqual({});
+    // and they are not under public/, which every build copies
+    expect(existsSync(join(root, 'public/models/forest')), 'the published build must not have the forest').toBe(false);
   });
 
   it('their folders are left out of the service worker\'s list, next to the bank', () => {

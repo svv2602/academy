@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { WORLDS_CACHE, buildWorlds, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
+import { WORLDS_CACHE, buildWorlds, greyWorldFiles, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
 // else. Sources without git (an archive) still build: the number is then the placeholder. tools/e2e.mjs works the
@@ -38,19 +38,22 @@ function probeFiles(): Plugin {
   };
 }
 
-// A grey build (WORLD-12, `--mode grey`) plays the worlds in simple shapes; the one file a grey world needs comes from
-// where it already lies, put into the build under the path its world asks for. The sea swims (WorldDef.move) with the
-// probe world's swimming clips (the same two clips of the UAL, worlds-test/probe/README.md): no second copy in git.
+// A grey build (WORLD-12, `--mode grey`) plays the worlds of the grey build; the files they need come from where they
+// lie, put into the build under the paths their worlds ask for (tools/vite-worlds.mjs `greyWorldFiles`): GREY_FILES -
+// the sea swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the UAL,
+// worlds-test/probe/README.md), no second copy in git - and every file of worlds-data/<id>/ of a next world of the
+// build (the forest's characters, models/forest/…; tools/assets.mjs writes them there, outside public/, which every
+// build copies). The published build has no next world and gets none of them.
 const GREY_MODE = 'grey';
 const GREY_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
-function greyFiles(): Plugin {
+function greyFiles(next: string[]): Plugin {
   let root = '.';
   return {
     name: 'grey-world-files',
     apply: 'build',
     configResolved(config) { root = config.root; },
     generateBundle() {
-      for (const [fileName, from] of Object.entries(GREY_FILES)) this.emitFile({ type: 'asset', fileName, source: readFileSync(join(root, from)) });
+      for (const [fileName, from] of Object.entries(greyWorldFiles(next, GREY_FILES, root))) this.emitFile({ type: 'asset', fileName, source: readFileSync(join(root, from)) });
     },
   };
 }
@@ -78,7 +81,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
-      ...(mode === GREY_MODE ? [greyFiles()] : []),
+      ...(mode === GREY_MODE ? [greyFiles(next)] : []),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
       list,
       VitePWA({
