@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { facets, mat } from '../../core/style';
+import { PALETTE, facets, mat } from '../../core/style';
 
 /**
  * The gnomes' mushroom houses and the elder's mushroom tower (plan B of the forest's look, 2026-11-21; the customer's
  * decision: our own shapes, docs/worlds/style.md): a stem of plaster, a red cap with white spots, a wooden door, round
- * windows lit from inside (mat.glow - no new light, WORLD-09). A shape is a few geometries, one per material, each the
- * parts of that material merged: the five houses are five instanced draws (the cap's the only shadow), the tower five meshes.
+ * windows lit from inside (mat.glow - no new light, WORLD-09). Their walls are baked into one geometry of vertex
+ * colours and their windows into another (`bake`): two draws for the five houses, two for the tower.
  */
 export const CAP_RED = '#d8443a';
 export const TOWER_RED = '#e0392f';
@@ -36,32 +36,57 @@ export function mushroomHouse(h: number, r: number, windows: number): Record<'st
   return { stem, cap, spots: mergeGeometries(spots)!, door, glow: mergeGeometries(glow)! };
 }
 
-/** The materials of a house: the style's, shared (src/core/style.ts). */
-const materials = (red: string) => ({
-  stem: mat.cloth('plaster'), cap: mat.cloth(red as `#${string}`), spots: mat.cloth('white'), door: mat.wood('door'), glow: mat.glow('gold', 0.8),
-});
+/** The colours of a house's parts (the style's palette, src/core/style.ts) and its light. */
+const PAINT = (red: string) => ({ stem: PALETTE.plaster, cap: red, spots: PALETTE.white, door: PALETTE.door });
+/** The light of the windows: the style's glow (mat.glow, no new light, WORLD-09). */
+const windowGlow = () => mat.glow('gold', 0.8);
+/** The walls of every house in one material of vertex colours (the cloth's matte look): one draw for all of them. */
+let bodyMat: THREE.MeshStandardMaterial | null = null;
+const bodyMaterial = () => (bodyMat ??= Object.assign(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }), { name: 'forest-house-body' }));
 
-/** The houses at `puts` (where, turned how): one instanced mesh a material; those of the walls and the cap cast a shadow. */
-export function buildHouses(scene: THREE.Scene, puts: readonly { x: number; y: number; z: number; rot: number }[]) {
-  const geos = mushroomHouse(3.6, 1.2, 2), mats = materials(CAP_RED);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
-  for (const key of Object.keys(geos) as (keyof typeof geos)[]) {
-    const mesh = new THREE.InstancedMesh(geos[key], mats[key], puts.length);
-    puts.forEach((p, i) => mesh.setMatrixAt(i, m.compose(new THREE.Vector3(p.x, p.y, p.z), q.setFromAxisAngle(up, p.rot), one)));
-    mesh.name = `house-${key}`; mesh.castShadow = key === 'cap'; mesh.receiveShadow = true;
-    mesh.computeBoundingSphere();
-    scene.add(mesh);
+/** A geometry with every vertex of `colour` (a `color` attribute), non-indexed so the parts merge. */
+function painted(geo: THREE.BufferGeometry, colour: string) {
+  const g = geo.index ? geo.toNonIndexed() : geo.clone();
+  g.deleteAttribute('uv');
+  const c = new THREE.Color(colour), n = g.getAttribute('position').count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return g;
+}
+
+/**
+ * The houses baked (plan C, 2026-11-21: a few draw calls freed for the fireflies): every house's stem, cap, spots and
+ * door in one geometry of vertex colours, every window in another - two draws for the whole village, whatever its
+ * houses; the walls cast the shadow.
+ */
+function bake(geos: ReturnType<typeof mushroomHouse>, red: string, puts: readonly { x: number; y: number; z: number; rot: number }[]) {
+  const paint = PAINT(red), m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3();
+  const body: THREE.BufferGeometry[] = [], glow: THREE.BufferGeometry[] = [];
+  for (const p of puts) {
+    m.compose(v.set(p.x, p.y, p.z), q.setFromAxisAngle(up, p.rot), one);
+    for (const key of ['stem', 'cap', 'spots', 'door'] as const) body.push(painted(geos[key], paint[key]).applyMatrix4(m));
+    const w = geos.glow.index ? geos.glow.toNonIndexed() : geos.glow.clone();
+    w.deleteAttribute('uv');
+    glow.push(w.applyMatrix4(m));
   }
+  const walls = new THREE.Mesh(mergeGeometries(body)!, bodyMaterial()), windows = new THREE.Mesh(mergeGeometries(glow)!, windowGlow());
+  walls.castShadow = true; walls.receiveShadow = true;
+  body.concat(glow).forEach((g) => g.dispose());
+  return { walls, windows };
+}
+
+/** The houses at `puts` (where, turned how): two draws for all of them (./village.ts `bake`). */
+export function buildHouses(scene: THREE.Scene, puts: readonly { x: number; y: number; z: number; rot: number }[]) {
+  const { walls, windows } = bake(mushroomHouse(3.6, 1.2, 2), CAP_RED, puts);
+  walls.name = 'house-walls'; windows.name = 'house-windows';
+  scene.add(walls, windows);
 }
 
 /** The elder's tower: the same house, tall, with windows up its stem; a group named for the landmark (WORLD-10). */
 export function buildTower(): THREE.Group {
-  const geos = mushroomHouse(8.8, 1.45, 6), mats = materials(TOWER_RED), g = new THREE.Group();
-  for (const key of Object.keys(geos) as (keyof typeof geos)[]) {
-    const mesh = new THREE.Mesh(geos[key], mats[key]);
-    mesh.castShadow = key === 'cap'; mesh.receiveShadow = true;
-    g.add(mesh);
-  }
+  const { walls, windows } = bake(mushroomHouse(8.8, 1.45, 6), TOWER_RED, [{ x: 0, y: 0, z: 0, rot: 0 }]);
+  const g = new THREE.Group();
+  g.add(walls, windows);
   g.name = 'landmark-village';
   return g;
 }
