@@ -7,9 +7,10 @@
  */
 import type { Save } from '../core/save';
 import { COLLECT_KINDS, type CollectKind } from '../game/collections';
-import { brewReady, finishBrew, kindsOfRecipe, putIn, shownRecipes, startBrew, stillToPut, type Brew, type Recipe } from '../game/cauldron';
+import { brewReady, finishBrew, kindsOfRecipe, putIn, shownRecipes, startBrew, type Brew, type Recipe } from '../game/cauldron';
 import { canSpend, inStash, type Need } from '../game/stash';
 import { SUPPLY_LOOK } from './supplies';
+import { findIcon } from './finds';
 import './cauldron.css';
 
 /** `say`: the cat's line (g.speech): on opening, on a recipe she has not finds enough for, on a potion done. */
@@ -43,10 +44,12 @@ export function openCauldron(h: CauldronHooks): void {
       b.dataset.recipe = r.id;
       for (const k of kindsOfRecipe(r)) {
         const need = r.need[k] ?? 0, have = Math.min(need, inStash(h.save, k));
-        const n = make('span', 'need');
-        n.append(make('span', '', `${COLLECT_KINDS[k].icon}${brew?.recipe === r ? stillToPut(brew, k) : need}`));
+        // the number is always how many the recipe asks; the dots: gold - put in the cauldron already, green - in the stash
+        const n = make('span', 'need'), put = brew?.recipe === r ? (brew.put[k] ?? 0) : 0;
+        const label = make('span'); label.innerHTML = `${findIcon(k)}${need}`;
+        n.append(label);
         const dots = make('span', 'dots');
-        for (let i = 0; i < need; i++) dots.appendChild(make('i', i < have ? 'have' : ''));
+        for (let i = 0; i < need; i++) dots.appendChild(make('i', i < put ? 'put' : i < have ? 'have' : ''));
         n.appendChild(dots);
         b.appendChild(n);
       }
@@ -62,7 +65,8 @@ export function openCauldron(h: CauldronHooks): void {
     for (const k of Object.keys(COLLECT_KINDS) as CollectKind[]) {
       const n = inStash(h.save, k);
       if (!n) continue;
-      const b = make('button', '', `${COLLECT_KINDS[k].icon} ${n - (brew?.put[k] ?? 0)}`);
+      const b = make('button');
+      b.innerHTML = `${findIcon(k)} ${n - (brew?.put[k] ?? 0)}`;
       b.dataset.kind = k;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();

@@ -11,11 +11,12 @@
  * nothing of its own (R16): a home of the worlds (PLAY-13) can show the same list.
  */
 import type { Save, WorldState } from '../core/save';
+import { findIcon } from './finds';
 import { ACHIEVEMENTS } from '../game/achievements';
 import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
-import { COLLECT_KINDS, foundOf, itemsOf, kindsOf, setDone } from '../game/collections';
+import { foundOf, itemsOf, kindsOf, setDone } from '../game/collections';
 import { achGame } from './achieve';
 import { heroCloseup } from './shop';
 import { say } from '../core/audio';
@@ -172,7 +173,7 @@ function renderCollect(world: WorldEntry | null, ws: WorldState | null) {
     row.className = 'crow' + (got === ids.length ? ' whole' : '');
     row.dataset.kind = k; row.dataset.got = String(got);
     row.innerHTML = `<span class="cname">${t(`collect_${k}` as Key)}</span>`
-      + ids.map((i) => `<span class="cell${found.includes(i) ? ' got' : ' sil'}" data-item="${i}">${COLLECT_KINDS[k].icon}</span>`).join('')
+      + ids.map((i) => `<span class="cell${found.includes(i) ? ' got' : ' sil'}" data-item="${i}">${findIcon(k)}</span>`).join('')
       + `<span class="cn">${tf('book_count', { n: got, of: ids.length })}</span>`;
     box.appendChild(row);
   }
