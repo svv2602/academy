@@ -5,6 +5,7 @@ import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
+import { buildHouses, buildTower } from './village';
 
 /**
  * The trees of the forest (plan A of its look, 2026-11-21): models of the core (nature_pack, Quaternius CC0 - their
@@ -82,20 +83,8 @@ export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   return { trees, rim };
 }
 
-/** Where the paths cross the stream: there the bridges lie. */
-export function bridges(): (Place & { yaw: number })[] {
-  const out: (Place & { yaw: number })[] = [];
-  for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
-    const a = line[i], b = line[i + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
-    let best: Place | null = null, bd = Infinity;
-    for (let k = 0; k <= n; k++) {
-      const x = a.x + ((b.x - a.x) * k) / n, z = a.z + ((b.z - a.z) * k) / n, d = streamDist(x, z);
-      if (d < bd) { bd = d; best = { x, z }; }
-    }
-    if (best && bd < 0.6 && !out.some((p) => Math.hypot(p.x - best!.x, p.z - best!.z) < 4)) out.push({ ...best, yaw: Math.atan2(b.x - a.x, b.z - a.z) });
-  }
-  return out;
-}
+/** Where the paths cross the stream (./terrain.ts): there the bridges lie. */
+export { bridges } from './terrain';
 
 const mat = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, ...extra });
 
@@ -137,8 +126,8 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
     return { x: ZONES.village.x + Math.cos(a) * 6.5, z: ZONES.village.z + Math.sin(a) * 6.5, s: 1, rot: a };
   }).filter((h) => pathDist(h.x, h.z) > 2.6);
   for (const h of houses) colliders.push({ x: h.x, z: h.z, r: 1.4 });
-  instances(scene, 'house-stems', new THREE.CylinderGeometry(1.1, 1.3, 2.4, 8).translate(0, 1.2, 0), mat('#f2e6cf'), houses);
-  instances(scene, 'house-caps', new THREE.ConeGeometry(2.3, 1.6, 9).translate(0, 3.1, 0), mat('#d8443a'), houses);
+  // their doors to the middle of the village (the houses stand round it, `rot` their angle round it)
+  buildHouses(scene, houses.map((h) => ({ x: h.x, y: height(h.x, h.z), z: h.z, rot: Math.atan2(ZONES.village.x - h.x, ZONES.village.z - h.z) })));
   // the grove's great orange tree at the edge of its glade: the grove's landmark (WORLD-10)
   const big = new THREE.Group();
   big.add(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1, 6, 9).translate(0, 3, 0), mat('#7a5a3e')));
@@ -150,12 +139,10 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   colliders.push({ x: LANDMARKS.grove.x, z: LANDMARKS.grove.z, r: 1.1 });
 
   // the elder's house: a mushroom tower over the trees, the village's landmark (WORLD-10)
-  const tower = new THREE.Group();
-  tower.add(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 6.5, 10).translate(0, 3.25, 0), mat('#f2e6cf')));
-  tower.add(new THREE.Mesh(new THREE.ConeGeometry(3.4, 2.4, 12).translate(0, 7.3, 0), mat('#e0392f')));
+  const tower = buildTower();
   tower.position.set(LANDMARKS.village.x, height(LANDMARKS.village.x, LANDMARKS.village.z), LANDMARKS.village.z);
-  tower.name = 'landmark-village';
-  tower.traverse((o) => { o.castShadow = true; });
+  // its door to the village's middle
+  tower.rotation.y = Math.atan2(ZONES.village.x - LANDMARKS.village.x, ZONES.village.z - LANDMARKS.village.z);
   scene.add(tower);
   colliders.push({ x: LANDMARKS.village.x, z: LANDMARKS.village.z, r: 1.8 });
 
@@ -190,8 +177,7 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   const stream = new THREE.Mesh(water, mat('#7cc6dc', { transparent: true, opacity: 0.8, roughness: 0.3, flatShading: false, side: THREE.DoubleSide }));
   stream.name = 'stream'; stream.receiveShadow = true;
   scene.add(stream);
-  const decks = bridges().map((b) => ({ x: b.x, z: b.z, s: 1, rot: b.yaw }));
-  instances(scene, 'bridges', new THREE.BoxGeometry(2.2, 0.25, (STREAM_HALF + 1.2) * 2).translate(0, 0.05, 0), mat('#a0774e'), decks);
+  // the bridges are Kenney's, with the other things of the forest (./decor.ts)
 
   // the arches of stones: at the central glade (where the hub's arch will lead in) and at the way into the maze
   const archGeo = [new THREE.BoxGeometry(0.5, 2.8, 0.5).translate(-1.3, 1.4, 0), new THREE.BoxGeometry(0.5, 2.8, 0.5).translate(1.3, 1.4, 0), new THREE.BoxGeometry(3.3, 0.45, 0.6).translate(0, 3, 0)];

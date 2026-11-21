@@ -19,7 +19,9 @@ import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, W
 import { FOREST_FLYOVER } from './flyover-path';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
-import { buildScenery, loadFlora, type Flora } from './scenery';
+import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
+import { buildDecor, loadDecor, type Decor } from './decor';
+import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -73,7 +75,7 @@ export const BYSTANDERS = [
   { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
   { id: 'owlet', x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2, heading: 2.0, r: 0.2 },
 ] as const;
-type ForestModels = { rigs: Record<string, Rig>; flora: Flora };
+type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.BufferGeometry[]; decor: Decor };
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
 export const LEAVES = [
@@ -110,11 +112,13 @@ function buildSky(scene: THREE.Scene): WorldSky {
 
 /** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
 const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<ForestModels> => {
-  const [rigs, flora] = await Promise.all([
+  const [rigs, flora, plants, decor] = await Promise.all([
     Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)).then((e) => Object.fromEntries(e)),
     loadFlora(),
+    loadUndergrowth(),
+    loadDecor(),
   ]);
-  return { rigs, flora };
+  return { rigs, flora, plants, decor };
 };
 
 /** A character without a model (none now but the Ash, which is its tree): a figure of its height and colour on a rig with no clips. */
@@ -140,6 +144,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   scope.own(() => { colliders.length = 0; });
   scene.add(buildGround(160));
   const scenery = buildScenery(scene, L.flora);
+  buildDecor(scene, L.decor, bridges());
+  const undergrowth = buildUndergrowth(scene, L.plants);
   // the camera reaches a little past the end of the haze, as in the valley of the fairy (src/worlds/fairy/sky.ts
   // VALLEY_FAR): what is cut is of the haze's colour already, and no cell of trees past it is drawn
   const worldFar = g.camera.far;
@@ -291,7 +297,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       },
       animate: (_dt, time) => { flies.update(time); player.update(time); },
       focusDist: () => 6.5,
-      beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); },
+      beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); undergrowth.near(hp.x, hp.z); },
     },
     debug: {
       npcs,
