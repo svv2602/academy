@@ -12,7 +12,7 @@ vi.mock('../core/audio', () => ({
   clipFor: () => null, dropped: [], inTask: () => false, musicPlaying: () => ({ scale: [222] }), speaking: () => true, voiceLog: { clips: 0, synth: [] },
 }));
 vi.mock('./dialogue', () => ({ shardsSettled: { n: 0 } }));
-vi.mock('./taskviews/panel', () => ({ cheatTask: () => false }));
+vi.mock('./taskviews/panel', () => ({ cheatTask: () => false, runTask: vi.fn(() => Promise.resolve({ solved: true, wrong: 0 })) }));
 
 const game = () => window as unknown as { __game: Record<string, unknown> & { talk(id: string): void; cheat(): string; travel(id: string): Promise<boolean> } };
 function fakes() {
@@ -89,5 +89,23 @@ describe('window.__game and the change of world', () => {
     expect('portal' in o).toBe(false);
     expect(o.search).toBe(a.more.search);
     expect(o.cheat()).toBe('a task');
+  });
+
+  it('a panel task opened by __game.task goes through g.task: the planner holds it open, its end cuts its lines off', async () => {
+    const { exposeDebug } = await import('./debug');
+    const { runTask } = await import('./taskviews/panel');
+    const { g, world, travel } = fakes();
+    const order: string[] = [];
+    Object.assign(g, {
+      hooksFor: () => ({}), rng: () => 0.5,
+      task: vi.fn(async (open: () => Promise<unknown>) => { order.push(`open, busy ${g.busy}`); const r = await open(); order.push('end'); return r; }),
+    });
+    vi.mocked(runTask).mockImplementationOnce(async () => { order.push('shown'); return { solved: true, wrong: 1 }; });
+    exposeDebug(g, world('a', {}), travel);
+    const o = game().__game as unknown as { task(type: string, level: number): Promise<unknown> };
+    expect(await o.task('diff', 3)).toEqual({ solved: true, wrong: 1 });
+    expect(order).toEqual(['open, busy true', 'shown', 'end']);
+    expect(vi.mocked(runTask).mock.calls[0].slice(0, 2)).toEqual(['diff', 3]);
+    expect(g.busy).toBe(false);
   });
 });

@@ -206,11 +206,13 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /**
      * A panel task of `type` and `level` opened now, as a character would (the cat's hooks, the helpers of her stock):
      * the walkthrough's way to the helpers of a task (src/game/helpers.ts). The game stands while it is open; the
-     * promise settles with its result. Nothing is recorded: no level, no stars.
+     * promise settles with its result. Nothing is recorded: no level, no stars. It goes through `g.task`, as every
+     * task of the game does: its end cuts its own lines off - a question or a hint left sounding would turn away the
+     * story line said next (the cat's "deal of the day" of the shop opened right after, a run of 2026-11-21).
      */
     task(type: TaskType, level: number): Promise<TaskResult> {
       g.busy = true;
-      return runTask(type, level, g.hooksFor('🐱'), g.rng).finally(() => { g.busy = false; });
+      return g.task(() => runTask(type, level, g.hooksFor('🐱'), g.rng)).finally(() => { g.busy = false; });
     },
     /** Puts a thing of the pets on (src/game/petgear.ts; null: none), for the pictures of the fitting and the walkthrough. */
     wearPet(pet: PetWearer, id: PetGearId | null) { wearPetGear(g.petGear, pet, id); return Object.keys(g.petGear).length; },
