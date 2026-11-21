@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sfx } from '../core/audio';
 import type { Game } from './context';
+import { addToStash } from './stash';
 import {
   CHASE, COLLECT_KINDS, TAP_R, foundOf, kindsOf, reaches, setDone, type CollectDef, type CollectItem, type CollectKind,
 } from './collections';
@@ -25,7 +26,7 @@ export interface CollectInWorld {
   dispose(): void;
 }
 
-export type CollectHost = Pick<Game, 'scene' | 'ws' | 'world' | 'ground' | 'groundY' | 'hero' | 'speech' | 'sparks' | 'addStars' | 'above' | 'persist'>;
+export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground' | 'groundY' | 'hero' | 'speech' | 'sparks' | 'addStars' | 'above' | 'persist'>;
 
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
@@ -133,6 +134,8 @@ export function createCollections(g: CollectHost): CollectInWorld {
     it.taken = true;
     const first = !found.some((i) => def.items[i].kind === it.kind);
     found.push(it.id);
+    // and one to spend (the stash, PLAY-26): the book keeps it found whatever is spent
+    addToStash(g.save, it.kind);
     refresh();
     sfx('good');
     g.sparks.burst(it.pos.clone(), COLLECT_KINDS[it.kind].color, 26, 3);
