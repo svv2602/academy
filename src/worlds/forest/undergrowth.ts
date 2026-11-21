@@ -21,6 +21,8 @@ export const PLANTS = [
 /** m: the side of a cell of the undergrowth, and how far from her a cell is drawn. */
 export const CELL = 16;
 export const RANGE = 20;
+/** m off the middle of a path: nothing grows there - the camera walks the paths behind her, a bush at its lens fills the frame. */
+export const PATH_CLEAR = 2.4;
 /** m² of the map a plant. */
 export const PLANT_AREA = 9;
 
@@ -34,7 +36,7 @@ export function placePlants(seed = 11): Plant[] {
   const want = Math.round((Math.PI * HALF * HALF) / PLANT_AREA);
   for (let tries = 0; out.length < want && tries < want * 20; tries++) {
     const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (HALF - 2), x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (pathDist(x, z) < 1.4 || streamDist(x, z) < 1.2 || inMaze(x, z, 1.5) || Math.hypot(OWL_TREE.x - x, OWL_TREE.z - z) < 3) continue;
+    if (pathDist(x, z) < PATH_CLEAR || streamDist(x, z) < 1.2 || inMaze(x, z, 1.5) || Math.hypot(OWL_TREE.x - x, OWL_TREE.z - z) < 3) continue;
     if (zones.some((p) => Math.hypot(p.x - x, p.z - z) < 3.5)) continue;
     if (colliders.some((c) => Math.hypot(c.x - x, c.z - z) < c.r + 0.3)) continue;
     let pick = rnd() * sum, k = 0;
@@ -44,7 +46,9 @@ export function placePlants(seed = 11): Plant[] {
   return out;
 }
 
-export const loadUndergrowth = () => Promise.all(PLANTS.map(([p, h]) => staticGeo(`forest/${p}`, h)));
+/** The leaves of the undergrowth as the trees' of the evening (./scenery.ts), a shade deeper: not the pack's lime. */
+const LEAVES = { Green: '#467f42', DarkGreen: '#35663a' };
+export const loadUndergrowth = () => Promise.all(PLANTS.map(([p, h]) => staticGeo(`forest/${p}`, h, LEAVES)));
 
 /** The undergrowth in the scene: its cells, and `near(x, z)` - every frame, which of them are drawn. */
 export function buildUndergrowth(scene: THREE.Scene, geos: THREE.BufferGeometry[], plants = placePlants()) {
