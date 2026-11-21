@@ -11,14 +11,17 @@
 import type { WorldState } from '../core/save';
 import { HERO_TOP } from './hero';
 
-/** The kinds of finds the worlds may lay out (a catalog like the pets'), with the picture of the book. */
+/**
+ * The kinds of finds the worlds may lay out (a catalog like the pets'), with the picture of the book and the world it
+ * lies in (`world`: the cauldron shows a recipe only once every world of its kinds is open, PLAY-26).
+ */
 export const COLLECT_KINDS = {
-  butterfly: { icon: '🦋', color: '#c77dff' },
-  acorn: { icon: '🌰', color: '#d8953f' },
-  mushroom: { icon: '🍄', color: '#ff5f7e' },
-  feather: { icon: '🪶', color: '#7fb8ff' },
+  butterfly: { icon: '🦋', color: '#c77dff', world: 'fairy' },
+  acorn: { icon: '🌰', color: '#d8953f', world: 'fairy' },
+  mushroom: { icon: '🍄', color: '#ff5f7e', world: 'fairy' },
+  feather: { icon: '🪶', color: '#7fb8ff', world: 'fairy' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts) */
-  treefeather: { icon: '✨', color: '#ffa31a' },
+  treefeather: { icon: '✨', color: '#ffa31a', world: 'hub' },
 } as const;
 export type CollectKind = keyof typeof COLLECT_KINDS;
 
