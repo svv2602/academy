@@ -1934,6 +1934,21 @@
   "tp": -2.83,
   "sha256": "c58cc1499a3387f8cd01c7c5ebb399da7f09048375929a95fbfb10fb970675fe"
  },
+ "public/voice/cauldron_done.mp3": {
+  "lufs": -17.96,
+  "tp": -2.07,
+  "sha256": "5c221c3d92adbaa3733797652123ee1bec64fe0a9296bfa8cc956d67c4c6b034"
+ },
+ "public/voice/cauldron_hi.mp3": {
+  "lufs": -18.29,
+  "tp": -2.13,
+  "sha256": "ed593790567a7a0114c8e92cd09d575c13af49e1c6418f24303aae6bb890f5f0"
+ },
+ "public/voice/cauldron_more.mp3": {
+  "lufs": -18.14,
+  "tp": -1.93,
+  "sha256": "8025a4127f50ca81f579a4ffaa8d5a90dd87623dd7b6c9f87e6d3fad58919b47"
+ },
  "public/voice/chest.mp3": {
   "lufs": -18.05,
   "tp": -5.01,
@@ -1953,6 +1968,11 @@
   "lufs": -18.17,
   "tp": -2.24,
   "sha256": "8fd0492dc9446b824663e48187426918a32c1d93b87113d9ab27df5b51983700"
+ },
+ "public/voice/daily_find.mp3": {
+  "lufs": -17.97,
+  "tp": -4.74,
+  "sha256": "4bd30ee6a9afc27a1d9e4329ffb9acb9b5a23b296a26256fb1177d147d140c0c"
  },
  "public/voice/deer_hi.mp3": {
   "lufs": -18.05,

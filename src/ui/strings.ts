@@ -165,6 +165,9 @@ const S = sameKeys({
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадкова зірка! Розвʼяжи — і вона твоя.', mystery_won: 'Зірка твоя! Аж три зірочки!',
     collect_first: 'Ой, знахідка для колекції! Шукай таких ще.', collect_set: 'Колекцію зібрано! Ще пʼять зірочок!',
+    // PLAY-26: the cauldron by the Great Tree and the find of the day of a world
+    cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
+    cauldron_done: 'Зілля готове! Воно вже серед твоїх зілль унизу.', daily_find: 'Ой, нова знахідка дня!',
     collect_all: 'І остання знахідка! Усі колекції світу зібрано!',
     book_collect_t: 'Колекції', book_collect: 'Колекції цього світу: {n} з {of}', book_collect_none: 'У цьому світі колекцій немає.',
     collect_butterfly: 'Метелики', collect_acorn: 'Жолуді', collect_mushroom: 'Грибочки', collect_feather: 'Пірʼїнки',
@@ -331,6 +334,8 @@ const S = sameKeys({
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадочная звезда! Реши — и она твоя.', mystery_won: 'Звезда твоя! Целых три звёздочки!',
     collect_first: 'Ой, находка для коллекции! Ищи такие ещё.', collect_set: 'Коллекция собрана! Ещё пять звёздочек!',
+    cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', cauldron_more: 'Ещё немного находок — и получится зелье.',
+    cauldron_done: 'Зелье готово! Оно уже среди твоих зелий внизу.', daily_find: 'Ой, новая находка дня!',
     collect_all: 'И последняя находка! Все коллекции мира собраны!',
     book_collect_t: 'Коллекции', book_collect: 'Коллекции этого мира: {n} из {of}', book_collect_none: 'В этом мире коллекций нет.',
     collect_butterfly: 'Бабочки', collect_acorn: 'Жёлуди', collect_mushroom: 'Грибочки', collect_feather: 'Пёрышки',
@@ -405,7 +410,7 @@ const SPOKEN = {
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
-  collect_first: 'joy', collect_set: 'joy', collect_all: 'joy',
+  collect_first: 'joy', cauldron_hi: 'warm', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', collect_set: 'joy', collect_all: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',

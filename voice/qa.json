@@ -5608,5 +5608,37 @@
   "style": "warm",
   "voice": "Charon",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "cauldron_hi": {
+  "text": "Це чарівний казан! Поклади в нього знахідки за рецептом.",
+  "heard": "Це чарівний казан. Поклади в нього знахідки за рецептом.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "cauldron_more": {
+  "text": "Ще трішки знахідок — і вийде зілля.",
+  "heard": "Ще трішки знахідок і вийде зілля!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "cauldron_done": {
+  "text": "Зілля готове! Воно вже серед твоїх зілль унизу.",
+  "heard": "Зілля готове. Воно вже серед твоїх зіль унизу.",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "daily_find": {
+  "text": "Ой, нова знахідка дня!",
+  "heard": "Ой, нова знахідка дня!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
