@@ -23,14 +23,12 @@ export const CAT_BUBBLE_R = 0.62, CAT_BUBBLE_Y = 0.35;
 export const inWater = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind === 'swim';
 
 /**
- * How high the cat is carried over the floor in the water, m. For the customer's choice (2026-11-20, two pictures):
- * on the floor (0, the default), or at the height the heroine swims at - `?debug&catfloat=1` shows that one. The
- * parameter is for the pictures only and goes once the customer has chosen.
+ * How high the cat is carried over the floor in the water, m: at the height the heroine swims at, in its bubble beside
+ * her (the customer's choice of 2026-11-21 between two pictures, "on the floor" or "at her height"); 0 on land.
  */
-export function catLift(g: Pick<Game, 'world' | 'debug'>, search = typeof location === 'undefined' ? '' : location.search): number {
+export function catLift(g: Pick<Game, 'world'>): number {
   const move = g.world.move;
-  if (move?.kind !== 'swim') return 0;
-  return g.debug && new URLSearchParams(search).get('catfloat') === '1' ? move.height : 0;
+  return move?.kind === 'swim' ? move.height : 0;
 }
 
 export interface Water {

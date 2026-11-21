@@ -1,7 +1,7 @@
 // The grey build of the sea (WORLD-03, WORLD-12): its walkthrough and its measurements, as tools/forest-grey.mjs does
 // for the forest (its pure helpers are taken from there).
 //
-//   node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--catfloat] [--out <dir>]
+//   node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the sea in that mode only (src/worlds/index.ts);
 //    the swimming clips are put into that build by vite.config.ts.
@@ -32,12 +32,11 @@ export const REACHED = 3.5;
 
 /** The arguments: { scales, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
 export function readArgs(argv) {
-  const o = { scales: [1, 1.6], pass: true, measure: true, water: true, catfloat: false, out: join(root, 'shots-e2e', 'sea-grey') };
+  const o = { scales: [1, 1.6], pass: true, measure: true, water: true, out: join(root, 'shots-e2e', 'sea-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
     else if (a === '--water-only') { o.pass = false; o.measure = false; o.water = true; }
-    else if (a === '--catfloat') o.catfloat = true;
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
@@ -51,7 +50,7 @@ export function readArgs(argv) {
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--catfloat] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
@@ -90,8 +89,6 @@ async function main() {
   try {
     if (args.measure) for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out));
     if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
-    // the cat carried at her height (?catfloat=1, the customer's choice of two): the cat's pictures again, cat-float-*
-    if (args.catfloat) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out, true));
   } finally { await browser.close(); server.close(); }
   if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
   if (water.length) { writeFileSync(join(args.out, 'water.json'), JSON.stringify(water, null, 1)); console.log(`[grey] the heroine in the water: ${join(args.out, 'water.json')}`); }
@@ -236,12 +233,12 @@ async function measure(browser, url, scale, out) {
  * then from the side (she swims to the right of the camera). Five phases of the stroke each, a quarter of a second of
  * game time apart. Then the cat: by her as she stands, and as she swims. Pictures swim-* and cat-*; their numbers too.
  */
-async function inWater(browser, url, q, out, catfloat = false) {
+async function inWater(browser, url, q, out) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
   await page.addInitScript(() => { for (const k of ['amw-gift-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); });
-  await page.goto(`${url}?debug&q=${q}&world=sea${catfloat ? '&catfloat=1' : ''}`, { waitUntil: 'networkidle' });
+  await page.goto(`${url}?debug&q=${q}&world=sea`, { waitUntil: 'networkidle' });
   await page.waitForSelector('#play', { state: 'visible', timeout: 120000 });
   await page.click('#play');
   await page.waitForFunction(() => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy; }, null, { timeout: 180000, polling: 300 });
@@ -258,7 +255,7 @@ async function inWater(browser, url, q, out, catfloat = false) {
       catOnScreen: Math.abs(ndc.x) < 1 && Math.abs(ndc.y) < 1 && ndc.z < 1, bubble: __game.bubbles().cat };
   });
   const shots = [];
-  const shoot = async (name) => { const n = catfloat ? name.replace(/^cat-/, 'cat-float-') : name; await page.screenshot({ path: join(out, `${n}-q${q}.png`) }); shots.push({ name: `${n}-q${q}`, ...(await look()) }); };
+  const shoot = async (name) => { await page.screenshot({ path: join(out, `${name}-q${q}.png`) }); shots.push({ name: `${name}-q${q}`, ...(await look()) }); };
   const start = async () => {
     await page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [from, to]);
     await settle(1.2);
@@ -270,8 +267,7 @@ async function inWater(browser, url, q, out, catfloat = false) {
       for (let i = 1; i <= 5; i++) { await shoot(`${name}-${i}`); await settle(0.25); }
     } finally { await page.keyboard.up(key); }
   };
-  // 1. behind her, the camera as the game holds it (the cat carried at her height: only its own pictures, below)
-  if (!catfloat) {
+  // 1. behind her, the camera as the game holds it
   await start();
   await strokes('KeyW', 'swim-behind');
   // 2. behind and below: the camera dragged down to its lowest, as a child's drag up would
@@ -284,7 +280,6 @@ async function inWater(browser, url, q, out, catfloat = false) {
   // 3. from the side: she swims to the right of the camera
   await start();
   await strokes('KeyD', 'swim-side');
-  }
   // 4. the cat: by her as she stands (the camera turned a little to have both), and as she swims
   await start();
   await settle(2);
