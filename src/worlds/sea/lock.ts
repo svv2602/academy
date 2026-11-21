@@ -21,8 +21,8 @@ import { LANDMARKS } from './layout';
  *
  * Its middle is kept in the world's progress as the maze's (`ws.tasks.lock`: the seed of its numbers and its level,
  * src/game/worldtasks/kept.ts): after a reload the queen asks again and the same lock stands in the gate. The grey build
- * speaks no line of its own: the bubble on the way is a subtitle (`sea_lock`) under the recorded question of the lock
- * (`t_missing`).
+ * speaks no line of its own: the bubble on the way is a subtitle (`sea_lock`) under the queen's "one more task"
+ * (`npc_next`); the lock's question (`t_missing`) is said only once it is open at the gate, its numbers on the screen.
  */
 
 export const LOCK = 'lock';
@@ -69,7 +69,10 @@ export function createLock(g: Game, player: WorldTaskPlayer, scope: WorldScope):
   if (k0.length === 2) build(k0[0], k0[1]); else build(Math.floor(g.rng() * 1e6), levelFor(g.save, 'compose'));
 
   let on = false, owner: Npc | null = null, finished: (played?: TaskResult) => void = () => {}, armed = true, playing = false;
-  const bubble = () => { g.speech.caption({ key: 't_missing', pri: 'task', hold: 0, speaker: '🧜‍♀️', text: tf('sea_lock', {}) }); };
+  // On the way: a subtitle (`sea_lock`, no voice) under the line the queen has just said, "here is one more task"
+  // (`npc_next`) - a tap on the bubble says that again, never the lock's question before the numbers are on the screen.
+  const WAY = 'npc_next';
+  const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🧜‍♀️', text: tf('sea_lock', {}) }); };
 
   function play() {
     armed = false; playing = true;
@@ -111,7 +114,7 @@ export function createLock(g: Game, player: WorldTaskPlayer, scope: WorldScope):
       if (!on || playing) return;
       const hp = hero.root.position, d = Math.hypot(hp.x - before.x, hp.z - before.z);
       if (d > AGAIN_R) armed = true;
-      if (!g.busy && g.speech.shown?.key !== 't_missing') bubble();
+      if (!g.busy && g.speech.shown?.key !== WAY) bubble();
       if (canMove && armed && d < OPEN_R) play();
     },
     goal: () => (on && !playing ? before : null),

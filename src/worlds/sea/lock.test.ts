@@ -52,13 +52,16 @@ const swimTo = (g: Game, x: number, z: number) => { g.hero.root.position.set(x, 
 
 describe('the shell lock in the gate (WORLD-19)', () => {
   it('asked: on, its middle kept, the sparkles lead to the gate; it opens there, not on the way', () => {
-    const { g, opened, player, scope, ws, tasks } = game(), lock = createLock(g, player, scope);
+    const { g, opened, player, scope, ws, tasks, captions } = game(), lock = createLock(g, player, scope);
     expect(lock.active!()).toBe(false);
     expect(lock.goal()).toBeNull();
     lock.start!(queen, () => {});
     expect(lock.active!()).toBe(true);
     expect(lock.owner!()).toBe('khvylia');
     expect(keptOf(ws, LOCK)).toHaveLength(2);
+    // on the way the bubble is the queen's "one more task" (a tap says it again), not the lock's question
+    expect(captions.at(-1)).toMatchObject({ key: 'npc_next', speaker: '🧜‍♀️' });
+    expect(captions.some((c) => (c as { key: string }).key === 't_missing')).toBe(false);
     const goal = lock.goal()!;
     expect(Math.hypot(goal.x - gate.x, goal.z - gate.z)).toBeLessThan(4);
     swimTo(g, 0, 0); lock.update(1 / 60, true);
