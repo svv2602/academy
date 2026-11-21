@@ -143,7 +143,7 @@ const STARS_KEPT = 7;
 const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
-  missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'],
+  missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'], diff: ['t_diff'],
 };
 // Addition, take away, counting and the neighbours of a number ask the very example with its clip of the bank of the old game's clips (R37,
 // src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
@@ -3291,6 +3291,55 @@ try {
         if (!(r.solved && r.helped === true)) fail(`the result of the task: ${JSON.stringify(r)}, expected solved and helped`);
         if (after.supplies.owl || after.supplies.abacus || day.owl !== 1 || day.abacus !== 1) fail(`after the task: the stock ${JSON.stringify(after.supplies)}, today's count ${JSON.stringify(day)}`);
         console.log('helpers: bought the owl (15) and the abacus (20); in counting on level 2 the owl said the first rung at once, nothing lit, the abacus laid out ten frames; both spent once, counted for the parents, the result "helped"');
+      }
+      // ---- find the differences (LEARN-18, src/game/taskviews/diff.ts) ----
+      // Opened by __game.task on levels 1, 3 and 5: both pictures drawn (not blank), the zones of the differences at
+      // least 44 px, a touch on the sky counts nothing, every difference touched for real - by turns on the left picture
+      // and the right one - is ringed on both, the task ends solved with no mistake; after three openings the renderer
+      // holds no more geometries and textures than before (the target and the glade are disposed of).
+      if (has('diff')) {
+        const fail = (what) => { throw new Error(`diff: ${what}`); };
+        const mem = () => g(() => ({ ...__game.renderer.info.memory }));
+        const before = await mem();
+        const SLOT = (col, row) => ({ x: col / 4, y: (row + 0.4) / 3.4, w: 1 / 4, h: 1 / 3.4 });   // src/game/tasks/diff.ts slotRect
+        const press = async (x, y) => { if (touch) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); await framesDrawn(2); };
+        const told = [];
+        for (const level of [1, 3, 5]) {
+          await g((l) => { window.__diff = null; void __game.task('diff', l).then((r) => { window.__diff = r; }); }, level);
+          await page.locator('#taskStage .diffpic canvas').first().waitFor({ timeout: 20000 }).catch(() => fail(`level ${level}: no pictures on the panel`));
+          await calm();
+          const view = await g(() => [...document.querySelectorAll('#taskStage .diffpic')].map((p) => {
+            const c = p.querySelector('canvas'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, tones = new Set();
+            for (let i = 0; i < d.length; i += 4 * 61) tones.add((d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | d[i + 2] >> 3);
+            const r = p.getBoundingClientRect();
+            return { tones: tones.size, things: p.dataset.things.split(' '), rect: { x: r.left, y: r.top, w: r.width, h: r.height } };
+          }));
+          if (view.length !== 2) fail(`level ${level}: ${view.length} pictures`);
+          if (view.some((v) => v.tones < 12)) fail(`level ${level}: a picture is blank (${view.map((v) => v.tones).join(', ')} tones)`);
+          const diffs = view[0].things.map((t, i) => (t === view[1].things[i] ? -1 : i)).filter((i) => i >= 0);
+          const want = { 1: 2, 3: 3, 5: 5 }[level];
+          if (diffs.length !== want) fail(`level ${level}: the pictures differ in ${diffs.length} things, not ${want}`);
+          const small = Math.min(view[0].rect.w / 4, view[0].rect.h / 3.4);
+          if (small < 44) fail(`level ${level}: a zone is ${small.toFixed(1)} px, less than 44`);
+          // a touch on the sky over the glade: nothing found, nothing counted
+          await press(view[0].rect.x + view[0].rect.w * 0.5, view[0].rect.y + view[0].rect.h * 0.05);
+          if (await g(() => document.getElementById('taskStage').dataset.found ?? null) !== null) fail(`level ${level}: a touch on the sky found something`);
+          for (const [k, i] of diffs.entries()) {
+            const v = view[k % 2], s = SLOT(i % 4, Math.floor(i / 4));
+            await press(v.rect.x + (s.x + s.w / 2) * v.rect.w, v.rect.y + (s.y + s.h / 2) * v.rect.h);
+            const rings = await g(() => [...document.querySelectorAll('#taskStage .diffpic')].map((p) => p.querySelectorAll('.diffring').length));
+            if (rings[0] !== k + 1 || rings[1] !== k + 1) fail(`level ${level}: after ${k + 1} found the rings are ${rings.join(' and ')}`);
+            if (k === diffs.length - 2) await shot(`task-diff-${level}`);
+          }
+          await gameFor(() => window.__diff !== null, null, 20).catch(() => fail(`level ${level}: the task did not end`));
+          const r = await g(() => window.__diff);
+          if (!(r.solved && r.wrong === 0)) fail(`level ${level}: the result ${JSON.stringify(r)}`);
+          told.push(`${level}: ${want} found, zones ${small.toFixed(0)} px`);
+          await calm();
+        }
+        const after = await mem();
+        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after three tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        console.log(`diff: two pictures drawn, a touch on the sky counted nothing, every difference found by a real ${touch ? 'tap' : 'click'} and ringed on both (${told.join('; ')}); the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the

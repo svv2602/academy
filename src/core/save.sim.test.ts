@@ -34,8 +34,11 @@ interface Child {
 const TASKS = 200;
 /** "Settled" is tasks 101…200: by then every skill has had 12 or 13 tasks, more than the climb from 1 to 5 takes (8). */
 const SETTLED_FROM = TASKS / 2;
-/** The skills some kind of task trains take turns, 25 tasks each (the composition of a number has no task yet). */
-const ROUND: readonly SkillId[] = SKILLS.filter((k) => k !== 'compose');
+/**
+ * The skills some kind of task trains take turns, 25 tasks each (the composition of a number has no task yet; attention,
+ * "find the differences", is played from the second world on - the runs were measured on the first world's skills).
+ */
+const ROUND: readonly SkillId[] = SKILLS.filter((k) => k !== 'compose' && k !== 'attention');
 
 /**
  * Levels 4 and 5 (numbers to 20, two features at once) were written down on 2026-11-16 before the first run on five

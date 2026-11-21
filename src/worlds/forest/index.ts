@@ -33,8 +33,8 @@ import { buildGround, colliders, ground } from './terrain';
 
 /**
  * The characters (docs/worlds/world-2.md). The steps that later become tasks in the world stand in as the panel task
- * of the same skill:
- * Ash's "find the differences" (LEARN-18) as `odd`, Kolyuchka's maze (WORLD-14) as `pattern`. `part`: the leaf is not
+ * of the same skill: Kolyuchka's maze (WORLD-14) as `pattern`. Ash "remembers" the glade otherwise: his first step is
+ * "find the differences" (LEARN-18), a task of the panel of its own. `part`: the leaf is not
  * handed over - the character says it lies in the world (the hollow, the end of the maze; WORLD-08).
  */
 /** The step of Mudrena's chain played in the world: the mushroom steps up to her hollow (./index.ts `stepsTask`). */
@@ -46,7 +46,7 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a' },
   { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a' },
   { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a' },
-  { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['odd', 'simon', 'add'], shard: '#36b56c' },
+  { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['diff', 'simon', 'add'], shard: '#36b56c' },
   // by the arch of the maze's way in; the maze is the last of the hedgehog's tasks, the leaf lies at its end (WORLD-14)
   { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 2.5, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0' },
 ];

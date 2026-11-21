@@ -6,7 +6,9 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { defaultSave } from '../core/save';
 import { KEEP_DAYS, dayKey, lastDays, tickPlayTime } from './playtime';
-import { LEVELS, SKILLS } from './skills';
+import { LATE_SKILLS, LEVELS, SKILLS as ALL_SKILLS } from './skills';
+/** The skills the parents' section lists for a save with no task of a late skill (attention) yet. */
+const SKILLS = ALL_SKILLS.filter((k) => !LATE_SKILLS.includes(k));
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const play = () => ({ playMinutes: {} as Record<string, number> });

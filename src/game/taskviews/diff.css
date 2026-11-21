@@ -1,0 +1,20 @@
+/* Find the differences (LEARN-18): two pictures of one glade side by side, one under the other where the stage is
+   taller than wide (a phone held upright). Each keeps its 4:3; its size follows the room the window leaves under the
+   card's header and over the bubble. A found difference is ringed on both pictures; a hint glows over half, then a
+   quarter, of each picture. The zones are the pictures' own slots (a quarter of the width, a 3.4th of the height):
+   src/game/tasks/diff.ts, kept at least 44 px by the layout check of the walkthrough. */
+.t-stage.t-diff { flex-wrap: nowrap; padding: 4px 2px 8px; }
+.t-diff .diffpair { display: flex; gap: clamp(6px, 1.4vw, 14px); align-items: center; justify-content: center; width: 100%; }
+.t-diff .diffpic { position: relative; flex: none; aspect-ratio: 4 / 3; width: min(46%, calc((100vh - 150px) * 4 / 3));
+  border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px #0002; touch-action: none; cursor: pointer; }
+.t-diff .diffpic canvas { display: block; width: 100%; height: 100%; background: #bfe6ff; }
+.t-diff .diffring { position: absolute; box-sizing: border-box; border: 4px solid #ffcf3a; border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff, 0 0 10px #ffcf3a; pointer-events: none; animation: diffpop .35s ease-out; }
+.t-diff .diffglow { position: absolute; pointer-events: none; background: radial-gradient(closest-side, #fff7c055, #fff7c000);
+  box-shadow: inset 0 0 0 3px #ffe58a99; border-radius: 10px; animation: diffglow 1.6s ease-in-out infinite; }
+@keyframes diffpop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes diffglow { 50% { box-shadow: inset 0 0 0 3px #ffe58a, 0 0 14px #ffe58a; } }
+@media (orientation: portrait) {
+  .t-diff .diffpair { flex-direction: column; }
+  .t-diff .diffpic { width: min(94%, calc((100vh - 300px) / 2 * 4 / 3)); }
+}

@@ -8,7 +8,7 @@ import { HELPER_IDS, dealOf } from '../game/shop';
 import { breakMinutes } from '../game/session';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
-import { LEVELS, SKILLS, levelFor, withinLevels, type SkillId } from '../game/skills';
+import { LEVELS, levelFor, shownSkills, withinLevels, type SkillId } from '../game/skills';
 import type { BookInfo } from '../game/world';
 import { bookView, setBookStories, type BookStory } from './book';
 import { SUPPLY_LOOK } from './supplies';
@@ -251,7 +251,7 @@ export function initBook(save: Save, book: BookInfo, on: {
   // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
   const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
-    $('pBody').innerHTML = `<div class="pskills">${skillTable(SKILLS.slice(0, 5))}<div class="pcol">${skillTable(SKILLS.slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
+    $('pBody').innerHTML = `<div class="pskills">${skillTable(shownSkills(save).slice(0, 5))}<div class="pcol">${skillTable(shownSkills(save).slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>

@@ -168,14 +168,16 @@ describe('no task limits the time of an answer (LEARN-14, R12)', () => {
     expect(out.result, `${type}: a timer ended the task with ${JSON.stringify(out.result)}`).toBeNull();
     expect(root().classList.contains('hidden'), `${type}: a timer hid the task`).toBe(false);
     expect(heard.wrong, `${type}: a timer counted a mistake`).toBe(0);
-    expect(heard.hints, `${type}: a timer gave a hint without a mistake`).toBe(0);
+    // "find the differences" alone gives its two hints by time, as its card asks (LEARN-18) - and no more, no mistake
+    expect(heard.hints, `${type}: a timer gave a hint without a mistake`).toBe(type === 'diff' ? 2 : 0);
     // The answer still counts after the hour, and as a clean one.
     expect(cheatTask(), `${type}: the task is no longer on screen`).toBe(true);
     await vi.advanceTimersByTimeAsync(2000);
     expect(out.result, `${type}: the answer after an hour was not taken`).toEqual({ solved: true, wrong: 0 });
   });
 
-  it.each(CASES.filter(([type]) => type !== 'pairs'))('%s, level %i: an hour after a mistake the task waits for the answer', async (type, level) => {
+  // memory pairs and the differences have no wrong move (a miss is no mistake)
+  it.each(CASES.filter(([type]) => type !== 'pairs' && type !== 'diff'))('%s, level %i: an hour after a mistake the task waits for the answer', async (type, level) => {
     const { heard, out } = open(type, level);
     if (type === 'simon') await vi.advanceTimersByTimeAsync(10000);   // the sequence is shown first
     tapWrong(type);
