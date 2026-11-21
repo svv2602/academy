@@ -87,7 +87,7 @@ export const TOWERS: readonly Place[] = Array.from({ length: 6 }, (_, i) => {
   return { x: CASTLE.x + Math.sin(a) * CASTLE.ring, z: CASTLE.z - Math.cos(a) * CASTLE.ring };
 });
 export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
-  square: { ...SQUARE_ARCH, top: SQUARE_ARCH.top },
+  square: { x: SQUARE_ARCH.x - SQUARE_ARCH.w / 2, z: SQUARE_ARCH.z, top: SQUARE_ARCH.top },   // a pillar of the arch: its middle is open
   ship: { x: SHIP.x, z: SHIP.z, top: SHIP.mastH },
   trench: { x: ZONES.trench.x - 3, z: ZONES.trench.z - 4, top: 9 },
   reef: { x: ZONES.reef.x - 4, z: ZONES.reef.z - 2, top: 7 },
