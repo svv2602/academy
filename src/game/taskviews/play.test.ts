@@ -299,6 +299,15 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(cheatTask(), 'there is no task on screen');
     must(all(pics[0], '.diffring').length === want && all(pics[1], '.diffring').length === want, 'every difference found is ringed on both pictures');
   },
+  puzzle(level) {
+    const pieces = all(stage(), '.pzpiece'), want = { 1: 4, 2: 6, 3: 9 }[level as 1 | 2 | 3];
+    seen = `${pieces.length} pieces`;
+    must(pieces.length === want, `${want} pieces`);
+    must(all(stage(), '.pzcell').length === want, 'as many cells as pieces');
+    must(cheatTask(), 'there is no task on screen');
+    must(all(stage(), '.pzcell > .pzpiece.placed').length === want, 'every piece in a cell');
+    must(all(stage(), '.pzcell').every((c) => c.firstElementChild?.getAttribute('data-cell') === c.getAttribute('data-cell')), 'each piece in its own cell');
+  },
   signs() {
     const [a, b] = all(stage(), '.side > .n').map((e) => Number(text(e))), buttons = all(opts(), '.opt');
     seen = `${a} ? ${b}; options ${buttons.map(text).join(' ')}`;

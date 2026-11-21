@@ -38,6 +38,7 @@ import { houseView } from './house';
 import { neighborsView } from './neighbors';
 import { signsView } from './signs';
 import { diffView } from './diff';
+import { puzzleView } from './puzzle';
 import './hints.css';
 
 /** The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). */
@@ -127,7 +128,7 @@ export async function countAloud(c: PanelCtx, list: HTMLElement[]) {
 const viewOf = <T extends TaskType>(type: T) => ({
   count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
   odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView, missing: missingView, house: houseView,
-  neighbors: neighborsView, signs: signsView, diff: diffView,
+  neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 /**
