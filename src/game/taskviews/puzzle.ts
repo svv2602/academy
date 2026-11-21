@@ -25,7 +25,8 @@ export function puzzleView(spec: PuzzleSpec, c: PanelCtx) {
 
   const wrap = el('div', 'pzwrap'), frame = el('div', 'pzframe'), tray = el('div', 'pztray');
   frame.style.setProperty('--cols', String(cols)); frame.style.setProperty('--rows', String(rows));
-  tray.style.setProperty('--cols', String(cols));
+  // a piece in the tray has the shape of its cell: the 4:3 picture cut cols x rows
+  tray.style.setProperty('--cols', String(cols)); tray.style.setProperty('--shape', `${4 * rows} / ${3 * cols}`);
   if (guide > 0 && picture) { const g = el('div', 'pzguide'); g.style.backgroundImage = `url(${picture})`; g.style.opacity = String(guide); frame.appendChild(g); }
   const cells = Array.from({ length: cols * rows }, (_, i) => { const cell = el('div', 'pzcell'); cell.dataset.cell = String(i); frame.appendChild(cell); return cell; });
   wrap.append(frame, tray);
