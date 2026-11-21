@@ -82,9 +82,10 @@ const SWIM_HEIGHT = 0.6;
 
 /**
  * The colour of the water: the background and its haze are one - no sky under water. Light and clear, never deep blue
- * (world-3.md); bluer than the first one, '#a8e2ea', which looked beige over the sand (the customer, 2026-11-21).
+ * (world-3.md); a bright turquoise over warm sand (the customer, 2026-11-21: "brighter, turquoise water and warm sand",
+ * after a pale '#a8e2ea' that looked beige and a cold '#5cb6e4' over grey sand that looked wintry).
  */
-export const WATER_COLOR = '#5cb6e4';
+export const WATER_COLOR = '#2fb0d6';
 /** The haze of the water, from and to, in halves of the map: thicker than the air's, the far landmarks still seen. */
 export const FOG_NEAR = 0.3, FOG_FAR = 2;
 /** Shafts of light from the surface: how many, swaying slowly; one mesh (one draw call). */
@@ -94,13 +95,13 @@ export const SHAFTS = 8;
 function buildSky(scene: THREE.Scene): WorldSky {
   scene.background = new THREE.Color(WATER_COLOR);
   scene.fog = new THREE.Fog(WATER_COLOR, HALF * FOG_NEAR, HALF * FOG_FAR);
-  const sun = new THREE.DirectionalLight('#dff2ff', 2.2);
+  const sun = new THREE.DirectionalLight('#fff7e8', 2.2);
   sun.castShadow = true;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   const cam = sun.shadow.camera;
   cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26; cam.near = 1; cam.far = 120;
-  // light from above through blue water, and from the floor a cool, greenish one: the sand takes the water's colour
-  scene.add(new THREE.HemisphereLight('#bfe6ff', '#86b4c4', 1.5), sun, sun.target);
+  // light from above through turquoise water, and from the warm sand a warm one: the floor stays sunny
+  scene.add(new THREE.HemisphereLight('#c8f2f8', '#d8c08a', 1.5), sun, sun.target);
   return { sun, sunOffset: new THREE.Vector3(-8, 36, 10) };
 }
 
