@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
 import { RECIPES, brewReady, finishBrew, putIn, shownRecipes, startBrew, stillToPut, type Recipe } from './cauldron';
-import { STOCK_MAX, SUPPLIES } from './shop';
+import { STOCK_MAX, SUPPLIES, SUPPLY_IDS } from './shop';
+import { setLang, t, type Key } from '../ui/strings';
 import { acting, drink } from './supplies';
 import { addToStash } from './stash';
 
@@ -80,5 +81,16 @@ describe('the rainbow: brewed, not sold', () => {
     expect(s.supplies).toEqual({ rainbow: 1 });
     expect(drink(s, 'rainbow', { water: false, mysteries: null, random: () => 0 })).toEqual({ effect: 'rainbow' });
     expect(acting(s)).toEqual(['rainbow']);
+  });
+});
+
+describe('the names of the potions', () => {
+  it('every potion and helper has its name in both languages (the button of the row says it; the rainbow too)', () => {
+    for (const lang of ['uk', 'ru'] as const) {
+      setLang(lang);
+      for (const id of SUPPLY_IDS) expect(() => t(`supn_${id}` as Key), `${lang} supn_${id}`).not.toThrow();
+      for (const id of SUPPLY_IDS) expect(t(`supn_${id}` as Key).length, `${lang} supn_${id}`).toBeGreaterThan(2);
+    }
+    setLang('uk');
   });
 });
