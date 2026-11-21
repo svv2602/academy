@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 /**
  * The cauldron by the Great Tree (PLAY-26): where it stands - by the roots on the side of the fairies' arch, off the
  * passage, the spot she arrives at and the tips of the roots (./hub.test.ts) - and its shape: a black pot on three
- * legs, a violet brew under a rim, a little steam. Vertex-coloured, drawn in the keepsakes' call (./keepsakes.ts).
+ * legs, a violet brew under a rim, a little steam. Vertex-coloured, drawn in the nests' call (./arch-look.ts).
  */
 export const CAULDRON = { x: -3.6, z: 7.6, r: 0.75 } as const;
 

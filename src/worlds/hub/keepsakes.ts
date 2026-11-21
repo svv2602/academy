@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Save, WorldState } from '../../core/save';
-import { fadeAtCamera } from '../../core/materials';
 import { setDone, kindsOf } from '../../game/collections';
 import { knownWorlds, type ArtifactWorld } from '../../game/artifacts';
 import { NESTS, PORTALS } from './layout';
@@ -18,8 +17,9 @@ import { barkRadius, treeHollow } from './tree-look';
  * The Fairy Kingdom has seven of its own shapes (below); a secret or a set of another world, not drawn yet, hangs a
  * glowing bead of its world's colour by its nest, so nothing it found goes unseen.
  *
- * All the keepsakes are one geometry, one draw call: vertex-coloured, glowing a little by their own colour (no light),
- * dissolving at the lens with the trunk they sit on (`fadeAtCamera`).
+ * All the keepsakes are one geometry, vertex-coloured, glowing a little by their own colour (the `glow` attribute,
+ * KEEPSAKE_GLOW), drawn in the nests' call (./arch-look.ts `buildNestLook`): no draw call of their own - the hub on its
+ * fourth stage with a pet walking after her is at its 80 without them.
  */
 
 /** A keepsake: the world it is of, and what it is for - `secret:<flag>` or `set:<kind>`. */
@@ -27,7 +27,9 @@ export interface Keepsake { world: string; id: string }
 
 export const KEEPSAKES_PER_WORLD = 7;
 /** The cost of the fairy world's seven together (./keepsakes.test.ts holds it). */
-export const KEEPSAKE_BUDGET = { triangles: 3000, draws: 1 } as const;
+export const KEEPSAKE_BUDGET = { triangles: 3000, draws: 0 } as const;
+/** How much a keepsake glows by its own colour (they read on the poor tree of the first stage). */
+export const KEEPSAKE_GLOW = 0.35;
 
 /** The world's part of the save, read without creating it. */
 const stored = (save: Save, id: string): Partial<WorldState> => {
@@ -194,25 +196,9 @@ export function keepsakeGeometry(list: readonly Keepsake[], worlds: readonly Art
   return g;
 }
 
-/** The material: vertex colours, a little glow of their own colour (they read on the poor tree of the first stage). */
-export function keepsakeMaterial(): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, flatShading: true, side: THREE.DoubleSide });
-  m.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * 0.35;');
-    fadeAtCamera(sh);
-  };
-  m.customProgramCacheKey = () => 'keepsake|fade';
-  return m;
+/** The keepsakes earned and their geometry (null - none), every vertex glowing KEEPSAKE_GLOW, for the nests' mesh. */
+export function buildKeepsakes(save: Save, worlds: readonly ArtifactWorld[] = knownWorlds()): { geometry: THREE.BufferGeometry | null; list: Keepsake[] } {
+  const list = keepsakesOf(save, worlds), geometry = keepsakeGeometry(list, worlds);
+  if (geometry) geometry.setAttribute('glow', new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count).fill(KEEPSAKE_GLOW), 1));
+  return { geometry, list };
 }
-
-/** Hangs the keepsakes earned on the Tree: one mesh (or none), named `keepsakes`. */
-export function buildKeepsakes(scene: THREE.Scene, save: Save, worlds: readonly ArtifactWorld[] = knownWorlds()): { mesh: THREE.Mesh | null; list: Keepsake[] } {
-  const list = keepsakesOf(save, worlds), geo = keepsakeGeometry(list, worlds);
-  if (!geo) return { mesh: null, list };
-  const mesh = new THREE.Mesh(geo, keepsakeMaterial());
-  mesh.name = 'keepsakes';
-  mesh.castShadow = false; mesh.receiveShadow = false;
-  scene.add(mesh);
-  return { mesh, list };
-}
-
