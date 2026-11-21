@@ -3875,6 +3875,23 @@ try {
         if (!(c.calls > 0)) fail('given back, the world is not drawn (0 calls)');
         if (c.notice) fail('given back in 2 s, the message of the lost picture is shown');
         if (!(await walks())) fail('given back, the heroine does not walk');
+        // What the lost context held, let go after it is back (a task closed, a world left): three's listeners of the old
+        // context must not make this one delete it - "INVALID_OPERATION: delete: object does not belong to this context"
+        // (2026-11-22, the walkthrough on a GPU; src/core/contextloss.ts dropStaleDeletes). It is drawn again at once.
+        const stale = [];
+        const onStale = (m) => { if (/does not belong to this context/.test(m.text())) stale.push(m.text()); };
+        page.on('console', onStale);
+        const letGo = await g(() => {
+          let mesh = null;
+          __game.scene.traverse((o) => { if (!mesh && o.isMesh && o.visible && o.material?.map) mesh = o; });
+          if (!mesh) return null;
+          mesh.geometry.dispose(); mesh.material.map.dispose(); mesh.material.dispose();
+          return mesh.name || mesh.geometry.type;
+        });
+        await framesDrawn(3);
+        page.off('console', onStale);
+        if (!letGo) fail('no mesh with a texture in the scene to let go of');
+        if (stale.length) fail(`a mesh of before the loss let go of (${letGo}): ${stale[0]}`);
         await shot('context-back');
         // 2. not given back: the save is written before the message (the child loses nothing)
         await g(() => {
@@ -3903,7 +3920,7 @@ try {
         await framesDrawn(3);
         if (await visible('#notice') || await visible('#start')) fail('given back after the message, the message or the start screen stays');
         if (!(await walks())) fail('given back after the message, the heroine does not walk');
-        console.log(`context loss: the game stood 2 s with no picture and went on when it was back; not back - saved, then "${d.button}" after ${(d.after / 1000).toFixed(1)} s; back even then - the game went on`);
+        console.log(`context loss: the game stood 2 s with no picture and went on when it was back, a mesh of before let go of (${letGo}) with no delete of the lost context; not back - saved, then "${d.button}" after ${(d.after / 1000).toFixed(1)} s; back even then - the game went on`);
       }
       // ---- the cut-scenes (WORLD-13): the book has a button for every scene seen, none for the others; it shows it again ----
       if (has('story')) {

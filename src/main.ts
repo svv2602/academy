@@ -1,7 +1,7 @@
 import './style.css';
 import { setProgressHandler } from './core/assets';
 import { holdSound, setMusic, setVolumes, volume } from './core/audio';
-import { watchContext } from './core/contextloss';
+import { dropStaleDeletes, watchContext } from './core/contextloss';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
 import { applyControls } from './core/tuning';
@@ -168,8 +168,9 @@ async function boot() {
   // The game stands as on a hidden page; back by itself, it goes on. Not back in time: the save is written first, then
   // the grown-ups see "reload" over the start screen; should the picture come back even then, the game goes on.
   let over: boolean | null = null;   // the message is shown; true: over a started game
+  const stale = dropStaleDeletes(renderer.getContext());   // the old objects' deletes after the context is back
   watchContext(el.canvas, {
-    lost: () => { g.dark = true; holdSound(true); },
+    lost: () => { stale.lost(); g.dark = true; holdSound(true); },
     back: () => {
       g.dark = false; holdSound(false);
       if (over) hideNotice();
