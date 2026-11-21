@@ -1096,8 +1096,12 @@ async function hubScenarios({ url, shots, fail: report }) {
       await p.play(false);
       await p.inWorld('hub');
       const want = ['fairy/secret:chest', 'fairy/secret:glade', 'fairy/set:acorn'];
-      const kept = await p.g(() => ({ list: __game.hub.keepsakes(), mesh: !!__game.scene.getObjectByName('keepsakes') }));
-      if (JSON.stringify(kept.list) !== JSON.stringify(want) || !kept.mesh) fail(`keepsakes: the tree shows ${JSON.stringify(kept)}, expected ${JSON.stringify(want)} in a mesh "keepsakes"`);
+      // drawn in the nests' mesh (src/worlds/hub/keepsakes.ts): its vertices that glow are theirs, no mesh of their own
+      const kept = await p.g(() => {
+        const glow = __game.scene.getObjectByName('nests')?.geometry.getAttribute('glow');
+        return { list: __game.hub.keepsakes(), glowing: glow ? Array.from(glow.array).filter((v) => v > 0).length : 0, own: !!__game.scene.getObjectByName('keepsakes') };
+      });
+      if (JSON.stringify(kept.list) !== JSON.stringify(want) || !(kept.glowing > 0) || kept.own) fail(`keepsakes: the tree shows ${JSON.stringify(kept)}, expected ${JSON.stringify(want)} glowing in the nests' mesh, no mesh of their own`);
       // a picture from the fairies' nest side, 9 m out
       const arch = HUB_ARCH[0], fa = Math.atan2(arch.x, arch.z);
       await p.g((a) => { const g = __game; g.teleport(Math.sin(a) * 9, Math.cos(a) * 9); g.hero.heading = a + Math.PI; g.hero.root.rotation.y = g.hero.heading; g.cam.yaw = g.hero.heading + Math.PI; }, fa);
@@ -1216,6 +1220,12 @@ async function hubScenarios({ url, shots, fail: report }) {
         await p.page.goto(`${url}?debug&world=hub&hubStage=${stage}&q=2`);
         await p.play(false);
         await p.inWorld('hub');
+        // every set gathered earns its achievement on the way in: its card stands the game - closed before the frame
+        await p.until(() => {
+          const card = !document.querySelector('#fanfare').classList.contains('hidden');
+          if (card) document.querySelector('#fanfareOk')?.click();
+          return !card && !__game.busy && !__game.paused;
+        }, null, 'the cards of the achievements did not close');
         await p.g(() => { const g = __game; g.teleport(0, 6.5); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; });
         await p.gameSeconds(3);
         const n = await p.g(() => __game.renderer.info.render.calls);

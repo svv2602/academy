@@ -633,6 +633,7 @@ export function buildNestLook(scene: THREE.Scene, loads: ArchLoads, extra: reado
   const nestGeo = mergeGeometries(twigs, false)!;
   for (const g of twigs) g.dispose();
   const nestMesh = new THREE.Mesh(nestGeo, nestMaterial(!!nestGeo.getAttribute('glow')));
+  nestMesh.name = 'nests';
   nestMesh.castShadow = true; nestMesh.receiveShadow = true;
   scene.add(nestMesh);
   return {
