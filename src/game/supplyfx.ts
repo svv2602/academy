@@ -12,6 +12,7 @@
  * The objects here are the game's own (made once, inside the scope's `shared`): they stay through every change of world.
  */
 import * as THREE from 'three';
+import { RAINBOW_COLOURS, createRainbowTrail, ribbonAllowed } from './rainbow-trail';
 import { applyEffects } from '../core/tuning';
 import type { Game } from './context';
 import { swimming } from './player';
@@ -96,8 +97,8 @@ function arrowMesh(): THREE.Mesh {
  */
 export function installSupplies(g: Game, world: SupplyWorld): Supplies {
   const { save, hero, sparks } = g;
-  /** The colours of the rainbow's trail, in their order. */
-  const RAINBOW = ['#ff5f5f', '#ffa94d', '#ffe066', '#7fe08a', '#5cc8ff', '#9b8cff', '#e07bff'];
+  // the rainbow's ribbon behind her (src/game/rainbow-trail.ts); where a world turns it off, its sparkles alone
+  const trail = createRainbowTrail(g.scene);
   let sinceRainbow = 0;
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
   halo.name = 'glow halo';
@@ -168,13 +169,14 @@ export function installSupplies(g: Game, world: SupplyWorld): Supplies {
         at.set(hp.x + (Math.random() - 0.5) * 0.4, hp.y + 0.2, hp.z + (Math.random() - 0.5) * 0.4);
         sparks.burst(at, n++ % 2 ? '#7fe3ff' : '#ffe066', 3, 1);
       }
-      // rainbow (brewed only, PLAY-26): a trail of the colours of the rainbow behind her while she moves, and now and then
-      // a little star rising off it
-      if (now.includes('rainbow') && moved > 0.002 && (sinceRainbow += dt) > 0.04) {
+      // rainbow (brewed only, PLAY-26): its ribbon of seven colours on the ground behind her; where the world turns the
+      // ribbon off (the hub at its 80 calls), a trail of sparkles of its colours, which costs no call
+      const rainbow = now.includes('rainbow');
+      trail.update(hp, rainbow);
+      if (rainbow && !ribbonAllowed() && moved > 0.002 && (sinceRainbow += dt) > 0.04) {
         sinceRainbow = 0;
         at.set(hp.x + (Math.random() - 0.5) * 0.3, hp.y + 0.15 + (n % 7) * 0.05, hp.z + (Math.random() - 0.5) * 0.3);
-        sparks.burst(at, RAINBOW[n++ % RAINBOW.length], 3, 0.7);
-        if (n % 9 === 0) sparks.burst(g.above(hp, 1.4), '#fff6c8', 4, 1.4);
+        sparks.burst(at, RAINBOW_COLOURS[n++ % RAINBOW_COLOURS.length], 3, 0.7);
       }
       // glow: the halo, sparkles rising off her, the places near her twinkle
       const glow = now.includes('glow');
