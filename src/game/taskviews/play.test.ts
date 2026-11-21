@@ -289,6 +289,16 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(Number(text(accepted(buttons))) === answer, 'the accepted answer is not the number of the empty cell');
   },
   // The signs (LEARN-09): two numbers up to 20, the empty place of the sign, the buttons ">", "<", "=".
+  diff(level) {
+    const pics = all(stage(), '.diffpic'), want = { 1: 2, 2: 3, 3: 3 }[level as 1 | 2 | 3];
+    must(pics.length === 2, 'there must be two pictures');
+    const [a, b] = pics.map((p) => (p.dataset.things ?? '').split(' '));
+    seen = `${a.join(',')} / ${b.join(',')}`;
+    must(a.length === 12 && b.length === 12, 'a glade is twelve things');
+    must(a.filter((t, i) => t !== b[i]).length === want, `the pictures differ in ${want} things`);
+    must(cheatTask(), 'there is no task on screen');
+    must(all(pics[0], '.diffring').length === want && all(pics[1], '.diffring').length === want, 'every difference found is ringed on both pictures');
+  },
   signs() {
     const [a, b] = all(stage(), '.side > .n').map((e) => Number(text(e))), buttons = all(opts(), '.opt');
     seen = `${a} ? ${b}; options ${buttons.map(text).join(' ')}`;

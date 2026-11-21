@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PETS } from '../game/pets';
-import { LEVELS, SKILLS, recordTask } from '../game/skills';
+import { LATE_SKILLS, LEVELS, SKILLS as ALL_SKILLS, recordTask } from '../game/skills';
+/** The skills a save counts from its start: every one but the late ones, no field until their first task (attention). */
+const SKILLS = ALL_SKILLS.filter((k) => !LATE_SKILLS.includes(k));
 import type { SkillId } from '../game/skills';
 import { HARD_MAX, SAVE_VERSION, WING_COLOR, clearSave, defaultSave, defaultWorld, loadSave, storeSave, worldState } from './save';
 import type { Save, WorldState } from './save';
@@ -146,6 +148,19 @@ describe('defaultSave', () => {
 describe('loadSave', () => {
   it('returns the default save when nothing is stored', () => {
     expect(loadSave()).toEqual(defaultSave());
+  });
+
+  it('attention (LEARN-18) is an optional field: a save without it opens as it was, one with it keeps its counters through a store and a load', () => {
+    const before = defaultSave();
+    storage.setItem(KEY, JSON.stringify(before));
+    const old = loadSave();
+    expect(old.skills).not.toHaveProperty('attention');
+    expect(old).toEqual(before);
+    recordTask(old, 'attention', 0);
+    storeSave(old);
+    const again = loadSave();
+    expect(again.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(again.v).toBe(SAVE_VERSION);
   });
 
   it('opens a version 2 save in version 4 with all its progress: the shared part on top, the world in worlds.fairy', () => {

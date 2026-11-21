@@ -102,6 +102,8 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   // Each is one kind on every level (the skill plays them on its 4 and 5, tasks/index.ts BY_LEVEL).
   neighbors: ['30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6', '30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6', '30369aec 727b44ca f3920ca3 0ef45512 2c5c994b 3c92a61b ae338323 d9f17adf 2acb9980 fc0b66f6'],
   signs: ['48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39', '48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39', '48bfa99e 9a3217c8 e28f4344 e29e7b44 8f952c4d 3ded5b3d 40fc8468 d91ec698 68fa82d7 6966ac39'],
+  // Find the differences (LEARN-18) came after the split: recorded when it was made.
+  diff: ['c085b1d1 171cedef 5216e01d 90091ab0 4a94762a 0efba182 05d5e445 936d9513 1defa07e afa01384', '8cef02ef 8be74a98 8cfde50b 0439dfbc 492b0c25 abedf56b 4587394c 6319e8ec a1eaf0fb 40b4b825', '695e7300 f4959c00 d83c1146 5db1dc04 2382482c 5b80873c 1e17f0e0 ef07394e e26d6520 26438270'],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

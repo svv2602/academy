@@ -183,7 +183,7 @@ describe('the shows draw no random numbers', () => {
   const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
   it('the glob reached the panel, the flow and the ten shows', () => {
-    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './flow.ts', './house.ts', './missing.ts', './neighbors.ts', './odd.ts', './order.ts',
+    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './diff-scene.ts', './diff.ts', './flow.ts', './house.ts', './missing.ts', './neighbors.ts', './odd.ts', './order.ts',
       './pairs.ts', './panel.ts', './pattern.ts', './shapes.ts', './signs.ts', './simon.ts', './sort.ts', './sub.ts', './tenframe.ts']);
   });
 

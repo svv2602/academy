@@ -49,6 +49,7 @@ export function sameness(s: TaskSpec): string {
     case 'sort': return `sort:${s.body.colors.join(',')}:${s.body.queue.join(',')}`;
     case 'pattern': return `pattern:${s.body.unit}:${s.body.row.join(',')}`;
     case 'simon': return `simon:${s.body.pads.join(',')}:${s.body.seq.join(',')}`;
+    case 'diff': return `diff:${s.body.things.map((t) => `${t.prop}${t.color}${t.n}`).join(',')}:${s.body.changes.map((c) => c.at).join(',')}`;
   }
 }
 

@@ -7,6 +7,7 @@ import { applyControls } from './core/tuning';
 import { startUpdater } from './core/update';
 import { createWorldCache } from './core/worldcache';
 import { createQuality, createRenderer } from './core/renderer';
+import { setTaskRenderer } from './game/taskviews/diff-scene';
 import { loadShared } from './game/boot';
 import { createGame, type WorldEntry } from './game/context';
 import { exposeDebug } from './game/debug';
@@ -88,6 +89,7 @@ if (!webgl2()) { showNotice('no_webgl'); await new Promise<never>(() => {}); }
 
 // ---------- renderer & quality tiers ----------
 const { renderer, scene, camera } = createRenderer(el.canvas);
+setTaskRenderer(renderer);   // the pictures of "find the differences" are drawn with it (LEARN-18)
 const touch = matchMedia('(pointer: coarse)').matches;
 // TECH-15: the world played first is opened the way every world travelled to is (src/game/travel.ts `openWorld`). Its
 // scope owns what the world adds to the scene and subscribes to; it is made before the world's sky, so the sky and

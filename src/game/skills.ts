@@ -6,9 +6,16 @@
 import type { Save } from '../core/save';
 
 /** The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory, classify. */
-export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose';
+export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention';
 /** Every skill, in the order the parents' section lists them. */
-export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
+export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention'];
+/**
+ * The skills that are not shown to the grown-ups until a task of theirs is played: attention ("find the differences",
+ * LEARN-18) is played from the second world on - a row of zeroes for a child who has not been there says nothing.
+ */
+export const LATE_SKILLS: readonly SkillId[] = ['attention'];
+/** The skills to show for this save: every one, but a late one with no task played yet. */
+export const shownSkills = (s: Save): SkillId[] => SKILLS.filter((k) => !LATE_SKILLS.includes(k) || (s.skills[k]?.tasks ?? 0) > 0);
 /** The counters of one skill, as the save keeps them. */
 export type SkillStat = Save['skills'][string];
 
@@ -18,8 +25,16 @@ export type SkillStat = Save['skills'][string];
  */
 export const LEVELS: Readonly<Record<SkillId, readonly [min: number, max: number]>> = {
   count: [1, 5], add: [1, 5], sub: [1, 5], compare: [1, 5], series: [1, 5],
-  pattern: [1, 5], memory: [1, 5], classify: [1, 5], compose: [3, 5],
+  pattern: [1, 5], memory: [1, 5], classify: [1, 5], compose: [3, 5], attention: [1, 5],
 };
+
+/**
+ * The counters of a skill as the save has them, or fresh ones at its first level: a late skill (LATE_SKILLS) is no
+ * field of a save until its first task is recorded (`recordTask` writes it) - an optional key, no new version.
+ */
+export function statOf(s: Save, skill: SkillId): SkillStat {
+  return s.skills[skill] ?? { level: LEVELS[skill][0], streak: 0, tasks: 0, first: 0, errors: 0 };
+}
 
 /** A level brought within the skill's own levels. */
 export function withinLevels(skill: SkillId, level: number) {
@@ -33,7 +48,7 @@ export function withinLevels(skill: SkillId, level: number) {
  */
 export function levelFor(s: Save, skill: SkillId) {
   const fixed = s.fixed[skill];
-  return withinLevels(skill, typeof fixed === 'number' && fixed > 0 ? fixed : s.skills[skill].level);
+  return withinLevels(skill, typeof fixed === 'number' && fixed > 0 ? fixed : statOf(s, skill).level);
 }
 
 /**
@@ -43,7 +58,7 @@ export function levelFor(s: Save, skill: SkillId) {
  * `streak` counts the clean solves in a row (above 0) or the tasks in a row that ended at the second step (below 0).
  */
 export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false) {
-  const k = s.skills[skill];
+  const k = (s.skills[skill] ??= statOf(s, skill));
   const [min, max] = LEVELS[skill];
   k.tasks++; k.errors += wrong;
   // Solved with a helper (the owl, the abacus, src/game/helpers.ts) and no mistake: no error, but no clean solve either -

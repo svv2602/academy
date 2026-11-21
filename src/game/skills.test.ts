@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { LEVELS, SKILLS, levelFor, recordTask, withinLevels, type SkillId } from './skills';
+import { LATE_SKILLS, LEVELS, SKILLS, levelFor, recordTask, shownSkills, statOf, withinLevels, type SkillId } from './skills';
 import { SKILL } from './taskviews/panel';
 
 /** Feeds a series of finished tasks (number of wrong answers in each, the step of the hint reached) through recordTask. */
@@ -11,13 +11,13 @@ function play(s: Save, skill: SkillId, ...wrongs: number[]) {
 /** A fresh save with skill `skill` at `level` (the counters empty). */
 function at(skill: SkillId, level: number) {
   const s = defaultSave();
-  s.skills[skill].level = level;
+  (s.skills[skill] ??= statOf(s, skill)).level = level;
   return s;
 }
 
 describe('the skills of the ladder (LEARN-03, R38)', () => {
-  it('are the nine of docs/11-learning.md, "logic" split into four, in the order of the parents\' section', () => {
-    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose']);
+  it('are the ten of docs/11-learning.md, "logic" split into four, attention (from the second world) last, in the order of the parents\' section', () => {
+    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention']);
     expect(SKILLS).not.toContain('logic');
   });
 
@@ -26,16 +26,26 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
     expect(Object.keys(LEVELS).sort()).toEqual([...SKILLS].sort());
   });
 
-  it('a fresh save starts each skill at its first level', () => {
+  it('a fresh save starts each skill at its first level; a late one is no field of it until its first task', () => {
     const s = defaultSave();
-    for (const k of SKILLS) expect(s.skills[k].level, k).toBe(LEVELS[k][0]);
+    for (const k of SKILLS) expect(statOf(s, k).level, k).toBe(LEVELS[k][0]);
+    for (const k of LATE_SKILLS) { expect(s.skills[k], k).toBeUndefined(); expect(levelFor(s, k)).toBe(1); }
+  });
+
+  it('attention is shown to the grown-ups only once a task of it is recorded; recording writes its counters', () => {
+    const s = defaultSave();
+    expect(shownSkills(s)).not.toContain('attention');
+    expect(shownSkills(s)).toHaveLength(SKILLS.length - 1);
+    recordTask(s, 'attention', 0);
+    expect(s.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(shownSkills(s)).toEqual([...SKILLS]);
   });
 
   it('every kind of task trains the skill of its line of the ladder', () => {
     expect(SKILL).toEqual({
       count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
-      neighbors: 'series', signs: 'compare',
+      neighbors: 'series', signs: 'compare', diff: 'attention',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house)
