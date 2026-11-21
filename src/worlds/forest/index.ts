@@ -22,6 +22,7 @@ import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { buildDecor, loadDecor, type Decor } from './decor';
 import { buildUndergrowth, loadUndergrowth } from './undergrowth';
+import { buildFireflies } from './fireflies';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -97,17 +98,23 @@ const MUSIC: MusicParams = {
 export const FOG_FAR = HALF * 2.4;
 export const FOREST_FAR = FOG_FAR + 10;
 
-/** An evening sky of the grey build: its colour, the haze at the edge of the map, two lights. */
+/**
+ * The evening of the forest (plan C of its look, 2026-11-21; world-2.md: "a warm evening light, the haze only at the
+ * edges, not frightening"): a peach sky the haze fades into, a low warm sun from the west, a sky light of the same warmth
+ * over a ground light of the moss. The same two lights as the grey build's - no new light, no new draw call.
+ */
+export const SKY = { background: '#f4c79a', haze: '#ecc6a0', sun: '#ffc685', sunPower: 2.3, skyLight: '#ffe1bf', groundLight: '#5f7c54', hemiPower: 1.2 };
 function buildSky(scene: THREE.Scene): WorldSky {
-  scene.background = new THREE.Color('#f3d9b1');
-  scene.fog = new THREE.Fog('#e9d3b4', HALF * 0.9, FOG_FAR);
-  const sun = new THREE.DirectionalLight('#ffe3b8', 2.4);
+  scene.background = new THREE.Color(SKY.background);
+  scene.fog = new THREE.Fog(SKY.haze, HALF * 0.9, FOG_FAR);
+  const sun = new THREE.DirectionalLight(SKY.sun, SKY.sunPower);
   sun.castShadow = true;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   const cam = sun.shadow.camera;
   cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26; cam.near = 1; cam.far = 120;
-  scene.add(new THREE.HemisphereLight('#fff1d8', '#6f8a5a', 1.3), sun, sun.target);
-  return { sun, sunOffset: new THREE.Vector3(-20, 34, 16) };
+  scene.add(new THREE.HemisphereLight(SKY.skyLight, SKY.groundLight, SKY.hemiPower), sun, sun.target);
+  // lower than the grey build's (-20, 34, 16): the long shadows of an evening, the light through the trunks
+  return { sun, sunOffset: new THREE.Vector3(-30, 24, 18) };
 }
 
 /** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
@@ -146,6 +153,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const scenery = buildScenery(scene, L.flora);
   buildDecor(scene, L.decor, bridges());
   const undergrowth = buildUndergrowth(scene, L.plants);
+  const fireflies = buildFireflies(scene);
   // the camera reaches a little past the end of the haze, as in the valley of the fairy (src/worlds/fairy/sky.ts
   // VALLEY_FAR): what is cut is of the haze's colour already, and no cell of trees past it is drawn
   const worldFar = g.camera.far;
@@ -274,6 +282,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
           n.actor.update(dt);
         }
         for (const a of bystanders) a.update(dt);
+        fireflies.update(time);
         nuts.update(dt, time, canMove);
         maze.update(dt, time, canMove);
         for (const l of leaves) {
