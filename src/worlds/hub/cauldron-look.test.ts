@@ -1,9 +1,8 @@
 /** The cauldron by the Great Tree (./cauldron-look.ts, PLAY-26): where it stands, and drawn in the keepsakes' call. */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { defaultSave } from '../../core/save';
 import { CAULDRON, cauldronGeometry } from './cauldron-look';
-import { buildKeepsakes } from './keepsakes';
+import { buildNestLook } from './arch-look';
 import { PORTALS, arrivalAt, trunkR } from './layout';
 import { inPassage, placeGlade } from './glade-look';
 import { STUMP, stumpAt, treeShape } from './tree-look';
@@ -29,11 +28,16 @@ describe('the cauldron by the roots', () => {
     expect(Math.hypot(c.x - CAULDRON.x, c.z - CAULDRON.z)).toBeLessThan(0.2);
   });
 
-  it('drawn with the keepsakes in one mesh - also when there are no keepsakes', () => {
-    const scene = new THREE.Scene();
-    const { mesh, list } = buildKeepsakes(scene, defaultSave(), [], [cauldronGeometry()]);
-    expect(list).toEqual([]);
-    expect(mesh).not.toBeNull();
-    expect(scene.children.filter((o) => (o as THREE.Mesh).isMesh)).toHaveLength(1);
+  it('drawn in the nests\' mesh: no draw call of its own, whatever the keepsakes', () => {
+    const count = (extra: THREE.BufferGeometry[]) => {
+      const scene = new THREE.Scene(), look = buildNestLook(scene, { crystal: new THREE.OctahedronGeometry(0.3, 0) }, extra);
+      let meshes = 0, tris = 0;
+      scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
+      tris = look.nestMesh.geometry.getAttribute('position').count / 3;
+      return { meshes, tris };
+    };
+    const without = count([]), withPot = count([cauldronGeometry()]);
+    expect(withPot.meshes).toBe(without.meshes);
+    expect(withPot.tris).toBeGreaterThan(without.tris);
   });
 });
