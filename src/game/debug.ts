@@ -19,7 +19,7 @@ import { mysteryHold } from './mystery-stars';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
-import { tradeHooks } from './trade';
+import { tradeHold, tradeHooks } from './trade';
 import { dailyDay, dailyState } from './daily-find';
 import { tradeState } from '../ui/trade';
 
@@ -31,6 +31,8 @@ export const DEAL_HOLD = 'amw-deal-hold';
 export const BREAK_HOLD = 'amw-break-hold';
 /** The same for the walkthrough's lever of the mysterious stars (`__game.mystery`). */
 export const MYSTERY_HOLD = 'amw-mystery-hold';
+/** The same for the walkthrough's lever of the trades of the characters (`__game.trade`). */
+export const TRADE_HOLD = 'amw-trade-hold';
 
 /** What only the world has: its characters and tasks, and the right move for a task of its own on screen. */
 export interface DebugExtras {
@@ -63,6 +65,7 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
   try { dealState.held = sessionStorage.getItem(DEAL_HOLD) === '1'; } catch { /* ignore */ }
   try { mysteryHold.held = sessionStorage.getItem(MYSTERY_HOLD) === '1'; } catch { /* ignore */ }
+  try { tradeHold.held = sessionStorage.getItem(TRADE_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
   // The description of the world played at the moment of the question (ARCH-16): null for a world that hands in no items.
@@ -205,9 +208,13 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /**
      * The trades of the characters (PLAY-28, src/game/trade.ts): the ask of `who` on `day` (today by default) in the world
      * played, null - none; `day(d)` - the day the game takes as today (also the find of the day's), null - the date;
-     * `card` - the card open now and its ask (src/ui/trade.ts).
+     * `card` - the card open now and its ask (src/ui/trade.ts); `hold()` / `release()` - no character offers a trade
+     * while held (the walkthrough holds it but in its block "trade").
      */
     trade: {
+      get held() { return tradeHold.held; },
+      hold() { tradeHold.held = true; try { sessionStorage.setItem(TRADE_HOLD, '1'); } catch { /* ignore */ } },
+      release() { tradeHold.held = false; try { sessionStorage.removeItem(TRADE_HOLD); } catch { /* ignore */ } },
       offer: (who: string, day?: string) => tradeHooks.offer?.(who, day ?? dailyDay()) ?? null,
       day(d: string | null) { dailyState.day = d; },
       get card() { return { open: tradeState.open, offer: tradeState.offer }; },
