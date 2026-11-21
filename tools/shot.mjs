@@ -4112,7 +4112,9 @@ try {
       // child would) says its line as a hint: one that comes while another line sounds is turned away - a reason the
       // scenario has when a find was taken in this run.
       const finds = await g(() => (__game.save.worlds.fairy?.found ?? []).length);
-      const COLLECT_LINES = ['collect_first', 'collect_set', 'collect_all'];
+      // the pieces of the picture (PLAY-29) say theirs the same way (src/game/collect-items.ts): on a GPU the walk is quick
+      // enough to take one while another line sounds (2026-11-22, the piece collect on 6f136de, twice)
+      const COLLECT_LINES = ['collect_first', 'collect_set', 'collect_all', 'piece_first', 'picture_done'];
       const lost = Object.keys(turned).filter((id) => id !== 'go_next' && id !== 't_stars_back' && !(finds > 0 && COLLECT_LINES.includes(id)));
       if (finds && Object.keys(turned).some((id) => COLLECT_LINES.includes(id))) console.log(`lines of the collections turned away: ${finds} find(s) taken in this run, their hint said over another line`);
       if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
