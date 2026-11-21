@@ -106,7 +106,8 @@ export function drawGlade(things: readonly DiffThing[], canvas: HTMLCanvasElemen
     m.position.copy(foot); m.scale.setScalar(scale); m.rotation.y = (t.col * 0.7 + t.row) % 1 - 0.5;
     scene.add(m); owned.push(geo);
   }
-  const target = new THREE.WebGLRenderTarget(PICTURE.w, PICTURE.h, { samples: 0 });
+  // sRGB: the renderer encodes the colours for the screen into the target as it does for the page (linear is dark)
+  const target = new THREE.WebGLRenderTarget(PICTURE.w, PICTURE.h, { samples: 0, colorSpace: THREE.SRGBColorSpace });
   const before = renderer.getRenderTarget(), pixels = new Uint8Array(PICTURE.w * PICTURE.h * 4);
   try {
     renderer.setRenderTarget(target);
