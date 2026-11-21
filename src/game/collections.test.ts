@@ -112,13 +112,13 @@ describe('the ground under her (src/game/player.ts groundUnder)', () => {
 function host(def: CollectDef | undefined) {
   const save = defaultSave(), ws = worldState(save, 'fairy'), lines: string[] = [];
   const g = {
-    scene: new THREE.Scene(), ws, world: { id: 'fairy', collect: def }, ground: {}, groundY: () => 0,
+    scene: new THREE.Scene(), save, ws, world: { id: 'fairy', collect: def }, ground: {}, groundY: () => 0,
     hero: { root: new THREE.Object3D() }, sparks: { burst: vi.fn() },
     speech: { line: async (k: string) => { lines.push(k); } },
     addStars: vi.fn(), above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy), persist: vi.fn(),
   };
   g.hero.root.position.set(100, 0, 100);          // away from every find
-  return { g: g as unknown as CollectHost & typeof g, ws, lines };
+  return { g: g as unknown as CollectHost & typeof g, ws, lines, save };
 }
 
 describe('the finds in the world (src/game/collect-items.ts)', () => {
@@ -161,6 +161,8 @@ describe('the finds in the world (src/game/collect-items.ts)', () => {
     expect(h.g.persist).toHaveBeenCalled();
     c.update(0.016, 0, true);
     expect(h.g.addStars).toHaveBeenCalledTimes(7);       // nothing twice
+    // each find taken is one more to spend (the stash, PLAY-26), apart from the book's ws.found
+    expect(h.save.stash).toEqual({ mushroom: SET_SIZE });
   });
 
   it('a jump for a acorn a jump high, the potion\'s for one higher; a touch for the one to touch', () => {

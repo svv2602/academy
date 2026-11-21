@@ -163,6 +163,17 @@ describe('loadSave', () => {
     expect(again.v).toBe(SAVE_VERSION);
   });
 
+  it('the stash (PLAY-26) is an optional field: absent in an old save, kept through a store and a load, a broken count dropped', () => {
+    const before = defaultSave();
+    storage.setItem(KEY, JSON.stringify(before));
+    expect(loadSave()).not.toHaveProperty('stash');
+    storage.setItem(KEY, JSON.stringify({ ...before, stash: { acorn: 3, feather: -1, mushroom: 'x', butterfly: 1.5 } }));
+    const loaded = loadSave();
+    expect(loaded.stash).toEqual({ acorn: 3 });
+    storeSave(loaded);
+    expect(loadSave().stash).toEqual({ acorn: 3 });
+  });
+
   it('opens a version 2 save in version 4 with all its progress: the shared part on top, the world in worlds.fairy', () => {
     const raw = v2Save();
     storage.setItem(KEY, JSON.stringify(raw));
