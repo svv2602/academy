@@ -37,14 +37,22 @@ try {
     const ctx = await browser.newContext({ viewport: { width: 844, height: 390 } });
     await ctx.addInitScript((s) => {
       if (!localStorage.getItem('amw-save')) localStorage.setItem('amw-save', s);
-      try { sessionStorage.setItem('amw-gift-hold', '1'); sessionStorage.setItem('amw-break-hold', '1'); } catch { /* ignore */ }
+      // what of the day would come over the start (as tools/shot.mjs holds them): the gift, the deal, the break, the
+      // mysterious stars - each a scene or a card that keeps the game busy
+      try { for (const k of ['amw-gift-hold', 'amw-deal-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); } catch { /* ignore */ }
     }, JSON.stringify(save));
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.log('page error:', e.message));
     await page.goto(url);
     await page.waitForSelector('#play', { state: 'visible', timeout: 90000 }); /* clock: page-load */
     await page.click('#play');
-    await page.waitForFunction(() => !__game.busy && document.querySelector('#start').classList.contains('hidden'), null, { timeout: 90000 }); /* clock: page-load */
+    // a story or a tour that plays at the start (a world's first entry) is skipped, as tools/forest-grey.mjs does; on a
+    // timeout, what held the game is said
+    const ready = () => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy && document.querySelector('#start').classList.contains('hidden'); };
+    await page.waitForFunction(ready, null, { timeout: 90000, polling: 300 }).catch(async (e) => { /* clock: page-load */
+      const held = await page.evaluate(() => { const g = window.__game; return { game: !!g, busy: g?.busy, story: g?.story?.active ?? null, tour: g?.flyoverPlayer?.active ?? null, start: !document.querySelector('#start').classList.contains('hidden'), line: g?.line ?? null, card: [...document.querySelectorAll('.card:not(.hidden), #fanfare:not(.hidden)')].map((c) => c.id || c.className) }; }).catch(() => null);
+      throw new Error(`the game did not come to the start in 90 s: ${JSON.stringify(held)} (${e.message.split('\n')[0]})`);
+    });
     await page.waitForTimeout(4000); /* clock: measure */
     await installCount(page);
     for (const [name, at0] of Object.entries(POINTS)) {
