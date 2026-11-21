@@ -1321,8 +1321,8 @@ try {
             if (gear.get(slot) !== id) out.errors.push(`by default the slot "${slot}" wears ${gear.get(slot)}, not ${id}`);
           }
           for (const [id, part] of Object.entries(gear.parts)) if (part.object.visible) out.errors.push(`${id} is worn by default`);
-          // the seven of the shop and the six of the looks (PLAY-06, src/game/looks.ts)
-          const want = ['crown', 'earrings_star', 'elf_ears', 'tiara', 'wand_crystal', 'wand_flower', 'wand_leaf', 'wand_moon', 'wand_star', 'wings_butterfly', 'wizard_cap', 'wizard_hat', 'wreath'];
+          // the seven of the shop, the six of the looks (PLAY-06, src/game/looks.ts) and the two gifts of a trade (PLAY-28)
+          const want = ['acorn_cap', 'crown', 'earrings_star', 'elf_ears', 'feather_crown', 'tiara', 'wand_crystal', 'wand_flower', 'wand_leaf', 'wand_moon', 'wand_star', 'wings_butterfly', 'wizard_cap', 'wizard_hat', 'wreath'];
           if (Object.keys(gear.parts).sort().join() !== want.join()) out.errors.push(`the items on her: ${Object.keys(gear.parts).sort().join(', ')}, not ${want.join(', ')}`);
           let mesh; const B = {};
           model.traverse((o) => { if (o.isSkinnedMesh) mesh = o; if (o.isBone) B[o.name] = o; });
