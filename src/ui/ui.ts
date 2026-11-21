@@ -31,18 +31,27 @@ export const el = {
  * the game did not load. It is for the grown-ups and is text only, never spoken. It follows the language buttons.
  * `onRetry` adds the "try again" button.
  */
-let noticeKey: 'no_webgl' | 'load_failed' | null = null;
+export type NoticeKey = 'no_webgl' | 'load_failed' | 'gpu_lost';
+let noticeKey: NoticeKey | null = null;
 const renderNotice = () => {
   el.noticeText.textContent = noticeKey ? t(noticeKey) : '';
-  el.retry.textContent = t('retry');
+  el.retry.textContent = t(noticeKey === 'gpu_lost' ? 'reload' : 'retry');
 };
-export function showNotice(key: 'no_webgl' | 'load_failed', onRetry?: () => void) {
+/** `gpu_lost`: the picture is gone in the middle of the game (src/core/contextloss.ts) - the start screen comes back over it. */
+export function showNotice(key: NoticeKey, onRetry?: () => void) {
   noticeKey = key;
   renderNotice();
   el.loading.classList.add('hidden'); el.setup.classList.add('hidden');
   el.retry.classList.toggle('hidden', !onRetry);
   el.retry.onclick = onRetry ?? null;
   el.notice.classList.remove('hidden');
+  if (key === 'gpu_lost') el.start.classList.remove('hidden');
+}
+/** The picture came back after `gpu_lost` was shown over a started game: it goes on, the start screen hidden again. */
+export function hideNotice() {
+  noticeKey = null;
+  el.notice.classList.add('hidden');
+  el.start.classList.add('hidden');
 }
 
 let bubbleTimer = 0;
