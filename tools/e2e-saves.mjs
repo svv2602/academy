@@ -40,6 +40,7 @@ export const BLOCKS = [
   'diff',           // find the differences (LEARN-18): two pictures drawn, a miss counts nothing, every difference found by a real touch, no leak
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
+  'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop
   'shop-sign',      // the signboard of the shop
   'parents',        // the gate, the version, the voice slider, the quality button
   'achievements',   // the set of achievements the piece earned; the scene of one at a stop point, ended by one tap (PLAY-08)
@@ -139,7 +140,7 @@ export const GROUPS = {
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'diff', 'deal', 'pet-gear', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'diff', 'deal', 'pet-gear', 'trade', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"

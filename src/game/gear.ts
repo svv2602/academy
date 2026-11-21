@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { gltf, type Rig } from '../core/assets';
 import type { Sparks } from './fx';
+import { BUILT } from './gear-shapes';
 
 /** Where an item is worn on the heroine (PLAY-04, PLAY-05). Each slot holds one item or none. */
 export type GearSlot = 'head' | 'wand' | 'wings' | 'trail';
@@ -13,6 +14,9 @@ export const GEAR = {
   crown: { slot: 'head', bone: 'Head' },
   wizard_hat: { slot: 'head', bone: 'Head' },
   earrings_star: { slot: 'head', bone: 'Head' },
+  // the gifts of the characters for a trade (PLAY-28): never sold
+  feather_crown: { slot: 'head', bone: 'Head' },
+  acorn_cap: { slot: 'head', bone: 'Head' },
   // The things of the four looks (PLAY-06, src/game/looks.ts): simple, free versions, never sold.
   tiara: { slot: 'head', bone: 'Head' },
   wizard_cap: { slot: 'head', bone: 'Head' },
@@ -28,7 +32,10 @@ export const GEAR = {
 } as const satisfies Record<string, { slot: GearSlot; bone: string | null }>;
 
 export type GearId = keyof typeof GEAR;
-/** The items that have a model: public/models/items/<id>.glb, all loaded with the world (tools/models-used.json). */
+/**
+ * The items that have a model: public/models/items/<id>.glb, all loaded with the world (tools/models-used.json), or one
+ * built by code (./gear-shapes.ts, the gifts of a trade: no file).
+ */
 export type ModelId = { [K in GearId]: (typeof GEAR)[K]['bone'] extends string ? K : never }[GearId];
 export const MODEL_IDS = (Object.keys(GEAR) as GearId[]).filter((id) => GEAR[id].bone !== null) as ModelId[];
 
@@ -49,13 +56,14 @@ export async function loadGear(rig: Rig): Promise<GearModels> {
   const { model } = rig;
   const bones: Record<string, THREE.Bone> = {};
   model.traverse((o) => { if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone; });
-  const loaded = await Promise.all(MODEL_IDS.map((id) => gltf(`items/${id}`)));
+  // a thing built by code (./gear-shapes.ts) has no file: built in the same space as a loaded one
+  const loaded = await Promise.all(MODEL_IDS.map((id) => (BUILT[id] ? null : gltf(`items/${id}`))));
   model.updateMatrixWorld(true);
   const toModel = model.matrixWorld.clone().invert();
   const parts = {} as Record<ModelId, GearPart>;
   MODEL_IDS.forEach((id, i) => {
     const bone = bones[GEAR[id].bone];
-    const object = loaded[i].scene.clone();
+    const object = BUILT[id]?.() ?? loaded[i]!.scene.clone();
     object.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;

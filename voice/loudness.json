@@ -1984,6 +1984,36 @@
   "tp": -2.05,
   "sha256": "2a09cc1b25f10a8cc2290dc1ede57bbc391a0e3ab48fd94c33f66986f1c63d46"
  },
+ "public/voice/deer_trade_ask.mp3": {
+  "lufs": -17.99,
+  "tp": -3.84,
+  "sha256": "8b9a24aefeab2ae70d820ab28e7468f30665ca0c712b1768dcb49274a98b480f"
+ },
+ "public/voice/deer_trade_ask@Charon.mp3": {
+  "lufs": -18.01,
+  "tp": -2.16,
+  "sha256": "6244315ecb3e478ed88eb15e4f51245490b46fe8779e60d23d554a104cd653dc"
+ },
+ "public/voice/deer_trade_far.mp3": {
+  "lufs": -18.16,
+  "tp": -2.49,
+  "sha256": "4601d52da160e41f8fb2a6fba5400e9fc41e39f0ab78bc7506dc40bbc148dbed"
+ },
+ "public/voice/deer_trade_far@Charon.mp3": {
+  "lufs": -17.86,
+  "tp": -1.64,
+  "sha256": "179514a576546382b5c617d54b3745f1bc2fff1be7d8b10c1298710e0576844a"
+ },
+ "public/voice/deer_trade_thanks.mp3": {
+  "lufs": -18.02,
+  "tp": -1.83,
+  "sha256": "75df33b537fe818d5b873538730af16e553d61fe8fd54368e843400041335aa5"
+ },
+ "public/voice/deer_trade_thanks@Charon.mp3": {
+  "lufs": -18.22,
+  "tp": -2.5,
+  "sha256": "2b5425993072e291f182b725a3c78cab29c4ee1531fe384e6bd5b29568544691"
+ },
  "public/voice/final_text.mp3": {
   "lufs": -17.93,
   "tp": -4.24,
@@ -2008,6 +2038,36 @@
   "lufs": -18.06,
   "tp": -4.6,
   "sha256": "e0390a86c2e990cd649948dad17f5880cc6d172edea7f0a20dc305859e27b9a9"
+ },
+ "public/voice/fox_trade_ask.mp3": {
+  "lufs": -18.0,
+  "tp": -2.4,
+  "sha256": "009cbafa39c7861f865d00e46660f3e1ceb9a890b17c3f54845ee56d8cf8a558"
+ },
+ "public/voice/fox_trade_ask@Leda.mp3": {
+  "lufs": -18.03,
+  "tp": -6.66,
+  "sha256": "d907e209f25f3ad5bc9a2eb73b1c8b8b3625b90bb41d38de5caa698f073125b1"
+ },
+ "public/voice/fox_trade_far.mp3": {
+  "lufs": -18.02,
+  "tp": -2.06,
+  "sha256": "ad9081d943b281489282be657920c457791151c2ec930ea04b0ea350ea2b5043"
+ },
+ "public/voice/fox_trade_far@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -6.97,
+  "sha256": "f98e0ef835cfe9a03abe702333c8511ea9a09e1588c898663d151ce9791c24bd"
+ },
+ "public/voice/fox_trade_thanks.mp3": {
+  "lufs": -17.97,
+  "tp": -3.75,
+  "sha256": "6cbfe041918a5da0ebddbefd86b203e144bc9c9c545719df53e33766a86ca7fc"
+ },
+ "public/voice/fox_trade_thanks@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -5.66,
+  "sha256": "e88183549c3ea6e35f712df62b862a7d24e1531110e66d31140a9ce87f4f1c90"
  },
  "public/voice/free.mp3": {
   "lufs": -18.06,
@@ -2364,6 +2424,36 @@
   "tp": -2.2,
   "sha256": "2c8f062467117df9a625449b448a588963c185de8b855290ff3ce4700f2aeb9b"
  },
+ "public/voice/mushking_trade_ask.mp3": {
+  "lufs": -18.0,
+  "tp": -3.38,
+  "sha256": "feda19b14cfc39b84b0c08c7a8a53e0bf849fce9faba2e866ae86eed04bf7e56"
+ },
+ "public/voice/mushking_trade_ask@Orus.mp3": {
+  "lufs": -17.95,
+  "tp": -3.12,
+  "sha256": "4435cdd72d3be7309d13c94019b3f80b934b48471a15c05003390d18861ef843"
+ },
+ "public/voice/mushking_trade_far.mp3": {
+  "lufs": -18.04,
+  "tp": -2.3,
+  "sha256": "c3e75e6a472beefb55a4af85b601506c8893047ceb871adf2a118ada50c7114a"
+ },
+ "public/voice/mushking_trade_far@Orus.mp3": {
+  "lufs": -17.96,
+  "tp": -1.99,
+  "sha256": "ff45bfbe61641451b596dea6d074ac39286f2dab4600e9251c22580697d216ac"
+ },
+ "public/voice/mushking_trade_thanks.mp3": {
+  "lufs": -17.94,
+  "tp": -2.65,
+  "sha256": "076542451fff498ff68986531ea32de452d992db52d688c4d437c7de8e66aa7b"
+ },
+ "public/voice/mushking_trade_thanks@Orus.mp3": {
+  "lufs": -17.92,
+  "tp": -3.36,
+  "sha256": "7fb0ea86a69cd132365466e61e0f2497493d3d0791d88d1787920e7432b58cdc"
+ },
  "public/voice/mystery_day.mp3": {
   "lufs": -18.06,
   "tp": -4.16,
@@ -2528,6 +2618,36 @@
   "lufs": -17.79,
   "tp": -2.19,
   "sha256": "fd82cf8d629221d50ff13b44e79ef858ff5f074dede1fc16a16c574cb1362971"
+ },
+ "public/voice/queen_trade_ask.mp3": {
+  "lufs": -18.13,
+  "tp": -2.35,
+  "sha256": "9c8b542a2ca5cc482fc7aaa52a2c750e3e80b653cbc938a1a9901f5511407cc1"
+ },
+ "public/voice/queen_trade_ask@Sulafat.mp3": {
+  "lufs": -18.03,
+  "tp": -3.5,
+  "sha256": "dbe8e0194c6245b98d65ed2318132e6d41649a9fd3b4d800e368f5a530cb38d0"
+ },
+ "public/voice/queen_trade_far.mp3": {
+  "lufs": -18.06,
+  "tp": -2.46,
+  "sha256": "969c066fd9499a24cd6415b53e412200320f06d7b6fde45cf0b9c8aa476fae33"
+ },
+ "public/voice/queen_trade_far@Sulafat.mp3": {
+  "lufs": -18.04,
+  "tp": -4.39,
+  "sha256": "29ad2fe18a229939bdb464ff32423b5da17067a8a3bcbc3d12418ff2825d2b77"
+ },
+ "public/voice/queen_trade_thanks.mp3": {
+  "lufs": -18.02,
+  "tp": -3.65,
+  "sha256": "a59ea582e60c7a97218973c895574c583c8430d82f5b5030a1950f7a5c506238"
+ },
+ "public/voice/queen_trade_thanks@Sulafat.mp3": {
+  "lufs": -18.03,
+  "tp": -2.87,
+  "sha256": "8881c22fe4565322c2f1ee83cd4cc1d18a608e764e3899f249d6238d946abd2a"
  },
  "public/voice/secret_glade.mp3": {
   "lufs": -18.06,
@@ -3254,6 +3374,16 @@
   "tp": -1.71,
   "sha256": "d9183d19661650a7b228d2c37aa5424b7009c7b8de568d3086bde274811c8104"
  },
+ "public/voice/trade_done.mp3": {
+  "lufs": -17.95,
+  "tp": -1.6,
+  "sha256": "039533a1c99b5af729db1754205469854c383263876bd5092456746a87db681a"
+ },
+ "public/voice/trade_hi.mp3": {
+  "lufs": -18.06,
+  "tp": -2.93,
+  "sha256": "6a2c7114ad22c3cf32ed1d458805bc363f9a983e6559043941aff68c1de65997"
+ },
  "public/voice/tree_calls.mp3": {
   "lufs": -18.08,
   "tp": -2.96,
@@ -3283,6 +3413,36 @@
   "lufs": -17.99,
   "tp": -5.22,
   "sha256": "30cc2bfc12abdb92c8c6e893fc1f5247fda4425de4fe9eae1a31b279cd1234f0"
+ },
+ "public/voice/unicorn_trade_ask.mp3": {
+  "lufs": -18.01,
+  "tp": -4.07,
+  "sha256": "ac35f889358ddac9c3ef641ca330b03ab39d36e54084f66ba893c2281caacd5d"
+ },
+ "public/voice/unicorn_trade_ask@Sulafat.mp3": {
+  "lufs": -18.01,
+  "tp": -3.55,
+  "sha256": "d9ec42819e5d8ddc6d1e6a6e240b14a190b472aee559d0fa0812d9ae4e5efbb2"
+ },
+ "public/voice/unicorn_trade_far.mp3": {
+  "lufs": -18.03,
+  "tp": -1.56,
+  "sha256": "d0abbace8f66a54db37834512a4cc8784ca9c2a29ab7711095d710b6ca00fb67"
+ },
+ "public/voice/unicorn_trade_far@Sulafat.mp3": {
+  "lufs": -18.04,
+  "tp": -2.84,
+  "sha256": "1797d557bc6907ffeeac828425d9b2d7cf1a788ece1d8d3e220b3316e51e9a1b"
+ },
+ "public/voice/unicorn_trade_thanks.mp3": {
+  "lufs": -18.03,
+  "tp": -3.84,
+  "sha256": "21957978b7a6060698076bdb3b33a3b1f7541ea43112bfc3f79832b3d9763592"
+ },
+ "public/voice/unicorn_trade_thanks@Sulafat.mp3": {
+  "lufs": -18.04,
+  "tp": -5.75,
+  "sha256": "ac2aecbb2621ca4cbe8d8b2fe6e57971d80dc6b6d90102216f643bb5564c7f28"
  },
  "public/voice/welcome_back.mp3": {
   "lufs": -18.04,

@@ -28,6 +28,7 @@ import { openShop } from '../../ui/shop';
 import { el } from '../../ui/ui';
 import { createButterfliesTask } from './butterflies-task';
 import { FRIENDS, createCharacters } from './characters';
+import { TRADES } from './trade';
 import { createChestStars } from './chest-stars';
 import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
@@ -200,7 +201,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   if (wrongTasks.length) throw new Error(`the fairy world: ${wrongTasks.join('; ')}`);
   setCast(voices);   // each character speaks with its voice (VOICE-10)
   scope.own(() => setCast({ narrator: '', cast: {} }));   // TECH-15: the next world starts with no voices but the narrator's
-  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks }), { talk } = dialogue;
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks, trades: TRADES }), { talk } = dialogue;
   stepDone = dialogue.stepDone;
 
   // ---------- "sort" in the world as a debug show (__game.worldSort()): the walkthrough's look at it outside a chain ----------

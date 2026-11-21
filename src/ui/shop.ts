@@ -35,11 +35,11 @@ const TABS: readonly { id: Tab; icon: string }[] = [
   { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'potions', icon: '🧪' },
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
-const ICON: Record<string, string> = {
-  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎',
+export const ICON: Record<string, string> = {
+  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🌰',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
   cat_collar: '📿', cat_bow: '🎀', cat_hat: '🧙', cat_gold_bell: '🔔',
-  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑',
+  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂',
   tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
 /** The price of a tile: the deal of the day has its own price crossed out before the new one. */
@@ -161,7 +161,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     const id = trial[slot];
     if (!id) return;
     const st = itemState(save, id);
-    if (st?.kind === 'reward') { act.textContent = t('shop_find'); return; }
+    if (st?.kind === 'reward') { act.textContent = t(st.reward === 'trade' ? 'shop_trade_get' : 'shop_find'); return; }
     if (st?.kind !== 'price') return;
     const b = button('big small' + (st.short > 0 ? ' short' : ''), '', () => { tapBuy(slot, id); render(); });
     b.id = 'shopBuy'; b.dataset.id = id;
@@ -204,7 +204,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     const shownPet = petTrial[pet] ?? petWorn(save, pet);
     for (const id of [null, ...PET_ITEMS.filter((x) => x.pet === pet).map((x) => x.id)]) {
       const st = id === null ? null : petItemState(save, id)!;
-      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : t('shop_rare');
+      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : st.kind === 'trade' ? t('shop_trade') : t('shop_rare');
       const cls = 'tile' + ((peek === null ? shownPet === id : peek === id) ? ' sel' : '') + (st?.kind === 'rare' ? ' sil' : '')
         + (st?.kind === 'price' && st.was ? ' deal' : '');
       const b = button(cls, `<span class="ic">${ICON[id ?? 'none'] ?? '❔'}</span>${cap ? `<span class="cap">${cap}</span>` : ''}`, () => { tapPet(pet, id); render(); });
@@ -216,6 +216,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     if (peek) { act.textContent = t('shop_rare'); return; }
     const id = petTrial[pet];
     const st = id ? petItemState(save, id) : undefined;
+    if (st?.kind === 'trade') { act.textContent = t('shop_trade_get'); return; }
     if (!id || st?.kind !== 'price') return;
     const b = button('big small' + (st.short > 0 ? ' short' : ''), '', () => { tapBuyPet(pet, id); render(); });
     b.id = 'shopBuy'; b.dataset.id = id;
@@ -266,7 +267,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     row.className = 'tiles';
     for (const id of [null, ...CATALOG.filter((i) => i.slot === slot).map((i) => i.id)]) {
       const st = id === null ? null : itemState(save, id)!;
-      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : st.kind === 'reward' ? '🎁' : t('shop_achieve');
+      const cap = !st || st.kind === 'owned' ? '' : st.kind === 'price' ? priceCap(st.price, st.was) : st.kind === 'reward' ? (st.reward === 'trade' ? t('shop_trade') : '🎁') : t('shop_achieve');
       const cls = 'tile' + (shown(slot) === id && peek === null ? ' sel' : '') + (st?.kind === 'silhouette' ? ' sil' : '') + (peek !== null && peek === id ? ' sel' : '')
         + (st?.kind === 'price' && st.was ? ' deal' : '');
       const b = button(cls, `<span class="ic">${ICON[id ?? 'none'] ?? '❔'}</span>${cap ? `<span class="cap">${cap}</span>` : ''}`, () => { tapThing(slot, id); render(); });

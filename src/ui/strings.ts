@@ -168,6 +168,10 @@ const S = sameKeys({
     // PLAY-26: the cauldron by the Great Tree and the find of the day of a world
     cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
     cauldron_done: 'Зілля готове! Воно вже серед твоїх зілль унизу.', daily_find: 'Ой, нова знахідка дня!',
+    // --- the trades of the characters (PLAY-28, src/ui/trade.ts)
+    trade_hi: 'Можна обміняти знахідки на подарунок!', trade_done: 'Обмін вдався! Подарунок твій.',
+    talk_play: 'Грати', talk_trade: 'Обмін', talk_bye: 'Бувай', trade_go: 'Обміняти', trade_later: 'Не зараз',
+    trade_have: 'у тебе {n}', trade_left: 'залишиться {n}', trade_short: 'ще {n}', shop_trade: 'від жителя', shop_trade_get: 'Подарунок жителя — за обмін знахідками',
     // PLAY-27: the pet's treat and its trick learnt; PLAY-26: the rainbow drunk
     pet_treat: 'Ням-ням! Як смачно!', pet_trick: 'Дивись, твій улюбленець навчився новому!', sup_rainbow: 'Ого, за тобою біжить веселка!',
     collect_all: 'І остання знахідка! Усі колекції світу зібрано!',
@@ -338,6 +342,9 @@ const S = sameKeys({
     collect_first: 'Ой, находка для коллекции! Ищи такие ещё.', collect_set: 'Коллекция собрана! Ещё пять звёздочек!',
     cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', cauldron_more: 'Ещё немного находок — и получится зелье.',
     cauldron_done: 'Зелье готово! Оно уже среди твоих зелий внизу.', daily_find: 'Ой, новая находка дня!',
+    trade_hi: 'Можно обменять находки на подарок!', trade_done: 'Обмен удался! Подарок твой.',
+    talk_play: 'Играть', talk_trade: 'Обмен', talk_bye: 'Пока', trade_go: 'Обменять', trade_later: 'Не сейчас',
+    trade_have: 'у тебя {n}', trade_left: 'останется {n}', trade_short: 'ещё {n}', shop_trade: 'от жителя', shop_trade_get: 'Подарок жителя — за обмен находками',
     pet_treat: 'Ням-ням! Как вкусно!', pet_trick: 'Смотри, твой любимец научился новому!', sup_rainbow: 'Ого, за тобой бежит радуга!',
     collect_all: 'И последняя находка! Все коллекции мира собраны!',
     book_collect_t: 'Коллекции', book_collect: 'Коллекции этого мира: {n} из {of}', book_collect_none: 'В этом мире коллекций нет.',
@@ -413,7 +420,7 @@ const SPOKEN = {
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
-  collect_first: 'joy', cauldron_hi: 'warm', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy',
+  collect_first: 'joy', cauldron_hi: 'warm', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',

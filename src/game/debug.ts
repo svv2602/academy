@@ -19,6 +19,9 @@ import { mysteryHold } from './mystery-stars';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
+import { tradeHooks } from './trade';
+import { dailyDay, dailyState } from './daily-find';
+import { tradeState } from '../ui/trade';
 
 /** The key of the tab's storage that keeps the walkthrough's lever of the gift (`__game.gift`) over a reload. */
 export const GIFT_HOLD = 'amw-gift-hold';
@@ -197,6 +200,16 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     get isStill() { return g.still; },
     fade: transition,
     talk(id: string) { world.talk(id); },
+    /**
+     * The trades of the characters (PLAY-28, src/game/trade.ts): the ask of `who` on `day` (today by default) in the world
+     * played, null - none; `day(d)` - the day the game takes as today (also the find of the day's), null - the date;
+     * `card` - the card open now and its ask (src/ui/trade.ts).
+     */
+    trade: {
+      offer: (who: string, day?: string) => tradeHooks.offer?.(who, day ?? dailyDay()) ?? null,
+      day(d: string | null) { dailyState.day = d; },
+      get card() { return { open: tradeState.open, offer: tradeState.offer }; },
+    },
     /**
      * The task played in the world now (src/game/worldtasks/core.ts), whatever its kind: `solve()`, `wrong()` (one wrong
      * move), `close()` (the close button), and `state` - its kind, phase (input / mistake / solved / closed), wrong moves,
