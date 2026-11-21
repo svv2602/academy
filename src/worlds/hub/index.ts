@@ -165,8 +165,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const stage = treeStage(artifactCount(save));
   const tree = buildTreeLook(scene, stage, L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
-  const keepsakes = buildKeepsakes(scene, save, knownWorlds(), [cauldronGeometry()]);
-  // the cauldron by the roots (PLAY-26, ./cauldron-look.ts): drawn in the keepsakes' call, walked round, brewed at
+  const keepsakes = buildKeepsakes(scene, save);
+  // the cauldron by the roots (PLAY-26, ./cauldron-look.ts): drawn in the nests' call (below), walked round, brewed at
   ground.block(CAULDRON.x, CAULDRON.z, CAULDRON.r);
   const cauldronAt = new THREE.Vector3(CAULDRON.x, 0, CAULDRON.z);
   const openPot = () => openCauldron({ save, persist: () => g.persist(), pause: (v) => { g.paused = v; if (v) g.speech.caption(null); }, say: (k) => { void g.speech.line(k, 'hint', 5000); } });
@@ -191,7 +191,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     sleep();
   };
   const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
-  const { nests, update: glow } = buildNestLook(scene, L.arch);
+  const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry()]);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
   const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);
   buildRing(scene);
