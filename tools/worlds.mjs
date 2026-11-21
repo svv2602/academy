@@ -1180,12 +1180,12 @@ async function hubScenarios({ url, shots, fail: report }) {
         await p.g(([x, z]) => { const g = __game; g.teleport(x, z + 1.6); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; }, [pot.x, pot.z]);
         await p.gameSeconds(1);
         await p.page.locator('#btnAct').waitFor({ state: 'visible', timeout: 10000 }).catch(() => fail('keepsakes: no action button by the cauldron'));
-        await p.page.locator('#btnAct').tap().catch(async () => { await p.page.locator('#btnAct').click(); });
+        await p.page.locator('#btnAct').click({ force: true });   // the action button pulses: never "stable"
         await p.page.locator('#cauldron .cd-recipe').first().waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the cauldron did not open'));
         const shown = await p.g(() => [...document.querySelectorAll('#cauldron .cd-recipe')].map((b) => b.dataset.recipe));
         if (JSON.stringify(shown) !== JSON.stringify(pot.recipes)) fail(`keepsakes: the cauldron shows ${shown}, the open worlds give ${pot.recipes}`);
         const before = await p.g(() => ({ stash: { ...__game.save.stash }, jump: __game.save.supplies?.jump ?? 0 }));
-        const press = (sel) => p.page.locator(sel).first().tap().catch(() => p.page.locator(sel).first().click());
+        const press = (sel) => p.page.locator(sel).first().click({ force: true });
         await press('#cauldron [data-recipe=jump]');
         await press('#cauldron [data-kind=mushroom]');          // not in the recipe: refused, nothing spent
         await p.shot('hub-cauldron.png');
