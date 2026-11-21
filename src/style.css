@@ -464,3 +464,11 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 #shopItems .tile.deal::after { content: "−40%"; position: absolute; top: -8px; right: -8px; padding: 1px 6px; border-radius: 8px; background: #ff5fa8; color: #fff; font-size: 12px; font-weight: 800; }
 #shopItems .tile .cap s { opacity: .55; font-weight: 600; }
 #btnShop .dealmark { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #ff5fa8; color: #fff; font-size: .8em; }
+
+/* The foot of every card whose buttons stand at its bottom (the customer, 2026-11-21: "«Готово» rests on the bottom
+   edge of the window"): one room under the last row for all of them - the shop, the book, a task, the parents' section,
+   a fanfare, the break, the start, the cauldron, a trade - and more on a phone with a home bar (safe-area-inset-bottom).
+   Ids first: it wins over each card's own padding, wherever its stylesheet comes. */
+:root { --card-foot: max(18px, calc(env(safe-area-inset-bottom) + 10px)); }
+#shop .shop-card, #book .book-card, #task .t-card, #parents .sheet, #fanfare .card, #breakCard .card, #start .panel,
+#cauldron .cd-card, #trade .tr-card { padding-bottom: var(--card-foot); }
