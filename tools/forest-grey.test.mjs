@@ -8,6 +8,9 @@ describe('tools/forest-grey.mjs: the walkthrough and the measurements of the gre
     expect(readArgs(['--no-measure']).measure).toBe(false);
     expect(readArgs(['--scales', '9']).error).toMatch(/0\.5-3/);
     expect(readArgs(['--what']).error).toBe('unknown argument "--what"');
+    expect(readArgs([]).q).toBe(2);
+    expect(readArgs(['--q', '0']).q).toBe(0);
+    expect(readArgs(['--q', '5']).error).toMatch(/0, 1 or 2/);
   });
 
   it('the legs of a route, each pair once, and the path between two zones either way round', () => {
