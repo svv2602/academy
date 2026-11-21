@@ -53,18 +53,22 @@ function featherCrown(): THREE.Group {
   return assemble('feather_crown', parts);
 }
 
-/** The acorn cap: the cup of an acorn over the top of her head, a little wider than the hair, knobbly, a short stalk on top. */
+/**
+ * The acorn cap: the cup of an acorn on the crown of her head, knobbly, a short stalk on top. The customer on the frames
+ * (2026-11-21): "a little smaller" - K of its first size (0.3 x 0.28 x 0.16 m), set a little higher so it sits on the crown.
+ */
+const CAP_K = 0.78;
 function acornCap(): THREE.Group {
-  const Z = 1.08, R = [0.3, 0.28, 0.16];
+  const k = CAP_K, Z = 1.1, R = [0.3 * k, 0.28 * k, 0.16 * k];
   const parts: Part[] = [{ geo: egg(facets(0.6), [0, 0.02, Z], R), mat: mat.wood('#8c6142') }];
   const knob = mat.wood('#9e7350');
   for (const [ring, [zr, n]] of ([[0.4, 9], [0.75, 6]] as const).entries()) {
     for (let i = 0; i < n; i++) {
       const a = THREE.MathUtils.degToRad(i * 360 / n + ring * 13), el = Math.acos(zr);
-      parts.push({ geo: egg(4, [R[0] * Math.sin(el) * Math.cos(a), 0.02 + R[1] * Math.sin(el) * Math.sin(a), Z + R[2] * zr], [0.025, 0.025, 0.015]), mat: knob });
+      parts.push({ geo: egg(4, [R[0] * Math.sin(el) * Math.cos(a), 0.02 + R[1] * Math.sin(el) * Math.sin(a), Z + R[2] * zr], [0.025 * k, 0.025 * k, 0.015 * k]), mat: knob });
     }
   }
-  parts.push({ geo: new THREE.CylinderGeometry(0.018, 0.018, 0.08, 6).rotateX(Math.PI / 2).rotateY(THREE.MathUtils.degToRad(12)).translate(0.01, 0.02, Z + R[2] + 0.03), mat: mat.wood('woodDark') });
+  parts.push({ geo: new THREE.CylinderGeometry(0.018 * k, 0.018 * k, 0.08 * k, 6).rotateX(Math.PI / 2).rotateY(THREE.MathUtils.degToRad(12)).translate(0.01, 0.02, Z + R[2] + 0.03 * k), mat: mat.wood('woodDark') });
   return assemble('acorn_cap', parts);
 }
 
