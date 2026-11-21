@@ -88,8 +88,8 @@ export const REACHED = 3.5;
 
 /** The frame budget of a point of the forest on q2 (the lead's, 2026-11-21): triangles and draw calls. */
 export const BUDGET = { tris: 600000, calls: 112 };
-/** The point of the tour (0-based) the pictures of the magic are taken from: over the Oak, the sky and three glades in the frame. */
-export const MAGIC_POINT = 1;
+/** The point of the tour (0-based) the pictures of the magic are taken from: over the central glade to the Oak - the sky, the paths and the glades in the frame. */
+export const MAGIC_POINT = 0;
 /** The magic of the pictures (the third - three leaves given back) and the names of their files. */
 export const MAGIC_PICTURES = [[0, 'magic-0'], [0, 'magic-0-again'], [0.48, 'magic-0_48'], [1, 'magic-1']];
 

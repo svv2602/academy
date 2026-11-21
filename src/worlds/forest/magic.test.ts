@@ -159,7 +159,7 @@ describe('the magic of the forest (WORLD-09): read from the progress the save al
     expect(forest(5).rays.visible).toBe(false);
     const f = forest(5, true);
     expect(f.rays.visible).toBe(true);
-    expect((f.rays.material as THREE.MeshBasicMaterial).opacity).toBeCloseTo(RAY_ALPHA, 10);
+    expect((f.rays.material as THREE.ShaderMaterial).uniforms.uOpacity.value).toBeCloseTo(RAY_ALPHA, 10);
     expect(f.rays.castShadow).toBe(false);
   });
 
