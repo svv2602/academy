@@ -465,13 +465,14 @@ body:not(.touch) #supplies { right: max(22px, env(safe-area-inset-right)); botto
 #shopItems .tile .cap s { opacity: .55; font-weight: 600; }
 #btnShop .dealmark { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: #ff5fa8; color: #fff; font-size: .8em; }
 
-/* The foot of every card whose buttons stand at its bottom (the customer, 2026-11-21: "«Готово» rests on the bottom
-   edge of the window"): one room under the last row for all of them - the shop, the book, a task, the parents' section,
-   a fanfare, the break, the start, the cauldron, a trade - and more on a phone with a home bar (safe-area-inset-bottom).
-   Ids first: it wins over each card's own padding, wherever its stylesheet comes. */
+/* The foot of the cards whose row of buttons stood 10-12 px from their bottom edge (the customer, 2026-11-21: "«Готово»
+   rests on the bottom edge of the window"): the shop, the book, the cauldron, a trade - one room under the last row,
+   and more on a phone with a home bar (safe-area-inset-bottom). Ids first: it wins over each card's own padding,
+   wherever its stylesheet comes. A task, the parents' section, a fanfare, the break and the start keep their own
+   16-34 px: a task's card made higher raised the cards of "pairs" under the bubble, and the parents' section on a
+   phone held upright lost room (the layout checks of 2026-11-21). */
 :root { --card-foot: max(18px, calc(env(safe-area-inset-bottom) + 10px)); }
-#shop .shop-card, #book .book-card, #task .t-card, #parents .sheet, #fanfare .card, #breakCard .card, #start .panel,
-#cauldron .cd-card, #trade .tr-card { padding-bottom: var(--card-foot); }
+#shop .shop-card, #book .book-card, #cauldron .cd-card, #trade .tr-card { padding-bottom: var(--card-foot); }
 
 /* The row of the book's tabs and its scenes again (PLAY-29 brought a sixth tab, the picture): on one line on a phone
    held flat - the tabs 44 px, the scenes' buttons narrower - else the row went onto two lines and the shelf under it
