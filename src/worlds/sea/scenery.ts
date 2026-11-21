@@ -167,7 +167,7 @@ export function buildScenery(scene: THREE.Scene) {
  */
 export function buildShafts(scene: THREE.Scene, n: number) {
   const geo = new THREE.CylinderGeometry(1.4, 2.6, 30, 10, 1, true).translate(0, 15, 0);
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), n);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#fff8e4', transparent: true, opacity: 0.035, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }), n);
   mesh.name = 'light-shafts'; mesh.frustumCulled = false;
   const zones = Object.values(ZONES);
   const at = Array.from({ length: n }, (_, i) => { const z = zones[i % zones.length]; return { x: z.x + Math.sin(i * 2.7) * 6, z: z.z + Math.cos(i * 2.7) * 6, ph: i * 1.3 }; });
