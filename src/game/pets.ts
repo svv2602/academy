@@ -8,6 +8,7 @@ import type { Game } from './context';
 import type { Spot } from './player';
 import { GROUND, PET_RUN_MAX, PET_WALK_BACK, PET_WALK_MAX, followSpeed, pace, paceFollower, speedometer } from './stride';
 import type { WorldDef } from './world';
+import { inStash, spend } from './stash';
 
 /**
  * The pets (PLAY-09): one to find in each world (R18), and the one chosen walks after the heroine with the cat (R19).
@@ -24,6 +25,8 @@ import type { WorldDef } from './world';
  */
 export interface PetSpecies {
   readonly id: string; readonly world: string; readonly model: string; readonly height: number;
+  /** The kinds of finds it likes as a treat (PLAY-27, from the stash), in the order they are given. */
+  readonly treats?: readonly string[];
   readonly walk: number; readonly run?: { readonly clip: string; readonly ground: number };
 }
 
@@ -37,7 +40,7 @@ export const PET_FLAG = 'pet';
 export const PETS: readonly PetSpecies[] = [
   // R57 (Q1): the fawn of the first world: the model of its grown-up made small. A model file of the core, not a world's name:
   // src/game/shared-code.test.ts allows this one exact string in this file only.
-  { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85, walk: GROUND.fawnWalk, run: { clip: 'Gallop', ground: GROUND.fawnGallop } },
+  { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85, walk: GROUND.fawnWalk, run: { clip: 'Gallop', ground: GROUND.fawnGallop }, treats: ['acorn', 'mushroom'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
@@ -173,6 +176,26 @@ export function petShadows(on: boolean): () => void {
   return () => { shadows = true; };
 }
 
+/** PLAY-27: after this many treats a pet knows its first trick, then its second (the customer's word of 2026-11-21). */
+export const TRICKS_AT = [5, 15] as const;
+/** How many treats the pet `id` has had (save.treats, an optional field). */
+export const treatsOf = (s: Pick<Save, 'treats'>, id: string): number => s.treats?.[id] ?? 0;
+/** How many tricks it knows: 0, 1 or 2. */
+export const tricksKnown = (s: Pick<Save, 'treats'>, id: string): number => TRICKS_AT.filter((n) => treatsOf(s, id) >= n).length;
+/** The kind of find it would get now: the first it likes that the stash holds, or null. */
+export const treatKind = (s: Pick<Save, 'stash'>, sp: PetSpecies): string | null => sp.treats?.find((k) => inStash(s, k) > 0) ?? null;
+/**
+ * One treat: a find it likes taken from the stash, one more to its count. Null - nothing it likes in the stash, nothing
+ * done. `trick`: the trick it has just learnt (1 or 2), else 0.
+ */
+export function giveTreat(s: Pick<Save, 'stash' | 'treats'>, sp: PetSpecies): { kind: string; count: number; trick: number } | null {
+  const kind = treatKind(s, sp);
+  if (!kind || !spend(s, { [kind]: 1 })) return null;
+  const count = treatsOf(s, sp.id) + 1;
+  (s.treats ??= {})[sp.id] = count;
+  return { kind, count, trick: TRICKS_AT.indexOf(count as 5 | 15) + 1 };
+}
+
 /** What the game holds of the pets in the world being played. */
 export interface PetsInWorld {
   /** The action spot of the world's pet while it waits to be found (none once found, or before its chain is done). */
@@ -185,6 +208,10 @@ export interface PetsInWorld {
   update(dt: number): void;
   /** Takes the pets out of the scene (leaving the world); nothing of them is left in the frame. */
   dispose(): void;
+  /** A tap on the screen near the follower that knows a trick: it shows its trick (true - the tap is spent on it). */
+  tap(screenDist: (p: THREE.Vector3) => number): boolean;
+  /** The trick being shown (1 or 2), else 0 (the walkthrough). */
+  readonly trick: number;
 }
 
 /** What of the game the pets use; `busy` and the rest are read live through it. */
@@ -198,6 +225,8 @@ export function createPets(g: PetHost, o: {
   pet?: WorldPet; rigs: Readonly<Record<string, Rig>>; chainDone(id: string): boolean;
   /** The world played, for the rule of the follower (`followerOf`); absent - the one chosen, wherever. */
   world?: PetWorld;
+  /** PLAY-27: a trick just learnt (1 or 2): the cat's word. */
+  onTrick?(n: number): void;
 }): PetsInWorld {
   const actors = new Map<string, Actor>();
   const actorOf = (s: PetSpecies): Actor | null => {
@@ -240,6 +269,28 @@ export function createPets(g: PetHost, o: {
     });
   }
 
+  // PLAY-27: a treat by the follower - a find it likes from the stash - and its tricks (TRICKS_AT)
+  const treatAt = new THREE.Vector3(), top = new THREE.Vector3();
+  let hop = 0, trick = 0, trickT = 0;
+  const TRICK_S = [0, 1.2, 1.1];
+  const showTrick = (n: number) => { if (n > 0) { trick = n; trickT = TRICK_S[n]; } };
+  const treatSpot: Spot = {
+    pos: treatAt, r: 2.2, label: 'treat',
+    on: () => { const sp = petSpecies(followed); return !gone && follower !== null && !!sp && treatKind(g.save, sp) !== null; },
+    run: () => {
+      const sp = petSpecies(followed);
+      const r = sp && follower ? giveTreat(g.save, sp) : null;
+      if (!r || !follower) return;
+      g.persist();
+      sfx('good');
+      g.sparks.burst(g.above(follower.root.position, 1.0), '#ff7eb6', 18, 2);
+      hop = 0.5;
+      if (r.trick) { showTrick(r.trick); o.onTrick?.(r.trick); }
+    },
+  };
+  /** The spots now: the world's pet waiting to be found, and the treat while a pet walks after her. */
+  const live: Spot[] = [];
+
   /** The waiting pet and the follower as the save says now. */
   const refresh = () => {
     const chosen = petSpecies(g.save.pet);
@@ -265,12 +316,23 @@ export function createPets(g: PetHost, o: {
       a.root.userData.follows = a === nextFollower;
     }
     follower = nextFollower; waiting = nextWaiting; followed = g.save.pet ?? null;
+    live.length = 0; live.push(...spots); if (follower) live.push(treatSpot);
   };
   refresh();
   let wasFound = found(), wasReady = ready();
 
   return {
-    spots,
+    get spots() { return live; },
+    get trick() { return trick; },
+    tap(screenDist) {
+      const sp = petSpecies(followed);
+      if (gone || !follower || g.busy || !sp || trickT > 0) return false;
+      const known = tricksKnown(g.save, sp.id);
+      if (!known) return false;
+      if (screenDist(top.copy(follower.root.position).setY(follower.root.position.y + sp.height * 0.6)) > 60) return false;
+      showTrick(known);
+      return true;
+    },
     get follower() { return follower; },
     get waiting() { return waiting; },
     update: (dt) => {
@@ -310,6 +372,16 @@ export function createPets(g: PetHost, o: {
         }
         p.y = g.groundY(p.x, p.z);
         follower.update(dt);
+        treatAt.copy(p);
+        // the joy of a treat: a little hop; a trick: 1 - it spins round, 2 - it jumps up high, spinning
+        if (hop > 0) { hop = Math.max(0, hop - dt); p.y += Math.sin((1 - hop / 0.5) * Math.PI) * 0.35; }
+        if (trickT > 0) {
+          trickT = Math.max(0, trickT - dt);
+          const u = 1 - trickT / TRICK_S[trick];
+          follower.root.rotation.y += u * Math.PI * 2;
+          if (trick === 2) p.y += Math.sin(u * Math.PI) * 1.1;
+          if (trickT === 0) trick = 0;
+        }
       }
       if (waiting && waiting !== follower) waiting.update(dt);
     },

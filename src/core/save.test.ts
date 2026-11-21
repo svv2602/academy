@@ -167,9 +167,10 @@ describe('loadSave', () => {
     const before = defaultSave();
     storage.setItem(KEY, JSON.stringify(before));
     expect(loadSave()).not.toHaveProperty('stash');
-    storage.setItem(KEY, JSON.stringify({ ...before, stash: { acorn: 3, feather: -1, mushroom: 'x', butterfly: 1.5 } }));
+    storage.setItem(KEY, JSON.stringify({ ...before, stash: { acorn: 3, feather: -1, mushroom: 'x', butterfly: 1.5 }, treats: { fawn: 6, owl: 0 } }));
     const loaded = loadSave();
     expect(loaded.stash).toEqual({ acorn: 3 });
+    expect(loaded.treats).toEqual({ fawn: 6 });   // the pet's treats (PLAY-27) the same way
     storeSave(loaded);
     expect(loadSave().stash).toEqual({ acorn: 3 });
   });
