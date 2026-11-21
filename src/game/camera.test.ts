@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { WATER_PITCH, WATER_SOFT, createCamera } from './camera';
+import { WATER_LIFT, WATER_SOFT, createCamera } from './camera';
 import type { Game } from './context';
 
 /** The parts of the game the camera reads; the heroine stands at (0, 0, 0), then is put 3 m away. */
@@ -34,8 +34,10 @@ describe('the camera behind the heroine (ARCH-05): the same however many frames 
 });
 
 describe('under water (docs/worlds/world-3.md): higher and softer', () => {
-  it(`its tilt comes to ${WATER_PITCH} rad over the usual one`, () => {
-    expect(after(game(true), 1 / 60, 5).pitch - after(game(false), 1 / 60, 5).pitch).toBeCloseTo(WATER_PITCH, 3);
+  it(`it stands ${WATER_LIFT} m higher with the same tilt: the horizon stays where it is on the screen`, () => {
+    const sea = after(game(true), 1 / 60, 5), land = after(game(false), 1 / 60, 5);
+    expect(sea.pos.y - land.pos.y).toBeCloseTo(WATER_LIFT, 2);
+    expect(sea.pitch).toBeCloseTo(land.pitch, 4);
   });
   it(`it follows her at ${WATER_SOFT} of its usual speed: a quarter second after she moved it is further behind`, () => {
     const land = after(game(false), 1 / 60, 0.25), sea = after(game(true), 1 / 60, 0.25);
