@@ -2764,6 +2764,26 @@
   "tp": -3.15,
   "sha256": "1f430f705c8523ee06e761655da8d30bf892247132c18fd21ef5ddbb774703c0"
  },
+ "public/voice/t_diff@Charon.mp3": {
+  "lufs": -17.91,
+  "tp": -3.74,
+  "sha256": "53cadc90eb690b855f8ca5c0f51e3e017ad45cb90275df5186bfa3fa26a1a864"
+ },
+ "public/voice/t_diff@Leda.mp3": {
+  "lufs": -17.95,
+  "tp": -9.89,
+  "sha256": "5b0001f91a26c548710b52c8a6079c770a31c5f5f02fb8125db0b5290e0031ac"
+ },
+ "public/voice/t_diff@Orus.mp3": {
+  "lufs": -18.01,
+  "tp": -1.62,
+  "sha256": "15691fddf0c7cc991688e5be3fde474c7ab06fa69b2a710cf176dc787d9d4230"
+ },
+ "public/voice/t_diff@Sulafat.mp3": {
+  "lufs": -17.84,
+  "tp": -6.02,
+  "sha256": "b9036ce992820207a78bd9349459800b93b17d876c80b50b076d9e190c7fe420"
+ },
  "public/voice/t_house.mp3": {
   "lufs": -17.98,
   "tp": -2.41,
