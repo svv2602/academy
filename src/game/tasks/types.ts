@@ -13,7 +13,7 @@ import type { BankKey } from '../../core/voice';
 import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house'
-  | 'neighbors' | 'signs' | 'diff';
+  | 'neighbors' | 'signs' | 'diff' | 'puzzle';
 
 /**
  * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.

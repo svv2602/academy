@@ -28,6 +28,8 @@ const S = sameKeys({
     t_compare_more: 'Де більше?', t_compare_less: 'Де менше?', t_pattern: 'Що буде далі?', t_odd: 'Що тут зайве?',
     // LEARN-18, find the differences: the task, its short repeat, its hints (half, then a quarter of a picture glows)
     t_diff: 'Знайди відмінності!', h_diff: 'Чим ці картинки різняться?', h1_diff: 'Подивись уважно на цю половинку.', h2_diff: 'Одна сховалася ось у цьому куточку!',
+    // LEARN-19, the puzzle: the task, its short repeat, its hint by time (the place of one piece glows)
+    t_puzzle: 'Склади картинку!', h_puzzle: 'Куди піде цей шматочок?', h1_puzzle: 'Подивись, ось його місце!',
     t_pairs: 'Знайди однакові картки.', t_order: 'Натискай числа від найменшого.', t_sort: 'Поклади кристал у кошик такого ж кольору.',
     t_simon_watch: 'Дивись і запамʼятовуй!', t_simon_repeat: 'Тепер повтори!',
     h_count: 'Порахуймо разом!', h_left: 'Порахуймо тих, хто залишився.', h_compare: 'Порахуй тут і тут.', h_pattern: 'Подивись, що повторюється.',
@@ -77,7 +79,7 @@ const S = sameKeys({
     p_skill: 'Навичка', p_level: 'Рівень', p_tasks: 'Завдань', p_first: 'З першої спроби', p_errors: 'Помилок',
     p_diff: 'Складність', d0: 'Авто', d1: 'Легко', d2: 'Середньо', d3: 'Складно',
     // --- the skills after LEARN-03 and R34, the level fixed per skill (LEARN-15), the week and the hard examples (PLAY-15)
-    sk_series: 'Числовий ряд', sk_pattern: 'Закономірності', sk_memory: 'Памʼять', sk_classify: 'Класифікація', sk_compose: 'Склад числа', sk_attention: 'Уважність',
+    sk_series: 'Числовий ряд', sk_pattern: 'Закономірності', sk_memory: 'Памʼять', sk_classify: 'Класифікація', sk_compose: 'Склад числа', sk_attention: 'Уважність', sk_assemble: 'Складання картинки',
     p_fix: 'Закріпити рівень', p_fix_note: 'Авто — гра сама підбирає рівень за відповідями дитини.',
     p_time: 'Час гри за 7 днів', p_total: 'Усього', p_min: '{n} хв', p_time_none: 'Цього тижня ще не грали.',
     p_hard: 'Пʼять найважчих прикладів', p_hard_none: 'Поки немає прикладів із помилками.',
@@ -210,6 +212,7 @@ const S = sameKeys({
     t_count: 'Сколько их здесь? Касайся и считай.', t_add: 'Сколько будет вместе?', t_sub: 'Кое-кто убежал. Сколько осталось?',
     t_compare_more: 'Где больше?', t_compare_less: 'Где меньше?', t_pattern: 'Что будет дальше?', t_odd: 'Что здесь лишнее?',
     t_diff: 'Найди отличия!', h_diff: 'Чем эти картинки отличаются?', h1_diff: 'Посмотри внимательно на эту половинку.', h2_diff: 'Одно спряталось вот в этом уголке!',
+    t_puzzle: 'Сложи картинку!', h_puzzle: 'Куда пойдёт этот кусочек?', h1_puzzle: 'Посмотри, вот его место!',
     t_pairs: 'Найди одинаковые карточки.', t_order: 'Нажимай числа от самого маленького.', t_sort: 'Положи кристалл в корзину такого же цвета.',
     t_simon_watch: 'Смотри и запоминай!', t_simon_repeat: 'Теперь повтори!',
     h_count: 'Посчитаем вместе!', h_left: 'Посчитаем тех, кто остался.', h_compare: 'Посчитай здесь и здесь.', h_pattern: 'Посмотри, что повторяется.',
@@ -254,7 +257,7 @@ const S = sameKeys({
     sk_count: 'Счёт', sk_add: 'Сложение', sk_sub: 'Вычитание', sk_compare: 'Сравнение', sk_logic: 'Логика',
     p_skill: 'Навык', p_level: 'Уровень', p_tasks: 'Заданий', p_first: 'С первой попытки', p_errors: 'Ошибок',
     p_diff: 'Сложность', d0: 'Авто', d1: 'Легко', d2: 'Средне', d3: 'Сложно',
-    sk_series: 'Числовой ряд', sk_pattern: 'Закономерности', sk_memory: 'Память', sk_classify: 'Классификация', sk_compose: 'Состав числа', sk_attention: 'Внимательность',
+    sk_series: 'Числовой ряд', sk_pattern: 'Закономерности', sk_memory: 'Память', sk_classify: 'Классификация', sk_compose: 'Состав числа', sk_attention: 'Внимательность', sk_assemble: 'Сборка картинки',
     p_fix: 'Закрепить уровень', p_fix_note: 'Авто — игра сама подбирает уровень по ответам ребёнка.',
     p_time: 'Время игры за 7 дней', p_total: 'Всего', p_min: '{n} мин', p_time_none: 'На этой неделе ещё не играли.',
     p_hard: 'Пять самых трудных примеров', p_hard_none: 'Пока нет примеров с ошибками.',
@@ -423,7 +426,7 @@ const SPOKEN = {
   h2_signs: 'warm', h2_order: 'warm', h1_neighbors: 'warm', h2_neighbors: 'warm', h1_missing: 'warm', h1_missing_ten: 'warm',
   h2_missing: 'warm', h1_house: 'warm', h2_house: 'warm', h2_pattern: 'warm', h1_pattern_grow: 'warm', h2_pattern_grow: 'warm',
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
-  h2_odd: 'warm', t_diff: 'warm', h_diff: 'warm', h1_diff: 'warm', h2_diff: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
+  h2_odd: 'warm', t_diff: 'warm', h_diff: 'warm', h1_diff: 'warm', h2_diff: 'warm', t_puzzle: 'warm', h_puzzle: 'warm', h1_puzzle: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
   shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy', shop_deal: 'joy',
   sup_speed: 'joy', sup_jump: 'joy', sup_glow: 'joy', sup_tiny: 'joy', sup_giant: 'joy', sup_compass: 'warm', sup_all_found: 'warm',
   // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists
