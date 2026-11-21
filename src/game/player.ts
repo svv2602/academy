@@ -51,6 +51,20 @@ export const swimming = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind 
  * `canMove` is the snapshot taken at the start of the frame; `g.busy` is read live, because `then` and `near.run()` may
  * start a scene (playScene -> take) in the middle of the frame.
  */
+/** px on screen: a tap this near a spot (a metre over it) walks her there; this near the cat, by touch or mouse, is the cat's. */
+export const SPOT_TAP_PX = 90, CAT_TAP_PX = { touch: 70, mouse: 46 } as const;
+/**
+ * What a tap takes (a world's own tap was asked before): the cat, when it is within its reach and nearer than the spot -
+ * a spot that walks with her (the treat by the pet, PLAY-27) is always by the cat, and a tap meant for the cat must not
+ * give a treat instead of "where we stopped"; else the spot within its reach; else the ground. Distances in px on screen.
+ */
+export function tapTarget(spotD: number | null, catD: number, touch: boolean): 'spot' | 'cat' | 'ground' {
+  const cat = catD < (touch ? CAT_TAP_PX.touch : CAT_TAP_PX.mouse);
+  if (cat && (spotD === null || catD <= spotD)) return 'cat';
+  if (spotD !== null && spotD < SPOT_TAP_PX) return 'spot';
+  return cat ? 'cat' : 'ground';
+}
+
 export function createPlayer(g: Game): Player {
   const { hero, cat, cam, camera, touch, groundY, started } = g;
   let vy = 0, grounded = true;
@@ -68,12 +82,13 @@ export function createPlayer(g: Game): Player {
         // A task of the world on screen takes every tap, even one that hits nothing: the heroine does not walk off.
         if (worldTap(screenDist)) { /* taken by the world */ }
         else if (canMove) {
-          let spot: Spot | null = null;
-          for (const s of spots) if (s.on() && screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) < 90) spot = s;
-          if (spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
+          let spot: Spot | null = null, spotD = Infinity;
+          for (const s of spots) { const d = s.on() ? screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) : Infinity; if (d < SPOT_TAP_PX) { spot = s; spotD = d; } }
+          const to = tapTarget(spot ? spotD : null, screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + CAT_TAP_Y)), touch);
+          if (to === 'spot' && spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
           // A tap on the cat asks it to say its line again - or, with the bubble empty, where we stopped (PLAY-21) -,
           // not to walk to it. (In the butterflies task the cat is out of the frame.)
-          else if (screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + CAT_TAP_Y)) < (touch ? 70 : 46)) catTap(g);
+          else if (to === 'cat') catTap(g);
           else {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
             if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {
