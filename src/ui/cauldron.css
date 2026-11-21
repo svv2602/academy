@@ -14,6 +14,7 @@
 .cd-recipe .dots { display: flex; gap: 2px; }
 .cd-recipe .dots i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid #7fc96a; box-sizing: border-box; }
 .cd-recipe .dots i.have { background: #7fc96a; }
+.cd-recipe .dots i.put { background: #ffcf3a; border-color: #e0a92a; }
 .cd-recipe .gives { margin-left: auto; font-size: 28px; }
 .cd-pot { position: relative; height: 96px; border-radius: 0 0 48px 48px; background: radial-gradient(ellipse at 50% 20%, #9b5de5 0 30%, #3b3b46 32%);
   display: grid; place-items: center; font-size: 34px; color: #fff; }

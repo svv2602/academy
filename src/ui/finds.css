@@ -1,0 +1,2 @@
+/* A golden kind of find (src/ui/finds.ts): the same emoji, gilded and glowing a little. */
+.find-ic.gold { filter: sepia(1) saturate(5) hue-rotate(-15deg) brightness(1.1) drop-shadow(0 0 3px #ffcf3a); }

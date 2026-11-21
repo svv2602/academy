@@ -20,8 +20,9 @@ export const COLLECT_KINDS = {
   acorn: { icon: '🌰', color: '#d8953f', world: 'fairy' },
   mushroom: { icon: '🍄', color: '#ff5f7e', world: 'fairy' },
   feather: { icon: '🪶', color: '#7fb8ff', world: 'fairy' },
-  /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts) */
-  treefeather: { icon: '✨', color: '#ffa31a', world: 'hub' },
+  /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
+   * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
+  treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },
 } as const;
 export type CollectKind = keyof typeof COLLECT_KINDS;
 
