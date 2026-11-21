@@ -3341,6 +3341,64 @@ try {
         if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after three tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
         console.log(`diff: two pictures drawn, a touch on the sky counted nothing, every difference found by a real ${touch ? 'tap' : 'click'} and ringed on both (${told.join('; ')}); the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
+      // ---- the puzzle (LEARN-19, src/game/taskviews/puzzle.ts) ----
+      // Opened by __game.task on levels 1, 3 and 5: the pieces show the picture (not blank), a piece and a cell at least
+      // 44 px; a piece dragged onto a cell not its own glides back, nothing placed; on level 5 a turned piece is turned
+      // right by touches (a quarter each); every piece dragged for real onto its cell stays there, the task ends solved
+      // with no mistake; after three openings the renderer holds no more geometries and textures than before.
+      if (has('puzzle')) {
+        const fail = (what) => { throw new Error(`puzzle: ${what}`); };
+        const mem = () => g(() => ({ ...__game.renderer.info.memory }));
+        const before = await mem();
+        const rectOf = (sel) => g((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r && { x: r.left, y: r.top, w: r.width, h: r.height }; }, sel);
+        const drag = async (from, to) => {
+          await page.mouse.move(from.x + from.w / 2, from.y + from.h / 2); await page.mouse.down();
+          await page.mouse.move(to.x + to.w / 2, to.y + to.h / 2, { steps: 8 }); await page.mouse.up(); await framesDrawn(2);
+        };
+        const press = async (r) => { if (touch) await page.touchscreen.tap(r.x + r.w / 2, r.y + r.h / 2); else await page.mouse.click(r.x + r.w / 2, r.y + r.h / 2); await framesDrawn(2); };
+        const placed = () => g(() => Number(document.getElementById('taskStage').dataset.placed ?? 0));
+        const told = [];
+        for (const level of [1, 3, 5]) {
+          await g((l) => { window.__puzzle = null; void __game.task('puzzle', l).then((r) => { window.__puzzle = r; }); }, level);
+          await page.locator('#taskStage .pzframe').waitFor({ timeout: 20000 }).catch(() => fail(`level ${level}: no frame on the panel`));
+          await calm();
+          const view = await g(() => {
+            const pieces = [...document.querySelectorAll('#taskStage .pztray .pzpiece')];
+            const cell = document.querySelector('#taskStage .pzcell').getBoundingClientRect();
+            return { n: pieces.length, cells: document.querySelectorAll('#taskStage .pzcell').length, picture: pieces.every((b) => b.style.backgroundImage.startsWith('url("data:image/png')),
+              small: Math.min(cell.width, cell.height, ...pieces.map((b) => Math.min(b.getBoundingClientRect().width, b.getBoundingClientRect().height))),
+              turned: pieces.filter((b) => b.style.getPropertyValue('--turn') !== '0deg').length };
+          });
+          const want = { 1: 6, 3: 12, 5: 20 }[level];
+          if (view.n !== want || view.cells !== want) fail(`level ${level}: ${view.n} pieces and ${view.cells} cells, not ${want}`);
+          if (!view.picture) fail(`level ${level}: a piece shows no picture`);
+          if (view.small < 44) fail(`level ${level}: a piece or a cell is ${view.small.toFixed(1)} px, less than 44`);
+          if ((level === 5) !== (view.turned > 0)) fail(`level ${level}: ${view.turned} pieces lie turned`);
+          // a piece dragged onto a cell not its own: back in the tray, nothing placed
+          const first = await g(() => Number(document.querySelector('#taskStage .pztray .pzpiece').dataset.cell));
+          await drag(await rectOf('#taskStage .pztray .pzpiece'), await rectOf(`#taskStage .pzcell[data-cell="${(first + 1) % want}"]`));
+          if (await placed() !== 0 || await g(() => document.querySelectorAll('#taskStage .pztray .pzpiece').length) !== want) fail(`level ${level}: a piece dropped on a cell not its own stayed`);
+          // it glides back (.back, 0.3 s): measured only once it lies in the tray again
+          await gameFor(() => !document.querySelector('#taskStage .pzpiece.back'), null, 5).catch(() => fail(`level ${level}: the piece dropped wrong never came back to the tray`));
+          for (let k = 0; k < want; k++) {
+            const sel = '#taskStage .pztray .pzpiece';
+            for (let t = 0; t < 4 && (await g((sel) => document.querySelector(sel).style.getPropertyValue('--turn'), sel)) !== '0deg'; t++) await press(await rectOf(sel));
+            if ((await g((sel) => document.querySelector(sel).style.getPropertyValue('--turn'), sel)) !== '0deg') fail(`level ${level}: four touches did not turn a piece right`);
+            const cell = await g((sel) => document.querySelector(sel).dataset.cell, sel);
+            if (k === want - 1) await shot(`task-puzzle-${level}`);
+            await drag(await rectOf(sel), await rectOf(`#taskStage .pzcell[data-cell="${cell}"]`));
+            if (k < want - 1 && await placed() !== k + 1) fail(`level ${level}: after ${k + 1} dragged ${await placed()} placed`);
+          }
+          await gameFor(() => window.__puzzle !== null, null, 20).catch(() => fail(`level ${level}: the task did not end`));
+          const r = await g(() => window.__puzzle);
+          if (!(r.solved && r.wrong === 0)) fail(`level ${level}: the result ${JSON.stringify(r)}`);
+          told.push(`${level}: ${want} pieces${view.turned ? `, ${view.turned} turned` : ''}, ${view.small.toFixed(0)} px`);
+          await calm();
+        }
+        const after = await mem();
+        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after three tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}); the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
+      }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
       // cat tells of it (once that day), the tile has the ribbon and the deal's price; bought at that price (the watch
