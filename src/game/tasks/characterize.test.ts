@@ -105,7 +105,7 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   // Find the differences (LEARN-18) came after the split: recorded when it was made.
   diff: ['c085b1d1 171cedef 5216e01d 90091ab0 4a94762a 0efba182 05d5e445 936d9513 1defa07e afa01384', '8cef02ef 8be74a98 8cfde50b 0439dfbc 492b0c25 abedf56b 4587394c 6319e8ec a1eaf0fb 40b4b825', '695e7300 f4959c00 d83c1146 5db1dc04 2382482c 5b80873c 1e17f0e0 ef07394e e26d6520 26438270'],
   // The puzzle (LEARN-19) came after the split: recorded when it was made.
-  puzzle: ['5d4199c2 8c8eb904 28ed1696 982aa78c b6d71550 0ef24220 f03e9602 e155906e a5fe4f68 d328ae3e', 'aa4687d8 765c47c8 2c38538c 83d79972 01edbabe 507c5ae2 003462c8 c8ea619e 09b81b80 00cc2f52', '3ba56817 84355e7f 251f6091 4a56c495 59eccfa1 0f88bdef e854dfa9 be5b8411 24104f79 0c86c84d'],
+  puzzle: ['9cf7312d 829f6a59 f9b1a967 7bfd990d 27b869fd 44db2f59 383850c9 d9ad0361 e1efe62f bfc920b9', '59cb0c6c a3f41d19 362ffb79 663deea6 33ce96e1 ce9dd92f 0b6e6a3b ce530c44 4b5b20a0 cc2259f0', 'd0697bf6 519e030b e3c0ef1d 92b9bf30 901c3dc9 743cec5b 39a05fd1 5b975010 517ebf86 532739b4'],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

@@ -3338,7 +3338,7 @@ try {
           await calm();
         }
         const after = await mem();
-        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after three tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after the tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
         console.log(`diff: two pictures drawn, a touch on the sky counted nothing, every difference found by a real ${touch ? 'tap' : 'click'} and ringed on both (${told.join('; ')}); the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
       // ---- the puzzle (LEARN-19, src/game/taskviews/puzzle.ts) ----
@@ -3361,22 +3361,26 @@ try {
         for (const level of [1, 3, 5]) {
           await g((l) => { window.__puzzle = null; void __game.task('puzzle', l).then((r) => { window.__puzzle = r; }); }, level);
           await page.locator('#taskStage .pzframe').waitFor({ timeout: 20000 }).catch(() => fail(`level ${level}: no frame on the panel`));
+          // the frame of the story loaded: its cells compared
+          await gameFor(() => !!document.getElementById('taskStage').dataset.alike, null, 20).catch(() => fail(`level ${level}: the frame of the story never loaded`));
           await calm();
           const view = await g(() => {
             const pieces = [...document.querySelectorAll('#taskStage .pztray .pzpiece')];
             const cell = document.querySelector('#taskStage .pzcell').getBoundingClientRect();
-            return { n: pieces.length, cells: document.querySelectorAll('#taskStage .pzcell').length, picture: pieces.every((b) => b.style.backgroundImage.startsWith('url("data:image/png')),
+            return { n: pieces.length, cells: document.querySelectorAll('#taskStage .pzcell').length, picture: pieces.every((b) => /story\/w1_[a-z]+_\d\.webp/.test(b.style.backgroundImage)),
               small: Math.min(cell.width, cell.height, ...pieces.map((b) => Math.min(b.getBoundingClientRect().width, b.getBoundingClientRect().height))),
               turned: pieces.filter((b) => b.style.getPropertyValue('--turn') !== '0deg').length };
           });
           const want = { 1: 6, 3: 12, 5: 20 }[level];
           if (view.n !== want || view.cells !== want) fail(`level ${level}: ${view.n} pieces and ${view.cells} cells, not ${want}`);
-          if (!view.picture) fail(`level ${level}: a piece shows no picture`);
+          if (!view.picture) fail(`level ${level}: a piece shows no frame of a story`);
           if (view.small < 44) fail(`level ${level}: a piece or a cell is ${view.small.toFixed(1)} px, less than 44`);
           if ((level === 5) !== (view.turned > 0)) fail(`level ${level}: ${view.turned} pieces lie turned`);
           // a piece dragged onto a cell not its own: back in the tray, nothing placed
           const first = await g(() => Number(document.querySelector('#taskStage .pztray .pzpiece').dataset.cell));
-          await drag(await rectOf('#taskStage .pztray .pzpiece'), await rectOf(`#taskStage .pzcell[data-cell="${(first + 1) % want}"]`));
+          const groups = (await g(() => document.getElementById('taskStage').dataset.alike)).split(' ').map(Number);
+          const wrong = groups.findIndex((gr) => gr !== groups[first]);   // a cell that looks unlike its own
+          await drag(await rectOf('#taskStage .pztray .pzpiece'), await rectOf(`#taskStage .pzcell[data-cell="${wrong}"]`));
           if (await placed() !== 0 || await g(() => document.querySelectorAll('#taskStage .pztray .pzpiece').length) !== want) fail(`level ${level}: a piece dropped on a cell not its own stayed`);
           // it glides back (.back, 0.3 s): measured only once it lies in the tray again
           await gameFor(() => !document.querySelector('#taskStage .pzpiece.back'), null, 5).catch(() => fail(`level ${level}: the piece dropped wrong never came back to the tray`));
@@ -3395,9 +3399,33 @@ try {
           told.push(`${level}: ${want} pieces${view.turned ? `, ${view.turned} turned` : ''}, ${view.small.toFixed(0)} px`);
           await calm();
         }
+        // pieces alike (a calm frame of level 4: sky, grass): a piece dropped on the free cell of its twin stays there,
+        // the twin takes its cell - the child cannot tell them apart, so there is nothing to refuse
+        let twins = '';
+        for (let tries = 0; tries < 4 && !twins; tries++) {
+          await g(() => { window.__puzzle = null; void __game.task('puzzle', 4).then((r) => { window.__puzzle = r; }); });
+          await page.locator('#taskStage .pzframe').waitFor({ timeout: 20000 }).catch(() => fail('level 4: no frame on the panel'));
+          await gameFor(() => !!document.getElementById('taskStage').dataset.alike, null, 20).catch(() => fail('level 4: the cells alike were never told (the frame not loaded?)'));
+          await calm();
+          const groups = (await g(() => document.getElementById('taskStage').dataset.alike)).split(' ').map(Number);
+          const a = groups.findIndex((gr, c) => gr !== c), b = a < 0 ? -1 : groups[a];
+          if (a >= 0) {
+            const twin = await g((b) => document.querySelector(`#taskStage .pztray .pzpiece[data-cell="${b}"]`).dataset.piece, b);
+            await drag(await rectOf(`#taskStage .pztray .pzpiece[data-cell="${a}"]`), await rectOf(`#taskStage .pzcell[data-cell="${b}"]`));
+            const now = await g(([a, b, twin]) => ({ placed: Number(document.getElementById('taskStage').dataset.placed ?? 0), inB: document.querySelector(`#taskStage .pzcell[data-cell="${b}"] > .pzpiece`)?.dataset.cell ?? null, twin: document.querySelector(`#taskStage .pzpiece[data-piece="${twin}"]`).dataset.cell }), [a, b, twin]);
+            if (now.placed !== 1 || now.inB !== String(b) || now.twin !== String(a)) fail(`level 4: a piece of cell ${a} dropped on its twin's cell ${b}: ${JSON.stringify(now)}, expected it placed there and the twin given cell ${a}`);
+            twins = `${a} on ${b} (${await g(() => document.getElementById('taskStage').dataset.picture)})`;
+          }
+          await g(() => __game.cheat());
+          await gameFor(() => window.__puzzle !== null, null, 20).catch(() => fail('level 4: the task did not end'));
+          const r = await g(() => window.__puzzle);
+          if (!(r.solved && r.wrong === 0)) fail(`level 4: the result ${JSON.stringify(r)}`);
+          await calm();
+        }
+        if (!twins) fail('level 4: four calm frames and no two cells alike');
         const after = await mem();
-        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after three tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
-        console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}); the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
+        if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after the tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}), a piece taken by its twin's cell ${twins}; the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
