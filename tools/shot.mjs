@@ -171,6 +171,9 @@ const SHOWS = {
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
   missing: '#taskStage .up', house: '#taskStage .up', neighbors: '#taskStage .road .cell.said', signs: '#taskStage .side .tf > .pt',
 };
+// The kinds of task no chain of the first world asks (they belong to later worlds): each is closed with its button -
+// PLAY-02, nothing recorded - in the block that opens it, not in a chain; the block names itself here.
+const OWN_CLOSE = { diff: 'diff' };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
   '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
@@ -2101,7 +2104,8 @@ try {
         }
         const playedKinds = new Set(Object.entries(played).filter(([step]) => steps.has(step)).flatMap(([, k]) => k));
         const kinds = new Set([...steps].flatMap((t) => (BY_STEP[t] ? played[t] : [t])));
-        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && (!BY_LEVEL_KINDS.includes(t) || playedKinds.has(t)) && (!group || kinds.has(t)));
+        // a kind no chain of the first world asks is closed with its button in a block of its own (OWN_CLOSE)
+        const panel = Object.keys(QUESTIONS).filter((t) => t !== 'butterflies' && t !== 'stars' && !OWN_CLOSE[t] && (!BY_LEVEL_KINDS.includes(t) || playedKinds.has(t)) && (!group || kinds.has(t)));
         const unclosed = panel.filter((t) => !closed.has(t));
         if (unclosed.length) errors.push(`close: ${mode}: never closed with its button: ${unclosed.join(', ')}`);
         for (const [t, c] of closed) {
@@ -3304,6 +3308,19 @@ try {
         const SLOT = (col, row) => ({ x: col / 4, y: (row + 0.4) / 3.4, w: 1 / 4, h: 1 / 3.4 });   // src/game/tasks/diff.ts slotRect
         const press = async (x, y) => { if (touch) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y); await framesDrawn(2); };
         const told = [];
+        // closed with its button first (PLAY-02, OWN_CLOSE): the task ends unsolved, no mistake, nothing recorded
+        {
+          const skill = await g(() => JSON.stringify(__game.save.skills.attention ?? null));
+          await g(() => { window.__diff = null; void __game.task('diff', 1).then((r) => { window.__diff = r; }); });
+          await page.locator('#taskStage .diffpic canvas').first().waitFor({ timeout: 20000 }).catch(() => fail('closing: no pictures on the panel'));
+          await tapOn('#taskClose').catch((e) => fail(`#taskClose cannot be pressed: ${why(e)}`));
+          await gameFor(() => window.__diff !== null, null, 20).catch(() => fail('closed with its button, the task did not end'));
+          const r = await g(() => window.__diff), after = await g(() => JSON.stringify(__game.save.skills.attention ?? null));
+          if (r.solved || r.wrong !== 0 || after !== skill) fail(`closed with its button: the result ${JSON.stringify(r)}, attention ${skill} -> ${after}`);
+          if (await visible('#task')) fail('closed with its button, the panel is still up');
+          told.push('closed with its button: unsolved, nothing recorded');
+          await calm();
+        }
         for (const level of [1, 3, 5]) {
           await g((l) => { window.__diff = null; void __game.task('diff', l).then((r) => { window.__diff = r; }); }, level);
           await page.locator('#taskStage .diffpic canvas').first().waitFor({ timeout: 20000 }).catch(() => fail(`level ${level}: no pictures on the panel`));
