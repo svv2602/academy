@@ -267,6 +267,9 @@ try {
     sessionStorage.setItem('amw-break-hold', '1');
     // the mysterious stars (src/game/mystery-stars.ts): their places are of the day; only the block "mystery" lets them go
     sessionStorage.setItem('amw-mystery-hold', '1');
+    // the trades of the characters (PLAY-28): a finished chain's talk offers one only in the block "trade"; the other
+    // blocks replay a finished chain straight to its game
+    sessionStorage.setItem('amw-trade-hold', '1');
   });
   const page = await ctx.newPage();
   // The voice is played by Audio elements that are not in the document: every one that was started is remembered
@@ -3467,7 +3470,7 @@ try {
           return null;
         });
         if (!day) fail('no day in 200 on which the fox asks acorns for its cap');
-        await g((d) => __game.trade.day(d), day);
+        await g((d) => { __game.trade.day(d); __game.trade.release(); }, day);
         const asks = await g(() => Object.fromEntries(['unicorn', 'fox', 'mushking', 'deer', 'queen'].map((id) => [id, __game.trade.offer(id)])));
         const hub = await g(() => 'hub' in __game.save.worlds);
         for (const [id, o] of Object.entries(asks)) {
@@ -3531,7 +3534,7 @@ try {
         await tap(`#shopItems [data-id=${wornHead ?? 'none'}]`); await calm();
         if ((await g(() => __game.save.gear.head)) !== wornHead) fail(`the hat she wore (${wornHead}) did not come back on`);
         await tap('#shopDone'); await calm();
-        await g(() => __game.trade.day(null));
+        await g(() => { __game.trade.day(null); __game.trade.hold(); });
         console.log(`trade: on ${day} the fox took 3 of 9 acorns for its cap (6 left), once a day; "not now" spent nothing and kept the ask; with no finds «Обміняти» off; "goodbye" did nothing; the cap hers in the shop, the crown of feathers "від жителя" with no "buy"${hub ? '' : '; no far ask with the hub closed'}`);
       }
       // ---- the shop's signboard in the first world (R10, R19): walk up to it, the action button "Shop" opens the same

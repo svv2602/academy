@@ -15,6 +15,13 @@ import { COLLECT_KINDS, type CollectKind } from './collections';
 import { canSpend, inStash, spend, type Need } from './stash';
 import { has, petItem, petOpen } from './shop';
 
+/**
+ * The walkthrough's lever (?debug, src/game/debug.ts `__game.trade`): held, no character offers a trade - its talk goes as
+ * it always did, straight to its game - so the blocks that replay a finished chain meet no choice; the block "trade"
+ * lets it go. Never held in the game itself.
+ */
+export const tradeHold = { held: false };
+
 /** The asks of the world played, for the walkthrough (?debug): set by its conversations (src/game/dialogue.ts), null - none. */
 export const tradeHooks: { offer: ((who: string, day: string) => Offer | null) | null } = { offer: null };
 

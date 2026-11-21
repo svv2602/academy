@@ -17,7 +17,7 @@ import type { TaskType } from './tasks/types';
 import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
 import type { TaskResult } from './taskviews/panel';
 import type { CharacterDef, Npc, WorldLines, WorldTask } from './world';
-import { todayOffer, trade, tradeHooks, type Offer, type Trades } from './trade';
+import { todayOffer, trade, tradeHold, tradeHooks, type Offer, type Trades } from './trade';
 import { dailyDay } from './daily-find';
 import { chooseTalk, openTrade } from '../ui/trade';
 import type { SpokenKey } from '../ui/strings';
@@ -85,7 +85,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       if (own) { await own.reask?.(n); return; }
       if (done >= q.steps.length) {           // the chain is finished: replay its game of the weakest skill for stars (LEARN-16)
         // a trade asked today (PLAY-28): the choice first - play, trade or goodbye; without an ask, as it always was
-        const offer = trades?.[q.id] ? todayOffer(save, ws, q.id, trades[q.id], dailyDay()) : null;
+        const offer = trades?.[q.id] && !tradeHold.held ? todayOffer(save, ws, q.id, trades[q.id], dailyDay()) : null;
         if (offer) {
           if (!tradeTold) { tradeTold = true; await line('trade_hi', 'story'); }
           const pick = await chooseTalk(q.emoji);
