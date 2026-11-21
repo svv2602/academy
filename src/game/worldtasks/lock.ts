@@ -1,5 +1,5 @@
 /**
- * "The shell lock" played in the world (WORLD-19, the mermaid queen's gate): over the gate a number, in the gate a row of
+ * "The shell lock" played in the world (WORLD-19, the gate of a castle): over the gate a number, in the gate a row of
  * 2-3 nests, one shell already sitting in the first of them; on the sea floor before it lie shells with numbers. A tap on
  * a shell (by its distance on the screen) answers with its number: one that belongs to the sum hops into the next empty
  * nest, a wrong one rocks and stays (nothing is taken away); the course of a mistake and the end are the frame's

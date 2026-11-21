@@ -63,8 +63,18 @@ export interface WorldTask {
   run?(n: Npc, level: number): Promise<TaskResult>;
   /** Whether `run` plays the step on this level (a task in the world, PLAY-01); false - the card plays it. Unset: always. */
   inWorld?(level: number): boolean;
-  /** Background (like the star search): the conversation ends, `done` moves the chain on (and gives its stars). */
-  start?(n: Npc, done: () => void): void;
+  /**
+   * Background (like the star search): the conversation ends, `done` moves the chain on (and gives its stars). A task
+   * that ends in a task played in the world (the shell lock: swim to the gate, then the lock) hands `done` its result,
+   * and the step records it in `skill`; `done()` alone records nothing.
+   */
+  start?(n: Npc, done: (played?: TaskResult) => void): void;
+  /**
+   * A background task that ends in a task played in the world, opened by the world where she goes (the shell lock: she
+   * swims to the gate, the lock opens there) and handing its result to `done`: its step may be named in
+   * WorldDef.worldTasks as a `run` one is (src/game/worldtasks/play.ts worldTaskProblems).
+   */
+  endsInWorld?: true;
   /** A background task is running. */
   active?(): boolean;
   /** The id of the character whose chain started the running task, else null. */
@@ -180,7 +190,7 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly secrets?: readonly string[];
   /**
    * PLAY-01, ARCH-16: the ids of the steps of the chains that are played as a task in the world (the world's `tasks`
-   * with `run`), so that the description can say so (WorldItem.inWorld) and the walkthrough can find them. Each must be
+   * with `run`, or with `start` and `endsInWorld`), so that the description can say so (WorldItem.inWorld) and the walkthrough can find them. Each must be
    * a step of some character; absent - the world declares none (its chains are played by the panel, or by a scenario
    * of its own).
    */

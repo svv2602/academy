@@ -8,10 +8,10 @@
  */
 import type { WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Підводне королівство', sea_part: 'Перлинка!', sea_count: '{n} з 5', sea_cabin: 'Каюта' };
+const uk = { subtitle: 'Підводне королівство', sea_part: 'Перлинка!', sea_count: '{n} з 5', sea_cabin: 'Каюта', sea_lock: 'Пливи до воріт замку! 🐚' };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное королевство', sea_part: 'Жемчужинка!', sea_count: '{n} из 5', sea_cabin: 'Каюта' };
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное королевство', sea_part: 'Жемчужинка!', sea_count: '{n} из 5', sea_cabin: 'Каюта', sea_lock: 'Плыви к воротам замка! 🐚' };
 
 export const strings = { id: 'sea', table: { uk, ru }, spoken: {} } satisfies WorldStrings;
 

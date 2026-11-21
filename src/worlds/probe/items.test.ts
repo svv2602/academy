@@ -373,6 +373,8 @@ describe('the probe world wires its items into the game (src/worlds/probe/index.
     expect(INDEX.match(/\bcreateDialogue\(/g)).toHaveLength(1);
     expect(worldTaskProblems(probe.worldTasks, {})).toEqual([`the task in the world "${TALLY}" of worldTasks has no "run" among the tasks of the world's conversation`]);
     expect(worldTaskProblems(probe.worldTasks, { [TALLY]: { skill: 'compare', start: () => {} } })).toHaveLength(1);
+    // a background step that ends in a task in the world (the sea's shell lock) says so, and may be declared
+    expect(worldTaskProblems(probe.worldTasks, { [TALLY]: { skill: 'compose', start: () => {}, endsInWorld: true } })).toEqual([]);
     // a tap while it is open is its, its things move in the world's time
     expect(INDEX).toMatch(/tap: \(screenDist\) => player\.tap\(screenDist\),/);
     expect(INDEX).toMatch(/animate: \(_dt, time\) => \{ flies\.update\(time\); player\.update\(time\); \},/);

@@ -52,8 +52,10 @@ export function worldTaskPlayer(g: Pick<Game, 'hero' | 'camera' | 'groundY' | 'c
 /**
  * What is wrong with the tasks a world declares to play in the world (WorldDef.worldTasks) against the tasks its
  * conversation is given (`tasks`, src/game/dialogue.ts): each must be there and be played in the foreground (`run`) -
- * a step without it would go to the panel, which has no such task. Empty: nothing. A world checks this as it is built.
+ * a step without it would go to the panel, which has no such task - or in the background ending in a task in the world
+ * (`start` with `endsInWorld`, the shell lock). Empty: nothing. A world checks this as it is built.
  */
 export function worldTaskProblems(declared: readonly string[] | undefined, tasks: Readonly<Record<string, WorldTask>>): string[] {
-  return (declared ?? []).filter((id) => !tasks[id]?.run).map((id) => `the task in the world "${id}" of worldTasks has no "run" among the tasks of the world's conversation`);
+  const plays = (t: WorldTask | undefined) => !!t?.run || (!!t?.start && t.endsInWorld === true);
+  return (declared ?? []).filter((id) => !plays(tasks[id])).map((id) => `the task in the world "${id}" of worldTasks has no "run" among the tasks of the world's conversation`);
 }

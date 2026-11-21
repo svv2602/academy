@@ -15,9 +15,11 @@ import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { waterOf } from '../../game/water';
 import { worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SEA_FLYOVER } from './flyover-path';
 import { CABIN, CORAL_NEST, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, THRONE, ZONES } from './layout';
 import { buildScenery, buildShafts } from './scenery';
+import { LOCK, createLock } from './lock';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -36,11 +38,12 @@ import { buildGround, colliders, ground } from './terrain';
 /**
  * The characters (docs/worlds/world-3.md). The three tasks that are later played in the world stand in as the panel
  * task of the same skill: the search in the corals (WORLD-17, no skill) as `odd`, the second half of a shell (WORLD-18,
- * patterns) as `pattern`, the shell lock (WORLD-19, the composition of a number) as `house`. `part`: the pearl is not
+ * patterns) as `pattern`. The shell lock (WORLD-19, the composition of a number) is played in the world: the queen's
+ * last step, the lock in the gate of the castle (./lock.ts). `part`: the pearl is not
  * handed over - the character says where it lies (in the corals, in the captain's cabin; WORLD-08).
  */
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', 'house'], shard: '#a8e4ff' },
+  { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', LOCK], shard: '#a8e4ff' },
   { id: 'bulk', emoji: '🐉', x: ZONES.reef.x + 2, z: ZONES.reef.z + 1.5, heading: 1.2, steps: ['pattern', 'count', 'odd', 'part'], shard: '#7fe6d6' },
   { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: ['pattern', 'simon', 'sub', 'part'], shard: '#9fd0a8' },
   { id: 'kleshnya', emoji: '🦀', x: ZONES.grotto.x - 2, z: ZONES.grotto.z - 1, heading: -1.8, steps: ['add', 'sort', 'compare'], shard: '#ffb0a0' },
@@ -172,7 +175,15 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
-  const tasks: Record<string, WorldTask> = { part };
+  // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
+  const player = worldTaskPlayer(g, scope);
+  // The queen's shell lock (WORLD-19): she asks, the heroine swims to the gate, the lock opens there
+  const lock = createLock(g, player, scope);
+  scope.own(() => lock.dispose());
+  lock.opened(finished(npc('khvylia')));
+  const tasks: Record<string, WorldTask> = { part, [LOCK]: lock };
+  const wrongTasks = worldTaskProblems(sea.worldTasks, tasks);
+  if (wrongTasks.length) throw new Error(`the sea: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
@@ -209,7 +220,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         { pos: cabin, r: CABIN_R, label: 'sea_cabin', on: () => waiting(cabinPearl), run: () => take(cabinPearl) },
         { pos: throne, r: THRONE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],
-      tap: () => false,
+      tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -227,18 +238,21 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
           p.mesh.position.y = groundY(p.at.x, p.at.z) + 1 + Math.sin(time * 2) * 0.12;
           if (p.how === 'walk' && canMove && Math.hypot(hp.x - p.at.x, hp.z - p.at.z) < TAKE_R) take(p);
         }
+        lock.update(dt, canMove);
         if (finaleEnd && (finaleLeft -= dt) <= 0) { const done = finaleEnd; finaleEnd = null; done(); }
         pearlOfDeep.visible = ws.final;
         pearlOfDeep.rotation.y = time;
       },
       goal: () => {
+        const l = lock.goal();
+        if (l) return l;
         const p = pearls.find(waiting);
         if (p) return p.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
         return finaleItem.done() ? null : throne;
       },
-      animate: (_dt, time) => { flies.update(time); shafts.sway(time); },
+      animate: (_dt, time) => { flies.update(time); shafts.sway(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => {
         sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp);
@@ -258,6 +272,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
       // a pearl waiting in the world: the heroine is put on it (walk) or it is taken (act) - the walkthrough's way to `part`
       cheatWorld: () => {
         if (worldTaskDoor(g).solve()) return 'world task';
+        if (lock.cheat()) return 'lock';
         const p = pearls.find(waiting);
         if (!p) return '';
         if (p.how === 'act') { take(p); return 'part'; }
@@ -286,6 +301,7 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   strings,
   music: MUSIC,
   move: { kind: 'swim', height: SWIM_HEIGHT },
+  worldTasks: [LOCK],
   sky: buildSky,
   load: loadSea,
   build: buildSea,

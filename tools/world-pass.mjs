@@ -27,7 +27,8 @@
 //      WORLD_TASK_STEPS: a) it is open, waiting, with no mistake and no hint (a card there instead fails); b) one wrong
 //      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1; c) closed - nothing is
 //      recorded (the world's part of the save in memory and stored, the stars, the skills: as at its opening), the
-//      heroine walks; d) the action again opens the same task anew; e) solved - the step is stored, 3 stars, one task
+//      heroine walks; d) the action again opens the same task anew (one that opens where she goes - the sea's lock at
+//      the gate - after the world's move brings her there); e) solved - the step is stored, 3 stars, one task
 //      more in one skill. A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
 //      the save unchanged, no action button at its place, no start, or `active` that never ends. Once, before the first
 //      item, the order is tried: at the place of an item that comes after an undone one nothing can be done yet;
@@ -598,6 +599,11 @@ export async function playWorld(h, o = {}) {
         if (!(await walks())) fail(`world task: ${mode} ${name}: c) closed: the heroine does not walk`);
       } else if (st === 'again') {
         await again();
+        // a task that opens where she goes (the sea's shell lock at the gate, WorldTask.endsInWorld): the action asks for
+        // it again, and the world's move (__game.cheat) brings her there
+        for (let i = 0; i < 3 && !(await gameUntil(() => !!window.__game.worldTask.state, null, REACTS)); i++) {
+          if (!(await g(() => window.__game.cheat()))) break;
+        }
         if (!(await gameUntil(() => !!window.__game.worldTask.state, null, STARTS))) fail(`world task: ${mode} ${name}: d) the action again did not open the task in ${STARTS} s of game time`);
         bad('d) opened again', openProblems(await worldState(), first.kind));
       } else if (st === 'solve') {

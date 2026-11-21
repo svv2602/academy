@@ -15,6 +15,7 @@ import { weakest } from './planner';
 import { SKILL } from './taskviews/panel';
 import type { TaskType } from './tasks/types';
 import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
+import type { TaskResult } from './taskviews/panel';
 import type { CharacterDef, Npc, WorldLines, WorldTask } from './world';
 
 export interface Dialogue {
@@ -23,8 +24,10 @@ export interface Dialogue {
   /**
    * Step `k` of `n`'s chain done by a task in the background (its `done`, or the world itself after a reload, when the
    * task started in an earlier session): the chain moves on and gives its stars; the last step gives the part at once.
+   * `played`: the task ended in a task played in the world (swim to the gate, then the lock there): its result goes to
+   * the step's skill as a task in the foreground's would; without it the step records nothing (the nuts, the maze).
    */
-  stepDone(n: Npc, k: number): void;
+  stepDone(n: Npc, k: number, played?: TaskResult): void;
 }
 
 /** What the conversation needs of a world: its characters, the lines of its own, and its tasks by the id of their step. */
@@ -84,7 +87,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         const wt: WorldTask | undefined = tasks[step];
         if (wt?.start) {
           // A task in the background: the chain moves on when it is done, the conversation ends here.
-          wt.start(n, () => stepDone(n, k));
+          wt.start(n, (played) => stepDone(n, k, played));
           return;
         }
         const skill = wt ? wt.skill : skillOf(step as PanelStep), level = levelFor(save, skill);
@@ -130,10 +133,12 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     };
   }
 
-  function stepDone(n: Npc, k: number) {
+  function stepDone(n: Npc, k: number, played?: TaskResult) {
     const q = n.def;
     if ((ws.quests[q.id] ?? 0) > k) return;      // done already
     ws.quests[q.id] = k + 1;
+    const skill = tasks[q.steps[k]]?.skill, res = played;
+    if (res?.solved && skill) recordTask(save, skill, res.wrong, res.helped === true);
     addStars(3, above(hero.root.position, 1.2));
     // the last step of the chain done in the background (a part hidden in the world, WORLD-08): its part now, in a
     // scene of its own, and the cat's "go on" after it - as at the end of a conversation
