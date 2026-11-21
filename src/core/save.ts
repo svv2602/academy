@@ -124,6 +124,8 @@ export interface Save {
   supplies?: Record<string, number>;
   /** The finds she may spend, by kind (src/game/stash.ts, PLAY-26): apart from the book's `ws.found`. Progress: carried by the code. */
   stash?: Record<string, number>;
+  /** The treats each pet has had (src/game/pets.ts, PLAY-27), by its id: its tricks follow from it. Progress: carried by the code. */
+  treats?: Record<string, number>;
   /**
    * What acts now, by effect (src/game/supplies.ts): the seconds of play left. Kept, so that a reload or a break does
    * not take away a minute she paid for.
@@ -444,6 +446,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The stock and the effects: only whole counts above zero and seconds above zero are kept (an unknown id too).
   if (s.supplies !== undefined) out.supplies = countsOf(s.supplies, (n) => Number.isInteger(n) && n > 0);
   if (s.stash !== undefined) out.stash = countsOf(s.stash, (n) => Number.isInteger(n) && n > 0);
+  if (s.treats !== undefined) out.treats = countsOf(s.treats, (n) => Number.isInteger(n) && n > 0);
   if (s.effects !== undefined) out.effects = countsOf(s.effects, (n) => n > 0);
   // The deal of the day: its two dates, each kept only when it is a date.
   if (s.deal !== undefined) {

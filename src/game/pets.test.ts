@@ -6,7 +6,7 @@ import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
-  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, followerOf, petProblems, createPets, followStep, foundPets, markFound, petPlace,
+  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
@@ -284,8 +284,8 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
   it('the frame moves the pets after the cat and hands their spots to the heroine with the world\'s', () => {
     const loop = raw['./loop.ts'];
     expect(loop).toMatch(/\n\s*companion\.update\(dt\);\n\s*g\.pets\.update\(dt\);/);
-    // a find of the collections touched while she is free to move first, then the world's tap (PLAY-25)
-    expect(loop).toMatch(/player\.tap\(canMove, here, \(dist\) => \(canMove && g\.collect\.tap\(dist\)\) \|\| world\.tap\(dist\)\)/);
+    // a find of the collections touched while she is free to move first, then the pet's trick (PLAY-27), then the world's tap (PLAY-25)
+    expect(loop).toMatch(/player\.tap\(canMove, here, \(dist\) => \(canMove && g\.collect\.tap\(dist\)\) \|\| \(canMove && g\.pets\.tap\(dist\)\) \|\| world\.tap\(dist\)\)/);
     expect(loop).toMatch(/player\.prompt\(canMove, here\)/);
     expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots, \.\.\.g\.mystery\.spots\)/);
   });
@@ -331,5 +331,56 @@ describe('which pet walks after her where (the rule of 2026-11-20: a pet lives i
       const pets = createPets(g, { rigs: rigs(), chainDone: () => false, world });
       expect(pets.follower !== null, world.id).toBe(walks);
     }
+  });
+});
+
+describe('the treats (PLAY-27): a find it likes from the stash, tricks after 5 and 15', () => {
+  it('a treat takes one find it likes, the first it likes that the stash has; nothing it likes - nothing done', () => {
+    const s = defaultSave();
+    expect(treatKind(s, FAWN)).toBeNull();
+    expect(giveTreat(s, FAWN)).toBeNull();
+    expect(s.treats).toBeUndefined();
+    s.stash = { feather: 3, mushroom: 2 };
+    expect(treatKind(s, FAWN)).toBe('mushroom');
+    s.stash.acorn = 1;
+    expect(giveTreat(s, FAWN)).toEqual({ kind: 'acorn', count: 1, trick: 0 });
+    expect(s.stash).toEqual({ feather: 3, mushroom: 2 });
+    expect(s.treats).toEqual({ fawn: 1 });
+  });
+
+  it('the first trick on the 5th, the second on the 15th; known ones counted from the save', () => {
+    expect(TRICKS_AT).toEqual([5, 15]);
+    const s = defaultSave();
+    s.stash = { mushroom: 20 };
+    const tricks = Array.from({ length: 16 }, () => giveTreat(s, FAWN)!.trick);
+    expect(tricks.map((t, i) => (t ? i + 1 : 0)).filter(Boolean)).toEqual([5, 15]);
+    expect(tricks.filter(Boolean)).toEqual([1, 2]);
+    expect(tricksKnown(s, 'fawn')).toBe(2);
+    expect(s.stash).toEqual({ mushroom: 4 });
+  });
+
+  it('in the world: the treat spot only while a pet walks after her and the stash has what it likes; a tap on it shows a trick it knows', () => {
+    const save = defaultSave();
+    worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
+    const g = host(save);
+    const tricks: number[] = [];
+    const pets = createPets(g, { rigs: rigs(), chainDone: () => false, onTrick: (n) => tricks.push(n) });
+    const spot = pets.spots.find((x) => x.label === 'treat')!;
+    expect(spot).toBeTruthy();
+    expect(spot.on()).toBe(false);                      // nothing it likes in the stash
+    save.stash = { acorn: 5 };
+    expect(spot.on()).toBe(true);
+    for (let i = 0; i < 5; i++) spot.run();
+    expect(save.treats).toEqual({ fawn: 5 });
+    expect(tricks).toEqual([1]);
+    expect(pets.trick).toBe(1);
+    for (let i = 0; i < 120; i++) pets.update(1 / 60);
+    expect(pets.trick).toBe(0);
+    expect(pets.tap(() => 10)).toBe(true);               // touched: it shows the trick it knows
+    expect(pets.trick).toBe(1);
+    expect(spot.on()).toBe(false);                      // the stash is out of acorns
+    const none = createPets(host(defaultSave()), { rigs: rigs(), chainDone: () => false });
+    expect(none.spots).toEqual([]);
+    expect(none.tap(() => 0)).toBe(false);
   });
 });
