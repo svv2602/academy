@@ -564,7 +564,11 @@ function starShape(): THREE.BufferGeometry {
 }
 
 /** The nests on the trunk, one per shelf, each with the artifact of its world - the crystal's is Crystal2. */
-export function buildNestLook(scene: THREE.Scene, loads: ArchLoads) {
+/**
+ * `extra`: what else by the Tree is drawn in the nests' call - it is there in every hub, so a thing in it costs no call
+ * of its own (the cauldron, PLAY-26: the hub is at its 80 calls on the fourth stage with the pet).
+ */
+export function buildNestLook(scene: THREE.Scene, loads: ArchLoads, extra: readonly THREE.BufferGeometry[] = []) {
   const rnd = seeded(4242), twigs: THREE.BufferGeometry[] = [], dir = new THREE.Vector3();
   const bark = [new THREE.Color('#6d4b33'), new THREE.Color('#82603f'), new THREE.Color('#5a3d29')];
   const pick = () => bark[Math.floor(rnd() * bark.length)].clone().multiplyScalar(1 + jit(rnd, 0.08));
@@ -604,6 +608,7 @@ export function buildNestLook(scene: THREE.Scene, loads: ArchLoads) {
       },
     };
   });
+  twigs.push(...extra);
   const nestGeo = mergeGeometries(twigs, false)!;
   for (const g of twigs) g.dispose();
   const nestMesh = new THREE.Mesh(nestGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
