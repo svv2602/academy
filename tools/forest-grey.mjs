@@ -19,7 +19,12 @@
 //      the ray meets is the landmark itself;
 //    - the draw calls and the triangles at every target and at every point of the tour: the heaviest is the one to
 //      measure on the S22 (TECH-06);
-//    - a picture from every target toward the next one, and from every point of the tour.
+//    - a picture from every target toward the next one, and from every point of the tour;
+//    all of it with the magic of the forest at 1 (WORLD-09, src/worlds/forest/magic.ts): the most it draws. On q2
+//    a point over BUDGET (triangles or draw calls) fails the run;
+//    - the magic (WORLD-09): from MAGIC_POINT of the tour, the world still, pictures at the magic 0, 0 again, 0.48
+//      (three leaves) and 1 - 0 and 1 differ over the whole and over the sky by more than MAGIC_DIFF, and by more than
+//      MAGIC_DIFF.same times two pictures of the same magic; else the run fails.
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/forest-grey by default.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -28,6 +33,7 @@ import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { greyWorldFiles } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -79,6 +85,19 @@ export function pathBetween(paths, zones, a, b) {
  * (its radius 2.1 m and hers 0.4 keep her 2.5 m away).
  */
 export const REACHED = 3.5;
+
+/** The frame budget of a point of the forest on q2 (the lead's, 2026-11-21): triangles and draw calls. */
+export const BUDGET = { tris: 600000, calls: 112 };
+/** The point of the tour (0-based) the pictures of the magic are taken from: over the Oak, the sky and three glades in the frame. */
+export const MAGIC_POINT = 1;
+/** The magic of the pictures (the third - three leaves given back) and the names of their files. */
+export const MAGIC_PICTURES = [[0, 'magic-0'], [0, 'magic-0-again'], [0.48, 'magic-0_48'], [1, 'magic-1']];
+
+/** The points of `views` and `tour` over BUDGET: their names and numbers. */
+export function overBudget(views, tour, budget = BUDGET) {
+  return [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris }))]
+    .filter((p) => p.tris > budget.tris || p.calls > budget.calls);
+}
 
 export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - line[i].x, p.z - line[i].z), 0);
 
@@ -135,6 +154,7 @@ async function main() {
     for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
   } finally { await browser.close(); server.close(); }
   writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
+  if (all.some((m) => m.failed)) failed = true;
   console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`);
   process.exit(failed ? 1 : 0);
 }
@@ -151,6 +171,8 @@ async function measure(browser, url, scale, out, q = 2) {
   await page.waitForFunction(() => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy; }, null, { timeout: 180000, polling: 300 });
   await page.evaluate(() => { for (const s of ['#debug', '#fps', '.debug', '#bubble']) document.querySelectorAll(s).forEach((e) => (e.style.visibility = 'hidden')); });
   const map = await page.evaluate(() => JSON.parse(JSON.stringify(__game.forestMap)));
+  // all the magic: the most the forest draws (the rays, the butterflies, every firefly) - the frame to measure
+  await page.evaluate(() => __game.setMagic(1));
   if (Math.abs(map.scale - scale) > 1e-9) throw new Error(`the page plays the scale ${map.scale}, not ${scale}`);
   const tag = `x${String(scale).replace('.', '_')}`;
   /** Seconds of game time, waited for frame by frame. */
@@ -232,6 +254,23 @@ async function measure(browser, url, scale, out, q = 2) {
     tour.push({ point: i + 1, ...(await draw()) });
     await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
+  // the magic: the camera on its point, the world still (no game time: the fireflies and the butterflies stand), so two
+  // pictures of the same magic differ by nothing that lives in the frame
+  await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
+  await settle(0.6);
+  const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+  const pics = [];
+  await page.evaluate(() => __game.still(true));
+  try {
+    for (const [m, name] of MAGIC_PICTURES) {
+      await page.evaluate((m) => __game.setMagic(m), m);
+      await frames();
+      pics.push((await page.screenshot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
+    }
+  } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(null); }); }
+  const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 3, 1], [0, 3, 0.2], [0, 1, 1], [0, 2, 1]]);
+  const magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
+  magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
@@ -242,8 +281,12 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s run (${l.byLength} s by its length)${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
-  console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, heaviest };
+  console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles (the magic at 1)`);
+  // the budget holds on q2 only: q0 draws less, and is measured for what it saves
+  const over = q === 2 ? overBudget(views, tour) : [];
+  if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
+  console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.48 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-0.png, ${tag}-magic-0_48.png, ${tag}-magic-1.png)`);
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, heaviest, over, magic, failed: over.length > 0 || !magic.ok };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

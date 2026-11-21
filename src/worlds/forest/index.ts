@@ -23,6 +23,7 @@ import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { buildDecor, loadDecor, type Decor } from './decor';
 import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { buildFireflies } from './fireflies';
+import { createForestMagic } from './magic';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -154,6 +155,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   buildDecor(scene, L.decor, bridges());
   const undergrowth = buildUndergrowth(scene, L.plants);
   const fireflies = buildFireflies(scene);
+  // the magic of the forest (WORLD-09): from the leaves in the save; after what it lights, before the frame moves the fireflies
+  const magic = createForestMagic(g, scope, { sky, fireflies, characters: FRIENDS });
   // the camera reaches a little past the end of the haze, as in the valley of the fairy (src/worlds/fairy/sky.ts
   // VALLEY_FAR): what is cut is of the haze's colour already, and no cell of trees past it is drawn
   const worldFar = g.camera.far;
@@ -282,6 +285,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
           n.actor.update(dt);
         }
         for (const a of bystanders) a.update(dt);
+        magic.update(dt);
         fireflies.update(time);
         nuts.update(dt, time, canMove);
         maze.update(dt, time, canMove);
@@ -315,7 +319,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         // the map as the measurements of the grey build read it (tools/forest-grey.mjs): its stretch, zones, paths, landmarks
         forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) },
         // the maze that stands now (WORLD-14): its paths and forks, where she is in it - for its pictures and its time on foot
-        forestMaze: maze },
+        forestMaze: maze,
+        // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
+        magic, setMagic: (v: number | null) => magic.set(v) },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world

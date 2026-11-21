@@ -9,12 +9,14 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  PART_MAGIC,
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
   GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
   unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
 import { gameWaits } from './game-wait.mjs';
+import { PART_MAGIC as GAME_PART_MAGIC } from '../src/game/magic.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const one = (list) => { expect(list, list.join('; ')).toHaveLength(1); return list[0]; };
@@ -1014,5 +1016,11 @@ describe('the size of the things of a task in the world on the screen (MIN_TAP_P
     expect(MIN_TAP_PX).toBe(48);
     expect(tapSizeProblems([{ px: 60, right: true }, { px: null, right: false }])).toEqual([]);
     expect(tapSizeProblems([{ px: 31.6, right: false }])).toEqual(['a wrong thing 32 px across, under 48']);
+  });
+});
+
+describe('the magic the pass expects (WORLD-09)', () => {
+  it('is the game\'s: a chain done adds PART_MAGIC of src/game/magic.ts', () => {
+    expect(PART_MAGIC).toBe(GAME_PART_MAGIC);
   });
 });

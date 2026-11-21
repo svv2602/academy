@@ -206,6 +206,7 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   // a crown of its own colour, golden green: from anywhere the Oak is the landmark (WORLD-10)
   const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(OAK.crownR, 1), mat('#a5c94f', { emissive: '#4d6a1a', emissiveIntensity: 0.25 }));
   crown.position.y = OAK.crownY; crown.scale.y = 0.8;
+  crown.name = 'oak-crown';
   oak.add(crown);
   oak.position.set(ZONES.oak.x, height(ZONES.oak.x, ZONES.oak.z), ZONES.oak.z);
   oak.name = 'landmark-oak';
@@ -214,6 +215,7 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   colliders.push({ x: ZONES.oak.x, z: ZONES.oak.z, r: OAK.trunkR + 0.3 });
   const altar = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.2, 16), mat('#c9e8c0', { emissive: '#6fd06a', emissiveIntensity: 0.4 }));
   altar.position.set(ALTAR.x, height(ALTAR.x, ALTAR.z) + 0.1, ALTAR.z);
+  altar.name = 'altar';
   scene.add(altar);
   return { trees, oak, stream, shadows };
 }
