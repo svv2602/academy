@@ -5576,5 +5576,37 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_diff@Sulafat": {
+  "text": "Знайди відмінності!",
+  "heard": "Знайди відмінності.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_diff@Leda": {
+  "text": "Знайди відмінності!",
+  "heard": "Знайди відмінності.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_diff@Orus": {
+  "text": "Знайди відмінності!",
+  "heard": "Знайди відмінності.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_diff@Charon": {
+  "text": "Знайди відмінності!",
+  "heard": "Знайди відмінності.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
