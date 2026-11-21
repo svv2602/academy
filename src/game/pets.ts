@@ -285,6 +285,8 @@ export function createPets(g: PetHost, o: {
       sfx('good');
       g.sparks.burst(g.above(follower.root.position, 1.0), '#ff7eb6', 18, 2);
       hop = 0.5;
+      // the cat: a treat - «ням-ням»; a trick just learnt - it tells of it
+      void g.speech.line(r.trick ? 'pet_trick' : 'pet_treat', 'hint', 4000);
       if (r.trick) { showTrick(r.trick); o.onTrick?.(r.trick); }
     },
   };

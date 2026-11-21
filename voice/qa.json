@@ -5640,5 +5640,29 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pet_treat": {
+  "text": "Ням-ням! Як смачно!",
+  "heard": "Ням-ням, як смачно!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pet_trick": {
+  "text": "Дивись, твій улюбленець навчився новому!",
+  "heard": "Дивись, твій улюбленець навчився новому!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sup_rainbow": {
+  "text": "Ого, за тобою біжить веселка!",
+  "heard": "Ого, за тобою біжить веселка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

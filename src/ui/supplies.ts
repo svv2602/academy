@@ -23,9 +23,9 @@ export const SUPPLY_LOOK: Record<SupplyId, { icon: string; color: string }> = {
 };
 
 /** The cat's line when an effect starts. */
-/** The cat's line when an effect starts; the rainbow's (sup_rainbow) comes with its recording. */
+/** The cat's line when an effect starts. */
 const SAID: Partial<Record<EffectId, SpokenKey>> = {
-  speed: 'sup_speed', jump: 'sup_jump', glow: 'sup_glow', tiny: 'sup_tiny', giant: 'sup_giant', compass: 'sup_compass',
+  speed: 'sup_speed', jump: 'sup_jump', glow: 'sup_glow', tiny: 'sup_tiny', giant: 'sup_giant', compass: 'sup_compass', rainbow: 'sup_rainbow',
 };
 
 /** What the row needs of the game. */
