@@ -85,3 +85,15 @@ describe('the tour of the hub (WORLD-11)', () => {
     }
   });
 });
+
+describe('the stage of the Tree asked by the walkthrough (?debug&hubStage=N)', () => {
+  it('1 to 4 with ?debug only; anything else - none', async () => {
+    const { forcedStage } = await import('./index');
+    expect(forcedStage('?debug&hubStage=4')).toBe(4);
+    expect(forcedStage('?debug&world=hub&hubStage=1')).toBe(1);
+    expect(forcedStage('?hubStage=4')).toBeNull();
+    expect(forcedStage('?debug&hubStage=5')).toBeNull();
+    expect(forcedStage('?debug&hubStage=x')).toBeNull();
+    expect(forcedStage('?debug')).toBeNull();
+  });
+});

@@ -1199,6 +1199,32 @@ async function hubScenarios({ url, shots, fail: report }) {
       }
       await p.close();
     }
+
+    // ----- "budget": the hub's 80 draw calls (TECH-06) on the stage of a child now and on the fourth, which no build
+    // reaches by its artifacts yet (?debug&hubStage=N, src/worlds/hub/index.ts forcedStage): the fawn after her, every
+    // keepsake of the fairy world, q2 (the tier a child plays the hub on) - the frame of the arrival at the fairies' arch
+    {
+      const calls = [];
+      for (const stage of [1, 4]) {
+        const save = HUB_SAVES.one();
+        const fw = save.worlds[FIRST_WORLD];
+        fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: true, pet: true };
+        fw.found = Array.from({ length: 24 }, (_, i) => i);
+        save.pets = ['fawn']; save.pet = 'fawn';
+        save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
+        const p = await open(`budget, stage ${stage}`, save);
+        await p.page.goto(`${url}?debug&world=hub&hubStage=${stage}&q=2`);
+        await p.play(false);
+        await p.inWorld('hub');
+        await p.g(() => { const g = __game; g.teleport(0, 6.5); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; });
+        await p.gameSeconds(3);
+        const n = await p.g(() => __game.renderer.info.render.calls);
+        calls.push(`stage ${stage}: ${n}`);
+        if (n > 80) fail(`budget: stage ${stage} with the fawn and every keepsake, q2: ${n} draw calls at the arrival, more than 80`);
+        await p.close();
+      }
+      told.push(`the budget of the hub with the fawn and every keepsake, q2, at the arrival: ${calls.join(', ')} draw calls (80 at most)`);
+    }
   } finally {
     await browser.close();
   }

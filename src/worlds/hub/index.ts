@@ -15,7 +15,7 @@ import { PORTALS, RADIUS, arrivalAt } from './layout';
 import { portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
 import CLIPS from './clips.json';
 import { strings } from './strings';
-import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
+import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads, type TreeStage } from './tree-look';
 import { buildKeepsakes } from './keepsakes';
 import { CAULDRON, cauldronGeometry } from './cauldron-look';
 import { openCauldron } from '../../ui/cauldron';
@@ -152,6 +152,15 @@ function buildRing(scene: THREE.Scene) {
   put(new THREE.DodecahedronGeometry(1, 0), std('#8f8c86'), rocks);
 }
 
+/**
+ * The stage of the Tree the walkthrough asks for (`?debug&hubStage=N`, 1-4): the budget of the hub is checked on the
+ * fourth stage, which no build reaches by its artifacts yet (tools/worlds.mjs, the hub's budget). Without ?debug - none.
+ */
+export function forcedStage(search = typeof location === 'undefined' ? '' : location.search): TreeStage | null {
+  const q = new URLSearchParams(search), n = Number(q.get('hubStage'));
+  return q.has('debug') && Number.isInteger(n) && n >= 1 && n <= 4 ? (n as TreeStage) : null;
+}
+
 function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, save, ws, flies } = g;
   scope.own(() => { colliders.length = 0; });
@@ -163,7 +172,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   glade.rotation.x = -Math.PI / 2; glade.receiveShadow = true;
   scene.add(glade);
   // The Great Tree in the stage of the artifacts back (R33), the arches round it, the nests on its trunk.
-  const stage = treeStage(artifactCount(save));
+  const stage = forcedStage() ?? treeStage(artifactCount(save));
   const tree = buildTreeLook(scene, stage, L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
   const keepsakes = buildKeepsakes(scene, save);
