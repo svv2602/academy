@@ -32,6 +32,12 @@ skeleton ("Service Assets") with our own clips made in Blender for this game; th
 (Meshy rigs no birds). The owlet is the owl's model made small, its texture paler and its head larger, in Blender.
 Joined and their textures shrunk in Blender for this game.
 
+The forest's things (world 2, 2026-11-21): the bridges, the fence, the woodpiles and the signpost are Kenney's
+"Nature Kit" 2.1 (https://kenney.nl/assets/nature-kit) — CC0 1.0 (its License.txt: "Creative Commons Zero, CC0");
+`models-src/forest/kenney/`. Its undergrowth — bushes, plants, flowers, mossy stones, the mossy log and the berry bush —
+is Quaternius "Ultimate Nature" (CC0 1.0, above), moved from `models-unused/nature_pack/` to `models-src/forest/plants/`.
+The mushroom houses, the elder's tower and the lanterns are our own shapes (`src/worlds/forest/village.ts`, `decor.ts`).
+
 Heroine's items (crown, wreath, wizard hat, star earrings, star and crystal wands, butterfly wings, and the free items
 of the four looks: tiara, little wizard cap, elf ears, flower, moon and leaf wands; `models-src/items/`): our own simple shapes made in Blender for this game with
 `tools/items/items.py` — not taken from any pack or service.
