@@ -87,6 +87,9 @@ export const REACTS = 3;
 export const STARTS = 20;
 /** Seconds of game time in which the world opens after "play": its first line, or an item that plays by itself. */
 export const OPENS = 20;
+/** The magic a chain done adds (WORLD-09, src/game/magic.ts PART_MAGIC): the artifact restored brings it to 1. */
+export const PART_MAGIC = 0.16;
+
 /** Seconds of game time an item may stay on (a cutscene, the tour, the finale), or the game may hold the controls. */
 export const PLAYS = 180;
 /** How many times in a row the action of an item may leave its mark as it was before the item counts as not done. */
@@ -724,6 +727,7 @@ export async function playWorld(h, o = {}) {
     if (!pictured.size) await picture(`item-${item.id}`);
     await starsKept(`in ${where}`);
     const secs = ((Date.now() - t0) / 1000).toFixed(0); /* clock: log-time */
+    await magicKept(item);
     if (item.kind !== 'chain') { console.log(`item done: ${item.kind} ${item.id} by "${item.how}", ${secs}s`); return; }
     // a chain: the counter of the parts and the stars it gave
     const items = await itemsNow(), chains = items.filter((i) => i.kind === 'chain');
@@ -732,6 +736,17 @@ export async function playWorld(h, o = {}) {
     if (c.hud !== want) errors.push(`crystals: ${mode} ${worldId}: the counter shows ${c.hud} with ${want.replace('/', ' of ')} chains done`);
     if (!(c.stars > starsBefore)) errors.push(`stars: ${mode} ${worldId}: the chain of "${item.id}" gave no stars (${starsBefore} -> ${c.stars})`);
     console.log(`chain done: ${item.id} (${markOf(item, await partNow()).value} steps), ${secs}s, counter ${c.hud}, stars ${starsBefore} -> ${c.stars}`);
+  };
+  /**
+   * The magic of the world (WORLD-09), when the world has one (`__game.magic`): after every item, it heads for what the
+   * save says - PART_MAGIC a chain done (its part of the artifact given back), 1 with the finale; no reload needed.
+   */
+  const magicKept = async (item) => {
+    const m = await g((id) => (window.__game.magic ? { target: window.__game.magic.target, final: window.__game.save.worlds?.[id]?.final === true } : null), worldId);
+    if (!m) return;
+    const done = (await itemsNow()).filter((i) => i.kind === 'chain' && i.done).length, want = m.final ? 1 : Math.min(1, done * PART_MAGIC);
+    if (Math.abs(m.target - want) > 1e-9) errors.push(`magic: ${mode} ${worldId}: after ${itemName(item)} the magic heads for ${m.target}, expected ${want} (${done} chains done${m.final ? ', the finale' : ''})`);
+    else console.log(`magic: after ${item.kind} ${item.id} - ${want.toFixed(2)}`);
   };
   /** The order of `after`: at the place of an item that comes after an undone one, nothing can be done yet. */
   const orderKept = async (items) => {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { PATHS, ZONES } from './layout';
+import { PATHS, ZONES, type ZoneId } from './layout';
 import { height, pathDist } from './terrain';
 
 /**
@@ -16,29 +16,34 @@ export const BLUE = '#7fd0ff';
 export const FLY_LOW = 2.1;
 export const FLY_HIGH = 3.4;
 
-export interface Fly { x: number; z: number; y: number; blue: boolean; phase: number; r: number }
+/** A firefly: where, how high, its colour, its pace; `zone` - the glade it floats round (null: along a path). */
+export interface Fly { x: number; z: number; y: number; blue: boolean; phase: number; r: number; zone: ZoneId | null }
 
 /** Where they float, deterministic: round every glade, along the edges of the paths, a cloud of blue ones by the owl. */
 export function placeFlies(seed = 23): Fly[] {
   const rnd = mulberry32(seed), out: Fly[] = [];
-  const at = (x: number, z: number, blue: boolean) => out.push({ x, z, y: FLY_LOW + rnd() * (FLY_HIGH - FLY_LOW), blue, phase: rnd() * Math.PI * 2, r: 0.3 + rnd() * 0.7 });
-  for (const [id, p] of Object.entries(ZONES)) {
+  const at = (x: number, z: number, blue: boolean, zone: ZoneId | null) => out.push({ x, z, y: FLY_LOW + rnd() * (FLY_HIGH - FLY_LOW), blue, phase: rnd() * Math.PI * 2, r: 0.3 + rnd() * 0.7, zone });
+  for (const [id, p] of Object.entries(ZONES) as [ZoneId, (typeof ZONES)[ZoneId]][]) {
     const n = id === 'owl' ? 16 : 6;
-    for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, d = 2 + rnd() * 5; at(p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, id === 'owl'); }
+    for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, d = 2 + rnd() * 5; at(p.x + Math.cos(a) * d, p.z + Math.sin(a) * d, id === 'owl', id); }
   }
   for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
     const a = line[i], b = line[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
     for (let d = 4; d < len; d += 7) {
       const t = d / len, side = rnd() < 0.5 ? -1 : 1, off = 2 + rnd() * 2.5;
       const x = a.x + (b.x - a.x) * t - ((b.z - a.z) / len) * off * side, z = a.z + (b.z - a.z) * t + ((b.x - a.x) / len) * off * side;
-      if (pathDist(x, z) > 1.5) at(x, z, false);
+      if (pathDist(x, z) > 1.5) at(x, z, false, null);
     }
   }
   return out;
 }
 
-/** The fireflies in the scene; `update(time)` moves and pulses them every frame. */
+/**
+ * The fireflies in the scene; `update(time)` moves and pulses them every frame. `lit[i]` (0-1, 1 at first) - how much
+ * of the i-th one is there: the magic of the forest wakes them (./magic.ts); one at 0 has no size.
+ */
 export function buildFireflies(scene: THREE.Scene, flies = placeFlies()) {
+  const lit = new Float32Array(flies.length).fill(1);
   const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 6, 4), new THREE.MeshBasicMaterial({ toneMapped: false }), flies.length);
   mesh.name = 'fireflies'; mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = false;
   const warm = new THREE.Color(WARM), blue = new THREE.Color(BLUE), c = new THREE.Color();
@@ -50,7 +55,7 @@ export function buildFireflies(scene: THREE.Scene, flies = placeFlies()) {
       p.set(f.x + Math.cos(t) * f.r, base[i] + f.y + Math.sin(t * 1.7) * 0.25, f.z + Math.sin(t * 0.8) * f.r);
       // a slow pulse: never quite out, so a frame never loses them all
       const glow = 0.55 + 0.45 * Math.sin(time * 2.3 + f.phase * 3);
-      mesh.setMatrixAt(i, m.compose(p, q, s.setScalar(0.7 + 0.5 * glow)));
+      mesh.setMatrixAt(i, m.compose(p, q, s.setScalar((0.7 + 0.5 * glow) * lit[i])));
       mesh.setColorAt(i, c.copy(f.blue ? blue : warm).multiplyScalar(0.6 + 0.6 * glow));
     });
     mesh.instanceMatrix.needsUpdate = true;
@@ -58,5 +63,5 @@ export function buildFireflies(scene: THREE.Scene, flies = placeFlies()) {
   };
   update(0);
   scene.add(mesh);
-  return { mesh, flies, update };
+  return { mesh, flies, lit, update };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lengthOf, pathBetween, readArgs, routeLegs } from './forest-grey.mjs';
+import { BUDGET, MAGIC_PICTURES, lengthOf, overBudget, pathBetween, readArgs, routeLegs } from './forest-grey.mjs';
 
 describe('tools/forest-grey.mjs: the walkthrough and the measurements of the grey forest (WORLD-12)', () => {
   it('reads its arguments', () => {
@@ -20,5 +20,18 @@ describe('tools/forest-grey.mjs: the walkthrough and the measurements of the gre
     expect(pathBetween([line], zones, 'b', 'a')).toEqual([...line].reverse());
     expect(pathBetween([line], { ...zones, c: { x: 9, z: 9 } }, 'a', 'c')).toBeNull();
     expect(lengthOf(line)).toBe(7);
+  });
+
+  it('a point over the frame budget of q2 is named, by its triangles or its draw calls (WORLD-09: measured with the magic at 1)', () => {
+    expect(BUDGET).toEqual({ tris: 600000, calls: 112 });
+    const views = [{ from: 'a', to: 'b', calls: 112, tris: 600000 }, { from: 'b', to: 'c', calls: 113, tris: 1000 }];
+    const tour = [{ point: 1, calls: 50, tris: 600001 }, { point: 2, calls: 10, tris: 10 }];
+    expect(overBudget(views, tour).map((p) => p.at)).toEqual(['b -> c', 'tour 1']);
+    expect(overBudget(views.slice(0, 1), tour.slice(1))).toEqual([]);
+  });
+
+  it('pictures the magic at 0 twice, at three leaves and at 1', () => {
+    expect(MAGIC_PICTURES.map(([m]) => m)).toEqual([0, 0, 0.48, 1]);
+    expect(new Set(MAGIC_PICTURES.map(([, n]) => n)).size).toBe(4);
   });
 });

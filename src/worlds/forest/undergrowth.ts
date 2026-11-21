@@ -18,6 +18,14 @@ export const PLANTS = [
   ['plants/Flowers', 0.4, 6], ['plants/Rock_Moss_1', 0.45, 2], ['plants/Rock_Moss_2', 0.4, 2],
   ['plants/BushBerries_1', 0.9, 1], ['plants/WoodLog_Moss', 0.5, 1],
 ] as const;
+/** Which of PLANTS are the flowers: the magic of the forest opens them (./magic.ts, `uBloom`). */
+export const FLOWERS = PLANTS.findIndex((p) => p[0] === 'plants/Flowers');
+/**
+ * How open the flowers are (1: as the pack made them): every vertex of a flower is drawn this much of the way from its
+ * plant's foot (a uniform: the magic changes it with no program rebuilt and no new draw).
+ */
+export const uBloom = { value: 1 };
+
 /** m: the side of a cell of the undergrowth, and how far from her a cell is drawn. */
 export const CELL = 16;
 export const RANGE = 20;
@@ -50,6 +58,13 @@ export function placePlants(seed = 11): Plant[] {
 const LEAVES = { Green: '#467f42', DarkGreen: '#35663a' };
 export const loadUndergrowth = () => Promise.all(PLANTS.map(([p, h]) => staticGeo(`forest/${p}`, h, LEAVES)));
 
+/** The flowers' vertices drawn `uBloom` of the way from their foot: after the wind's bend, before the projection. */
+function bloom(sh: THREE.WebGLProgramParametersWithUniforms) {
+  sh.uniforms.uBloom = uBloom;
+  sh.vertexShader = 'uniform float uBloom;\nattribute vec4 aBloom;\n' + sh.vertexShader.replace('#include <morphtarget_vertex>',
+    'transformed = mix(aBloom.xyz, transformed, mix(1.0, uBloom, aBloom.w));\n#include <morphtarget_vertex>');
+}
+
 /** The undergrowth in the scene: its cells, and `near(x, z)` - every frame, which of them are drawn. */
 export function buildUndergrowth(scene: THREE.Scene, geos: THREE.BufferGeometry[], plants = placePlants()) {
   const cells = new Map<string, Plant[]>();
@@ -60,12 +75,19 @@ export function buildUndergrowth(scene: THREE.Scene, geos: THREE.BufferGeometry[
   const material = propMaterial(0.25);
   // a bush at the lens or between the camera and her is looked through, as the trees are
   const sway = material.onBeforeCompile.bind(material);
-  material.onBeforeCompile = (sh, r) => { sway(sh, r); fadeAtCamera(sh); };
-  material.customProgramCacheKey = () => 'forest-undergrowth|sway|fade';
+  material.onBeforeCompile = (sh, r) => { sway(sh, r); fadeAtCamera(sh); bloom(sh); };
+  material.customProgramCacheKey = () => 'forest-undergrowth|sway|fade|bloom';
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), s = new THREE.Vector3();
   const meshes: THREE.Mesh[] = [];
   for (const [key, list] of cells) {
-    const baked = list.map((p) => geos[p.k].clone().applyMatrix4(m.compose(v.set(p.x, height(p.x, p.z) - 0.03, p.z), q.setFromAxisAngle(up, p.rot), s.setScalar(p.s))));
+    const baked = list.map((p) => {
+      const foot = v.set(p.x, height(p.x, p.z) - 0.03, p.z), geo = geos[p.k].clone().applyMatrix4(m.compose(foot, q.setFromAxisAngle(up, p.rot), s.setScalar(p.s)));
+      // every vertex: its plant's foot, and whether it is of a flower (the magic opens those from their foot)
+      const n = geo.getAttribute('position').count, a = new Float32Array(n * 4);
+      for (let i = 0; i < n; i++) a.set([foot.x, foot.y, foot.z, p.k === FLOWERS ? 1 : 0], i * 4);
+      geo.setAttribute('aBloom', new THREE.BufferAttribute(a, 4));
+      return geo;
+    });
     const geo = mergeGeometries(baked, false)!;
     baked.forEach((g) => g.dispose());
     geo.computeBoundingSphere();

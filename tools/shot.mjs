@@ -76,6 +76,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from 'fs';
 import { inflateRawSync } from 'zlib';
 import { ACH_WHOLE, GROUPS, PIECES_ONLY, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
+import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { storySheets } from './story-sheet.mjs';
 
 const [url = 'http://localhost:5173/', out = 'shots', mode = 'desktop'] = process.argv.slice(2);
@@ -186,7 +187,7 @@ const T = (ms) => Math.round(ms * slow);
 const MAGIC_SETTLE = 20;
 // The magic of the world (WORLD-09, src/worlds/fairy/magic.ts): what a shard given back adds (SHARD_MAGIC), the point of
 // the tour its two pictures are taken from (0-based) and how much they must differ (mean colour difference, 0..1).
-const MAGIC_SHARD = 0.16, MAGIC_POINT = 2, MAGIC_DIFF = { all: 0.02, sky: 0.02 };
+const MAGIC_SHARD = 0.16, MAGIC_POINT = 2;
 
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
@@ -2610,29 +2611,11 @@ try {
         if (!s1.cam.every(Number.isFinite)) fail(`the camera of the still world is at ${s1.cam}`);
         await g(() => { __game.setMagic(null); __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
         // mean difference of the colours (0..1) over the whole picture and over its top fifth (the sky)
-        const d = await g(async ([a, b, c, e]) => {
-          const px = async (b64) => {
-            const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
-            const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
-            const cv = new OffscreenCanvas(160, Math.round((160 * bmp.height) / bmp.width)), x = cv.getContext('2d');
-            x.drawImage(bmp, 0, 0, cv.width, cv.height);
-            return { w: cv.width, h: cv.height, d: x.getImageData(0, 0, cv.width, cv.height).data };
-          };
-          const [A, B, C, E] = await Promise.all([a, b, c, e].map(px));
-          const diff = (P, Q, rows) => {
-            let s = 0, n = 0;
-            for (let y = 0; y < rows; y++) for (let x = 0; x < P.w; x++) {
-              const i = (y * P.w + x) * 4;
-              s += Math.abs(P.d[i] - Q.d[i]) + Math.abs(P.d[i + 1] - Q.d[i + 1]) + Math.abs(P.d[i + 2] - Q.d[i + 2]); n += 3;
-            }
-            return s / n / 255;
-          };
-          const sky = Math.round(A.h / 5);
-          return { all: diff(A, C, A.h), sky: diff(A, C, sky), same: diff(A, B, A.h), before: diff(E, A, A.h) };
-        }, [p0, p0b, p1, pre]);
+        const [all, sky, same, before] = await pictureDiffs(page, [p0, p0b, p1, pre], [[0, 2, 1], [0, 2, 0.2], [0, 1, 1], [3, 0, 1]]);
+        const d = { all, sky, same, before };
         if (!(d.before < MAGIC_DIFF.all)) fail(`the still world's picture differs from the frame before it by ${d.before.toFixed(4)} (the threshold ${MAGIC_DIFF.all})`);
         const said = `magic 0 vs 1 differ by ${d.all.toFixed(4)} (the sky ${d.sky.toFixed(4)}), two pictures at 0 by ${d.same.toFixed(4)}, the still frame from the one before by ${d.before.toFixed(4)}`;
-        if (!(d.all > MAGIC_DIFF.all) || !(d.sky > MAGIC_DIFF.sky) || !(d.all > d.same * 3)) fail(`${said}: the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and 3 times the same magic`);
+        if (!(d.all > MAGIC_DIFF.all) || !(d.sky > MAGIC_DIFF.sky) || !(d.all > d.same * MAGIC_DIFF.same)) fail(`${said}: the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and 3 times the same magic`);
         await gameFor(() => !__game.flyoverPlayer.active && !__game.busy, null, 30).catch(() => fail('the debug tour did not end'));
         // let go, the magic heads back to the save's from 1 (the last picture's): its target at once, its value on the way
         // (the whole way back takes seconds of game time - minutes of the clock on the slow CI runner)
