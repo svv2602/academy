@@ -1,0 +1,12 @@
+/* The picture of the pieces come alive (PLAY-29): the frame over the game, moving in slowly, lights twinkling. */
+#pictureAlive { position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; background: #0006; cursor: pointer; }
+#pictureAlive.hidden { display: none; }
+.pa-frame { position: relative; width: min(92vw, calc((100vh - 32px) * 960 / 536)); aspect-ratio: 960 / 536; overflow: hidden;
+  border-radius: 18px; box-shadow: 0 0 0 6px #ffd95e, 0 0 0 10px #ffb84d, 0 18px 50px #0006; animation: pa-in .6s ease-out; }
+.pa-img { position: absolute; inset: 0; background: center / cover no-repeat; animation: pa-move 9s ease-in-out infinite alternate; }
+.pa-frame i { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff6c2; box-shadow: 0 0 12px 4px #ffe58a;
+  opacity: 0; animation: pa-light 2.1s ease-in-out infinite; }
+@keyframes pa-in { from { transform: scale(.6); opacity: 0; } }
+@keyframes pa-move { from { transform: scale(1.04) translate(0, 0); } to { transform: scale(1.12) translate(-2%, -1.5%); } }
+@keyframes pa-light { 50% { opacity: 1; transform: scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .pa-img, .pa-frame i { animation: none; } .pa-frame i { opacity: .8; } }

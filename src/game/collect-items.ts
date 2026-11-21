@@ -3,9 +3,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sfx } from '../core/audio';
 import type { Game } from './context';
 import { addToStash } from './stash';
+import { showPicture } from '../ui/picture';
 import { createDaily } from './daily-find';
 import {
-  CHASE, COLLECT_KINDS, TAP_R, foundOf, kindsOf, reaches, setDone, type CollectDef, type CollectItem, type CollectKind,
+  CHASE, COLLECT_KINDS, TAP_R, foundOf, isSet, kindsOf, pictureDone, reaches, setDone, setKindsOf, type CollectDef, type CollectItem, type CollectKind,
 } from './collections';
 
 /**
@@ -34,7 +35,7 @@ export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -73,8 +74,14 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
   ], 3));
   w.computeVertexNormals();
   const butterfly = paint(w, COLLECT_KINDS.butterfly.color);
+  // a piece of a picture (PLAY-29): a flat square with a knob out of one side and a notch-coloured knob on another, as
+  // a child knows a jigsaw piece; standing up, turned to her by its spin
+  const tile = paint(new THREE.BoxGeometry(0.26, 0.26, 0.05), COLLECT_KINDS.piece.color);
+  const knob = paint(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8).rotateX(Math.PI / 2).translate(0.15, 0, 0), COLLECT_KINDS.piece.color);
+  const knob2 = paint(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8).rotateX(Math.PI / 2).translate(0, 0.15, 0), '#ffd98a');
   return {
     mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
+    piece: mergeGeometries([tile, knob, knob2])!,
   };
 }
 
@@ -139,17 +146,21 @@ export function createCollections(g: CollectHost): CollectInWorld {
     it.taken = true;
     const first = !found.some((i) => def.items[i].kind === it.kind);
     found.push(it.id);
-    // and one to spend (the stash, PLAY-26): the book keeps it found whatever is spent
-    addToStash(g.save, it.kind);
+    // and one to spend (the stash, PLAY-26): the book keeps it found whatever is spent; a piece of the picture is not spent
+    if (isSet(it.kind)) addToStash(g.save, it.kind);
     refresh();
     sfx('good');
     g.sparks.burst(it.pos.clone(), COLLECT_KINDS[it.kind].color, 26, 3);
     g.addStars(1, g.above(g.hero.root.position, 1.4));     // COLLECT_REWARD, a literal as src/game/no-penalties.test.ts reads it
     // the others of its flock fly up for a moment
     if (it.flock !== undefined) for (const o of items) if (o !== it && o.flock === it.flock && !o.taken) o.fly = 2;
-    if (setDone(def, it.kind, found)) {
+    if (!isSet(it.kind)) {
+      // a piece of the picture (PLAY-29): no set, no stars of one; the whole picture comes alive (src/ui/picture.ts)
+      if (pictureDone(def, found) && def.picture) { showPicture(def.picture); void g.speech.line('picture_done', 'hint', 4000); }
+      else if (first) void g.speech.line('piece_first', 'hint', 4000);
+    } else if (setDone(def, it.kind, found)) {
       g.addStars(5, g.above(g.hero.root.position, 1.6));   // SET_REWARD
-      const all = kindsOf(def).every((k) => setDone(def, k, found));
+      const all = setKindsOf(def).every((k) => setDone(def, k, found));
       void g.speech.line(all ? 'collect_all' : 'collect_set', 'hint', 4000);
     } else if (first) void g.speech.line('collect_first', 'hint', 4000);
     g.persist();

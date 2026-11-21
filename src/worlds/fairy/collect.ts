@@ -36,7 +36,7 @@ const onTop = (s: Support, kind: 'mushroom' | 'feather'): CollectItem => ({ kind
 /** On the water of the pond: the height over its bed, so the find floats on its surface. */
 const onWater = (x: number, z: number): CollectItem => ({ kind: 'feather', way: 'tap', x, z, y: WATER_Y + 0.12 - height(x, z) });
 
-/** The 24 finds; their order is their number in the save (ws.found): only ever added to at the end. */
+/** The 24 finds and the 6 pieces of the picture; their order is their number in the save (ws.found): only ever added to at the end. */
 /**
  * The places of the find of the day (PLAY-26, src/game/daily-find.ts): one of them a day, off the path, the pond, the
  * castle, the glade, the house, the characters, the mysterious stars, the boulders and 6 m from every find, oak and
@@ -63,7 +63,14 @@ export const COLLECT: CollectDef = {
     { kind: 'butterfly', way: 'run', x: -48, z: -12, y: 0.6, flock: 0 }, { kind: 'butterfly', way: 'run', x: -49.6, z: -12.8, y: 0.6, flock: 0 },
     { kind: 'butterfly', way: 'run', x: -51, z: 36, y: 0.6, flock: 1 }, { kind: 'butterfly', way: 'run', x: -52.6, z: 35.2, y: 0.6, flock: 1 },
     { kind: 'butterfly', way: 'chase', x: 24, z: 45, y: 1.2 }, { kind: 'butterfly', way: 'chase', x: -42, z: 15, y: 1.2 },
+    // the six pieces of the picture (PLAY-29), in the order of their cells (3 x 2, left to right, top row first): four in
+    // the grass, two a jump high over a meadow
+    { kind: 'piece', way: 'run', x: -27, z: -27, y: 0.35 }, { kind: 'piece', way: 'jump', x: 36, z: -33, y: 2.4 },
+    { kind: 'piece', way: 'run', x: -24, z: 12, y: 0.35 }, { kind: 'piece', way: 'jump', x: 27, z: 30, y: 2.4 },
+    { kind: 'piece', way: 'run', x: -3, z: 36, y: 0.35 }, { kind: 'piece', way: 'run', x: -54, z: -3, y: 0.35 },
   ],
+  // the valley of the fairies from the story's opening frame (./story.ts): a child knows it, and it tells nothing of the end
+  picture: { image: 'story/w1_intro_1', cols: 3, rows: 2 },
 };
 
 /** The top of the support at (x, z) when her feet at `feet` are up to STEP_UP below it (WorldGround.support), else null. */
