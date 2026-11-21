@@ -4,7 +4,8 @@
 // end count only what the group played. Without a group the whole world is played from no save, as it always was.
 //
 // The world is cut into pieces that together are the whole walkthrough (PIECES): the first two friends, the next two
-// (the mushroom king and the queen: the deer's chain goes with its star search), the deer and the finale, the shop.
+// (the mushroom king and the queen: the deer's chain goes with its star search), the deer and the finale, the shop,
+// the tasks of the shop's world (the helpers, the differences, the puzzle, the trades), the collections.
 // Every check of the whole walkthrough is in one of them. "tasks" is not a piece: it plays every friend from no save
 // (every kind of task once: closed with its cross, the picture, the question, the deliberate mistake, the hint).
 //
@@ -142,7 +143,14 @@ export const GROUPS = {
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'diff', 'puzzle', 'deal', 'pet-gear', 'trade', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'deal', 'pet-gear', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+  },
+  // the helpers of a task, the differences, the puzzle and the trades of the characters: a piece of their own from the
+  // shop's save (2026-11-21: with them the shop's piece on desktop was killed at its 1350 s - the puzzle alone took 560 s
+  // there). Each of them sets up what it needs itself (its stars, its day, its lever): none needs the shop's blocks.
+  tasks2: {
+    save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
+    friends: [], blocks: ['helpers', 'diff', 'puzzle', 'trade'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
@@ -153,7 +161,7 @@ export const GROUPS = {
 };
 
 /** The groups that together play the whole world: CI plays each of them in each size. */
-export const PIECES = ['world1', 'world2', 'finale', 'shop', 'collect'];
+export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice
