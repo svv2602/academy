@@ -16,8 +16,11 @@ import { BANK, CORE, groupOf, isBank, isVoice, worldGroup, worldOf } from './wor
 /** Bytes, as in docs/15-tech.md (12 MB and 1 MB, decimal - the same unit as tools/assets.mjs). */
 export const MAX_DIST = 12_000_000;
 export const MAX_DIST_FILE = 1_000_000;
-/** The recorded voice of the first load: the clips under dist/voice/, a budget of its own. */
-export const MAX_VOICE = 5_000_000;
+/**
+ * The recorded voice of the first load: the clips under dist/voice/, a budget of its own (4 -> 5 MB 2026-11-18, 5 -> 6 MB
+ * the customer's word of 2026-11-21: the cauldron, the treats, the trade and the puzzle speak in the installation).
+ */
+export const MAX_VOICE = 6_000_000;
 /** A next world: its models and story frames together, and its voice apart (TECH-09). */
 export const MAX_WORLD = 8_000_000;
 export const MAX_WORLD_VOICE = 3_000_000;
