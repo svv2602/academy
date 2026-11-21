@@ -1,6 +1,7 @@
 // The grey build of the forest (WORLD-12): its walkthrough and its measurements.
 //
-//   node tools/forest-grey.mjs [--scales 1.6] [--no-pass] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
+//   node tools/forest-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
+//   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): a look is measured on q2 and q0
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the forest in that mode only (src/worlds/index.ts).
 //    The build must fit the size budget (tools/dist-size.mjs): the forest's own models (models/forest/, from
@@ -32,9 +33,9 @@ import { greyWorldFiles } from './vite-worlds.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';
 
-/** The arguments: { scales, pass, out } or { error }. */
+/** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1.6], pass: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
+  const o = { scales: [1.6], q: 2, pass: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
@@ -43,6 +44,10 @@ export function readArgs(argv) {
       const v = (argv[++i] ?? '').split(',').map(Number);
       if (!v.length || v.some((x) => !(x >= 0.5 && x <= 3))) return { error: '--scales takes numbers 0.5-3, e.g. 1,1.6' };
       o.scales = v;
+    } else if (a === '--q') {
+      const v = Number(argv[++i]);
+      if (![0, 1, 2].includes(v)) return { error: '--q takes 0, 1 or 2' };
+      o.q = v;
     } else if (a === '--out') { const v = argv[++i]; if (!v) return { error: '--out needs a folder' }; o.out = resolve(v); }
     else return { error: `unknown argument "${a}"` };
   }
@@ -79,7 +84,7 @@ export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hyp
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
@@ -127,7 +132,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [];
   try {
-    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out));
+    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
   } finally { await browser.close(); server.close(); }
   writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
   console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`);
@@ -135,12 +140,12 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out) {
+async function measure(browser, url, scale, out, q = 2) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
   await page.addInitScript(() => { for (const k of ['amw-gift-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); });
-  await page.goto(`${url}?debug&q=2&world=forest&scale=${scale}`, { waitUntil: 'networkidle' });
+  await page.goto(`${url}?debug&q=${q}&world=forest&scale=${scale}`, { waitUntil: 'networkidle' });
   await page.waitForSelector('#play', { state: 'visible', timeout: 120000 });
   await page.click('#play');
   await page.waitForFunction(() => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy; }, null, { timeout: 180000, polling: 300 });
