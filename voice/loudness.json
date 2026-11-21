@@ -2474,6 +2474,16 @@
   "tp": -2.1,
   "sha256": "09648870c52abdb2bdfb7e71cc08ec2a695c66952ecdbfce996c011cdec99dca"
  },
+ "public/voice/pet_treat.mp3": {
+  "lufs": -18.06,
+  "tp": -4.81,
+  "sha256": "38d955e6f2216df9a073d7d3eb455ef27e30f4739bea71420a9463a12fbe4671"
+ },
+ "public/voice/pet_trick.mp3": {
+  "lufs": -18.26,
+  "tp": -6.19,
+  "sha256": "2f2aa0b94c7486e103be798eb55f558466046a1bcb55d275410a66830aeaa5c1"
+ },
  "public/voice/praise_0.mp3": {
   "lufs": -18.08,
   "tp": -6.68,
@@ -2618,6 +2628,11 @@
   "lufs": -18.28,
   "tp": -3.02,
   "sha256": "ded81bb95d1b2660edf28f062db14f0ec2a39d82cf94bc64f87662e3155073cd"
+ },
+ "public/voice/sup_rainbow.mp3": {
+  "lufs": -18.04,
+  "tp": -4.02,
+  "sha256": "dd4f7e9213da2e8cc0667a002f176f6e2f6be8235e783e11db3205c1bf397b07"
  },
  "public/voice/sup_speed.mp3": {
   "lufs": -18.0,
