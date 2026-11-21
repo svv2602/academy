@@ -44,7 +44,7 @@ import './hints.css';
 export const SKILL: Record<TaskType, SkillId> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
   pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
-  neighbors: 'series', signs: 'compare', diff: 'attention',
+  neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
 };
 
 /** `helped`: a helper was taken in this task (src/game/helpers.ts): the level does not grow for it. */

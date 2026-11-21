@@ -6,14 +6,14 @@
 import type { Save } from '../core/save';
 
 /** The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory, classify. */
-export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention';
+export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention' | 'assemble';
 /** Every skill, in the order the parents' section lists them. */
-export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention'];
+export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble'];
 /**
  * The skills that are not shown to the grown-ups until a task of theirs is played: attention ("find the differences",
- * LEARN-18) is played from the second world on - a row of zeroes for a child who has not been there says nothing.
+ * LEARN-18) and assembling a picture (the puzzle, LEARN-19) are played from the second world on - a row of zeroes for a child who has not been there says nothing.
  */
-export const LATE_SKILLS: readonly SkillId[] = ['attention'];
+export const LATE_SKILLS: readonly SkillId[] = ['attention', 'assemble'];
 /** The skills to show for this save: every one, but a late one with no task played yet. */
 export const shownSkills = (s: Save): SkillId[] => SKILLS.filter((k) => !LATE_SKILLS.includes(k) || (s.skills[k]?.tasks ?? 0) > 0);
 /** The counters of one skill, as the save keeps them. */
@@ -25,7 +25,7 @@ export type SkillStat = Save['skills'][string];
  */
 export const LEVELS: Readonly<Record<SkillId, readonly [min: number, max: number]>> = {
   count: [1, 5], add: [1, 5], sub: [1, 5], compare: [1, 5], series: [1, 5],
-  pattern: [1, 5], memory: [1, 5], classify: [1, 5], compose: [3, 5], attention: [1, 5],
+  pattern: [1, 5], memory: [1, 5], classify: [1, 5], compose: [3, 5], attention: [1, 5], assemble: [1, 5],
 };
 
 /**
