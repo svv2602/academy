@@ -48,10 +48,8 @@ describe('under water (src/game/water.ts): the cat in its bubble, her bubbles, t
     expect(w.bubbles.count).toBe(0);
   });
 
-  it('the cat is carried at her height only with ?debug&catfloat=1 in a water world (the customer\'s choice of two pictures)', () => {
-    expect(catLift(game(true), '?debug&catfloat=1')).toBe(0.6);
-    expect(catLift(game(true), '?debug')).toBe(0);
-    expect(catLift(game(false), '?debug&catfloat=1')).toBe(0);
-    expect(catLift({ ...game(true), debug: false }, '?catfloat=1')).toBe(0);
+  it('the cat is carried at her swimming height in a water world (the customer\'s choice of 2026-11-21), on the ground on land', () => {
+    expect(catLift(game(true))).toBe(0.6);
+    expect(catLift(game(false))).toBe(0);
   });
 });

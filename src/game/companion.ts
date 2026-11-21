@@ -40,7 +40,7 @@ export function createCompanion(g: Game): { update(dt: number): void } {
         cat.face(hero.heading, dt, 4);
       }
       if (g.busy) moving = '';
-      cp.y = groundY(cp.x, cp.z) + catLift(g);   // under water in its bubble: on the floor, or carried at her height (src/game/water.ts)
+      cp.y = groundY(cp.x, cp.z) + catLift(g);   // under water in its bubble, carried at her height (src/game/water.ts)
     },
   };
 }
