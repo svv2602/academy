@@ -34,7 +34,7 @@ export function dailyOf(world: { daily?: DailyDef; collect?: CollectDef }, ws: P
   return { kind: kinds[n % kinds.length], x: at.x, z: at.z };
 }
 
-export type DailyHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'groundY' | 'hero' | 'sparks' | 'persist'>;
+export type DailyHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'groundY' | 'hero' | 'sparks' | 'persist' | 'speech'>;
 
 /**
  * The find of the day in the scene: one mesh of the kind's shape (`shapeOf`, `size`, `material` - those of the finds,
@@ -67,6 +67,7 @@ export function createDaily(g: DailyHost, shapeOf: (kind: CollectKind) => THREE.
         sfx('good');
         g.sparks.burst(pos.clone(), '#fff6c8', 26, 3);
         g.persist();
+        void g.speech.line('daily_find', 'hint', 4000);
         drop();
       }
     },

@@ -37,7 +37,7 @@ describe('in the scene', () => {
     const save = defaultSave(), ws = worldState(save, 'fairy');
     const g = {
       scene: new THREE.Scene(), save, ws, world: WORLD, groundY: () => 0,
-      hero: { root: new THREE.Object3D() }, sparks: { burst: vi.fn() }, persist: vi.fn(),
+      hero: { root: new THREE.Object3D() }, sparks: { burst: vi.fn() }, persist: vi.fn(), speech: { line: vi.fn(async () => {}) },
     };
     return g;
   }
@@ -55,6 +55,7 @@ describe('in the scene', () => {
     d.update(0.016, 0, true);
     expect(g.save.stash).toEqual({ [at.kind]: 1 });
     expect(g.ws.daily).toBe('2026-11-21');
+    expect(g.speech.line).toHaveBeenCalledWith('daily_find', 'hint', 4000);
     expect(g.ws.found).toBeUndefined();
     expect(d.at()).toBeNull();
     expect(g.scene.getObjectByName('daily-find')).toBeUndefined();

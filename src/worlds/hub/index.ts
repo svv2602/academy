@@ -169,7 +169,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   // the cauldron by the roots (PLAY-26, ./cauldron-look.ts): drawn in the keepsakes' call, walked round, brewed at
   ground.block(CAULDRON.x, CAULDRON.z, CAULDRON.r);
   const cauldronAt = new THREE.Vector3(CAULDRON.x, 0, CAULDRON.z);
-  const openPot = () => openCauldron({ save, persist: () => g.persist(), pause: (v) => { g.paused = v; if (v) g.speech.caption(null); } });
+  const openPot = () => openCauldron({ save, persist: () => g.persist(), pause: (v) => { g.paused = v; if (v) g.speech.caption(null); }, say: (k) => { void g.speech.line(k, 'hint', 5000); } });
   // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
   scope.own(steerPet(ringPlay(stumpAt(), () => g.hero.root.position, () => g.busy)));
   // the pet's shadow: none on the fourth stage (the budget of 80 draw calls), a spot under it instead (./pet-shadow.ts)
