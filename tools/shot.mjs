@@ -3502,6 +3502,7 @@ try {
         // 5. the gift in the shop: the cap hers, the crown of feathers "від жителя", no "buy" under it
         await page.click('#btnBook'); await calm(); await tap('#btnShop'); await calm();
         await tap('#shopTabs [data-tab=head]'); await calm();
+        const wornHead = await g(() => __game.save.gear.head);   // what she wears: put back, the block leave checks it after a reload
         const tiles = await g(() => Object.fromEntries(['acorn_cap', 'feather_crown'].map((id) => [id, document.querySelector(`#shopItems [data-id=${id}]`)?.textContent ?? null])));
         if (tiles.acorn_cap === null || /жителя/.test(tiles.acorn_cap)) fail(`the acorn cap in the shop: ${JSON.stringify(tiles.acorn_cap)}, expected hers`);
         if (!/від жителя|от жителя/.test(tiles.feather_crown ?? '')) fail(`the crown of feathers in the shop: ${JSON.stringify(tiles.feather_crown)}, expected "від жителя"`);
@@ -3510,6 +3511,8 @@ try {
         await tap('#shopItems [data-id=acorn_cap]'); await calm();
         if ((await g(() => __game.gear.get('head'))) !== 'acorn_cap') fail('the acorn cap is not worn after a tap on it');
         await shot('trade-shop');
+        await tap(`#shopItems [data-id=${wornHead ?? 'none'}]`); await calm();
+        if ((await g(() => __game.save.gear.head)) !== wornHead) fail(`the hat she wore (${wornHead}) did not come back on`);
         await tap('#shopDone'); await calm();
         await g(() => __game.trade.day(null));
         console.log(`trade: on ${day} the fox took 3 of 9 acorns for its cap (6 left), once a day; "not now" spent nothing and kept the ask; with no finds «Обміняти» off; "goodbye" did nothing; the cap hers in the shop, the crown of feathers "від жителя" with no "buy"${hub ? '' : '; no far ask with the hub closed'}`);
