@@ -8,7 +8,8 @@ import type { Save } from '../../core/save';
 import type { ArtifactWorld } from '../../game/artifacts';
 import { itemsOf } from '../../game/collections';
 import { COLLECT } from '../fairy/collect';
-import { KEEPSAKES_PER_WORLD, KEEPSAKE_BUDGET, keepsakeGeometry, keepsakesOf, type Keepsake } from './keepsakes';
+import { buildNestLook } from './arch-look';
+import { KEEPSAKES_PER_WORLD, KEEPSAKE_BUDGET, KEEPSAKE_GLOW, buildKeepsakes, keepsakeGeometry, keepsakesOf, type Keepsake } from './keepsakes';
 import { NESTS } from './layout';
 import { barkRadius, treeHollow } from './tree-look';
 
@@ -58,6 +59,28 @@ describe('how they hang on the Tree', () => {
     const g = keepsakeGeometry(ALL, WORLDS)!;
     expect(triangles(g)).toBeLessThanOrEqual(KEEPSAKE_BUDGET.triangles);
     expect(g.getAttribute('color')).toBeTruthy();
+  });
+
+  it('drawn in the nests\' mesh: no draw call of their own; they glow, the nests not', () => {
+    const save = saveOf({ fairy: { flags: { chest: true, glade: true, house: true }, found: COLLECT.items.map((_, i) => i) } });
+    const look = (extra: THREE.BufferGeometry[]) => {
+      const scene = new THREE.Scene(), l = buildNestLook(scene, { crystal: new THREE.OctahedronGeometry(0.3, 0) }, extra);
+      let meshes = 0;
+      scene.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
+      return { meshes, geo: l.nestMesh.geometry };
+    };
+    const kept = buildKeepsakes(save, WORLDS);
+    expect(kept.list).toHaveLength(7);
+    const keptTris = triangles(kept.geometry!);
+    const bare = look([]), full = look([kept.geometry!]);
+    expect(full.meshes).toBe(bare.meshes);
+    expect(triangles(full.geo)).toBe(triangles(bare.geo) + keptTris);
+    expect(bare.geo.getAttribute('glow')).toBeUndefined();
+    const glow = full.geo.getAttribute('glow');
+    const lit = Array.from({ length: glow.count }, (_, i) => glow.getX(i)).filter((v) => v > 0);
+    expect(lit).toHaveLength(keptTris * 3);
+    expect(new Set(lit)).toEqual(new Set([Math.fround(KEEPSAKE_GLOW)]));
+    expect(buildKeepsakes(saveOf({}), WORLDS)).toEqual({ geometry: null, list: [] });
   });
 
   it('each shows something of its own, and nothing for none', () => {

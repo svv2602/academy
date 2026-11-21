@@ -565,8 +565,25 @@ function starShape(): THREE.BufferGeometry {
 
 /** The nests on the trunk, one per shelf, each with the artifact of its world - the crystal's is Crystal2. */
 /**
+ * The nests' material: vertex colours; with `glow` a vertex adds its own colour times its `glow` to the light (the
+ * keepsakes, ./keepsakes.ts), and the whole dissolves at the lens with the trunk it sits on (`fadeAtCamera`).
+ */
+export function nestMaterial(glow: boolean): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true, side: glow ? THREE.DoubleSide : THREE.FrontSide });
+  if (!glow) return m;
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float glow;\nvarying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = glow;');
+    sh.fragmentShader = 'varying float vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * vGlow;');
+    fadeAtCamera(sh);
+  };
+  m.customProgramCacheKey = () => 'nest|glow|fade';
+  return m;
+}
+
+/**
  * `extra`: what else by the Tree is drawn in the nests' call - it is there in every hub, so a thing in it costs no call
- * of its own (the cauldron, PLAY-26: the hub is at its 80 calls on the fourth stage with the pet).
+ * of its own (the cauldron, PLAY-26, and the keepsakes, ./keepsakes.ts: the hub is at its 80 calls on the fourth stage
+ * with the pet). A part with a `glow` attribute glows by its own colour (`nestMaterial`).
  */
 export function buildNestLook(scene: THREE.Scene, loads: ArchLoads, extra: readonly THREE.BufferGeometry[] = []) {
   const rnd = seeded(4242), twigs: THREE.BufferGeometry[] = [], dir = new THREE.Vector3();
@@ -609,9 +626,13 @@ export function buildNestLook(scene: THREE.Scene, loads: ArchLoads, extra: reado
     };
   });
   twigs.push(...extra);
+  // what glows by its own colour (the keepsakes) brings its `glow`; the rest glows not
+  if (twigs.some((g) => g.getAttribute('glow'))) {
+    for (const g of twigs) if (!g.getAttribute('glow')) g.setAttribute('glow', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count), 1));
+  }
   const nestGeo = mergeGeometries(twigs, false)!;
   for (const g of twigs) g.dispose();
-  const nestMesh = new THREE.Mesh(nestGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
+  const nestMesh = new THREE.Mesh(nestGeo, nestMaterial(!!nestGeo.getAttribute('glow')));
   nestMesh.castShadow = true; nestMesh.receiveShadow = true;
   scene.add(nestMesh);
   return {
