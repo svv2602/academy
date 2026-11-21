@@ -39,6 +39,7 @@ export const BLOCKS = [
   'potions',        // the potions and the compass: bought, drunk by one tap, the time stands with the game, the end
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
   'diff',           // find the differences (LEARN-18): two pictures drawn, a miss counts nothing, every difference found by a real touch, no leak
+  'puzzle',         // the puzzle (LEARN-19): the pieces show the picture, a wrong drop goes back, turned by touches, every piece dragged for real onto its cell, no leak
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
   'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop
@@ -141,7 +142,7 @@ export const GROUPS = {
   // pieces take about the same time.
   shop: {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
-    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'diff', 'deal', 'pet-gear', 'trade', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
+    friends: [], blocks: ['heroine', 'book', 'shop', 'potions', 'helpers', 'diff', 'puzzle', 'deal', 'pet-gear', 'trade', 'shop-sign', 'achievements', 'break', 'welcome', 'leave', 'looks'], ach: [...ACH_BASE, 'first_artifact'],
   },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
