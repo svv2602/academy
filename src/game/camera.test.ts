@@ -8,7 +8,7 @@ import type { Game } from './context';
 function game(water = false) {
   const g = {
     hero: { root: new THREE.Object3D(), heading: 0 },
-    cam: { yaw: 0, pitch: 0.36, dist: 6, target: new THREE.Vector3(0, 1.5, 0), focus: null },
+    cam: { yaw: 0, pitch: 0.36, dist: 6, target: new THREE.Vector3(0, 1.5, 0), focus: null as THREE.Vector3 | null },
     camera: new THREE.PerspectiveCamera(50, 844 / 390, 0.1, 500),
     groundY: () => 0, started: () => true, camTask: null, camOverride: null, camPitchMin: null,
     world: { move: water ? { kind: 'swim', height: 0.6 } : undefined },
@@ -30,6 +30,43 @@ describe('the camera behind the heroine (ARCH-05): the same however many frames 
       expect(slow.pos.distanceTo(fast.pos), `water ${water}`).toBeLessThan(0.02);
       expect(Math.abs(slow.pitch - fast.pitch), `water ${water}`).toBeLessThan(0.002);
     }
+  });
+});
+
+/**
+ * Every other way the camera moves, at 20 frames a second (the slowest the loop hands on whole: src/game/loop.ts cuts dt
+ * at 0.05 s, below that the game's time itself runs slower) and at 144: after the same game time, the same camera.
+ */
+describe('the camera of a task, of a conversation and of her walking: the same at 20 and at 144 frames a second', () => {
+  const run = (setup: (g: Game & ReturnType<typeof game>) => void, dt: number, seconds: number, mag = 0) => {
+    const g = game();
+    const c = createCamera(g, () => 6.5);
+    setup(g);
+    // whole frames: 0.5 s is 10 frames at 20 a second and 72 at 144
+    for (let i = 0, n = Math.round(seconds / dt); i < n; i++) { c.look(); c.update(dt, i * dt, mag); }
+    return { pos: g.camera.position.clone(), yaw: g.cam.yaw, pitch: g.cam.pitch, dist: g.cam.dist };
+  };
+  const same = (setup: Parameters<typeof run>[0], seconds: number, mag = 0) => {
+    const slow = run(setup, 1 / 20, seconds, mag), fast = run(setup, 1 / 144, seconds, mag);
+    // and it did move: a test of a camera standing still would hold whatever the frames
+    const start = run(setup, 1 / 144, 0, mag);
+    expect(Math.abs(fast.yaw - start.yaw) + fast.pos.distanceTo(start.pos)).toBeGreaterThan(0.3);
+    expect(slow.pos.distanceTo(fast.pos)).toBeLessThan(0.03);
+    expect(Math.abs(slow.yaw - fast.yaw)).toBeLessThan(0.005);
+    expect(Math.abs(slow.pitch - fast.pitch)).toBeLessThan(0.002);
+    expect(Math.abs(slow.dist - fast.dist)).toBeLessThan(0.01);
+  };
+
+  it('glides to the frame of a task in the world (g.camTask): its spot, turn, tilt and distance', () => {
+    same((g) => { g.camTask = { target: new THREE.Vector3(2, 0.5, -3), yaw: 2.2, pitch: 1.0, dist: 9, catAt: new THREE.Vector3() } as never; }, 0.5);
+  });
+
+  it('turns to a conversation (cam.focus) and comes nearer', () => {
+    same((g) => { g.cam.focus = new THREE.Vector3(-2, 1, 4); g.hero.root.position.set(1, 0, 1); }, 0.5);
+  });
+
+  it('swings behind her while she walks with the stick, turned away from it', () => {
+    same((g) => { g.hero.heading = Math.PI / 2; }, 1.5, 1);
   });
 });
 

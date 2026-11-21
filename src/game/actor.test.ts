@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { shadowFromBody } from './actor';
+import { Actor, shadowFromBody } from './actor';
 
 /** A part of `tris` triangles (unindexed), casting a shadow. */
 const part = (name: string, tris: number) => {
@@ -31,5 +31,20 @@ describe('shadowFromBody', () => {
     root.add(...parts);
     shadowFromBody(root);
     expect(parts.filter((m) => m.castShadow).map((m) => m.name)).toEqual(['c']);
+  });
+});
+
+/** Her turn to where she walks (`Actor.face`, by 1 - e^(-k dt)): after the same game time the same heading at 20 and 144 frames a second. */
+describe('Actor.face', () => {
+  const turned = (dt: number, seconds: number) => {
+    const a = { heading: 0, root: new THREE.Object3D() };
+    for (let i = 0, n = Math.round(seconds / dt); i < n; i++) Actor.prototype.face.call(a as unknown as Actor, 2.5, dt);
+    return a.heading;
+  };
+  it('turns the same way whatever the frames', () => {
+    const slow = turned(1 / 20, 0.25), fast = turned(1 / 144, 0.25);
+    expect(fast).toBeGreaterThan(1);   // it did turn, and not all the way yet
+    expect(fast).toBeLessThan(2.45);
+    expect(Math.abs(slow - fast)).toBeLessThan(0.002);
   });
 });
