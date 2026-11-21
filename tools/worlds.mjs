@@ -949,8 +949,28 @@ async function hubScenarios({ url, shots, fail: report }) {
       page.on('response', (r) => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
       const g = (fn, arg) => page.evaluate(fn, arg);
       const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); }); /* clock: helper */
-      /** `s` seconds of game time (the camera of a held point settles by it). */
-      const gameSeconds = async (sec) => { const t0 = await g(() => __game.time); await until((t) => __game.time > t, t0 + sec, 'the game stopped'); };
+      /**
+       * `s` seconds of game time (the camera of a held point settles by it). The game's time runs at most 0.05 s a frame
+       * (src/game/loop.ts): on the runners' software rendering, about a frame a second, a game second is some 20 s.
+       * Not reached - what held the game is told: its flags, the cards and scenes on screen, how far its time went.
+       */
+      const gameSeconds = async (sec) => {
+        const t0 = await g(() => { window.__frames = 0; const f = () => { window.__frames++; requestAnimationFrame(f); }; requestAnimationFrame(f); return __game.time; });
+        const started = Date.now(); /* clock: log-time */
+        await page.waitForFunction((t) => __game.time > t, t0 + sec, { timeout: T(Math.max(60000, sec * 30000)) }).catch(async () => { /* clock: helper */
+          const held = await g(() => {
+            const shown = (id) => { const e = document.getElementById(id); return !!e && !e.classList.contains('hidden'); };
+            const G = __game, why = ['busy', 'paused', 'still', 'transitioning', 'dark'].filter((k) => G[k] === true);
+            for (const id of ['fanfare', 'task', 'cauldron', 'reload']) if (shown(id)) why.push(`#${id} shown`);
+            if (G.story?.active) why.push('a story plays');
+            if (G.flyoverPlayer?.active) why.push('a tour flies');
+            if (document.hidden) why.push('the page hidden');
+            return { why, time: G.time, frames: window.__frames };
+          });
+          const s = (Date.now() - started) / 1000; /* clock: log-time */
+          throw new Error(`${name}: the game stopped: ${held.why.join(', ') || 'nothing held it'}; its time went ${(held.time - t0).toFixed(2)} s of ${sec} in ${s.toFixed(0)} s, ${held.frames} frames`);
+        });
+      };
       /** "Play"; the scenes of a start (a cutscene, the tour of the first world, an achievement) are left to `keepTour`. */
       const play = async (keepTour) => {
         await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) }); /* clock: page-load */
@@ -1227,7 +1247,8 @@ async function hubScenarios({ url, shots, fail: report }) {
           return !card && !__game.busy && !__game.paused;
         }, null, 'the cards of the achievements did not close');
         await p.g(() => { const g = __game; g.teleport(0, 6.5); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; });
-        await p.gameSeconds(3);
+        // a game second (20 frames at least): the camera has come to her, the pet after her; the count is of that frame
+        await p.gameSeconds(1);
         const n = await p.g(() => __game.renderer.info.render.calls);
         calls.push(`stage ${stage}: ${n}`);
         if (n > 80) fail(`budget: stage ${stage} with the fawn and every keepsake, q2: ${n} draw calls at the arrival, more than 80`);
