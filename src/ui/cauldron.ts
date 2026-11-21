@@ -8,11 +8,12 @@
 import type { Save } from '../core/save';
 import { COLLECT_KINDS, type CollectKind } from '../game/collections';
 import { brewReady, finishBrew, kindsOfRecipe, putIn, shownRecipes, startBrew, stillToPut, type Brew, type Recipe } from '../game/cauldron';
-import { inStash } from '../game/stash';
+import { canSpend, inStash, type Need } from '../game/stash';
 import { SUPPLY_LOOK } from './supplies';
 import './cauldron.css';
 
-export interface CauldronHooks { save: Save; persist(): void; pause(on: boolean): void; done?(recipe: Recipe): void }
+/** `say`: the cat's line (g.speech): on opening, on a recipe she has not finds enough for, on a potion done. */
+export interface CauldronHooks { save: Save; persist(): void; pause(on: boolean): void; say?(key: 'cauldron_hi' | 'cauldron_more' | 'cauldron_done'): void; done?(recipe: Recipe): void }
 
 const make = (tag: string, cls = '', text = '') => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
 
@@ -50,7 +51,11 @@ export function openCauldron(h: CauldronHooks): void {
         b.appendChild(n);
       }
       b.appendChild(make('span', 'gives', SUPPLY_LOOK[r.gives].icon));
-      b.addEventListener('pointerdown', (e) => { e.preventDefault(); brew = startBrew(r); cauldronState.brew = brew; pot.className = 'cd-pot'; pot.textContent = ''; draw(); });
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); brew = startBrew(r); cauldronState.brew = brew; pot.className = 'cd-pot'; pot.textContent = '';
+        if (!canSpend(h.save, r.need as Need)) h.say?.('cauldron_more');
+        draw();
+      });
       list.appendChild(b);
     }
     stash.innerHTML = '';
@@ -67,7 +72,7 @@ export function openCauldron(h: CauldronHooks): void {
         if (brewReady(brew) && finishBrew(h.save, brew)) {
           const r = brew.recipe;
           pot.classList.add('done'); pot.textContent = SUPPLY_LOOK[r.gives].icon;
-          h.persist(); h.done?.(r);
+          h.persist(); h.say?.('cauldron_done'); h.done?.(r);
           brew = startBrew(r); cauldronState.brew = brew;
         }
         draw();
@@ -76,6 +81,7 @@ export function openCauldron(h: CauldronHooks): void {
     }
   };
   draw();
+  h.say?.('cauldron_hi');
   close.addEventListener('click', () => {
     root!.className = 'hidden'; root!.innerHTML = '';
     cauldronState.open = false; cauldronState.brew = null;
