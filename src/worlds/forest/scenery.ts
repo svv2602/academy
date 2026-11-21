@@ -1,7 +1,27 @@
 import * as THREE from 'three';
+import { staticGeo } from '../../core/assets';
+import { instanced } from '../../core/instancing';
+import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
+
+/**
+ * The trees of the forest (plan A of its look, 2026-11-21): models of the core (nature_pack, Quaternius CC0 - their
+ * weight is the core's already, nothing new is downloaded), each kind merged into one geometry of flat colours
+ * (`staticGeo`) and drawn as instances by ground cells: one draw call a kind and a cell. The grove's are the same
+ * leafy trees with their leaves orange (its accent, WORLD-10).
+ */
+/** The leafy tree and the spruce (a third of the trees: the spruce has a half more triangles). */
+export const TREE_KINDS = [['nature_pack/CommonTree_4', 7], ['nature_pack/PineTree_1', 8.5]] as const;
+/** The leaves of an evening forest, deeper than the packs' spring green; the grove's orange (its accent). */
+const LEAVES: readonly Record<string, string>[] = [{ Green: '#4f8a4a', DarkGreen: '#3c7442' }, { Green: '#2f6b4c' }];
+const GROVE_LEAVES = { Green: '#e8913a', DarkGreen: '#d4731f' };
+export interface Flora { trees: THREE.BufferGeometry[]; grove: THREE.BufferGeometry }
+export async function loadFlora(): Promise<Flora> {
+  const [trees, grove] = await Promise.all([Promise.all(TREE_KINDS.map(([p, h], k) => staticGeo(p, h, LEAVES[k]))), staticGeo('nature_pack/CommonTree_4', 7, GROVE_LEAVES)]);
+  return { trees, grove };
+}
 
 /**
  * The forest of the grey build in simple shapes at their real sizes (WORLD-12): trees as a trunk and a crown, the
@@ -25,6 +45,14 @@ export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
   return [from, { x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k }];
 });
 
+/**
+ * m² of the map a tree: 60 in the grey build (its trees a trunk and a crown, a few dozen triangles); 90 with the models
+ * (2026-11-21: at 60 the frame from the central glade had 807 thousand triangles, over the 650 of TECH-06).
+ */
+export const TREE_AREA = 90;
+/** m: only the cells of trees whose middle is within this and their radius of her cast a shadow (the sun's shadow covers ±26 m round her). */
+export const TREE_SHADOW = 12;
+
 /** A placed thing: where, how big, turned how. */
 interface Put { x: number; z: number; s: number; rot?: number }
 
@@ -38,8 +66,8 @@ export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   const clear = (x: number, z: number) => pathDist(x, z) > 3.5 && lineDist(TRACKS, x, z) > CLEARING && sights.every((l) => lineDist(l, x, z) > SIGHT) && streamDist(x, z) > STREAM_HALF + 2
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > 8) && Math.hypot(OWL_TREE.x - x, OWL_TREE.z - z) > 5
     && !inMaze(x, z, 1.5) && Math.hypot(ALTAR.x - x, ALTAR.z - z) > 9;
-  // about one tree on 60 m² of the map: the density stays the same whatever the stretch of the map
-  const want = Math.round((Math.PI * HALF * HALF) / 60);
+  // about one tree on TREE_AREA m² of the map: the density stays the same whatever the stretch of the map
+  const want = Math.round((Math.PI * HALF * HALF) / TREE_AREA);
   for (let tries = 0; trees.length < want && tries < want * 40; tries++) {
     const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (HALF - 3), x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (!clear(x, z) || trees.some((t) => Math.hypot(t.x - x, t.z - z) < 3.2)) continue;
@@ -83,18 +111,24 @@ function instances(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, 
 }
 
 /** The forest in the scene, and its colliders. */
-export function buildScenery(scene: THREE.Scene) {
+export function buildScenery(scene: THREE.Scene, flora: Flora) {
   const { trees, rim } = placeTrees();
   for (const t of trees) colliders.push({ x: t.x, z: t.z, r: 0.45 * t.s });
-  // leafy trees and spruces alternate; the grove's crowns are orange
+  // the kinds of trees mixed; the grove's are orange and taller than the forest's: their crowns are its landmark (WORLD-10)
   const grove = (t: Put) => Math.hypot(t.x - ZONES.grove.x, t.z - ZONES.grove.z) < 16 * SCALE;
-  const leafy = trees.filter((t, i) => i % 3 !== 0), spruce = trees.filter((t, i) => i % 3 === 0);
-  instances(scene, 'trunks', new THREE.CylinderGeometry(0.28, 0.4, 4, 6).translate(0, 2, 0), mat('#7a5a3e'), [...leafy, ...spruce].map((t) => (grove(t) ? { ...t, s: t.s * 1.35 } : t)));
-  instances(scene, 'crowns', new THREE.IcosahedronGeometry(2.3, 0).translate(0, 5.2, 0), mat('#4f8a4a'), leafy.filter((t) => !grove(t)));
-  // the grove's trees are taller than the forest's: their orange crowns are its landmark (WORLD-10)
-  const groveTall = [...leafy, ...spruce].filter(grove).map((t) => ({ ...t, s: t.s * 1.35 }));
-  instances(scene, 'crowns-grove', new THREE.IcosahedronGeometry(2.3, 0).translate(0, 5.2, 0), mat('#e8913a'), groveTall);
-  instances(scene, 'spruces', new THREE.ConeGeometry(2, 6.5, 7).translate(0, 5, 0), mat('#2f6b4c'), spruce.filter((t) => !grove(t)));
+  const treeMat = propMaterial(0.0035);
+  // a tree between the camera and her, or at the lens, is looked through (src/core/materials.ts fadeAtCamera)
+  const sway = treeMat.onBeforeCompile.bind(treeMat);
+  treeMat.onBeforeCompile = (sh, r) => { sway(sh, r); fadeAtCamera(sh); };
+  treeMat.customProgramCacheKey = () => 'forest-tree|sway|fade';
+  const at = (t: Put) => ({ x: t.x, z: t.z, s: t.s, rot: t.rot ?? 0 });
+  const cells = flora.trees.flatMap((geo, k) => instanced(scene, height, geo, treeMat, trees.filter((t, i) => !grove(t) && (i % 3 === 0 ? 1 : 0) === k).map(at), true)
+    .map((c) => { c.mesh.name = `trees-${k}`; return c.mesh; }));
+  cells.push(...instanced(scene, height, flora.grove, treeMat, trees.filter(grove).map((t) => at({ ...t, s: t.s * 1.35 })), true).map((c) => { c.mesh.name = 'trees-grove'; return c.mesh; }));
+  /** Every frame: a cell of trees casts its shadow only while its middle is within TREE_SHADOW m (and its own radius) of her. */
+  const shadows = (x: number, z: number) => {
+    for (const m of cells) { const b = m.boundingSphere!; m.castShadow = Math.hypot(b.center.x - x, b.center.z - z) < TREE_SHADOW + b.radius; }
+  };
   instances(scene, 'rim', new THREE.ConeGeometry(2.4, 9, 6).translate(0, 4.2, 0), mat('#2c5a46'), rim, 0, false);
 
   // the gnomes' village: five mushroom houses round its middle
@@ -197,5 +231,5 @@ export function buildScenery(scene: THREE.Scene) {
   const altar = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.2, 16), mat('#c9e8c0', { emissive: '#6fd06a', emissiveIntensity: 0.4 }));
   altar.position.set(ALTAR.x, height(ALTAR.x, ALTAR.z) + 0.1, ALTAR.z);
   scene.add(altar);
-  return { trees, oak, stream };
+  return { trees, oak, stream, shadows };
 }
