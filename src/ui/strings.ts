@@ -500,7 +500,7 @@ export function recordable(key: string, text: string): string {
 export type RecordingRow = [text: string, style: VoiceStyle, speaker: string] | [text: string, style: VoiceStyle, speaker: string, world: string];
 export function recordingList(
   worlds: readonly WorldStrings[], bank: SpokenTable,
-  casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[] }[],
+  casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[]; only?: readonly string[] }[],
   first: string,
 ): Record<string, RecordingRow> {
   const list: Record<string, RecordingRow> = {};
@@ -536,6 +536,8 @@ export function recordingList(
   add('the bank', bank.table.uk, bank.spoken);
   // The lines said in a voice of their own: key -> voice -> the first character of a table with that voice.
   const voiced = new Map<string, Map<string, string>>();
+  // The lines only the characters ever say (`only` of a table): the narrator's clip of the same key is not listed.
+  const alone = new Set<string>();
   for (const c of casts) {
     const world = worlds.find((w) => w.id === c.id);
     if (!world) throw new Error(`the voices of world "${c.id}": there is no such world`);
@@ -546,21 +548,31 @@ export function recordingList(
     };
     // `!<key>` takes a line back from the rules before it (a line of the prefix the narrator says).
     const not = new Set(c.voiced.filter((r) => r.startsWith('!')).flatMap((r) => lines(r.slice(1))));
+    const ownOf = (who: string) => Object.keys(world.spoken).filter((s) => s.startsWith(`${who}_`));
+    const characters = Object.keys(c.cast).filter((who) => who !== c.narrator);
     for (const rule of c.voiced.filter((r) => !r.startsWith('!'))) {
       const shared = rule === 'own' ? [] : lines(rule).filter((k) => !not.has(k));
-      for (const [who, ch] of Object.entries(c.cast)) {
-        if (who === c.narrator) continue;
-        for (const k of rule === 'own' ? Object.keys(world.spoken).filter((s) => s.startsWith(`${who}_`)) : shared) {
+      for (const who of characters) {
+        for (const k of rule === 'own' ? ownOf(who) : shared) {
           const by = voiced.get(k) ?? new Map<string, string>();
-          if (!by.has(ch.voice)) by.set(ch.voice, who);
+          if (!by.has(c.cast[who].voice)) by.set(c.cast[who].voice, who);
           voiced.set(k, by);
         }
+      }
+    }
+    // `only`: the same rules ('own', a key, a prefix with `*`); each line of it must be said in a voice of its own.
+    for (const rule of c.only ?? []) {
+      for (const k of rule === 'own' ? characters.flatMap(ownOf) : lines(rule)) {
+        if (![...(voiced.get(k)?.keys() ?? [])].some((v) => v !== narratorVoice)) {
+          throw new Error(`the voices of world "${c.id}": "${k}" of \`only\` is said in no voice of a character - it would have no clip at all`);
+        }
+        alone.add(k);
       }
     }
   }
   const out: Record<string, RecordingRow> = {};
   for (const [k, row] of Object.entries(list)) {
-    out[k] = row;
+    if (!alone.has(k)) out[k] = row;
     // A line in the voice of a character belongs where the line itself does: the world's voice, or the core's.
     const world = row[3];
     for (const [voice, who] of voiced.get(k) ?? []) if (voice !== narratorVoice) out[`${k}@${voice}`] = world === undefined ? [row[0], row[1], who] : [row[0], row[1], who, world];

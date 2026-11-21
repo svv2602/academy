@@ -357,6 +357,11 @@ def main():
     if only:
         # A name of a clip, or a plain key: the keys are one set for the whole game, so a key names one line (R75).
         only = [o if o in lines or o not in phrases else clip_name(o, phrases[o]) for o in only]
+        # A key only the characters say (`only` of src/worlds/<id>/voices.ts) has no line of the narrator: it names the
+        # lines in their voices.
+        def voices_of(o):
+            return [cid for cid in lines if cid.startswith(o + '@')]
+        only = [v for o in only for v in ([o] if o in lines or '@' in o or not voices_of(o) else voices_of(o))]
         unknown = sorted(set(only) - set(lines))
         if unknown:
             # A key under another world's name: say what the line is called.

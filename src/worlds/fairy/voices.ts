@@ -28,6 +28,17 @@ export const voices = {
    * src/game/context.ts). `t_stars_back` is the cat's hint after the star search (star-search.ts), not the deer's.
    */
   voiced: ['own', 'npc_next', 'npc_again', 'npc_done', 't_*', '!t_stars_back'] as string[],
+  /**
+   * Of the lines above, those only the characters of this world ever say, each in its own voice: the narrator's clip
+   * of the same key is never played (src/core/voice.ts `clipFor`), so it is not recorded and not installed. The same
+   * rules as `voiced`. Decision of 2026-11-21 (the voice of the core under 6 MB): the greetings, the trades and the hints
+   * of the parts (`'own'`, src/game/dialogue.ts, parts.ts), the thanks for a shard (`npc_done`, said only as this world's
+   * `partGiven`) and the deer's star search (`t_stars`, star-search.ts). Not here: `npc_next`, `npc_again` and the
+   * other questions of the tasks - the cat asks them himself (the mysterious stars) and the characters of the next
+   * worlds, who have no clip in their own voice, say them with his. Should the narrator say a line of this list after
+   * all, it has no clip: the synthesizer says it, and the walkthrough fails ("lines left to the synthesizer").
+   */
+  only: ['own', 'npc_done', 't_stars'] as string[],
 } as const satisfies {
-  id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[];
+  id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[]; only?: readonly string[];
 };
