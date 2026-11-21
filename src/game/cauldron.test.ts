@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
 import { RECIPES, brewReady, finishBrew, putIn, shownRecipes, startBrew, stillToPut, type Recipe } from './cauldron';
-import { STOCK_MAX } from './shop';
+import { STOCK_MAX, SUPPLIES } from './shop';
+import { acting, drink } from './supplies';
 import { addToStash } from './stash';
 
 const world = { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
@@ -10,8 +11,10 @@ const save = (worlds: string[]): Save => { const s = defaultSave(); s.worlds = O
 const JUMP = RECIPES.find((r) => r.id === 'jump')!;
 
 describe('which recipes she sees', () => {
-  it('every potion of the shop from the finds of the fairy world, 3 or 4 finds each', () => {
-    expect(RECIPES.map((r) => r.gives).sort()).toEqual(['compass', 'funny', 'glow', 'jump', 'speed']);
+  it('every potion of the shop from the finds of the fairy world, and the rainbow from two worlds; 3 or 4 finds each', () => {
+    expect(RECIPES.map((r) => r.gives).sort()).toEqual(['compass', 'funny', 'glow', 'jump', 'rainbow', 'speed']);
+    const RAINBOW = RECIPES.find((r) => r.gives === 'rainbow')!;
+    expect(Object.keys(RAINBOW.need)).toContain('treefeather');      // the feather of the Great Tree: the hub
     for (const r of RECIPES) { const n = Object.values(r.need).reduce((a, b) => a + (b ?? 0), 0); expect(n).toBeGreaterThanOrEqual(3); expect(n).toBeLessThanOrEqual(4); }
   });
 
@@ -20,7 +23,9 @@ describe('which recipes she sees', () => {
     expect(shownRecipes(save([]), [mixed, JUMP])).toEqual([]);
     expect(shownRecipes(save(['fairy']), [mixed, JUMP])).toEqual([JUMP]);
     expect(shownRecipes(save(['fairy', 'hub']), [mixed, JUMP])).toEqual([mixed, JUMP]);
-    expect(shownRecipes(save(['fairy']))).toEqual([...RECIPES]);
+    // the fairy world alone: the five of the shop; the hub open too - the rainbow as well
+    expect(shownRecipes(save(['fairy'])).map((r) => r.id)).toEqual(['speed', 'jump', 'glow', 'funny', 'compass']);
+    expect(shownRecipes(save(['fairy', 'hub']))).toEqual([...RECIPES]);
   });
 });
 
@@ -61,5 +66,19 @@ describe('brewing', () => {
     expect(putIn(s, b, 'acorn')).toBe('refused');
     expect(finishBrew(s, { recipe: JUMP, put: { acorn: 2, feather: 1 } })).toBe(false);
     expect(s.stash).toEqual({ acorn: 2, feather: 1 });
+  });
+});
+
+describe('the rainbow: brewed, not sold', () => {
+  it('not in the shop; brewed from a butterfly, an acorn and a feather of the Tree; drunk - the rainbow acts a minute', () => {
+    expect(SUPPLIES.map((x) => x.id)).not.toContain('rainbow');
+    const s = save(['fairy', 'hub']);
+    addToStash(s, 'butterfly'); addToStash(s, 'acorn'); addToStash(s, 'treefeather');
+    const b = startBrew(RECIPES.find((r) => r.id === 'rainbow')!);
+    for (const k of ['butterfly', 'acorn', 'treefeather'] as const) expect(putIn(s, b, k)).toBe('put');
+    expect(finishBrew(s, b)).toBe(true);
+    expect(s.supplies).toEqual({ rainbow: 1 });
+    expect(drink(s, 'rainbow', { water: false, mysteries: null, random: () => 0 })).toEqual({ effect: 'rainbow' });
+    expect(acting(s)).toEqual(['rainbow']);
   });
 });

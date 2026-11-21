@@ -66,8 +66,11 @@ export const CATALOG: readonly Item[] = [
 /** The thing of an id, or undefined for an id the catalog does not know (a later version's thing, a damaged save). */
 export const item = (id: string): Item | undefined => CATALOG.find((i) => i.id === id);
 
-/** The potions and the compass: drunk in the game, from the row of their buttons (src/game/supplies.ts). */
-export const POTION_IDS = ['speed', 'jump', 'glow', 'funny', 'compass'] as const;
+/**
+ * The potions and the compass: drunk in the game, from the row of their buttons (src/game/supplies.ts). The rainbow is
+ * not sold (it is not in SUPPLIES): only brewed in the cauldron from finds of two worlds (PLAY-26, src/game/cauldron.ts).
+ */
+export const POTION_IDS = ['speed', 'jump', 'glow', 'funny', 'compass', 'rainbow'] as const;
 export type PotionId = (typeof POTION_IDS)[number];
 /** The helpers of a task: taken in the task itself, from its panel (src/game/helpers.ts). */
 export const HELPER_IDS = ['owl', 'abacus'] as const;

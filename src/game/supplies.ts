@@ -25,7 +25,7 @@ export const EFFECT_SECONDS = 60;
 /** No more seconds of one effect than this, however many are drunk. */
 export const EFFECT_MAX = 180;
 /** What acts: the potions' effects (funny is tiny or giant), in the order of their buttons. */
-export const EFFECT_IDS = ['speed', 'jump', 'glow', 'tiny', 'giant', 'compass'] as const;
+export const EFFECT_IDS = ['speed', 'jump', 'glow', 'tiny', 'giant', 'compass', 'rainbow'] as const;
 export type EffectId = (typeof EFFECT_IDS)[number];
 /** Her size while tiny or a giant. */
 export const SCALE = { tiny: 0.5, giant: 1.6 } as const;

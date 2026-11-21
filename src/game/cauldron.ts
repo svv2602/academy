@@ -25,6 +25,8 @@ export const RECIPES: readonly Recipe[] = [
   { id: 'glow', gives: 'glow', need: { butterfly: 2, mushroom: 1 } },
   { id: 'funny', gives: 'funny', need: { mushroom: 1, acorn: 1, butterfly: 1 } },
   { id: 'compass', gives: 'compass', need: { feather: 2, butterfly: 2 } },
+  // the first recipe of two worlds (the customer's word of 2026-11-21): a potion the shop has not - the rainbow
+  { id: 'rainbow', gives: 'rainbow', need: { butterfly: 1, acorn: 1, treefeather: 1 } },
 ];
 
 /** The kinds a recipe asks, in its order. */
