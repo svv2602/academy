@@ -9,6 +9,7 @@ import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { MysteryDef } from './mystery';
 import type { CollectDef } from './collections';
+import type { DailyDef } from './daily-find';
 import type { WorldScope } from './scope';
 import type { TaskType } from './tasks/types';
 import type { SkillId } from './skills';
@@ -202,6 +203,8 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
   readonly mystery?: MysteryDef;
   /** PLAY-25: the finds of its collections (src/game/collections.ts), SET_SIZE of each kind. Absent - none. */
   readonly collect?: CollectDef;
+  /** PLAY-26: the places of its find of the day (src/game/daily-find.ts); absent - none. */
+  readonly daily?: DailyDef;
   /** PLAY-08 (`secret_chest`): the flag of the world's chest, one of `secrets`. */
   readonly chest?: string;
   /** PLAY-08 (`all_world_stars`): how many stars lie on the world's ground (ids 0 to n - 1 in ws.starsTaken); a search's are not. */

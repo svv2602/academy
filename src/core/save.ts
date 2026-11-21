@@ -34,6 +34,8 @@ export interface WorldState {
   mystery?: { day: string; solved: number[]; told?: boolean };
   /** The finds of the collections found (src/game/collections.ts): their numbers in the world's list; mended where read. */
   found?: number[];
+  /** The day (dayKey) the find of the day was taken (src/game/daily-find.ts, PLAY-26): absent until then. */
+  daily?: string;
   /**
    * The middle of a task in the world closed before its end (docs/worlds/common.md, part 2, item 8; the maze of the
    * forest: the last fork passed), by the step of its chain: the list `progress()` of src/game/worldtasks/ gave. No new
