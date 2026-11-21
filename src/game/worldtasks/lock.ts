@@ -112,10 +112,14 @@ export interface WorldLock extends WorldTaskShow {
 }
 
 const NEST_GAP = 1.1;     // m between two nests across the gate
-const NEST_Y = 1.3;       // m over the floor: the row of nests in the gate
-const SIGN_Y = 3.1;       // m over the floor: the number over the gate
-const SIGN = 1.1;         // m: its size
-const LABEL = 0.7;        // m: the size of a number over a shell (not smaller than a finger on a phone)
+const NEST_Y = 0.8;       // m over the floor: the row of nests in the gate
+const SIGN_Y = 2.2;       // m over the floor: the number over the gate (low enough to be seen under the bubble of the line)
+const SIGN = 0.9;         // m: its size
+const LABEL = 1.0;        // m: the size of a number over a shell on the floor (not smaller than a finger on a phone)
+const NEST_LABEL = 0.55;  // m: the number of a shell in its nest, smaller and lower - under the number over the gate
+const NEST_LABEL_Y = 0.42;
+const LOOK_Y = 1.2;       // m over the floor where the camera looks
+const DEPTH = 4.4;        // m the frame takes in along the view: the number over the gate and the shells on the floor
 const GAP = 1.3;          // m between two shells on the floor
 const FRONT = 1.7;        // m from the gate to the shells on the floor, toward the child
 const SHELL = 0.36;       // m: the radius of a shell
@@ -170,7 +174,10 @@ export function showLockInWorld(scene: THREE.Scene, spec: LockSpec, at: LockPlac
     const l = label(n, LABEL, 0.62); if (l) m.add(l);
     return m;
   };
+  /** A shell in its nest: its number smaller and lower, under the number over the gate. */
+  const nested = (m: THREE.Object3D) => { const l = m.children[0]; if (l) { l.scale.setScalar(NEST_LABEL); l.position.y = NEST_LABEL_Y; } };
   const inGate = shellOf(given, '#f3c6c0');
+  nested(inGate);
   inGate.position.copy(nests[0].position);
   group.add(inGate);
   const shells = options.map((n, i) => {
@@ -186,7 +193,7 @@ export function showLockInWorld(scene: THREE.Scene, spec: LockSpec, at: LockPlac
   const dots: THREE.Mesh[] = [];
 
   // where the camera looks: between the shells on the floor and the nests in the gate, a little up
-  const center = new THREE.Vector3(at.x - fx * FRONT * 0.45, floor + 1.1, at.z - fz * FRONT * 0.45);
+  const center = new THREE.Vector3(at.x - fx * FRONT * 0.45, floor + LOOK_Y, at.z - fz * FRONT * 0.45);
   scene.add(group);
   hooks.prompt(spec.prompt);
 
@@ -217,6 +224,7 @@ export function showLockInWorld(scene: THREE.Scene, spec: LockSpec, at: LockPlac
     m.userData.at = i;
     hops.set(m, { from: m.position.clone(), to: nests[i].position.clone(), t: -1 });
     nests[i].userData.n = m.userData.n;
+    nested(m);
     pulse = null; counting = null; clearDots();
     hooks.good();
     if (!wanted().length) core.solve(HOP * 1000 + 300);    // the last shell is in its nest, then the gate opens
@@ -227,7 +235,7 @@ export function showLockInWorld(scene: THREE.Scene, spec: LockSpec, at: LockPlac
     extent: {
       side: Math.max(...[...shells, ...nests].map((m) => Math.abs((m.position.x - center.x) * sx + (m.position.z - center.z) * sz))) + 0.5,
       // the number over the gate and the shells on the floor both on the screen
-      depth: Math.max(FRONT * 0.6, SIGN_Y - 1.1) + 0.6,
+      depth: DEPTH,
     },
     tap: (screenDist) => {
       if (!core.alive) return false;
