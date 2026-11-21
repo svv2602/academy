@@ -16,8 +16,8 @@ function at(skill: SkillId, level: number) {
 }
 
 describe('the skills of the ladder (LEARN-03, R38)', () => {
-  it('are the ten of docs/11-learning.md, "logic" split into four, attention (from the second world) last, in the order of the parents\' section', () => {
-    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention']);
+  it('are the eleven of docs/11-learning.md, "logic" split into four, attention and assembling a picture (from the second world) last, in the order of the parents\' section', () => {
+    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble']);
     expect(SKILLS).not.toContain('logic');
   });
 
@@ -35,17 +35,17 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
   it('attention is shown to the grown-ups only once a task of it is recorded; recording writes its counters', () => {
     const s = defaultSave();
     expect(shownSkills(s)).not.toContain('attention');
-    expect(shownSkills(s)).toHaveLength(SKILLS.length - 1);
+    expect(shownSkills(s)).toHaveLength(SKILLS.length - 2);
     recordTask(s, 'attention', 0);
     expect(s.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
-    expect(shownSkills(s)).toEqual([...SKILLS]);
+    expect(shownSkills(s)).toEqual(SKILLS.filter((k) => k !== 'assemble'));
   });
 
   it('every kind of task trains the skill of its line of the ladder', () => {
     expect(SKILL).toEqual({
       count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
-      neighbors: 'series', signs: 'compare', diff: 'attention',
+      neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house)

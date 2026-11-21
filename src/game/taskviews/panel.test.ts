@@ -184,7 +184,7 @@ describe('the shows draw no random numbers', () => {
 
   it('the glob reached the panel, the flow and the ten shows', () => {
     expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './diff-scene.ts', './diff.ts', './flow.ts', './house.ts', './missing.ts', './neighbors.ts', './odd.ts', './order.ts',
-      './pairs.ts', './panel.ts', './pattern.ts', './shapes.ts', './signs.ts', './simon.ts', './sort.ts', './sub.ts', './tenframe.ts']);
+      './pairs.ts', './panel.ts', './pattern.ts', './puzzle.ts', './shapes.ts', './signs.ts', './simon.ts', './sort.ts', './sub.ts', './tenframe.ts']);
   });
 
   it('no Math.random anywhere; no rng in a show or the flow; the panel only hands its rng to generate()', () => {
