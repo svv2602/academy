@@ -17,6 +17,9 @@ import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads } from './tree-look';
 import { buildKeepsakes } from './keepsakes';
+import { CAULDRON, cauldronGeometry } from './cauldron-look';
+import { openCauldron } from '../../ui/cauldron';
+import { shownRecipes } from '../../game/cauldron';
 import { ringNote, ringTapped } from './ring-notes';
 import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
@@ -162,7 +165,11 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const stage = treeStage(artifactCount(save));
   const tree = buildTreeLook(scene, stage, L.tree, ground.block);
   // the keepsakes of the secrets found and the sets gathered in the worlds, over the stage (./keepsakes.ts)
-  const keepsakes = buildKeepsakes(scene, save);
+  const keepsakes = buildKeepsakes(scene, save, knownWorlds(), [cauldronGeometry()]);
+  // the cauldron by the roots (PLAY-26, ./cauldron-look.ts): drawn in the keepsakes' call, walked round, brewed at
+  ground.block(CAULDRON.x, CAULDRON.z, CAULDRON.r);
+  const cauldronAt = new THREE.Vector3(CAULDRON.x, 0, CAULDRON.z);
+  const openPot = () => openCauldron({ save, persist: () => g.persist(), pause: (v) => { g.paused = v; if (v) g.speech.caption(null); } });
   // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
   scope.own(steerPet(ringPlay(stumpAt(), () => g.hero.root.position, () => g.busy)));
   // the pet's shadow: none on the fourth stage (the budget of 80 draw calls), a spot under it instead (./pet-shadow.ts)
@@ -207,7 +214,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const frameGoal = () => open.find((p) => !done(p.world!))?.at ?? (LEAD_HOME && home.world !== null ? home.at : null);
   return {
     frame: {
-      spots: open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
+      spots: [...open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
+        { pos: cauldronAt, r: 2.2, label: 'brew', on: () => shownRecipes(save).length > 0, run: openPot }],
       // a tap on a mushroom of the ring round the stump: its note and its flash (./ring-notes.ts); only while she is free
       tap: (screenDist) => {
         if (g.busy || !g.started()) return false;
@@ -235,7 +243,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
       talk: () => {},
       cheatWorld: () => '',
     },
