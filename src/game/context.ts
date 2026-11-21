@@ -86,6 +86,8 @@ export interface Game extends GameWorld {
   paused: boolean;
   /** Debug (the walkthrough's pictures): frames are drawn with no game time - nothing moves, nothing ends. */
   still: boolean;
+  /** The picture is lost (src/core/contextloss.ts): no frame runs - the game stands as on a hidden page. */
+  dark: boolean;
   auto: Auto | null;
   camOverride: number | null;
   /**
@@ -267,7 +269,7 @@ export function createGame(o: {
     get mystery() { return mystery!; },
     get collect() { return collect!; },
     plan: createPlanner(save),
-    busy: false, paused: false, still: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
+    busy: false, paused: false, still: false, dark: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),

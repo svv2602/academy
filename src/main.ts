@@ -1,6 +1,7 @@
 import './style.css';
 import { setProgressHandler } from './core/assets';
-import { setMusic, setVolumes, volume } from './core/audio';
+import { holdSound, setMusic, setVolumes, volume } from './core/audio';
+import { watchContext } from './core/contextloss';
 import { createRng } from './core/rng';
 import { loadSave } from './core/save';
 import { applyControls } from './core/tuning';
@@ -19,7 +20,7 @@ import { installSupplies } from './game/supplyfx';
 import { createTravel, openWorld, worldView, type Travel } from './game/travel';
 import { launchWorld, type WorldDef } from './game/world';
 import { addStrings } from './ui/strings';
-import { el, initStart, showNotice, showUpdate } from './ui/ui';
+import { el, hideNotice, initStart, showNotice, showUpdate } from './ui/ui';
 import { initSupplyRow } from './ui/supplies';
 import { initTuningPanel } from './ui/tuning';
 import { DEFAULT_WORLD, INSTALLED, WORLDS, nextWorlds } from './worlds';
@@ -162,6 +163,20 @@ async function boot() {
   // The parts of the loop every world shares are made inside shared(); the first frame is played outside it.
   const loop = opened.scope.shared(() => startLoop(g, quality, w.frame));
   loop.run();
+
+  // ---------- the picture lost (src/core/contextloss.ts, decision of 2026-11-21) ----------
+  // The game stands as on a hidden page; back by itself, it goes on. Not back in time: the save is written first, then
+  // the grown-ups see "reload" over the start screen; should the picture come back even then, the game goes on.
+  let over: boolean | null = null;   // the message is shown; true: over a started game
+  watchContext(el.canvas, {
+    lost: () => { g.dark = true; holdSound(true); },
+    back: () => {
+      g.dark = false; holdSound(false);
+      if (over) hideNotice();
+      over = over === false ? false : null;
+    },
+    gone: () => { g.persist(); over = g.started(); showNotice('gpu_lost', () => location.reload()); },
+  });
 
   // ---------- TECH-09: the next world is downloaded while this one is played ----------
   // Not with the launch: the first press of "Play" starts it (the list of requests of the launch holds no file of
