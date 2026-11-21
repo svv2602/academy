@@ -25,6 +25,7 @@ import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, feathe
 import { foundOf } from '../../game/collections';
 import { petShadows, steerPet } from '../../game/pets';
 import { petBlob, petCastsShadow } from './pet-shadow';
+import { rainbowRibbon } from '../../game/rainbow-trail';
 import { ringPlay } from './ring-play';
 import { stumpAt } from './tree-look';
 import { note } from '../../core/audio';
@@ -175,6 +176,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   // the pet's shadow: none on the fourth stage (the budget of 80 draw calls), a spot under it instead (./pet-shadow.ts)
   const blob = petCastsShadow(stage) ? null : petBlob(scene);
   if (blob) scope.own(petShadows(false));
+  // the rainbow's ribbon (one call while it acts) off on the fourth stage too: its sparkles alone there
+  if (blob) scope.own(rainbowRibbon(false));
   // the ring's notes played (for the walkthrough: ?debug)
   const notes: number[] = [];
   // The feather of the day (./feathers.ts): when the hub's found grows, today is its day, the bird of the next one falls
