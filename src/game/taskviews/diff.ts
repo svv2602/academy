@@ -15,6 +15,7 @@ export const HINT_S = 20;
 
 export function diffView(spec: DiffSpec, c: PanelCtx) {
   const st = diff.start(spec), body = spec.body;
+  delete c.stage.dataset.found;   // the stage is the panel's own: a mark of an earlier task must not stay
   const pair = el('div', 'diffpair');
   const pictures = [body.things, secondPicture(body)].map((things, i) => {
     const box = el('div', 'diffpic'), canvas = document.createElement('canvas');
