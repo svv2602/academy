@@ -19,7 +19,7 @@ import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, W
 import { FOREST_FLYOVER } from './flyover-path';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
-import { buildScenery } from './scenery';
+import { buildScenery, loadFlora, type Flora } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 
@@ -73,7 +73,7 @@ export const BYSTANDERS = [
   { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
   { id: 'owlet', x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2, heading: 2.0, r: 0.2 },
 ] as const;
-type ForestModels = Record<string, Rig>;
+type ForestModels = { rigs: Record<string, Rig>; flora: Flora };
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
 export const LEAVES = [
@@ -91,10 +91,14 @@ const MUSIC: MusicParams = {
   chords: [[110, 164.8, 277.2], [123.5, 185, 293.7], [98, 146.8, 246.9]],
 };
 
+/** m: where the haze of the forest ends (its fog), and how far the camera sees: a little past it. */
+export const FOG_FAR = HALF * 2.4;
+export const FOREST_FAR = FOG_FAR + 10;
+
 /** An evening sky of the grey build: its colour, the haze at the edge of the map, two lights. */
 function buildSky(scene: THREE.Scene): WorldSky {
   scene.background = new THREE.Color('#f3d9b1');
-  scene.fog = new THREE.Fog('#e9d3b4', HALF * 0.9, HALF * 2.4);
+  scene.fog = new THREE.Fog('#e9d3b4', HALF * 0.9, FOG_FAR);
   const sun = new THREE.DirectionalLight('#ffe3b8', 2.4);
   sun.castShadow = true;
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
@@ -105,8 +109,13 @@ function buildSky(scene: THREE.Scene): WorldSky {
 }
 
 /** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
-const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<ForestModels> =>
-  Object.fromEntries(await Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)));
+const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<ForestModels> => {
+  const [rigs, flora] = await Promise.all([
+    Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)).then((e) => Object.fromEntries(e)),
+    loadFlora(),
+  ]);
+  return { rigs, flora };
+};
 
 /** A character without a model (none now but the Ash, which is its tree): a figure of its height and colour on a rig with no clips. */
 function figure(id: string): Rig {
@@ -130,14 +139,19 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
   scene.add(buildGround(160));
-  buildScenery(scene);
+  const scenery = buildScenery(scene, L.flora);
+  // the camera reaches a little past the end of the haze, as in the valley of the fairy (src/worlds/fairy/sky.ts
+  // VALLEY_FAR): what is cut is of the haze's colour already, and no cell of trees past it is drawn
+  const worldFar = g.camera.far;
+  g.camera.far = FOREST_FAR; g.camera.updateProjectionMatrix();
+  scope.own(() => { g.camera.far = worldFar; g.camera.updateProjectionMatrix(); });
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
   const point = (p: { x: number; z: number }, y = 0) => new THREE.Vector3(p.x, groundY(p.x, p.z) + y, p.z);
 
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
   const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(L[def.id] ?? figure(def.id));
+    const actor = new Actor(L.rigs[def.id] ?? figure(def.id));
     const pos = point(def);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     actor.play('Idle');
@@ -147,7 +161,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
   });
   const bystanders = BYSTANDERS.map((b) => {
-    const actor = new Actor(L[b.id]);
+    const actor = new Actor(L.rigs[b.id]);
     actor.root.position.copy(point(b)); actor.heading = b.heading; actor.root.rotation.y = b.heading;
     g.ground.block(b.x, b.z, b.r + 0.3);
     actor.play('Idle');
@@ -277,7 +291,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       },
       animate: (_dt, time) => { flies.update(time); player.update(time); },
       focusDist: () => 6.5,
-      beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
+      beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); },
     },
     debug: {
       npcs,

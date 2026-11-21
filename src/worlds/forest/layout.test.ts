@@ -43,7 +43,8 @@ describe('the map of the forest, the grey build (WORLD-12)', () => {
     it(`at ${scale}: the trees stand off the paths, the stream and the zones, and the Oak's crown is over all of them`, async () => {
       const m = await mapAt(scale);
       const { trees } = m.placeTrees();
-      expect(trees.length).toBeGreaterThan(80 * scale * scale);
+      // one tree on TREE_AREA m² (90 with the models, 60 in the grey build), some short of it where nothing may stand
+      expect(trees.length).toBeGreaterThan(50 * scale * scale);
       const tracks = m.PATHS[m.PATHS.length - 1];
       for (const t of trees) {
         expect(m.pathDist(t.x, t.z)).toBeGreaterThan(3.5);
@@ -51,9 +52,10 @@ describe('the map of the forest, the grey build (WORLD-12)', () => {
         for (const l of m.sightLines()) expect(m.lineDist(l, t.x, t.z)).toBeGreaterThan(m.SIGHT);
         expect(m.streamDist(t.x, t.z)).toBeGreaterThan(m.STREAM_HALF + 2);
       }
-      // a tree is at most 5.2 + 2.3 m high (scaled 1.3): the Oak's crown starts above that
-      expect(m.OAK.crownY - m.OAK.crownR * 0.8).toBeGreaterThan(7.5 * 1.3 - 4);
-      expect(m.LANDMARKS.oak.top).toBeGreaterThan(7.5 * 1.3 + 5);
+      // the tallest tree (its kind's height, scaled 1.3): the middle of the Oak's crown is over it, its top 5 m over it
+      const tallest = Math.max(...m.TREE_KINDS.map(([, h]: readonly [string, number]) => h)) * 1.3;
+      expect(m.OAK.crownY).toBeGreaterThan(tallest);
+      expect(m.LANDMARKS.oak.top).toBeGreaterThan(tallest + 5);
       // every path crosses the stream on a bridge, two crossings in all
       expect(m.bridges().length).toBe(2);
     });
