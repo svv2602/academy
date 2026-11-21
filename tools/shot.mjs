@@ -3402,8 +3402,9 @@ try {
           const wrong = groups.findIndex((gr) => gr !== groups[first]);   // a cell that looks unlike its own
           await drag(await rectOf('#taskStage .pztray .pzpiece'), await rectOf(`#taskStage .pzcell[data-cell="${wrong}"]`));
           if (await placed() !== 0 || await g(() => document.querySelectorAll('#taskStage .pztray .pzpiece').length) !== want) fail(`level ${level}: a piece dropped on a cell not its own stayed`);
-          // it glides back (.back, 0.3 s): measured only once it lies in the tray again
-          await gameFor(() => !document.querySelector('#taskStage .pzpiece.back'), null, 5).catch(() => fail(`level ${level}: the piece dropped wrong never came back to the tray`));
+          // it glides back (.back, 0.3 s of the page's clock: on a slow frame it is still on its way when the class is
+          // gone): measured only once no piece moves any more
+          await gameFor(() => [...document.querySelectorAll('#taskStage .pzpiece')].every((b) => !b.classList.contains('back') && b.getAnimations().length === 0), null, 20).catch(() => fail(`level ${level}: the piece dropped wrong never came back to the tray`));
           for (let k = 0; k < want; k++) {
             const sel = '#taskStage .pztray .pzpiece';
             for (let t = 0; t < 4 && (await g((sel) => document.querySelector(sel).style.getPropertyValue('--turn'), sel)) !== '0deg'; t++) await press(await rectOf(sel));
