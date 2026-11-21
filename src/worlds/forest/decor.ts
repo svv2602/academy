@@ -14,11 +14,13 @@ import { BRIDGE_BASE, BRIDGE_H, BRIDGE_L, BRIDGE_W, colliders, height, pathDist,
  */
 export const KENNEY = { bridge: ['kenney/bridge_woodRound', 1], fence: ['kenney/fence_simple', 0.8], logs: ['kenney/log_stack', 0.9], sign: ['kenney/sign', 1.3] } as const;
 type KenneyKind = keyof typeof KENNEY;
+/** Warm wood and grey-brown stone: the pack's colours, lifted by the storybook palette, read as pale concrete. */
+const WOOD = { wood: '#9a6a45', woodBark: '#6f4a30', woodDark: '#5e4030', woodInner: '#c99a6a', stone: '#9a8f80', stoneDark: '#7a7066' };
 export type Decor = Record<KenneyKind, THREE.BufferGeometry>;
 
 export async function loadDecor(): Promise<Decor> {
   const kinds = Object.keys(KENNEY) as KenneyKind[];
-  const geos = await Promise.all(kinds.map((k) => staticGeo(`forest/${KENNEY[k][0]}`, KENNEY[k][1])));
+  const geos = await Promise.all(kinds.map((k) => staticGeo(`forest/${KENNEY[k][0]}`, KENNEY[k][1], WOOD)));
   return Object.fromEntries(kinds.map((k, i) => [k, geos[i]])) as Decor;
 }
 

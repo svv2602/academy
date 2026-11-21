@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { CELL, PLANTS, RANGE, buildUndergrowth, placePlants } from './undergrowth';
+import { CELL, PATH_CLEAR, PLANTS, RANGE, buildUndergrowth, placePlants } from './undergrowth';
 import { HALF, ZONES, inMaze } from './layout';
 import { pathDist, streamDist } from './terrain';
 
@@ -13,7 +13,7 @@ describe('the undergrowth of the forest', () => {
     const plants = placePlants();
     expect(plants.length).toBeGreaterThan(500);
     for (const p of plants) {
-      expect(pathDist(p.x, p.z)).toBeGreaterThanOrEqual(1.4);
+      expect(pathDist(p.x, p.z)).toBeGreaterThanOrEqual(PATH_CLEAR);
       expect(streamDist(p.x, p.z)).toBeGreaterThanOrEqual(1.2);
       expect(inMaze(p.x, p.z, 1.5)).toBe(false);
       for (const z of Object.values(ZONES)) expect(Math.hypot(z.x - p.x, z.z - p.z)).toBeGreaterThanOrEqual(3.5);
