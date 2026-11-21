@@ -28,6 +28,53 @@ export const lineLength = (line: readonly Place[]) => line.slice(1).reduce((n, p
 /** The surface of the water, m. */
 export const WATER_Y = -0.35;
 
+/** Where the paths cross the stream: there the bridges lie (computed once: the ground reads them at every point). */
+export function bridges(): (Place & { yaw: number })[] {
+  const out: (Place & { yaw: number })[] = [];
+  for (const line of PATHS) for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i], b = line[i + 1], n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
+    let best: Place | null = null, bd = Infinity;
+    for (let k = 0; k <= n; k++) {
+      const x = a.x + ((b.x - a.x) * k) / n, z = a.z + ((b.z - a.z) * k) / n, d = streamDist(x, z);
+      if (d < bd) { bd = d; best = { x, z }; }
+    }
+    if (best && bd < 0.6 && !out.some((p) => Math.hypot(p.x - best!.x, p.z - best!.z) < 4)) out.push({ ...best, yaw: Math.atan2(b.x - a.x, b.z - a.z) });
+  }
+  return out;
+}
+
+
+/** m: the bridges' width, the height of their arch and how high their ends lie over the water. */
+export const BRIDGE_W = 2.4;
+export const BRIDGE_H = 0.45;
+export const BRIDGE_BASE = WATER_Y + 0.1;
+/** m: a bridge's length along its path: the stream's width and a step more. */
+export const BRIDGE_L = (STREAM_HALF + 1.2) * 2;
+/**
+ * Kenney's round bridge has a flat deck between its rails: its planks lie at DECK_TOP of its height (0.2 of its 0.45,
+ * measured on its vertices; its walk runs along its z, the rails on its x sides). The ground under it lies DECK_SINK
+ * under the planks: its mesh stays hidden (level with the planks its colour showed through them), her feet a few cm in.
+ */
+export const DECK_TOP = 0.44;
+export const DECK_SINK = 0.08;
+let crossings: (Place & { yaw: number })[] | null = null;
+/**
+ * The deck of a bridge under (x, z), or -Infinity off every bridge: she walks over the stream on it, not through the
+ * water (Kenney's bridge, ./decor.ts: flat at DECK_TOP of its height, down to its ends over its last tenth).
+ */
+export function deckY(x: number, z: number): number {
+  crossings ??= bridges();
+  let best = -Infinity;
+  for (const b of crossings) {
+    const ax = Math.sin(b.yaw), az = Math.cos(b.yaw), dx = x - b.x, dz = z - b.z;
+    const along = dx * ax + dz * az, across = -dx * az + dz * ax;
+    if (Math.abs(along) > BRIDGE_L / 2 || Math.abs(across) > BRIDGE_W / 2) continue;
+    const k = Math.abs((2 * along) / BRIDGE_L);
+    best = Math.max(best, BRIDGE_BASE + BRIDGE_H * DECK_TOP * Math.min(1, (1 - k) / 0.2) - DECK_SINK);
+  }
+  return best;
+}
+
 export function height(x: number, z: number): number {
   let h = (fbm(x * 0.03 + 4.1, z * 0.03 + 8.7) - 0.5) * 3;
   // the paths and the glades lie a little flatter
@@ -36,7 +83,8 @@ export function height(x: number, z: number): number {
   h -= 1.1 * (1 - smoothstep(STREAM_HALF * 0.5, STREAM_HALF + 1.2, streamDist(x, z)));
   // the rim: the ground rises past the edge into the spruces
   const d = Math.hypot(x, z), rim = smoothstep(HALF - 4, HALF + 30, d);
-  return h + rim * rim * 22;
+  // over the stream a bridge is the ground
+  return Math.max(h + rim * rim * 22, deckY(x, z));
 }
 
 const C = (hex: string) => new THREE.Color(hex);
