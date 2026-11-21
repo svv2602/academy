@@ -372,6 +372,7 @@ describe('the treats (PLAY-27): a find it likes from the stash, tricks after 5 a
     expect(spot.on()).toBe(true);
     for (let i = 0; i < 5; i++) spot.run();
     expect(save.treats).toEqual({ fawn: 5 });
+    expect((g.speech.line as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual(['pet_treat', 'pet_treat', 'pet_treat', 'pet_treat', 'pet_trick']);
     expect(tricks).toEqual([1]);
     expect(pets.trick).toBe(1);
     for (let i = 0; i < 120; i++) pets.update(1 / 60);
