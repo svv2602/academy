@@ -160,7 +160,9 @@ async function measure(browser, url, scale, out) {
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };
       // what counts as the landmark of the target: the castle is its towers and roofs, the reef its corals
       const names = { square: ['castle-towers', 'castle-roofs'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-branch', 'reef-ball'], garden: ['landmark-garden', 'shells'], grotto: ['landmark-grotto', 'pots'] }[b];
-      const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root) return true; return false; };
+      // the heroine, the cat and the clear things of the water hide nothing: the light shafts, the motes, the bubbles
+      const CLEAR = ['light-shafts', 'water-motes', 'swim-bubbles', 'cat-bubble'];
+      const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root || CLEAR.includes(x.name)) return true; return false; };
       const targets = scene.children.filter((o) => o.visible && !skip(o));
       const ray = new THREE.Raycaster(), from = camera.position.clone();
       let hits = 0;
@@ -173,9 +175,11 @@ async function measure(browser, url, scale, out) {
       for (const p of tops) {
         const dir = p.clone().sub(from); const far = dir.length(); dir.normalize();
         ray.set(from, dir); ray.far = far + 8;
-        const first = ray.intersectObjects(targets, true).find((h) => (h.object.isMesh || h.object.isInstancedMesh) && h.object.material?.visible !== false);
-        if (first && names.some((n) => named(first.object, n))) hits++;
-        met.push(first ? `${nameOf(first.object)}@${first.distance.toFixed(0)}` : 'nothing');
+        const first = ray.intersectObjects(targets, true).find((h) => (h.object.isMesh || h.object.isInstancedMesh) && h.object.material?.visible !== false && !skip(h.object));
+        // a point of the landmark counts only inside the picture: one past its edge is not seen however clear the way
+        const ndc = p.clone().project(camera), inside = Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1 && ndc.z < 1;
+        if (first && inside && names.some((n) => named(first.object, n))) hits++;
+        met.push(!inside ? 'off the picture' : first ? `${nameOf(first.object)}@${first.distance.toFixed(0)}` : 'nothing');
       }
       // how much of the landmark the haze of the water hides at its distance (linear fog: 0 - clear, 1 - gone)
       const f = scene.fog, d = from.distanceTo(tops[0]);

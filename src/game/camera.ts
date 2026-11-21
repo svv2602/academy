@@ -7,10 +7,10 @@ import { flyoverOf } from './flyover';
 import { inWater } from './water';
 
 /**
- * Under water (docs/worlds/world-3.md): the camera stands higher - its tilt WATER_PITCH more than the one dragged to - and
- * follows softer, by WATER_SOFT of its usual speed, so nothing turns sharply; the tasks and the scenes keep their own.
+ * Under water (docs/worlds/world-3.md): the camera stands higher - it looks at a point WATER_LIFT m over her usual one,
+ * with the same tilt, so the horizon and the landmarks over it stay where they are on the screen - and follows softer, by WATER_SOFT of its usual speed, so nothing turns sharply; the tasks and the scenes keep their own.
  */
-export const WATER_PITCH = 0.15, WATER_SOFT = 0.5;
+export const WATER_LIFT = 0.6, WATER_SOFT = 0.5;
 
 /**
  * The camera (ARCH-05): turned by a drag, then the dressing room on the start screen, a conversation/task framing or the
@@ -41,11 +41,10 @@ export function createCamera(g: Game, focusDist: () => number): { look(): void; 
           // a task in the world (src/game/worldtasks/core.ts): its own frame, looked at from above as a table; glided to
           v.copy(t.target); cam.yaw += angleDiff(t.yaw, cam.yaw) * damp(3, dt);
         } else if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
-        else v.set(hp.x, hp.y + 1.5 * hero.root.scale.y, hp.z);   // a tiny or a giant heroine (src/game/supplies.ts): her height
+        else v.set(hp.x, hp.y + 1.5 * hero.root.scale.y + (soft < 1 ? WATER_LIFT : 0), hp.z);   // a tiny or a giant heroine (src/game/supplies.ts): her height
         cam.target.lerp(v, damp(t || cam.focus ? 3 : 9 * soft, dt));
         cam.dist = lerp(cam.dist, t ? t.dist : g.camOverride ?? (cam.focus ? focusDist() : camDistance(camera.aspect)), damp(3, dt));
-        const water = soft < 1 ? WATER_PITCH : 0;
-        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : Math.max(userPitch + water, g.camPitchMin ?? 0), damp(t || cam.focus ? 3 : g.camPitchMin !== null ? 3 : 10 * soft, dt));
+        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : Math.max(userPitch, g.camPitchMin ?? 0), damp(t || cam.focus ? 3 : g.camPitchMin !== null ? 3 : 10 * soft, dt));
       }
       camera.position.set(
         cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,
