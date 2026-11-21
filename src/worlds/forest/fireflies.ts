@@ -9,7 +9,8 @@ import { height, pathDist } from './terrain';
  * balls for all of them (one draw call, no shadow, no light of their own - WORLD-09), each drifting round its place and
  * pulsing; drawn whatever the camera looks at (their bounds move), a few thousand triangles in all.
  */
-export const WARM = '#ffe9a0';
+/** The warm ones a deeper gold than at first ('#ffe9a0'): pale yellow was lost on the peach evening (the customer, 2026-11-21: brighter). */
+export const WARM = '#ffc93c';
 export const BLUE = '#7fd0ff';
 /** m: how high they float - over her head: at her height one showed on her face in the frame of the owl's steps. */
 export const FLY_LOW = 2.1;
