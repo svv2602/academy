@@ -5744,5 +5744,61 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_puzzle": {
+  "text": "Давай складемо картинку!",
+  "heard": "Давай складемо картинку.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_puzzle@Sulafat": {
+  "text": "Давай складемо картинку!",
+  "heard": "Давай складемо картинку.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_puzzle@Leda": {
+  "text": "Давай складемо картинку!",
+  "heard": "Давай складемо картинку!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_puzzle@Orus": {
+  "text": "Давай складемо картинку!",
+  "heard": "Давай складемо картинку.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_puzzle@Charon": {
+  "text": "Давай складемо картинку!",
+  "heard": "Давай складемо картинку.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h_puzzle": {
+  "text": "Куди піде цей шматочок?",
+  "heard": "Куди піде цей шматочок?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_puzzle": {
+  "text": "Подивись, ось його місце!",
+  "heard": "Подивись, ось його місце.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
