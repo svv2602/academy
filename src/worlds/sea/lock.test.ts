@@ -29,12 +29,13 @@ function game(ws = defaultWorld()) {
   const quick = () => Promise.resolve() as Spoken;
   let seed = 7;
   const captions: unknown[] = [];
+  const tasks = { n: 0 };
   const g = {
     scene: new THREE.Scene(), groundY: () => 0, hero: { root: new THREE.Object3D() }, ws, save: defaultSave(),
     rng: () => ((seed = (seed * 16807) % 2147483647) / 2147483647), persist: () => {}, busy: false, touch: true,
     speech: { caption: (c: unknown) => { captions.push(c); }, shown: null },
     hooksFor: () => ({ prompt: () => {}, number: () => {}, good: () => {}, wrong: quick, hint: quick }),
-    sparks: { burst: () => {} },
+    sparks: { burst: () => {} }, task: (open: () => Promise<TaskResult>) => { tasks.n++; return open(); },
   };
   const opened: WorldTaskShow[] = [];
   let open: WorldTaskShow | null = null;
@@ -43,7 +44,7 @@ function game(ws = defaultWorld()) {
     get open() { return open; }, tap: () => false, update: (t: number) => open?.update(t),
   } as WorldTaskPlayer;
   const scope = createWorldScope(new THREE.Scene());
-  return { g: g as unknown as Game, captions, opened, player, scope, ws };
+  return { g: g as unknown as Game, captions, opened, player, scope, ws, tasks };
 }
 const queen = { def: { id: 'khvylia' } } as Npc;
 const gate = LANDMARKS.gate;
@@ -51,7 +52,7 @@ const swimTo = (g: Game, x: number, z: number) => { g.hero.root.position.set(x, 
 
 describe('the shell lock in the gate (WORLD-19)', () => {
   it('asked: on, its middle kept, the sparkles lead to the gate; it opens there, not on the way', () => {
-    const { g, opened, player, scope, ws } = game(), lock = createLock(g, player, scope);
+    const { g, opened, player, scope, ws, tasks } = game(), lock = createLock(g, player, scope);
     expect(lock.active!()).toBe(false);
     expect(lock.goal()).toBeNull();
     lock.start!(queen, () => {});
@@ -65,6 +66,7 @@ describe('the shell lock in the gate (WORLD-19)', () => {
     swimTo(g, goal.x, goal.z); lock.update(1 / 60, true);
     expect(opened).toHaveLength(1);
     expect(opened[0].kind).toBe('lock');
+    expect(tasks.n).toBe(1);                  // opened as a task (g.task): the planner holds the story back meanwhile
     expect(lock.goal()).toBeNull();
     // not while she cannot move (a scene, a card)
     const { g: g2, opened: o2, player: p2, scope: s2 } = game(), l2 = createLock(g2, p2, s2);

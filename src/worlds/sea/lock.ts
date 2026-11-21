@@ -75,7 +75,8 @@ export function createLock(g: Game, player: WorldTaskPlayer, scope: WorldScope):
     armed = false; playing = true;
     g.speech.caption(null);
     const show = showLockInWorld(scene, spec, at, g.hooksFor('🧜‍♀️'), { groundY, reach: g.touch ? 70 : 46, scope });
-    void player.play(show).then((res) => {
+    // a task as any other (g.task): only its lines sound while it is open, and its end lets the story after it speak
+    void g.task(() => player.play(show)).then((res) => {
       playing = false;
       if (!res.solved) { if (on) bubble(); return; }
       on = false;
