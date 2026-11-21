@@ -21,8 +21,9 @@ import { uBloom } from './undergrowth';
  * - the fireflies of a glade wake when its character's chain is done (the owl's blue ones with Mudrena's), the ones
  *   along the paths with the magic (half of them with none);
  * - the wind bends the plants more, the flowers of the undergrowth open;
- * - butterflies over the glades from the third leaf;
- * - and once the Emerald is back, the rays of the evening through the crowns (the one draw the magic adds).
+ * - butterflies over the glades from the first leaf;
+ * - and once the Emerald is back, three wide soft bands of the evening's light (the one draw the magic adds).
+ * The lights, the fireflies, the flowers and the wind come more with the first leaves (`alive`): two thirds with three.
  */
 
 /** The evening with no magic (the customer's, 2026-11-21: ./index.ts SKY) and with all of it. */
@@ -34,59 +35,81 @@ export const MAGIC_LOOK = {
 } as const;
 /** The glow of the lights of the forest: with no magic and with all of it (all of it - as they were made). */
 export const MAGIC_GLOW: Record<string, readonly [number, number]> = {
-  'lantern-light': [0.15, 1.2], 'house-windows': [0.25, 0.8], 'oak-crown': [0.08, 0.5], altar: [0.15, 0.8],
+  'lantern-light': [0.05, 1.2], 'house-windows': [0.1, 0.8], 'oak-crown': [0.05, 0.5], altar: [0.1, 0.8],
 };
+/**
+ * How much of the change of the lights, the fireflies, the flowers and the wind a magic `m` brings: more of it with
+ * the first leaves (the lead, 2026-11-22: a child must see the forest come alive after a leaf, on a phone's picture) -
+ * three leaves bring two thirds of it. The sky and the haze follow `m` itself: their gold is the Emerald's.
+ */
+export const alive = (m: number) => Math.pow(Math.max(0, m), 0.6);
 /** Whose chain wakes the fireflies of a glade; the glades of no one wake with the magic, as the paths'. */
 export const GLADE_OF: Partial<Record<ZoneId, string>> = { village: 'borovik', owl: 'mudrena', grove: 'shustrik', ash: 'yasen', maze: 'kolyuchka' };
 /** How much of the fireflies of the paths float with no magic. */
-export const PATH_FLIES = 0.5;
+export const PATH_FLIES = 0.35;
+/** How big a firefly that floats is with no magic and with all of it (1: as they were made). */
+export const FLY_SIZE: readonly [number, number] = [0.75, 1.25];
 /** How much stronger the wind bends the plants with all the magic (1: as they always swayed). */
 export const MAGIC_SWAY = 1.5;
 /** How open the flowers are with no magic (1 with all of it). */
-export const BLOOM = 0.4;
-/** The butterflies the magic brings, from the third leaf (all of them with the fifth). */
+export const BLOOM = 0.25;
+/** The butterflies the magic brings, from the first leaf (all of them with the fifth). */
 export const MAGIC_BUTTERFLIES = 8;
-export const BUTTERFLY_FROM = 2 * PART_MAGIC;
-/** The rays through the crowns: over these glades, as bright as this with the Emerald back. */
-export const RAY_GLADES: readonly ZoneId[] = ['center', 'owl', 'village', 'grove', 'ash', 'stream'];
-export const RAY_ALPHA = 0.3;
-export const RAY_COLOUR = '#fff0c8';
+export const BUTTERFLY_FROM = 0.5 * PART_MAGIC;
 /**
- * The shader of a ray: a soft edge (seen side-on a cone's side fades, so it is a shaft of light, not a slab), gone near
- * the camera (RAY_NEAR m: one the camera stands in is not a white wall) and into the haze.
+ * The rays of the evening (the lead, 2026-11-22: few, wide, very soft, warm, slanting from the sun, nothing at their
+ * edges): a band of light at each of RAY_SPOTS (on the ground: between the central glade and the Oak - not through its
+ * trunk -, the village, the grove), RAY_LENGTH m up toward the sun, leaning RAY_LEAN from the upright. As bright as
+ * RAY_ALPHA in its middle with the Emerald back.
  */
-export const RAY_NEAR: readonly [number, number] = [5, 16];
+export const RAY_SPOTS: readonly { x: number; z: number }[] = [
+  { x: ZONES.center.x + (ZONES.oak.x - ZONES.center.x) * 0.4 - 7, z: ZONES.center.z + (ZONES.oak.z - ZONES.center.z) * 0.4 },
+  { x: ZONES.village.x + 3, z: ZONES.village.z + 2 },
+  { x: ZONES.grove.x + 4, z: ZONES.grove.z - 3 },
+];
+export const RAY_ALPHA = 0.2;
+export const RAY_COLOUR = '#ffd89c';
+export const RAY_LENGTH = 30;
+/** m: how wide a band is on the ground and up at its end. */
+export const RAY_WIDTH: readonly [number, number] = [9, 5];
+export const RAY_LEAN = 0.6;
+/** m from the camera: a band nearer than the first is gone, from the second whole (one the camera stands in is no white wall). */
+export const RAY_NEAR: readonly [number, number] = [6, 18];
+/**
+ * The shader of a band: a flat strip along its axis, turned round the axis to face the camera wherever it stands (so
+ * it is never seen edge-on, a slab), its light falling off to nothing across it (a bell) and at both ends, gone near the
+ * camera and into the haze.
+ */
 const RAY_VERTEX = `
-attribute float aAlpha;
-varying float vAlpha; varying vec3 vNormal; varying vec3 vView; varying float vDist;
+varying vec2 vAt; varying float vDist;
 #include <common>
 #include <fog_pars_vertex>
 void main() {
   mat4 world = modelMatrix * instanceMatrix;
-  vec4 wp = world * vec4(position, 1.0);
-  vNormal = normalize(mat3(world) * normal);
-  vView = cameraPosition - wp.xyz;
-  vDist = length(vView);
-  vAlpha = aAlpha;
-  vec4 mvPosition = viewMatrix * wp;
+  vec3 axis = normalize(mat3(world) * vec3(0.0, 1.0, 0.0));
+  vec3 p = (world * vec4(0.0, 0.0, 0.0, 1.0)).xyz + axis * position.y * ${RAY_LENGTH.toFixed(1)};
+  vec3 side = normalize(cross(axis, cameraPosition - p));
+  p += side * position.x * mix(${RAY_WIDTH[0].toFixed(1)}, ${RAY_WIDTH[1].toFixed(1)}, position.y);
+  vAt = position.xy;
+  vDist = distance(cameraPosition, p);
+  vec4 mvPosition = viewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>
 }`;
 const RAY_FRAGMENT = `
 uniform vec3 uColor; uniform float uOpacity;
-varying float vAlpha; varying vec3 vNormal; varying vec3 vView; varying float vDist;
+varying vec2 vAt; varying float vDist;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  float face = abs(dot(normalize(vNormal), normalize(vView)));
-  float a = vAlpha * uOpacity * face * face * smoothstep(${RAY_NEAR[0].toFixed(1)}, ${RAY_NEAR[1].toFixed(1)}, vDist);
+  float across = exp(-pow(vAt.x * 4.0, 2.0));
+  float along = sin(PI * pow(clamp(vAt.y, 0.0, 1.0), 0.7));
+  float a = uOpacity * across * along * smoothstep(${RAY_NEAR[0].toFixed(1)}, ${RAY_NEAR[1].toFixed(1)}, vDist);
   #ifdef USE_FOG
     a *= 1.0 - smoothstep(fogNear, fogFar, vFogDepth);
   #endif
   gl_FragColor = vec4(uColor, a);
 }`;
-/** How far a ray leans from the upright toward the sun (radians): light from above the crowns, not along the ground. */
-export const RAY_LEAN = 0.35;
 
 /** Whether `c`'s chain is done: every step of it taken (its leaf given back). */
 export const chainDone = (ws: Pick<Game['ws'], 'quests'>, c: CharacterDef) => (ws.quests[c.id] ?? 0) >= c.steps.length;
@@ -96,30 +119,27 @@ export function forestMagicOf(ws: Pick<Game['ws'], 'quests' | 'final'>, characte
   return partsMagic(characters.filter((c) => chainDone(ws, c)).length, ws.final);
 }
 
-/**
- * The rays of the evening (our own shape): an open cone from every glade of RAY_GLADES up over the crowns, leaning
- * RAY_LEAN toward the sun, narrow at the top and wide on the glade, faded at both ends, laid on what is behind
- * (additive): one instanced mesh, no shadow, hidden until the Emerald is back. Not at the Oak: its trunk stands in
- * the middle of its glade.
- */
+/** The bands of light (see RAY_SPOTS): one instanced mesh of strips, no shadow, hidden until the Emerald is back. */
 export function buildRays(scene: THREE.Scene, groundY: (x: number, z: number) => number, toSun: THREE.Vector3) {
-  const len = 22, geo = new THREE.CylinderGeometry(0.7, 2.2, len, 10, 4, true).translate(0, len / 2, 0);
-  // alpha by height: none where it meets the ground and the crowns, most a third of the way up
-  const pos = geo.getAttribute('position'), alpha = new Float32Array(pos.count);
-  for (let i = 0; i < pos.count; i++) alpha[i] = Math.sin(Math.PI * Math.pow(pos.getY(i) / len, 0.75));
-  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
+  // a strip x -0.5..0.5 across, y 0..1 along, in eight rows: its shape is the shader's
+  const rows = 8, pos: number[] = [], idx: number[] = [];
+  for (let r = 0; r <= rows; r++) pos.push(-0.5, r / rows, 0, 0.5, r / rows, 0);
+  for (let r = 0; r < rows; r++) idx.push(r * 2, r * 2 + 1, r * 2 + 2, r * 2 + 1, r * 2 + 3, r * 2 + 2);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx);
   const material = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: new THREE.Color(RAY_COLOUR) }, uOpacity: { value: 0 } }]),
     vertexShader: RAY_VERTEX, fragmentShader: RAY_FRAGMENT, fog: true,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
   material.name = 'forest-rays';
-  const mesh = new THREE.InstancedMesh(geo, material, RAY_GLADES.length);
+  const mesh = new THREE.InstancedMesh(geo, material, RAY_SPOTS.length);
   const side = new THREE.Vector3(toSun.x, 0, toSun.z).normalize(), up = new THREE.Vector3(0, 1, 0);
   const lean = up.clone().multiplyScalar(Math.cos(RAY_LEAN)).addScaledVector(side, Math.sin(RAY_LEAN));
   const q = new THREE.Quaternion().setFromUnitVectors(up, lean), m = new THREE.Matrix4(), one = new THREE.Vector3(1, 1, 1);
-  RAY_GLADES.forEach((id, i) => { const z = ZONES[id]; mesh.setMatrixAt(i, m.compose(new THREE.Vector3(z.x, groundY(z.x, z.z), z.z), q, one)); });
-  mesh.computeBoundingSphere();
+  RAY_SPOTS.forEach((p, i) => mesh.setMatrixAt(i, m.compose(new THREE.Vector3(p.x, groundY(p.x, p.z), p.z), q, one)));
+  // the strips are drawn wherever the shader takes them: whatever the camera looks at
+  mesh.frustumCulled = false;
   mesh.name = 'forest-rays'; mesh.castShadow = false; mesh.receiveShadow = false; mesh.visible = false;
   scene.add(mesh);
   return { mesh, material };
@@ -170,7 +190,7 @@ export function createForestMagic(g: Game, scope: WorldScope, o: { sky: WorldSky
       if (forced) return m >= (o.characters.indexOf(c) + 1) * PART_MAGIC - 1e-6 ? 1 : 0;
       return chainDone(ws, c) ? 1 : 0;
     }
-    return rank[i] <= PATH_FLIES + (1 - PATH_FLIES) * m ? 1 : 0;
+    return rank[i] <= PATH_FLIES + (1 - PATH_FLIES) * alive(m) ? 1 : 0;
   };
 
   // the butterflies of the magic: over the glades, no size until the magic brings them
@@ -191,14 +211,16 @@ export function createForestMagic(g: Game, scope: WorldScope, o: { sky: WorldSky
     fog.color.copy(haze0).lerp(haze1, m);
     fog.near = lerp(MAGIC_LOOK.fogNear[0], MAGIC_LOOK.fogNear[1], m);
     o.sky.sun.color.copy(sun0).lerp(sun1, m);
-    o.sky.sun.intensity = lerp(MAGIC_LOOK.sunPower[0], MAGIC_LOOK.sunPower[1], m);
-    if (hemi) (hemi as THREE.HemisphereLight).intensity = lerp(MAGIC_LOOK.hemiPower[0], MAGIC_LOOK.hemiPower[1], m);
-    for (const { mat, glow } of glowing) mat.emissiveIntensity = lerp(glow[0], glow[1], m);
-    uSway.value = lerp(1, MAGIC_SWAY, m);
-    uBloom.value = lerp(BLOOM, 1, m);
+    const a = alive(m);
+    o.sky.sun.intensity = lerp(MAGIC_LOOK.sunPower[0], MAGIC_LOOK.sunPower[1], a);
+    if (hemi) (hemi as THREE.HemisphereLight).intensity = lerp(MAGIC_LOOK.hemiPower[0], MAGIC_LOOK.hemiPower[1], a);
+    for (const { mat, glow } of glowing) mat.emissiveIntensity = lerp(glow[0], glow[1], a);
+    uSway.value = lerp(1, MAGIC_SWAY, a);
+    uBloom.value = lerp(BLOOM, 1, a);
     // a firefly comes and goes over half a second (dt 0: at once - the first frame, the debug value)
     const k = dt > 0 ? damp(4, dt) : 1;
-    for (let i = 0; i < ff.lit.length; i++) ff.lit[i] += (flyTarget(i, m) - ff.lit[i]) * k;
+    const size = lerp(FLY_SIZE[0], FLY_SIZE[1], a);
+    for (let i = 0; i < ff.lit.length; i++) ff.lit[i] += (flyTarget(i, m) * size - ff.lit[i]) * k;
     const shown = THREE.MathUtils.clamp((m - BUTTERFLY_FROM) / (top - BUTTERFLY_FROM), 0, 1) * MAGIC_BUTTERFLIES;
     bfs.forEach((f, i) => { f.scale = THREE.MathUtils.clamp(shown - i, 0, 1); });
     // the flock is drawn only while it has a butterfly of a size: the forest has no others
