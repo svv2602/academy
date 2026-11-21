@@ -11,7 +11,7 @@ import { PART_MAGIC } from '../../game/magic';
 import { createWorldScope } from '../../game/scope';
 import { buildFireflies } from './fireflies';
 import { FRIENDS, SKY } from './index';
-import { BLOOM, GLADE_OF, MAGIC_BUTTERFLIES, MAGIC_GLOW, MAGIC_LOOK, MAGIC_SWAY, PATH_FLIES, RAY_ALPHA, createForestMagic, forestMagicOf } from './magic';
+import { BLOOM, FLY_SIZE, GLADE_OF, MAGIC_BUTTERFLIES, MAGIC_GLOW, MAGIC_LOOK, MAGIC_SWAY, PATH_FLIES, RAY_ALPHA, alive, createForestMagic, forestMagicOf } from './magic';
 import { uBloom } from './undergrowth';
 
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
@@ -120,20 +120,20 @@ describe('the magic of the forest (WORLD-09): read from the progress the save al
   it('the fireflies of a glade wake with its character\'s chain; of the paths\' ones half with no magic, all with all of it', () => {
     const f = forest(2);
     const glade = (who: string) => (i: number) => { const z = f.fireflies.flies[i].zone; return z !== null && GLADE_OF[z] === who; };
-    expect(f.lit(glade('borovik')).every((v) => v === 1)).toBe(true);
-    expect(f.lit(glade('mudrena')).every((v) => v === 1)).toBe(true);
+    expect(f.lit(glade('borovik')).every((v) => v > 0)).toBe(true);
+    expect(f.lit(glade('mudrena')).every((v) => v > 0)).toBe(true);
     for (const who of ['shustrik', 'yasen', 'kolyuchka']) expect(f.lit(glade(who)).every((v) => v === 0)).toBe(true);
     const paths = (i: number) => { const z = f.fireflies.flies[i].zone; return !z || !GLADE_OF[z]; };
-    const on = f.lit(paths).filter((v) => v === 1).length, all = f.lit(paths).length;
-    expect(on / all).toBeCloseTo(PATH_FLIES + (1 - PATH_FLIES) * 2 * PART_MAGIC, 1);
+    const on = f.lit(paths).filter((v) => v > 0).length, all = f.lit(paths).length;
+    expect(on / all).toBeCloseTo(PATH_FLIES + (1 - PATH_FLIES) * alive(2 * PART_MAGIC), 1);
     f.magic.set(0);
-    expect(f.lit(paths).filter((v) => v === 1).length / all).toBeCloseTo(PATH_FLIES, 1);
+    expect(f.lit(paths).filter((v) => v > 0).length / all).toBeCloseTo(PATH_FLIES, 1);
     // the debug value wakes the glades as the leaves would: 0.48 - the first three characters'
     f.magic.set(0.48);
-    expect(f.lit(glade('shustrik')).every((v) => v === 1)).toBe(true);
+    expect(f.lit(glade('shustrik')).every((v) => v > 0)).toBe(true);
     expect(f.lit(glade('yasen')).every((v) => v === 0)).toBe(true);
     f.magic.set(1);
-    expect(f.lit(() => true).every((v) => v === 1)).toBe(true);
+    expect(f.lit(() => true).every((v) => v === FLY_SIZE[1])).toBe(true);
   });
 
   it('a firefly that wakes comes over a moment, not at once', () => {
@@ -142,16 +142,28 @@ describe('the magic of the forest (WORLD-09): read from the progress the save al
     f.magic.update(0.05);
     const i = f.fireflies.flies.findIndex((x) => x.zone === 'village');
     expect(f.fireflies.lit[i]).toBeGreaterThan(0);
-    expect(f.fireflies.lit[i]).toBeLessThan(1);
+    expect(f.fireflies.lit[i]).toBeLessThan(FLY_SIZE[0]);
   });
 
-  it('butterflies from the third leaf, all of them with the fifth; the flock hidden while none has a size', () => {
+  it('three leaves bring two thirds of the lights, the fireflies, the flowers and the wind: a leaf is seen at once', () => {
+    expect(alive(0)).toBe(0);
+    expect(alive(1)).toBe(1);
+    expect(alive(3 * PART_MAGIC)).toBeGreaterThan(0.6);
+    expect(alive(PART_MAGIC)).toBeGreaterThan(0.3);
+    const f = forest(3), lamp = (f.scene.getObjectByName('lantern-light') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const [g0, g1] = MAGIC_GLOW['lantern-light'];
+    expect((lamp.emissiveIntensity - g0) / (g1 - g0)).toBeGreaterThan(0.6);
+    expect((uBloom.value - BLOOM) / (1 - BLOOM)).toBeGreaterThan(0.6);
+  });
+
+  it('butterflies from the first leaf, all of them with the fifth; the flock hidden while none has a size', () => {
     const own = (f: ReturnType<typeof forest>) => f.flies.flies.slice(-MAGIC_BUTTERFLIES).filter((b) => b.scale > 0).length;
-    const two = forest(2);
-    expect(own(two)).toBe(0);
-    expect(two.flies.mesh.visible).toBe(false);
-    expect(own(forest(3))).toBeGreaterThan(0);
-    expect(forest(3).flies.mesh.visible).toBe(true);
+    const none = forest(0);
+    expect(own(none)).toBe(0);
+    expect(none.flies.mesh.visible).toBe(false);
+    expect(own(forest(1))).toBeGreaterThan(0);
+    expect(forest(1).flies.mesh.visible).toBe(true);
+    expect(own(forest(3))).toBeGreaterThanOrEqual(MAGIC_BUTTERFLIES / 2);
     expect(own(forest(5))).toBe(MAGIC_BUTTERFLIES);
   });
 
