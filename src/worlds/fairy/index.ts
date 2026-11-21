@@ -47,7 +47,7 @@ import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
 import { CRYSTAL, PATCH, POND, SPAWN, colliders, height, pathDist, raycastGround, resolve } from './terrain';
-import { COLLECT, support } from './collect';
+import { COLLECT, DAILY_PLACES, support } from './collect';
 import { voices } from './voices';
 
 /**
@@ -439,6 +439,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   groundStars: 4,
   mystery: { spots: MYSTERY_SPOTS },
   collect: COLLECT,
+  daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,

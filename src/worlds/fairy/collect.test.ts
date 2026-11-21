@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import { GRAVITY, tuning } from '../../core/tuning';
 import { TAKE_R, TAP_R, collectProblems, reaches } from '../../game/collections';
-import { COLLECT, OAKS, STEP_UP, SUPPORTS, clearOfFinds, support } from './collect';
+import { COLLECT, DAILY_PLACES, OAKS, STEP_UP, SUPPORTS, clearOfFinds, support } from './collect';
 import { CASTLE, CHEST, CRYSTAL, GLADE, HOUSE, MYSTERY_SPOTS, PATCH, POND, SHOP_SIGN, SPAWN, UNICORN, WORLD_R } from './layout';
 import { QUESTS, SHRINE } from './quests';
 import { ACORN_SWAP, placeTrees } from './scenery';
@@ -13,10 +13,16 @@ import { BOULDERS } from './hiding';
 const WADE = POND.r - 1.3;
 const busy = [SPAWN, CRYSTAL, SHOP_SIGN, UNICORN, CHEST, SHRINE, ...QUESTS];
 const DEER = QUESTS.find((q) => q.id === 'deer')!;
-const ground = COLLECT.items.filter((i) => i.way !== 'tap');
+// the finds on the ground and the places of the find of the day (PLAY-26): the same checks for both
+const ground = [...COLLECT.items.filter((i) => i.way !== 'tap'), ...DAILY_PLACES.map((p) => ({ ...p, y: 0.3, kind: 'daily', way: 'run' }))];
 const ringOf = (i: { x: number; z: number; way: string }) => (i.way === 'chase' ? 6 : 0);
 
 describe('the collections of the fairy world (PLAY-25)', () => {
+  it('the places of the find of the day: 6 m from every find, oak and support, 12 m apart', () => {
+    for (const p of DAILY_PLACES) for (const f of [...COLLECT.items, ...OAKS, ...SUPPORTS]) expect(Math.hypot(p.x - f.x, p.z - f.z)).toBeGreaterThanOrEqual(6);
+    DAILY_PLACES.forEach((a, i) => DAILY_PLACES.forEach((b, j) => { if (j > i) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(12); }));
+  });
+
   it('four sets of six, every way', () => expect(collectProblems(COLLECT)).toEqual([]));
 
   it('off the path, the pond, the castle, the glade, the house, the characters and the task\'s flower bed, inside the valley', () => {

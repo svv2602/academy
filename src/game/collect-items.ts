@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sfx } from '../core/audio';
 import type { Game } from './context';
 import { addToStash } from './stash';
+import { createDaily } from './daily-find';
 import {
   CHASE, COLLECT_KINDS, TAP_R, foundOf, kindsOf, reaches, setDone, type CollectDef, type CollectItem, type CollectKind,
 } from './collections';
@@ -24,6 +25,8 @@ export interface CollectInWorld {
   update(dt: number, time: number, canMove: boolean): void;
   /** Takes the meshes out of the scene (leaving the world). */
   dispose(): void;
+  /** The find of the day (src/game/daily-find.ts): where it lies and its kind, null - none today. */
+  daily(): { kind: CollectKind; x: number; y: number; z: number } | null;
 }
 
 export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground' | 'groundY' | 'hero' | 'speech' | 'sparks' | 'addStars' | 'above' | 'persist'>;
@@ -110,6 +113,8 @@ export function createCollections(g: CollectHost): CollectInWorld {
     g.scene.add(mesh);
     meshes.set(kind, mesh);
   }
+  // the find of the day draws its own copy of its kind's shape (a world without it builds nothing more)
+  const daily = createDaily(g, (k) => geos[k].clone(), (k) => SIZE[k], material);
   for (const k of Object.keys(geos) as CollectKind[]) if (!meshes.has(k)) geos[k].dispose();
   // the finds out now (CollectDef.shown): all, or those the world says; `outKey` - to see them change between frames
   let out: ReadonlySet<number> | null = null, outKey = '';
@@ -164,8 +169,10 @@ export function createCollections(g: CollectHost): CollectInWorld {
       if (best) take(best);
       return best !== null;
     },
+    daily: () => daily.at(),
     update: (dt, time, canMove) => {
       if (gone) return;
+      daily.update(dt, time, canMove);
       const hp = g.hero.root.position, scale = g.hero.root.scale.x;
       const sparkle = (twinkle += dt) > TWINKLE;
       if (sparkle) twinkle = 0;
@@ -215,6 +222,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
     },
     dispose: () => {
       gone = true;
+      daily.dispose();
       for (const mesh of meshes.values()) { g.scene.remove(mesh); mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); mesh.dispose(); }
       meshes.clear(); unfound.length = 0;
     },

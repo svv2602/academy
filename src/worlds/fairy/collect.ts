@@ -37,6 +37,15 @@ const onTop = (s: Support, kind: 'mushroom' | 'feather'): CollectItem => ({ kind
 const onWater = (x: number, z: number): CollectItem => ({ kind: 'feather', way: 'tap', x, z, y: WATER_Y + 0.12 - height(x, z) });
 
 /** The 24 finds; their order is their number in the save (ws.found): only ever added to at the end. */
+/**
+ * The places of the find of the day (PLAY-26, src/game/daily-find.ts): one of them a day, off the path, the pond, the
+ * castle, the glade, the house, the characters, the mysterious stars, the boulders and 6 m from every find, oak and
+ * support (./collect.test.ts), 12 m apart.
+ */
+export const DAILY_PLACES: readonly { x: number; z: number }[] = [
+  { x: 0, z: 26 }, { x: 26, z: -28 }, { x: -20, z: 2 }, { x: 11, z: 9 }, { x: -11, z: 17 }, { x: 14, z: -4 }, { x: -23, z: -12 }, { x: 13, z: 36 },
+];
+
 export const COLLECT: CollectDef = {
   items: [
     // mushrooms: four in the grass, two on the stumps
