@@ -179,6 +179,8 @@ const OPENING = 3.1, CHEST_BACK = 1.4, CHEST_SIDE = 0.65;
  * CAVE_CAM_OUT m on, a smooth step between - walking through the curtain it moves with her steps, never jumps.
  */
 export const CAVE_CAM = 2.2, CAVE_CAM_IN = 2.0, CAVE_CAM_OUT = 5.2;
+/** Inside the cave the camera looks down this steeply (rad, src/game/camera.ts camPitchMin): the chest over her head. */
+export const CAVE_PITCH = 1.0;
 export function caveCamDist(d: number, far: number): number {
   const k = Math.min(1, Math.max(0, (d - CAVE_CAM_IN) / (CAVE_CAM_OUT - CAVE_CAM_IN)));
   return CAVE_CAM + (far - CAVE_CAM) * k * k * (3 - 2 * k);
@@ -237,12 +239,14 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
   colliders.push({ x: cx, z: cz, r: 0.6 });
   if (found(CAVE_FLAG)) chest.pose('Chest_Open');
   let caveCam = false;     // the camera's distance is the cave's now
-  scope.own(() => { if (caveCam) g.camOverride = null; });
+  scope.own(() => { if (caveCam) { g.camOverride = null; g.camPitchMin = null; } });
   /** The cave's camera: by where she stands; never over a distance another rule has set. */
   function caveCamera(d: number) {
     if (!caveCam && g.camOverride !== null) return;
-    if (d >= CAVE_CAM_OUT) { if (caveCam) { g.camOverride = null; caveCam = false; } return; }
+    if (d >= CAVE_CAM_OUT) { if (caveCam) { g.camOverride = null; g.camPitchMin = null; caveCam = false; } return; }
     g.camOverride = caveCamDist(d, camDistance(g.camera.aspect)); caveCam = true;
+    // past the curtain it looks down over her head (eased by the camera itself)
+    g.camPitchMin = d < OPENING ? CAVE_PITCH : null;
   }
   cave.add(chest.root);
   scene.add(cave);

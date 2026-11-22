@@ -53,7 +53,7 @@ export function createMaze(g: Game): MazeStep {
   const { scene, groundY, hero, sparks } = g;
   let show: MazeShow | null = null, mine: { x: number; z: number; r: number }[] = [];
   let spec!: MazeSpec, geo!: MazeGeo, walk!: MazeWalk, seed = 0, level = 1;
-  let mine2 = false;            // the camera's distance is the maze's (set by it, given back by it)
+  let mine2 = false, minePitch = false;            // the camera's distance is the maze's (set by it, given back by it)
   let on = false, owner: Npc | null = null, finished: () => void = () => {}, idle = 0, inside = false;
 
   /** The maze of `seed` on `level` in the scene (the old one taken away, its bushes out of the colliders). */
@@ -129,7 +129,8 @@ export function createMaze(g: Game): MazeStep {
       // between its hedges the camera looks down steeper: the row of the pattern and the ways of the fork ahead show
       // past her and over the hedge (src/game/camera.ts camPitchMin)
       const within = inMaze(hero.root.position.x, hero.root.position.z);
-      g.camPitchMin = within ? PITCH : null;
+      // only its own pitch is taken back (the cave sets one too, ./secrets.ts)
+      if (within) { g.camPitchMin = PITCH; minePitch = true; } else if (minePitch) { g.camPitchMin = null; minePitch = false; }
       // and from farther back: the row of the pattern and the ways of the fork in one look (the camera's own distance out)
       if (within) { g.camOverride = DIST; mine2 = true; } else if (mine2) { g.camOverride = null; mine2 = false; }
       if (!on) return;
@@ -175,7 +176,7 @@ export function createMaze(g: Game): MazeStep {
       return true;
     },
     dispose() {
-      g.camPitchMin = null;
+      if (minePitch) { g.camPitchMin = null; minePitch = false; }
       if (mine2) { g.camOverride = null; mine2 = false; }
       show?.dispose(); show = null;
       for (const c of mine) { const i = colliders.indexOf(c); if (i >= 0) colliders.splice(i, 1); }
