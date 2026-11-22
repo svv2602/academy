@@ -32,6 +32,14 @@ skeleton ("Service Assets") with our own clips made in Blender for this game; th
 (Meshy rigs no birds). The owlet is the owl's model made small, its texture paler and its head larger, in Blender.
 Joined and their textures shrunk in Blender for this game.
 
+The characters of the sea (world 3; `models-src/sea/`, shipped with the world from `worlds-data/sea/`): the meshes and
+textures of Khvylia (the mermaid queen), Bulk (the little sea dragon), Pantsyr (the turtle), Kleshnya (the crab) and
+Iskorka (the lantern fish) were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-22;
+under Meshy's terms for paid plans the models belong to the customer (not CC0). Skeletons and clips: our own, made in
+Blender for this game (Meshy rigs only bipeds and quadrupeds). Set right in Blender: a stray growth by the turtle's head
+cut away, the crab's hat let down onto his eyes and his eyes made black, the fish's stalk and its light added as our own
+shapes. Joined and their textures shrunk in Blender for this game.
+
 The forest's things (world 2, 2026-11-21): the bridges, the fence, the woodpiles and the signpost are Kenney's
 "Nature Kit" 2.1 (https://kenney.nl/assets/nature-kit) — CC0 1.0 (its License.txt: "Creative Commons Zero, CC0");
 `models-src/forest/kenney/`. Its undergrowth — bushes, plants, flowers, mossy stones, the mossy log and the berry bush —
