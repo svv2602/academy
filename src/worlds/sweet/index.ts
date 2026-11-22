@@ -16,6 +16,7 @@ import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SWEET_FLYOVER } from './flyover-path';
 import { DOORWAY, HOUSE_STEP, createHouse } from './house';
+import { SCALES_STEP, createScales } from './scales';
 import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
@@ -35,16 +36,16 @@ import { buildGround, colliders, ground } from './terrain';
 /**
  * The characters (docs/worlds/world-4.md, the table «Персонажи»). Of the three tasks the document plays in the world,
  * the gingerbread house (WORLD-21, written to no skill) is played in the world since step 2: Imbir's third step, the
- * house assembled before his house (./house.ts). The other two stand in as the panel task of the same skill
- * (LATER_IN_WORLD): the shape bridge (WORLD-20, classify) as "the odd one out", the scales (WORLD-22, compare) as
- * comparing. `part`: the ruby is not handed over - the character says where it lies (inside the gingerbread house, in
+ * house assembled before his house (./house.ts). The scales with candies (WORLD-22, written to `compare`) are played in
+ * the world since step 3: Tyanuchka's third step, at his scales on the market (./scales.ts). The shape bridge
+ * (WORLD-20, classify) stands in as the panel task of the same skill, "the odd one out" (LATER_IN_WORLD). `part`: the ruby is not handed over - the character says where it lies (inside the gingerbread house, in
  * the millstone; WORLD-08), and she takes it there by the action button (RUBIES); ruby 2 is seen in the doorway once the
  * house is assembled and its door opens.
  */
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d' },
   { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f' },
-  { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', 'compare'], shard: '#ff6b8a' },
+  { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', SCALES_STEP], shard: '#ff6b8a' },
   { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: ['odd', 'simon', 'signs', 'part'], shard: '#d62e5c' },
   { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3' },
 ];
@@ -53,11 +54,11 @@ export const FRIENDS: readonly CharacterDef[] = [
  * The steps that become tasks in the world in a later step of the grey build, each standing in now as the panel task
  * of the same skill: whose chain, the number of the step, its stand-in, the card of the task in the world and its
  * skill. Played in the world, the step's id becomes the task's own (the world's `tasks` and `worldTasks`), as the
- * gingerbread house (WORLD-21) replaced the number house that stood in for it in step 1.
+ * gingerbread house (WORLD-21) replaced the number house that stood in for it in step 1 and the scales (WORLD-22) the
+ * panel's comparing in step 3.
  */
 export const LATER_IN_WORLD = [
   { owner: 'kakao', step: 0, now: 'odd', card: 'WORLD-20', skill: 'classify' },
-  { owner: 'tyanuchka', step: 2, now: 'compare', card: 'WORLD-22', skill: 'compare' },
 ] as const;
 
 /** The shape of each character in the grey build: its height, its colour, the mark of its kind on its top. */
@@ -191,9 +192,13 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   const house = createHouse(g, player, scope, { inside: () => { ws.flags.imbir_hint = true; g.persist(); } });
   scope.own(() => house.dispose());
   house.opened((ws.quests.imbir ?? 0) > imbir.steps.indexOf(HOUSE_STEP));
-  // The tasks of the chains: the panel ones by the shared conversation; `part` and the house here. The tasks in the
-  // world of a later step (LATER_IN_WORLD) join this record under their own ids, with the world's `worldTasks`.
-  const tasks: Record<string, WorldTask> = { part, [HOUSE_STEP]: house };
+  // Tyanuchka's scales with candies (WORLD-22): a task in the foreground at his scales on the market, recorded in
+  // `compare` by the conversation as a panel task is
+  const scales = createScales(g, player, scope);
+  scope.own(() => scales.dispose());
+  // The tasks of the chains: the panel ones by the shared conversation; `part`, the house and the scales here. The
+  // task in the world of a later step (LATER_IN_WORLD) joins this record under its own id, with the world's `worldTasks`.
+  const tasks: Record<string, WorldTask> = { part, [HOUSE_STEP]: house, [SCALES_STEP]: scales };
   const wrongTasks = worldTaskProblems(sweet.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the Sweet Land: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -256,6 +261,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
           if (r.mesh.visible) { r.mesh.rotation.y = time * 1.6; r.mesh.position.y = groundY(r.spot.x, r.spot.z) + r.lift + Math.sin(time * 2) * 0.12; }
         }
         house.update(dt, time, canMove);
+        scales.update(dt, time);
         // the finale: the five fly up from round the shrine to the candle's top over GATHER_S s of game time
         if (finaleEnd) {
           const k = 1 - Math.max(0, finaleLeft) / GATHER_S, top = scenery.candleTop;
@@ -330,7 +336,8 @@ export const sweet: WorldDef<Record<string, never>, WorldSky> = {
   sky: buildSky,
   load: loadSweet,
   build: buildSweet,
-  // the gingerbread house is played in the world (WORLD-21), and written to no skill (the customer's decision 2026-11-18)
-  worldTasks: [HOUSE_STEP],
+  // the gingerbread house (WORLD-21) and the scales (WORLD-22) are played in the world; the house is written to no
+  // skill, the scales to `compare` (the customer's decision 2026-11-18)
+  worldTasks: [HOUSE_STEP, SCALES_STEP],
   noSkill: [HOUSE_STEP],
 };

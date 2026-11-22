@@ -76,6 +76,12 @@ export interface WorldTaskShow {
    * there and comes back to it (tools/world-pass.mjs, the step "half"). Absent or 0: the kind has no middle to leave in.
    */
   half?(): number;
+  /**
+   * The deliberate wrong moves the walkthrough makes in its step "wrong" (tools/world-pass.mjs), each after the course
+   * of the one before: the card of a kind asks for them - the scales of WORLD-22 for three, so every rung of the hint is
+   * seen. Absent: one.
+   */
+  readonly mistakes?: number;
   /** The close button: the task ends unsolved and leaves nothing in the scene; the save is not changed. */
   close(): void;
   update(time: number): void;
@@ -187,6 +193,8 @@ export function worldTaskDoor(g: object) {
     wrong: () => cur()?.wrong() ?? false,
     /** Right moves up to the middle of a kind that keeps one (WorldTaskShow.half): how many; 0 - none open, or no middle. */
     half: () => cur()?.half?.() ?? 0,
+    /** The wrong moves the walkthrough makes on the open task (WorldTaskShow.mistakes); 1 when it does not say, 0 - none open. */
+    get mistakes() { const s = cur(); return s ? s.mistakes ?? 1 : 0; },
     /** The close button; false when none is open. */
     close: () => { const s = cur(); if (!s) return false; s.close(); return true; },
     /** Where the open task stands; null - none is open. */

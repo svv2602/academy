@@ -2,7 +2,7 @@
 /**
  * The Sweet Land as the registry and the shared code see it (./index.ts, docs/worlds/world-4.md): its place on the shelf,
  * its five characters with three tasks each by the document's table, the gingerbread house played in the world and
- * written to no skill (WORLD-21), the stand-ins of the tasks the world plays in a later step, the two rubies that lie in
+ * written to no skill (WORLD-21), the scales played in the world and written to `compare` (WORLD-22), the stand-in of the tasks the world plays in a later step, the two rubies that lie in
  * the world, and its description of a grey build (src/game/describe.ts).
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -11,6 +11,7 @@ import { isSkillStep } from '../../game/tasks';
 import { SKILL } from '../../game/taskviews/panel';
 import type { WorldItem } from '../../game/world';
 import { HOUSE_STEP } from './house';
+import { SCALES_STEP } from './scales';
 import { FINALE, FRIENDS, LATER_IN_WORLD, RUBIES, sweet } from './index';
 import { SHRINE, ZONES } from './layout';
 import { strings } from './strings';
@@ -29,17 +30,17 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     expect(sweet.arrive?.('hub')).not.toBeNull();
   });
 
-  it('five characters, each with three tasks of the table of docs/worlds/world-4.md: panel tasks the game has, and the house in the world', () => {
+  it('five characters, each with three tasks of the table of docs/worlds/world-4.md: panel tasks the game has, the house and the scales in the world', () => {
     expect(FRIENDS.map((c) => c.id)).toEqual(['pastila', 'imbir', 'tyanuchka', 'kakao', 'polosatik']);
     const want: Record<string, string[]> = {
       pastila: ['add', 'compose', 'compare'],            // addition to 20, the composition of a number, comparing
       imbir: ['count', 'pattern'],                       // counting by tens, the pattern; then the house (WORLD-21), below
-      tyanuchka: ['sub', 'classify', 'compare'],         // subtraction to 20, sorting, the scales (WORLD-22)
+      tyanuchka: ['sub', 'classify'],                    // subtraction to 20, sorting; then the scales (WORLD-22), below
       kakao: ['classify', 'memory', 'compare'],          // the shape bridge (WORLD-20), memory, comparing by signs
       polosatik: ['memory', 'series', 'add'],            // pairs, the number line, addition
     };
     for (const c of FRIENDS) {
-      const tasks = c.steps.filter((s) => s !== 'part' && s !== HOUSE_STEP);
+      const tasks = c.steps.filter((s) => s !== 'part' && s !== HOUSE_STEP && s !== SCALES_STEP);
       expect(tasks.map(skillOf), c.id).toEqual(want[c.id]);
       for (const s of tasks) expect(skillOf(s), `${c.id}: ${s}`).toBeTruthy();
     }
@@ -51,12 +52,26 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     expect(imbir.steps).toEqual(['count', 'pattern', HOUSE_STEP, 'part']);
     // its id is its own: not a step of the panel (the number house "house" stood in for it in step 1)
     expect(skillOf(HOUSE_STEP)).toBeUndefined();
-    expect(sweet.worldTasks).toEqual([HOUSE_STEP]);
+    expect(sweet.worldTasks).toContain(HOUSE_STEP);
     expect(sweet.noSkill).toEqual([HOUSE_STEP]);
     expect(inWorldSteps(imbir, sweet.worldTasks)).toEqual([2]);
-    for (const c of FRIENDS.filter((f) => f.id !== 'imbir')) expect(inWorldSteps(c, sweet.worldTasks), c.id).toEqual([]);
+    for (const c of FRIENDS.filter((f) => f.id !== 'imbir' && f.id !== 'tyanuchka')) expect(inWorldSteps(c, sweet.worldTasks), c.id).toEqual([]);
     const chain = declared({ world: sweet, ws: { quests: {}, flags: {}, final: false } }).find((i) => i.id === 'imbir')!;
     expect([chain.inWorld, chain.noSkill]).toEqual([[2], [2]]);
+  });
+
+  it('the scales with candies (WORLD-22) are Tyanuchka\'s third step, played in the world and written to `compare` as a panel task is', () => {
+    const tyanuchka = FRIENDS.find((c) => c.id === 'tyanuchka')!;
+    expect(tyanuchka.steps).toEqual(['sub', 'sort', SCALES_STEP]);
+    // its id is its own: not a step of the panel (the panel's "compare" stood in for it in steps 1 and 2)
+    expect(skillOf(SCALES_STEP)).toBeUndefined();
+    expect(sweet.worldTasks).toEqual([HOUSE_STEP, SCALES_STEP]);
+    // written to a skill: not one of the steps of no skill
+    expect(sweet.noSkill ?? []).not.toContain(SCALES_STEP);
+    expect(inWorldSteps(tyanuchka, sweet.worldTasks)).toEqual([2]);
+    const chain = declared({ world: sweet, ws: { quests: {}, flags: {}, final: false } }).find((i) => i.id === 'tyanuchka')!;
+    expect(chain.inWorld).toEqual([2]);
+    expect(chain.noSkill).toBeUndefined();
   });
 
   it('a task the world plays later stands in now as the panel task of the same skill, at its step', () => {
@@ -67,8 +82,8 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
       // a stand-in is a panel step, never one the world declares to play in the world
       expect(sweet.worldTasks ?? [], l.card).not.toContain(l.now);
     }
-    // the house (WORLD-21) is played in the world now: only the bridge and the scales stand in
-    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual(['WORLD-20', 'WORLD-22']);
+    // the house (WORLD-21) and the scales (WORLD-22) are played in the world now: only the bridge stands in
+    expect(LATER_IN_WORLD.map((l) => l.card)).toEqual(['WORLD-20']);
   });
 
   it('rubies 2 and 4 lie in the world, at the end of the chains of Imbir and Kakao (WORLD-08); the other three are given', () => {

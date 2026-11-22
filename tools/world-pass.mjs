@@ -25,14 +25,15 @@
 //      by its `active`. A task played in the world (PLAY-01) on a step the chain names in `inWorld` is played through
 //      the debug door of the task (__game.worldTask, src/game/worldtasks/core.ts), whatever its kind, in the steps of
 //      WORLD_TASK_STEPS: a) it is open, waiting, with no mistake and no hint (a card there instead fails); b) one wrong
-//      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1; a kind that keeps its
+//      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1 (as many wrong moves as
+//      the kind asks for, `mistakes` of the door - the scales of WORLD-22 three, each on its rung); a kind that keeps its
 //      middle (the gingerbread house, WORLD-21) is then played to about its half (`half` of the door) - those right
 //      moves are its middle, kept in the save at once; c) closed - nothing more is recorded (the world's part of the
 //      save in memory and stored, the stars, the skills: as at its opening, or as its middle left them), the heroine
 //      walks; d) the action again opens the same task anew (one that opens where she goes - the sea's lock at the gate,
 //      the house - after the world's move brings her there, a step away first), in the middle she left it in; e)
 //      solved - the step is stored, 3 stars, one task more in one skill (in none for a step the chain names in
-//      `noSkill`). A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
+//      `noSkill`), the skill named in the log and in the report (`worldSkills`). A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
 //      the save unchanged, no action button at its place, no start, or `active` that never ends. Once, before the first
 //      item, the order is tried: at the place of an item that comes after an undone one nothing can be done yet;
 //   5. the end: every item done, each mark in the stored save under the id of its item, every step a chain names in
@@ -360,14 +361,15 @@ export function openProblems(state, kind, middle = []) {
 
 /**
  * The middle (after `half` of the door made `made` right moves; `state` - where the task stands, `rec` - RECORD): still
- * open and waiting, the one mistake of b) still counted, the moves made and kept as its middle, and that middle in the
- * stored save as in the game's (a child may leave at any moment: what is done is stored at once).
+ * open and waiting, the mistakes of b) (`mistakes`, one unless the kind asks for more) still counted, the moves made and
+ * kept as its middle, and that middle in the stored save as in the game's (a child may leave at any moment: what is
+ * done is stored at once).
  */
-export function halfProblems(state, made, rec) {
+export function halfProblems(state, made, rec, mistakes = 1) {
   if (!state) return ['the task in the world is not open in its middle'];
   const out = [];
   if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input"`);
-  if (state.wrongs !== 1) out.push(`${state.wrongs} wrong moves counted, the one of b) expected`);
+  if (state.wrongs !== mistakes) out.push(`${state.wrongs} wrong moves counted, the ${mistakes === 1 ? 'one' : mistakes} of b) expected`);
   if (state.moves !== made) out.push(`${state.moves} right move(s) counted for the ${made} made`);
   if (!Array.isArray(state.progress) || !state.progress.length) out.push(`its middle is ${JSON.stringify(state.progress)}: a kind that keeps one keeps nothing`);
   if (rec.held !== rec.stored) out.push(`the stored save holds ${rec.stored}, the game ${rec.held}: the middle is not stored at once`);
@@ -375,19 +377,20 @@ export function halfProblems(state, made, rec) {
 }
 
 /**
- * b): after one wrong move and its course (`state`), the lines said since it (`voice`: { started - the lines whose
- * clips were started, synth - the lines left to the synthesizer, line - the line the bubble holds, muted }): one
- * mistake, waiting again, the first rung of the hint; "try again" and the hint by their clips.
+ * b): after wrong move `n` (1 for the first) and its course (`state`), the lines said since it (`voice`: { started - the
+ * lines whose clips were started, synth - the lines left to the synthesizer, line - the line the bubble holds, muted }):
+ * `n` mistakes, waiting again, rung `n` of the hint (the third for every later one, LEARN-10); "try again" and the hint
+ * by their clips.
  */
 /** The line a started clip says: its id without the folder of a next world (`sea/`) and the voice of a character (`@Leda`). */
 const clipLine = (clip) => clip.replace(/^[^/]+\//, '').replace(/@[^@/]*$/, '');
 
-export function wrongProblems(state, voice) {
+export function wrongProblems(state, voice, n = 1) {
   if (!state) return ['the task in the world is not open after a wrong move'];
-  const out = [];
-  if (state.wrongs !== 1) out.push(`${state.wrongs} wrong moves counted for one`);
+  const out = [], rung = Math.min(n, 3);
+  if (state.wrongs !== n) out.push(`${state.wrongs} wrong moves counted for ${n === 1 ? 'one' : n}`);
   if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input" again`);
-  if (state.rung !== 1) out.push(`the rung of the hint is ${state.rung}, not 1`);
+  if (state.rung !== rung) out.push(`the rung of the hint is ${state.rung}, not ${rung}`);
   const started = [...new Set(voice.started)];
   if (voice.synth.length) out.push(`lines left to the synthesizer: ${voice.synth.join(' ')}`);
   if (started.length < 2) out.push(`the clips of "try again" and of the hint were not both started (started: ${started.join(' ') || 'none'})`);
@@ -438,6 +441,16 @@ export function solveProblems(before, after, id, step, skilled = true) {
     if (!one) out.push(`${name}: the tasks of the skills changed in ${grew.map((k) => `${k} ${was.skills?.[k]?.tasks} -> ${now.skills[k].tasks}`).join(', ') || 'none'}, one task more in one skill expected`);
   }
   return out;
+}
+
+/**
+ * The skill a solved step recorded (`before`, `after`: RECORD, in the stored save): the one whose tasks grew, null for
+ * none - or for more than one, which `solveProblems` reports.
+ */
+export function recordedSkill(before, after) {
+  const was = JSON.parse(before.stored).skills ?? {}, now = JSON.parse(after.stored).skills ?? {};
+  const grew = Object.keys(now).filter((k) => now[k]?.tasks !== was[k]?.tasks);
+  return grew.length === 1 ? grew[0] : null;
 }
 
 /** The steps the chains of `items` declare as played in the world that the pass did not meet (`met`: "<id> <step>"), as "<id> <step>". */
@@ -583,6 +596,8 @@ export async function playWorld(h, o = {}) {
   const seenTypes = new Set();
   /** The steps of chains played as a task in the world, "<id> <step>", in the order the pass met them. */
   const metWorld = [];
+  /** The skill each of them recorded once solved ("<id> <step>" -> the skill, null - none): the report's `worldSkills`. */
+  const metSkills = {};
   const worldState = () => g(() => window.__game.worldTask.state);
   /**
    * A task in the world is open in `item` (src/game/worldtasks/core.ts): it must be at a step the chain declares
@@ -597,7 +612,7 @@ export async function playWorld(h, o = {}) {
     if (metWorld.includes(key)) fail(`${where}: the task in the world of step ${step + 1} is open again after it was solved`);
     const name = `${where}, step ${step + 1}, the task in the world "${first.kind}"`;
     const bad = (what, list) => { if (list.length) fail(`world task: ${mode} ${name}: ${what}: ${list.join('; ')}`); };
-    let before = null, middle = [];
+    let before = null, middle = [], mistakes = 1;
     const played = [], skilled = !(item.noSkill ?? []).includes(step);
     for (const st of WORLD_TASK_STEPS) {
       if (st === 'open') {
@@ -621,18 +636,24 @@ export async function playWorld(h, o = {}) {
         if (measured.length) console.log(`world task: ${first.kind}: the things to tap ${measured.map((t) => Math.round(t.px)).join(', ')} px across (at least ${MIN_TAP_PX})`);
         await shot(`world-task-${first.kind}`);
       } else if (st === 'wrong') {
-        const v0 = await g(() => ({ starts: { ...(window.__starts ?? {}) }, synth: window.__game.voice.synth.length }));
-        if (!(await g(() => window.__game.worldTask.wrong()))) fail(`world task: ${mode} ${name}: b) no wrong move can be made through the door`);
-        // the course of the mistake: "try again" and the hint are said to their end, then the rung shows
-        if (!(await gameUntil(() => { const t = window.__game.worldTask.state; return !t || (t.phase === 'input' && t.rung >= 1); }, null, PLAYS))) {
-          fail(`world task: ${mode} ${name}: b) the course of the wrong move did not come back to input on rung 1 in ${PLAYS} s of game time: ${JSON.stringify(await worldState())}`);
+        // as many wrong moves as the kind asks for (the scales of WORLD-22: three), each after the course of the one before
+        mistakes = Math.max(1, await g(() => window.__game.worldTask.mistakes ?? 1));
+        for (let n = 1; n <= mistakes; n++) {
+          const v0 = await g(() => ({ starts: { ...(window.__starts ?? {}) }, synth: window.__game.voice.synth.length }));
+          if (!(await g(() => window.__game.worldTask.wrong()))) fail(`world task: ${mode} ${name}: b) no wrong move ${n === 1 ? '' : `${n} `}can be made through the door`);
+          // the course of the mistake: "try again" and the hint are said to their end, then the rung shows
+          const rung = Math.min(n, 3);
+          if (!(await gameUntil(([k, r]) => { const t = window.__game.worldTask.state; return !t || (t.phase === 'input' && t.wrongs === k && t.rung >= r); }, [n, rung], PLAYS))) {
+            fail(`world task: ${mode} ${name}: b) the course of the wrong move ${n === 1 ? '' : `${n} `}did not come back to input on rung ${rung} in ${PLAYS} s of game time: ${JSON.stringify(await worldState())}`);
+          }
+          const voice = await g((was) => ({
+            started: Object.keys(window.__starts ?? {}).filter((k) => window.__starts[k] > (was.starts[k] ?? 0)),
+            synth: window.__game.voice.synth.slice(was.synth), line: window.__game.line, muted: window.__game.save.vol.voice === 0,
+          }), v0);
+          bad(n === 1 ? 'b) a wrong move' : `b) wrong move ${n}`, wrongProblems(await worldState(), voice, n));
+          await shot(`world-task-${first.kind}-hint${n}`);
         }
-        const voice = await g((was) => ({
-          started: Object.keys(window.__starts ?? {}).filter((k) => window.__starts[k] > (was.starts[k] ?? 0)),
-          synth: window.__game.voice.synth.slice(was.synth), line: window.__game.line, muted: window.__game.save.vol.voice === 0,
-        }), v0);
-        bad('b) a wrong move', wrongProblems(await worldState(), voice));
-        await shot(`world-task-${first.kind}-hint1`);
+        if (mistakes > 1) console.log(`world task: ${first.kind}: ${mistakes} wrong moves, each back to waiting on its rung (${Array.from({ length: mistakes }, (_, i) => Math.min(i + 1, 3)).join(', ')}) with its clips`);
       } else if (st === 'half') {
         // a kind that keeps its middle: right moves to about its half, then it is left there (c) and come back to (d)
         const made = await g(() => window.__game.worldTask.half?.() ?? 0);
@@ -640,7 +661,7 @@ export async function playWorld(h, o = {}) {
         // the last piece of it lands in the world's time; the middle is what the task says it is then
         await gameUntil(() => false, null, REACTS);
         const rec = await g(RECORD, worldId);
-        bad('the middle', halfProblems(rec.state, made, rec));
+        bad('the middle', halfProblems(rec.state, made, rec, mistakes));
         middle = [...rec.state.progress];
         before = rec;
         await shot(`world-task-${first.kind}-half`);
@@ -664,15 +685,20 @@ export async function playWorld(h, o = {}) {
         if (!(await g(() => window.__game.worldTask.solve()))) fail(`world task: ${mode} ${name}: e) the door found no task to solve`);
         const recorded = ([w, id, k]) => !window.__game.worldTask.state && (window.__game.save.worlds[w]?.quests?.[id] ?? 0) > k;
         if (!(await gameUntil(recorded, [worldId, item.id, step], STARTS))) fail(`world task: ${mode} ${name}: e) solved, but the task did not end with its step recorded in ${STARTS} s of game time`);
-        bad('e) solved', solveProblems(before, await g(RECORD, worldId), item.id, step, skilled));
-        // what the world does once a task with a middle is done (the house's door opens): pictured after it
-        if (middle.length) { await gameUntil(() => false, null, REACTS); await shot(`world-task-${first.kind}-done`); }
+        const after = await g(RECORD, worldId);
+        bad('e) solved', solveProblems(before, after, item.id, step, skilled));
+        metSkills[key] = recordedSkill(before, after);
+        if (skilled) console.log(`world task: ${first.kind}: recorded in the skill "${metSkills[key]}"`);
+        // what the world does once a task played at length is done (the house's door opens, the scales stay balanced):
+        // pictured after it
+        if (middle.length || mistakes > 1) { await gameUntil(() => false, null, REACTS); await shot(`world-task-${first.kind}-done`); }
       }
       played.push(st);
     }
     metWorld.push(key);
     const kept = middle.length ? `${middle.length} right move(s) kept as its middle, ` : '';
-    console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, a wrong move on rung 1 with its clips, ${kept}closed with nothing recorded and the heroine walking, opened anew${middle.length ? ' in its middle' : ''}, solved and recorded${skilled ? '' : ' in no skill'}`);
+    const wrongs = mistakes === 1 ? 'a wrong move on rung 1 with its clips' : `${mistakes} wrong moves on their rungs with their clips`;
+    console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, ${wrongs}, ${kept}closed with nothing recorded and the heroine walking, opened anew${middle.length ? ' in its middle' : ''}, solved and recorded${skilled ? '' : ' in no skill'}`);
   };
   /** The card of the fanfare that is up: an achievement's scene is closed by `fanfareUp`, the block's own is pictured and closed here. */
   const closeCard = async (where, picture) => {
@@ -903,6 +929,6 @@ export async function playWorld(h, o = {}) {
   const onTheWay = last.items.filter((i) => !did.includes(i.id)).map((i) => i.id);
   console.log(`world "${worldId}": ${last.items.length} items of its description done in the order ${did.join(', ')}${onTheWay.length ? ` (done on the way: ${onTheWay.join(', ')})` : ''}; `
     + `${chainsDone} of ${chains.length} chains; ${((Date.now() - started) / 1000).toFixed(0)}s`); /* clock: log-time */
-  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did, worldTasks: metWorld }) + '\n');
+  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did, worldTasks: metWorld, worldSkills: metSkills }) + '\n');
   return voiceUsed;
 }

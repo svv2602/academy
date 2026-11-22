@@ -95,8 +95,13 @@ describe('the debug door of the walkthrough (__game.worldTask)', () => {
     expect(door.half()).toBe(0);
     setWorldTask(g, { ...show, half: () => { calls.push('half'); return 2; } });
     expect(door.half()).toBe(2);
+    // the walkthrough's wrong moves: one unless the kind asks for more (the scales of WORLD-22: three)
+    expect(door.mistakes).toBe(1);
+    setWorldTask(g, { ...show, mistakes: 3 });
+    expect(door.mistakes).toBe(3);
     setWorldTask(g, null);
     expect(door.state).toBeNull();
     expect(door.half()).toBe(0);
+    expect(door.mistakes).toBe(0);
   });
 });

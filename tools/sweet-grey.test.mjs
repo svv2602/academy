@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { GREY_BUILD } from './world-pass.mjs';
-import { LANDMARK_NAMES, PARTS_IN_WORLD, PASS_KINDS, SWEET, passEnv, passProblems, readArgs, routeSeconds } from './sweet-grey.mjs';
+import { LANDMARK_NAMES, PARTS_IN_WORLD, PASS_KINDS, SWEET, WORLD_SKILLS, passEnv, passProblems, readArgs, routeSeconds } from './sweet-grey.mjs';
 
 describe('tools/sweet-grey.mjs', () => {
   it('reads its arguments: the chosen stretch 1.6 and q2 by default', () => {
@@ -26,14 +26,25 @@ describe('tools/sweet-grey.mjs', () => {
   it('a report is right only when the pass came to the finale in the Sweet Land, every kind done', () => {
     const items = [{ id: 'pastila', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ruby_house', kind: 'part' }, { id: 'ruby_mill', kind: 'part' }, { id: 'final', kind: 'finale' }];
     // the rubies are taken inside the chains: not in the order of the items done by the pass itself
-    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2'] };
+    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2'], worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'compare' } };
     expect(passProblems(report)).toEqual([]);
-    // the gingerbread house is played in the world (WORLD-21): a pass that never met it there is wrong
-    expect(passProblems({ ...report, worldTasks: [] })).toEqual(['no task in the world was played by the pass: the world declares one']);
+    // the gingerbread house (WORLD-21) and the scales (WORLD-22) are played in the world: a pass that never met them there is wrong
+    expect(passProblems({ ...report, worldTasks: [], worldSkills: {} })).toEqual(['no task in the world was played by the pass: the world declares one',
+      'the task in the world "imbir 2" was not played by the pass', 'the task in the world "tyanuchka 2" was not played by the pass']);
     expect(passProblems(null)).toHaveLength(1);
     expect(passProblems({ ...report, order: ['pastila', 'toured'] })).toEqual(['no item of kind "finale" was done by the pass']);
     expect(passProblems({ ...report, items: items.filter((i) => i.id !== 'ruby_mill') })).toEqual(['the description has 1 part(s) of the artifact in the world, 2 expected']);
     expect(passProblems({ ...report, world: 'sea' })[0]).toContain('"sea"');
+  });
+
+  it('the house is recorded in no skill, the scales in `compare` as a panel task of comparing (the customer\'s decision 2026-11-18)', () => {
+    expect(WORLD_SKILLS).toEqual({ 'imbir 2': null, 'tyanuchka 2': 'compare' });
+    const items = [{ id: 'pastila', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ruby_house', kind: 'part' }, { id: 'ruby_mill', kind: 'part' }, { id: 'final', kind: 'finale' }];
+    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2'] };
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'sub' } })).toEqual(['the task in the world "tyanuchka 2" recorded the skill "sub", "compare" expected']);
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': 'classify', 'tyanuchka 2': null } })).toEqual([
+      'the task in the world "imbir 2" recorded the skill "classify", no skill expected', 'the task in the world "tyanuchka 2" recorded no skill, "compare" expected']);
+    expect(passProblems(report)).toEqual(['the task in the world "imbir 2" recorded nothing the report shows, no skill expected', 'the task in the world "tyanuchka 2" recorded nothing the report shows, "compare" expected']);
   });
 
   it('the route\'s time sums the ways it walks, twice for one walked there and back', () => {

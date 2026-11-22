@@ -12,7 +12,7 @@ import {
   PART_MAGIC,
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
   GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
-  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems,
+  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
 import { gameWaits } from './game-wait.mjs';
@@ -296,6 +296,22 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
       'its middle is []: a kind that keeps one keeps nothing', `the stored save holds ${was}, the game ${at}: the middle is not stored at once`]);
   });
 
+  it('b) wrong move n of several: n counted, waiting on rung n - the third for every later one', () => {
+    const voice = { started: ['try_again_1', 'h3_show'], synth: [], line: 'h3_show', muted: false };
+    expect(wrongProblems(st({ wrongs: 3, rung: 3 }), voice, 3)).toEqual([]);
+    expect(wrongProblems(st({ wrongs: 4, rung: 3 }), voice, 4)).toEqual([]);
+    expect(wrongProblems(st({ wrongs: 2, rung: 1 }), voice, 3)).toEqual(['2 wrong moves counted for 3', 'the rung of the hint is 1, not 3']);
+    expect(halfProblems(st({ wrongs: 3, moves: 1, progress: [0] }), 1, { held: was, stored: was }, 3)).toEqual([]);
+    expect(halfProblems(st({ wrongs: 1, moves: 1, progress: [0] }), 1, { held: was, stored: was }, 3)).toEqual(['1 wrong moves counted, the 3 of b) expected']);
+  });
+
+  it('e) the skill a solved step recorded: the one whose tasks grew in the stored save, none for none or for several', () => {
+    const a = rec(), b = rec({ stored: rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 3 }, add: { tasks: 4 } }) });
+    expect(recordedSkill(a, b)).toBe('compare');
+    expect(recordedSkill(a, a)).toBeNull();
+    expect(recordedSkill(a, rec({ stored: rec2({}, 8, { compare: { tasks: 3 }, add: { tasks: 5 } }) }))).toBeNull();
+  });
+
   it('b) one wrong move: counted once, waiting again on rung 1, "try again" and the hint by their clips', () => {
     const voice = (o = {}) => ({ started: ['try_again_1', 'h_count'], synth: [], line: 'h_count', muted: false, ...o });
     expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice())).toEqual([]);
@@ -515,6 +531,8 @@ function standIn(o = {}) {
     /** The debug door of the task in the world (src/game/worldtasks/core.ts): its calls are logged in `log.door`. */
     worldTask: {
       get state() { return wt && { kind: wt.kind, phase: wt.phase, wrongs: wt.wrongs, moves: wt.progress.length, rung: wt.rung, progress: [...wt.progress] }; },
+      /** The wrong moves the kind asks the walkthrough for (`d.mistakes`, the scales of WORLD-22); absent - the door says none. */
+      get mistakes() { return wt?.d.mistakes; },
       /** A kind that keeps its middle (`d.middle`): one right move, kept in the world's part at once (unless the fault says otherwise). */
       half() {
         if (!wt || !wt.d.middle) return 0;
@@ -529,7 +547,7 @@ function standIn(o = {}) {
         log.door.push('wrong');
         const t = wt;
         t.wrongs++; t.phase = 'mistake'; starts('try_again_1'); say('try_again_1');
-        after(1, () => { if (fault.hintSynth) globalThis.__game.voice.synth.push('h_count'); else starts('h_count'); say('h_count'); t.rung = fault.noRung ? 0 : 1; t.phase = 'input'; });
+        after(1, () => { if (fault.hintSynth) globalThis.__game.voice.synth.push('h_count'); else starts('h_count'); say('h_count'); t.rung = fault.noRung ? 0 : fault.stuckRung ? 1 : Math.min(3, t.wrongs); t.phase = 'input'; });
         return true;
       },
       close() {
@@ -719,7 +737,7 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     // the report of the pass: what tools/worlds.mjs reads
     expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8'))).toEqual({
       world: 'meadow', size: 'mobile', online: true, need: 'one item of every kind',
-      items: DEFS().map((d) => ({ kind: d.kind, id: d.id, how: d.how })), order: ['toured', 'owl', 'pet', 'well', 'key', 'tale', 'final'], worldTasks: [],
+      items: DEFS().map((d) => ({ kind: d.kind, id: d.id, how: d.how })), order: ['toured', 'owl', 'pet', 'well', 'key', 'tale', 'final'], worldTasks: [], worldSkills: {},
     });
     // the character of a chain of two steps is talked to twice; the other four buttons once each
     expect(r.log.presses).toBe(6);
@@ -750,6 +768,26 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     expect(r.log.presses).toBe(8);
     expect(r.log.shots).toEqual(expect.arrayContaining(['world-task-tally', 'world-task-tally-hint1']));
     expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8')).worldTasks).toEqual(['hare 0']);
+    // the skill it recorded, in the log and in the report
+    expect(r.printed).toContain('world task: tally: recorded in the skill "compare"');
+    expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8')).worldSkills).toEqual({ 'hare 0': 'compare' });
+  });
+
+  it('a kind that asks for three wrong moves (the scales, WORLD-22): each after the course of the one before, on rungs 1, 2, 3, then solved and pictured', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'world-pass-')); dirs.push(dir);
+    const r = await pass({ defs: hare({ mistakes: 3 }) }, { need: 'one', out: join(dir, 'pass.json') });
+    expect(r.thrown).toBeNull();
+    expect(r.errors).toEqual([]);
+    expect(r.log.door).toEqual(['wrong', 'wrong', 'wrong', 'close', 'solve']);
+    expect(r.printed).toContain('world task: tally: 3 wrong moves, each back to waiting on its rung (1, 2, 3) with its clips');
+    expect(r.printed).toContain('world task: hare step 1 "tally": open, wrong, close, again, solve - opened waiting, 3 wrong moves on their rungs with their clips, closed with nothing recorded and the heroine walking, opened anew, solved and recorded');
+    expect(r.log.shots).toEqual(expect.arrayContaining(['world-task-tally', 'world-task-tally-hint1', 'world-task-tally-hint2', 'world-task-tally-hint3', 'world-task-tally-done']));
+    expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8')).worldSkills).toEqual({ 'hare 0': 'compare' });
+  });
+
+  it('three wrong moves asked for, the hint stuck on its first rung: it fails at the second, with its number', async () => {
+    const r = await pass({ defs: hare({ mistakes: 3 }), fault: { stuckRung: true } });
+    expect(r.thrown).toContain('step 1, the task in the world "tally": b) the course of the wrong move 2 did not come back to input on rung 2');
   });
 
   it('a task in the world on a step the description does not declare fails with the id of the chain', async () => {

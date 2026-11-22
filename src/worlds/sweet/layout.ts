@@ -92,6 +92,12 @@ export const HOUSE_FACADE = { x: HOUSE.x + HOUSE.w / 2 + 0.4, z: HOUSE.z };
 /** Before the door of the house, toward Imbir: the action there takes ruby 2 once the door stands open. */
 export const HOUSE_DOOR = { x: HOUSE.x + HOUSE.w / 2 + 0.9, z: HOUSE.z };
 /**
+ * Tyanuchka's scales with candies at the marmalade market (WORLD-22, ./scales.ts): the middle of their post, east of the
+ * big scales of the landmark and south-east of Tyanuchka, off the way to the bridge. The child looks at them from the
+ * east, westward - the big scales of the landmark beyond them.
+ */
+export const SCALES_AT = { x: ZONES.market.x + 1.5, z: ZONES.market.z + 4.5, facing: -Math.PI / 2 } as const;
+/**
  * The arch back to the Great Tree on the square (./hub-way.ts): south-east of its middle, by the spawn and out of the
  * ways - the camera behind her as she comes out of it stands on the square.
  */
