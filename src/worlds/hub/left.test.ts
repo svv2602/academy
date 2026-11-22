@@ -7,7 +7,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { defaultSave, defaultWorld, type Save } from '../../core/save';
 import { knowWorlds, knownWorlds } from '../../game/artifacts';
-import { SEA_WORDS, hubLeft, seaWord } from './index';
+import { HEARD_WAKE, SEA_WORDS, hubLeft, seaWord } from './index';
+import { wakingArches } from './portals';
 import { somethingNew } from './portals';
 import { strings } from './strings';
 
@@ -65,11 +66,13 @@ describe('the cat by a sleeping arch (D)', () => {
 
 describe('the cat\'s words of the sea in the hub (seaWord), each once as she comes in', () => {
   const ARCHES = ['fairy', 'forest', 'sea', null, null];
-  it('its arch open and the sea not visited: the portal woke up; then nothing more until the sea is done', () => {
+  it('its arch open and the sea not visited: no word here - the arch says it waking (hub_sea_wake, wakingArches)', () => {
     const ws = defaultWorld(), s = defaultSave();
-    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_wake');
-    expect(ws.flags[SEA_WORDS.wake]).toBe(true);
     expect(seaWord(ws, s, ARCHES)).toBeNull();
+    expect(ws.flags[SEA_WORDS.wake]).toBeUndefined();
+    // the flag of the word heard before the arches woke marks the sea's arch awake: it does not wake again
+    expect(wakingArches(ARCHES, {}, HEARD_WAKE)).toEqual([1, 2]);
+    expect(wakingArches(ARCHES, { [SEA_WORDS.wake]: true }, HEARD_WAKE)).toEqual([1]);
   });
   it('the sea done: its pearl is home, the next time the tree grew, then nothing', () => {
     const ws = defaultWorld(), s = defaultSave(); final(s, 'sea');

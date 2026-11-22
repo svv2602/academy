@@ -89,6 +89,7 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
       const name = 'the fairies done';
       const p = await open(name, HUB_SAVES.one());
       if (JSON.stringify(p.woke) !== '[1]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's`);
+      if ((await p.g(() => __game.line)) === 'hub_sea_wake') problems.push(`${name}: the cat said the sea woke while its arch sleeps`);
       const open1 = await arches(p);
       if (!same(open1, ['fairy', 'forest', null, null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open1)}, not the fairies' and the forest's (the sea's asleep until the forest is done)`);
       const goal = await p.g(() => __game.hub.goal());
@@ -120,12 +121,16 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
       save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const p = await open(name, save);
       if (JSON.stringify(p.woke) !== '[1,2]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's and the sea's`);
+      // the word of the arches waking: the sea's (the forest has none yet), once, and its flag of the word set with woke2
+      await p.until(() => __game.line === 'hub_sea_wake', null, 'the cat did not say "hub_sea_wake" as the arches woke', 30000).catch((e) => problems.push(e.message));
+      const flags = await p.g(() => __game.save.worlds.hub?.flags ?? {});
+      if (!flags.woke1 || !flags.woke2 || !flags.sea_wake) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: woke1, woke2 and sea_wake expected`);
       const open2 = await arches(p);
       if (!same(open2, ['fairy', 'forest', 'sea', null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open2)}, not the fairies', the forest's and the sea's`);
       const n = await p.calls();
       if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with three arches open, more than 80`);
       await p.page.screenshot({ path: join(shots, 'way-hub-three-open.png') });
-      told.push(`the forest done: the forest's and the sea's arches woke, the sea's open too, ${n} draw calls at the arrival`);
+      told.push(`the forest done: the forest's and the sea's arches woke, the cat said hub_sea_wake, the sea's open too, ${n} draw calls at the arrival`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----

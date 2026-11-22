@@ -76,20 +76,26 @@ export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME):
 export const SEA_WORDS = { wake: 'sea_wake', home: 'sea_home', after: 'sea_after' } as const;
 /**
  * The cat's words of the sea as she comes into the hub (docs/worlds/world-3.md, the lines of 2026-11-18), each once,
- * before the usual word: its arch leads to it and she has not been there - "the portal to the sea woke up"; the sea
- * done - "the pearl is home, one more nest lit"; the next time - the tree grew. Marks what it returns; null - none.
+ * before the usual word: the sea done - "the pearl is home, one more nest lit"; the next time - the tree grew. Marks
+ * what it returns; null - none. "The portal to the sea woke up" (hub_sea_wake) is said by the arch waking (`wakeUp`
+ * below), as every world's hub_<world>_wake; its flag SEA_WORDS.wake marks the sea's arch awake (`wakingArches`).
  */
-export function seaWord(ws: WorldState, save: Save, worlds: readonly (string | null)[]): 'hub_sea_wake' | 'hub_sea_home' | 'hub_sea_after' | null {
+export function seaWord(ws: WorldState, save: Save, worlds: readonly (string | null)[]): 'hub_sea_home' | 'hub_sea_after' | null {
   if (!worlds.includes('sea')) return null;
   const said = (flag: string) => ws.flags[flag] === true;
-  let word: 'hub_sea_wake' | 'hub_sea_home' | 'hub_sea_after' | null = null, flag = '';
+  let word: 'hub_sea_home' | 'hub_sea_after' | null = null, flag = '';
   if (doneIn(save)('sea')) {
     if (!said(SEA_WORDS.home)) { word = 'hub_sea_home'; flag = SEA_WORDS.home; }
     else if (!said(SEA_WORDS.after)) { word = 'hub_sea_after'; flag = SEA_WORDS.after; }
-  } else if (save.worlds.sea === undefined && !said(SEA_WORDS.wake)) { word = 'hub_sea_wake'; flag = SEA_WORDS.wake; }
+  }
   if (word) ws.flags[flag] = true;
   return word;
 }
+/**
+ * A world's own flag that already marks its arch awake (its word of waking said before the arches woke): the sea's
+ * SEA_WORDS.wake. Set with the hub's woke<shelf> as the arch wakes, so either answers for the other.
+ */
+export const HEARD_WAKE: Readonly<Record<string, string>> = { sea: SEA_WORDS.wake };
 /** The flag of the hub's part of the save that marks the tour done (the id of its item). */
 export const TOUR = 'toured';
 
@@ -223,7 +229,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     sleep();
   };
   const leadsTo = openArches(portalWorlds(knownWorlds()), doneIn(save));
-  const { arches: portals, update: breathe, wake } = buildArches(scene, leadsTo, ground.block, wakingArches(leadsTo, ws.flags));
+  const { arches: portals, update: breathe, wake } = buildArches(scene, leadsTo, ground.block, wakingArches(leadsTo, ws.flags, HEARD_WAKE));
   // The arches whose world opened since she was last here wake once she is free and the cat silent (docs/worlds/hub.md, step 4): the
   // vines fall, the stone warms, the veil and the runes light; the camera on the first of them, the controls held. Then
   // the cat's word of that world's waking (hub_<world>_wake), if the hub has it. `hold` keeps it at a moment (?debug).
@@ -241,13 +247,14 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     waking.end = () => {
       for (const shelf of wake.shelves) g.sparks.burst(new THREE.Vector3(portals[shelf].x, 2.4, portals[shelf].z), PORTALS[shelf].colour, 40, 3);
       wake.done();
-      for (const shelf of wake.shelves) ws.flags[woke(shelf)] = true;
+      for (const shelf of wake.shelves) { ws.flags[woke(shelf)] = true; const own = HEARD_WAKE[portals[shelf].world ?? '']; if (own) ws.flags[own] = true; }
       g.persist();
       waking.on = false;
       if (g.visit !== visit) return;
       g.busy = false; g.cam.focus = null; g.hero.play('Idle');
-      const key = `hub_${first.world}_wake`;
-      if (key in strings.spoken) void g.speech.line(key as SpokenKey, 'hint', 6000);
+      // the word of the first of them that has one (the forest's and the sea's waking together: the forest's, else the sea's)
+      const key = wake.shelves.map((shelf) => `hub_${portals[shelf].world}_wake`).find((k) => k in strings.spoken);
+      if (key) void g.speech.line(key as SpokenKey, 'hint', 6000);
     };
   };
   const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
