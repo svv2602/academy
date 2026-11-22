@@ -4,13 +4,12 @@ import type { Save } from '../core/save';
 import { PETS } from './pets';
 
 // The shared load without a page: the loaders and the notice are stand-ins, the order and the failure are real.
-const rig = vi.fn();
-const buildHero = vi.fn();
-const loadGear = vi.fn();
-const showNotice = vi.fn();
-const shared = vi.fn();
-const loadPetGear = vi.fn();
-const staticGeo = vi.fn();
+// Hoisted with the mocks: ./pets (imported above) asks for the loader of the assets as it is imported.
+const { rig, buildHero, loadGear, showNotice, shared, loadPetGear, staticGeo } = vi.hoisted(() => ({
+  rig: vi.fn(), buildHero: vi.fn(), loadGear: vi.fn(), showNotice: vi.fn(), shared: vi.fn(), loadPetGear: vi.fn(), staticGeo: vi.fn(),
+}));
+/** The pets of the core: a pet whose model is a file of its world (`own`) is its world's to load, not the shared load's. */
+const CORE_PETS = PETS.filter((p) => !p.own);
 vi.mock('../core/assets', () => ({ rig, shared, staticGeo }));
 vi.mock('./hero', () => ({ buildHero }));
 vi.mock('./gear', () => ({ loadGear }));
@@ -41,7 +40,7 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const got = await loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledExactlyOnceWith(SAVE);
     expect(rig.mock.calls[0]).toEqual(['extra/cat', 0.75, false]);
-    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(PETS.map((p) => [p.id, CAT])), petGear: PET_GEAR, starGeo: STAR });
+    expect(got).toEqual({ heroRig: { ...HERO, gear: GEAR }, catRig: CAT, petRigs: Object.fromEntries(CORE_PETS.map((p) => [p.id, CAT])), petGear: PET_GEAR, starGeo: STAR });
     // The pets' things on the very models of the cat and the fawn the game plays with (src/game/petgear.ts).
     expect(loadPetGear).toHaveBeenCalledExactlyOnceWith({ cat: CAT, fawn: CAT });
     // The items are hung under the bones of the model the game plays with, not of a copy.
@@ -65,14 +64,25 @@ describe('the shared load (TECH-15): the heroine with her items and the cat, onc
     const { loadShared } = await boot();
     void loadShared(SAVE);
     expect(buildHero).toHaveBeenCalledTimes(1);
-    expect(rig).toHaveBeenCalledTimes(1 + PETS.length);
+    expect(rig).toHaveBeenCalledTimes(1 + CORE_PETS.length);
   });
 
   it('PLAY-09: the model of every pet once, at its height, kept for every world (never released with one)', async () => {
     const { loadShared } = await boot();
     await loadShared(SAVE);
-    expect(rig.mock.calls.slice(1)).toEqual(PETS.map((p) => [p.model, p.height, true]));
-    expect(shared).toHaveBeenCalledExactlyOnceWith(...PETS.map((p) => p.model), 'platformer_game_pack/Star');
+    expect(rig.mock.calls.slice(1)).toEqual(CORE_PETS.map((p) => [p.model, p.height, true]));
+    expect(shared).toHaveBeenCalledExactlyOnceWith(...CORE_PETS.map((p) => p.model), 'platformer_game_pack/Star');
+  });
+
+  it('a pet of a world\'s file (the owlet) is neither loaded nor kept by the shared load', async () => {
+    const own = PETS.filter((p) => p.own);
+    expect(own.map((p) => p.id)).toContain('owlet');
+    const { loadShared } = await boot();
+    await loadShared(SAVE);
+    for (const p of own) {
+      expect(rig.mock.calls.some((c) => c[0] === p.model)).toBe(false);
+      expect(shared.mock.calls[0]).not.toContain(p.model);
+    }
   });
 
   it('the star of the mysterious stars (src/game/mystery-stars.ts): once, with the rest, kept for every world', async () => {

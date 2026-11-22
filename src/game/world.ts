@@ -50,9 +50,10 @@ export interface CharacterDef {
   /**
    * Its own lines, in its voice (VOICE-10; the next worlds, unset in the first): `asks` - before each step of the chain,
    * by the step's index (none or null: no line); `thanks` - with its part, in place of the world's `partGiven`;
-   * `again` - one of them in turn when it is met after its chain, in place of `npc_again`.
+   * `again` - one of them in turn when it is met after its chain, in place of `npc_again`; `after` - once its part is
+   * given, after its thanks, in place of the cat's `go_next` (a request that opens what comes next: the owlet to find).
    */
-  asks?: readonly (SpokenKey | null)[]; thanks?: SpokenKey; again?: readonly SpokenKey[];
+  asks?: readonly (SpokenKey | null)[]; thanks?: SpokenKey; again?: readonly SpokenKey[]; after?: SpokenKey;
 }
 
 export interface Npc { def: CharacterDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number }
@@ -195,6 +196,8 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
     readonly species: string; readonly at: { readonly x: number; readonly z: number };
     /** The id of the character whose chain has to be finished before the pet shows itself; absent: it is there at once. */
     readonly after?: string;
+    /** The cat's words when it is found, in place of the shared `pet_found`; `follow` - said after them. */
+    readonly found?: SpokenKey; readonly follow?: SpokenKey;
   };
   /**
    * PLAY-07, PLAY-08: the names of ws.flags that are this world's secrets; the ids of the items of kind `secret` (items(),

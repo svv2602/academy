@@ -15,7 +15,7 @@ import type { Stage } from './stage';
 import type { Speech } from './speech';
 import type { TaskHooks, TaskResult } from './taskviews/panel';
 import { Butterflies } from './butterflies';
-import { createPets, type PetsInWorld } from './pets';
+import { createPets, ownPetRigs, type PetsInWorld } from './pets';
 import { createPlanner, type Planner } from './planner';
 import { createMystery, type MysteryInWorld } from './mystery-stars';
 import { createCollections, type CollectInWorld } from './collect-items';
@@ -300,8 +300,9 @@ export function createGame(o: {
   };
   // The chain a pet waits for is read through `g` each time (the world played, its progress): nothing kept from now.
   // TECH-15: the pets are made anew for every world entered (`enter` above): the pet of a world is its own.
+  // The models: the core's pets and those of a world's file that the world entered has loaded (src/game/pets.ts loadOwnPets).
   const petsOf = (): PetsInWorld => createPets(g, {
-    pet: g.world.pet, rigs: o.shared.petRigs, world: g.world,
+    pet: g.world.pet, rigs: { ...o.shared.petRigs, ...ownPetRigs(g.world.id) }, world: g.world,
     chainDone: (id) => { const c = g.world.characters?.find((x) => x.id === id); return !!c && (g.ws.quests[c.id] ?? 0) >= c.steps.length; },
   });
   pets = petsOf();

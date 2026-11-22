@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Rig } from '../core/assets';
+import { rig, type Rig } from '../core/assets';
 import { sfx } from '../core/audio';
 import type { Save } from '../core/save';
 import type { SpokenKey } from '../ui/strings';
@@ -16,7 +16,9 @@ import { inStash, spend } from './stash';
  * read from the save every time; where it stands and after which chain it shows itself is the world's (WorldDef.pet).
  * Which pets are found is the save's own list (`save.pets`), written by the find in whatever world it was made: a
  * species that waits in a world other than the one of its catalog entry is found there too.
- * The models are of the core (R23, R46): the shared load (src/game/boot.ts) brings the model of every species once.
+ * The models are of the core (R23, R46): the shared load (src/game/boot.ts) brings the model of every species once -
+ * but a species marked `own`, whose model is a file of its world (the owlet: the core's models have no room for it,
+ * the lead's decision of 2026-11-22). Its world and the hub load it themselves (`loadOwnPets`).
  */
 
 /**
@@ -28,6 +30,17 @@ export interface PetSpecies {
   /** The kinds of finds it likes as a treat (PLAY-27, from the stash), in the order they are given. */
   readonly treats?: readonly string[];
   readonly walk: number; readonly run?: { readonly clip: string; readonly ground: number };
+  /**
+   * Its model is a file of its world (`models/<world>/…`), not of the core: the shared load leaves it out, its world
+   * and the hub load it (`loadOwnPets`). The world is downloaded whole before it is entered, so the hub finds the file
+   * in the cache once the pet was found there; with no file the pet stays at home.
+   */
+  readonly own?: boolean;
+  /**
+   * It flies after her instead of walking (the owlet: its model has no walking clip): `clip` while it goes, `height` m
+   * over the ground it rises to; standing, it comes down and plays Idle. `walk` and `run` are not read then.
+   */
+  readonly fly?: { readonly clip: string; readonly height: number };
 }
 
 /** The pet of a world as the world describes it (WorldDef.pet). */
@@ -41,9 +54,38 @@ export const PETS: readonly PetSpecies[] = [
   // R57 (Q1): the fawn of the first world: the model of its grown-up made small. A model file of the core, not a world's name:
   // src/game/shared-code.test.ts allows this one exact string in this file only.
   { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85, walk: GROUND.fawnWalk, run: { clip: 'Gallop', ground: GROUND.fawnGallop }, treats: ['acorn', 'mushroom'] },
+  // The owlet of the forest (world-2.md, PLAY-09): Mudrena's little one, the Meshy model of the forest (CREDITS.md), a
+  // file of that world (`own`). It has no walking clip: it flies after her flapping its wings (the lead, 2026-11-22).
+  { id: 'owlet', world: 'forest', model: 'forest/owlet', height: 0.38, own: true, walk: 1, fly: { clip: 'Flap', height: 0.4 }, treats: ['acorn', 'feather'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
+
+/** The models of the `own` pets a world has loaded, by the world's id: read when the world is entered (src/game/context.ts). */
+const ownRigs = new Map<string, Record<string, Rig>>();
+type ScopeOwn = { own(what: () => void): unknown };
+
+/**
+ * A world's load brings the `own` pets it shows (`ids`: species of PETS marked `own`; others are left out) - inside the
+ * world's load, so their models are the world's and go with it. A model that does not come (no file in the cache, no
+ * network) is only missing: that pet stays at home, the world plays on, a warning in the console. `scope`: the
+ * world's, its end forgets the models. `load` is the loader (the tests hand their own).
+ */
+export async function loadOwnPets(world: string, ids: readonly string[], scope: ScopeOwn, load: (path: string, height: number) => Promise<Rig> = (p, h) => rig(p, h, true)): Promise<void> {
+  const kinds = PETS.filter((p) => p.own && ids.includes(p.id));
+  const got = await Promise.all(kinds.map((p) => load(p.model, p.height).then((r) => [p.id, r] as const, (e: unknown) => {
+    console.warn(`the pet "${p.id}" did not load, it stays at home:`, e);
+    return null;
+  })));
+  ownRigs.set(world, Object.fromEntries(got.filter((x) => x !== null)));
+  scope.own(() => { ownRigs.delete(world); });
+}
+
+/** The `own` pets' models the world `world` has loaded (none: an empty record). */
+export const ownPetRigs = (world: string): Readonly<Record<string, Rig>> => ownRigs.get(world) ?? {};
+
+/** The `own` species found in this save: what the hub loads, so the one chosen in the book can walk after her. */
+export const ownFound = (save: Save): string[] => foundPets(save).filter((id) => petSpecies(id)?.own === true);
 
 /**
  * What is wrong with the pet a world declares (empty: nothing): a species not in PETS, one of another world, or an
@@ -65,6 +107,13 @@ export function petProblems(w: { id: string; pet?: WorldPet; characters: readonl
  * the key to src/ui/strings.ts: until then the find is marked by the sparks and the sound only.
  */
 export const FOUND_LINE: SpokenKey | null = 'pet_found';
+
+/** The pace of a flying pet's wings: 1 standing still, up to FLAP_MAX at the heroine's run (5.4 m/s). */
+export const FLAP_MAX = 1.6;
+export const flapPace = (speed: number): number => 1 + (FLAP_MAX - 1) * Math.min(1, Math.max(0, speed) / 5.4);
+/** A flying pet's height over the ground goes to `to` at this rate (1/s): most of the way in some 0.4 s. */
+const LIFT_RATE = 6;
+const ease = (now: number, to: number, dt: number): number => to + (now - to) * Math.exp(-LIFT_RATE * dt);
 
 /** The radius of the action spot around the place of a pet: it covers `at` (R22, rule 3). */
 export const PET_SPOT_R = 2.2;
@@ -258,6 +307,7 @@ export function createPets(g: PetHost, o: {
   const steps = paceFollower();  // its pace, smoothed in time
   let galloping = false, moving = '';   // the walking clip it plays now
   let best = Infinity, stuckT = 0;   // the nearest it came to its place lately, and for how long no nearer
+  let lift = 0;                         // a flying pet: m over the ground it is now (species `fly`)
   let gone = false;
 
   const spots: Spot[] = [];
@@ -273,7 +323,10 @@ export function createPets(g: PetHost, o: {
         sfx('good');
         g.sparks.burst(g.above(pos, 0.6), '#ffd1f0', 28, 3);
         g.sparks.burst(g.above(g.hero.root.position, 1.2), '#ff9ed2', 20, 3);
-        if (FOUND_LINE) void g.speech.line(FOUND_LINE, 'story');
+        // the world's own words for its pet, else the shared one; then, if it has one, what the pet will do now
+        const said = o.pet!.found ?? FOUND_LINE, follow = o.pet!.follow;
+        const first = said ? g.speech.line(said, 'story') : Promise.resolve();
+        if (follow) void first.then(() => g.speech.line(follow, 'story'));
       },
     });
   }
@@ -358,6 +411,8 @@ export function createPets(g: PetHost, o: {
       if (f !== wasFound || r !== wasReady || (g.save.pet ?? null) !== followed) { wasFound = f; wasReady = r; refresh(); }
       if (follower) {
         const p = follower.root.position, hp = g.hero.root.position;
+        const sp = petSpecies(followed), fly = sp?.fly && follower.has(sp.fly.clip) ? sp.fly : null;
+        let going = false;
         if (g.busy) { moving = ''; follower.play('Idle', 0.3); }
         else {
           const lead = steer?.(dt, p);
@@ -372,12 +427,18 @@ export function createPets(g: PetHost, o: {
             g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 14, 2);
             p.set(place.x, p.y, place.z);
             g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 24, 3);
-            best = 0; stuckT = 0;
+            best = 0; stuckT = 0; lift = 0;   // a flying pet appears on the ground and rises again
             real(p.x, p.z, dt);   // the jump is no speed: the next frame measures from here
           }
           const moved = Math.hypot(p.x - x0, p.z - z0);
           const speed = real(p.x, p.z, dt);
-          if (d > NEAR && moved > 1e-4) {
+          if (d > NEAR && moved > 1e-4 && fly) {
+            // it flies: its wings beat a little faster the faster it goes
+            going = true;
+            follower.face(Math.atan2(p.x - x0, p.z - z0), dt, 6);
+            follower.play(fly.clip, 0.35, flapPace(speed));
+            moving = fly.clip;
+          } else if (d > NEAR && moved > 1e-4) {
             follower.face(Math.atan2(p.x - x0, p.z - z0), dt, 6);
             // the pace by the speed it goes at (src/game/stride.ts), smoothed in time; too fast for its walk, it runs if
             // it can, and walks again only well below that (no flicker between the two)
@@ -391,7 +452,9 @@ export function createPets(g: PetHost, o: {
             moving = clip;
           } else { galloping = false; moving = ''; follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
         }
-        p.y = g.groundY(p.x, p.z);
+        // a flying pet rises while it goes and comes down to stand (some 0.4 s either way)
+        lift = fly ? ease(lift, going ? fly.height : 0, dt) : 0;
+        p.y = g.groundY(p.x, p.z) + lift;
         follower.update(dt);
         treatAt.copy(p);
         // the joy of a treat: a little hop; a trick: 1 - it spins round, 2 - it jumps up high, spinning

@@ -54,12 +54,14 @@ export function loadFailed(e: unknown): void {
 /** The heroine (dressed as the save says), the cat and the pets. Null = failed for good, the notice is already shown. */
 export function loadShared(save: Save): Promise<Shared | null> {
   // The pets are of the core: never released with a world, also when a world shows the same model file.
-  shared(...PETS.map((p) => p.model), MYSTERY_STAR_FILE);
+  // A pet whose model is a file of its world (`own`) is loaded by that world and the hub instead (loadOwnPets).
+  const core = PETS.filter((p) => !p.own);
+  shared(...core.map((p) => p.model), MYSTERY_STAR_FILE);
   return Promise.all([
     // The heroine's items hang under her bones while she is still in her rest pose (src/game/gear.ts).
     buildHero(save).then(async (h) => Object.assign(h, { gear: await loadGear(h) })),
     rig('extra/cat', CAT_HEIGHT, false),
-    Promise.all(PETS.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
+    Promise.all(core.map((p) => rig(p.model, p.height, true).then((r) => [p.id, r] as const))),
     staticGeo(MYSTERY_STAR_FILE, MYSTERY_STAR.model),
   ]).then(async ([heroRig, catRig, pets, starGeo]): Promise<Shared> => {
     const petRigs = Object.fromEntries(pets);

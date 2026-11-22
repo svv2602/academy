@@ -164,14 +164,17 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     sparks.burst(above(n.pos, 2), n.def.shard, 60, 6); sparks.burst(above(n.pos, 2), '#fff2a8', 40, 5);
     refreshHud(); persist();
     const thanks = line(n.def.thanks ?? lines.partGiven, 'story', 0, n.def.emoji);
+    // its own word after the thanks (CharacterDef.after: a request that opens what comes next), in place of "go on"
+    const after = n.def.after, ask = after ? () => line(after, 'story', 0, n.def.emoji) : null;
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
     // The last part: "every shard is back" belongs to its moment, before an achievement's scene (the stop point after it).
-    if (count === characters.length) { await line(lines.allParts, 'story'); await stopPoint('part'); return () => { shardsSettled.n++; }; }
+    if (count === characters.length) { await line(lines.allParts, 'story'); await stopPoint('part'); return () => { if (ask) void ask(); shardsSettled.n++; }; }
     await stopPoint('part');
     return () => {
       void thanks.then(() => {
-        if (!background.some((t) => t.active?.())) void line('go_next', 'hint', 5000);
+        if (ask) void ask();
+        else if (!background.some((t) => t.active?.())) void line('go_next', 'hint', 5000);
         shardsSettled.n++;
       });
     };

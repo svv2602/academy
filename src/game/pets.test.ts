@@ -7,7 +7,7 @@ import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
   CATCH_UP,
-  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
+  PETS, PET_FLAG, PET_GAP, PET_SPOT_R, FLAP_MAX, flapPace, loadOwnPets, ownFound, ownPetRigs, petSpecies, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
@@ -374,9 +374,9 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
     // the world's, the pets' and the stars' spots in the order of ./player.ts spotOrder (the world's win over the treat)
     expect(loop).toMatch(/spotOrder\(world\.spots, g\.pets\.spots, g\.mystery\.spots, spots\)/);
   });
-  it('the game makes the pets of the world played, with the models of the shared load', () => {
+  it('the game makes the pets of the world played, with the models of the shared load and of the world entered', () => {
     // `g.world`, not the world of the launch: the pets are made anew for every world entered (TECH-15, src/game/travel.ts)
-    expect(raw['./context.ts']).toMatch(/createPets\(g, \{\n\s*pet: g\.world\.pet, rigs: o\.shared\.petRigs,/);
+    expect(raw['./context.ts']).toMatch(/createPets\(g, \{\n\s*pet: g\.world\.pet, rigs: \{ \.\.\.o\.shared\.petRigs, \.\.\.ownPetRigs\(g\.world\.id\) \},/);
   });
 });
 
@@ -468,5 +468,91 @@ describe('the treats (PLAY-27): a find it likes from the stash, tricks after 5 a
     const none = createPets(host(defaultSave()), { rigs: rigs(), chainDone: () => false });
     expect(none.spots).toEqual([]);
     expect(none.tap(() => 0)).toBe(false);
+  });
+});
+
+describe('the owlet of the forest (PLAY-09): a pet whose model is a file of its world, that flies after her', () => {
+  const OWLET = petSpecies('owlet')!;
+  /** A world's scope as the loader reads it: what it owns is undone by `end`. */
+  const scopeOf = () => { const owned: (() => void)[] = []; return { own: (f: () => void) => { owned.push(f); }, end: () => owned.forEach((f) => f()) }; };
+  const flyingRig = (): Rig => ({ root: new THREE.Group(), model: new THREE.Object3D(), clips: new Map(['Flap', 'Idle', 'Talk'].map((n) => [n, new THREE.AnimationClip(n, 1, [])])) });
+
+  it('of the forest, its model a file of that world: the shared load leaves it out', () => {
+    expect(OWLET).toMatchObject({ world: 'forest', model: 'forest/owlet', own: true, fly: { clip: 'Flap' } });
+    expect(OWLET.height).toBeLessThan(0.7);         // smaller than Mudrena, its mother (0.7 m, src/worlds/forest/index.ts)
+    expect(PETS.filter((p) => !p.own).map((p) => p.id)).not.toContain('owlet');
+  });
+
+  it('the world loads it into its own models; the end of the world forgets them', async () => {
+    const scope = scopeOf(), load = vi.fn(async () => fakeRig());
+    await loadOwnPets('forest', ['owlet', 'fawn'], scope, load);
+    // only the `own` ones: the fawn is the core's
+    expect(load.mock.calls).toEqual([[OWLET.model, OWLET.height]]);
+    expect(Object.keys(ownPetRigs('forest'))).toEqual(['owlet']);
+    expect(ownPetRigs('hub')).toEqual({});
+    scope.end();
+    expect(ownPetRigs('forest')).toEqual({});
+  });
+
+  it('no file (not in the cache, no network): no error, the owlet stays at home and the world plays on', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scope = scopeOf();
+    await expect(loadOwnPets('hub', ['owlet'], scope, () => Promise.reject(new Error('no file')))).resolves.toBeUndefined();
+    expect(ownPetRigs('hub')).toEqual({});
+    expect(warn).toHaveBeenCalledOnce();
+    // chosen and found, but with no model: none walks after her in the hub, and nothing breaks
+    const save = defaultSave();
+    worldState(save, 'forest').flags.pet = true; save.pet = 'owlet';
+    const pets = createPets(host(save, 'hub'), { rigs: { ...rigs(), ...ownPetRigs('hub') }, chainDone: () => false, world: { id: 'hub' } });
+    expect(pets.follower).toBeNull();
+    expect(() => pets.update(1 / 60)).not.toThrow();
+    warn.mockRestore(); scope.end();
+  });
+
+  it('the hub loads the owlet once it is found, not before', () => {
+    const save = defaultSave();
+    expect(ownFound(save)).toEqual([]);
+    markFound(save, worldState(save, 'forest'), OWLET);
+    expect(ownFound(save)).toEqual(['owlet']);
+    // the fawn found too: it is the core's, the hub does not load it
+    markFound(save, worldState(save, 'fairy'), FAWN);
+    expect(ownFound(save)).toEqual(['owlet']);
+  });
+
+  it('it flies after her: rises while it goes, flapping faster the faster; comes down to stand', () => {
+    const save = defaultSave();
+    worldState(save, 'forest').flags.pet = true; save.pet = 'owlet';
+    const g = host(save, 'forest');
+    const pets = createPets(g, { rigs: { owlet: flyingRig() }, chainDone: () => true, world: { id: 'forest', shelf: 1 } });
+    const owl = pets.follower!;
+    expect(owl).not.toBeNull();
+    g.hero.root.position.set(6, 0, 0);
+    for (let i = 0; i < 40; i++) { g.hero.root.position.x += 0.05; pets.update(1 / 60); }
+    expect(owl.root.position.y).toBeGreaterThan(OWLET.fly!.height * 0.9);
+    expect(owl.root.position.y).toBeLessThanOrEqual(OWLET.fly!.height + 1e-9);
+    // she stops: it comes to her side and down onto the ground
+    for (let i = 0; i < 600; i++) pets.update(1 / 60);
+    expect(owl.root.position.y).toBeLessThan(0.01);
+    expect(flapPace(0)).toBe(1);
+    expect(flapPace(5.4)).toBeCloseTo(FLAP_MAX, 10);
+    expect(flapPace(20)).toBeCloseTo(FLAP_MAX, 10);
+  });
+
+  it('found: the world\'s own words, then what it will do; a world without its own says the shared one', () => {
+    const save = defaultSave(), g = host(save, 'forest');
+    const pet: WorldPet = { species: 'owlet', at: { x: 0, z: 0 }, found: 'forest_pet_found', follow: 'forest_pet_follow' };
+    let said!: () => void;
+    (g.speech.line as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise<void>((r) => { said = r; }));
+    const pets = createPets(g, { pet, rigs: { owlet: flyingRig() }, chainDone: () => true, world: { id: 'forest', shelf: 1 } });
+    pets.spots[0].run();
+    const calls = () => (g.speech.line as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+    expect(calls()).toEqual(['forest_pet_found']);
+    said();
+    return Promise.resolve().then(() => Promise.resolve()).then(() => {
+      expect(calls()).toEqual(['forest_pet_found', 'forest_pet_follow']);
+      const g2 = host(defaultSave(), WORLD);
+      createPets(g2, { pet: TEST_PET, rigs: rigs(), chainDone: () => true }).spots[0].run();
+      expect((g2.speech.line as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual(['pet_found']);
+    });
   });
 });

@@ -66,7 +66,8 @@ describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
     id: 'crab', emoji: '🦀', x: 0, z: 0, heading: 0, steps: ['compare', 'nuts'], shard: '#fff',
     hi: 'crab_hi', asks: ['crab_t1', 'crab_t2'], thanks: 'crab_done', again: ['crab_again_1', 'crab_again_2'],
   } as unknown as CharacterDef;
-  function crab() {
+  /** `def`: the crab with more of its own lines; `more`: other characters of the world (its part is not the last then). */
+  function crab(def: CharacterDef = CRAB, more: readonly CharacterDef[] = []) {
     const save = defaultSave(), ws = defaultWorld(), said: string[] = [];
     const g = {
       save, ws, plan: {}, rng: () => 0.5,
@@ -76,8 +77,8 @@ describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
       speech: { line: (k: string, _p: string, _ms?: number, who?: string) => { said.push(`${k}${who ? ` ${who}` : ''}`); return Promise.resolve(); } },
     } as unknown as Game;
     const nuts: WorldTask = { skill: 'count', start: () => {} };
-    const d = createDialogue(g, {} as never, { characters: [CRAB], lines: { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'go_next', partText: 'go_next' } as never, tasks: { nuts } });
-    const npc = { def: CRAB, actor: { has: () => false }, pos: new THREE.Vector3() } as unknown as Npc;
+    const d = createDialogue(g, {} as never, { characters: [def, ...more], lines: { partGiven: 'npc_next', allParts: 'all_parts', partTitle: 'go_next', partText: 'go_next' } as never, tasks: { nuts } });
+    const npc = { def, actor: { has: () => false }, pos: new THREE.Vector3() } as unknown as Npc;
     return { ws, said, d, npc };
   }
 
@@ -96,6 +97,34 @@ describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(said[0]).toBe('crab_done 🦀');
     expect(said).not.toContain('npc_next 🦀');
+  });
+
+  it('its own word after the thanks (`after`: the owlet to find) in place of the cat\'s "go on", also with the last part', async () => {
+    const ASKS = { ...CRAB, after: 'crab_ask_more' } as unknown as CharacterDef, OTHER = { ...CRAB, id: 'shrimp' } as CharacterDef;
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    {
+      const { ws, said, d, npc } = crab(ASKS, [OTHER]);
+      ws.quests.crab = 1;
+      d.stepDone(npc, 1);
+      await tick();
+      expect(said).toEqual(['crab_done 🦀', 'crab_ask_more 🦀']);
+    }
+    {
+      // the last part: "every part is back" first, then its word
+      const { ws, said, d, npc } = crab(ASKS);
+      ws.quests.crab = 1;
+      d.stepDone(npc, 1);
+      await tick();
+      expect(said).toEqual(['crab_done 🦀', 'all_parts', 'crab_ask_more 🦀']);
+    }
+    {
+      // without one: the cat's "go on" as before
+      const { ws, said, d, npc } = crab(CRAB, [OTHER]);
+      ws.quests.crab = 1;
+      d.stepDone(npc, 1);
+      await tick();
+      expect(said).toEqual(['crab_done 🦀', 'go_next']);
+    }
   });
 
   it('met again after its chain: its own words in turn, not the shared "again"', async () => {
