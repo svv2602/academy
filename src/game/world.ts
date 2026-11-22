@@ -47,6 +47,12 @@ export type Step = TaskType | (string & {});
 export interface CharacterDef {
   id: string; emoji: string; x: number; z: number; heading: number;
   steps: readonly Step[]; shard: string; hi?: SpokenKey;
+  /**
+   * Its own lines, in its voice (VOICE-10; the next worlds, unset in the first): `asks` - before each step of the chain,
+   * by the step's index (none or null: no line); `thanks` - with its part, in place of the world's `partGiven`;
+   * `again` - one of them in turn when it is met after its chain, in place of `npc_again`.
+   */
+  asks?: readonly (SpokenKey | null)[]; thanks?: SpokenKey; again?: readonly SpokenKey[];
 }
 
 export interface Npc { def: CharacterDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number }

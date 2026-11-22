@@ -70,6 +70,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   const skillOf = (s: PanelStep): SkillId => (isSkillStep(s) ? s : SKILL[s]);
 
   // ----- conversations -----
+  /** How many times each character was met after its chain: its `again` lines in turn. */
+  const metAgain = new Map<string, number>();
   async function talk(n: Npc) {
     const q = n.def;
     let onward = () => {};      // what the cat says once the scene is over, see givePart
@@ -92,7 +94,10 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
           if (pick === 'bye') return;
           if (pick === 'trade') { await tradeWith(n, offer); return; }
         }
-        await line('npc_again', 'story', 0, q.emoji);
+        // its own words of a meeting again, in turn (CharacterDef.again), or the shared one
+        const again = q.again?.length ? q.again[(metAgain.get(q.id) ?? 0) % q.again.length] : 'npc_again';
+        metAgain.set(q.id, (metAgain.get(q.id) ?? 0) + 1);
+        await line(again, 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
         if (res.solved) { recordTask(save, skill, res.wrong, res.helped === true); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
@@ -102,6 +107,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       for (let k = done; k < q.steps.length; k++) {
         const step = q.steps[k];
         const wt: WorldTask | undefined = tasks[step];
+        // what the step is about, in the character's words (CharacterDef.asks), before its task
+        const ask = q.asks?.[k];
+        if (ask) await line(ask, 'story', 0, q.emoji);
         if (wt?.start) {
           // A task in the background: the chain moves on when it is done, the conversation ends here.
           wt.start(n, (played) => stepDone(n, k, played));
@@ -155,7 +163,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     hero.play('Dance'); cat.play('Dance');
     sparks.burst(above(n.pos, 2), n.def.shard, 60, 6); sparks.burst(above(n.pos, 2), '#fff2a8', 40, 5);
     refreshHud(); persist();
-    const thanks = line(lines.partGiven, 'story', 0, n.def.emoji);
+    const thanks = line(n.def.thanks ?? lines.partGiven, 'story', 0, n.def.emoji);
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
     // The last part: "every shard is back" belongs to its moment, before an achievement's scene (the stop point after it).

@@ -59,3 +59,49 @@ describe('a step done in the background (src/game/dialogue.ts stepDone)', () => 
     expect(JSON.stringify(save.skills)).toBe(skills);
   });
 });
+
+/** A character of a next world with its own lines (CharacterDef asks, thanks, again): what the conversation says. */
+describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
+  const CRAB: CharacterDef = {
+    id: 'crab', emoji: '🦀', x: 0, z: 0, heading: 0, steps: ['compare', 'nuts'], shard: '#fff',
+    hi: 'crab_hi', asks: ['crab_t1', 'crab_t2'], thanks: 'crab_done', again: ['crab_again_1', 'crab_again_2'],
+  } as unknown as CharacterDef;
+  function crab() {
+    const save = defaultSave(), ws = defaultWorld(), said: string[] = [];
+    const g = {
+      save, ws, plan: {}, rng: () => 0.5,
+      hero: { root: new THREE.Object3D(), play: () => {} }, cat: { play: () => {} }, cam: {}, sparks: { burst: () => {} },
+      persist: () => {}, refreshHud: () => {}, addStars: () => {}, above: () => new THREE.Vector3(),
+      fault: () => {}, praise: () => Promise.resolve(), task: () => Promise.resolve({ solved: true, wrong: 0 }), hooksFor: () => ({}),
+      speech: { line: (k: string, _p: string, _ms?: number, who?: string) => { said.push(`${k}${who ? ` ${who}` : ''}`); return Promise.resolve(); } },
+    } as unknown as Game;
+    const nuts: WorldTask = { skill: 'count', start: () => {} };
+    const d = createDialogue(g, {} as never, { characters: [CRAB], lines: { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'go_next', partText: 'go_next' } as never, tasks: { nuts } });
+    const npc = { def: CRAB, actor: { has: () => false }, pos: new THREE.Vector3() } as unknown as Npc;
+    return { ws, said, d, npc };
+  }
+
+  it('greets, then says what each step is about before its task, in its voice', async () => {
+    const { ws, said, d, npc } = crab();
+    await d.talk(npc);
+    expect(ws.quests.crab).toBe(1);
+    // the panel step, solved; the shared "next" after it; then the ask of the step in the world, started in the background
+    expect(said).toEqual(['crab_hi 🦀', 'crab_t1 🦀', 'npc_next 🦀', 'crab_t2 🦀']);
+  });
+
+  it('thanks with its own words when its part is given, not with the world\'s', async () => {
+    const { ws, said, d, npc } = crab();
+    ws.quests.crab = 1;
+    d.stepDone(npc, 1);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(said[0]).toBe('crab_done 🦀');
+    expect(said).not.toContain('npc_next 🦀');
+  });
+
+  it('met again after its chain: its own words in turn, not the shared "again"', async () => {
+    const { ws, said, d, npc } = crab();
+    ws.quests.crab = 2;
+    await d.talk(npc); await d.talk(npc); await d.talk(npc);
+    expect(said.filter((s) => s.startsWith('crab_again') || s.startsWith('npc_again'))).toEqual(['crab_again_1 🦀', 'crab_again_2 🦀', 'crab_again_1 🦀']);
+  });
+});
