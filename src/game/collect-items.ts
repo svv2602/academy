@@ -35,7 +35,7 @@ export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 1.8, berry: 1.8 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -79,9 +79,17 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
   const tile = paint(new THREE.BoxGeometry(0.26, 0.26, 0.05), COLLECT_KINDS.piece.color);
   const knob = paint(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8).rotateX(Math.PI / 2).translate(0.15, 0, 0), COLLECT_KINDS.piece.color);
   const knob2 = paint(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8).rotateX(Math.PI / 2).translate(0, 0.15, 0), '#ffd98a');
+  // the forest's (the customer's word of 2026-11-22): a spruce cone lying on the moss, its scales in three rings of a
+  // darker brown; a sprig of bilberries - three blue berries on two green leaves
+  const cone = paint(new THREE.CylinderGeometry(0.035, 0.085, 0.3, 7, 1).rotateZ(Math.PI / 2 - 0.25), COLLECT_KINDS.cone.color);
+  const rings = [-0.08, 0, 0.08].map((x) => paint(new THREE.CylinderGeometry(0.075 - x * 0.25, 0.075 - x * 0.25, 0.035, 7, 1)
+    .rotateZ(Math.PI / 2 - 0.25).translate(x, x * 0.26, 0), '#6b4122'));
+  const berries = [[-0.06, 0, 0.03], [0.06, 0.01, 0.02], [0, 0.02, -0.06]].map(([x, y, z]) =>
+    paint(new THREE.SphereGeometry(0.065, 7, 5).translate(x, y, z), COLLECT_KINDS.berry.color));
+  const leaves = [0.9, -2.2].map((a) => paint(new THREE.SphereGeometry(0.09, 5, 2).scale(1, 0.18, 0.55).rotateY(a).translate(Math.cos(a) * 0.08, -0.05, -Math.sin(a) * 0.08), '#4f9a3c'));
   return {
     mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
-    piece: mergeGeometries([tile, knob, knob2])!,
+    piece: mergeGeometries([tile, knob, knob2])!, cone: mergeGeometries([cone, ...rings])!, berry: mergeGeometries([...berries, ...leaves])!,
   };
 }
 

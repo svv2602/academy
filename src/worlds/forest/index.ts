@@ -1,3 +1,4 @@
+import { COLLECT, DAILY_PLACES } from './collect';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { setCast, sfx } from '../../core/audio';
@@ -441,6 +442,8 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   load: loadForest,
   build: buildForest,
   // PLAY-10: the four secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
+  collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts)
+  daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   secrets: FOREST_SECRETS,
   chest: CAVE_FLAG,
   // PLAY-09: the owlet, under its heap in the squirrel grove once Mudrena's chain is done

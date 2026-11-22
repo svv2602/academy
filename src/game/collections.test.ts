@@ -89,9 +89,14 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
   it('every world that lays out finds lays them out right', () => {
     for (const w of WORLDS) if (w.collect) expect(collectProblems(w.collect), w.id).toEqual([]);
     const fairy = WORLDS.find((w) => w.id === 'fairy')!.collect!;
-    // the fairy world lays out every kind but the hub's own feathers of the Great Tree (src/worlds/hub/feathers.ts)
-    expect(kindsOf(fairy).sort()).toEqual(Object.keys(COLLECT_KINDS).filter((k) => k !== 'treefeather').sort());
+    // a world lays out the kinds of its own and the pieces of its picture: the fairy world four kinds, the hub its feathers
+    // of the Great Tree (src/worlds/hub/feathers.ts), the forest its cones and bilberries (src/worlds/forest/collect.ts)
+    const own = (world: string) => Object.entries(COLLECT_KINDS).filter(([, k]) => k.world === world).map(([id]) => id);
+    expect(kindsOf(fairy).sort()).toEqual([...own('fairy'), 'piece'].sort());
     expect(kindsOf(HUB_COLLECT)).toEqual(['treefeather']);
+    const forest = WORLDS.find((w) => w.id === 'forest')?.collect;
+    if (forest) expect(kindsOf(forest).sort()).toEqual(own('forest').sort());
+    expect(own('forest').sort()).toEqual(['berry', 'cone']);
     // every way, the catching ones one or two in a world (the decision of 2026-11-20)
     for (const way of COLLECT_WAYS) expect(fairy.items.some((i) => i.way === way), way).toBe(true);
     const chase = fairy.items.filter((i) => i.way === 'chase').length;

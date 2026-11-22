@@ -20,6 +20,12 @@ export const COLLECT_KINDS = {
   acorn: { icon: '🌰', color: '#d8953f', world: 'fairy' },
   mushroom: { icon: '🍄', color: '#ff5f7e', world: 'fairy' },
   feather: { icon: '🪶', color: '#7fb8ff', world: 'fairy' },
+  /**
+   * the Enchanted Forest's (the customer's word of 2026-11-22, «А»): spruce cones and bilberries. There is no emoji of a
+   * cone: its picture is drawn (`svg`, src/ui/finds.ts)
+   */
+  cone: { icon: '', svg: 'cone', color: '#a8683a', world: 'forest' },
+  berry: { icon: '🫐', color: '#5b6fd6', world: 'forest' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
    * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
   treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },
