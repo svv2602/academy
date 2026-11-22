@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
 import { CABIN, CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, THRONE, TOWERS, ZONES, type Place } from './layout';
 import { colliders, height, lineDist, pathDist } from './terrain';
+import { mat as style } from '../../core/style';
+import { ANEMONE_COLOURS, FLOOR_COLOURS, FLOOR_KINDS, KELP_COLOURS, REEF_COLOURS, REEF_KINDS, SHELL_COLOURS, anemoneGeometry, coralGeometry, kelpGeometry, rockGeometry, shellGeometry, swayMaterial, type CoralKind } from './life';
 
 /**
  * The sea of the grey build in simple shapes at their real sizes (WORLD-12): corals as cones and balls, kelp as thin
@@ -10,6 +12,11 @@ import { colliders, height, lineDist, pathDist } from './terrain';
  * kind is one instanced mesh; the colours are the zones' accents of the document (the reef pink and orange, the ship
  * warm wood and gold, the grotto red, the trench turquoise lights, the garden mother-of-pearl). Models replace them once
  * the customer has accepted the grey build.
+ *
+ * Step A of the sea's look (2026-11-22): the floor's corals (five kinds on the reef, three elsewhere), the anemones, the
+ * swaying kelp, the rocks and the garden's shells are our own faceted shapes (./life.ts), each kind one instanced mesh
+ * with a colour per instance over one shared material. Their places are those of the grey build (`placeLife`): the
+ * search among the corals lays its shells by the same corals of the reef.
  */
 
 /**
@@ -27,7 +34,7 @@ export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
 interface Put { x: number; z: number; s: number; rot?: number }
 
 /** The corals, kelp and rocks of the sea, deterministic: away from the ways, the zones, the lines of sight and each other. */
-export function placeLife(seed = 11): { corals: Put[]; kelp: Put[]; rocks: Put[]; rim: Put[]; reef: Put[] } {
+export function placeLife(seed = 11): { corals: Put[]; kelp: Put[]; rocks: Put[]; rim: Put[]; reef: Put[]; anemones: Put[]; sprinkle: Put[] } {
   const rnd = mulberry32(seed), zones = Object.values(ZONES), sights = sightLines();
   const clear = (x: number, z: number, near = 8) => pathDist(x, z) > 3 && sights.every((l) => lineDist(l, x, z) > SIGHT)
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > near) && Math.hypot(CASTLE.x - x, CASTLE.z - z) > CASTLE.ring + 4
@@ -56,17 +63,38 @@ export function placeLife(seed = 11): { corals: Put[]; kelp: Put[]; rocks: Put[]
     const a = (i / ring) * Math.PI * 2 + rnd() * 0.4, r = HALF + 1 + (i % 2) * 5 + rnd() * 2;
     rim.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, s: 1 + rnd() * 0.6, rot: rnd() * 6.28 });
   }
-  return { corals, kelp, rocks, rim, reef };
+  // the anemones (step A of the look): by the reef, the garden and the grotto, on a draw of their own - the places above
+  // stay as they were - and never on a way or another thing
+  const own = mulberry32(seed * 31 + 7), anemones: Put[] = [];
+  const taken = (x: number, z: number) => [...corals, ...reef, ...kelp, ...rocks].some((t) => Math.hypot(t.x - x, t.z - z) < 1.2 * t.s);
+  for (const [zone, n, r0, dr] of [[ZONES.reef, 18, 3.5, 9], [ZONES.garden, 10, 2.5, 6], [ZONES.grotto, 8, 4.5, 4]] as const) {
+    for (let tries = 0, got = 0; got < n && tries < n * 30; tries++) {
+      const a = own() * Math.PI * 2, r = r0 + own() * dr, x = zone.x + Math.cos(a) * r, z = zone.z + Math.sin(a) * r;
+      if (pathDist(x, z) < 2.2 || taken(x, z) || anemones.some((t) => Math.hypot(t.x - x, t.z - z) < 0.9)) continue;
+      anemones.push({ x, z, s: 0.8 + own() * 0.6, rot: own() * 6.28 }); got++;
+    }
+  }
+  // more small corals over the floor (the look, step A), on that draw of their own too: smaller, no collider - she
+  // swims over them; never on a way, a line of sight or another thing
+  const sprinkle: Put[] = [], wantS = Math.round(Math.PI * HALF * HALF / 90);
+  for (let tries = 0; sprinkle.length < wantS && tries < wantS * 40; tries++) {
+    const a = own() * Math.PI * 2, r = Math.sqrt(own()) * (HALF - 3), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (!clear(x, z, 6) || taken(x, z) || sprinkle.some((t) => Math.hypot(t.x - x, t.z - z) < 2)) continue;
+    sprinkle.push({ x, z, s: 0.4 + own() * 0.4, rot: own() * 6.28 });
+  }
+  return { corals, kelp, rocks, rim, reef, anemones, sprinkle };
 }
 
 const mat = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, ...extra });
 
 /** One instanced mesh of `geo` at every `put`, standing on the floor; `y` lifts each. */
-function instances(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, material: THREE.Material, puts: readonly Put[], y = 0, shadow = true) {
+function instances(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, material: THREE.Material, puts: readonly Put[], y = 0, shadow = true, colours?: readonly string[]) {
   const mesh = new THREE.InstancedMesh(geo, material, Math.max(1, puts.length));
   mesh.name = name; mesh.count = puts.length;
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3();
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3(), c = new THREE.Color();
   puts.forEach((t, i) => mesh.setMatrixAt(i, m4.compose(p.set(t.x, height(t.x, t.z) + y * t.s, t.z), q.setFromAxisAngle(up, t.rot ?? 0), s.setScalar(t.s))));
+  // a colour per instance, picked by its place (the same every time): one material for the kind, many colours
+  if (colours) puts.forEach((t, i) => mesh.setColorAt(i, c.set(colours[Math.abs(Math.round(t.x * 7 + t.z * 13)) % colours.length])));
   mesh.castShadow = shadow; mesh.receiveShadow = true;
   scene.add(mesh);
   return mesh;
@@ -83,20 +111,32 @@ function put(scene: THREE.Scene, name: string, x: number, z: number, parts: THRE
   return g;
 }
 
-/** The sea in the scene, and its colliders. */
+/** The kinds of coral among `puts`, in turn by their place: { kind: its puts }. */
+const byKind = (puts: readonly Put[], kinds: readonly CoralKind[]) => {
+  const out = new Map<CoralKind, Put[]>(kinds.map((k) => [k, []]));
+  puts.forEach((t, i) => out.get(kinds[i % kinds.length])!.push(t));
+  return out;
+};
+
+/** The sea in the scene, and its colliders; `sway(time)` moves the kelp with the water. */
 export function buildScenery(scene: THREE.Scene) {
-  const { corals, kelp, rocks, rim, reef } = placeLife();
+  const { corals, kelp, rocks, rim, reef, anemones, sprinkle } = placeLife();
   for (const c of [...corals, ...reef]) colliders.push({ x: c.x, z: c.z, r: 0.35 * c.s });
   for (const r of rocks) colliders.push({ x: r.x, z: r.z, r: 0.9 * r.s });
-  // corals: branch cones and brain balls, pale (the magic of WORLD-09 colours them later); the reef's pink and orange
-  const half = (p: Put[], k: number) => p.filter((_, i) => i % 2 === k);
-  instances(scene, 'corals-branch', new THREE.ConeGeometry(0.45, 1.6, 6).translate(0, 0.8, 0), mat('#e9c6c0'), half(corals, 0));
-  instances(scene, 'corals-ball', new THREE.IcosahedronGeometry(0.55, 0).translate(0, 0.4, 0), mat('#e8d6b8'), half(corals, 1));
-  instances(scene, 'reef-branch', new THREE.ConeGeometry(0.5, 2, 6).translate(0, 1, 0), mat('#f07a8a'), half(reef, 0));
-  instances(scene, 'reef-ball', new THREE.IcosahedronGeometry(0.6, 0).translate(0, 0.45, 0), mat('#f39a4a'), half(reef, 1));
-  instances(scene, 'kelp', new THREE.BoxGeometry(0.12, 3.2, 0.5).translate(0, 1.6, 0), mat('#5f9a6a'), kelp, 0, false);
-  instances(scene, 'rocks', new THREE.DodecahedronGeometry(1, 0).translate(0, 0.5, 0), mat('#9aa3a6'), rocks);
-  instances(scene, 'rim-kelp', new THREE.BoxGeometry(0.3, 9, 1.2).translate(0, 4.5, 0), mat('#4c7f63'), rim, 0, false);
+  // corals (step A of the look): five kinds on the reef in its warm colours, three on the rest of the floor, pastel;
+  // one shared faceted material, white, coloured per instance
+  const coral = style.stone('#ffffff');
+  // a coral of ./life.ts is about 1 m: the floor's as large as the grey cones they replace (1.6 m), the reef's a little less
+  const grow = (puts: readonly Put[], k: number) => puts.map((t) => ({ ...t, s: t.s * k }));
+  for (const [kind, puts] of byKind(reef, REEF_KINDS)) instances(scene, `reef-${kind}`, coralGeometry(kind), coral, grow(puts, 1.3), 0, true, REEF_COLOURS);
+  for (const [kind, puts] of byKind([...grow(corals, 1.6), ...grow(sprinkle, 1.6)], FLOOR_KINDS)) instances(scene, `corals-${kind}`, coralGeometry(kind), coral, puts, 0, true, FLOOR_COLOURS);
+  instances(scene, 'anemones', anemoneGeometry(), coral, anemones, 0, false, ANEMONE_COLOURS);
+  // the kelp sways with the water (its shader bends it by height); the tall kelp past the edge too, slower and wider
+  const kelpMat = swayMaterial(style.own('moss', '#ffffff') as THREE.MeshStandardMaterial, 0.35), rimMat = swayMaterial(style.own('moss', '#ffffff') as THREE.MeshStandardMaterial, 0.9);
+  for (const m of [kelpMat.material, rimMat.material]) m.side = THREE.DoubleSide;
+  instances(scene, 'kelp', kelpGeometry(3.2), kelpMat.material, kelp, 0, false, KELP_COLOURS);
+  instances(scene, 'rim-kelp', kelpGeometry(9, 3), rimMat.material, rim, 0, false, ['#4c7f63', '#5a8f6c', '#467a5c']);
+  instances(scene, 'rocks', rockGeometry(), style.stone('#a9b3b8'), rocks);
 
   // the reef's landmark: two tall fan corals by the dragon
   const fan = (h: number, c: string) => new THREE.Mesh(new THREE.CylinderGeometry(1.6, 0.25, h, 7).translate(0, h / 2, 0).scale(1, 1, 0.25), mat(c));
@@ -158,7 +198,11 @@ export function buildScenery(scene: THREE.Scene) {
     new THREE.Mesh(new THREE.ConeGeometry(2.2, LANDMARKS.garden.top, 9).translate(0, LANDMARKS.garden.top / 2, 0), mat('#f1e4ee', { emissive: '#8a7a92', emissiveIntensity: 0.2 })),
   ], 1.8, 0.4);
   const shells = Array.from({ length: 12 }, (_, i) => ({ x: ZONES.garden.x + Math.cos(i * 2.1) * (3 + (i % 3) * 1.6), z: ZONES.garden.z + Math.sin(i * 2.1) * (3 + (i % 3) * 1.6), s: 1, rot: i }));
-  instances(scene, 'shells', new THREE.SphereGeometry(0.35, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1.3), mat('#f4e8f0'), shells);
+  // the garden's shells: scallops and spirals of mother-of-pearl, a faint glow of their own
+  const pearl = style.glow('#ffffff', 0.12, { emissive: '#e8d8f0', flatShading: true });
+  instances(scene, 'shells', shellGeometry('fan'), pearl, shells.filter((_, i) => i % 3 !== 2), 0, true, SHELL_COLOURS);
+  instances(scene, 'shells-spiral', shellGeometry('spiral'), pearl, shells.filter((_, i) => i % 3 === 2), 0, true, SHELL_COLOURS);
+  return { sway: (time: number) => { kelpMat.time.value = time; rimMat.time.value = time; } };
 }
 
 /**

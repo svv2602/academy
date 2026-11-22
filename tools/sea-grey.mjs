@@ -1,7 +1,8 @@
 // The grey build of the sea (WORLD-03, WORLD-12): its walkthrough and its measurements, as tools/forest-grey.mjs does
 // for the forest (its pure helpers are taken from there).
 //
-//   node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]
+//   node tools/sea-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-measure] [--water-only] [--out <dir>]
+//   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): a look is measured on q2 and q0, as the forest's
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the sea in that mode only (src/worlds/index.ts);
 //    the swimming clips are put into that build by vite.config.ts.
@@ -31,9 +32,9 @@ const DIST = 'dist-grey';
 /** m from the end of a way where she has come (the end of a way is the middle of its zone; the throne is a shell she swims over). */
 export const REACHED = 3.5;
 
-/** The arguments: { scales, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
+/** The arguments: { scales, q, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
 export function readArgs(argv) {
-  const o = { scales: [1, 1.6], pass: true, measure: true, water: true, out: join(root, 'shots-e2e', 'sea-grey') };
+  const o = { scales: [1, 1.6], q: 2, pass: true, measure: true, water: true, out: join(root, 'shots-e2e', 'sea-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
@@ -43,6 +44,10 @@ export function readArgs(argv) {
       const v = (argv[++i] ?? '').split(',').map(Number);
       if (!v.length || v.some((x) => !(x >= 0.5 && x <= 3))) return { error: '--scales takes numbers 0.5-3, e.g. 1,1.6' };
       o.scales = v;
+    } else if (a === '--q') {
+      const v = Number(argv[++i]);
+      if (![0, 1, 2].includes(v)) return { error: '--q takes 0, 1 or 2' };
+      o.q = v;
     } else if (a === '--out') { const v = argv[++i]; if (!v) return { error: '--out needs a folder' }; o.out = resolve(v); }
     else return { error: `unknown argument "${a}"` };
   }
@@ -88,7 +93,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [], water = [];
   try {
-    if (args.measure) for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out));
+    if (args.measure) for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
     if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
   } finally { await browser.close(); server.close(); }
   if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
@@ -97,12 +102,12 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out) {
+async function measure(browser, url, scale, out, q = 2) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
   await page.addInitScript(() => { for (const k of ['amw-gift-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); });
-  await page.goto(`${url}?debug&q=2&world=sea&scale=${scale}`, { waitUntil: 'networkidle' });
+  await page.goto(`${url}?debug&q=${q}&world=sea&scale=${scale}`, { waitUntil: 'networkidle' });
   await page.waitForSelector('#play', { state: 'visible', timeout: 120000 });
   await page.click('#play');
   await page.waitForFunction(() => { const g = window.__game; if (!g) return false; if (g.story?.active) { g.story.skip(); return false; } if (g.flyoverPlayer?.active) { g.flyoverPlayer.skip(); return false; } return !g.busy; }, null, { timeout: 180000, polling: 300 });
@@ -160,7 +165,7 @@ async function measure(browser, url, scale, out) {
       const { THREE, scene, camera } = __game;
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };
       // what counts as the landmark of the target: the castle is its towers and roofs, the reef its corals
-      const names = { square: ['landmark-square'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-branch', 'reef-ball'], garden: ['landmark-garden', 'shells'], grotto: ['landmark-grotto', 'pots'] }[b];
+      const names = { square: ['landmark-square'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-tube', 'reef-branch', 'reef-brain', 'reef-table', 'reef-fan'], garden: ['landmark-garden', 'shells', 'shells-spiral'], grotto: ['landmark-grotto', 'pots'] }[b];
       // the heroine, the cat and the clear things of the water hide nothing: the light shafts, the motes, the bubbles
       const CLEAR = ['light-shafts', 'water-motes', 'swim-bubbles', 'cat-bubble'];
       const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root || CLEAR.includes(x.name)) return true; return false; };

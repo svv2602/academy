@@ -183,7 +183,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(() => setCast({ narrator: '', cast: {} }));
   scope.own(worldClips('sea', CLIPS));
   scene.add(buildGround(160));
-  buildScenery(scene);
+  const floor = buildScenery(scene);
   const shafts = buildShafts(scene, SHAFTS);
   // In the water her wand and petals are hidden (src/game/gear.ts).
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks, () => swimming(g));
@@ -347,7 +347,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (n) return n.pos;
         return finaleItem.done() ? null : throne;
       },
-      animate: (_dt, time) => { flies.update(time); shafts.sway(time); player.update(time); },
+      animate: (_dt, time) => { flies.update(time); shafts.sway(time); floor.sway(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => {
         sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp);
