@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { sourceWorlds } from './dist-size.mjs';
+import { installedWorlds, sourceWorlds } from './dist-size.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = mkdtempSync(join(tmpdir(), 'gen-voice-'));
@@ -305,16 +305,18 @@ finally:
   const under = (dir, path) => (existsSync(join(dir, path)) ? readdirSync(join(dir, path), { recursive: true, withFileTypes: true }).filter((f) => f.isFile())
     .map((f) => join(f.parentPath, f.name).slice(join(dir, path).length + 1)).sort() : []);
 
-  it('a clip of a world is written into the folder of its world, a clip of the core into public/voice as ever', () => {
+  it('a clip of a world is written into the folder of its world, outside public/; a clip of the core into public/voice as ever', () => {
     const dir = tree();
     const r = run(dir);
     expect(r.code, r.err).toBe(0);
     expect(r.lines[0]).toBe(`5 of 5 lines to record, model gemini-2.5-flash-preview-tts: ${NAMES.join(' ')}`);
     expect(r.sent).toEqual(['Привіт!', 'Ось і озеро!', 'Я чапля.', 'Я чапля.', 'Це проба.']);
-    // a published world: public/voice/<id>/; a test world: worlds-test/<id>/voice/<id>/
-    expect(under(dir, 'public/voice')).toEqual(['hello.mp3', 'lake/heron_hi.mp3', 'lake/heron_hi@Leda.mp3', 'lake/lake_hi.mp3']);
+    // a next world: worlds-data/<id>/voice/<id>/ (every build copies public/, only a build with the world takes this);
+    // a test world: worlds-test/<id>/voice/<id>/
+    expect(under(dir, 'public/voice')).toEqual(['hello.mp3']);
+    expect(under(dir, 'worlds-data')).toEqual(['lake/voice/lake/heron_hi.mp3', 'lake/voice/lake/heron_hi@Leda.mp3', 'lake/voice/lake/lake_hi.mp3']);
     expect(under(dir, 'worlds-test/trial')).toEqual(['voice/trial/trial_hi.mp3']);
-    expect(readFileSync(join(dir, 'public/voice/lake/lake_hi.mp3'), 'utf8')).toBe('Ось і озеро!');
+    expect(readFileSync(join(dir, 'worlds-data/lake/voice/lake/lake_hi.mp3'), 'utf8')).toBe('Ось і озеро!');
   });
 
   it('the check record of a clip is kept under the name <world>/<key> (R72), in the voice its key names', () => {
@@ -384,23 +386,29 @@ print(json.dumps([v.stale('lake/lake_hi', 'Ось і озеро!', 'joy', qa, au
     expect(stale({ lake_hi: rec })).toEqual([true, false]);
     // the world's record without its clip, and its clip without its record
     expect(stale({ 'lake/lake_hi': rec })).toEqual([true, true]);
-    mkdirSync(join(audio, 'lake'), { recursive: true });
-    writeFileSync(join(audio, 'lake/lake_hi.mp3'), 'x');
+    const own = join(dir, 'worlds-data/lake/voice/lake');
+    mkdirSync(own, { recursive: true });
+    writeFileSync(join(own, 'lake_hi.mp3'), 'x');
     expect(stale({ lake_hi: rec })).toEqual([true, false]);
     expect(stale({ 'lake/lake_hi': rec })).toEqual([false, true]);
     // and the whole run agrees: with the core's clip and record there, the line of the world is still sent
     writeFileSync(join(dir, 'voice/qa.json'), JSON.stringify({ lake_hi: rec }));
-    rmSync(join(audio, 'lake'), { recursive: true });
+    rmSync(own, { recursive: true });
     expect(run(dir, '--dry-run').lines[0]).toBe('1 of 1 lines to record, model gemini-2.5-flash-preview-tts: lake/lake_hi');
   });
 
-  it('a clip of a test world is looked for in worlds-test/<id>/voice/<id>/, not in public/voice/<id>/', () => {
+  it('where a clip is looked for: the core in public/voice, a next world in worlds-data/<id>/voice/<id>/, a world of the installation in public/voice/<id>/, a test world in worlds-test/<id>/voice/<id>/', () => {
     const dir = tree();
-    const r = py(`
+    const where = () => py(`
 audio = pathlib.Path(${JSON.stringify(join(dir, 'public/voice'))})
-print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) for n in ['hello', 'lake/lake_hi', 'lake/heron_hi@Leda', 'trial/trial_hi']]))`);
+print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) for n in ['hello', 'lake/lake_hi', 'lake/heron_hi@Leda', 'trial/trial_hi', 'hub/hub_hi']]))`);
+    const r = where();
     expect(r.code, r.err).toBe(0);
-    expect(JSON.parse(r.out)).toEqual(['public/voice/hello.mp3', 'public/voice/lake/lake_hi.mp3', 'public/voice/lake/heron_hi@Leda.mp3', 'worlds-test/trial/voice/trial/trial_hi.mp3']);
+    expect(JSON.parse(r.out)).toEqual(['public/voice/hello.mp3', 'worlds-data/lake/voice/lake/lake_hi.mp3', 'worlds-data/lake/voice/lake/heron_hi@Leda.mp3',
+      'worlds-test/trial/voice/trial/trial_hi.mp3', 'worlds-data/hub/voice/hub/hub_hi.mp3']);
+    // the hub listed in the installation (src/worlds/index.ts, as tools/dist-size.mjs reads it): its clips are the core's
+    writeFileSync(join(dir, 'src/worlds/index.ts'), "export const DEFAULT_WORLD = 'fairy';\nexport const INSTALLED: readonly string[] = [DEFAULT_WORLD, 'hub'];\n");
+    expect(JSON.parse(where().out).slice(-1)).toEqual(['public/voice/hub/hub_hi.mp3']);
   });
 
   it('--only takes <world>/<key> and the plain key alike (R75): the same line, the same clip', () => {
@@ -410,7 +418,8 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
       expect(r.code, r.err).toBe(0);
       expect(r.lines[0], only).toBe('1 of 5 lines to record, model gemini-2.5-flash-preview-tts: lake/lake_hi');
       expect(r.sent, only).toEqual(['Ось і озеро!']);
-      expect(under(dir, 'public/voice'), only).toEqual(['lake/lake_hi.mp3']);
+      expect(under(dir, 'public/voice'), only).toEqual([]);
+      expect(under(dir, 'worlds-data'), only).toEqual(['lake/voice/lake/lake_hi.mp3']);
       expect(Object.keys(json(dir, 'voice/qa.json')), only).toEqual(['lake/lake_hi']);
     }
     // several at once, of the core and of worlds, in either form; a voice of a character by its full name
@@ -430,7 +439,7 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
       expect(dry.sent, only).toEqual([]);
       const real = run(dir, `--only=${only}`);
       expect(real.sent, only).toEqual(['Я чапля.', 'Я чапля.']);
-      expect(under(dir, 'public/voice'), only).toEqual(['lake/heron_hi.mp3', 'lake/heron_hi@Leda.mp3']);
+      expect(under(dir, 'worlds-data/lake/voice/lake'), only).toEqual(['heron_hi.mp3', 'heron_hi@Leda.mp3']);
     }
     const one = run(tree(), '--dry-run', '--only=lake/heron_hi@Leda');
     expect(one.lines.some((l) => l.startsWith('also by voices'))).toBe(false);
@@ -450,6 +459,7 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
     expect(core.err).toContain('gen_voice: nothing was sent. Not in voice/phrases.json: lake/hello (it is hello) nope');
     for (const r of [wrong, core]) expect(r.sent).toEqual([]);
     expect(under(dir, 'public/voice')).toEqual([]);
+    expect(under(dir, 'worlds-data')).toEqual([]);
     expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
   });
 
@@ -464,6 +474,7 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
       expect(r.sent).toEqual([]);
     }
     expect(under(dir, 'public/voice')).toEqual([]);
+    expect(under(dir, 'worlds-data')).toEqual([]);
     expect(under(dir, 'worlds-test')).toEqual([]);
     expect(under(dir, 'src')).toEqual([]);
     expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
@@ -491,11 +502,15 @@ describe('recorded clips', () => {
   const HOW = 'Record it: python3 tools/gen_voice.py (paid service, the key is in ~/.config/academy/gemini.env).';
 
   // The voice of a next world (TECH-09): a row with a fourth field. Its clip is named `<world>/<key>` in voice/qa.json
-  // and lies where the game asks for it: public/voice/<world>/, or worlds-test/<world>/voice/<world>/ for a test world;
-  // the game finds it by the world's own list, src/worlds/<world>/clips.json.
+  // and lies in the folder of its world: worlds-data/<world>/voice/<world>/ outside public/ (the build that has the world
+  // puts it in at voice/<world>/, where the game asks for it), public/voice/<world>/ for a world of the installation (the
+  // hub), worlds-test/<world>/voice/<world>/ for a test world; the game finds it by the world's own list,
+  // src/worlds/<world>/clips.json.
   const worldOf = (key) => phrases[key]?.[3] ?? null;
   const nameOf = (key) => (worldOf(key) ? `${worldOf(key)}/${key}` : key);
-  const worldDir = (id) => (existsSync(join(root, 'worlds-test', id)) ? join(root, 'worlds-test', id, 'voice', id) : join(root, 'public/voice', id));
+  const installed = installedWorlds();
+  const worldDir = (id) => (existsSync(join(root, 'worlds-test', id)) ? join(root, 'worlds-test', id, 'voice', id)
+    : installed.includes(id) ? join(root, 'public/voice', id) : join(root, 'worlds-data', id, 'voice', id));
   const worldList = (id) => (existsSync(join(root, 'src/worlds', id, 'clips.json')) ? JSON.parse(readFileSync(join(root, 'src/worlds', id, 'clips.json'), 'utf8')) : null);
   const inWorld = (key) => existsSync(join(worldDir(worldOf(key)), `${key}.mp3`)) && (worldList(worldOf(key)) ?? []).includes(key);
   // A line's clip is in public/voice (the first load, listed in clips.json) or in public/bank (the bank of the old game,
@@ -562,8 +577,12 @@ describe('recorded clips', () => {
     const files = here.filter((f) => f.isFile() && f.name.endsWith('.mp3')).map((f) => f.name.slice(0, -4)).sort();
     expect(clips, 'clips.json and the .mp3 files of public/voice differ (python3 tools/gen_voice.py rewrites the list)').toEqual(files);
     expect(clips.filter((k) => k.includes('/')), 'the list of the core names no clip of a world').toEqual([]);
-    // Besides its clips public/voice holds only the folders of the next worlds (voice/<id>/, TECH-09).
-    const stray = here.filter((f) => (f.isDirectory() ? !next.includes(f.name) : !f.name.endsWith('.mp3') || f.name.endsWith('.tmp.mp3'))).map((f) => f.name);
+    // Besides its clips public/voice holds only the folders of the worlds of the installation (the hub): public/ is
+    // copied into every build, so a next world's voice there would ship with the published game and be precached with
+    // the core (TECH-09). A next world's lies in worlds-data/<id>/voice/<id>/ (tools/gen_voice.py `world_audio`).
+    const nextHere = here.filter((f) => f.isDirectory() && next.includes(f.name) && !installed.includes(f.name)).map((f) => f.name);
+    expect(nextHere, 'the voice of a next world in public/voice: move it to worlds-data/<id>/voice/<id>/').toEqual([]);
+    const stray = here.filter((f) => (f.isDirectory() ? !installed.includes(f.name) : !f.name.endsWith('.mp3') || f.name.endsWith('.tmp.mp3'))).map((f) => f.name);
     expect(stray, 'stray files in public/voice').toEqual([]);
     // every clip of the core is a line of voice/phrases.json: a clip nobody speaks (a narrator's copy of a line only the
     // characters say, `only` of src/worlds/<id>/voices.ts) would be dead weight of the installation

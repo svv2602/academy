@@ -17,7 +17,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET = -18, WITHIN = 1, PEAK = -1.5;
 const FIX = 'Level it: python3 tools/voice_loudness.py --write --only=<path> (tools/gen_voice.py levels a new recording itself).';
 const record = JSON.parse(readFileSync(join(root, 'voice/loudness.json'), 'utf8'));
-const clips = [...new Set(['public/voice/**/*.mp3', 'public/bank/**/*.mp3', 'worlds-test/*/voice/**/*.mp3']
+const clips = [...new Set(['public/voice/**/*.mp3', 'public/bank/**/*.mp3', 'worlds-data/*/voice/**/*.mp3', 'worlds-test/*/voice/**/*.mp3']
   .flatMap((p) => globSync(p, { cwd: root })).map((p) => p.split('\\').join('/')))].sort();
 const sha = (path) => createHash('sha256').update(readFileSync(join(root, path))).digest('hex');
 const ffmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
@@ -31,7 +31,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 const py = (code) => execFileSync('python3', ['-I', '-B', '-c', `import sys, json\nsys.path.insert(0, ${JSON.stringify(join(root, 'tools'))})\nimport voice_loudness as L\n${code}`], { encoding: 'utf8' });
 
 describe('voice/loudness.json: the measure of every clip', () => {
-  it('lists every clip of public/voice, public/bank and the test worlds, and nothing else', () => {
+  it('lists every clip of public/voice, public/bank, the next worlds (worlds-data) and the test worlds, and nothing else', () => {
     expect(clips.length).toBeGreaterThan(600);
     expect(Object.keys(record).filter((p) => !clips.includes(p)), 'measures of clips that are gone').toEqual([]);
     expect(clips.filter((p) => !(p in record)), `clips without a measure. ${FIX}`).toEqual([]);

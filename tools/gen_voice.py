@@ -7,8 +7,10 @@ set once, in the table, never per line.
 
 The voice of a next world (TECH-09, R64-R80): a row with a fourth field, `key: [text, intonation, speaker, world]`, is
 a line of that world's own strings. Its clip is named `<world>/<key>` here - in the output, in `--only`, in
-voice/qa.json - and lies in the folder of its world: public/voice/<world>/<key>.mp3, or, for a test world (one with
-a folder worlds-test/<world>/), worlds-test/<world>/voice/<world>/<key>.mp3. A row of three fields is a clip of the
+voice/qa.json - and lies in the folder of its world: worlds-data/<world>/voice/<world>/<key>.mp3, outside public/
+(a build that has the world puts it in at voice/<world>/, the published game without the world never carries it); for
+a world of the installation (INSTALLED of src/worlds/index.ts: the hub) public/voice/<world>/<key>.mp3; for a test
+world (one with a folder worlds-test/<world>/) worlds-test/<world>/voice/<world>/<key>.mp3. A row of three fields is a clip of the
 core, named by its key and kept in public/voice/ as ever. After a recording the lists the game reads are written:
 src/core/clips.json (public/voice/*.mp3) and src/worlds/<world>/clips.json for every world that has a folder of clips
 (the names without the folder).
@@ -95,11 +97,26 @@ def clip_name(key, row):
     return f'{row[3]}/{key}' if len(row) > 3 else key
 
 
+def installed(root):
+    """The worlds of the installation besides the first one: the ids of `INSTALLED = [DEFAULT_WORLD, 'hub', ...]` in
+    src/worlds/index.ts, read as tools/dist-size.mjs `installedWorlds` reads them. [] without the file or the list."""
+    p = root / 'src' / 'worlds' / 'index.ts'
+    m = re.search(r'\bINSTALLED\b[^=\n]*=\s*\[([^\]]*)\]', p.read_text()) if p.exists() else None
+    return re.findall(r'''['"]([^'"]+)['"]''', m.group(1)) if m else []
+
+
 def world_audio(audio, world):
-    """The folder of the clips of a next world. `audio` is public/voice of the repository: a published world keeps
-    its clips in public/voice/<world>/, a test world (worlds-test/<world>/ exists) in worlds-test/<world>/voice/<world>/."""
-    test = audio.parent.parent / 'worlds-test' / world
-    return test / 'voice' / world if test.is_dir() else audio / world
+    """The folder of the clips of a world. `audio` is public/voice of the repository:
+    - a world of the installation (the hub) keeps its clips in public/voice/<world>/, precached with the core;
+    - a test world (worlds-test/<world>/ exists) in worlds-test/<world>/voice/<world>/;
+    - every other world - a next world - in worlds-data/<world>/voice/<world>/, outside public/, which every build
+      copies: only a build that has the world puts them in, at voice/<world>/ (vite.config.ts `greyFiles`,
+      tools/vite-worlds.mjs `greyWorldFiles`), as it does the world's models."""
+    root = audio.parent.parent
+    test = root / 'worlds-test' / world
+    if test.is_dir():
+        return test / 'voice' / world
+    return audio / world if world in installed(root) else root / 'worlds-data' / world / 'voice' / world
 
 
 def clip_file(audio, cid):
@@ -111,12 +128,13 @@ def clip_file(audio, cid):
 
 
 def world_folders(audio):
-    """{world: folder} for every world that has a folder of clips: under public/voice/ and under worlds-test/."""
+    """{world: folder} for every world that has a folder of clips: under public/voice/, worlds-data/ and worlds-test/."""
     out = {d.name: d for d in sorted(audio.iterdir()) if d.is_dir()} if audio.is_dir() else {}
-    tests = audio.parent.parent / 'worlds-test'
-    for d in sorted(tests.iterdir()) if tests.is_dir() else []:
-        if (d / 'voice' / d.name).is_dir():
-            out[d.name] = d / 'voice' / d.name
+    for base in ('worlds-data', 'worlds-test'):
+        top = audio.parent.parent / base
+        for d in sorted(top.iterdir()) if top.is_dir() else []:
+            if (d / 'voice' / d.name).is_dir():
+                out[d.name] = d / 'voice' / d.name
     return out
 
 

@@ -42,8 +42,9 @@ function probeFiles(): Plugin {
 // lie, put into the build under the paths their worlds ask for (tools/vite-worlds.mjs `greyWorldFiles`): GREY_FILES -
 // the sea swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the UAL,
 // worlds-test/probe/README.md), no second copy in git - and every file of worlds-data/<id>/ of a next world of the
-// build (the forest's characters, models/forest/…; tools/assets.mjs writes them there, outside public/, which every
-// build copies). The published build has no next world and gets none of them.
+// build (the forest's characters, models/forest/…, written there by tools/assets.mjs; the sea's voice, voice/sea/…,
+// written there by tools/gen_voice.py - outside public/, which every build copies). The published build has no next
+// world and gets none of them.
 const GREY_MODE = 'grey';
 const GREY_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
 function greyFiles(next: string[]): Plugin {

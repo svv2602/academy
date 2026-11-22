@@ -39,8 +39,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RECORD = 'voice/loudness.json'
-# The folders of clips, relative to the root: the core's and the next worlds' voice, the bank, the test worlds' voice.
-FOLDERS = ['public/voice', 'public/bank', 'worlds-test/*/voice']
+# The folders of clips, relative to the root: the core's voice (with the hub's), the bank, the next worlds' voice (outside
+# public/, tools/gen_voice.py `world_audio`), the test worlds' voice.
+FOLDERS = ['public/voice', 'public/bank', 'worlds-data/*/voice', 'worlds-test/*/voice']
 
 TARGET_LUFS = -18.0
 TARGET_TP = -1.5
