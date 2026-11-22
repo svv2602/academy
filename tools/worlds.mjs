@@ -105,6 +105,10 @@
 //      world and back to that arch, no second tour; a reload opens the hub where she stood. With the probe world done
 //      too, the forest's nest glows as well. Pictures shots-e2e/worlds-probe/hub-*.png (the tree with one and with two
 //      artifacts: hub-tree-1.png, hub-tree-2.png).
+//   9. The part "hub-grey" (tools/hub-grey.mjs): the grey build made anew (`--mode grey`, dist-grey/; the forest and
+//      the sea in the registry) and the way between the hub and the forest played in it - which arches are open for
+//      the fairies done and for the forest done, there and back through the arches, the hub's draw calls, the refusal
+//      without network. Played alone it makes no probe build. Pictures shots-e2e/worlds-grey/way-*.png.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
@@ -121,6 +125,7 @@ import { WORLDS_LIST } from './vite-worlds.mjs';
 import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 import { HUB_SAVES } from './e2e-saves.mjs';
+import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, hubWay, serveDir } from './hub-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the probe world (src/worlds/probe/) and the mode of the build that lists it (vite.config.ts). */
@@ -137,14 +142,9 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub'];
-/** The hub (src/worlds/hub/layout.ts): where she stands arriving through the arch of the place `shelf` (arrivalAt). */
-export const HUB_ARRIVAL = [0, 1, 2, 3, 4].map((shelf) => {
-  const a = (shelf / 5) * Math.PI * 2, d = 12.5 - 6;
-  return { x: Math.sin(a) * d, z: Math.cos(a) * d, facing: a + Math.PI };
-});
-/** The arch of a place of the shelf, where its action spot is (layout.ts PORTALS, r 12.5). */
-export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) * Math.PI * 2; return { x: Math.sin(a) * 12.5, z: Math.cos(a) * 12.5 }; });
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey'];
+/** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
+export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
 export const HUB_NEED = { chain: 0, part: 0, scene: 0, finale: 0, secret: 0, pet: 0, flyover: 1 };
 
@@ -774,6 +774,23 @@ async function main() {
     for (const p of left) fail(p);
     if (!left.length) console.log(`[worlds] the published build (${args[0] ? 'as given' : 'made anew'}): nothing of the probe world in ${filesOf(dist).length} files`);
   } catch (e) { fail(e.message); }
+
+  // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
+  // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone.
+  if (play('hub-grey')) try {
+    const greyDist = join(root, GREY_DIST);
+    rmSync(greyDist, { recursive: true, force: true });
+    await vite('the grey build', '--mode', 'grey', '--outDir', GREY_DIST);
+    const server = await serveDir(greyDist, firstPort);
+    const gl = process.env.E2E_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=gl', '--enable-gpu'];
+    const { chromium } = await import('playwright-core');
+    const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
+    try {
+      const wrong = await hubWay(browser, `http://127.0.0.1:${firstPort}/`, join(root, 'shots-e2e', 'worlds-grey'), { slow: process.env.E2E_GL === 'swiftshader' });
+      for (const p of wrong) fail(`the way between the hub and the forest: ${p}`);
+    } finally { await browser.close(); server.close(); }
+  } catch (e) { fail(e.message); }
+  if (read.parts.every((x) => x === 'hub-grey')) end();
 
   // ---- 2. the probe build, made anew ----
   const from = join(root, PROBE_FILES);
