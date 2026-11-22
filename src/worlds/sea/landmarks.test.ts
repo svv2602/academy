@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { buildLandmarks } from './landmarks';
+import { buildLandmarks, spiralShell } from './landmarks';
 import { LANDMARKS } from './layout';
 import { Paint, paintMaterial } from './paint';
 import { colliders } from './terrain';
@@ -63,6 +63,21 @@ describe('the landmarks of the sea (the look, step B)', () => {
       const t = Math.max(0, Math.min(1, ((c.x - gate.x) * (throne.x - gate.x) + (c.z - gate.z) * (throne.z - gate.z)) / ((throne.x - gate.x) ** 2 + (throne.z - gate.z) ** 2)));
       expect(Math.hypot(c.x - (gate.x + (throne.x - gate.x) * t), c.z - (gate.z + (throne.z - gate.z) * t))).toBeGreaterThan(1.5);
     }
+  });
+
+  it('a tower is a spiral shell: closed, its faces turned out, narrowing up to its tip', () => {
+    const g = spiralShell(16, 1.3, 1, 5.5, 0.4).toNonIndexed(), pos = g.getAttribute('position');
+    const v = (i: number) => new THREE.Vector3().fromBufferAttribute(pos, i);
+    // the signed volume of a closed shape is positive when every face looks out
+    let vol = 0;
+    for (let f = 0; f < pos.count; f += 3) vol += v(f).dot(v(f + 1).cross(v(f + 2))) / 6;
+    expect(vol).toBeGreaterThan(5);
+    const box = new THREE.Box3().setFromBufferAttribute(pos as THREE.BufferAttribute);
+    expect(box.max.y).toBeGreaterThan(15);
+    expect(box.min.y).toBeGreaterThanOrEqual(-0.01);
+    // narrower up: the top fifth of its corners within half the foot's reach
+    const reach = (lo: number, hi: number) => { let r = 0; for (let i = 0; i < pos.count; i++) if (pos.getY(i) >= lo && pos.getY(i) <= hi) r = Math.max(r, Math.hypot(pos.getX(i), pos.getZ(i))); return r; };
+    expect(reach(13, 17)).toBeLessThan(reach(0, 3) * 0.5);
   });
 
   it('a painted part seen both ways has its faces twice, turned', () => {

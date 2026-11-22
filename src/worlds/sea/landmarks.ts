@@ -52,32 +52,76 @@ function column(p: Paint, x: number, z: number, h: number, r: number, colour: st
 }
 
 /** The castle of the mermaids: six shell towers, garlands of pearls between them, the gate, the columns of the hall. */
+/** The shimmer of mother-of-pearl, low to high: pink, pearl, turquoise, lilac (the customer, 2026-11-22: "серого почти нет"). */
+const NACRE_BANDS = ['#f7b3cf', '#fde8f1', '#f2c6e4', '#a7e6ea', '#e6f6fb', '#c6b2f2', '#fbeaf6'].map((c) => new THREE.Color(c));
+function nacre(f: number, c: THREE.Color): THREE.Color {
+  const t = (((f % 1) + 1) % 1) * NACRE_BANDS.length, i = Math.floor(t);
+  return c.copy(NACRE_BANDS[i]).lerp(NACRE_BANDS[(i + 1) % NACRE_BANDS.length], t - i);
+}
+
+/**
+ * A tower of the castle as a spiral shell (a turret shell, the customer's word 2026-11-22: "башни — завитые раковины,
+ * спираль на всю высоту"): one tube wound `turns` times up round a core, wide at the foot and narrowing to a point,
+ * its open mouth at the foot. Its corners: `steps` a turn along the tube, `ring` round it. Origin at its foot.
+ */
+export function spiralShell(h: number, r0: number, tube0: number, turns: number, phase: number, steps = 12, ring = 7): THREE.BufferGeometry {
+  const n = Math.round(turns * steps), pos: number[] = [], idx: number[] = [];
+  const at = (s: number) => {
+    const a = phase + s * turns * Math.PI * 2, k = 1 - 0.82 * s, tube = tube0 * k;
+    return { a, R: r0 * k, tube, y: h * 0.9 * s + tube * 1.15 };
+  };
+  for (let i = 0; i <= n; i++) {
+    const { a, R, tube, y } = at(i / n), ux = Math.cos(a), uz = Math.sin(a);
+    for (let j = 0; j < ring; j++) {
+      const f = (j / ring) * Math.PI * 2;
+      // the cross-section in the plane of the radius and up: the tube's round
+      pos.push((R + Math.cos(f) * tube) * ux, y + Math.sin(f) * tube * 1.15, (R + Math.cos(f) * tube) * uz);
+    }
+  }
+  for (let i = 0; i < n; i++) for (let j = 0; j < ring; j++) {
+    const a = i * ring + j, b = i * ring + ((j + 1) % ring), c = a + ring, d = b + ring;
+    idx.push(a, b, c, b, d, c);
+  }
+  // the mouth at the foot: shut by a fan to its middle
+  const m0 = at(0), mid = pos.length / 3;
+  pos.push(m0.R * Math.cos(m0.a), m0.y, m0.R * Math.sin(m0.a));
+  for (let j = 0; j < ring; j++) idx.push(mid, (j + 1) % ring, j);
+  // the tip: its last round to a point
+  const tip = pos.length / 3, mt = at(1);
+  pos.push(mt.R * Math.cos(mt.a), mt.y + mt.tube * 3.5, mt.R * Math.sin(mt.a));
+  for (let j = 0; j < ring; j++) idx.push(tip, n * ring + j, n * ring + ((j + 1) % ring));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+/** The castle of the mermaids: six spiral-shell towers, garlands of pearls between them, the gate, the columns of the hall. */
 function castle(): Paint {
   const p = new Paint();
-  const top = CASTLE.towerH * 0.69;   // where a tower's body ends and its spire of whorls begins (the spire's tip ~ the old roof's)
+  const H = CASTLE.towerH * 1.03, R = CASTLE.towerR * 0.8, TUBE = CASTLE.towerR * 0.62, TURNS = 5.5;
   TOWERS.forEach((t, i) => {
-    const y = height(t.x, t.z), r = CASTLE.towerR;
-    p.add(new THREE.CylinderGeometry(r * 0.88, r, top, 10).translate(0, top / 2, 0), PEARL, 0.04, place(t.x, y, t.z, i));
-    // the whorls round the tower and its windows of turquoise light
-    for (const k of [0.2, 0.45, 0.7, 0.95]) p.add(new THREE.TorusGeometry(r * (1 - k * 0.1), 0.22, 4, 10).rotateX(Math.PI / 2), PINK, 0.06, place(t.x, y + top * k, t.z));
-    const out = Math.atan2(t.x - CASTLE.x, t.z - CASTLE.z);
-    for (const k of [0.55, 0.8]) p.add(new THREE.SphereGeometry(0.42, 6, 4).scale(0.8, 1.3, 0.35).translate(0, 0, r * 0.92), '#3d8fb0', 0.7, place(t.x, y + top * k, t.z, out));
-    // the spire: whorls narrowing up, turned each a little, a pearl on its tip
-    let h0 = top, rr = r * 1.25;
-    for (let w = 0; w < 4; w++) {
-      const hh = 1.9, r1 = rr * 0.68;
-      p.add(new THREE.CylinderGeometry(r1, rr, hh, 9).translate(0, hh / 2, 0), w % 2 ? LILAC : TURQUOISE, 0.15, place(t.x, y + h0, t.z, w * 0.7 + i, 1, 0.06, 0.06));
-      h0 += hh * 0.92; rr = r1 * 1.05;
+    const y = height(t.x, t.z), phase = i * 1.3;
+    const shimmer = (x: number, yy: number, z: number, c: THREE.Color) => nacre(yy / H * 1.4 + Math.atan2(z, x) / (Math.PI * 2) * 0.35 + i * 0.13, c);
+    p.shade(spiralShell(H, R, TUBE, TURNS, phase), shimmer, 0.1, place(t.x, y, t.z));
+    // its core between the whorls, in the same shimmer, narrow: the whorls cover it
+    p.shade(new THREE.ConeGeometry(R * 0.6, H * 0.92, 8).translate(0, H * 0.46, 0), shimmer, 0.08, place(t.x, y, t.z));
+    // windows of turquoise light on two whorls, facing out of the ring
+    const out = Math.atan2(t.z - CASTLE.z, t.x - CASTLE.x);
+    for (const turn of [1, 3]) {
+      const s = ((((out - phase) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) + turn * Math.PI * 2) / (TURNS * Math.PI * 2), k = 1 - 0.82 * s;
+      const rr = R * k + TUBE * k * 0.98, wy = H * 0.9 * s + TUBE * k * 1.15;
+      p.add(new THREE.SphereGeometry(0.4 * k + 0.12, 6, 4).scale(0.8, 1.2, 0.3), '#3fb3cf', 0.75, place(t.x + Math.cos(out) * rr, y + wy, t.z + Math.sin(out) * rr, Math.atan2(Math.cos(out), Math.sin(out))));
     }
-    p.add(new THREE.ConeGeometry(rr, 1.4, 9).translate(0, 0.7, 0), LILAC, 0.15, place(t.x, y + h0, t.z));
-    p.add(new THREE.IcosahedronGeometry(0.45, 1), NACRE, 0.55, place(t.x, y + h0 + 1.7, t.z));
+    p.add(new THREE.IcosahedronGeometry(0.45, 1), NACRE, 0.55, place(t.x, y + H * 0.9 + TUBE * 0.18 * 4.5 + 0.6, t.z));
   });
+  const top = H * 0.6;   // where the garlands hang from
   // garlands of pearls from tower to tower, high over the way, not between the two of the gate (the throne is seen there)
   const gateNear = (t: { x: number; z: number }) => t.z < CASTLE.z && Math.abs(t.x - CASTLE.x) < CASTLE.ring * 0.6;
   for (let i = 0; i < TOWERS.length; i++) {
     const a = TOWERS[i], b = TOWERS[(i + 1) % TOWERS.length];
     if (gateNear(a) && gateNear(b)) continue;
-    const ya = height(a.x, a.z) + top * 0.9, yb = height(b.x, b.z) + top * 0.9;
+    const ya = height(a.x, a.z) + top, yb = height(b.x, b.z) + top;
     for (let k = 1; k < 10; k++) {
       const f = k / 10, sag = Math.sin(f * Math.PI) * 1.6;
       p.add(new THREE.IcosahedronGeometry(0.24, 0), NACRE, 0.4, place(a.x + (b.x - a.x) * f, ya + (yb - ya) * f - sag, a.z + (b.z - a.z) * f));
@@ -86,7 +130,7 @@ function castle(): Paint {
   // the gate (its doors and the shell lock are ./lock.ts's): two twisted posts, the lintel, a great scallop over it
   const gate = LANDMARKS.gate, gy = height(gate.x, gate.z);
   for (const sx of [-2.2, 2.2]) column(p, gate.x + sx, gate.z, 4.4, 0.42, PEARL, TURQUOISE);
-  p.add(new THREE.BoxGeometry(5.4, 0.7, 0.9).translate(0, 4.85, 0), '#e7d3a8', 0.08, place(gate.x, gy, gate.z));
+  p.add(new THREE.BoxGeometry(5.4, 0.7, 0.9).translate(0, 4.85, 0), PINK, 0.1, place(gate.x, gy, gate.z));
   for (const s of scallop(2.6, 11, 0.3)) p.add(s.geo, s.rib % 2 ? PINK : PEARL, 0.14, place(gate.x, gy + 5.2, gate.z + 0.1, Math.PI, 1, -Math.PI / 2), true);
   p.add(new THREE.IcosahedronGeometry(0.45, 1), NACRE, 0.6, place(gate.x, gy + 5.6, gate.z - 0.45));
   // the hall: four columns of shell round the throne, off the line from the gate to it

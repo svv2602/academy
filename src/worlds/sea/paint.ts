@@ -31,6 +31,22 @@ export class Paint {
     return this;
   }
 
+  /**
+   * Adds `geo` coloured vertex by vertex: `colourOf(x, y, z, c)` sets `c` for each corner by its place in `geo` (before
+   * `at`) - a shimmer over a shell; it shines `glow`.
+   */
+  shade(geo: THREE.BufferGeometry, colourOf: (x: number, y: number, z: number, c: THREE.Color) => void, glow = 0, at?: THREE.Matrix4): this {
+    const g = geo.index ? geo.toNonIndexed() : geo.clone();
+    for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k);
+    const pos = g.getAttribute('position'), n = pos.count, col = new Float32Array(n * 3), c = new THREE.Color();
+    for (let i = 0; i < n; i++) { colourOf(pos.getX(i), pos.getY(i), pos.getZ(i), c); col.set([c.r, c.g, c.b], i * 3); }
+    if (at) g.applyMatrix4(at);
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('glow', new THREE.Float32BufferAttribute(new Array<number>(n).fill(glow), 1));
+    this.parts.push(g);
+    return this;
+  }
+
   /** Adds a geometry painted already (made by `geometry()` of another Paint), its colours and glow kept, moved by `at`. */
   keep(geo: THREE.BufferGeometry, at?: THREE.Matrix4): this {
     const g = geo.clone();
