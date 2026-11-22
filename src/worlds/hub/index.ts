@@ -72,24 +72,36 @@ export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME):
   if (somethingNew(openArches(portalWorlds(knownWorlds()), doneIn(save)), doneIn(save))) return null;
   return why === 'tap' || leadHome ? 'hub_asleep' : null;
 }
-/** The flags of the hub's part of the save: the cat's three words of the sea, each said once. */
-export const SEA_WORDS = { wake: 'sea_wake', home: 'sea_home', after: 'sea_after' } as const;
 /**
- * The cat's words of the sea as she comes into the hub (docs/worlds/world-3.md, the lines of 2026-11-18), each once,
- * before the usual word: the sea done - "the pearl is home, one more nest lit"; the next time - the tree grew. Marks
- * what it returns; null - none. "The portal to the sea woke up" (hub_sea_wake) is said by the arch waking (`wakeUp`
- * below), as every world's hub_<world>_wake; its flag SEA_WORDS.wake marks the sea's arch awake (`wakingArches`).
+ * The flag of the hub's part of the save that the sea's word of waking set before the arches woke (`HEARD_WAKE`); its
+ * words of coming home have the flags every world's have (`worldWord`): sea_home, sea_after.
  */
-export function seaWord(ws: WorldState, save: Save, worlds: readonly (string | null)[]): 'hub_sea_home' | 'hub_sea_after' | null {
-  if (!worlds.includes('sea')) return null;
-  const said = (flag: string) => ws.flags[flag] === true;
-  let word: 'hub_sea_home' | 'hub_sea_after' | null = null, flag = '';
-  if (doneIn(save)('sea')) {
-    if (!said(SEA_WORDS.home)) { word = 'hub_sea_home'; flag = SEA_WORDS.home; }
-    else if (!said(SEA_WORDS.after)) { word = 'hub_sea_after'; flag = SEA_WORDS.after; }
+export const SEA_WORDS = { wake: 'sea_wake', home: 'sea_home', after: 'sea_after' } as const;
+/** The two words of a world as she comes into the hub once it is done: its artifact home, then the tree grown. */
+const WORLD_WORDS = ['home', 'after'] as const;
+/**
+ * The cat's words of a world done as she comes into the hub (the lines hub_<world>_home and hub_<world>_after of the
+ * hub's strings - the sea's of docs/worlds/world-3.md, the forest's of world-2.md), each once, before the usual word,
+ * one an entry: first a world's artifact home, then, the next time, the tree grown - every "home" of the worlds of the
+ * shelf before any "after", the worlds in the order of their arches. A world with no such line has no word. Marks what
+ * it returns (the flag <world>_home / <world>_after in the hub's part of the save); null - none. A world's word of
+ * waking (hub_<world>_wake) is said by its arch waking (`wakeUp` below), not here. No line of code for a next world:
+ * its lines in the hub's strings are enough.
+ */
+export function worldWord(ws: WorldState, save: Save, worlds: readonly (string | null)[], spoken: Readonly<Record<string, unknown>> = strings.spoken): SpokenKey | null {
+  const done = doneIn(save);
+  for (const which of WORLD_WORDS) {
+    for (const w of worlds) {
+      if (w === null || !done(w)) continue;
+      const key = `hub_${w}_${which}`, flag = `${w}_${which}`;
+      if (!(key in spoken) || ws.flags[flag] === true) continue;
+      // the after of a world comes only once its home was said
+      if (which === 'after' && ws.flags[`${w}_home`] !== true) continue;
+      ws.flags[flag] = true;
+      return key as SpokenKey;
+    }
   }
-  if (word) ws.flags[flag] = true;
-  return word;
+  return null;
 }
 /**
  * A world's own flag that already marks its arch awake (its word of waking said before the arches woke): the sea's
@@ -345,7 +357,7 @@ export const hub: WorldDef<HubLoads, WorldSky> = {
     return at < 0 ? null : arrivalAt(at);
   },
   ground,
-  left: (ws, save, why) => (why === 'entry' ? seaWord(ws, save, portalWorlds(knownWorlds())) : null) ?? hubLeft(save, why),
+  left: (ws, save, why) => (why === 'entry' ? worldWord(ws, save, portalWorlds(knownWorlds())) : null) ?? hubLeft(save, why),
   characters: [],
   // the feathers of the Great Tree's bird, one a day (./feathers.ts, the customer's word of 2026-11-20)
   collect: HUB_COLLECT,

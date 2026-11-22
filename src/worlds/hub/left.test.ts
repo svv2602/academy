@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { defaultSave, defaultWorld, type Save } from '../../core/save';
 import { knowWorlds, knownWorlds } from '../../game/artifacts';
-import { HEARD_WAKE, SEA_WORDS, hubLeft, seaWord } from './index';
+import { HEARD_WAKE, SEA_WORDS, hubLeft, worldWord } from './index';
 import { wakingArches } from './portals';
 import { somethingNew } from './portals';
 import { strings } from './strings';
@@ -64,11 +64,11 @@ describe('the cat by a sleeping arch (D)', () => {
   });
 });
 
-describe('the cat\'s words of the sea in the hub (seaWord), each once as she comes in', () => {
+describe('the cat\'s words of the sea in the hub (worldWord), each once as she comes in, as before', () => {
   const ARCHES = ['fairy', 'forest', 'sea', null, null];
   it('its arch open and the sea not visited: no word here - the arch says it waking (hub_sea_wake, wakingArches)', () => {
     const ws = defaultWorld(), s = defaultSave();
-    expect(seaWord(ws, s, ARCHES)).toBeNull();
+    expect(worldWord(ws, s, ARCHES)).toBeNull();
     expect(ws.flags[SEA_WORDS.wake]).toBeUndefined();
     // the flag of the word heard before the arches woke marks the sea's arch awake: it does not wake again
     expect(wakingArches(ARCHES, {}, HEARD_WAKE)).toEqual([1, 2]);
@@ -76,17 +76,50 @@ describe('the cat\'s words of the sea in the hub (seaWord), each once as she com
   });
   it('the sea done: its pearl is home, the next time the tree grew, then nothing', () => {
     const ws = defaultWorld(), s = defaultSave(); final(s, 'sea');
-    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_home');
-    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_after');
-    expect(seaWord(ws, s, ARCHES)).toBeNull();
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_sea_home');
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_sea_after');
+    expect(worldWord(ws, s, ARCHES)).toBeNull();
   });
   it('visited but not done, or no arch to the sea (the published build): no word of the sea', () => {
     const ws = defaultWorld(), s = defaultSave();
     (s.worlds as Record<string, unknown>).sea = { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
-    expect(seaWord(ws, s, ARCHES)).toBeNull();
-    expect(seaWord(defaultWorld(), defaultSave(), ['fairy', null, null, null, null])).toBeNull();
+    expect(worldWord(ws, s, ARCHES)).toBeNull();
+    expect(worldWord(defaultWorld(), defaultSave(), ['fairy', null, null, null, null])).toBeNull();
   });
   it('they are spoken lines of the hub', () => {
     for (const k of ['hub_sea_wake', 'hub_sea_home', 'hub_sea_after']) expect(Object.hasOwn(strings.spoken, k), k).toBe(true);
+  });
+  it('a save of before: the flags of the sea\'s words are the same, a word said is not said again', () => {
+    const ws = defaultWorld(), s = defaultSave(); final(s, 'sea');
+    ws.flags[SEA_WORDS.home] = true;
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_sea_after');
+    ws.flags[SEA_WORDS.after] = true;
+    expect(worldWord(defaultWorld(), s, ARCHES)).toBe('hub_sea_home');
+    expect(worldWord(ws, s, ARCHES)).toBeNull();
+  });
+});
+
+describe('the cat\'s words of every world the same way (worldWord): no line of code for a next world', () => {
+  const ARCHES = ['fairy', 'forest', 'sea', null, null];
+  it('the forest done: its Emerald home, the next time the tree in bloom, then nothing', () => {
+    const ws = defaultWorld(), s = defaultSave(); final(s, 'forest');
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_forest_home');
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_forest_after');
+    expect(worldWord(ws, s, ARCHES)).toBeNull();
+    expect(ws.flags).toMatchObject({ forest_home: true, forest_after: true });
+  });
+  it('both done: one word an entry, every home before any after, the worlds in the order of their arches', () => {
+    const ws = defaultWorld(), s = defaultSave(); final(s, 'forest'); final(s, 'sea');
+    const said = [1, 2, 3, 4, 5].map(() => worldWord(ws, s, ARCHES));
+    expect(said).toEqual(['hub_forest_home', 'hub_sea_home', 'hub_forest_after', 'hub_sea_after', null]);
+  });
+  it('a world done with no lines of its own in the hub has no word; the waking word is never one of them', () => {
+    const ws = defaultWorld(), s = defaultSave(); final(s, 'fairy'); final(s, 'forest');
+    const spoken = { hub_forest_wake: 'joy' };
+    expect(worldWord(ws, s, ARCHES, spoken)).toBeNull();
+    expect(worldWord(ws, s, ARCHES)).toBe('hub_forest_home');
+  });
+  it('the forest\'s words are spoken lines of the hub', () => {
+    for (const k of ['hub_forest_wake', 'hub_forest_home', 'hub_forest_after']) expect(Object.hasOwn(strings.spoken, k), k).toBe(true);
   });
 });
