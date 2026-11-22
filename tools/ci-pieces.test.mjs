@@ -1353,3 +1353,25 @@ describe('the workflows: what a job leaves is named by its attempt, and the job 
     }
   });
 });
+
+describe('the job "plan" runs without `npm ci`', () => {
+  // ci.yml's "plan" runs `node tools/ci-pieces.mjs plan` on a bare checkout: every module it loads, even through
+  // others (tools/worlds.mjs -> tools/sweet-grey.mjs -> ...), may import only node's own modules statically. A browser
+  // or any package is imported inside the function that needs it (`await import('playwright-core')`).
+  it('no module on its chain of static imports imports a package', () => {
+    const seen = new Set(), bare = [];
+    const walk = (file) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const text = readFileSync(file, 'utf8');
+      for (const m of text.matchAll(/^\s*(?:import|export)\s[^;]*?\sfrom\s+'([^']+)'/gm)) {
+        const spec = m[1];
+        if (spec.startsWith('.')) walk(resolve(dirname(file), spec));
+        else if (!spec.startsWith('node:')) bare.push(`${file.slice(root.length + 1)}: ${spec}`);
+      }
+    };
+    walk(join(root, 'tools', 'ci-pieces.mjs'));
+    expect(seen.has(join(root, 'tools', 'worlds.mjs'))).toBe(true);
+    expect(bare).toEqual([]);
+  });
+});

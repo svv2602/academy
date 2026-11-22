@@ -1,5 +1,5 @@
 // The grey build of the sea (WORLD-03, WORLD-12): its walkthrough and its measurements, as tools/forest-grey.mjs does
-// for the forest (its pure helpers are taken from there).
+// for the forest (the pure helpers of the routes, tools/grey-route.mjs, are shared).
 //
 //   node tools/sea-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-measure] [--water-only] [--out <dir>]
 //   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): a look is measured on q2 and q0, as the forest's
@@ -25,7 +25,7 @@ import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { lengthOf, pathBetween, routeLegs } from './forest-grey.mjs';
+import { lengthOf, pathBetween, routeLegs } from './grey-route.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';

@@ -47,6 +47,11 @@ import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { greyWorldFiles } from './vite-worlds.mjs';
 import { GREY_DIST, hubWay, serveDir } from './hub-grey.mjs';
+import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+
+// The pure helpers of the routes live in ./grey-route.mjs (no browser in it); the forest's test and tools import them
+// from here too.
+export { BUDGET, lengthOf, overBudget, pathBetween, routeLegs };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = GREY_DIST;
@@ -73,48 +78,18 @@ export function readArgs(argv) {
   return o;
 }
 
-/** The legs of a route: consecutive targets, each pair once. */
-export function routeLegs(route) {
-  const legs = [];
-  for (let i = 0; i < route.length - 1; i++) {
-    const a = route[i], b = route[i + 1];
-    if (!legs.some(([x, y]) => (x === a && y === b) || (x === b && y === a))) legs.push([a, b]);
-  }
-  return legs;
-}
-
-/** The line of points from zone `a` to zone `b` among `paths` (either way round), or null. */
-export function pathBetween(paths, zones, a, b) {
-  const same = (p, q) => Math.hypot(p.x - q.x, p.z - q.z) < 1e-6;
-  for (const p of paths) {
-    if (same(p[0], zones[a]) && same(p[p.length - 1], zones[b])) return p;
-    if (same(p[0], zones[b]) && same(p[p.length - 1], zones[a])) return [...p].reverse();
-  }
-  return null;
-}
-
 /**
  * m from the end of a path where she has come: the end of a path is the middle of its zone - the Oak's is its trunk
  * (its radius 2.1 m and hers 0.4 keep her 2.5 m away).
  */
 export const REACHED = 3.5;
 
-/** The frame budget of a point of the forest on q2 (the lead's, 2026-11-21): triangles and draw calls. */
-export const BUDGET = { tris: 600000, calls: 112 };
 /** The point of the tour (0-based) the pictures of the magic are taken from: over the central glade to the Oak - the sky, the paths and the glades in the frame. */
 export const MAGIC_POINT = 0;
 /** The magic of the pictures (the third - three leaves given back) and the names of their files. */
 export const MAGIC_PICTURES = [[0, 'magic-0'], [0, 'magic-0-again'], [0.48, 'magic-0_48'], [1, 'magic-1']];
 /** The point of the tour (0-based) pictured once more at 0, 0.48 and 1 for the eye alone: over the village, its windows and lanterns near. */
 export const MAGIC_NEAR_POINT = 2;
-
-/** The points of `views` and `tour` over BUDGET: their names and numbers. */
-export function overBudget(views, tour, budget = BUDGET) {
-  return [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris }))]
-    .filter((p) => p.tris > budget.tris || p.calls > budget.calls);
-}
-
-export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - line[i].x, p.z - line[i].z), 0);
 
 async function main() {
   const args = readArgs(process.argv.slice(2));

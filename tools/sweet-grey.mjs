@@ -1,5 +1,5 @@
 // The grey build of the Sweet Land (WORLD-04, WORLD-12, step 1): its walkthrough and its measurements, as
-// tools/sea-grey.mjs does for the sea - on foot instead of swimming (the pure helpers are tools/forest-grey.mjs's).
+// tools/sea-grey.mjs does for the sea - on foot instead of swimming (the pure helpers of the routes are tools/grey-route.mjs's).
 //
 //   node tools/sweet-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]
 //   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): the budget holds on q2
@@ -28,7 +28,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
-import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './forest-grey.mjs';
+import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
 import { reportProblems } from './world-pass.mjs';
 
