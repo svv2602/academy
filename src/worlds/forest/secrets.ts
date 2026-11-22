@@ -20,7 +20,7 @@ import { colliders, height, tops } from './terrain';
  * hangs a keepsake for each (src/worlds/hub/keepsakes.ts reads the flags).
  *
  * - cave: the cave behind the little waterfall on the stream - a mound of rocks open to the stream behind a curtain of
- *   falling water; the chest inside (the world's chest, PLAY-08) gives CHEST_STARS.
+ *   falling water; the chest inside (the world's chest, PLAY-08) gives 5 stars, every other secret 3.
  * - bounce: the mushroom trampoline in the gnomes' village - landing on its cap throws her up high enough to come down
  *   on the roof of the house beside it; on the roof the gnomes' lantern is the find.
  * - fireflies: the hollow of the singing fireflies - three of them sing one after another, each its note; touched in
@@ -33,8 +33,6 @@ import { colliders, height, tops } from './terrain';
  */
 export const CAVE_FLAG = 'cave', BOUNCE_FLAG = 'bounce', SONG_FLAG = 'fireflies', RING_FLAG = 'ring';
 export const FOREST_SECRETS = [CAVE_FLAG, BOUNCE_FLAG, SONG_FLAG, RING_FLAG] as const;
-/** The stars of the chest (as the first world's chest), and of every other secret (as the first world's). */
-export const CHEST_STARS = 5, SECRET_STARS = 3;
 /** m: a secret is drawn while she is this near it. */
 export const SHOW_R = 22;
 /** s: the cat's word of a find waits this long at most for the line that sounds to end (else it is not said). */
@@ -200,9 +198,11 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     };
     tryNow();
   };
-  const give = (flag: string, stars: number, at: THREE.Vector3) => {
+  // the stars of the chest and of every other secret, as the first world's; literal numbers, so that
+  // src/game/no-penalties.test.ts reads them as positive (LEARN-14)
+  const give = (flag: string, chest: boolean, at: THREE.Vector3) => {
     ws.flags[flag] = true;
-    g.addStars(stars, g.above(at, 1.2));
+    g.addStars(chest ? 5 : 3, g.above(at, 1.2));
     g.persist();
   };
 
@@ -256,7 +256,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     if (found(CAVE_FLAG)) return;
     chest.once('Chest_Open', 'Chest_Open');
     sfx('good');
-    give(CAVE_FLAG, CHEST_STARS, chest.root.position);
+    give(CAVE_FLAG, true, chest.root.position);
     tell('forest_secret_cave');
   }
 
@@ -290,7 +290,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     lantern.visible = false;
     sfx('chime');
     g.sparks.burst(lantern.position.clone().setY(roofY + 0.3), '#ffd36b', 30, 3);
-    give(BOUNCE_FLAG, SECRET_STARS, lantern.position);
+    give(BOUNCE_FLAG, false, lantern.position);
   }
   lantern.visible = !found(BOUNCE_FLAG);
 
@@ -362,7 +362,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     save.effects = { ...save.effects, tiny: Math.max(left(save, 'tiny'), RING_SECONDS) };
     sfx('good');
     g.sparks.burst(g.above(hero.root.position, 0.8), '#ff9be0', 30, 2.5);
-    if (!found(RING_FLAG)) { give(RING_FLAG, SECRET_STARS, ringAt); tell('forest_secret_ring'); }
+    if (!found(RING_FLAG)) { give(RING_FLAG, false, ringAt); tell('forest_secret_ring'); }
     else g.persist();
   }
 
@@ -427,7 +427,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
         if (k !== tuneNote && k < TUNE.length) { tuneNote = k; sing(TUNE[k]); }
         if (k >= TUNE.length + 2) {
           song = restSong();
-          if (!found(SONG_FLAG)) { sfx('good'); give(SONG_FLAG, SECRET_STARS, songAt); }
+          if (!found(SONG_FLAG)) { sfx('good'); give(SONG_FLAG, false, songAt); }
         }
       } else if (song.phase === 'wait' && !here(songAt, 9)) song = restSong();    // she went away: they wait for her again
       const lit = (i: number) => (song.phase === 'show' && sung === i) || song.phase === 'tune' || (song.phase === 'wait' && song.order.indexOf(i) < song.got);
