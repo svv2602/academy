@@ -105,11 +105,15 @@
 //      world and back to that arch, no second tour; a reload opens the hub where she stood. With the probe world done
 //      too, the forest's nest glows as well. Pictures shots-e2e/worlds-probe/hub-*.png (the tree with one and with two
 //      artifacts: hub-tree-1.png, hub-tree-2.png).
-//   9. The part "hub-grey" (tools/hub-grey.mjs): the grey build made anew (`--mode grey`, dist-grey/; the forest and
-//      the sea in the registry) and the way between the hub and the forest played in it - which arches are open for
+//   9. The part "hub-grey" (tools/hub-grey.mjs): the grey build made anew (`--mode grey`, dist-grey/; the forest, the sea and
+//      the Sweet Land in the registry) and the way between the hub and the forest played in it - which arches are open for
 //      the fairies done and for the forest done, there and back through the arches, the hub's draw calls, the refusal
 //      without network. Played alone it makes no probe build. Pictures shots-e2e/worlds-grey/way-*.png. A job of
 //      ci.yml only: not before a publication (pages.yml plays PUBLISH_PARTS), the grey worlds are not published.
+//  10. The part "sweet-grey" (tools/sweet-grey.mjs `passEnv`, `passProblems`): the grey build (made anew unless "hub-grey"
+//      made it in this run) and the walkthrough of the Sweet Land by its description in it, the phone size
+//      (E2E_WORLD=sweet E2E_WORLD_NEED=grey): from its entry to its finale - its chains, the two rubies in the world,
+//      the tour, the finale. Pictures shots-e2e/worlds-grey/sweet/. A job of ci.yml only, as "hub-grey".
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
@@ -127,6 +131,7 @@ import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 import { HUB_SAVES } from './e2e-saves.mjs';
 import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, hubWay, serveDir } from './hub-grey.mjs';
+import { passEnv as sweetPassEnv, passProblems as sweetPassProblems } from './sweet-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the probe world (src/worlds/probe/) and the mode of the build that lists it (vite.config.ts). */
@@ -143,12 +148,15 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey'];
+/** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
+export const GREY_PARTS = ['hub-grey', 'sweet-grey'];
 /**
- * The parts played before a publication (.github/workflows/pages.yml): all but "hub-grey" - the grey worlds are not
- * published and must not hold a publication; main only gets a commit already green in ci.yml, which plays every part.
+ * The parts played before a publication (.github/workflows/pages.yml): all but the grey build's (GREY_PARTS) - the grey
+ * worlds are not published and must not hold a publication; main only gets a commit already green in ci.yml, which
+ * plays every part.
  */
-export const PUBLISH_PARTS = PARTS.filter((x) => x !== 'hub-grey');
+export const PUBLISH_PARTS = PARTS.filter((x) => !GREY_PARTS.includes(x));
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -795,11 +803,18 @@ async function main() {
   };
 
   // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
-  // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone.
-  if (play('hub-grey')) try {
-    const greyDist = join(root, GREY_DIST);
+  // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone. The part
+  // "sweet-grey" plays in the same build: it is made once a run.
+  let greyBuilt = false;
+  const greyDist = join(root, GREY_DIST);
+  const greyBuild = async () => {
+    if (greyBuilt) return;
     rmSync(greyDist, { recursive: true, force: true });
     await vite('the grey build', '--mode', 'grey', '--outDir', GREY_DIST);
+    greyBuilt = true;
+  };
+  if (play('hub-grey')) try {
+    await greyBuild();
     const greyPort = await freePort();
     const server = await serveDir(greyDist, greyPort);
     console.log(`[worlds] ${GREY_DIST}/ served on http://127.0.0.1:${greyPort}/`);
@@ -815,7 +830,28 @@ async function main() {
       for (const p of wrong) fail(`the way between the hub and the forest: ${p}`);
     } finally { await browser.close(); server.close(); }
   } catch (e) { fail(e.message); }
-  if (read.parts.every((x) => x === 'hub-grey')) end();
+  // ---- the part "sweet-grey": the walkthrough of the Sweet Land by its description in the grey build (tools/sweet-grey.mjs) ----
+  if (play('sweet-grey')) try {
+    await greyBuild();
+    const greyPort = await freePort();
+    const server = await serveDir(greyDist, greyPort);
+    console.log(`[worlds] ${GREY_DIST}/ served on http://127.0.0.1:${greyPort}/ for the Sweet Land`);
+    try {
+      const shots = join('shots-e2e', 'worlds-grey', 'sweet');
+      mkdirSync(join(root, shots), { recursive: true });
+      const out = join(root, shots, 'pass-mobile.json');
+      rmSync(out, { force: true });
+      const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), `http://127.0.0.1:${greyPort}/`, shots, 'mobile'], runTimeoutMs, sweetPassEnv(process.env, out));
+      if (timedOut) fail(`the walkthrough of the Sweet Land was killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
+      else if (code !== 0) fail(`the walkthrough of the Sweet Land failed: tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
+      else {
+        const wrong = sweetPassProblems(existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null);
+        for (const p of wrong) fail(`the walkthrough of the Sweet Land: ${p}`);
+        if (!wrong.length) console.log('[worlds] the Sweet Land of the grey build: played by its description from its entry to its finale');
+      }
+    } finally { server.close(); }
+  } catch (e) { fail(e.message); }
+  if (read.parts.every((x) => GREY_PARTS.includes(x))) end();
 
   // ---- 2. the probe build, made anew ----
   const from = join(root, PROBE_FILES);

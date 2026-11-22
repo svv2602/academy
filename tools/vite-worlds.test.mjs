@@ -43,21 +43,21 @@ describe('buildWorlds: the next worlds of a build', () => {
   });
 
   it('the sources as they are: the hub is installed, so the published build has no next world, the probe build the probe world', () => {
-    // the worlds of a mode as vite.config.ts names them (the grey forest and sea have folders of their own too)
-    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
+    // the worlds of a mode as vite.config.ts names them (the grey forest, sea and Sweet Land have folders of their own too)
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey' };
     expect(buildWorlds('production', modes)).toEqual([]);
     expect(buildWorlds('probe', modes)).toEqual(['probe']);
   });
 
   it('a map of worlds and modes: each world of it only in its own mode (the grey forest, WORLD-12)', () => {
     const more = () => folder({ 'index.ts': "export const DEFAULT_WORLD = 'fairy';", 'fairy/index.ts': '', 'forest/index.ts': '', 'probe/index.ts': '' });
-    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey' };
     expect(buildWorlds('production', modes, more())).toEqual([]);
     expect(buildWorlds('grey', modes, more())).toEqual(['forest']);
     expect(buildWorlds('probe', modes, more())).toEqual(['probe']);
-    // the sources as they are: the grey build has the forest and the sea, the published one nothing
+    // the sources as they are: the grey build has the forest, the sea and the Sweet Land, the published one nothing
     expect(buildWorlds('production', modes)).toEqual([]);
-    expect(buildWorlds('grey', modes)).toEqual(['forest', 'sea']);
+    expect(buildWorlds('grey', modes)).toEqual(['forest', 'sea', 'sweet']);
   });
 });
 
@@ -208,7 +208,7 @@ describe('vite.config.ts uses all of it', () => {
   const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 
   it('the next worlds are the ones of the sources, the probe world by the mode of the build', () => {
-    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE \}\);/);
+    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE, sweet: GREY_MODE \}\);/);
     expect(config).toMatch(/^const GREY_MODE = 'grey';$/m);
   });
 

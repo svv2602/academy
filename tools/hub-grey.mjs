@@ -1,11 +1,11 @@
 // The way between the hub and the forest in the grey build (WORLD-01, docs/worlds/hub.md): played by
 // tools/forest-grey.mjs (its step 3b) and by tools/worlds.mjs as its part "hub-grey" (a job of CI), on dist-grey/
-// (`vite build --mode grey`, the registry lists the forest and the sea in that mode only). The phone size:
+// (`vite build --mode grey`, the registry lists the forest, the sea and the Sweet Land in that mode only). The phone size:
 //   - the first world done: in the hub the forest's arch wakes and is open, the sea's asleep (src/worlds/hub/portals.ts
 //     openArches: an arch wakes once the world before it is done), the cat's sparkles lead to the forest's arch;
 //     through it by its action button into the forest, out of the arch of the Great Tree on its central glade
 //     (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
-//   - the forest done too: the sea's arch open as well;
+//   - the forest done too: the sea's arch open as well; the Sweet Land's (shelf 3) still asleep - it wakes once the sea is done;
 //   - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
 //   - without network, the forest's files never cached (refused to the page from the start): the forest's arch
 //     refuses - the game stays in the hub, the frame never closes, the cat says "need_net" (src/main.ts `refuse`).
