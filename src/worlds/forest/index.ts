@@ -290,7 +290,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
-  const before = [...declared(g), tourItem, ...leafItems];
+  // the finale waits for the chains, the tour and the leaves; the pet is the child's own, never needed (as in the first world)
+  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   const own: readonly WorldItem[] = [tourItem, ...leafItems, finaleItem];
