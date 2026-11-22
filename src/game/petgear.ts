@@ -1,5 +1,5 @@
 /**
- * The things of the pets (decision of 2026-11-20): the cat's and the fawn's, modelled by tools/items/pet_items.py in the
+ * The things of the pets (decision of 2026-11-20): the cat's, the fawn's and the owlet's, modelled by tools/items/pet_items.py in the
  * rest-pose space of each pet's own unscaled model, each under a bone of it. They are loaded with the pets (the shared
  * load, src/game/boot.ts), while the models still stand in their rest pose, and hung hidden under their bones with the
  * inverse of the bone's rest matrix in model space - as the heroine's things (src/game/gear.ts) - so they grow with the
@@ -23,6 +23,8 @@ export const PET_GEAR = {
   fawn_bell: { pet: 'fawn', bone: 'Neck2' },
   fawn_star_crown: { pet: 'fawn', bone: 'Head' },
   fawn_leaf_bow: { pet: 'fawn', bone: 'Head' },
+  // the owlet's (a model of the forest's files): round its neck, on its body - the head turns inside it
+  owlet_leaf_scarf: { pet: 'owlet', bone: 'Body' },
 } as const satisfies Record<string, { pet: PetWearer; bone: string }>;
 export type PetGearId = keyof typeof PET_GEAR;
 export const PET_GEAR_IDS = Object.keys(PET_GEAR) as PetGearId[];
@@ -57,7 +59,29 @@ export async function loadPetGear(rigs: Partial<Record<PetWearer, Rig>>): Promis
   return out;
 }
 
-/** Shows `id` on its pet (null: none) and hides the pet's other things. */
-export function wearPetGear(parts: PetGearModels, pet: PetWearer, id: PetGearId | null): void {
+/** The things hung on the models a world loads itself (`hangOwnGear`), and what each pet wears now (`wearPetGear`). */
+const ownParts = new Set<PetGearModels>();
+const worn: Partial<Record<PetWearer, PetGearId | null>> = {};
+const show = (parts: PetGearModels, pet: PetWearer, id: PetGearId | null) => {
   for (const k of PET_GEAR_IDS) if (PET_GEAR[k].pet === pet && parts[k]) parts[k]!.visible = k === id;
+};
+
+/** Shows `id` on its pet (null: none) and hides the pet's other things - on the shared models and on a world's own. */
+export function wearPetGear(parts: PetGearModels, pet: PetWearer, id: PetGearId | null): void {
+  worn[pet] = id;
+  for (const p of [parts, ...ownParts]) show(p, pet, id);
+}
+
+/**
+ * Hangs the things of a pet whose model a world loads itself (the owlet, src/game/pets.ts `loadOwnPets`) on that model,
+ * the one it wears now shown; returns the undo (the world's end forgets the model). A pet that wears nothing, or a model
+ * without the bone of a thing: nothing hung, no error - the pet comes without its things.
+ */
+export async function hangOwnGear(pet: string, rig: Rig): Promise<() => void> {
+  if (!PET_GEAR_IDS.some((k) => PET_GEAR[k].pet === pet)) return () => {};
+  const parts = await loadPetGear({ [pet]: rig }).catch((e: unknown) => { console.warn(`the things of the ${pet} are not hung:`, e); return null; });
+  if (!parts) return () => {};
+  ownParts.add(parts);
+  show(parts, pet as PetWearer, worn[pet as PetWearer] ?? null);
+  return () => { ownParts.delete(parts); };
 }

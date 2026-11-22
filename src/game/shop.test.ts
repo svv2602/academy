@@ -30,6 +30,8 @@ describe('the catalog of the first shop (PLAY-04, decisions of 2026-11-15)', () 
       wand_flower: ['wand', 'free'], wand_moon: ['wand', 'free'], wand_leaf: ['wand', 'free'],
       // the gifts of the characters for a trade (PLAY-28, the customer's word of 2026-11-21)
       feather_crown: ['head', 'trade'], acorn_cap: ['head', 'trade'],
+      // the forest's (the customer's word of 2026-11-22)
+      mushroom_hat: ['head', 'trade'],
     });
   });
 

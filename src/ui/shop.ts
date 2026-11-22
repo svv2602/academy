@@ -32,14 +32,14 @@ type Tab = 'dress' | 'hair' | Slot | PetWearer | 'potions';
 const TABS: readonly { id: Tab; icon: string }[] = [
   { id: 'dress', icon: '👗' }, { id: 'hair', icon: '💇' }, { id: 'wings', icon: '🪽' },
   { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' },
-  { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'potions', icon: '🧪' },
+  { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'owlet', icon: '🦉' }, { id: 'potions', icon: '🧪' },
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
 export const ICON: Record<string, string> = {
-  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🧢',
+  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🧢', mushroom_hat: '🍄',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
   cat_collar: '📿', cat_bow: '🎀', cat_hat: '🧙', cat_gold_bell: '🔔',
-  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂',
+  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂', owlet_leaf_scarf: '🧣',
   tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
 /** The price of a tile: the deal of the day has its own price crossed out before the new one. */
@@ -244,10 +244,11 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     sfx('chime'); speak('shop_bought');
   };
 
+  const isWearer = (id: Tab): id is PetWearer => (PET_WEARERS as readonly string[]).includes(id);
   function render() {
     tabs.innerHTML = '';
     for (const tb of TABS) {
-      if ((tb.id === 'cat' || tb.id === 'fawn') && !petOpen(save, tb.id)) continue;   // the fawn's tab once it is found
+      if (isWearer(tb.id) && !petOpen(save, tb.id)) continue;   // a pet's tab once it is found
       if (tb.id === 'cat') { const br = document.createElement('span'); br.className = 'tab-break'; tabs.appendChild(br); }
       const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; peek = null; potion = null; render(); });
       b.dataset.tab = tb.id;
@@ -255,7 +256,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
     }
     items.innerHTML = '';
     if (tab === 'potions') { renderPotions(); return; }
-    if (tab === 'cat' || tab === 'fawn') { renderPet(tab); return; }
+    if (isWearer(tab)) { renderPet(tab); return; }
     if (tab === 'dress' || tab === 'hair') {
       const key = tab;
       items.appendChild(swatches(key === 'dress' ? DRESS : HAIR, save[key], (c) => { save[key] = c; hooks.applyLook(); hooks.persist(); }));

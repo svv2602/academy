@@ -4,8 +4,8 @@ import { facets, mat } from '../core/style';
 
 /**
  * The things built by code, not loaded (docs/worlds/style.md: our own shape on the frame, its weight only code): the
- * gifts of the characters for a trade (PLAY-28) - the crown of feathers and the acorn cap of the heroine, the leaf bow
- * of the fawn. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
+ * gifts of the characters for a trade (PLAY-28) - the crown of feathers, the acorn cap and the fly-agaric hat of the
+ * heroine, the leaf bow of the fawn, the leaf scarf of the owlet. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
  *
  * Each is built where a loaded one would be: in the rest-pose space of its wearer's unscaled model, as tools/items/
  * items.py and pet_items.py model theirs - in Blender's axes (z up, the face to -y), turned here into the model's own
@@ -87,5 +87,46 @@ function fawnLeafBow(): THREE.Group {
   ]);
 }
 
+/**
+ * The fly-agaric hat, Borovik's gift (the forest's trade, the customer's word of 2026-11-22): a red cap with white dots, as
+ * the caps of the gnomes' houses, sitting on the crown of her head over a pale ring of its gills - a little wider than the
+ * acorn cap, as low.
+ */
+export const AGARIC = { cap: '#d8443a', dot: '#fff4e2', gills: '#f3e2c4' } as const;
+function mushroomHat(): THREE.Group {
+  const Z = 1.1, R = [0.27, 0.26, 0.14];
+  const parts: Part[] = [
+    { geo: egg(facets(0.6), [0, 0.02, Z + 0.02], R), mat: mat.cloth(AGARIC.cap) },
+    { geo: new THREE.CylinderGeometry(R[0] * 0.96, R[0] * 0.8, 0.035, 14).rotateX(Math.PI / 2).translate(0, 0.02, Z), mat: mat.cloth(AGARIC.gills) },
+  ];
+  const dot = mat.cloth(AGARIC.dot);
+  // seven dots on its top and sides, flat on the cap; none hangs over the face (-y)
+  for (const [el, az] of [[0, 0], [0.75, 90], [0.75, 150], [0.75, 210], [0.75, 270], [0.75, 330], [0.45, 30]] as const) {
+    const a = THREE.MathUtils.degToRad(az), s = Math.sin(el), c = Math.cos(el);
+    parts.push({ geo: egg(5, [R[0] * s * Math.cos(a), 0.02 + R[1] * s * Math.sin(a), Z + 0.02 + R[2] * c], [0.035, 0.035, 0.012], [0, el, a]), mat: dot });
+  }
+  return assemble('mushroom_hat', parts);
+}
+
+/**
+ * The owlet's leaf scarf, Mudrena's gift: a ring of autumn orange round its neck (the owlet's model is about 1.9 units
+ * high, its Head bone 0.18 over the middle) with three leaves on it and a short end hanging in front.
+ */
+function owletLeafScarf(): THREE.Group {
+  const Z = 0.2, r = 0.47;
+  const leaf = [mat.cloth('#e8892e'), mat.cloth('#d9502a'), mat.cloth('#f2b233')];
+  const parts: Part[] = [
+    { geo: new THREE.TorusGeometry(r, 0.075, 6, 18).translate(0, 0, Z), mat: leaf[0] },
+    { geo: egg(6, [0.14, -r - 0.02, Z - 0.16], [0.075, 0.04, 0.17], [0.15, 0, 0]), mat: leaf[0] },
+  ];
+  [-40, 0, 40].forEach((deg, i) => {
+    const a = THREE.MathUtils.degToRad(deg - 90);
+    parts.push({ geo: egg(5, [Math.cos(a) * (r + 0.06), Math.sin(a) * (r + 0.06), Z + 0.03], [0.11, 0.025, 0.065], [0.3, 0, a + Math.PI / 2]), mat: leaf[(i + 1) % 3] });
+  });
+  return assemble('owlet_leaf_scarf', parts);
+}
+
 /** The things built here, by id: what loadGear / loadPetGear hang instead of a loaded model. */
-export const BUILT: Readonly<Record<string, () => THREE.Group>> = { feather_crown: featherCrown, acorn_cap: acornCap, fawn_leaf_bow: fawnLeafBow };
+export const BUILT: Readonly<Record<string, () => THREE.Group>> = {
+  feather_crown: featherCrown, acorn_cap: acornCap, mushroom_hat: mushroomHat, fawn_leaf_bow: fawnLeafBow, owlet_leaf_scarf: owletLeafScarf,
+};

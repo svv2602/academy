@@ -17,6 +17,7 @@ export const GEAR = {
   // the gifts of the characters for a trade (PLAY-28): never sold
   feather_crown: { slot: 'head', bone: 'Head' },
   acorn_cap: { slot: 'head', bone: 'Head' },
+  mushroom_hat: { slot: 'head', bone: 'Head' },
   // The things of the four looks (PLAY-06, src/game/looks.ts): simple, free versions, never sold.
   tiara: { slot: 'head', bone: 'Head' },
   wizard_cap: { slot: 'head', bone: 'Head' },

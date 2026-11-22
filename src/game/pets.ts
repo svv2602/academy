@@ -1,3 +1,4 @@
+import { hangOwnGear } from './petgear';
 import * as THREE from 'three';
 import { rig, type Rig } from '../core/assets';
 import { sfx } from '../core/audio';
@@ -71,16 +72,20 @@ type ScopeOwn = { own(what: () => void): unknown };
  * A world's load brings the `own` pets it shows (`ids`: species of PETS marked `own`; others are left out) - inside the
  * world's load, so their models are the world's and go with it. A model that does not come (no file in the cache, no
  * network) is only missing: that pet stays at home, the world plays on, a warning in the console. `scope`: the
- * world's, its end forgets the models. `load` is the loader (the tests hand their own).
+ * world's, its end forgets the models. `load` is the loader, `hang` hangs a pet's things on its model (the tests hand
+ * their own).
  */
-export async function loadOwnPets(world: string, ids: readonly string[], scope: ScopeOwn, load: (path: string, height: number) => Promise<Rig> = (p, h) => rig(p, h, true)): Promise<void> {
+export async function loadOwnPets(world: string, ids: readonly string[], scope: ScopeOwn, load: (path: string, height: number) => Promise<Rig> = (p, h) => rig(p, h, true), hang: (id: string, r: Rig) => Promise<() => void> = hangOwnGear): Promise<void> {
   const kinds = PETS.filter((p) => p.own && ids.includes(p.id));
   const got = await Promise.all(kinds.map((p) => load(p.model, p.height).then((r) => [p.id, r] as const, (e: unknown) => {
     console.warn(`the pet "${p.id}" did not load, it stays at home:`, e);
     return null;
   })));
-  ownRigs.set(world, Object.fromEntries(got.filter((x) => x !== null)));
-  scope.own(() => { ownRigs.delete(world); });
+  const rigs = got.filter((x) => x !== null);
+  // its things (the owlet's scarf, a trade's gift) hung on it while it stands in its rest pose (src/game/petgear.ts)
+  const unhang = await Promise.all(rigs.map(([id, r]) => hang(id, r)));
+  ownRigs.set(world, Object.fromEntries(rigs));
+  scope.own(() => { ownRigs.delete(world); for (const u of unhang) u(); });
 }
 
 /** The `own` pets' models the world `world` has loaded (none: an empty record). */

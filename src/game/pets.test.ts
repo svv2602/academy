@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
+import { wearPetGear } from './petgear';
 import {
   CATCH_UP,
   PETS, PET_FLAG, PET_GAP, PET_SPOT_R, FLAP_MAX, flapPace, loadOwnPets, ownFound, ownPetRigs, petSpecies, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
@@ -507,6 +508,24 @@ describe('the owlet of the forest (PLAY-09): a pet whose model is a file of its 
     expect(pets.follower).toBeNull();
     expect(() => pets.update(1 / 60)).not.toThrow();
     warn.mockRestore(); scope.end();
+  });
+
+  it('its things (the leaf scarf, a trade\'s gift) hang on its model as a world loads it, the one it wears shown; gone with the world', async () => {
+    const model = new THREE.Group(), root = new THREE.Bone(), body = new THREE.Bone();
+    root.name = 'Root'; body.name = 'Body'; body.position.y = 0.19; root.add(body); model.add(root);
+    const rig: Rig = { root: new THREE.Group().add(model), model, clips: new Map() };
+    wearPetGear({}, 'owlet', 'owlet_leaf_scarf');
+    const scope = scopeOf();
+    await loadOwnPets('forest', ['owlet'], scope, () => Promise.resolve(rig));
+    const scarf = body.getObjectByName('owlet_leaf_scarf')!;
+    expect(scarf).toBeTruthy();
+    expect(scarf.visible).toBe(true);                 // worn before the forest was entered: shown as it comes
+    wearPetGear({}, 'owlet', null);
+    expect(scarf.visible).toBe(false);                // taken off in the shop
+    scope.end();
+    wearPetGear({}, 'owlet', 'owlet_leaf_scarf');
+    expect(scarf.visible).toBe(false);                // the world gone: its model no more worn on
+    wearPetGear({}, 'owlet', null);
   });
 
   it('the hub loads the owlet once it is found, not before', () => {

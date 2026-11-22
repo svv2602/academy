@@ -55,6 +55,7 @@ export const CATALOG: readonly Item[] = [
   // the gifts of the characters for a trade (PLAY-28, src/game/trade.ts): never sold, "від жителя" in the shop
   { id: 'feather_crown', slot: 'head', reward: 'trade' },
   { id: 'acorn_cap', slot: 'head', reward: 'trade' },
+  { id: 'mushroom_hat', slot: 'head', reward: 'trade' },
   { id: 'wings_petals', slot: 'wings', free: true },
   // The things of the four looks (PLAY-06, decision 3 of 2026-11-15): simple versions, free, never sold; the full ones
   // (the crown, the hat with stars, the star and crystal wands) stay in the shop and the rewards.
@@ -107,9 +108,12 @@ export function stock(s: Save, id: SupplyId): number {
   return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : 0;
 }
 
-/** The pets that wear things: the cat (the companion) and the fawn (the pet of the first world, src/game/pets.ts). */
-export type PetWearer = 'cat' | 'fawn';
-export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn'];
+/**
+ * The pets that wear things: the cat (the companion), the fawn (the pet of the first world) and the owlet (the forest's,
+ * src/game/pets.ts; its things hang on its model where a world loads it, src/game/petgear.ts `hangOwnGear`).
+ */
+export type PetWearer = 'cat' | 'fawn' | 'owlet';
+export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn', 'owlet'];
 /**
  * A thing of a pet: its pet, its price; `rare` - sold only on the day it is the deal of the day; `reward: 'trade'` - not
  * sold, a character's gift for a trade (PLAY-28), no price.
@@ -126,10 +130,11 @@ export const PET_ITEMS: readonly PetItem[] = [
   { id: 'fawn_bell', pet: 'fawn', price: 20 },
   { id: 'fawn_star_crown', pet: 'fawn', price: 30, rare: true },
   { id: 'fawn_leaf_bow', pet: 'fawn', reward: 'trade' },
+  { id: 'owlet_leaf_scarf', pet: 'owlet', reward: 'trade' },
 ];
 export const petItem = (id: string): PetItem | undefined => PET_ITEMS.find((x) => x.id === id);
 
-/** Whether the things of a pet are shown in the shop: the cat's always, the fawn's once it is found. */
+/** Whether the things of a pet are shown in the shop: the cat's always, another pet's once it is found. */
 export function petOpen(s: Save, pet: PetWearer): boolean {
   return pet === 'cat' || foundPets(s).includes(pet);
 }

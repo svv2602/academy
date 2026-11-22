@@ -1,3 +1,4 @@
+import { TRADES } from './trade';
 import { COLLECT, DAILY_PLACES } from './collect';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -288,7 +289,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const tasks: Record<string, WorldTask> = { part, [STEPS]: stepsTask, [TRACKS]: nuts, [MAZE]: mazeTask };
   const wrongTasks = worldTaskProblems(forest.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the forest: ${wrongTasks.join('; ')}`);
-  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks, trades: TRADES });
   stepDone = dialogue.stepDone;
 
   // ----- the tour, the finale -----
