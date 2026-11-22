@@ -8,7 +8,7 @@ import { createCompanion } from './companion';
 import { createWater } from './water';
 import type { Game } from './context';
 import { createGuide } from './guide';
-import { createPlayer, type Spot } from './player';
+import { createPlayer, spotOrder, type Spot } from './player';
 import { tickPlayTime } from './playtime';
 import { tickSession } from './session';
 import { storyOf } from './story';
@@ -63,12 +63,12 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   const clock = new THREE.Clock();
   const middle = new THREE.Vector3();
   // The world's spots and the pets' (PLAY-09: the spot of the world's pet, without a change to the world), read anew
-  // each frame into one list: a world may change its own. Without a pet's spot the world's list is used as it is.
+  // each frame into one list (`spotOrder`: a world's spot wins over the pet's treat): a world may change its own. Without
+  // a pet's spot the world's list is used as it is.
   const spots: Spot[] = [];
   const allSpots = (): readonly Spot[] => {
     if (g.pets.spots.length === 0 && g.mystery.spots.length === 0) return world.spots;
-    spots.length = 0; spots.push(...world.spots, ...g.pets.spots, ...g.mystery.spots);
-    return spots;
+    return spotOrder(world.spots, g.pets.spots, g.mystery.spots, spots);
   };
   const waiting: (() => void)[] = [];
 

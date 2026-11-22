@@ -54,6 +54,25 @@ export const swimming = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind 
 /** px on screen: a tap this near a spot (a metre over it) walks her there; this near the cat, by touch or mouse, is the cat's. */
 export const SPOT_TAP_PX = 90, CAT_TAP_PX = { touch: 70, mouse: 46 } as const;
 /**
+ * The spots of a frame in the order they are weighed: where several are in reach (`prompt`) or under a tap (`tap`), the
+ * later one wins. The pets' first - the treat by the follower walks with her, 1.1 m off, and would else take the button
+ * of every spot she comes to (the cauldron, an arch, a friend) whenever she has a find it likes -, then the world's, then
+ * the mysterious stars'. `out` is filled anew (no allocation per frame) and returned.
+ */
+/** The spot whose button shows with her at (x, z): the last in `spots` that is on and in reach (see `spotOrder`). */
+export function spotInReach(spots: readonly Spot[], x: number, z: number): Spot | null {
+  let near: Spot | null = null;
+  for (const s of spots) if (s.on() && Math.hypot(s.pos.x - x, s.pos.z - z) < s.r) near = s;
+  return near;
+}
+
+export function spotOrder(world: readonly Spot[], pets: readonly Spot[], mystery: readonly Spot[], out: Spot[] = []): Spot[] {
+  out.length = 0;
+  out.push(...pets, ...world, ...mystery);
+  return out;
+}
+
+/**
  * What a tap takes (a world's own tap was asked before): the cat, when it is within its reach and nearer than the spot -
  * a spot that walks with her (the treat by the pet, PLAY-27) is always by the cat, and a tap meant for the cat must not
  * give a treat instead of "where we stopped"; else the spot within its reach; else the ground. Distances in px on screen.
@@ -152,8 +171,7 @@ export function createPlayer(g: Game): Player {
     // interaction prompt
     prompt: (canMove, spots) => {
       const hp = hero.root.position;
-      let near: Spot | null = null;
-      if (canMove) for (const s of spots) if (s.on() && Math.hypot(s.pos.x - hp.x, s.pos.z - hp.z) < s.r) near = s;
+      const near = canMove ? spotInReach(spots, hp.x, hp.z) : null;
       setAct(near ? near.label : null);
       el.btnJump.classList.toggle('hidden', !canMove || swimming(g));
       if (input.act && near) near.run();
