@@ -370,7 +370,8 @@ describe('the wiring of the frame (src/game/loop.ts, src/game/context.ts)', () =
     // a find of the collections touched while she is free to move first, then the pet's trick (PLAY-27), then the world's tap (PLAY-25)
     expect(loop).toMatch(/player\.tap\(canMove, here, \(dist\) => \(canMove && g\.collect\.tap\(dist\)\) \|\| \(canMove && g\.pets\.tap\(dist\)\) \|\| world\.tap\(dist\)\)/);
     expect(loop).toMatch(/player\.prompt\(canMove, here\)/);
-    expect(loop).toMatch(/spots\.push\(\.\.\.world\.spots, \.\.\.g\.pets\.spots, \.\.\.g\.mystery\.spots\)/);
+    // the world's, the pets' and the stars' spots in the order of ./player.ts spotOrder (the world's win over the treat)
+    expect(loop).toMatch(/spotOrder\(world\.spots, g\.pets\.spots, g\.mystery\.spots, spots\)/);
   });
   it('the game makes the pets of the world played, with the models of the shared load', () => {
     // `g.world`, not the world of the launch: the pets are made anew for every world entered (TECH-15, src/game/travel.ts)
