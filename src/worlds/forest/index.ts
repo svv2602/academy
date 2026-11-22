@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { sfx } from '../../core/audio';
+import { setCast, sfx } from '../../core/audio';
+import { worldClips } from '../../core/voice';
 import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
@@ -26,6 +27,8 @@ import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
 import { strings } from './strings';
+import { voices } from './voices';
+import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
 
 /**
@@ -41,6 +44,9 @@ import { buildGround, colliders, ground } from './terrain';
  * of the same skill: Kolyuchka's maze (WORLD-14) as `pattern`. Ash "remembers" the glade otherwise: his first step is
  * "find the differences" (LEARN-18), a task of the panel of its own. `part`: the leaf is not
  * handed over - the character says it lies in the world (the hollow, the end of the maze; WORLD-08).
+ * Each says its own lines in its own voice (./strings.ts, ./voices.ts): its greeting, what each step is about (the
+ * owl's last one: where her leaf lies; the hedgehog's leaf waits at the end of his maze, said by no step), its thanks
+ * with the leaf and its words when met again.
  */
 /** The step of Mudrena's chain played in the world: the mushroom steps up to her hollow (./index.ts `stepsTask`). */
 export const STEPS = 'steps';
@@ -48,12 +54,17 @@ export const STEPS = 'steps';
 export const TRACKS = 'tracks';
 
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a' },
-  { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a' },
-  { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a' },
-  { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['diff', 'simon', 'add'], shard: '#36b56c' },
+  { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a',
+    hi: 'borovik_hi', asks: ['borovik_t1', 'borovik_t2', 'borovik_t3'], thanks: 'borovik_done', again: ['borovik_again_1', 'borovik_again_2'] },
+  { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a',
+    hi: 'mudrena_hi', asks: ['mudrena_t1', 'mudrena_t2', 'mudrena_t3', 'mudrena_hint'], thanks: 'mudrena_done', again: ['mudrena_again_1', 'mudrena_again_2'] },
+  { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a',
+    hi: 'shustrik_hi', asks: ['shustrik_t1', 'shustrik_t2', 'shustrik_t3'], thanks: 'shustrik_done', again: ['shustrik_again_1', 'shustrik_again_2'] },
+  { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['diff', 'simon', 'add'], shard: '#36b56c',
+    hi: 'yasen_hi', asks: ['yasen_t1', 'yasen_t2', 'yasen_t3'], thanks: 'yasen_done', again: ['yasen_again_1', 'yasen_again_2'] },
   // by the arch of the maze's way in; the maze is the last of the hedgehog's tasks, the leaf lies at its end (WORLD-14)
-  { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 2.5, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0' },
+  { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 2.5, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0',
+    hi: 'kolyuchka_hi', asks: ['kolyuchka_t1', 'kolyuchka_t2', 'kolyuchka_t3', null], thanks: 'kolyuchka_done', again: ['kolyuchka_again_1', 'kolyuchka_again_2'] },
 ];
 /** The steps played in the world (WorldDef.worldTasks): Mudrena's steps to her hollow (WORLD-16). */
 export const WORLD_TASKS: readonly string[] = [STEPS];
@@ -151,6 +162,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
+  // its own voice (TECH-09): each character with its voice, the clips of voice/forest/ while the world is played
+  setCast(voices);
+  scope.own(() => setCast({ narrator: '', cast: {} }));
+  scope.own(worldClips('forest', CLIPS));
   scene.add(buildGround(160));
   const scenery = buildScenery(scene, L.flora);
   // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
