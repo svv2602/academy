@@ -20,6 +20,7 @@
     "@gltf-transform/extensions": "^4.5.1",
     "@gltf-transform/functions": "^4.5.1",
     "@types/three": "^0.170.0",
+    "gltf-validator": "2.0.0-dev.3.10",
     "happy-dom": "^21.0.4",
     "meshoptimizer": "^0.18.1",
     "playwright-core": "^1.65.0",
