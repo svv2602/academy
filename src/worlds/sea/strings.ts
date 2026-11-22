@@ -9,6 +9,8 @@
 import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
 const uk = { subtitle: 'Підводне королівство', sea_part: 'Перлинка!', sea_count: '{n} з 5', sea_cabin: 'Каюта', sea_lock: 'Пливи до воріт замку! 🐚',
+  // the bubble of Bulk's search among the corals (./corals.ts): the subtitle with the count, not spoken
+  sea_corals: 'Шукай таку мушлю серед коралів! 🐚 {n} з {of}',
   // --- the sea's own lines (docs/worlds/world-3.md; the draft of 2026-11-18): the cat's `sea_*`, each character's
   // `<id>_*` in its own voice (./voices.ts)
   sea_story_intro_1: 'Під хвилями ховається Підводне королівство. Та воно засумувало.',
@@ -86,6 +88,7 @@ const uk = { subtitle: 'Підводне королівство', sea_part: 'П�
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
 const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное королевство', sea_part: 'Жемчужинка!', sea_count: '{n} из 5', sea_cabin: 'Каюта', sea_lock: 'Плыви к воротам замка! 🐚',
+  sea_corals: 'Ищи такую ракушку среди кораллов! 🐚 {n} из {of}',
   sea_story_intro_1: 'Под волнами прячется Подводное королевство. Но оно загрустило.',
   sea_story_intro_2: 'Жемчужина глубин раскололась, а ворота замка закрылись.',
   sea_story_intro_3: 'Ныряем! Найдём жемчужинки — и море снова засияет.',
