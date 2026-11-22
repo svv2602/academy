@@ -5976,5 +5976,437 @@
   "style": "joy",
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_t2@Leda": {
+  "text": "Скільки рибок у моїй зграйці? Я весь час збиваюся!",
+  "heard": "Скільки рибок у моїй зграйці? Я весь час збиваюся.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_t3@Leda": {
+  "text": "Я сховав мушлі в коралах і забув де! Пошукаймо?",
+  "heard": "Я сховав мушлю в коралах і забув де. Пошукаймо!",
+  "score": 0.978,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_done@Leda": {
+  "text": "Знайшли всі мушлі! І перлинка теж там ховалася! Це тобі!",
+  "heard": "Знайшли всі мушлі! І перлинка теж там ховалася. Це тобі!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_pet_ask@Leda": {
+  "text": "Мій братик Бульчик десь у саду мушель. Знайдеш його?",
+  "heard": "Мій братик Бульчик десь у саду мушель. Знайдеш його?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_again_1@Leda": {
+  "text": "Бульк! Я знову щось сховав. Жартую! Майже.",
+  "heard": "Бульк, я знову щось сховав. Жартую. Майже.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_again_2@Leda": {
+  "text": "Попливемо наввипередки? Я дам тобі фору!",
+  "heard": "Попливемо навипередки, я дам тобі фору.",
+  "score": 0.987,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_hi@Charon": {
+  "text": "О-хо-хо… Я Панцир. Стережу цей корабель уже… дуже давно.",
+  "heard": "Охо-хо, я панцер, стережу цей корабель уже дуже давно.",
+  "score": 0.971,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_t1@Charon": {
+  "text": "Двері корабля замикає мушля. Знайди її другу половинку.",
+  "heard": "Двері корабля замикає мушля, знайди її другу половинку.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_t2@Charon": {
+  "text": "Я старий і все забуваю. Запамʼятаймо разом, гаразд?",
+  "heard": "Я старий і все забуваю. Запам'ятаймо разом, гаразд?",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_t3@Charon": {
+  "text": "Краби розтягли мої скарби. Скільки лишилося в скрині?",
+  "heard": "Краби розтягли мої скарби. Скільки лишилося в скрині?",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_done@Charon": {
+  "text": "Неквапливо, та впевнено. Ти молодчина, як справжня черепаха.",
+  "heard": "Неквапливо та впевнено. Ти молодчина, як справжня черепаха!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_hint@Charon": {
+  "text": "Те, що шукаєш, спить у каюті капітана. О-хо-хо.",
+  "heard": "Те, що шукаєш, спить у каюті капітана. О-хо-хо!",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_again_1@Charon": {
+  "text": "А, це ти… Посидь зі мною. Послухаємо, як шумить море.",
+  "heard": "А, це ти? Посидь зі мною, послухаємо, як шумить море.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_again_2@Charon": {
+  "text": "Кажуть, черепахи повільні. Зате ми нічого не пропускаємо.",
+  "heard": "Кажуть, черепахи повільні. Зате ми нічого не пропускаємо.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_hi@Orus": {
+  "text": "Клац-клац! Я Клішня, найкращий кухар на всьому дні!",
+  "heard": "Клоц-клоц, як лішня, найкращий кухар на всьому дні!",
+  "score": 0.938,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_t1@Orus": {
+  "text": "Для супу треба водоростей. Скільки буде разом, га?",
+  "heard": "Для супу треба водоростей. Скільки буде разом, а?",
+  "score": 0.989,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_t2@Orus": {
+  "text": "Ой, на кухні безлад! Розклади все по своїх мисках.",
+  "heard": "Ой, на кухні безлад, розклади все по своїх мисках.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_t3@Orus": {
+  "text": "Де більше пиріжків із планктоном? Я завжди плутаю!",
+  "heard": "Де більше пиріжків із планктоном, я завжди плутаю?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_done@Orus": {
+  "text": "Оце помічниця! Тримай перлинку. А пиріжок — на потім!",
+  "heard": "Оце помічниця! Тримай перлинку, а пиріжок на потім.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_again_1@Orus": {
+  "text": "Клац! Знову ти? Сьогодні на обід — суп із мушель!",
+  "heard": "Квац! Знову ти? Сьогодні на обід суп із мушель!",
+  "score": 0.977,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_again_2@Orus": {
+  "text": "Я такий сильний, що… ой, ледь не впустив каструлю!",
+  "heard": "Я такий сильний, що… ой, ледь не впустив кастрюлю!",
+  "score": 0.978,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_hi@Leda": {
+  "text": "Привіт! Я Іскорка. У западині темнувато, але я посвічу!",
+  "heard": "Привіт, я Іскорка! У запа́дені темнувато, але я посвічу!",
+  "score": 0.971,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_t1@Leda": {
+  "text": "Тут мушлі ховаються парами. Знайдеш, яка до якої?",
+  "heard": "Тут мушлі ховаються парами. Знайдеш, яка де якої?",
+  "score": 0.978,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_t2@Leda": {
+  "text": "Мої камінчики-вогники стоять рядком. Якого числа бракує?",
+  "heard": "Мої камінчики-вогники стоять рядком. Якого числа бракує?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_t3@Leda": {
+  "text": "Ще трохи світла! Скільки вогників буде разом?",
+  "heard": "Додайте трохи світла, скільки вогників буде разом?",
+  "score": 0.923,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_done@Leda": {
+  "text": "Тепер у западині світло! Тримай перлинку, вона теж сяє.",
+  "heard": "Тепер у западині світло! Тримай перлинку, вона теж сяє.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_again_1@Leda": {
+  "text": "Я маленька, зате найсміливіша! Посвітити тобі дорогу?",
+  "heard": "Я маленька, зате найсміливіша посвітити тобі дорогу.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_again_2@Leda": {
+  "text": "Бачиш, як мерехтить? Це я радію, що ти прийшла!",
+  "heard": "Бачиш, як мерехтить? Це я радію, що ти прийшла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_coral_start@Leda": {
+  "text": "Ось така мушля! Шукай таку саму між коралами.",
+  "heard": "Ось така мушля, шукай таку саму між коралами.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_coral_found_1@Leda": {
+  "text": "Є! Це моя мушля!",
+  "heard": "Гее, це моя мушля!",
+  "score": 0.867,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_coral_found_2@Leda": {
+  "text": "Ще одна! Ти бачиш краще за мене.",
+  "heard": "Шче одна, ти бачиш краще за мене?",
+  "score": 0.951,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_coral_not_this": {
+  "text": "Схожа, та не така. Подивись на зразок ще раз.",
+  "heard": "Схожа, та не така. Подивись на зразок ще раз.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_coral_all@Leda": {
+  "text": "Усі мушлі знайшлися! Ой, а що це блищить?",
+  "heard": "Усі мушлі знайшлися! Ой, а що це плещить?",
+  "score": 0.947,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_pearl_reef_found": {
+  "text": "Перлинка серед коралів! Бульк і сам не знав.",
+  "heard": "Перлинка серед коралів, бульк і сам не знав.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_half_start@Charon": {
+  "text": "Мушля розкрилася навпіл. Яка половинка до неї пасує?",
+  "heard": "Мушля розкрилася навпіл. Яка половинка до неї пасує?",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_half_hint_1": {
+  "text": "Візерунок має бути, як у дзеркалі.",
+  "heard": "Візерунок має бути як у дзеркалі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_half_hint_2": {
+  "text": "Дивись, я покажу, як візерунок відбивається.",
+  "heard": "Дивись, я покажу, як візерунок відбивається.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_half_finish@Charon": {
+  "text": "Мушля зімкнулася. Двері відчинено… заходь.",
+  "heard": "Мушля зімкнулася. Двері відчинено. Заходь.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_lock_finish@Sulafat": {
+  "text": "Замок клацнув! Ворота відчиняються. Ласкаво просимо!",
+  "heard": "Замок клацнув, ворота відчиняються. Ласкаво просимо!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_secret_chest": {
+  "text": "Ого, у трюмі скриня! А в ній зірочки!",
+  "heard": "Ого, у трюмі скриня, а в ній зірочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_secret_lift": {
+  "text": "Бульбашки несуть тебе вгору! Що там, на скелі?",
+  "heard": "Бульбашки несуть тебе вгору. Що там на скелі?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_secret_shells": {
+  "text": "Мушлі співають! Торкнися кожної — вийде пісенька.",
+  "heard": "Мушлі співають, торкнися кожної, вийде пісенька.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_secret_whale": {
+  "text": "Дивись, там, удалині, кит! Він махає нам хвостом.",
+  "heard": "Дивись, там у далині кит, він махає нам хвостом!",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_pet_found": {
+  "text": "Ось де Бульчик, між мушлями! Пливе до тебе.",
+  "heard": "Ось дебульчик між мушлями пливе до тебе.",
+  "score": 0.987,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_pet_follow": {
+  "text": "Бульчик попливе з тобою. Тепер ви друзі!",
+  "heard": "Буйчик попливе з тобою, тепер ви друзі.",
+  "score": 0.96,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_pearl_ship_found": {
+  "text": "Ось вона, перлинка в каюті капітана! Панцир не помилився.",
+  "heard": "Ось вона, перлинка в каюті капітана, Панцир не помилився!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_all_pearls": {
+  "text": "Усі перлинки в нас! Пливемо до трону в замку.",
+  "heard": "Усі перлинки в нас, впливемо до трону в замку!",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_pearl_whole": {
+  "text": "Перлинки склалися докупи — Перлина глибин знову ціла!",
+  "heard": "Перлинки склалися докупи, перлина глибин знову ціла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_song@Sulafat": {
+  "text": "Ла-ла-а… Дякую, Хранителько! Море знову співає!",
+  "heard": "Ла-ла-ла! Дякую, Хранителько. Море знову співає!",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_final_text": {
+  "text": "Ти повернула світло Підводному королівству!",
+  "heard": "Ти повернула світло підводному королівству!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_free": {
+  "text": "Плавай скільки хочеш! Тут ще багато таємниць.",
+  "heard": "Плавай, скільки хочеш, тут ще багато таємниць.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_magic_1": {
+  "text": "Дивись, корали знову кольорові! Море прокидається.",
+  "heard": "Дивись, корали знову кольорові, море прокидається!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_magic_3": {
+  "text": "Медузи світяться, а рибки повертаються зграйками!",
+  "heard": "Медузи світяться, а рибки повертаються зграйками.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_magic_5": {
+  "text": "Яке сонце крізь воду! Море майже прокинулося.",
+  "heard": "Яке сонце крізь воду, море майже прокинулося.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
