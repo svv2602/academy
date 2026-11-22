@@ -369,6 +369,8 @@
  "bulk_coral_all@Leda": ["Усі мушлі знайшлися! Ой, а що це блищить?", "joy", "bulk", "sea"],
  "sea_pearl_reef_found": ["Перлинка серед коралів! Бульк і сам не знав.", "joy", "cat", "sea"],
  "pantsyr_half_start@Charon": ["Мушля розкрилася навпіл. Яка половинка до неї пасує?", "calm", "pantsyr", "sea"],
+ "sea_half_hint_1": ["Візерунок має бути, як у дзеркалі.", "warm", "cat", "sea"],
+ "sea_half_hint_2": ["Дивись, я покажу, як візерунок відбивається.", "warm", "cat", "sea"],
  "pantsyr_half_finish@Charon": ["Мушля зімкнулася. Двері відчинено… заходь.", "warm", "pantsyr", "sea"],
  "khvylia_lock_finish@Sulafat": ["Замок клацнув! Ворота відчиняються. Ласкаво просимо!", "joy", "khvylia", "sea"],
  "sea_secret_chest": ["Ого, у трюмі скриня! А в ній зірочки!", "joy", "cat", "sea"],

@@ -22,6 +22,7 @@ import { CABIN, CORAL_NEST, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, THRONE,
 import { buildScenery, buildShafts } from './scenery';
 import { LOCK, createLock } from './lock';
 import { CORALS, createCoralsSearch } from './corals';
+import { generateHalf, showHalfInWorld } from '../../game/worldtasks/half-show';
 import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
@@ -42,18 +43,21 @@ import { buildGround, colliders, ground } from './terrain';
 /**
  * The characters (docs/worlds/world-3.md). The search among the corals (WORLD-17, ./corals.ts) is Bulk's third step,
  * played in the world; its last shell found brings his pearl to light in the corals. The second half of a shell
- * (WORLD-18, patterns) stands in as the panel task `pattern`. The shell lock (WORLD-19, the composition of a number) is played in the world: the queen's
+ * (WORLD-18, patterns) is Pantsyr's first step, played in the world before him (HALF_STEP). The shell lock (WORLD-19, the composition of a number) is played in the world: the queen's
  * last step, the lock in the gate of the castle (./lock.ts). `part`: the pearl is not
  * handed over - the character says where it lies (in the corals, in the captain's cabin; WORLD-08).
  * Each says its own lines in its own voice (./strings.ts, ./voices.ts): its greeting, what each step is about (the
  * turtle's last one: where its pearl lies), its thanks with the pearl and its words when met again.
  */
+/** The step of Pantsyr's chain played in the world: the second half of a shell (WORLD-18). */
+export const HALF_STEP = 'half';
+
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', LOCK], shard: '#a8e4ff',
     hi: 'khvylia_hi', asks: ['khvylia_t1', 'khvylia_t2', 'khvylia_t3'], thanks: 'khvylia_done', again: ['khvylia_again_1', 'khvylia_again_2'] },
   { id: 'bulk', emoji: '🐉', x: ZONES.reef.x + 2, z: ZONES.reef.z + 1.5, heading: 1.2, steps: ['pattern', 'count', CORALS, 'part'], shard: '#7fe6d6',
     hi: 'bulk_hi', asks: ['bulk_t1', 'bulk_t2', 'bulk_t3', null], thanks: 'bulk_done', again: ['bulk_again_1', 'bulk_again_2'] },
-  { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: ['pattern', 'simon', 'sub', 'part'], shard: '#9fd0a8',
+  { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: [HALF_STEP, 'simon', 'sub', 'part'], shard: '#9fd0a8',
     hi: 'pantsyr_hi', asks: ['pantsyr_t1', 'pantsyr_t2', 'pantsyr_t3', 'pantsyr_hint'], thanks: 'pantsyr_done', again: ['pantsyr_again_1', 'pantsyr_again_2'] },
   { id: 'kleshnya', emoji: '🦀', x: ZONES.grotto.x - 2, z: ZONES.grotto.z - 1, heading: -1.8, steps: ['add', 'sort', 'compare'], shard: '#ffb0a0',
     hi: 'kleshnya_hi', asks: ['kleshnya_t1', 'kleshnya_t2', 'kleshnya_t3'], thanks: 'kleshnya_done', again: ['kleshnya_again_1', 'kleshnya_again_2'] },
@@ -76,6 +80,8 @@ export const PEARLS = [
   { owner: 'pantsyr', flag: 'pearl_ship', hint: 'pantsyr_hint', at: CABIN, how: 'act', found: 'sea_pearl_ship_found' },
 ] as const;
 export const FINALE = 'final';
+/** m from the turtle to the hinge of the shell before him. */
+const HALF_AT = 2.6;
 const TOUR = 'toured';
 /**
  * The cat's words of the first visit, each said once (the flag of the save): after the tour, his bubble (he does not
@@ -84,6 +90,8 @@ const TOUR = 'toured';
 export const ONCE = { bubble: 'told_bubble', swim: 'told_swim', wet: 'told_wet' } as const;
 /** m she swims after the cat's bubble before he says she swims like a fish. */
 const SWIM_SAID_AT = 1.5;
+/** s of game time she must be free and the voice silent before the cat says one of them. */
+const QUIET = 2;
 /** m: swimming this near a pearl of `walk` takes it; the spot of the cabin's door; the throne's spot. */
 const TAKE_R = 1.2, CABIN_R = 2.6, THRONE_R = 3;
 
@@ -213,7 +221,20 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   // Bulk's search among the corals (WORLD-17): its last shell found brings his pearl to light (the mark of his `part`)
   const corals = createCoralsSearch(g, () => { ws.flags.bulk_hint = true; g.persist(); });
   scope.own(() => corals.dispose());
-  const tasks: Record<string, WorldTask> = { part, [LOCK]: lock, [CORALS]: corals };
+  // Pantsyr's second half of a shell (WORLD-18): before him, he asks, the cat hints; solved - the shell closes, he speaks
+  const halfStep: WorldTask = {
+    skill: 'pattern', inWorld: () => true,
+    run: async (n, level) => {
+      const h = n.def.heading;
+      const at = { x: n.pos.x + Math.sin(h) * HALF_AT, z: n.pos.z + Math.cos(h) * HALF_AT, facing: h + Math.PI };
+      const spec = generateHalf(level, g.rng, { prompt: 'pantsyr_half_start', way: 'sea_half_hint_1', together: 'sea_half_hint_2' });
+      const res = await player.play(showHalfInWorld(scene, spec, at, g.hooksFor(n.def.emoji), { groundY, reach: g.touch ? 80 : 56, scope }));
+      // still inside the task's frame (g.task): only its own lines sound there, so the turtle's last word is the task's
+      if (res.solved) await g.speech.line('pantsyr_half_finish', 'task', 0, n.def.emoji);
+      return res;
+    },
+  };
+  const tasks: Record<string, WorldTask> = { part, [LOCK]: lock, [CORALS]: corals, [HALF_STEP]: halfStep };
   const wrongTasks = worldTaskProblems(sea.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the sea: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -248,7 +269,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     finaleOn = false; g.cam.focus = null;
   }).then(() => g.speech.line('sea_free', 'hint', 6000));
   const cabinPearl = pearls.find((p) => p.how === 'act')!;
-  let swamFrom: THREE.Vector3 | null = null, swum = 0;   // where she was a frame ago; m swum since the cat spoke of his bubble
+  let swamFrom: THREE.Vector3 | null = null, swum = 0, quiet = 0;   // where she was a frame ago; m swum since the cat spoke of his bubble
   const cabin = point(CABIN);
 
   return {
@@ -284,8 +305,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         corals.update(dt, time, canMove);
         // the cat's words of the first visit (ONCE): only while she is free and nobody speaks, so no line is cut
         // and never while a task in the world is open: closing one must leave the save as it was
-        if (canMove && !g.busy && !player.open && !speaking() && ws.flags[TOUR] === true && flyoverOf(g)?.active !== true) {
-          const once = (flag: string, key: 'sea_cat_bubble' | 'sea_swim_first' | 'sea_cat_wet') => { ws.flags[flag] = true; g.persist(); void g.speech.line(key, 'hint', 5000); };
+        // and only after QUIET s of game time free so: never in the moment a task or a talk has just ended or begins
+        quiet = canMove && !g.busy && !player.open && !speaking() && ws.flags[TOUR] === true && flyoverOf(g)?.active !== true ? quiet + dt : 0;
+        if (quiet > QUIET) {
+          const once = (flag: string, key: 'sea_cat_bubble' | 'sea_swim_first' | 'sea_cat_wet') => { ws.flags[flag] = true; g.persist(); quiet = 0; void g.speech.line(key, 'hint', 5000); };
           if (!ws.flags[ONCE.bubble]) { once(ONCE.bubble, 'sea_cat_bubble'); swum = 0; }
           else if (!ws.flags[ONCE.swim] && swum > SWIM_SAID_AT) once(ONCE.swim, 'sea_swim_first');
           else if (!ws.flags[ONCE.wet] && npcs.some(finished)) once(ONCE.wet, 'sea_cat_wet');
@@ -353,7 +376,7 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   strings,
   music: MUSIC,
   move: { kind: 'swim', height: SWIM_HEIGHT },
-  worldTasks: [LOCK],
+  worldTasks: [LOCK, HALF_STEP],
   sky: buildSky,
   load: loadSea,
   build: buildSea,
