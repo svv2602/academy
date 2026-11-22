@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PALETTE, facets, mat } from '../../core/style';
+import { fadeAtCamera } from '../../core/materials';
 
 /**
  * The gnomes' mushroom houses and the elder's mushroom tower (plan B of the forest's look, 2026-11-21; the customer's
@@ -42,7 +43,15 @@ const PAINT = (red: string) => ({ stem: PALETTE.plaster, cap: red, spots: PALETT
 const windowGlow = () => mat.glow('gold', 0.8);
 /** The walls of every house in one material of vertex colours (the cloth's matte look): one draw for all of them. */
 let bodyMat: THREE.MeshStandardMaterial | null = null;
-const bodyMaterial = () => (bodyMat ??= Object.assign(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }), { name: 'forest-house-body' }));
+/**
+ * A house between the camera and her, or at the lens, is looked through as the trees are (src/core/materials.ts
+ * fadeAtCamera): in the village the camera behind her often stands in a neighbour's cap.
+ */
+const bodyMaterial = () => (bodyMat ??= Object.assign(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }), {
+  name: 'forest-house-body',
+  onBeforeCompile: (sh: THREE.WebGLProgramParametersWithUniforms) => fadeAtCamera(sh),
+  customProgramCacheKey: () => 'forest-house|fade',
+}));
 
 /** A geometry with every vertex of `colour` (a `color` attribute), non-indexed so the parts merge. */
 function painted(geo: THREE.BufferGeometry, colour: string) {
