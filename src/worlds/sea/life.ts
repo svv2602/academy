@@ -144,6 +144,9 @@ export function shellGeometry(kind: 'fan' | 'spiral'): THREE.BufferGeometry {
   return flat(g);
 }
 
+/** How much harder than its `strength` the water sways the kelp now: the magic's (./magic.ts), 1 with none. One for all the kelp. */
+export const uKelpSway = { value: 1 };
+
 /** m from the camera: kelp nearer than `out` thins, nearer than `in` is gone (the camera's own window, see swayMaterial). */
 export const KELP_FADE = { in: 2.5, out: 5.5 };
 
@@ -158,15 +161,16 @@ export function swayMaterial(base: THREE.MeshStandardMaterial, strength = 0.35):
   const m = base.clone();
   m.onBeforeCompile = (s) => {
     s.uniforms.uSwayTime = time;
+    s.uniforms.uKelpSway = uKelpSway;
     s.vertexShader = s.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uSwayTime;')
+      .replace('#include <common>', '#include <common>\nuniform float uSwayTime;\nuniform float uKelpSway;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
           float swPh = instanceMatrix[3].x * 0.37 + instanceMatrix[3].z * 0.23;
         #else
           float swPh = 0.0;
         #endif
-        float swK = max(0.0, transformed.y) / 3.0;
+        float swK = max(0.0, transformed.y) / 3.0 * sqrt(uKelpSway);
         transformed.x += sin(uSwayTime * 0.9 + swPh) * ${strength.toFixed(3)} * swK * swK;
         transformed.z += cos(uSwayTime * 0.7 + swPh * 1.3) * ${(strength * 0.6).toFixed(3)} * swK * swK;`);
     fadeAtCamera(s);
