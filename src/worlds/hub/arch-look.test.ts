@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { ARCH, CREST, LOOK_BUDGET, buildArches, buildNestLook, crestShape, seeded, type ArchLoads } from './arch-look';
+import { ARCH, CREST, LOOK_BUDGET, archStoneMaterial, buildArch, buildArches, buildNestLook, crestShape, seeded, type Arch, type ArchLoads } from './arch-look';
 import { NESTS, PORTALS, TREE, trunkR } from './layout';
 
 /** A stand-in for Crystal2: no file is loaded in a unit test. */
@@ -34,6 +34,17 @@ function drawn(root: THREE.Object3D) {
   return { calls, triangles };
 }
 
+/** The vertices of a merged mesh that belong to the arch at (x, z): within 4 m of it (the arches stand 14.7 m apart). */
+function near(mesh: THREE.Mesh | null, a: { x: number; z: number }) {
+  const out: { i: number; p: THREE.Vector3 }[] = [];
+  const pos = mesh?.geometry.getAttribute('position');
+  if (pos) for (let i = 0; i < pos.count; i++) {
+    const p = new THREE.Vector3().fromBufferAttribute(pos, i);
+    if (Math.hypot(p.x - a.x, p.z - a.z) < 4) out.push({ i, p });
+  }
+  return out;
+}
+
 describe('the arches of the hub', () => {
   it('the posts keep a walker out where the grey build put them: ±1.5 m across every arch, r 0.5', () => {
     const { blocks } = build(['fairy', null, null, null, null]);
@@ -50,88 +61,97 @@ describe('the arches of the hub', () => {
       expect(a.group.position.x).toBeCloseTo(a.x); expect(a.group.position.z).toBeCloseTo(a.z);
       expect(a.group.rotation.y).toBeCloseTo(a.facing);
       expect(a.at.x).toBeCloseTo(a.x); expect(a.at.z).toBeCloseTo(a.z);
-      const box = new THREE.Box3().setFromObject(a.group);
-      expect(box.max.y).toBeGreaterThan(CREST.y + 0.55); expect(box.max.y).toBeLessThan(CREST.y + CREST.h + 0.15);
-      // the stones themselves: as high as before, the keystone under the crest
-      const stones = (a.group.children[0] as THREE.Mesh).geometry.getAttribute('position');
-      let top = 0;
-      for (let i = 0; i < stones.count; i++) if (Math.abs(stones.getX(i)) > 0.6) top = Math.max(top, stones.getY(i));
-      expect(top).toBeGreaterThan(3.3); expect(top).toBeLessThan(4.6);
+      const top = Math.max(...[...near(look.stones, a), ...near(look.runes, a)].map((v) => v.p.y));
+      expect(top).toBeGreaterThan(CREST.y + 0.55); expect(top).toBeLessThan(CREST.y + CREST.h + 0.15);
+      // the stones themselves: as high as before, the keystone under the crest (across the passage, off its middle)
+      const across = new THREE.Vector3(Math.cos(a.facing), 0, -Math.sin(a.facing));
+      const stones = near(look.stones, a).filter((v) => Math.abs(across.dot(v.p.clone().sub(a.at))) > 0.6).map((v) => v.p.y);
+      expect(Math.max(...stones)).toBeGreaterThan(3.3); expect(Math.max(...stones)).toBeLessThan(4.6);
     }
   });
 
-  it('the veil only on an open arch: one-sided, a shader with its time, facing the glade', () => {
+  it('the veil only on an open arch: one-sided, a shader with its time, facing the glade, its colour and phase its arch\'s', () => {
     const { look } = build(['fairy', null, 'sea', null, null]);
+    const m = look.veils!.material as THREE.ShaderMaterial;
+    expect(m.isShaderMaterial).toBe(true);
+    expect(m.side).toBe(THREE.FrontSide);
+    expect(m.transparent).toBe(true); expect(m.depthWrite).toBe(false);
+    expect(m.fragmentShader).not.toMatch(/uniform float uPhase|uniform vec3 uColour/);
+    const g = look.veils!.geometry, pos = g.getAttribute('position'), col = g.getAttribute('aColour'), ph = g.getAttribute('aPhase'), at = g.getAttribute('aP');
     for (const a of look.arches) {
-      expect(a.veil.visible).toBe(a.world !== null);
-      const m = a.veil.material as THREE.ShaderMaterial;
-      expect(m.isShaderMaterial).toBe(true);
-      expect(m.side).toBe(THREE.FrontSide);
-      expect(m.transparent).toBe(true); expect(m.depthWrite).toBe(false);
-      expect(a.veil.rotation.y).toBeCloseTo(Math.PI);
-      a.group.updateMatrixWorld(true);
-      // the front of the plane (+z) in the world points to the tree: from outside the arch it is not drawn
-      const front = new THREE.Vector3(0, 0, 1).transformDirection(a.veil.matrixWorld);
+      const mine = near(look.veils, a);
+      expect(mine.length, `arch ${a.shelf}`).toBe(a.world !== null ? 6 : 0);
+      if (!mine.length) continue;
+      const c = new THREE.Color(a.colour);
+      for (const { i } of mine) { expect(col.getX(i)).toBeCloseTo(c.r); expect(col.getZ(i)).toBeCloseTo(c.b); expect(ph.getX(i)).toBeCloseTo(a.shelf * 1.3); }
+      // the passage from the ground to the inside of the top, as one veil's plane
+      expect(Math.min(...mine.map(({ i }) => at.getY(i)))).toBeCloseTo(0); expect(Math.max(...mine.map(({ i }) => at.getY(i)))).toBeCloseTo(ARCH.spring + ARCH.inner);
+      // the front of the triangle (its winding) points to the tree: from outside the arch it is not drawn
+      const t = mine[0].i - (mine[0].i % 3), v0 = new THREE.Vector3().fromBufferAttribute(pos, t), v1 = new THREE.Vector3().fromBufferAttribute(pos, t + 1), v2 = new THREE.Vector3().fromBufferAttribute(pos, t + 2);
+      const front = v1.sub(v0).cross(v2.sub(v0)).normalize();
       const toTree = new THREE.Vector3(TREE.x - a.x, 0, TREE.z - a.z).normalize();
       expect(front.dot(toTree)).toBeGreaterThan(0.99);
     }
     look.update(2.5);
-    expect((look.arches[0].veil.material as THREE.ShaderMaterial).uniforms.uTime.value).toBe(2.5);
+    expect(m.uniforms.uTime.value).toBe(2.5);
+    expect(build([null, null, null, null, null]).look.veils).toBeNull();
   });
 
-  it('a sleeping arch has its sign facing the glade; an open one glows', () => {
+  it('a sleeping arch has its sign facing the glade; an open one glows, in its colour', () => {
     const { look } = build(['fairy', null, null, null, null]);
     const [open, sleeping] = look.arches;
-    const glowing = (a: (typeof look.arches)[number]) => a.group.children.some((o) => ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity > 0 && !(o as THREE.Mesh).material.hasOwnProperty('uniforms'));
-    expect(glowing(open)).toBe(true);
+    expect(near(look.runes, open).length).toBeGreaterThan(0);
+    expect(near(look.runes, sleeping)).toHaveLength(0);
+    const col = look.runes!.geometry.getAttribute('color'), c = new THREE.Color(open.colour);
+    for (const { i } of near(look.runes, open)) { expect(col.getX(i)).toBeCloseTo(c.r); expect(col.getY(i)).toBeCloseTo(c.g); }
+    expect(open.group.children).toHaveLength(0);
     const sign = sleeping.group.children.find((o) => ((o as THREE.Mesh).material as THREE.MeshStandardMaterial).map);
     expect(sign).toBeDefined();
     expect(sign!.rotation.y).toBeCloseTo(Math.PI);
   });
 
-  it('the same stones at every run (seeded)', () => {
-    const a = build(['fairy', null, null, null, null]).look.arches[1].group.children[0] as THREE.Mesh;
-    const b = build(['fairy', null, null, null, null]).look.arches[1].group.children[0] as THREE.Mesh;
+  it('the same stones at every run (seeded), and each arch\'s as buildArch builds it alone', () => {
+    const a = build(['fairy', null, null, null, null]).look.stones, b = build(['fairy', null, null, null, null]).look.stones;
     expect(Array.from(a.geometry.getAttribute('position').array)).toEqual(Array.from(b.geometry.getAttribute('position').array));
     expect(seeded(5)()).toBe(seeded(5)());
+    // the arch of shelf 1, asleep, alone: the same vertices as its part of the merged stones
+    const p = PORTALS[1], scene = new THREE.Scene();
+    const alone = buildArch(scene, { x: p.x, z: p.z, facing: p.facing, colour: p.colour, icon: p.icon, crest: crestShape(1), open: false, seed: 101 + 7919, phase: 1.3 }, archStoneMaterial(), () => {});
+    alone.group.updateMatrixWorld(true);
+    const own = (alone.group.children[0] as THREE.Mesh).geometry.clone().applyMatrix4(alone.group.matrixWorld).getAttribute('position');
+    const merged = near(a, p);
+    expect(merged).toHaveLength(own.count);
+    merged.forEach(({ p: v }, k) => { expect(v.x).toBeCloseTo(own.getX(k), 4); expect(v.y).toBeCloseTo(own.getY(k), 4); expect(v.z).toBeCloseTo(own.getZ(k), 4); });
   });
 });
 
 describe('the crest: the sign of the world on top of every arch, seen across the glade', () => {
-  /** The meshes of an arch with vertices up in the crest (over the keystone), and how many such vertices each has. */
-  const crestIn = (a: { group: THREE.Group }) => a.group.children.map((o) => {
-    const g = (o as THREE.Mesh).geometry, pos = g?.getAttribute('position');
-    let n = 0;
-    if (pos) for (let i = 0; i < pos.count; i++) if (pos.getY(i) > CREST.y + 0.25) n++;
-    return { mesh: o as THREE.Mesh, n };
-  }).filter((x) => x.n > 0);
-
   it('on every arch: glowing in the world\'s colour on an open one, grey stone on a sleeping one', () => {
     const leads = ['fairy', null, 'sea', null, 'sky'];
     const { look } = build(leads);
+    const up = (m: THREE.Mesh | null, a: Arch) => near(m, a).filter((v) => v.p.y > CREST.y + 0.25);
     for (const a of look.arches) {
-      const up = crestIn(a);
-      expect(up, `arch ${a.shelf}`).toHaveLength(1);
-      const mat = up[0].mesh.material as THREE.MeshStandardMaterial;
       if (a.world !== null) {
-        expect('#' + mat.emissive.getHexString()).toBe(a.colour);
-        expect(mat.emissiveIntensity).toBeGreaterThan(0.5);
-        expect(mat.vertexColors).toBe(false);
+        expect(up(look.stones, a), `arch ${a.shelf}`).toHaveLength(0);
+        const col = look.runes!.geometry.getAttribute('color'), c = new THREE.Color(a.colour);
+        const mine = up(look.runes, a);
+        expect(mine.length).toBeGreaterThan(0);
+        for (const { i } of mine) { expect(col.getX(i)).toBeCloseTo(c.r); expect(col.getZ(i)).toBeCloseTo(c.b); }
       } else {
-        // in the stones' mesh, grey: no glow anywhere on a sleeping arch but the veil (hidden)
-        expect(up[0].mesh).toBe(a.group.children[0]);
-        expect(mat.emissive.getHex()).toBe(0);
-        const col = up[0].mesh.geometry.getAttribute('color'), pos = up[0].mesh.geometry.getAttribute('position');
-        for (let i = 0; i < pos.count; i++) if (pos.getY(i) > CREST.y + 0.25) expect(Math.abs(col.getX(i) - col.getZ(i))).toBeLessThan(0.05);
-        for (const o of a.group.children) {
-          const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
-          if (o.visible && m.emissive) expect(m.emissive.getHex(), `arch ${a.shelf}`).toBe(0);
-        }
+        // in the stones' mesh, grey: no glow anywhere on a sleeping arch
+        expect(up(look.runes, a)).toHaveLength(0);
+        const mine = up(look.stones, a), col = look.stones.geometry.getAttribute('color');
+        expect(mine.length, `arch ${a.shelf}`).toBeGreaterThan(0);
+        for (const { i } of mine) expect(Math.abs(col.getX(i) - col.getZ(i))).toBeLessThan(0.05);
       }
     }
-    // breathing with the runes: the open crest's light changes with the time
-    const mat = crestIn(look.arches[0])[0].mesh.material as THREE.MeshStandardMaterial;
-    look.update(0); const e0 = mat.emissiveIntensity; look.update(1); expect(mat.emissiveIntensity).not.toBe(e0);
+    // the stones never glow; the runes breathe on the veils' time with each arch's phase, as `breathe` does one arch's
+    expect((look.stones.material as THREE.MeshStandardMaterial).emissive.getHex()).toBe(0);
+    const sh = { uniforms: {} as Record<string, { value: number }>, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader };
+    (look.runes!.material as THREE.MeshStandardMaterial).onBeforeCompile(sh as never, undefined as never);
+    expect(sh.fragmentShader).toContain('vec3 totalEmissiveRadiance = vColor.rgb * (0.9 + 0.5 * sin(uTime * 1.6 + vPhase));');
+    expect(sh.vertexShader).toContain('vPhase = aPhase;');
+    look.update(3); expect(sh.uniforms.uTime.value).toBe(3);
   });
 
   it('a big shape of its own per world (≈1 m, ≈28 px high at 25 m in 1280 x 720), closed, facing out, faceted', () => {
@@ -197,10 +217,13 @@ describe('the nests on the trunk', () => {
 
 describe('the budget of the look (TECH-06)', () => {
   it('five arches and five nests within the documented triangles and draw calls, in the worst case of the arches', () => {
-    for (const leadsTo of [['fairy', null, null, null, null], ['a', 'b', 'c', 'd', 'e'], [null, null, null, null, null]]) {
-      const { scene } = build(leadsTo);
+    // the stones of all five one call, the veils and the runes of the open ones one each, a sign per sleeping arch, the
+    // six of the nests: 13 with the fairies' open alone, 12 with the forest's too, 11 with the sea's, 9 with all five
+    for (const [leadsTo, calls] of [[['fairy', null, null, null, null], 13], [['fairy', 'forest', null, null, null], 12], [['fairy', 'forest', 'sea', null, null], 11], [['a', 'b', 'c', 'd', 'e'], 9], [[null, null, null, null, null], 12]] as const) {
+      const { scene } = build([...leadsTo]);
       buildNestLook(scene, fakeLoads());
       const d = drawn(scene);
+      expect(d.calls).toBe(calls);
       expect(d.calls).toBeLessThanOrEqual(LOOK_BUDGET.calls);
       expect(d.triangles).toBeLessThanOrEqual(LOOK_BUDGET.triangles);
       console.log(`arches ${leadsTo.filter(Boolean).length} open: ${d.calls} calls, ${d.triangles} triangles`);

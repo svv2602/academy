@@ -18,8 +18,9 @@ import { NESTS, PORTALS, trunkR, type PortalPlace } from './layout';
  *
  * API (the main session wires it into ./index.ts):
  * - `loadArchLook(): Promise<ArchLoads>` - Crystal2 through `staticGeo`; a test hands in a fake geometry instead.
- * - `buildArches(scene, leadsTo, block): { arches: Arch[], update(time) }` - `arches` is what `buildPortals`
- *   returned: every `PortalPlace` with its `world` (null - sleeps), its `veil` and `at`; `block(x, z, r)` gets the two
+ * - `buildArches(scene, leadsTo, block): { arches: Arch[], stones, veils, runes, update(time) }` - `arches` is what
+ *   `buildPortals` returned: every `PortalPlace` with its `world` (null - sleeps) and `at`; the merged meshes of all the
+ *   arches (`veils` and `runes` null with none open); `block(x, z, r)` gets the two
  *   posts of every arch, in the order and at the places `buildPortals` gave them; `update(time)` breathes the veils
  *   and the runes (it replaces the opacity the grey build set in `animate`).
  * - `buildNestLook(scene, loads): { nests: NestLook[], update(time) }` - one nest per `NESTS` entry; `set(lit, colour)`
@@ -27,11 +28,13 @@ import { NESTS, PORTALS, trunkR, type PortalPlace } from './layout';
  *   `__game.hub.nests()`; `update(time)` turns the lit artifacts slowly.
  *
  * The budget (TECH-06, the S22): the grey frame was ≈57k triangles and ≈131 draw calls. All five arches and the five
- * nests together stay within `LOOK_BUDGET`: every arch is one merged, vertex-coloured mesh of stones (with its vines,
- * the sign's post and board on a sleeping one) - one material for all five - plus, when open, a merged mesh of glowing
- * runes and the veil; a sleeping one has its sign instead. The five nests are one merged mesh, the five artifacts one
- * mesh each (each lights on its own). So at most 3 calls an arch and 6 for the nests (21 at most, 17 with one arch
- * open, against the grey 54) and about 9k triangles with Crystal2 (116 of them) - see the test. No lamps: every glow is emissive (src/core/style.ts).
+ * nests together stay within `LOOK_BUDGET`: the stones of all five arches are one merged, vertex-coloured mesh (with
+ * the vines, the sign's post and board of the sleeping ones), the veils of the open arches one mesh, their glowing
+ * runes one mesh; a sleeping arch has its sign (its own picture). The five nests are one merged mesh, the five
+ * artifacts one mesh each (each lights on its own). So 7 calls at most for the arches - 3 whatever the number of open
+ * ones, and a sign per sleeping one - and 6 for the nests (13 with one arch open, 11 with three, against the grey 54;
+ * the shadow pass draws the stones and the runes once each), about 9k triangles with Crystal2 (116 of them) - see
+ * the test. No lamps: every glow is emissive (src/core/style.ts).
  * Nothing allocates per frame: `update` writes numbers into uniforms and materials made at build.
  *
  * Determinism: every jitter comes from a seeded generator (`seeded`), one seed per arch and one for the nests, so the
@@ -54,7 +57,7 @@ export async function loadArchLook(): Promise<ArchLoads> {
  * frame + this stays near the S22's limit). The shadow pass draws the casters a second time - it did the same in
  * the grey build, where the arches and the nests alone were 54 meshes.
  */
-export const LOOK_BUDGET = { triangles: 15000, calls: 15 + 6 } as const;
+export const LOOK_BUDGET = { triangles: 15000, calls: 7 + 6 } as const;
 
 /** The arch (local metres; x across the passage, y up, z through it - +z out of the glade before `rotation.y`). */
 export const ARCH = {
@@ -390,8 +393,12 @@ function veilMaterial(colour: string, phase: number) {
   });
 }
 
-/** One arch as `buildPortals` returned it, and the group it is built in. */
-export type Arch = PortalPlace & { world: string | null; veil: THREE.Mesh; at: THREE.Vector3; group: THREE.Group };
+/**
+ * One arch as `buildPortals` returned it: its place, the world behind it (null - sleeps), `at`, and its group - placed
+ * and turned as the arch, holding only the sign of a sleeping one (its stones, veil and runes are in the merged
+ * meshes of `buildArches`).
+ */
+export type Arch = PortalPlace & { world: string | null; at: THREE.Vector3; group: THREE.Group };
 
 /** The stone of an open arch; the stone of a sleeping one (grey, colder) and of its crest; the vines; the wood of the sign. */
 const COLOURS = { open: '#b4ada2', sleeping: '#7d7a76', crest: '#8f8b86', stem: '#4a6b33', leaf: '#4f8f3c', wood: '#8a6142' } as const;
@@ -409,19 +416,16 @@ export interface ArchSpec {
   seed: number; phase: number;
 }
 
-/**
- * One stone arch (the hub's five, and the arch to the Great Tree in the first world): its stones (with vines and the
- * sign when asleep), the veil facing the side she comes from, the glowing runes and crest when open. `block` gets its
- * posts. Returns its group, its veil and the material of its runes (breathed by `breathe`).
- */
-export function buildArch(scene: THREE.Scene, a: ArchSpec, stoneMat: THREE.Material, block: (x: number, z: number, r: number) => void) {
+/** The shapes of one arch in its own frame (`group` of buildArch): built in the order of the seeded jitter. */
+interface ArchParts {
+  /** The stones (with the vines, the grey crest and the sign's post and board of a sleeping arch), vertex-coloured. */
+  stones: THREE.BufferGeometry;
+  /** An open arch's runes and its crest, white (the glow's colour is the arch's). */
+  runes: THREE.BufferGeometry | null;
+}
+
+function archParts(a: ArchSpec): ArchParts {
   const rnd = seeded(a.seed);
-  const group = new THREE.Group();
-  group.position.set(a.x, 0, a.z); group.rotation.y = a.facing;
-  for (const side of [-1, 1]) {
-    // the posts keep a walker out; she passes between them
-    block(a.x + Math.cos(a.facing) * side * ARCH.post, a.z - Math.sin(a.facing) * side * ARCH.post, ARCH.postR);
-  }
   const parts = archStones(rnd, new THREE.Color(a.open ? COLOURS.open : COLOURS.sleeping), true);
   // the crest on the keystone: grey stone on a sleeping arch (in its stones), glowing with the runes on an open one
   const crest = a.crest.applyMatrix4(place(0, CREST.y, 0));
@@ -433,33 +437,64 @@ export function buildArch(scene: THREE.Scene, a: ArchSpec, stoneMat: THREE.Mater
     parts.push(bake(new THREE.CylinderGeometry(0.06, 0.07, 0.9, 6, 1, true), place(SIGN.x, 0.45, SIGN.z + 0.05), wood));
     parts.push(bake(new THREE.BoxGeometry(SIGN.size + 0.1, SIGN.size + 0.1, 0.06), place(SIGN.x, SIGN.y, SIGN.z + 0.04, 0, 0, jit(rnd, 0.05)), wood));
   }
-  const geo = mergeGeometries(parts, false)!;
+  const stones = mergeGeometries(parts, false)!;
   for (const g of parts) g.dispose();
+  let runes: THREE.BufferGeometry | null = null;
+  if (a.open) {
+    const glyphs = [archRunes(rnd), bake(crest, _m.identity(), new THREE.Color(1, 1, 1))];
+    runes = mergeGeometries(glyphs, false)!;
+    for (const g of glyphs) g.dispose();
+  }
+  return { stones, runes };
+}
+
+/** The sign of a sleeping arch: its picture on a plane beside it, facing the side she comes from. */
+function archSign(a: ArchSpec): THREE.Mesh {
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(SIGN.size, SIGN.size), new THREE.MeshStandardMaterial({ map: signTexture(a.icon, a.colour), roughness: 0.9 }));
+  // facing the side she comes from (beside the arch, a step in front of it)
+  sign.position.set(SIGN.x, SIGN.y, SIGN.z); sign.rotation.y = Math.PI;
+  sign.receiveShadow = true;
+  return sign;
+}
+
+/** The arch's group: placed and turned as the arch. `block` gets its posts. */
+function archGroup(a: ArchSpec, block: (x: number, z: number, r: number) => void): THREE.Group {
+  const group = new THREE.Group();
+  group.position.set(a.x, 0, a.z); group.rotation.y = a.facing;
+  for (const side of [-1, 1]) {
+    // the posts keep a walker out; she passes between them
+    block(a.x + Math.cos(a.facing) * side * ARCH.post, a.z - Math.sin(a.facing) * side * ARCH.post, ARCH.postR);
+  }
+  return group;
+}
+
+/** The veil's plane in the arch's frame: one-sided, facing the side she comes from (the plane's +z turned to local -z). */
+const veilPlace = () => place(0, VEIL_H / 2, 0, 0, Math.PI, 0);
+
+/**
+ * One stone arch on its own (the arch to the Great Tree in the first world): its stones (with vines and the sign when
+ * asleep), the veil facing the side she comes from, the glowing runes and crest when open. `block` gets its posts.
+ * Returns its group, its veil and the material of its runes (breathed by `breathe`). The hub's five: `buildArches`.
+ */
+export function buildArch(scene: THREE.Scene, a: ArchSpec, stoneMat: THREE.Material, block: (x: number, z: number, r: number) => void) {
+  const group = archGroup(a, block);
+  const { stones: geo, runes: runesGeo } = archParts(a);
   const stones = new THREE.Mesh(geo, stoneMat);
   stones.castShadow = true; stones.receiveShadow = true;
   group.add(stones);
 
   const veil = new THREE.Mesh(new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H), veilMaterial(a.colour, a.phase));
-  // one-sided, facing the side she comes from (the plane's front is its +z, turned to local -z)
   veil.position.y = VEIL_H / 2; veil.rotation.y = Math.PI; veil.visible = a.open;
   veil.renderOrder = 1;
   group.add(veil);
 
   let glow: THREE.MeshStandardMaterial | null = null;
-  if (a.open) {
+  if (runesGeo) {
     glow = new THREE.MeshStandardMaterial({ color: a.colour, emissive: a.colour, emissiveIntensity: 1, roughness: 0.4, flatShading: true });
-    const glyphs = [archRunes(rnd), bake(crest, _m.identity(), new THREE.Color(1, 1, 1))];
-    const runes = new THREE.Mesh(mergeGeometries(glyphs, false)!, glow);
-    for (const g of glyphs) g.dispose();
+    const runes = new THREE.Mesh(runesGeo, glow);
     runes.castShadow = true;
     group.add(runes);
-  } else {
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(SIGN.size, SIGN.size), new THREE.MeshStandardMaterial({ map: signTexture(a.icon, a.colour), roughness: 0.9 }));
-    // facing the side she comes from (beside the arch, a step in front of it)
-    sign.position.set(SIGN.x, SIGN.y, SIGN.z); sign.rotation.y = Math.PI;
-    sign.receiveShadow = true;
-    group.add(sign);
-  }
+  } else group.add(archSign(a));
   scene.add(group);
   return { group, veil, glow };
 }
@@ -479,24 +514,106 @@ export function breathe(time: number, glows: readonly { mat: THREE.MeshStandardM
 }
 
 /**
+ * The veils of the open arches in one mesh: the same shader as one arch's veil (`VEIL_FRAG`), its colour, phase and
+ * point in the passage read from the vertex instead of uniforms - one draw call for all of them.
+ */
+const VEILS_VERT = /* glsl */ `
+attribute vec2 aP;
+attribute vec3 aColour;
+attribute float aPhase;
+varying vec2 vP;
+varying vec3 vColour;
+varying float vPhase;
+void main() {
+  vP = aP; vColour = aColour; vPhase = aPhase;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+const VEILS_FRAG = VEIL_FRAG.replace('uniform float uPhase;\nuniform vec3 uColour;', 'varying float vPhase;\nvarying vec3 vColour;\n#define uPhase vPhase\n#define uColour vColour');
+
+/**
+ * The runes of the open arches in one mesh: each arch's colour in its vertices, its light breathing with its phase as
+ * `breathe` breathes one arch's (0.9 + 0.5 sin(1.6 t + phase), on the veils' time).
+ */
+function runesMaterial(): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: '#ffffff', vertexColors: true, emissive: '#ffffff', roughness: 0.4, flatShading: true });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = veilTime;
+    sh.vertexShader = 'attribute float aPhase;\nvarying float vPhase;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPhase = aPhase;');
+    sh.fragmentShader = 'uniform float uTime;\nvarying float vPhase;\n' + sh.fragmentShader.replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = vColor.rgb * (0.9 + 0.5 * sin(uTime * 1.6 + vPhase));');
+  };
+  m.customProgramCacheKey = () => 'arch-runes|breathe';
+  return m;
+}
+
+/** A float attribute of `n` vertices all `v` (the arch's phase), or `c` repeated (its colour). */
+const filled = (n: number, v: readonly number[]) => {
+  const a = new Float32Array(n * v.length);
+  for (let i = 0; i < n; i++) a.set(v, i * v.length);
+  return new THREE.BufferAttribute(a, v.length);
+};
+
+/**
  * The five arches round the tree: open ones breathe in their colour - the veil, the keystone and the runes - the
  * others sleep, grey and under vines, with the sign of their world. `block` gets the posts of every arch.
+ *
+ * Drawn in few calls whatever the number of open arches (the hub's 80, TECH-06): the stones of all five are one mesh,
+ * the veils of the open ones one mesh, their runes one mesh; a sleeping arch's sign is its own (its own picture). Each
+ * arch is built exactly as `buildArch` builds it (the same seeded stones), then taken into the world by its group's
+ * place and turn.
  */
 export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null)[], block: (x: number, z: number, r: number) => void) {
-  const stoneMat = archStoneMaterial();
-  const glows: { mat: THREE.MeshStandardMaterial; phase: number }[] = [];
+  const stoneParts: THREE.BufferGeometry[] = [], runeParts: THREE.BufferGeometry[] = [], veilParts: THREE.BufferGeometry[] = [];
   const arches: Arch[] = PORTALS.map((p) => {
     const world = leadsTo[p.shelf] ?? null, open = world !== null;
-    const { group, veil, glow } = buildArch(scene, {
-      x: p.x, z: p.z, facing: p.facing, colour: p.colour, icon: p.icon, crest: crestShape(p.shelf), open, seed: 101 + p.shelf * 7919, phase: p.shelf * 1.3,
-    }, stoneMat, block);
-    if (glow) glows.push({ mat: glow, phase: p.shelf * 1.3 });
-    return { ...p, world, veil, at: new THREE.Vector3(p.x, 0, p.z), group };
+    const spec: ArchSpec = { x: p.x, z: p.z, facing: p.facing, colour: p.colour, icon: p.icon, crest: crestShape(p.shelf), open, seed: 101 + p.shelf * 7919, phase: p.shelf * 1.3 };
+    const group = archGroup(spec, block);
+    group.updateMatrixWorld(true);
+    const { stones, runes } = archParts(spec);
+    stoneParts.push(stones.applyMatrix4(group.matrixWorld));
+    const colour = new THREE.Color(p.colour);
+    if (runes) {
+      // the glow's colour in the vertices (white runes times the arch's colour, as one arch's material colours them)
+      const col = runes.getAttribute('color') as THREE.BufferAttribute;
+      for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * colour.r, col.getY(i) * colour.g, col.getZ(i) * colour.b);
+      runes.setAttribute('aPhase', filled(col.count, [spec.phase]));
+      runeParts.push(runes.applyMatrix4(group.matrixWorld));
+    }
+    if (open) {
+      const veil = new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H).toNonIndexed();
+      const pos = veil.getAttribute('position'), n = pos.count, at = new Float32Array(n * 2);
+      // the point in the passage, as one veil's shader reads it off its plane
+      for (let i = 0; i < n; i++) { at[i * 2] = pos.getX(i); at[i * 2 + 1] = pos.getY(i) + VEIL_H / 2; }
+      veil.setAttribute('aP', new THREE.BufferAttribute(at, 2));
+      veil.setAttribute('aColour', filled(n, [colour.r, colour.g, colour.b]));
+      veil.setAttribute('aPhase', filled(n, [spec.phase]));
+      veil.deleteAttribute('normal'); veil.deleteAttribute('uv');
+      veilParts.push(veil.applyMatrix4(veilPlace().premultiply(group.matrixWorld)));
+    } else group.add(archSign(spec));
+    scene.add(group);
+    return { ...p, world, at: new THREE.Vector3(p.x, 0, p.z), group };
   });
+  const merged = (parts: THREE.BufferGeometry[]) => { const g = mergeGeometries(parts, false)!; for (const x of parts) x.dispose(); return g; };
+  const stones = new THREE.Mesh(merged(stoneParts), archStoneMaterial());
+  stones.castShadow = true; stones.receiveShadow = true;
+  scene.add(stones);
+  let veils: THREE.Mesh | null = null, runes: THREE.Mesh | null = null;
+  if (veilParts.length) {
+    veils = new THREE.Mesh(merged(veilParts), new THREE.ShaderMaterial({
+      uniforms: { uTime: veilTime }, vertexShader: VEILS_VERT, fragmentShader: VEILS_FRAG,
+      transparent: true, depthWrite: false, side: THREE.FrontSide,
+    }));
+    veils.renderOrder = 1;
+    scene.add(veils);
+    runes = new THREE.Mesh(merged(runeParts), runesMaterial());
+    runes.castShadow = true;
+    scene.add(runes);
+  }
   return {
     arches,
+    /** The merged meshes: every arch's stones; the open arches' veils and runes (null - none open). */
+    stones, veils, runes,
     /** Breathes the veils and the runes of the open arches: in step, the veil's breath is the runes'. */
-    update(time: number) { breathe(time, glows); },
+    update(time: number) { breathe(time, []); },
   };
 }
 
