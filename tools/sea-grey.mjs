@@ -164,8 +164,8 @@ async function measure(browser, url, scale, out, q = 2) {
     const seen = await page.evaluate(([b, lm]) => {
       const { THREE, scene, camera } = __game;
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };
-      // what counts as the landmark of the target: the castle is its towers and roofs, the reef its corals
-      const names = { square: ['landmark-square'], gate: ['castle-gate', 'castle-towers', 'castle-roofs'], throne: ['throne', 'castle-towers', 'castle-roofs'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-tube', 'reef-branch', 'reef-brain', 'reef-table', 'reef-fan'], garden: ['landmark-garden', 'shells', 'shells-spiral'], grotto: ['landmark-grotto', 'pots'] }[b];
+      // what counts as the landmark of the target: the castle is one shape (its towers, its gate; src/worlds/sea/landmarks.ts), the reef its corals
+      const names = { square: ['landmark-square'], gate: ['castle'], throne: ['throne', 'castle'], ship: ['landmark-ship'], trench: ['landmark-trench', 'trench-lights'], reef: ['landmark-reef', 'reef-tube', 'reef-branch', 'reef-brain', 'reef-table', 'reef-fan'], garden: ['landmark-garden', 'shells', 'shells-spiral'], grotto: ['landmark-grotto'] }[b];
       // the heroine, the cat and the clear things of the water hide nothing: the light shafts, the motes, the bubbles
       const CLEAR = ['light-shafts', 'water-motes', 'swim-bubbles', 'cat-bubble'];
       const skip = (o) => { for (let x = o; x; x = x.parent) if (x === __game.hero.root || x === __game.cat.root || CLEAR.includes(x.name)) return true; return false; };

@@ -103,6 +103,12 @@ const MUSIC: MusicParams = {
 };
 /** The heroine's clips of this world (vite.config.ts puts the file into the grey build): Swim_Fwd_Loop and Swim_Idle_Loop of the UAL, CC0. */
 const SWIM_CLIPS = 'sea/swim';
+/** The sunken ship (step B of the look): Kenney's "Ship Wreck", CC0 1.0 (CREDITS.md), the world's own file. */
+const WRECK = 'sea/kenney/ship_wreck';
+/** The chest in the hold, by the cabin's door: the core's (Platformer Game Kit, CC0), the first world's chest. */
+const CHEST_MODEL = 'platformer_game_pack/Chest';
+/** Where the chest stands: by the door of the cabin, toward the stern, out of the door's spot. */
+const CHEST = { x: CABIN.x - 1.7, z: CABIN.z + 0.9 };
 /** m: how high she swims over the floor (the probe world's height). */
 const SWIM_HEIGHT = 0.6;
 
@@ -142,7 +148,7 @@ const MODELS: Record<string, number> = { khvylia: 1.9, bulk: 0.9, pantsyr: 0.7, 
 
 /** The files of the grey build: the swimming clips (the heroine and the cat are the game's) and the characters' models. Null = failed (TECH-08). */
 async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
-  const [swim, rigs] = await Promise.all([
+  const [swim, rigs, wreck, chest] = await Promise.all([
     gltf(SWIM_CLIPS),
     Promise.all(Object.entries(MODELS).map(async ([id, h]) => {
       const r = await rig(`sea/${id}`, h);
@@ -151,8 +157,10 @@ async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
       r.model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && ['eyes', 'light'].includes((m.material as THREE.Material).name)) m.castShadow = false; });
       return [id, r] as const;
     })).then((e) => Object.fromEntries(e) as Record<string, Rig>),
-  ]).catch((e: unknown) => { loadFailed(e); return [null, null] as const; });
-  return swim && rigs ? { swim, rigs } : null;
+    gltf(WRECK),
+    rig(CHEST_MODEL, 0.9),
+  ]).catch((e: unknown) => { loadFailed(e); return [null, null, null, null] as const; });
+  return swim && rigs && wreck && chest ? { swim, rigs, wreck: wreck.scene, chest } : null;
 }
 type SeaLoads = NonNullable<Awaited<ReturnType<typeof loadSea>>>;
 
@@ -183,7 +191,13 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(() => setCast({ narrator: '', cast: {} }));
   scope.own(worldClips('sea', CLIPS));
   scene.add(buildGround(160));
-  const floor = buildScenery(scene);
+  const floor = buildScenery(scene, L.wreck);
+  // the chest in the hold, by the cabin's door: shut - the world's secret `ship_chest` (docs/worlds/world-3.md) opens it later
+  const chest = new Actor(L.chest);
+  chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z); chest.root.rotation.y = 0.3 + Math.PI / 2;
+  chest.root.traverse((o) => { o.castShadow = true; });
+  scene.add(chest.root);
+  g.ground.block(CHEST.x, CHEST.z, 0.6);
   const shafts = buildShafts(scene, SHAFTS);
   // In the water her wand and petals are hidden (src/game/gear.ts).
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks, () => swimming(g));
@@ -266,6 +280,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scene.add(pearlOfDeep);
   // the finale's few seconds run in game time, counted down by the frame (update below)
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
+  let lidShown = false;   // the throne's lid open before the finale: the pictures of the look only (debug `openThrone`)
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const pearlItems = PEARLS.map((p) => marked(ws, { kind: 'part', id: p.flag, how: p.how, at: { x: p.at.x, z: p.at.z } }));
   const before = [...declared(g), tourItem, ...pearlItems];
@@ -336,6 +351,9 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         }
         if (finaleEnd && (finaleLeft -= dt) <= 0) { const done = finaleEnd; finaleEnd = null; done(); }
         pearlOfDeep.visible = ws.final;
+        // the throne's lid opens under the pearl in the finale's seconds and stays open
+        floor.throne.open(ws.final || lidShown ? 1 : finaleEnd ? 1 - finaleLeft / 2 : 0);
+        chest.update(dt);
         pearlOfDeep.rotation.y = time;
       },
       goal: () => {
@@ -362,6 +380,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         bubbles: () => ({ cat: waterOf(g)?.catBubble.visible === true }),
         // the gate as the solved shell lock leaves it - its doors sunk into the floor (tools/sea-grey.mjs looks at the throne so)
         openGate: () => lock.opened(true),
+        // the throne's lid as the finale leaves it (the pictures of the landmarks)
+        openThrone: () => { lidShown = true; },
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },

@@ -40,6 +40,12 @@ Blender for this game (Meshy rigs only bipeds and quadrupeds). Set right in Blen
 cut away, the crab's hat let down onto his eyes and his eyes made black, the fish's stalk and its light added as our own
 shapes. Joined and their textures shrunk in Blender for this game.
 
+The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
+`worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page
+(read 2026-11-22); its materials' colours put into its vertices in code. The sea's other landmarks — the castle of
+shells, the throne, the grotto, the arch of the trench, the great shell, the reef's fans — and the cabin's door are our own
+simple shapes built in code (`src/worlds/sea/landmarks.ts`); the chest is the Platformer Game Kit's (above).
+
 The forest's things (world 2, 2026-11-21): the bridges, the fence, the woodpiles and the signpost are Kenney's
 "Nature Kit" 2.1 (https://kenney.nl/assets/nature-kit) — CC0 1.0 (its License.txt: "Creative Commons Zero, CC0");
 `models-src/forest/kenney/`. Its undergrowth — bushes, plants, flowers, mossy stones, the mossy log and the berry bush —

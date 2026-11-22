@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { CABIN, CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, THRONE, TOWERS, ZONES, type Place } from './layout';
+import { CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, TOWERS, ZONES, type Place } from './layout';
 import { colliders, height, lineDist, pathDist } from './terrain';
 import { mat as style } from '../../core/style';
+import { buildLandmarks } from './landmarks';
 import { ANEMONE_COLOURS, FLOOR_COLOURS, FLOOR_KINDS, KELP_COLOURS, REEF_COLOURS, REEF_KINDS, SHELL_COLOURS, anemoneGeometry, coralGeometry, kelpGeometry, rockGeometry, shellGeometry, swayMaterial, type CoralKind } from './life';
 
 /**
@@ -17,6 +18,9 @@ import { ANEMONE_COLOURS, FLOOR_COLOURS, FLOOR_KINDS, KELP_COLOURS, REEF_COLOURS
  * swaying kelp, the rocks and the garden's shells are our own faceted shapes (./life.ts), each kind one instanced mesh
  * with a colour per instance over one shared material. Their places are those of the grey build (`placeLife`): the
  * search among the corals lays its shells by the same corals of the reef.
+ *
+ * Step B (2026-11-22): the landmarks are painted shapes of ./landmarks.ts - the castle of shells, Kenney's wreck, the
+ * grotto, the trench's arch, the garden's great shell, the reef's fans, the throne; their colliders stay the grey build's.
  */
 
 /**
@@ -100,17 +104,6 @@ function instances(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, 
   return mesh;
 }
 
-/** A group of meshes standing at (x, z) on the floor, named, casting shadows; its round collider. */
-function put(scene: THREE.Scene, name: string, x: number, z: number, parts: THREE.Mesh[], r: number, yaw = 0) {
-  const g = new THREE.Group();
-  g.name = name;
-  for (const m of parts) { m.castShadow = true; g.add(m); }
-  g.position.set(x, height(x, z), z); g.rotation.y = yaw;
-  scene.add(g);
-  if (r > 0) colliders.push({ x, z, r });
-  return g;
-}
-
 /** The kinds of coral among `puts`, in turn by their place: { kind: its puts }. */
 const byKind = (puts: readonly Put[], kinds: readonly CoralKind[]) => {
   const out = new Map<CoralKind, Put[]>(kinds.map((k) => [k, []]));
@@ -118,8 +111,8 @@ const byKind = (puts: readonly Put[], kinds: readonly CoralKind[]) => {
   return out;
 };
 
-/** The sea in the scene, and its colliders; `sway(time)` moves the kelp with the water. */
-export function buildScenery(scene: THREE.Scene) {
+/** The sea in the scene, and its colliders; `sway(time)` moves the kelp with the water; `throne.open(k)` opens the throne's lid. `wreck`: the ship's model. */
+export function buildScenery(scene: THREE.Scene, wreck: THREE.Object3D | null = null) {
   const { corals, kelp, rocks, rim, reef, anemones, sprinkle } = placeLife();
   for (const c of [...corals, ...reef]) colliders.push({ x: c.x, z: c.z, r: 0.35 * c.s });
   for (const r of rocks) colliders.push({ x: r.x, z: r.z, r: 0.9 * r.s });
@@ -138,71 +131,30 @@ export function buildScenery(scene: THREE.Scene) {
   instances(scene, 'rim-kelp', kelpGeometry(9, 3), rimMat.material, rim, 0, false, ['#4c7f63', '#5a8f6c', '#467a5c']);
   instances(scene, 'rocks', rockGeometry(), style.stone('#a9b3b8'), rocks);
 
-  // the reef's landmark: two tall fan corals by the dragon
-  const fan = (h: number, c: string) => new THREE.Mesh(new THREE.CylinderGeometry(1.6, 0.25, h, 7).translate(0, h / 2, 0).scale(1, 1, 0.25), mat(c));
-  put(scene, 'landmark-reef', LANDMARKS.reef.x, LANDMARKS.reef.z, [fan(LANDMARKS.reef.top, '#f2667a'), fan(LANDMARKS.reef.top * 0.8, '#f59a3c')], 0.8, 0.5);
+  // the landmarks (step B of the look): our own painted shapes and Kenney's wreck (./landmarks.ts); their colliders here,
+  // the grey build's
+  colliders.push({ x: LANDMARKS.reef.x, z: LANDMARKS.reef.z, r: 0.8 });
   // the corals where Bulk forgot the pearl (WORLD-08): a ring of orange balls round its nest
   const nest = Array.from({ length: 6 }, (_, i) => ({ x: CORAL_NEST.x + Math.cos(i) * 1.1, z: CORAL_NEST.z + Math.sin(i) * 1.1, s: 0.9, rot: i }));
   instances(scene, 'coral-nest', new THREE.IcosahedronGeometry(0.5, 0).translate(0, 0.35, 0), mat('#f39a4a'), nest);
-
-  // the castle of the mermaids: a ring of towers round the throne hall, its gate toward the gardens - seen from everywhere
-  const towers: Put[] = TOWERS.map((t) => ({ ...t, s: 1 }));
-  for (const t of towers) colliders.push({ x: t.x, z: t.z, r: CASTLE.towerR + 0.2 });
-  instances(scene, 'castle-towers', new THREE.CylinderGeometry(CASTLE.towerR * 0.85, CASTLE.towerR, CASTLE.towerH, 10).translate(0, CASTLE.towerH / 2, 0), mat('#c9d8e6'), towers);
-  instances(scene, 'castle-roofs', new THREE.ConeGeometry(CASTLE.towerR * 1.3, 3, 10).translate(0, CASTLE.towerH + 1.5, 0), mat('#7fb6d6', { emissive: '#2f6f9a', emissiveIntensity: 0.3 }), towers);
-  // the arch of the way in on the square (the landmark of the square: the castle stands behind her coming from the
-  // grotto): two pillars of mother-of-pearl and a glowing ring over them
-  const arch = SQUARE_ARCH, pillar = (sx: number) => new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, arch.top - 1.2, 8).translate(sx, (arch.top - 1.2) / 2, 0), mat('#e9dcef'));
-  put(scene, 'landmark-square', arch.x, arch.z, [
-    pillar(-arch.w / 2), pillar(arch.w / 2),
-    new THREE.Mesh(new THREE.TorusGeometry(arch.w / 2, 0.35, 8, 20, Math.PI).translate(0, arch.top - 1.2, 0), mat('#bfefff', { emissive: '#7fd8ff', emissiveIntensity: 0.6 })),
-  ], 0);
-  for (const sx of [-arch.w / 2, arch.w / 2]) colliders.push({ x: arch.x + sx, z: arch.z, r: 0.6 });
-  // the gate (with its shell lock, WORLD-19 later): two posts and a lintel at the north of the ring
-  const gate = LANDMARKS.gate;
-  put(scene, 'castle-gate', gate.x, gate.z, [
-    new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.5, 0.8).translate(-2.2, 2.25, 0), mat('#c9d8e6')),
-    new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.5, 0.8).translate(2.2, 2.25, 0), mat('#c9d8e6')),
-    new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.8, 0.9).translate(0, 4.8, 0), mat('#e7d3a8')),
-  ], 0);
-  for (const sx of [-2.2, 2.2]) colliders.push({ x: gate.x + sx, z: gate.z, r: 0.55 });
-  // the shell of the throne: where the pearls come together in the finale
-  put(scene, 'throne', THRONE.x, THRONE.z, [new THREE.Mesh(new THREE.SphereGeometry(1.5, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.5, 1), mat('#f3e9f2', { emissive: '#a08aa8', emissiveIntensity: 0.25 }))], 0);
-
-  // the sunken ship on its side, its mast up: the second landmark (WORLD-10); the captain's cabin at its stern
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(SHIP.len, 3, 4).translate(0, 1.2, 0), mat('#9a6a40'));
-  hull.rotation.z = 0.25;
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, SHIP.mastH, 7).translate(0, SHIP.mastH / 2, 0), mat('#7a5232'));
-  const trim = new THREE.Mesh(new THREE.BoxGeometry(SHIP.len * 0.9, 0.3, 4.2).translate(0, 2.8, 0), mat('#d7b04a', { emissive: '#6a5210', emissiveIntensity: 0.25 }));
-  trim.rotation.z = 0.25;
-  put(scene, 'landmark-ship', SHIP.x, SHIP.z, [hull, mast, trim], 0, 0.3);
+  for (const t of TOWERS) colliders.push({ x: t.x, z: t.z, r: CASTLE.towerR + 0.2 });
+  for (const sx of [-SQUARE_ARCH.w / 2, SQUARE_ARCH.w / 2]) colliders.push({ x: SQUARE_ARCH.x + sx, z: SQUARE_ARCH.z, r: 0.6 });
+  for (const sx of [-2.2, 2.2]) colliders.push({ x: LANDMARKS.gate.x + sx, z: LANDMARKS.gate.z, r: 0.55 });
   for (let i = -2; i <= 2; i++) colliders.push({ x: SHIP.x + Math.cos(0.3) * i * (SHIP.len / 5), z: SHIP.z - Math.sin(0.3) * i * (SHIP.len / 5), r: 2 });
-  put(scene, 'cabin-door', CABIN.x, CABIN.z, [new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, 0.2).translate(0, 0.9, 0), mat('#5a3a22'))], 0, 0.3);
+  colliders.push({ x: LANDMARKS.grotto.x, z: LANDMARKS.grotto.z, r: 3.6 }, { x: LANDMARKS.garden.x, z: LANDMARKS.garden.z, r: 1.8 });
+  const throne = buildLandmarks(scene, wreck);
 
-  // the crab's grotto: a dome of red rock with a chimney, pots before it
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(4, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat('#b8695a'));
-  const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 5, 7).translate(0, 6.5, 0), mat('#a85a4c'));
-  put(scene, 'landmark-grotto', LANDMARKS.grotto.x, LANDMARKS.grotto.z, [dome, chimney], 3.6);
-  const pots = Array.from({ length: 3 }, (_, i) => ({ x: ZONES.grotto.x - 1.5 + i * 1.5, z: ZONES.grotto.z - 2.5, s: 1, rot: 0 }));
-  instances(scene, 'pots', new THREE.CylinderGeometry(0.45, 0.35, 0.6, 8).translate(0, 0.3, 0), mat('#d04a36'), pots);
-
-  // the trench: an arch of rock over it, turquoise lights round its bowl
-  put(scene, 'landmark-trench', LANDMARKS.trench.x, LANDMARKS.trench.z, [
-    new THREE.Mesh(new THREE.TorusGeometry(5, 0.9, 6, 12, Math.PI).translate(0, 4, 0), mat('#6f8590')),
-  ], 0, 0.6);
+  // the trench: turquoise lights round its bowl
   const lights = Array.from({ length: 16 }, (_, i) => ({ x: ZONES.trench.x + Math.cos(i * 2.3) * (2 + (i % 5) * 1.3), z: ZONES.trench.z + Math.sin(i * 2.3) * (2 + (i % 5) * 1.3), s: 1 }));
   instances(scene, 'trench-lights', new THREE.SphereGeometry(0.12, 6, 4).translate(0, 2.6, 0), new THREE.MeshBasicMaterial({ color: '#5ff2e0' }), lights, 0, false);
 
-  // the shell garden: its great shell, small shells of mother-of-pearl round it
-  put(scene, 'landmark-garden', LANDMARKS.garden.x, LANDMARKS.garden.z, [
-    new THREE.Mesh(new THREE.ConeGeometry(2.2, LANDMARKS.garden.top, 9).translate(0, LANDMARKS.garden.top / 2, 0), mat('#f1e4ee', { emissive: '#8a7a92', emissiveIntensity: 0.2 })),
-  ], 1.8, 0.4);
+  // the shell garden: small shells of mother-of-pearl round its great shell
   const shells = Array.from({ length: 12 }, (_, i) => ({ x: ZONES.garden.x + Math.cos(i * 2.1) * (3 + (i % 3) * 1.6), z: ZONES.garden.z + Math.sin(i * 2.1) * (3 + (i % 3) * 1.6), s: 1, rot: i }));
   // the garden's shells: scallops and spirals of mother-of-pearl, a faint glow of their own
   const pearl = style.glow('#ffffff', 0.12, { emissive: '#e8d8f0', flatShading: true });
   instances(scene, 'shells', shellGeometry('fan'), pearl, shells.filter((_, i) => i % 3 !== 2), 0, true, SHELL_COLOURS);
   instances(scene, 'shells-spiral', shellGeometry('spiral'), pearl, shells.filter((_, i) => i % 3 === 2), 0, true, SHELL_COLOURS);
-  return { sway: (time: number) => { kelpMat.time.value = time; rimMat.time.value = time; } };
+  return { sway: (time: number) => { kelpMat.time.value = time; rimMat.time.value = time; }, throne };
 }
 
 /**
