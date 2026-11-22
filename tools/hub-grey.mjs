@@ -26,7 +26,7 @@ export const HUB_ARRIVAL = [0, 1, 2, 3, 4].map((shelf) => {
 /** The arch of a place of the shelf, where its action spot is (layout.ts PORTALS, r 12.5). */
 export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) * Math.PI * 2; return { x: Math.sin(a) * 12.5, z: Math.cos(a) * 12.5 }; });
 
-/** Serves `dir` on 127.0.0.1:`port` as static hosting does: a missing file is a 404. Resolves with the server. */
+/** Serves `dir` on 127.0.0.1:`port` as static hosting does: a missing file is a 404. Resolves with the server; a busy port rejects. */
 export async function serveDir(dir, port) {
   const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
     '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg' };
@@ -38,7 +38,7 @@ export async function serveDir(dir, port) {
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(readFileSync(file));
   });
-  await new Promise((r) => server.listen(port, '127.0.0.1', r));
+  await new Promise((r, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', r); });
   return server;
 }
 

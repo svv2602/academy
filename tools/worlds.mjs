@@ -108,7 +108,8 @@
 //   9. The part "hub-grey" (tools/hub-grey.mjs): the grey build made anew (`--mode grey`, dist-grey/; the forest and
 //      the sea in the registry) and the way between the hub and the forest played in it - which arches are open for
 //      the fairies done and for the forest done, there and back through the arches, the hub's draw calls, the refusal
-//      without network. Played alone it makes no probe build. Pictures shots-e2e/worlds-grey/way-*.png.
+//      without network. Played alone it makes no probe build. Pictures shots-e2e/worlds-grey/way-*.png. A job of
+//      ci.yml only: not before a publication (pages.yml plays PUBLISH_PARTS), the grey worlds are not published.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
@@ -143,6 +144,11 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
 export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey'];
+/**
+ * The parts played before a publication (.github/workflows/pages.yml): all but "hub-grey" - the grey worlds are not
+ * published and must not hold a publication; main only gets a commit already green in ci.yml, which plays every part.
+ */
+export const PUBLISH_PARTS = PARTS.filter((x) => x !== 'hub-grey');
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -775,18 +781,37 @@ async function main() {
     if (!left.length) console.log(`[worlds] the published build (${args[0] ? 'as given' : 'made anew'}): nothing of the probe world in ${filesOf(dist).length} files`);
   } catch (e) { fail(e.message); }
 
+  // A port is free when neither address of localhost has it, as in tools/e2e.mjs: its preview server may hold the IPv6 one.
+  const canBind = (port, host) => new Promise((res) => {
+    const s = createSocket();
+    s.once('error', (e) => res(e.code !== 'EADDRINUSE'));   // e.g. no IPv6 on this machine: not "busy"
+    s.listen({ port, host, exclusive: true }, () => s.close(() => res(true)));
+  });
+  /** The first free port from E2E_PORT on (50 tried); none - the run fails. */
+  const freePort = async () => {
+    let port = firstPort;
+    while (!(await canBind(port, '127.0.0.1') && await canBind(port, '::1'))) if (++port > firstPort + 50) { fail(`no free port in ${firstPort}..${firstPort + 50}`); end(); }
+    return port;
+  };
+
   // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
   // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone.
   if (play('hub-grey')) try {
     const greyDist = join(root, GREY_DIST);
     rmSync(greyDist, { recursive: true, force: true });
     await vite('the grey build', '--mode', 'grey', '--outDir', GREY_DIST);
-    const server = await serveDir(greyDist, firstPort);
-    const gl = process.env.E2E_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=gl', '--enable-gpu'];
+    const greyPort = await freePort();
+    const server = await serveDir(greyDist, greyPort);
+    console.log(`[worlds] ${GREY_DIST}/ served on http://127.0.0.1:${greyPort}/`);
+    const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+    const gl = process.env.E2E_GL || 'gl';
+    if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
     const { chromium } = await import('playwright-core');
-    const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
+    // the flags of every part: nothing but this machine is reached (the refusal without network rests on it too)
+    const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true,
+      args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
     try {
-      const wrong = await hubWay(browser, `http://127.0.0.1:${firstPort}/`, join(root, 'shots-e2e', 'worlds-grey'), { slow: process.env.E2E_GL === 'swiftshader' });
+      const wrong = await hubWay(browser, `http://127.0.0.1:${greyPort}/`, join(root, 'shots-e2e', 'worlds-grey'), { slow: process.env.E2E_GL === 'swiftshader' });
       for (const p of wrong) fail(`the way between the hub and the forest: ${p}`);
     } finally { await browser.close(); server.close(); }
   } catch (e) { fail(e.message); }
@@ -833,14 +858,7 @@ async function main() {
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(readFileSync(file));
   });
-  // A port is free when neither address of localhost has it, as in tools/e2e.mjs: its preview server may hold the IPv6 one.
-  const canBind = (port, host) => new Promise((res) => {
-    const s = createSocket();
-    s.once('error', (e) => res(e.code !== 'EADDRINUSE'));   // e.g. no IPv6 on this machine: not "busy"
-    s.listen({ port, host, exclusive: true }, () => s.close(() => res(true)));
-  });
-  let port = firstPort;
-  while (!(await canBind(port, '127.0.0.1') && await canBind(port, '::1'))) if (++port > firstPort + 50) { fail(`no free port in ${firstPort}..${firstPort + 50}`); end(); }
+  const port = await freePort();
   await new Promise((r) => server.listen(port, '127.0.0.1', r));
   const url = `http://127.0.0.1:${port}/`;
   console.log(`[worlds] ${PROBE_DIST}/ served on ${url}`);

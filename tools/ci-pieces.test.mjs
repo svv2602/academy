@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_ALL, TRY_ALL_MAX, TRY_LIMITS, TRY_TURN, attemptName, lastAttempts, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
-import { PARTS } from './worlds.mjs';
+import { PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -818,9 +818,10 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(steps(pages.jobs.worlds)).toBe(steps(workflow('ci.yml').jobs.worlds));
   });
 
-  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" is a job for each part of tools/worlds.mjs, none left out, and one failed part does not stop the others', (name) => {
+  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" is a job for each part of tools/worlds.mjs (before a publication: but hub-grey), none left out, and one failed part does not stop the others', (name) => {
     const worlds = workflow(name).jobs.worlds;
-    expect(yamlList(/^ {8}part: (\[.*\])$/m.exec(worlds)[1])).toEqual(PARTS);
+    // before a publication all but the grey build's part (tools/worlds.mjs PUBLISH_PARTS)
+    expect(yamlList(/^ {8}part: (\[.*\])$/m.exec(worlds)[1])).toEqual(name === 'pages.yml' ? PUBLISH_PARTS : PARTS);
     expect(worlds).toContain('    strategy:\n      fail-fast: false\n      matrix:\n        part: [');
     expect(key(worlds, 'name')).toBe('worlds (probe world, ${{ matrix.part }})');
     // a failed part keeps its own pictures: two parts must not upload under one name
