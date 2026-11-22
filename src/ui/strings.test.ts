@@ -422,7 +422,7 @@ describe('the world of a line to record (the voice of a next world)', () => {
   it('the committed list: the lines of the first world\'s `only` have no narrator\'s row, every one has its voices', () => {
     const fairy = casts.find((c) => c.id === FIRST);
     expect(fairy?.only?.length).toBeGreaterThan(0);
-    const alone = Object.keys(recordingList(worlds, bank, casts.map((c) => ({ ...c, only: [] })), FIRST)).filter((k) => !k.includes('@') && !Object.hasOwn(file, k));
+    const alone = Object.keys(recordingList(worlds, bank, casts.map((c) => (c.id === FIRST ? { ...c, only: [] } : c)), FIRST)).filter((k) => !k.includes('@') && !Object.hasOwn(file, k));
     const residents = ['unicorn', 'fox', 'mushking', 'deer', 'queen'];
     // the greetings and the trades of the residents, the hints of the parts, the thanks for a shard, the star search
     const own = residents.flatMap((r) => [`${r}_hi`, `${r}_trade_ask`, `${r}_trade_far`, `${r}_trade_thanks`]);
