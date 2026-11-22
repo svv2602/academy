@@ -29,9 +29,9 @@ import { uBloom } from './undergrowth';
 /** The evening with no magic (the customer's, 2026-11-21: ./index.ts SKY) and with all of it. */
 export const MAGIC_LOOK = {
   background: ['#f4c79a', '#fcdc88'], haze: ['#ecc6a0', '#f6d8a0'], sun: ['#ffc685', '#ffd28e'],
-  sunPower: [2.3, 2.8], hemiPower: [1.2, 1.45],
+  sunPower: [2.3, 3.2], hemiPower: [1.2, 1.7],
   /** m: where the haze begins (it ends where it did: the camera sees just past it). */
-  fogNear: [HALF * 0.9, HALF * 1.2],
+  fogNear: [HALF * 0.9, HALF * 1.6],
 } as const;
 /** The glow of the lights of the forest: with no magic and with all of it (all of it - as they were made). */
 export const MAGIC_GLOW: Record<string, readonly [number, number]> = {
@@ -48,7 +48,7 @@ export const GLADE_OF: Partial<Record<ZoneId, string>> = { village: 'borovik', o
 /** How much of the fireflies of the paths float with no magic. */
 export const PATH_FLIES = 0.35;
 /** How big a firefly that floats is with no magic and with all of it (1: as they were made). */
-export const FLY_SIZE: readonly [number, number] = [0.75, 1.25];
+export const FLY_SIZE: readonly [number, number] = [0.75, 1.6];
 /** How much stronger the wind bends the plants with all the magic (1: as they always swayed). */
 export const MAGIC_SWAY = 1.5;
 /** How open the flowers are with no magic (1 with all of it). */
@@ -67,11 +67,11 @@ export const RAY_SPOTS: readonly { x: number; z: number }[] = [
   { x: ZONES.village.x + 3, z: ZONES.village.z + 2 },
   { x: ZONES.grove.x + 4, z: ZONES.grove.z - 3 },
 ];
-export const RAY_ALPHA = 0.2;
+export const RAY_ALPHA = 0.28;
 export const RAY_COLOUR = '#ffd89c';
 export const RAY_LENGTH = 30;
 /** m: how wide a band is on the ground and up at its end. */
-export const RAY_WIDTH: readonly [number, number] = [9, 5];
+export const RAY_WIDTH: readonly [number, number] = [16, 9];
 export const RAY_LEAN = 0.6;
 /** m from the camera: a band nearer than the first is gone, from the second whole (one the camera stands in is no white wall). */
 export const RAY_NEAR: readonly [number, number] = [6, 18];
@@ -102,7 +102,7 @@ varying vec2 vAt; varying float vDist;
 #include <common>
 #include <fog_pars_fragment>
 void main() {
-  float across = exp(-pow(vAt.x * 4.0, 2.0));
+  float across = exp(-pow(vAt.x * 3.2, 2.0));
   float along = sin(PI * pow(clamp(vAt.y, 0.0, 1.0), 0.7));
   float a = uOpacity * across * along * smoothstep(${RAY_NEAR[0].toFixed(1)}, ${RAY_NEAR[1].toFixed(1)}, vDist);
   #ifdef USE_FOG
@@ -209,9 +209,10 @@ export function createForestMagic(g: Game, scope: WorldScope, o: { sky: WorldSky
   const magic = followMagic(() => forestMagicOf(ws, o.characters), (m, dt) => {
     bg.copy(bg0).lerp(bg1, m);
     fog.color.copy(haze0).lerp(haze1, m);
-    fog.near = lerp(MAGIC_LOOK.fogNear[0], MAGIC_LOOK.fogNear[1], m);
     o.sky.sun.color.copy(sun0).lerp(sun1, m);
     const a = alive(m);
+    // the haze lifts with the lights: the forest is seen further, clearer
+    fog.near = lerp(MAGIC_LOOK.fogNear[0], MAGIC_LOOK.fogNear[1], a);
     o.sky.sun.intensity = lerp(MAGIC_LOOK.sunPower[0], MAGIC_LOOK.sunPower[1], a);
     if (hemi) (hemi as THREE.HemisphereLight).intensity = lerp(MAGIC_LOOK.hemiPower[0], MAGIC_LOOK.hemiPower[1], a);
     for (const { mat, glow } of glowing) mat.emissiveIntensity = lerp(glow[0], glow[1], a);
