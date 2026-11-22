@@ -56,7 +56,9 @@ export const PETS: readonly PetSpecies[] = [
   { id: 'fawn', world: 'fairy', model: 'animals_pack/Deer', height: 0.85, walk: GROUND.fawnWalk, run: { clip: 'Gallop', ground: GROUND.fawnGallop }, treats: ['acorn', 'mushroom'] },
   // The owlet of the forest (world-2.md, PLAY-09): Mudrena's little one, the Meshy model of the forest (CREDITS.md), a
   // file of that world (`own`). It has no walking clip: it flies after her flapping its wings (the lead, 2026-11-22).
-  { id: 'owlet', world: 'forest', model: 'forest/owlet', height: 0.38, own: true, walk: 1, fly: { clip: 'Flap', height: 0.4 }, treats: ['acorn', 'feather'] },
+  // 0.55 m and flying at her shoulder: at 0.38 m and 0.4 m over the grass a child did not see it in the frame (the
+  // lead, 2026-11-22, by the pictures of the grey build)
+  { id: 'owlet', world: 'forest', model: 'forest/owlet', height: 0.55, own: true, walk: 1, fly: { clip: 'Flap', height: 0.75 }, treats: ['acorn', 'feather'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);

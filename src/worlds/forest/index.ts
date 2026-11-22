@@ -97,8 +97,8 @@ export const BYSTANDERS = [
  * under a heap of leaves; walking up to the heap finds it, the leaves fly off and it follows her.
  */
 export const OWLET_HEAP = { x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2 };
-/** The heap: m across and high - over the owlet (0.38 m) that waits under it. */
-const HEAP_R = 0.62, HEAP_H = 0.5;
+/** The heap: m across and high - over the owlet (0.55 m, src/game/pets.ts) that waits under it. */
+const HEAP_R = 0.78, HEAP_H = 0.66;
 type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.BufferGeometry[]; decor: Decor; chest: Rig };
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
