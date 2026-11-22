@@ -24,7 +24,8 @@
 //    a point over BUDGET (triangles or draw calls) fails the run;
 //    - the magic (WORLD-09): from MAGIC_POINT of the tour, the world still, pictures at the magic 0, 0 again, 0.48
 //      (three leaves) and 1 - 0 and 1 differ over the whole and over the sky by more than MAGIC_DIFF, and by more than
-//      MAGIC_DIFF.same times two pictures of the same magic; else the run fails.
+//      MAGIC_DIFF.same times two pictures of the same magic; else the run fails. Then from MAGIC_NEAR_POINT, over the
+//      village, at 0, 0.48 and 1 for the eye alone (magic-near-*.png).
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/forest-grey by default.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -92,6 +93,8 @@ export const BUDGET = { tris: 600000, calls: 112 };
 export const MAGIC_POINT = 0;
 /** The magic of the pictures (the third - three leaves given back) and the names of their files. */
 export const MAGIC_PICTURES = [[0, 'magic-0'], [0, 'magic-0-again'], [0.48, 'magic-0_48'], [1, 'magic-1']];
+/** The point of the tour (0-based) pictured once more at 0, 0.48 and 1 for the eye alone: over the village, its windows and lanterns near. */
+export const MAGIC_NEAR_POINT = 2;
 
 /** The points of `views` and `tour` over BUDGET: their names and numbers. */
 export function overBudget(views, tour, budget = BUDGET) {
@@ -266,6 +269,15 @@ async function measure(browser, url, scale, out, q = 2) {
       await page.evaluate((m) => __game.setMagic(m), m);
       await frames();
       pics.push((await page.screenshot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
+    }
+    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
+    await page.evaluate(() => __game.still(false));
+    await settle(0.6);
+    await page.evaluate(() => __game.still(true));
+    for (const m of [0, 0.48, 1]) {
+      await page.evaluate((m) => __game.setMagic(m), m);
+      await frames();
+      await page.screenshot({ path: join(out, `${tag}-magic-near-${String(m).replace('.', '_')}.png`) });
     }
   } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(null); }); }
   const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 3, 1], [0, 3, 0.2], [0, 1, 1], [0, 2, 1]]);

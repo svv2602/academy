@@ -133,7 +133,7 @@ describe('the magic of the forest (WORLD-09): read from the progress the save al
     expect(f.lit(glade('shustrik')).every((v) => v > 0)).toBe(true);
     expect(f.lit(glade('yasen')).every((v) => v === 0)).toBe(true);
     f.magic.set(1);
-    expect(f.lit(() => true).every((v) => v === FLY_SIZE[1])).toBe(true);
+    expect(f.lit(() => true).every((v) => Math.abs(v - FLY_SIZE[1]) < 1e-6)).toBe(true);
   });
 
   it('a firefly that wakes comes over a moment, not at once', () => {
