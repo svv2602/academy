@@ -288,6 +288,10 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
     expect(one(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_again_1', 'x'], synth: ['h_count'], line: 'x' })))).toBe('lines left to the synthesizer: h_count');
     expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_again_1'] }))).toEqual(['the clips of "try again" and of the hint were not both started (started: try_again_1)']);
     expect(one(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ line: 'h_other' })))).toBe('the bubble holds "h_other", whose clip was not started (started: try_again_1 h_count)');
+    // a next world's clip is started under its folder, a character's in its voice: still the clip of that line
+    expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_2', 'sea/sea_half_hint_1'], line: 'sea_half_hint_1' }))).toEqual([]);
+    expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_2', 'sea/pantsyr_hint@Charon'], line: 'pantsyr_hint' }))).toEqual([]);
+    expect(one(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ started: ['try_2', 'sea/sea_half_hint_2'], line: 'sea_half_hint_1' })))).toContain('whose clip was not started');
     // without the voice the bubble keeps the question: only the clips are asked for
     expect(wrongProblems(st({ wrongs: 1, rung: 1 }), voice({ line: 't_compare_more', muted: true }))).toEqual([]);
   });

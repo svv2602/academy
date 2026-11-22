@@ -351,6 +351,9 @@ export function openProblems(state, kind) {
  * clips were started, synth - the lines left to the synthesizer, line - the line the bubble holds, muted }): one
  * mistake, waiting again, the first rung of the hint; "try again" and the hint by their clips.
  */
+/** The line a started clip says: its id without the folder of a next world (`sea/`) and the voice of a character (`@Leda`). */
+const clipLine = (clip) => clip.replace(/^[^/]+\//, '').replace(/@[^@/]*$/, '');
+
 export function wrongProblems(state, voice) {
   if (!state) return ['the task in the world is not open after a wrong move'];
   const out = [];
@@ -360,7 +363,7 @@ export function wrongProblems(state, voice) {
   const started = [...new Set(voice.started)];
   if (voice.synth.length) out.push(`lines left to the synthesizer: ${voice.synth.join(' ')}`);
   if (started.length < 2) out.push(`the clips of "try again" and of the hint were not both started (started: ${started.join(' ') || 'none'})`);
-  else if (!voice.muted && !started.includes(voice.line)) out.push(`the bubble holds "${voice.line}", whose clip was not started (started: ${started.join(' ')})`);
+  else if (!voice.muted && !started.some((k) => clipLine(k) === voice.line)) out.push(`the bubble holds "${voice.line}", whose clip was not started (started: ${started.join(' ')})`);
   return out;
 }
 
