@@ -2329,6 +2329,21 @@
   "tp": -3.55,
   "sha256": "ad1027ee376a913891c1dc1f6d30693c4438b6c8d3bd3ce48f76431445565f67"
  },
+ "public/voice/hub/hub_sea_after.mp3": {
+  "lufs": -18.15,
+  "tp": -2.76,
+  "sha256": "31f8603d1f18c94256b565d6786786ef6c18a58f95d6e942ab36fe5b6b2d8a80"
+ },
+ "public/voice/hub/hub_sea_home.mp3": {
+  "lufs": -17.98,
+  "tp": -3.32,
+  "sha256": "04e888497b891d1226d56337324449e7aef405120b256aa3d11a61ec023851cf"
+ },
+ "public/voice/hub/hub_sea_wake.mp3": {
+  "lufs": -17.98,
+  "tp": -3.09,
+  "sha256": "28936b18be02994625388dfa9cd779fa291ef6a58ca31c685a6ae6443296ff46"
+ },
  "public/voice/hub/hub_sleeping.mp3": {
   "lufs": -17.96,
   "tp": -1.66,
@@ -2573,6 +2588,101 @@
   "lufs": -18.03,
   "tp": -2.87,
   "sha256": "8881c22fe4565322c2f1ee83cd4cc1d18a608e764e3899f249d6238d946abd2a"
+ },
+ "public/voice/sea/bulk_hi@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -3.79,
+  "sha256": "d61c5b0a9f9e870b91b0e41cda368178e8e2d385e83a573c19bf5cc0c59cd914"
+ },
+ "public/voice/sea/bulk_t1@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -2.48,
+  "sha256": "144afe9091ca0c6514d58e6e73dc54db0eb0e3079c35124e7f025c72621fe570"
+ },
+ "public/voice/sea/khvylia_again_1@Sulafat.mp3": {
+  "lufs": -18.03,
+  "tp": -6.64,
+  "sha256": "e10278c866f83a587702a883ac992f7b30933b9d573280fda7160c8f1628d4af"
+ },
+ "public/voice/sea/khvylia_again_2@Sulafat.mp3": {
+  "lufs": -18.01,
+  "tp": -2.41,
+  "sha256": "7d724d4d1a9177fe4119d6258046ac316a515996d9dd634fd92ace8cc8c8d714"
+ },
+ "public/voice/sea/khvylia_done@Sulafat.mp3": {
+  "lufs": -18.07,
+  "tp": -2.37,
+  "sha256": "aa76ecdfb2adcd81ba3d0148149896f3c97243bd585ec1b2024de9c0b48aa341"
+ },
+ "public/voice/sea/khvylia_hi@Sulafat.mp3": {
+  "lufs": -18.02,
+  "tp": -3.45,
+  "sha256": "2f84b0f88c3827c3c6b247b347d6d1963905f5f89a1d24ebe027d546a16e809c"
+ },
+ "public/voice/sea/khvylia_t1@Sulafat.mp3": {
+  "lufs": -18.08,
+  "tp": -2.79,
+  "sha256": "05b6a23fa3abb1b33ee71a0908dbd9016963772fe76418633c8cdedd85305cf3"
+ },
+ "public/voice/sea/khvylia_t2@Sulafat.mp3": {
+  "lufs": -17.94,
+  "tp": -3.07,
+  "sha256": "e92e6941c5935c196bb907f21fb6691779cb99c74ea5a44c98614d6617249b95"
+ },
+ "public/voice/sea/khvylia_t3@Sulafat.mp3": {
+  "lufs": -18.04,
+  "tp": -4.58,
+  "sha256": "0613c81f96a4ee02166156c01bf8e7a944bce1abb2470e3410a025f9e7c95e9a"
+ },
+ "public/voice/sea/sea_cat_bubble.mp3": {
+  "lufs": -18.25,
+  "tp": -2.29,
+  "sha256": "2da1e53385cb3e68ab38df6eaccef54251cceb1d5f108fac9443d732ebd80ac5"
+ },
+ "public/voice/sea/sea_cat_wet.mp3": {
+  "lufs": -18.05,
+  "tp": -2.75,
+  "sha256": "9f9d757ca016d0c9f6f2828e0bb4d241140fc42fe32664a631615e2cec821649"
+ },
+ "public/voice/sea/sea_flyover.mp3": {
+  "lufs": -18.06,
+  "tp": -4.56,
+  "sha256": "a8bb92295b5a983dc5390d98fec97375d5fca47b9dcc8975d06075f6023a62df"
+ },
+ "public/voice/sea/sea_story_back_1.mp3": {
+  "lufs": -18.01,
+  "tp": -5.77,
+  "sha256": "14f8d9dbe964bbf948bde333bd4cba47d301d9511e00f4671d0e6d9f8f49a923"
+ },
+ "public/voice/sea/sea_story_back_2.mp3": {
+  "lufs": -17.98,
+  "tp": -4.39,
+  "sha256": "4fa24aa22f1872ed89dd6641eb214edd2eb3dfa76a6a135f5be69351c1a0b82e"
+ },
+ "public/voice/sea/sea_story_back_3.mp3": {
+  "lufs": -18.06,
+  "tp": -2.9,
+  "sha256": "cf84d50c2c0c379138ee40e8eae4d4c12973818db3677d4c54903079219fc1a9"
+ },
+ "public/voice/sea/sea_story_intro_1.mp3": {
+  "lufs": -18.04,
+  "tp": -2.47,
+  "sha256": "1666d9759ebd26fa17fc5660c470c6006bd4304818c13ef520ee0852c4df2717"
+ },
+ "public/voice/sea/sea_story_intro_2.mp3": {
+  "lufs": -18.0,
+  "tp": -2.27,
+  "sha256": "4d6312b1652347d2d834dcb7d1a40c90ed36b924d23569c7087ba7c7b64f74fa"
+ },
+ "public/voice/sea/sea_story_intro_3.mp3": {
+  "lufs": -17.98,
+  "tp": -3.46,
+  "sha256": "1e73e14a1a0872a7c734d3b824712bd8c4f147889d6acb8f9b9cf98f7136a5ed"
+ },
+ "public/voice/sea/sea_swim_first.mp3": {
+  "lufs": -17.99,
+  "tp": -2.52,
+  "sha256": "9ac5bc43a26365bc56dc6b1836089384355626f4ff09e7fd249a64bf6f2896a7"
  },
  "public/voice/secret_glade.mp3": {
   "lufs": -18.06,

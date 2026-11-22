@@ -5800,5 +5800,181 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sea_wake": {
+  "text": "Чуєш, як шумлять хвилі? Прокинувся портал до моря!",
+  "heard": "Чуєш, як шумлять хвилі? Прокинувся портал до моря!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sea_home": {
+  "text": "Перлина глибин удома! Дивись, ще одне гніздо засяяло.",
+  "heard": "Перлина глибин удома! Дивись, ще одне гніздо засяяло.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sea_after": {
+  "text": "Крона стала густішою, а біля коріння виросли грибочки!",
+  "heard": "Крона стала густішою, а біля коріння виросли грибочки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_intro_1": {
+  "text": "Під хвилями ховається Підводне королівство. Та воно засумувало.",
+  "heard": "Під хвилями ховається підводне королівство. Та воно засумувало.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_intro_2": {
+  "text": "Перлина глибин розкололася, а ворота замку зачинилися.",
+  "heard": "Перлина глибин розкололася, а ворота замку зачинилися.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_intro_3": {
+  "text": "Пірнаймо! Знайдемо перлинки — і море знову засяє.",
+  "heard": "Вірнаймо, знайдемо перлинки, і море знову засяє.",
+  "score": 0.978,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_back_1": {
+  "text": "Перлинки злетілися до трону. Перлина глибин знову ціла!",
+  "heard": "Перлинки злетілися до трону, перлина глибин знову ціла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_back_2": {
+  "text": "Море прокинулося! Корали сяють, а рибки повернулися додому.",
+  "heard": "Море прокинулося, корали сяють, а рибки повернулися додому.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_story_back_3": {
+  "text": "Віднесімо світло Перлини додому, до Великого Дерева.",
+  "heard": "Віднесімо світло-перлини додому, до великого дерева.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_flyover": {
+  "text": "Ось і Підводне королівство! Бачиш вежі замку? Їх видно звідусіль.",
+  "heard": "Ось і підводне королівство. Бачиш вежі замку? Їх видно звідусіль.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_cat_bubble": {
+  "text": "Бр-р, вода! Добре, що в мене є чарівна бульбашка.",
+  "heard": "Бррр, вода! Добре, що в мене є чарівна бульбашка.",
+  "score": 0.978,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_swim_first": {
+  "text": "Ти пливеш, як рибка! Керуй так само, як на землі.",
+  "heard": "Ти пливеш, як рибка. Керуй так само, як на землі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_cat_wet": {
+  "text": "Коти не люблять мокнути. Але заради тебе — потерплю!",
+  "heard": "Коти не люблять мокнути, але заради тебе потерплю.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_hi@Sulafat": {
+  "text": "Вітаю тебе, мила! Я Хвиля, королева русалок.",
+  "heard": "Вітаю тебе, мила! Я Хвиля, королева русалок.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_t1@Sulafat": {
+  "text": "Мої рибки посварилися: у кого більше перлів? Подивись уважно.",
+  "heard": "Мої рибки посварилися, у кого більше перлів. Подивись уважно.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_t2@Sulafat": {
+  "text": "У скриньці бракує кількох перлинок. Скільки треба докласти?",
+  "heard": "У скриньці бракує кількох перлинок. Скільки треба докласти?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_t3@Sulafat": {
+  "text": "Ворота зачинив замок із мушель. Допоможи його відімкнути!",
+  "heard": "Ворота зачинив замок із мушель. Допоможи його відімкнути.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_done@Sulafat": {
+  "text": "Дякую, мила. Тримай перлинку, бережи її.",
+  "heard": "Дякую, мила, тримай перлинку, бережи її.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_again_1@Sulafat": {
+  "text": "Мій замок знову співає. Послухай, як дзвенять мушлі!",
+  "heard": "Мій замок знову співає, послухай, як дзвенять мушлі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_again_2@Sulafat": {
+  "text": "Припливай до мене частіше, мила. Тут тобі завжди раді.",
+  "heard": "Припливай до мене частіше, мила, тут тобі завжди раді.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_hi@Leda": {
+  "text": "Бульк-бульк! Привіт! Я Бульк, морський дракончик. Ти вмієш плавати?",
+  "heard": "Бульк-бульк! Привіт! Я Бульк, морський дракончик. Ти вмієш плавати?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_t1@Leda": {
+  "text": "Я розклав мушлі візерунком, а одна загубилася. Яка наступна?",
+  "heard": "Я розклав мушлі візерунком, а одна загубилася. Яка наступна?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
