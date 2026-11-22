@@ -20,7 +20,7 @@ import { PET_FLAG, loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { arriveFrom, createHubWay } from './hub-way';
@@ -380,7 +380,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         // the maze that stands now (WORLD-14): its paths and forks, where she is in it - for its pictures and its time on foot
         forestMaze: maze,
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
-        magic, setMagic: (v: number | null) => magic.set(v) },
+        magic, setMagic: (v: number | null) => magic.set(v),
+        // the secrets (./secrets.ts): where each is found and where it stands, for their pictures and their draw calls
+        forestSecrets: { at: secrets.at, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world

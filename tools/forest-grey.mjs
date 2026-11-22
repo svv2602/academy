@@ -28,7 +28,8 @@
 //    - from every target of the route (src/worlds/forest/layout.ts ROUTE), whether the landmark of the next one is seen:
 //      the camera behind her, turned to it, a ray from the camera to points of the landmark - seen when the first thing
 //      the ray meets is the landmark itself;
-//    - the draw calls and the triangles at every target and at every point of the tour: the heaviest is the one to
+//    - the draw calls and the triangles at every target, at every point of the tour, by every secret and its find and
+//      by the owlet (its heap, flying after her) - the secrets' within BUDGET or the run fails: the heaviest is the one to
 //      measure on the S22 (TECH-06);
 //    - a picture from every target toward the next one, and from every point of the tour;
 //    all of it with the magic of the forest at 1 (WORLD-09, src/worlds/forest/magic.ts): the most it draws. On q2
@@ -55,6 +56,8 @@ export { BUDGET, lengthOf, overBudget, pathBetween, routeLegs };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = GREY_DIST;
+/** m from a secret's middle: where she stands to look at it as she comes. */
+const SECRET_LOOK = 7;
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
@@ -270,21 +273,56 @@ async function measure(browser, url, scale, out, q = 2) {
   const magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
   magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
+  // after the tour and the magic (they are measured in the save as it was): the secrets and the owlet at the magic of 1,
+  // the heaviest, as the route
+  await page.evaluate(() => __game.setMagic(1));
+  // the secrets (src/worlds/forest/secrets.ts): from SECRET_LOOK m away, turned to it as she comes, and at its find -
+  // their draw calls and triangles within the budget like every point of the route (TECH-06), a picture of each
+  const secrets = [];
+  const sec = await page.evaluate(() => JSON.parse(JSON.stringify({ at: __game.forestSecrets.at, middle: __game.forestSecrets.middle, trampoline: __game.forestSecrets.trampoline })));
+  for (const id of Object.keys(sec.at)) {
+    // the roof's find is up on the house: she is pictured on the trampoline beside it
+    const m = sec.middle[id], f = id === 'bounce' ? sec.trampoline : sec.at[id];
+    const dx = f.x - m.x, dz = f.z - m.z, d = Math.hypot(dx, dz) || 1;
+    // the way she comes: out of its middle through its find, SECRET_LOOK m on
+    const from = { x: m.x + (dx / d) * SECRET_LOOK, z: m.z + (dz / d) * SECRET_LOOK };
+    for (const [where, a, b] of [['near', from, m], ['at', f, m]]) {
+      await stand(a, b); await settle(1.2);
+      const dr = await draw();
+      await page.screenshot({ path: join(out, `${tag}-secret-${id}-${where}.png`) });
+      secrets.push({ id, where, ...dr });
+    }
+  }
+  // the owlet (PLAY-09): its heap of leaves in the grove, then found and flying after her
+  const heap = await page.evaluate(() => __game.forestSecrets.heap);
+  await page.evaluate(() => { const q = __game.save.worlds.forest.quests; q.mudrena = __game.npcs.find((n) => n.def.id === 'mudrena').def.steps.length; });
+  await stand({ x: heap.x + 3.2, z: heap.z + 1.5 }, heap); await settle(1.2);
+  secrets.push({ id: 'owlet', where: 'heap', ...(await draw()) });
+  await page.screenshot({ path: join(out, `${tag}-owlet-heap.png`) });
+  await page.evaluate(() => { const s = __game.save; s.worlds.forest.flags.pet = true; s.pets = [...new Set([...(s.pets ?? []), 'owlet'])]; s.pet = 'owlet'; });
+  await settle(0.6);
+  await page.keyboard.down('KeyW'); await settle(0.9); await page.keyboard.up('KeyW');
+  secrets.push({ id: 'owlet', where: 'flying', ...(await draw()) });
+  await page.screenshot({ path: join(out, `${tag}-owlet-flying.png`) });
+  await settle(1.5);
+  await page.screenshot({ path: join(out, `${tag}-owlet-standing.png`) });
+  console.log(`[grey]   the secrets: ${secrets.map((x) => `${x.id} ${x.where} ${x.calls}/${Math.round(x.tris / 1000)}k`).join(', ')}`);
+  await page.evaluate(() => __game.setMagic(null));
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
   // the route walks some paths twice (there and back): its time is the sum over the route, not over the legs
   const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + l.walked; }, 0);
-  const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris }))].sort((x, y) => y.tris - x.tris)[0];
+  const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris })), ...secrets.map((x) => ({ at: `secret ${x.id} ${x.where}`, calls: x.calls, tris: x.tris }))].sort((x, y) => y.tris - x.tris)[0];
   console.log(`[grey] scale ${scale}: top speed ${speed} m/s`);
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s run (${l.byLength} s by its length)${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles (the magic at 1)`);
   // the budget holds on q2 only: q0 draws less, and is measured for what it saves
-  const over = q === 2 ? overBudget(views, tour) : [];
+  const over = q === 2 ? [...overBudget(views, tour), ...secrets.filter((x) => x.tris > BUDGET.tris || x.calls > BUDGET.calls).map((x) => ({ at: `secret ${x.id} ${x.where}`, calls: x.calls, tris: x.tris }))] : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
   console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.48 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-0.png, ${tag}-magic-0_48.png, ${tag}-magic-1.png)`);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, heaviest, over, magic, failed: over.length > 0 || !magic.ok };
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, secrets, heaviest, over, magic, failed: over.length > 0 || !magic.ok };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
