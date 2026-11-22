@@ -260,6 +260,28 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     expect(p.x).toBe(x);
   });
 
+  it('a talk begins while it gallops: it stands with Idle, never runs on the spot (as the cat, src/game/companion.ts)', () => {
+    const save = defaultSave();
+    worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
+    const g = host(save);
+    // a rig with the clips of the fawn: the clip it plays can be read
+    const clips = new Map(['Idle', 'Walk', 'Gallop'].map((n) => [n, new THREE.AnimationClip(n, 1, [])]));
+    const pets = createPets(g, { rigs: { [FAWN.id]: { root: new THREE.Group(), model: new THREE.Object3D(), clips } }, chainDone: () => false });
+    const playing = () => (pets.follower as unknown as { current: string }).current;
+    g.hero.root.position.set(30, 0, 0);
+    for (let i = 0; i < 20; i++) pets.update(1 / 60);
+    expect(['Walk', 'Gallop']).toContain(playing());
+    const p = pets.follower!.root.position.clone();
+    g.busy = true;                    // the talk: a scene holds the controls while the fawn is on its way
+    for (let i = 0; i < 300; i++) pets.update(1 / 60);
+    expect(playing()).toBe('Idle');
+    expect(pets.follower!.root.position.distanceTo(p)).toBe(0);   // it stands where the talk found it
+    // the talk over: it goes on to her
+    g.busy = false;
+    for (let i = 0; i < 5; i++) pets.update(1 / 60);
+    expect(['Walk', 'Gallop']).toContain(playing());
+  });
+
   it('dispose: the pets leave the scene and the frame', () => {
     const save = defaultSave();
     worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
