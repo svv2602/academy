@@ -4,6 +4,10 @@
  *
  * Only `import type` and `declare module` here: tools/sync_phrases.mjs loads this file in Node. Its keys start with
  * `hub_`: a key the shared strings already have is an error (`addStrings`, src/ui/strings.ts).
+ *
+ * A world's words are found by their names, with no code of their own: hub_<world>_wake is said by its arch waking,
+ * hub_<world>_home and hub_<world>_after as she comes in once that world is done (./index.ts `worldWord`). A line put
+ * here for anything else must not have such a name - it would start to be said by itself.
  */
 import type { WorldStrings } from '../../ui/strings';
 
