@@ -538,6 +538,21 @@ describe('the owlet of the forest (PLAY-09): a pet whose model is a file of its 
     expect(flapPace(20)).toBeCloseTo(FLAP_MAX, 10);
   });
 
+  it('it catches up flying (CATCH_UP): it appears on the ground by her and rises again, not in the air', () => {
+    const save = defaultSave();
+    worldState(save, 'forest').flags.pet = true; save.pet = 'owlet';
+    const g = host(save, 'forest');
+    const pets = createPets(g, { rigs: { owlet: flyingRig() }, chainDone: () => true, world: { id: 'forest', shelf: 1 } });
+    const owl = pets.follower!;
+    g.hero.root.position.set(6, 0, 0);
+    for (let i = 0; i < 40; i++) { g.hero.root.position.x += 0.05; pets.update(1 / 60); }
+    expect(owl.root.position.y).toBeGreaterThan(OWLET.fly!.height * 0.9);
+    g.hero.root.position.set(60, 0, 0);   // farther than CATCH_UP.farM
+    pets.update(1 / 60);
+    expect(owl.root.position.distanceTo(g.hero.root.position)).toBeLessThan(CATCH_UP.stuckM + OWLET.fly!.height);
+    expect(owl.root.position.y).toBeLessThan(OWLET.fly!.height * 0.2);
+  });
+
   it('found: the world\'s own words, then what it will do; a world without its own says the shared one', () => {
     const save = defaultSave(), g = host(save, 'forest');
     const pet: WorldPet = { species: 'owlet', at: { x: 0, z: 0 }, found: 'forest_pet_found', follow: 'forest_pet_follow' };
