@@ -78,6 +78,13 @@ export const PROVENANCE = {
   'forest/shustrik.glb': forest('2026-11-20', 'skeleton: Meshy Service Assets; clips: our own'),
   'forest/mudrena.glb': forest('2026-11-20', 'skeleton and clips: our own'),
   'forest/owlet.glb': forest('2026-11-20', 'the owl made small and pale; skeleton and clips: our own'),
+  // the sea (2026-11-22, the customer's word: Meshy for the sea's five): Meshy's mesh and texture, our own skeleton and
+  // clips (no rig of Meshy for a mermaid's tail)
+  'sea/khvylia.glb': forest('2026-11-22', 'skeleton and clips: our own'),
+  'sea/bulk.glb': forest('2026-11-22', 'skeleton and clips: our own'),
+  'sea/pantsyr.glb': forest('2026-11-22', 'skeleton and clips: our own'),
+  'sea/kleshnya.glb': forest('2026-11-22', 'skeleton and clips: our own'),
+  'sea/iskorka.glb': forest('2026-11-22', 'skeleton and clips: our own'),
 };
 
 const quiet = { debug() {}, info() {}, warn(m) { throw new Error(`gltf-transform warning: ${m}`); }, error(m) { throw new Error(m); } };

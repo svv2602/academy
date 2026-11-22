@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gltf, type Rig } from '../../core/assets';
+import { gltf, rig, type Rig } from '../../core/assets';
 import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
@@ -132,10 +132,27 @@ function buildSky(scene: THREE.Scene): WorldSky {
   return { sun, sunOffset: new THREE.Vector3(-8, 36, 10) };
 }
 
-/** The one file of the grey build: the swimming clips (the heroine and the cat are the game's). Null = failed (TECH-08). */
+/**
+ * The characters' models (the customer's word 2026-11-22: Meshy for the sea's five; CREDITS.md), the world's own files
+ * (models/sea/, TECH-09), by their height in metres - the grey build's figures' (FIGURE), but the crab and the little fish
+ * larger (the customer, 2026-11-22: "увеличиваем" - at their figures' size they were lost on the screen), each floating as
+ * high as its figure did; their skeletons and clips our own (Idle, Talk; Khvylia's Sing for the finale, Bulk's Swim).
+ */
+const MODELS: Record<string, number> = { khvylia: 1.9, bulk: 0.9, pantsyr: 0.7, kleshnya: 0.8, iskorka: 0.5 };
+
+/** The files of the grey build: the swimming clips (the heroine and the cat are the game's) and the characters' models. Null = failed (TECH-08). */
 async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
-  const swim = await gltf(SWIM_CLIPS).catch((e: unknown) => { loadFailed(e); return null; });
-  return swim ? { swim } : null;
+  const [swim, rigs] = await Promise.all([
+    gltf(SWIM_CLIPS),
+    Promise.all(Object.entries(MODELS).map(async ([id, h]) => {
+      const r = await rig(`sea/${id}`, h);
+      r.model.position.y += FIGURE[id].lift ?? 0;      // the dragon over the corals, the little fish up in the dark
+      // the crab's eyes and the fish's light (a material of their own each) cast no shadow: two draw calls less
+      r.model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && ['eyes', 'light'].includes((m.material as THREE.Material).name)) m.castShadow = false; });
+      return [id, r] as const;
+    })).then((e) => Object.fromEntries(e) as Record<string, Rig>),
+  ]).catch((e: unknown) => { loadFailed(e); return [null, null] as const; });
+  return swim && rigs ? { swim, rigs } : null;
 }
 type SeaLoads = NonNullable<Awaited<ReturnType<typeof loadSea>>>;
 
@@ -175,9 +192,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
   const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(figure(def.id));
+    const actor = new Actor(L.rigs[def.id] ?? figure(def.id));
     const pos = point(def);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
+    if (actor.has('Idle')) actor.play('Idle');
     g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
     const mark = new THREE.Mesh(markGeo, starMat);
     scene.add(actor.root, mark);
@@ -263,8 +281,11 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     await new Promise<void>((done) => { finaleLeft = 2; finaleEnd = done; });
     ws.final = true; g.persist();
     await whole;
-    // the queen's song of a sea that sings again, then the cat's last words
+    // the queen's song of a sea that sings again (her arms open to it), then the cat's last words
+    const queen = npc('khvylia').actor;
+    if (queen.has('Sing')) queen.play('Sing');
     await g.speech.line('khvylia_song', 'story', 0, '🧜‍♀️');
+    if (queen.has('Idle')) queen.play('Idle');
     await g.speech.line('sea_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
   }).then(() => g.speech.line('sea_free', 'hint', 6000));
