@@ -3,8 +3,8 @@
 // turned toward the leg's end: a straight line, as a tap's, src/game/player.ts), leg after leg:
 //   - fairy: from the spawn to every friend in turn and back (the published build, dist/);
 //   - hub: the stump, the cauldron, each of the five arches and back to the middle (dist/);
-//   - forest: every path of the map (src/worlds/forest/layout.ts PATHS), then the maze along its own lines - its trunk,
-//     the right way of each fork, its end (src/worlds/forest/maze.ts geo) - in the grey build (dist-grey/, made here).
+//   - forest: every path of the map (src/worlds/forest/layout.ts PATHS), then the maze along its own lines - its trunk
+//     (through the right way of each fork), a wrong way of each fork and back, its end (src/worlds/forest/maze.ts geo) - in the grey build (dist-grey/, made here).
 // The fawn chosen walks after her (the save of the shop: the first world done). Counted per world, from every frame:
 // the times it caught up (src/game/pets.ts CATCH_UP: a jump of more than 1.2 m between two frames), the metres she
 // walked, the game seconds, the most it lagged behind her, the share of the time it was more than 3 m off; a leg she
@@ -137,9 +137,19 @@ async function measure(world) {
     // the forest: every path forward, then the maze along its lines
     const m = g.forestMap, legs = [];
     m.paths.forEach((line, i) => { legs.push({ ...line[0], what: `path ${i}: its start` }); for (let k = 1; k < line.length; k++) legs.push({ ...line[k], what: `path ${i}` }); });
-    const geo = g.forestMaze.geo;
-    for (const p of geo.trunk) legs.push({ x: p.x, z: p.z, what: 'the maze: its trunk' });
-    geo.forks.forEach((f, i) => { legs.push({ x: f.at.x, z: f.at.z, what: `the maze: fork ${i}` }); for (const p of f.ways.find((w) => w.right).line) legs.push({ x: p.x, z: p.z, what: `the maze: fork ${i}, the right way` }); });
+    // the trunk runs from the way in through every right way to the way out (src/game/worldtasks/maze.ts); at each fork
+    // she first tries a wrong way to its end and comes back, as a child lost a moment does
+    const geo = g.forestMaze.geo, near = (p) => geo.trunk.reduce((b, q, k) => (Math.hypot(q.x - p.x, q.z - p.z) < Math.hypot(geo.trunk[b].x - p.x, geo.trunk[b].z - p.z) ? k : b), 0);
+    const at = new Map(geo.forks.map((f, i) => [near(f.at), i]));
+    geo.trunk.forEach((p, k) => {
+      legs.push({ x: p.x, z: p.z, what: 'the maze: its trunk' });
+      if (!at.has(k)) return;
+      const i = at.get(k), f = geo.forks[i], wrong = f.ways.find((w) => !w.right);
+      legs.push({ x: f.at.x, z: f.at.z, what: `the maze: fork ${i}` });
+      for (const q of wrong.line) legs.push({ x: q.x, z: q.z, what: `the maze: fork ${i}, a wrong way` });
+      for (const q of [...wrong.line].reverse()) legs.push({ x: q.x, z: q.z, what: `the maze: fork ${i}, back` });
+      legs.push({ x: f.at.x, z: f.at.z, what: `the maze: fork ${i}, back at it` });
+    });
     legs.push({ x: geo.end.x, z: geo.end.z, what: 'the maze: its end' });
     return legs;
   }, world);
