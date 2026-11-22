@@ -99,6 +99,15 @@ export const ground: WorldGround = {
 export const CAUSTIC_COLOR = '#4fd6d0';
 /** How far the sand goes towards CAUSTIC_COLOR on the brightest lines (0..1). */
 export const CAUSTIC_STRENGTH = 0.45;
+/** The strength the floor's shader draws them at: the sea's magic dims them with no pearls (./magic.ts). */
+export const uCaustic = { value: CAUSTIC_STRENGTH };
+/**
+ * How muted the sea's floor and kelp are (./magic.ts: with no pearls): 0 - their colours as taken, 1 - grey; below 0
+ * a little richer. Their lit colour goes toward its own grey, a little cold, before the haze - the haze stays as it is.
+ */
+export const uMute = { value: 0 };
+/** The GLSL of it, for a fragment shader's `outgoingLight` before `#include <opaque_fragment>` (uniform float uMute). */
+export const MUTE_GLSL = 'outgoingLight = max(vec3(0.0), mix(outgoingLight, vec3(dot(outgoingLight, vec3(0.3, 0.59, 0.11))) * vec3(0.94, 0.99, 1.06), uMute));';
 
 /**
  * Turquoise caustics on the sand (the customer, 2026-11-21: "д) turquoise caustics"): the light the waves above focus
@@ -112,10 +121,14 @@ export function causticMaterial<M extends THREE.MeshStandardMaterial>(m: M): M {
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uTime;
     sh.uniforms.uTier = uTier;
+    sh.uniforms.uCaustic = uCaustic;
+    sh.uniforms.uMute = uMute;
     sh.vertexShader = 'varying vec2 vCausticAt;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n  vCausticAt = (modelMatrix * vec4(position, 1.0)).xz;');
     sh.fragmentShader = `uniform float uTime;
 uniform float uTier;
+uniform float uCaustic;
+uniform float uMute;
 varying vec2 vCausticAt;
 float caustic(vec2 p, float t) {
   p *= 0.42;
@@ -123,7 +136,8 @@ float caustic(vec2 p, float t) {
   float a = sin(q.x * 2.1 + t * 0.45) + sin(q.y * 2.3 - t * 0.38) + sin((q.x + q.y) * 1.6 + t * 0.29);
   return pow(clamp(1.0 - abs(a) * 0.9, 0.0, 1.0), 5.0);
 }
-` + sh.fragmentShader.replace('#include <opaque_fragment>', `if (uTier > 0.5) outgoingLight = mix(outgoingLight, vec3(${color.r.toFixed(4)}, ${color.g.toFixed(4)}, ${color.b.toFixed(4)}) * 1.2, caustic(vCausticAt, uTime) * ${CAUSTIC_STRENGTH.toFixed(3)});
+` + sh.fragmentShader.replace('#include <opaque_fragment>', `if (uTier > 0.5) outgoingLight = mix(outgoingLight, vec3(${color.r.toFixed(4)}, ${color.g.toFixed(4)}, ${color.b.toFixed(4)}) * 1.2, caustic(vCausticAt, uTime) * uCaustic);
+  ${MUTE_GLSL}
   #include <opaque_fragment>`);
   };
   m.customProgramCacheKey = () => 'sea-caustics';
