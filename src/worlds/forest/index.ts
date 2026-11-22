@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { setCast, sfx } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import { rig, type Rig } from '../../core/assets';
@@ -15,6 +16,7 @@ import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
+import { PET_FLAG, loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
@@ -57,7 +59,8 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a',
     hi: 'borovik_hi', asks: ['borovik_t1', 'borovik_t2', 'borovik_t3'], thanks: 'borovik_done', again: ['borovik_again_1', 'borovik_again_2'] },
   { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a',
-    hi: 'mudrena_hi', asks: ['mudrena_t1', 'mudrena_t2', 'mudrena_t3', 'mudrena_hint'], thanks: 'mudrena_done', again: ['mudrena_again_1', 'mudrena_again_2'] },
+    hi: 'mudrena_hi', asks: ['mudrena_t1', 'mudrena_t2', 'mudrena_t3', 'mudrena_hint'], thanks: 'mudrena_done', again: ['mudrena_again_1', 'mudrena_again_2'],
+    after: 'mudrena_owlet_ask' },
   { id: 'shustrik', emoji: '🐿️', x: ZONES.grove.x + 1.5, z: ZONES.grove.z - 1.5, heading: 2.4, steps: [TRACKS, 'odd', 'pairs'], shard: '#5fe39a',
     hi: 'shustrik_hi', asks: ['shustrik_t1', 'shustrik_t2', 'shustrik_t3'], thanks: 'shustrik_done', again: ['shustrik_again_1', 'shustrik_again_2'] },
   { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['diff', 'simon', 'add'], shard: '#36b56c',
@@ -81,14 +84,20 @@ const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string
 /**
  * The characters' models (the customer's decision 2026-11-21: Meshy instead of the simple shapes; CREDITS.md), the
  * world's own files (models/forest/, TECH-09): one per character, and two who stand by without a chain of their own -
- * Tropka in the village a step aside from Borovik (out of the way to him), and the owlet, Mudrena's little one, in the
- * squirrel grove where the pet of the world is to be found (world-2.md, PLAY-09; it follows her once that is made).
+ * Tropka in the village a step aside from Borovik (out of the way to him). The owlet, Mudrena's little one, is the pet
+ * of the world (PLAY-09, src/game/pets.ts): its model is loaded as a pet's (`loadOwnPets`), not here.
  */
-const MODELS: Record<string, number> = { borovik: 1.1, mudrena: 0.7, shustrik: 0.45, kolyuchka: 0.4, tropka: 1.0, owlet: 0.38 };
+const MODELS: Record<string, number> = { borovik: 1.1, mudrena: 0.7, shustrik: 0.45, kolyuchka: 0.4, tropka: 1.0 };
 export const BYSTANDERS = [
   { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
-  { id: 'owlet', x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2, heading: 2.0, r: 0.2 },
 ] as const;
+/**
+ * The owlet (world-2.md, PLAY-09): once Mudrena's chain is done and she has asked for it, it waits in the squirrel grove
+ * under a heap of leaves; walking up to the heap finds it, the leaves fly off and it follows her.
+ */
+export const OWLET_HEAP = { x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2 };
+/** The heap: m across and high - over the owlet (0.38 m) that waits under it. */
+const HEAP_R = 0.62, HEAP_H = 0.5;
 type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.BufferGeometry[]; decor: Decor };
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
@@ -131,12 +140,14 @@ function buildSky(scene: THREE.Scene): WorldSky {
 }
 
 /** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
-const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<ForestModels> => {
+const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean, scope: WorldScope): Promise<ForestModels> => {
   const [rigs, flora, plants, decor] = await Promise.all([
     Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)).then((e) => Object.fromEntries(e)),
     loadFlora(),
     loadUndergrowth(),
     loadDecor(),
+    // the owlet, the pet of the forest: a model of the world's own, loaded as a pet's (src/game/pets.ts)
+    loadOwnPets('forest', ['owlet'], scope),
   ]);
   return { rigs, flora, plants, decor };
 };
@@ -204,6 +215,13 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
     return actor;
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
+
+  // ----- the heap of leaves the owlet waits under (PLAY-09): gone once it is found -----
+  const heap = buildHeap(point(OWLET_HEAP));
+  scene.add(heap);
+  g.ground.block(OWLET_HEAP.x, OWLET_HEAP.z, 0.2);
+  let heapGone = ws.flags[PET_FLAG] === true;
+  heap.visible = !heapGone;
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the leaves that lie in the world (WORLD-08): the step `part` of the owl's and the hedgehog's chains -----
@@ -311,6 +329,11 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         }
         for (const a of bystanders) a.update(dt);
         magic.update(dt);
+        // the owlet found: its heap flies apart
+        if (!heapGone && ws.flags[PET_FLAG] === true) {
+          heapGone = true; heap.visible = false;
+          g.sparks.burst(heap.position.clone().setY(heap.position.y + HEAP_H), '#e08a3a', 40, 3);
+        }
         fireflies.update(time);
         nuts.update(dt, time, canMove);
         maze.update(dt, time, canMove);
@@ -363,6 +386,21 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   };
 }
 
+/** The heap of leaves over the owlet: a few flat lumps in the grove's orange, one mesh (one draw call). */
+function buildHeap(at: THREE.Vector3): THREE.Mesh {
+  const lumps: THREE.BufferGeometry[] = [];
+  const LUMPS = [[0, 0, 1], [0.32, 0.1, 0.7], [-0.28, 0.22, 0.75], [0.05, -0.33, 0.7], [-0.12, 0.02, 0.6]] as const;
+  for (const [x, z, k] of LUMPS) {
+    const r = HEAP_R * k;
+    lumps.push(new THREE.IcosahedronGeometry(r, 1).toNonIndexed().scale(1, HEAP_H / r * (k === 1 ? 1 : 0.7), 1).translate(x, 0, z));
+  }
+  const geo = mergeGeometries(lumps, false)!;
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#c8702a', roughness: 0.95, flatShading: true }));
+  m.position.copy(at); m.name = 'owlet-heap';
+  m.castShadow = false; m.receiveShadow = true;
+  return m;
+}
+
 /** The Enchanted Forest, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
 export const forest: WorldDef<ForestModels, WorldSky> = {
   id: 'forest',
@@ -378,4 +416,6 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   sky: buildSky,
   load: loadForest,
   build: buildForest,
+  // PLAY-09: the owlet, under its heap in the squirrel grove once Mudrena's chain is done
+  pet: { species: 'owlet', at: OWLET_HEAP, after: 'mudrena', found: 'forest_pet_found', follow: 'forest_pet_follow' },
 };

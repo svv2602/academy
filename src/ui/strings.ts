@@ -199,7 +199,7 @@ const S = sameKeys({
     shelf_wait_5: 'Чекає на тебе на Небесних островах',
     book_secrets_t: 'Таємниці', book_secrets: 'Таємниці цього світу: {n} з {of}', book_count: '{n} з {of}',
     book_pets: 'Мої улюбленці', book_pet_pick: 'Торкнись улюбленця, і він піде з тобою.', book_pet_none: 'Улюбленці ще чекають на тебе.',
-    book_no_pet: 'Без улюбленця', pet_fawn: 'Оленятко',
+    book_no_pet: 'Без улюбленця', pet_fawn: 'Оленятко', pet_owlet: 'Совеня',
     // --- the four ready looks of the start screen (PLAY-06, src/game/looks.ts); not spoken
     looks: 'Образ', look_fairy: 'Фея', look_princess: 'Принцеса', look_elf: 'Ельфійка', look_witch: 'Чарівниця',
     // --- the cat's offer of a break (PLAY-20, src/ui/session.ts): its ten lines are spoken (with the batch 2 of the
@@ -374,7 +374,7 @@ const S = sameKeys({
     shelf_wait_5: 'Ждёт тебя на Небесных островах',
     book_secrets_t: 'Тайны', book_secrets: 'Тайны этого мира: {n} из {of}', book_count: '{n} из {of}',
     book_pets: 'Мои любимцы', book_pet_pick: 'Коснись любимца, и он пойдёт с тобой.', book_pet_none: 'Любимцы ещё ждут тебя.',
-    book_no_pet: 'Без любимца', pet_fawn: 'Оленёнок',
+    book_no_pet: 'Без любимца', pet_fawn: 'Оленёнок', pet_owlet: 'Совёнок',
     // --- the four ready looks of the start screen (PLAY-06, src/game/looks.ts); not spoken
     looks: 'Образ', look_fairy: 'Фея', look_princess: 'Принцесса', look_elf: 'Эльфийка', look_witch: 'Волшебница',
     // --- the cat's offer of a break (PLAY-20): the buttons and the parents' rows (the lines are with the spoken ones)

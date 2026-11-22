@@ -23,7 +23,7 @@ import { shownRecipes } from '../../game/cauldron';
 import { ringNote, ringTapped } from './ring-notes';
 import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
-import { petShadows, steerPet } from '../../game/pets';
+import { loadOwnPets, ownFound, petShadows, steerPet } from '../../game/pets';
 import { petBlob, petCastsShadow } from './pet-shadow';
 import { rainbowRibbon } from '../../game/rainbow-trail';
 import { ringPlay } from './ring-play';
@@ -141,8 +141,11 @@ function buildSky(scene: THREE.Scene): WorldSky {
 
 /** What the hub loads: models already in the installation (the first world's), its look made of its own shapes (H). */
 interface HubLoads { tree: TreeLoads; arch: ArchLoads; glade: GladeLoads }
-const loadHub = async (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<HubLoads> => {
-  const [tree, arch, glade] = await Promise.all([loadTreeLook(), loadArchLook(), loadGladeLook()]);
+const loadHub = async (_scene: THREE.Scene, save: Save, _touch: boolean, scope: WorldScope): Promise<HubLoads> => {
+  const [tree, arch, glade] = await Promise.all([loadTreeLook(), loadArchLook(), loadGladeLook(),
+    // the pets found whose model is a file of their world (the owlet of the forest): from that world's files, already
+    // in the cache; one that does not come stays at home (src/game/pets.ts loadOwnPets)
+    loadOwnPets('hub', ownFound(save), scope)]);
   return { tree, arch, glade };
 };
 
