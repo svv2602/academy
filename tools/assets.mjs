@@ -144,7 +144,7 @@ export function readGlb(bytes) {
   return { json, bin };
 }
 
-function writeGlb(json, bin) {
+export function writeGlb(json, bin) {
   let text = Buffer.from(JSON.stringify(json), 'utf8');
   if (text.length % 4) text = Buffer.concat([text, Buffer.alloc(4 - (text.length % 4), 0x20)]);
   const parts = [Buffer.alloc(12), Buffer.alloc(8), text];
