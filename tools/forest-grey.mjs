@@ -279,7 +279,7 @@ async function measure(browser, url, scale, out, q = 2) {
   // the secrets (src/worlds/forest/secrets.ts): from SECRET_LOOK m away, turned to it as she comes, and at its find -
   // their draw calls and triangles within the budget like every point of the route (TECH-06), a picture of each
   const secrets = [];
-  const sec = await page.evaluate(() => JSON.parse(JSON.stringify({ at: __game.forestSecrets.at, middle: __game.forestSecrets.middle, trampoline: __game.forestSecrets.trampoline })));
+  const sec = await page.evaluate(() => JSON.parse(JSON.stringify({ at: __game.forestSecrets.at, middle: __game.forestSecrets.middle, look: __game.forestSecrets.look, trampoline: __game.forestSecrets.trampoline })));
   for (const id of Object.keys(sec.at)) {
     // the roof's find is up on the house: she is pictured on the trampoline beside it
     const m = sec.middle[id], f = id === 'bounce' ? sec.trampoline : sec.at[id];
@@ -290,7 +290,8 @@ async function measure(browser, url, scale, out, q = 2) {
     const dx = far ? f.x - m.x : toward.x - m.x, dz = far ? f.z - m.z : toward.z - m.z, d = Math.hypot(dx, dz) || 1;
     // the way she comes: out of its middle through its find, SECRET_LOOK m on
     const from = { x: m.x + (dx / d) * SECRET_LOOK, z: m.z + (dz / d) * SECRET_LOOK };
-    for (const [where, a, b] of [['near', from, m], ['at', f, m]]) {
+    // at its find she faces what she finds (the chest), else its middle
+    for (const [where, a, b] of [['near', from, m], ['at', f, sec.look[id] ?? m]]) {
       await stand(a, b); await settle(1.2);
       const dr = await draw();
       await page.screenshot({ path: join(out, `${tag}-secret-${id}-${where}.png`) });

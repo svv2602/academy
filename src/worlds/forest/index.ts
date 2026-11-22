@@ -382,7 +382,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and where it stands, for their pictures and their draw calls
-        forestSecrets: { at: secrets.at, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
+        forestSecrets: { at: secrets.at, look: { cave: secrets.debug.chest }, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world

@@ -120,7 +120,7 @@ export interface ForestSecrets {
   /** The chest's clip, with the rest of the world's. */
   animate(dt: number): void;
   /** What the walkthrough reads: the song's state, the trampoline and the roof. */
-  readonly debug: { song(): Song; trampoline: { x: number; z: number }; roof: { x: number; z: number; y: number } };
+  readonly debug: { song(): Song; trampoline: { x: number; z: number }; roof: { x: number; z: number; y: number }; chest: { x: number; z: number } };
 }
 
 /** One geometry of vertex colours: each part painted its colour. */
@@ -168,8 +168,11 @@ export function caveRocks(): { x: number; z: number; r: number; h: number; spin:
   }
   return out;
 }
-/** m from the cave's middle: the opening (behind the curtain), and the chest at the back. */
-const OPENING = 3.1, CHEST_BACK = 1.1;
+/**
+ * m from the cave's middle: the opening (behind the curtain), and the chest at the back - turned CHEST_SIDE off the
+ * way in: straight ahead it stood behind her with the camera at her back, and she hid what she opens.
+ */
+const OPENING = 3.1, CHEST_BACK = 1.4, CHEST_SIDE = 0.65;
 /**
  * The camera in the cave, m from her: the usual one stood outside its rocks and showed them, not her and the chest. By
  * where she stands, as the first world's glade: CAVE_CAM inside CAVE_CAM_IN m of the middle, the usual distance from
@@ -226,9 +229,11 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
   cave.add(curtain);
   const chest = new Actor(chestRig);
   shadowFromBody(chest.root);
-  const cx = CAVE.x - fx * CHEST_BACK, cz = CAVE.z - fz * CHEST_BACK;
+  const cx = CAVE.x - Math.sin(CAVE.face + CHEST_SIDE) * CHEST_BACK, cz = CAVE.z - Math.cos(CAVE.face + CHEST_SIDE) * CHEST_BACK;
   chest.root.position.set(cx, groundY(cx, cz), cz);
-  chest.root.rotation.y = CAVE.face;
+  // its lid to the middle of the cave, where she comes from
+  const toMiddle = Math.atan2(CAVE.x - cx, CAVE.z - cz);
+  chest.root.rotation.y = toMiddle;
   colliders.push({ x: cx, z: cz, r: 0.6 });
   if (found(CAVE_FLAG)) chest.pose('Chest_Open');
   let caveCam = false;     // the camera's distance is the cave's now
@@ -241,7 +246,8 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
   }
   cave.add(chest.root);
   scene.add(cave);
-  const chestFront = new THREE.Vector3(cx + fx * 1.3, groundY(cx + fx * 1.3, cz + fz * 1.3), cz + fz * 1.3);
+  const ox = Math.sin(toMiddle) * 1.3, oz = Math.cos(toMiddle) * 1.3;
+  const chestFront = new THREE.Vector3(cx + ox, groundY(cx + ox, cz + oz), cz + oz);
   function openChest() {
     if (found(CAVE_FLAG)) return;
     chest.once('Chest_Open', 'Chest_Open');
@@ -433,6 +439,6 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
       if (left(save, 'tiny') > 0 && d < FAIRY_RING.r + 3 && (sparkT += dt) > 0.3) { sparkT = 0; g.sparks.burst(g.above(hp, 0.4), '#ffc4ec', 3, 0.8); }
     },
     animate: (dt) => { chest.update(dt); },
-    debug: { song: () => song, trampoline: tAt, roof: { x: house.x, z: house.z, y: roofY } },
+    debug: { song: () => song, trampoline: tAt, roof: { x: house.x, z: house.z, y: roofY }, chest: { x: cx, z: cz } },
   };
 }
