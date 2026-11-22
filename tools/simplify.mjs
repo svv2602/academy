@@ -19,8 +19,9 @@ export const SIMPLIFIED = [
   // tools/usd2glb.py writes the kit's model (RockPathRoundSmall_N), this then simplifies it in place
   ...[1, 2, 3].map((n) => ({ from: `nature2/RockPathRoundSmall${n}.glb`, to: `nature2/RockPathRoundSmall${n}.glb`, keep: ['POSITION', 'TEXCOORD_0'], ratio: 0.25, error: 0.01, smooth: true })),
   // the far ring of the first world (64-120 m away, in the fog, flat colours): copies of their own - the hub and the
-  // forest draw the kit's trees near; no normals kept, src/core/assets.ts staticGeo gives every face its own (flat)
-  ...['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4', 'PineTree_1'].map((n) => ({ from: `nature_pack/${n}.glb`, to: `nature_pack/${n}_far.glb`, keep: ['POSITION'], ratio: 0.35, error: 0.01, smooth: false })),
+  // forest draw the kit's trees near; no normals kept, src/core/assets.ts staticGeo gives every face its own (flat). Not
+  // the spruce: the core would then ship the kit's PineTree_1 for the forest alone, which loads the core's models only
+  ...['CommonTree_1', 'CommonTree_2', 'CommonTree_3', 'CommonTree_4'].map((n) => ({ from: `nature_pack/${n}.glb`, to: `nature_pack/${n}_far.glb`, keep: ['POSITION'], ratio: 0.35, error: 0.01, smooth: false })),
 ];
 
 const triangles = (doc) => doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())

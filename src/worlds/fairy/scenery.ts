@@ -38,11 +38,12 @@ const OAK = 0;
 /** m: a tree of the acorns takes the place of the near tree of the valley within this of it. */
 export const ACORN_SWAP = 20;
 /**
- * The far ring: the kit's trees simplified (tools/simplify.mjs, `_far`; a third to a half of their triangles), 64 m and
+ * The far ring: the kit's leafy trees simplified (tools/simplify.mjs, `_far`; under a half of their triangles), 64 m and
  * more from the play area and in the fog - the hub and the forest draw the kit's own near (docs/perf.md, 2026-11-22).
+ * The spruce stays the kit's: no other model of the core takes it, the forest does (its trees are the core's).
  */
 const FAR_TREES: readonly (readonly [string, number, Record<string, string>?])[] = [
-  ['nature_pack/CommonTree_1_far', 7.5], ['nature_pack/CommonTree_2_far', 8], ['nature_pack/CommonTree_3_far', 6.5], ['nature_pack/PineTree_1_far', 8.5],
+  ['nature_pack/CommonTree_1_far', 7.5], ['nature_pack/CommonTree_2_far', 8], ['nature_pack/CommonTree_3_far', 6.5], ['nature_pack/PineTree_1', 8.5],
   ['nature_pack/CommonTree_4_far', 6.5, { Green: '#ffb7d5', DarkGreen: '#f794bd' }],
 ];
 
