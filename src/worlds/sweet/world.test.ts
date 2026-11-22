@@ -1,0 +1,95 @@
+// @vitest-environment happy-dom
+/**
+ * The Sweet Land as the registry and the shared code see it (./index.ts, docs/worlds/world-4.md): its place on the shelf,
+ * its five characters with three tasks each by the document's table, the stand-ins of the tasks the world plays in a
+ * later step, the two rubies that lie in the world, and its description of a grey build (src/game/describe.ts).
+ */
+import { describe, expect, it, vi } from 'vitest';
+import { declared, inWorldSteps, marked, missing, problems } from '../../game/describe';
+import { isSkillStep } from '../../game/tasks';
+import { SKILL } from '../../game/taskviews/panel';
+import type { WorldItem } from '../../game/world';
+import { FINALE, FRIENDS, LATER_IN_WORLD, RUBIES, sweet } from './index';
+import { SHRINE, ZONES } from './layout';
+import { strings } from './strings';
+
+// the world's module draws the glow of the sparks on a canvas as it loads (src/game/fx.ts): not needed here
+vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
+
+/** The skill a step of a chain trains: a skill named by the step, or the skill of its task type. */
+const skillOf = (step: string) => (isSkillStep(step) ? step : (SKILL as Record<string, string>)[step]);
+
+describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
+  it('is the third place of the shelf: the hub\'s arch of shelf 3 leads to it', () => {
+    expect(sweet.id).toBe('sweet');
+    expect(sweet.shelf).toBe(3);
+    expect(sweet.move).toBeUndefined();   // she walks: the land has ground under her feet
+    expect(sweet.arrive?.('hub')).not.toBeNull();
+  });
+
+  it('five characters, each with three tasks of the table of docs/worlds/world-4.md, all of them panel tasks the game has', () => {
+    expect(FRIENDS.map((c) => c.id)).toEqual(['pastila', 'imbir', 'tyanuchka', 'kakao', 'polosatik']);
+    const want: Record<string, string[]> = {
+      pastila: ['add', 'compose', 'compare'],            // addition to 20, the composition of a number, comparing
+      imbir: ['count', 'pattern', 'compose'],            // counting by tens, the pattern, the house (WORLD-21: no skill, the number house now)
+      tyanuchka: ['sub', 'classify', 'compare'],         // subtraction to 20, sorting, the scales (WORLD-22)
+      kakao: ['classify', 'memory', 'compare'],          // the shape bridge (WORLD-20), memory, comparing by signs
+      polosatik: ['memory', 'series', 'add'],            // pairs, the number line, addition
+    };
+    for (const c of FRIENDS) {
+      const tasks = c.steps.filter((s) => s !== 'part');
+      expect(tasks.map(skillOf), c.id).toEqual(want[c.id]);
+      for (const s of tasks) expect(skillOf(s), `${c.id}: ${s}`).toBeTruthy();
+    }
+    expect(FRIENDS.find((c) => c.id === 'kakao')!.steps).toContain('signs');
+  });
+
+  it('a task the world plays later stands in now as the panel task of the same skill, at its step', () => {
+    for (const l of LATER_IN_WORLD) {
+      const c = FRIENDS.find((f) => f.id === l.owner)!;
+      expect(c.steps[l.step], `${l.owner} ${l.card}`).toBe(l.now);
+      if (l.skill) expect(skillOf(l.now), l.card).toBe(l.skill);
+    }
+    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual(['WORLD-20', 'WORLD-21', 'WORLD-22']);
+    // none is played in the world yet: no world task declared, no chain names one
+    expect(sweet.worldTasks).toBeUndefined();
+    for (const c of FRIENDS) expect(inWorldSteps(c, sweet.worldTasks)).toEqual([]);
+  });
+
+  it('rubies 2 and 4 lie in the world, at the end of the chains of Imbir and Kakao (WORLD-08); the other three are given', () => {
+    expect(RUBIES.map((r) => [r.owner, r.flag])).toEqual([['imbir', 'ruby_house'], ['kakao', 'ruby_mill']]);
+    for (const c of FRIENDS) {
+      const lies = RUBIES.some((r) => r.owner === c.id);
+      expect(c.steps.includes('part'), c.id).toBe(lies);
+      if (lies) expect(c.steps.at(-1), c.id).toBe('part');
+    }
+  });
+
+  it('its description is the one of a grey build: five chains, two parts, the tour and the finale, nothing that disagrees', () => {
+    const ws = { quests: {}, flags: {}, final: false };
+    const tour = marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => false });
+    const parts = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: r.at }));
+    const before = [...declared({ world: sweet, ws }), tour, ...parts];
+    const items: WorldItem[] = [...before, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
+    expect(problems(sweet, items)).toEqual([]);
+    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 0, pet: 0, scene: 0 })).toEqual([]);
+  });
+
+  it('every character stands in its zone, the heroine\'s place before it free of the ways\' ends', () => {
+    const home: Record<string, keyof typeof ZONES> = { pastila: 'square', imbir: 'town', tyanuchka: 'market', kakao: 'mill', polosatik: 'garden' };
+    for (const c of FRIENDS) {
+      const z = ZONES[home[c.id]];
+      expect(Math.hypot(c.x - z.x, c.z - z.z), c.id).toBeLessThan(5);
+    }
+  });
+
+  it('its texts in both languages: the subtitle and the five names, the Ukrainian ones of the customer\'s decision', () => {
+    const { uk, ru } = strings.table;
+    expect(Object.keys(ru).sort()).toEqual(Object.keys(uk).sort());
+    expect([uk.subtitle, ru.subtitle]).toEqual(['Солодка країна', 'Сладкая страна']);
+    expect(FRIENDS.map((c) => uk[`sweet_name_${c.id}` as keyof typeof uk])).toEqual(['Пастила', 'Імбир', 'Тягучка', 'Какао', 'Смугастик']);
+    expect(FRIENDS.map((c) => ru[`sweet_name_${c.id}` as keyof typeof ru])).toEqual(['Пастила', 'Имбирь', 'Тянучка', 'Какао', 'Полосатик']);
+    // the grey build speaks nothing of its own: no line to record
+    expect(strings.spoken).toEqual({});
+  });
+});

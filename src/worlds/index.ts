@@ -10,11 +10,12 @@ import { hub } from './hub';
 // The hub (./hub, WORLD-01) is the home between the worlds: part of the installation (INSTALLED below).
 // The forest (./forest, WORLD-02) is in its grey build (WORLD-12): listed only in a build or a dev server made with
 // `--mode grey` (tools/forest-grey.mjs), never in the published game, until the customer has taken the grey build.
-// The sea (./sea, WORLD-03) likewise, in its grey build (tools/sea-grey.mjs).
+// The sea (./sea, WORLD-03) likewise, in its grey build (tools/sea-grey.mjs), and the Sweet Land (./sweet, WORLD-04)
+// in its grey build too (tools/sweet-grey.mjs): the hub's arch of its place (shelf 3) wakes once the sea is done.
 export const WORLDS = [
   fairy, hub,
   ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : []),
-  ...(import.meta.env.MODE === 'grey' ? [(await import('./forest')).forest, (await import('./sea')).sea] : []),
+  ...(import.meta.env.MODE === 'grey' ? [(await import('./forest')).forest, (await import('./sea')).sea, (await import('./sweet')).sweet] : []),
 ];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';

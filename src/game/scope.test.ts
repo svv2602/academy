@@ -586,7 +586,7 @@ describe('a world undoes what it keeps outside its scene (TECH-15): a second ent
   it('a list of the module (the colliders) is emptied through the scope', () => {
     // The scope clears the scene, not an array a module holds: left alone, every entry would add each prop again.
     const worlds = [...new Set(WORLD_SOURCES.filter((s) => /\bcolliders\.push\(/.test(s.text)).map((s) => worldOf(s.path)))].sort();
-    expect(worlds).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
+    expect(worlds).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea', 'sweet']);
     for (const w of worlds) expect(index(w), `src/worlds/${w}/index.ts`).toMatch(/scope\.own\(\(\) => \{ colliders\.length = 0; \}\)/);
   });
 

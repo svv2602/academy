@@ -818,9 +818,9 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(steps(pages.jobs.worlds)).toBe(steps(workflow('ci.yml').jobs.worlds));
   });
 
-  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" is a job for each part of tools/worlds.mjs (before a publication: but hub-grey), none left out, and one failed part does not stop the others', (name) => {
+  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" is a job for each part of tools/worlds.mjs (before a publication: but the grey build\'s, hub-grey and sweet-grey), none left out, and one failed part does not stop the others', (name) => {
     const worlds = workflow(name).jobs.worlds;
-    // before a publication all but the grey build's part (tools/worlds.mjs PUBLISH_PARTS)
+    // before a publication all but the grey build's parts (tools/worlds.mjs PUBLISH_PARTS)
     expect(yamlList(/^ {8}part: (\[.*\])$/m.exec(worlds)[1])).toEqual(name === 'pages.yml' ? PUBLISH_PARTS : PARTS);
     expect(worlds).toContain('    strategy:\n      fail-fast: false\n      matrix:\n        part: [');
     expect(key(worlds, 'name')).toBe('worlds (probe world, ${{ matrix.part }})');

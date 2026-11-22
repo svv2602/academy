@@ -7,6 +7,7 @@ vi.mock('./hub', () => ({ hub: { id: 'hub' } }));
 vi.mock('./probe', () => ({ probe: { id: 'probe', shelf: 1, test: true } }));
 vi.mock('./forest', () => ({ forest: { id: 'forest', shelf: 1 } }));
 vi.mock('./sea', () => ({ sea: { id: 'sea', shelf: 2 } }));
+vi.mock('./sweet', () => ({ sweet: { id: 'sweet', shelf: 3 } }));
 const RAW = import.meta.glob(['./index.ts', './*/index.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 /** The registry as a build of `mode` makes it. */
@@ -34,12 +35,12 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
-  it('a build or a dev server made with --mode grey lists the forest and the sea of the grey build (WORLD-12), still playing the Fairy Kingdom', async () => {
+  it('a build or a dev server made with --mode grey lists the forest, the sea and the Sweet Land of the grey build (WORLD-12), still playing the Fairy Kingdom', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('grey');
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea', 'sweet']);
     expect(DEFAULT_WORLD).toBe('fairy');
-    expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea)['"]/m);
-    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/forest'\)\)\.forest, \(await import\('\.\/sea'\)\)\.sea\] : \[\]/);
+    expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea|sweet)['"]/m);
+    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/forest'\)\)\.forest, \(await import\('\.\/sea'\)\)\.sea, \(await import\('\.\/sweet'\)\)\.sweet\] : \[\]/);
   });
 
   it.each(['test', 'probe', 'grey'])('in the mode "%s" no id is listed twice and the default world is listed', async (mode) => {
@@ -54,6 +55,8 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     ['grey', [], ['fairy', null, null, null, null]],
     ['grey', ['fairy'], ['fairy', 'forest', null, null, null]],
     ['grey', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
+    // the Sweet Land's arch (shelf 3) sleeps until the sea is done
+    ['grey', ['fairy', 'forest', 'sea'], ['fairy', 'forest', 'sea', 'sweet', null]],
     ['probe', ['fairy'], ['fairy', 'probe', null, null, null]],
   ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game the fairies\' alone)', async (mode, done, open) => {
     const { WORLDS } = await registry(mode);
@@ -63,10 +66,10 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
 
   it('the stand-ins above have the ids of the real worlds, each named after its folder', () => {
     const folders = Object.keys(RAW).filter((p) => p !== './index.ts').map((p) => p.split('/')[1]).sort();
-    expect(folders).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
+    expect(folders).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea', 'sweet']);
     for (const id of folders) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*id: '${id}',$`, 'm'));
     // and their places on the shelf (the arches of the hub)
-    for (const [id, shelf] of [['fairy', 0], ['probe', 1], ['forest', 1], ['sea', 2]] as const) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*shelf: ${shelf},`, 'm'));
+    for (const [id, shelf] of [['fairy', 0], ['probe', 1], ['forest', 1], ['sea', 2], ['sweet', 3]] as const) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*shelf: ${shelf},`, 'm'));
   });
 
   it('the probe world is reached only through the registry, by a dynamic import behind the mode of the build', () => {
@@ -100,7 +103,7 @@ describe('the folders of the worlds under public/ (TECH-09)', () => {
   });
 
   it.each(Object.keys(CORE_FOLDERS))('no world is named like a folder of the core under public/%s/', (kind) => {
-    expect(ids).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
+    expect(ids).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea', 'sweet']);
     expect(ids.filter((id) => CORE_FOLDERS[kind].includes(id))).toEqual([]);
   });
 
