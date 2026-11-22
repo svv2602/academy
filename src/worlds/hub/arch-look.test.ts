@@ -11,9 +11,9 @@ import { NESTS, PORTALS, TREE, trunkR } from './layout';
 /** A stand-in for Crystal2: no file is loaded in a unit test. */
 const fakeLoads = (): ArchLoads => ({ crystal: new THREE.OctahedronGeometry(0.3, 0) });
 
-const build = (leadsTo: (string | null)[]) => {
+const build = (leadsTo: (string | null)[], waking: number[] = []) => {
   const scene = new THREE.Scene(), blocks: { x: number; z: number; r: number }[] = [];
-  const look = buildArches(scene, leadsTo, (x, z, r) => { blocks.push({ x, z, r }); });
+  const look = buildArches(scene, leadsTo, (x, z, r) => { blocks.push({ x, z, r }); }, waking);
   return { scene, blocks, look };
 };
 
@@ -228,5 +228,62 @@ describe('the budget of the look (TECH-06)', () => {
       expect(d.triangles).toBeLessThanOrEqual(LOOK_BUDGET.triangles);
       console.log(`arches ${leadsTo.filter(Boolean).length} open: ${d.calls} calls, ${d.triangles} triangles`);
     }
+  });
+});
+
+describe('an arch waking (docs/worlds/hub.md, step 4)', () => {
+  const leads = ['fairy', 'forest', null, null, null];
+  it('asleep at first in meshes of its own: the vines and the sign there, no veil, no runes; 3 calls more than it awake at most', () => {
+    const { scene, look } = build(leads, [1]);
+    expect(look.wake!.shelves).toEqual([1]);
+    look.wake!.set(0);
+    const own = look.arches[1].group.children as THREE.Mesh[];
+    expect(own).toHaveLength(4);
+    const [stone, sign, veil, runes] = own;
+    expect(stone.geometry.getAttribute('aFall').array.some((v) => v === 1)).toBe(true);
+    expect(sign.visible).toBe(true); expect(veil.visible).toBe(false); expect(runes.visible).toBe(false);
+    // the merged meshes hold nothing of it yet
+    expect(near(look.stones, look.arches[1])).toHaveLength(0);
+    expect(near(look.veils, look.arches[1])).toHaveLength(0);
+    // its stone and sign while the vines fall (the sign it had asleep), its stone, veil and runes once the light comes
+    const awake = drawn(build(leads).scene).calls;
+    look.wake!.set(0.3);
+    expect(drawn(scene).calls).toBe(awake + 2);
+    look.wake!.set(0.8);
+    expect(drawn(scene).calls).toBe(awake + 3);
+  });
+
+  it('woken: the sign gone, the stone warm, the light on; done - one look with the others, as if it had been open', () => {
+    const { scene, look } = build(leads, [1]);
+    look.wake!.set(1);
+    const [, sign, veil, runes] = look.arches[1].group.children as THREE.Mesh[];
+    expect(sign.visible).toBe(false); expect(veil.visible).toBe(true); expect(runes.visible).toBe(true);
+    look.wake!.done();
+    expect(look.arches[1].group.children).toHaveLength(0);
+    const fresh = build(leads).look;
+    for (const k of ['stones', 'veils', 'runes'] as const) {
+      expect(look[k]!.geometry.getAttribute('position').count, k).toBe(fresh[k]!.geometry.getAttribute('position').count);
+      // the same vertices of the waking arch as of the open arch built at once
+      const a = near(look[k], look.arches[1]).map((v) => v.p.toArray().map((x) => x.toFixed(4)).join()).sort();
+      const b = near(fresh[k], fresh.arches[1]).map((v) => v.p.toArray().map((x) => x.toFixed(4)).join()).sort();
+      expect(a, k).toEqual(b);
+    }
+    expect(drawn(scene).calls).toBe(drawn(build(leads).scene).calls);
+  });
+
+  it('the sleeping stones and the open ones are the same stones: only the colour moves (aOpen), the vines fall (aFall 1), the grey crest gives way to the glowing one (aFall 2)', () => {
+    const { look } = build(leads, [1]);
+    const stone = (look.arches[1].group.children[0] as THREE.Mesh).geometry;
+    const fall = stone.getAttribute('aFall'), open = stone.getAttribute('aOpen'), col = stone.getAttribute('color'), pos = stone.getAttribute('position');
+    const base = Array.from(fall.array).findIndex((v) => v > 0);
+    expect(fall.getX(base)).toBe(2);
+    // the grey crest: over the keystone, where the glowing one will be
+    for (let i = base; i < fall.count && fall.getX(i) === 2; i++) expect(pos.getY(i)).toBeGreaterThan(CREST.y - 0.15);
+    expect(base).toBeGreaterThan(100);
+    // the stones warm: their open colour is lighter than the sleeping one; what falls keeps its own
+    let warmer = 0;
+    for (let i = 0; i < base; i++) if (open.getX(i) > col.getX(i)) warmer++;
+    expect(warmer).toBe(base);
+    for (let i = base; i < fall.count; i++) expect(open.getX(i)).toBe(col.getX(i));
   });
 });

@@ -9,7 +9,7 @@ import { createFlyover, pathProblems } from '../../game/flyover';
 import { SHELF } from '../../ui/book';
 import { HUB_FLYOVER } from './flyover-path';
 import { ARRIVE_IN, NESTS, PORTALS, PORTAL_R, RADIUS, TREE, arrivalAt, trunkR } from './layout';
-import { openArches, portalWorlds } from './portals';
+import { openArches, portalWorlds, wakingArches, woke } from './portals';
 import { strings } from './strings';
 
 describe('the map of the hub', () => {
@@ -59,6 +59,16 @@ describe('the worlds behind the arches', () => {
     expect(openArches(['fairy', null, 'sea', null, null], done('fairy'))).toEqual(['fairy', null, 'sea', null, null]);
     // the published game: the fairies alone, whatever is done
     expect(openArches(['fairy', null, null, null, null], done('fairy', 'forest'))).toEqual(['fairy', null, null, null, null]);
+  });
+
+  it('an open arch not marked awake wakes as she comes in; the fairies\' never; a world\'s own flag of its word counts as awake', () => {
+    expect(wakingArches(['fairy', null, null, null, null], {})).toEqual([]);
+    expect(wakingArches(['fairy', 'forest', null, null, null], {})).toEqual([1]);
+    expect(wakingArches(['fairy', 'forest', null, null, null], { [woke(1)]: true })).toEqual([]);
+    expect(wakingArches(['fairy', 'forest', 'sea', null, null], { [woke(1)]: true })).toEqual([2]);
+    expect(wakingArches(['fairy', 'forest', 'sea', null, null], {})).toEqual([1, 2]);
+    expect(wakingArches(['fairy', 'forest', 'sea', null, null], { [woke(1)]: true, sea_wake: true }, { sea: 'sea_wake' })).toEqual([]);
+    expect(woke(2)).toBe('woke2');
   });
 });
 

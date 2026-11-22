@@ -12,7 +12,7 @@ import { travel } from '../../game/travel';
 import type { BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
 import { HUB_FLYOVER } from './flyover-path';
 import { PORTALS, RADIUS, arrivalAt } from './layout';
-import { openArches, portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
+import { openArches, portalWorlds, sleepingToSpeakOf, somethingNew, wakingArches, woke } from './portals';
 import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads, type TreeStage } from './tree-look';
@@ -28,8 +28,9 @@ import { petBlob, petCastsShadow } from './pet-shadow';
 import { rainbowRibbon } from '../../game/rainbow-trail';
 import { ringPlay } from './ring-play';
 import { stumpAt } from './tree-look';
-import { note } from '../../core/audio';
-import { buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
+import { note, sfx, speaking } from '../../core/audio';
+import { WAKE_S, buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
+import type { SpokenKey } from '../../ui/strings';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
 
 /**
@@ -221,7 +222,34 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     g.persist();
     sleep();
   };
-  const { arches: portals, update: breathe } = buildArches(scene, openArches(portalWorlds(knownWorlds()), doneIn(save)), ground.block);
+  const leadsTo = openArches(portalWorlds(knownWorlds()), doneIn(save));
+  const { arches: portals, update: breathe, wake } = buildArches(scene, leadsTo, ground.block, wakingArches(leadsTo, ws.flags));
+  // The arches whose world opened since she was last here wake once she is free and the cat silent (docs/worlds/hub.md, step 4): the
+  // vines fall, the stone warms, the veil and the runes light; the camera on the first of them, the controls held. Then
+  // the cat's word of that world's waking (hub_<world>_wake), if the hub has it. `hold` keeps it at a moment (?debug).
+  const waking = { t: 0, on: false, hold: null as number | null, end: null as (() => void) | null };
+  // the controls held as a scene of the world holds them (src/game/context.ts createStage): given back only in the
+  // entry it was taken in (a change of world gives them back itself)
+  const visit = g.visit;
+  const wakeUp = () => {
+    if (!wake) return;
+    const first = portals[wake.shelves[0]];
+    waking.on = true;
+    g.busy = true; g.auto = null;
+    g.cam.focus = new THREE.Vector3(first.x * 0.92, 2.6, first.z * 0.92);
+    sfx('chime');
+    waking.end = () => {
+      for (const shelf of wake.shelves) g.sparks.burst(new THREE.Vector3(portals[shelf].x, 2.4, portals[shelf].z), PORTALS[shelf].colour, 40, 3);
+      wake.done();
+      for (const shelf of wake.shelves) ws.flags[woke(shelf)] = true;
+      g.persist();
+      waking.on = false;
+      if (g.visit !== visit) return;
+      g.busy = false; g.cam.focus = null; g.hero.play('Idle');
+      const key = `hub_${first.world}_wake`;
+      if (key in strings.spoken) void g.speech.line(key as SpokenKey, 'hint', 6000);
+    };
+  };
   const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
   const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);
@@ -257,8 +285,15 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       },
       afterMove: (time, grounded) => gear.update(time, grounded),
       // By a sleeping arch the cat says its world sleeps (D) - once as she comes near, not while something else is said.
-      update: (_dt, _time, canMove) => {
+      update: (dt, _time, canMove) => {
         watchFeathers();
+        // once the cat is silent: after the tour's word, or the word she came in to
+        if (wake && !waking.on && waking.t === 0 && canMove && !g.busy && !flyoverOf(g)?.active && !speaking()) wakeUp();
+        if (waking.on && waking.end) {
+          waking.t = waking.hold ?? Math.min(1, waking.t + dt / WAKE_S);
+          wake!.set(waking.t);
+          if (waking.t >= 1 && waking.hold === null) { const end = waking.end; waking.end = null; end(); }
+        }
         if (!canMove || g.busy) return;
         const at = g.hero.root.position, shelf = sleepingToSpeakOf(at.x, at.z, sleeping, heard);
         if (shelf !== null) void g.speech.line('hub_sleeping', 'hint', 5000);
@@ -274,7 +309,9 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why) } },
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
+        // the arches waking (or woken) in this entry: how far, whether it plays; `hold(t)` keeps it at t, null lets it go
+        wake: (hold?: number | null) => { if (hold !== undefined) waking.hold = hold; return { shelves: wake?.shelves ?? [], t: waking.t, on: waking.on }; } } },
       talk: () => {},
       cheatWorld: () => '',
     },

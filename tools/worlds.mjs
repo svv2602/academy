@@ -1047,13 +1047,33 @@ async function hubScenarios({ url, shots, fail: report }) {
           await p.shot(`hub-tour-${i}.png`);
           if (i === 2) await p.shot('hub-tree-1.png');   // the tree over the glade, the crystal's nest on its side
         }
+        // the arch of the world that opened (the forest's: the probe world's) is held asleep to be pictured waking
+        await p.g(() => __game.hub.wake(0));
         await p.g(() => __game.flyoverPlayer.skip());
-        await p.inWorld('hub');
         told.push(`its tour on the first entry (${n} points pictured)`);
+      }
+      // where she arrived, read before the arch wakes (she turns to it as it does)
+      const arrived = await p.at();
+      // ---- the forest's arch wakes once she is free (docs/worlds/hub.md, step 4): pictured asleep, half, awake ----
+      {
+        await p.until(() => __game.hub.wake().on, null, 'one artifact: the forest\'s arch did not start to wake after the tour', 60000);
+        const w = await p.g(() => ({ ...__game.hub.wake(), busy: __game.busy, focus: !!__game.cam.focus }));
+        if (JSON.stringify(w.shelves) !== '[1]') fail(`one artifact: the arches waking are ${JSON.stringify(w.shelves)}, not the forest's alone`);
+        if (!w.busy || !w.focus) fail(`one artifact: while the arch wakes the controls are ${w.busy ? 'held' : 'free'} and the camera ${w.focus ? 'on it' : 'behind her'}`);
+        for (const [t, file] of [[0, 'hub-wake-0.png'], [0.5, 'hub-wake-1.png'], [1, 'hub-wake-2.png']]) {
+          await p.g((k) => __game.hub.wake(k), t);
+          await p.gameSeconds(0.6);
+          await p.shot(file);
+        }
+        await p.g(() => __game.hub.wake(null));
+        await p.inWorld('hub');
+        const after = await p.g(() => ({ flag: __game.save.worlds.hub?.flags?.woke1 === true, on: __game.hub.wake().on, focus: !!__game.cam.focus }));
+        if (!after.flag || after.on || after.focus) fail(`one artifact: after waking the flag woke1 is ${after.flag}, still waking: ${after.on}, the camera on the arch: ${after.focus}`);
+        told.push('the forest\'s arch woke after the tour, the controls held and the camera on it, marked woke1 (pictures hub-wake-0..2.png)');
       }
       const look = await p.g(() => ({ nests: __game.hub.nests(), portals: __game.hub.portals().map((x) => x.world), toured: __game.save.worlds.hub?.flags?.toured === true }));
       const lacks = await p.g((need) => __game.missing(need), HUB_NEED);
-      const pos = await p.at();
+      const pos = arrived;
       p.near(pos, HUB_ARRIVAL[0], 'come from the first world'); p.facing(pos, HUB_ARRIVAL[0].facing, 'come from the first world');
       if (JSON.stringify(look.nests) !== JSON.stringify([true, false, false, false, false])) fail(`one artifact: the nests ${JSON.stringify(look.nests)}, the crystal's alone should glow`);
       if (JSON.stringify(look.portals) !== JSON.stringify([FIRST_WORLD, PROBE, null, null, null])) fail(`one artifact: the arches lead to ${JSON.stringify(look.portals)}, not the fairies', the probe world behind the forest's and three asleep`);
@@ -1092,6 +1112,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       await p.inWorld('hub', true);
       if (await p.g(() => __game.flyoverPlayer?.active === true)) fail('one artifact: the tour of the hub played again on the second entry');
       await p.inWorld('hub');
+      if ((await p.g(() => __game.hub.wake().shelves.length)) !== 0) fail('one artifact: an arch woke again on the second entry');
       const back = await p.at();
       p.near(back, HUB_ARRIVAL[1], 'back from the probe world'); p.facing(back, HUB_ARRIVAL[1].facing, 'back from the probe world');
       told.push('through the forest\'s arch to the probe world and back to that arch, no second tour');
@@ -1120,6 +1141,8 @@ async function hubScenarios({ url, shots, fail: report }) {
       // nothing new (both open worlds done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
       // "the other worlds still sleep" (not the shared "new friends live here"), its clip in voice/hub/
       await p.inWorld('hub');
+      // the first entry of this save: the forest's arch wakes after the tour - let it
+      await p.until(() => { const w = __game.hub.wake(); return w.shelves.length === 0 || (w.t >= 1 && !w.on && !__game.busy); }, null, 'two artifacts: the forest\'s arch did not finish waking', 60000);
       const quiet = await p.g(() => ({ goal: __game.hub.goal(), tap: __game.hub.left('tap'), clip: __game.clipFor('hub_asleep') }));
       if (!quiet.goal || Math.hypot(quiet.goal.x - HUB_ARCH[0].x, quiet.goal.z - HUB_ARCH[0].z) > 0.5) fail(`two artifacts: with nothing new the sparkles lead to ${JSON.stringify(quiet.goal)}, not to the fairies' arch ${JSON.stringify(HUB_ARCH[0])}`);
       if (quiet.tap !== 'hub_asleep') fail(`two artifacts: with nothing new a tap on the cat says "${quiet.tap}", expected "hub_asleep"`);
@@ -1145,7 +1168,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       fw.found = [6, 7, 8, 9, 10, 11];   // the six acorns (src/worlds/fairy/collect.ts)
       fw.flags.pet = true; save.pets = ['fawn']; save.pet = 'fawn';   // the fawn chosen: it walks after her into the hub
       save.stash = { acorn: 3, feather: 1, mushroom: 1 };   // the finds to brew with (PLAY-26)
-      save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
+      save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true, woke1: true }, pos: null };
       const p = await open('keepsakes', save);
       await p.page.goto(`${url}?debug&world=hub${q}`);
       await p.play(false);
@@ -1270,7 +1293,7 @@ async function hubScenarios({ url, shots, fail: report }) {
         fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: true, pet: true };
         fw.found = Array.from({ length: 24 }, (_, i) => i);
         save.pets = ['fawn']; save.pet = 'fawn';
-        save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
+        save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true, woke1: true }, pos: null };
         const p = await open(`budget, stage ${stage}`, save);
         await p.page.goto(`${url}?debug&world=hub&hubStage=${stage}&q=2`);
         await p.play(false);
@@ -1287,6 +1310,27 @@ async function hubScenarios({ url, shots, fail: report }) {
         const n = await p.g(() => __game.renderer.info.render.calls);
         calls.push(`stage ${stage}: ${n}`);
         if (n > 80) fail(`budget: stage ${stage} with the fawn and every keepsake, q2: ${n} draw calls at the arrival, more than 80`);
+        await p.close();
+      }
+      // the most an arch waking adds (its stone, veil and runes of its own, src/worlds/hub/arch-look.ts): the forest's arch
+      // not marked awake, held at 0.8 (the light on, the vines not yet merged) - the frame of the camera on it
+      {
+        const save = HUB_SAVES.one();
+        const fw = save.worlds[FIRST_WORLD];
+        fw.flags = { ...(fw.flags ?? {}), chest: true, glade: true, house: true, pet: true };
+        fw.found = Array.from({ length: 24 }, (_, i) => i);
+        save.pets = ['fawn']; save.pet = 'fawn';
+        save.worlds.hub = { quests: {}, final: false, starsTaken: [], flags: { toured: true }, pos: null };
+        const p = await open('budget, waking', save);
+        await p.page.goto(`${url}?debug&world=hub&hubStage=1&q=2`);
+        await p.play(false);
+        await p.g(() => __game.hub.wake(0.8));
+        await p.until(() => { const card = !document.querySelector('#fanfare').classList.contains('hidden'); if (card) document.querySelector('#fanfareOk')?.click(); return __game.hub.wake().on; }, null, 'budget, waking: the forest\'s arch did not start to wake', 60000);
+        await p.gameSeconds(1);
+        const n = await p.g(() => __game.renderer.info.render.calls);
+        calls.push(`stage 1 while the forest's arch wakes: ${n}`);
+        if (n > 80) fail(`budget: stage 1 with the fawn and every keepsake, q2, while an arch wakes: ${n} draw calls, more than 80`);
+        await p.g(() => __game.hub.wake(null));
         await p.close();
       }
       told.push(`the budget of the hub with the fawn and every keepsake, q2, at the arrival: ${calls.join(', ')} draw calls (80 at most)`);

@@ -1,7 +1,7 @@
 // The way between the hub and the forest in the grey build (WORLD-01, docs/worlds/hub.md): played by
 // tools/forest-grey.mjs (its step 3b) and by tools/worlds.mjs as its part "hub-grey" (a job of CI), on dist-grey/
 // (`vite build --mode grey`, the registry lists the forest and the sea in that mode only). The phone size:
-//   - the first world done: in the hub the forest's arch is open, the sea's asleep (src/worlds/hub/portals.ts
+//   - the first world done: in the hub the forest's arch wakes and is open, the sea's asleep (src/worlds/hub/portals.ts
 //     openArches: an arch wakes once the world before it is done), the cat's sparkles lead to the forest's arch;
 //     through it by its action button into the forest, out of the arch of the Great Tree on its central glade
 //     (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
@@ -75,7 +75,11 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
     await page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) }); /* clock: page-load */
     await page.click('#play');
     await inWorld('hub');
-    return { ctx, page, g, until, inWorld, act, at, near, calls };
+    // the arches whose world opened wake once she is free (src/worlds/hub/index.ts): which, and let them
+    const woke = await g(() => __game.hub.wake().shelves);
+    await until(() => { const w = __game.hub.wake(); return w.shelves.length === 0 || (w.t >= 1 && !w.on && !__game.busy); }, null, 'the arches did not finish waking', 60000)
+      .catch(async (e) => { throw new Error(`${e.message}: ${JSON.stringify(await g(() => ({ wake: __game.hub.wake(), busy: __game.busy, paused: __game.paused, line: __game.line, tour: __game.flyoverPlayer?.active, started: typeof __game.started === 'function' ? __game.started() : null })))}`); });
+    return { ctx, page, g, until, inWorld, act, at, near, calls, woke };
   };
   const arches = (p) => p.g(() => __game.hub.portals().map((a) => a.world));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -84,6 +88,7 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
     {
       const name = 'the fairies done';
       const p = await open(name, HUB_SAVES.one());
+      if (JSON.stringify(p.woke) !== '[1]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's`);
       const open1 = await arches(p);
       if (!same(open1, ['fairy', 'forest', null, null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open1)}, not the fairies' and the forest's (the sea's asleep until the forest is done)`);
       const goal = await p.g(() => __game.hub.goal());
@@ -105,7 +110,7 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
       await p.inWorld('hub');
       p.near(await p.at(), HUB_ARRIVAL[1], 'back in the hub');
       await p.page.screenshot({ path: join(shots, 'way-hub-back.png') });
-      told.push(`the fairies done: the forest's arch open, the sea's asleep, the sparkles to the forest's arch, ${n} draw calls at the arrival; through it into the forest out of the arch of the Great Tree, back to the hub at the forest's arch`);
+      told.push(`the fairies done: the forest's arch woke and is open, the sea's asleep, the sparkles to the forest's arch, ${n} draw calls at the arrival; through it into the forest out of the arch of the Great Tree, back to the hub at the forest's arch`);
       await p.ctx.close();
     }
     // ---- the forest done too: the sea's arch open as well ----
@@ -114,12 +119,13 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
       const save = HUB_SAVES.one();
       save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const p = await open(name, save);
+      if (JSON.stringify(p.woke) !== '[1,2]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's and the sea's`);
       const open2 = await arches(p);
       if (!same(open2, ['fairy', 'forest', 'sea', null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open2)}, not the fairies', the forest's and the sea's`);
       const n = await p.calls();
       if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with three arches open, more than 80`);
       await p.page.screenshot({ path: join(shots, 'way-hub-three-open.png') });
-      told.push(`the forest done: the sea's arch open too, ${n} draw calls at the arrival`);
+      told.push(`the forest done: the forest's and the sea's arches woke, the sea's open too, ${n} draw calls at the arrival`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----

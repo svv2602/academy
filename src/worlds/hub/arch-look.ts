@@ -353,6 +353,7 @@ void main() {
 }`;
 const VEIL_FRAG = /* glsl */ `
 uniform float uTime;
+uniform float uShow;
 uniform float uPhase;
 uniform vec3 uColour;
 varying vec2 vP;
@@ -374,7 +375,7 @@ void main() {
   float alpha = (0.26 + 0.2 * glow + 0.22 * core + 0.3 * rim) * (0.7 + 0.3 * breathe);
   // the very edge melts into the stones
   alpha *= smoothstep(0.0, 0.06, inside);
-  gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.9));
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 0.9) * uShow);
   #include <colorspace_fragment>
 }`;
 
@@ -383,7 +384,7 @@ const veilTime = { value: 0 };
 
 function veilMaterial(colour: string, phase: number) {
   return new THREE.ShaderMaterial({
-    uniforms: { uTime: veilTime, uPhase: { value: phase }, uColour: { value: new THREE.Color(colour) } },
+    uniforms: { uTime: veilTime, uShow: { value: 1 }, uPhase: { value: phase }, uColour: { value: new THREE.Color(colour) } },
     vertexShader: VEIL_VERT,
     fragmentShader: VEIL_FRAG,
     transparent: true,
@@ -422,14 +423,22 @@ interface ArchParts {
   stones: THREE.BufferGeometry;
   /** An open arch's runes and its crest, white (the glow's colour is the arch's). */
   runes: THREE.BufferGeometry | null;
+  /**
+   * The vertices of the stones themselves, first in `stones`: the same in an open and a sleeping arch of the same seed
+   * (only their colour differs); after them a sleeping one's grey crest (`crest` vertices), vines and the sign's wood.
+   */
+  base: number;
+  crest: number;
 }
 
 function archParts(a: ArchSpec): ArchParts {
   const rnd = seeded(a.seed);
   const parts = archStones(rnd, new THREE.Color(a.open ? COLOURS.open : COLOURS.sleeping), true);
+  const base = parts.reduce((n, g) => n + g.getAttribute('position').count, 0);
   // the crest on the keystone: grey stone on a sleeping arch (in its stones), glowing with the runes on an open one
   const crest = a.crest.applyMatrix4(place(0, CREST.y, 0));
   if (!a.open) parts.push(bake(crest, _m.identity(), new THREE.Color(COLOURS.crest)));
+  const crestN = a.open ? 0 : parts[parts.length - 1].getAttribute('position').count;
   if (!a.open) {
     const stem = new THREE.Color(COLOURS.stem), leaf = new THREE.Color(COLOURS.leaf), wood = new THREE.Color(COLOURS.wood);
     parts.push(...vine(rnd, -1, stem, leaf), ...vine(rnd, 1, stem, leaf));
@@ -445,7 +454,7 @@ function archParts(a: ArchSpec): ArchParts {
     runes = mergeGeometries(glyphs, false)!;
     for (const g of glyphs) g.dispose();
   }
-  return { stones, runes };
+  return { stones, runes, base, crest: crestN };
 }
 
 /** The sign of a sleeping arch: its picture on a plane beside it, facing the side she comes from. */
@@ -552,6 +561,73 @@ const filled = (n: number, v: readonly number[]) => {
   return new THREE.BufferAttribute(a, v.length);
 };
 
+/** The open parts of one arch in the world, ready to merge: its stones, its runes (coloured, phased) and its veil. */
+function openParts(spec: ArchSpec, group: THREE.Object3D, own = archParts(spec)) {
+  const colour = new THREE.Color(spec.colour);
+  const runes = own.runes!;
+  // the glow's colour in the vertices (white runes times the arch's colour, as one arch's material colours them)
+  const col = runes.getAttribute('color') as THREE.BufferAttribute;
+  for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * colour.r, col.getY(i) * colour.g, col.getZ(i) * colour.b);
+  runes.setAttribute('aPhase', filled(col.count, [spec.phase]));
+  const veil = new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H).toNonIndexed();
+  const pos = veil.getAttribute('position'), n = pos.count, at = new Float32Array(n * 2);
+  // the point in the passage, as one veil's shader reads it off its plane
+  for (let i = 0; i < n; i++) { at[i * 2] = pos.getX(i); at[i * 2 + 1] = pos.getY(i) + VEIL_H / 2; }
+  veil.setAttribute('aP', new THREE.BufferAttribute(at, 2));
+  veil.setAttribute('aColour', filled(n, [colour.r, colour.g, colour.b]));
+  veil.setAttribute('aPhase', filled(n, [spec.phase]));
+  veil.deleteAttribute('normal'); veil.deleteAttribute('uv');
+  return {
+    stones: own.stones.applyMatrix4(group.matrixWorld),
+    runes: runes.applyMatrix4(group.matrixWorld),
+    veil: veil.applyMatrix4(veilPlace().premultiply(group.matrixWorld)),
+  };
+}
+
+/** s: how long an arch takes to wake (WORLD-01, hub.md «Сценарий первого входа», step 4). */
+export const WAKE_S = 2.5;
+/** Where in the awakening each part moves (of 0..1): the vines fall first, the stone warms, the light comes last. */
+export const WAKE = { fall: [0, 0.55], warm: [0.15, 0.7], light: [0.45, 1] } as const;
+const along = (t: number, [a, b]: readonly [number, number]) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+
+/**
+ * The stone of an arch waking (`buildArches` with `waking`): its sleeping stones warming into the open ones' colour
+ * (`aOpen`), its vines and the sign's wood (`aFall` 1) sinking and thinning away, its grey crest (`aFall` 2) thinning
+ * where it stands as the glowing crest comes - by the uniforms set from the awakening's time. The same faceted vertex-coloured stone as every arch's, dissolving at the lens.
+ */
+function wakeStoneMaterial(fall: { value: number }, warm: { value: number }, lit: { value: number }): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, flatShading: true });
+  m.onBeforeCompile = (sh) => {
+    fadeAtCamera(sh);
+    sh.uniforms.uFall = fall; sh.uniforms.uWarm = warm; sh.uniforms.uLight = lit;
+    sh.vertexShader = 'attribute vec3 aOpen;\nattribute float aFall;\nuniform float uFall;\nuniform float uWarm;\nvarying float vFall;\n' + sh.vertexShader
+      .replace('#include <color_vertex>', '#include <color_vertex>\n  vColor.rgb = mix(vColor.rgb, aOpen, uWarm);\n  vFall = aFall;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed.y -= (aFall > 0.5 && aFall < 1.5 ? 1.0 : 0.0) * uFall * uFall * 1.6;');
+    sh.fragmentShader = 'uniform float uFall;\nuniform float uLight;\nvarying float vFall;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  if (vFall > 0.5) {
+    // the 4x4 ordered dither of the fade at the lens (src/core/materials.ts fadeGlsl): it thins evenly
+    ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
+    int k = q.x + q.y * 4;
+    float bayer = float(k == 0 ? 0 : k == 1 ? 8 : k == 2 ? 2 : k == 3 ? 10 : k == 4 ? 12 : k == 5 ? 4 : k == 6 ? 14 : k == 7 ? 6
+      : k == 8 ? 3 : k == 9 ? 11 : k == 10 ? 1 : k == 11 ? 9 : k == 12 ? 15 : k == 13 ? 7 : k == 14 ? 13 : 5) / 16.0 + 1.0 / 32.0;
+    // the vines and the wood go with the fall, the grey crest as the glowing one comes in its place
+    if ((vFall > 1.5 ? 1.0 - uLight : 1.0 - uFall) < bayer) discard;
+  }`);
+  };
+  m.customProgramCacheKey = () => 'arch-stone|fade|wake';
+  return m;
+}
+
+/** An arch waking now: its own meshes until `done` takes it into the merged ones of the hub. */
+export interface ArchWake {
+  /** The places of the shelf waking. */
+  readonly shelves: readonly number[];
+  /** How far the awakening is (0 asleep .. 1 open): the vines fall, the stone warms, the light comes. */
+  set(t: number): void;
+  /** The awakening over: the arches are taken into the merged meshes, their own meshes gone - one look with the rest. */
+  done(): void;
+}
+
 /**
  * The five arches round the tree: open ones breathe in their colour - the veil, the keystone and the runes - the
  * others sleep, grey and under vines, with the sign of their world. `block` gets the posts of every arch.
@@ -560,35 +636,56 @@ const filled = (n: number, v: readonly number[]) => {
  * the veils of the open ones one mesh, their runes one mesh; a sleeping arch's sign is its own (its own picture). Each
  * arch is built exactly as `buildArch` builds it (the same seeded stones), then taken into the world by its group's
  * place and turn.
+ *
+ * `waking`: open arches (places of the shelf) that wake now (./index.ts: the world behind them opened since the last
+ * entry). Each stands asleep in meshes of its own - its stone with the vines (one mesh: `wakeStoneMaterial`), its
+ * sign, its veil and runes unseen - and `wake.set(t)` moves it to open; `wake.done()` merges it with the others.
+ * While it wakes it costs 3 calls more than awake at most (its stone, veil and runes; its sign, which it had asleep,
+ * is gone before the light comes) and 2 in the shadow pass (its stone and runes).
  */
-export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null)[], block: (x: number, z: number, r: number) => void) {
+export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null)[], block: (x: number, z: number, r: number) => void, waking: readonly number[] = []) {
   const stoneParts: THREE.BufferGeometry[] = [], runeParts: THREE.BufferGeometry[] = [], veilParts: THREE.BufferGeometry[] = [];
+  const fall = { value: 0 }, warm = { value: 0 }, lit = { value: 0 };
+  const wakers: { group: THREE.Group; own: THREE.Mesh[]; sign: THREE.Mesh; veil: THREE.Mesh; runes: THREE.Mesh; glow: THREE.MeshStandardMaterial; phase: number; parts: ReturnType<typeof openParts> }[] = [];
   const arches: Arch[] = PORTALS.map((p) => {
     const world = leadsTo[p.shelf] ?? null, open = world !== null;
     const spec: ArchSpec = { x: p.x, z: p.z, facing: p.facing, colour: p.colour, icon: p.icon, crest: crestShape(p.shelf), open, seed: 101 + p.shelf * 7919, phase: p.shelf * 1.3 };
     const group = archGroup(spec, block);
     group.updateMatrixWorld(true);
-    const { stones, runes } = archParts(spec);
-    stoneParts.push(stones.applyMatrix4(group.matrixWorld));
-    const colour = new THREE.Color(p.colour);
-    if (runes) {
-      // the glow's colour in the vertices (white runes times the arch's colour, as one arch's material colours them)
-      const col = runes.getAttribute('color') as THREE.BufferAttribute;
-      for (let i = 0; i < col.count; i++) col.setXYZ(i, col.getX(i) * colour.r, col.getY(i) * colour.g, col.getZ(i) * colour.b);
-      runes.setAttribute('aPhase', filled(col.count, [spec.phase]));
-      runeParts.push(runes.applyMatrix4(group.matrixWorld));
+    if (open && waking.includes(p.shelf)) {
+      // asleep in meshes of its own; its open parts kept to be merged when it is awake
+      const parts = openParts(spec, group);
+      const asleep = archParts({ ...spec, crest: crestShape(p.shelf), open: false });
+      const g = asleep.stones, n = g.getAttribute('position').count, opened = parts.stones.getAttribute('color');
+      const aOpen = new Float32Array(n * 3), aFall = new Float32Array(n), col = g.getAttribute('color');
+      for (let i = 0; i < n; i++) {
+        const c = i < asleep.base ? opened : col;
+        aOpen[i * 3] = c.getX(i); aOpen[i * 3 + 1] = c.getY(i); aOpen[i * 3 + 2] = c.getZ(i);
+        aFall[i] = i < asleep.base ? 0 : i < asleep.base + asleep.crest ? 2 : 1;
+      }
+      g.setAttribute('aOpen', new THREE.BufferAttribute(aOpen, 3)); g.setAttribute('aFall', new THREE.BufferAttribute(aFall, 1));
+      const stone = new THREE.Mesh(g, wakeStoneMaterial(fall, warm, lit));
+      stone.castShadow = true; stone.receiveShadow = true;
+      group.add(stone);
+      const sign = archSign(spec);
+      group.add(sign);
+      const veil = new THREE.Mesh(new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H), veilMaterial(spec.colour, spec.phase));
+      veil.position.y = VEIL_H / 2; veil.rotation.y = Math.PI; veil.renderOrder = 1; veil.visible = false;
+      (veil.material as THREE.ShaderMaterial).uniforms.uShow.value = 0;
+      group.add(veil);
+      const glow = new THREE.MeshStandardMaterial({ color: spec.colour, emissive: spec.colour, emissiveIntensity: 0, roughness: 0.4, flatShading: true, transparent: true, opacity: 0 });
+      // the runes in the arch's own frame: the merged copy is in the world's
+      const runes = new THREE.Mesh(parts.runes.clone().applyMatrix4(group.matrixWorld.clone().invert()), glow);
+      runes.castShadow = true; runes.visible = false;
+      group.add(runes);
+      wakers.push({ group, own: [stone, sign, veil, runes], sign, veil, runes, glow, phase: spec.phase, parts });
+    } else if (open) {
+      const parts = openParts(spec, group);
+      stoneParts.push(parts.stones); runeParts.push(parts.runes); veilParts.push(parts.veil);
+    } else {
+      stoneParts.push(archParts(spec).stones.applyMatrix4(group.matrixWorld));
+      group.add(archSign(spec));
     }
-    if (open) {
-      const veil = new THREE.PlaneGeometry(ARCH.inner * 2, VEIL_H).toNonIndexed();
-      const pos = veil.getAttribute('position'), n = pos.count, at = new Float32Array(n * 2);
-      // the point in the passage, as one veil's shader reads it off its plane
-      for (let i = 0; i < n; i++) { at[i * 2] = pos.getX(i); at[i * 2 + 1] = pos.getY(i) + VEIL_H / 2; }
-      veil.setAttribute('aP', new THREE.BufferAttribute(at, 2));
-      veil.setAttribute('aColour', filled(n, [colour.r, colour.g, colour.b]));
-      veil.setAttribute('aPhase', filled(n, [spec.phase]));
-      veil.deleteAttribute('normal'); veil.deleteAttribute('uv');
-      veilParts.push(veil.applyMatrix4(veilPlace().premultiply(group.matrixWorld)));
-    } else group.add(archSign(spec));
     scene.add(group);
     return { ...p, world, at: new THREE.Vector3(p.x, 0, p.z), group };
   });
@@ -597,9 +694,9 @@ export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null
   stones.castShadow = true; stones.receiveShadow = true;
   scene.add(stones);
   let veils: THREE.Mesh | null = null, runes: THREE.Mesh | null = null;
-  if (veilParts.length) {
+  const makeLight = () => {
     veils = new THREE.Mesh(merged(veilParts), new THREE.ShaderMaterial({
-      uniforms: { uTime: veilTime }, vertexShader: VEILS_VERT, fragmentShader: VEILS_FRAG,
+      uniforms: { uTime: veilTime, uShow: { value: 1 } }, vertexShader: VEILS_VERT, fragmentShader: VEILS_FRAG,
       transparent: true, depthWrite: false, side: THREE.FrontSide,
     }));
     veils.renderOrder = 1;
@@ -607,13 +704,47 @@ export function buildArches(scene: THREE.Scene, leadsTo: readonly (string | null
     runes = new THREE.Mesh(merged(runeParts), runesMaterial());
     runes.castShadow = true;
     scene.add(runes);
-  }
+  };
+  if (veilParts.length) makeLight();
+  let light = 0;
+  const wake: ArchWake | null = wakers.length ? {
+    shelves: PORTALS.filter((p) => waking.includes(p.shelf) && leadsTo[p.shelf] != null).map((p) => p.shelf),
+    set(t) {
+      fall.value = along(t, WAKE.fall); warm.value = along(t, WAKE.warm); lit.value = light = along(t, WAKE.light);
+      for (const w of wakers) {
+        // the sign sinks and shrinks with the vines
+        const k = 1 - fall.value;
+        w.sign.scale.setScalar(Math.max(k, 0.001)); w.sign.position.y = SIGN.y - (1 - k) * 1.2; w.sign.visible = k > 0.01;
+        w.veil.visible = w.runes.visible = light > 0;
+        (w.veil.material as THREE.ShaderMaterial).uniforms.uShow.value = light;
+        w.glow.opacity = light; w.glow.transparent = light < 1;
+      }
+    },
+    done() {
+      for (const w of wakers) {
+        for (const o of w.own) { w.group.remove(o); o.geometry.dispose(); const m = o.material as THREE.Material & { map?: THREE.Texture | null }; m.map?.dispose(); m.dispose(); }
+        stoneParts.length = runeParts.length = veilParts.length = 0;
+        const grow = (mesh: THREE.Mesh, add: THREE.BufferGeometry) => { const old = mesh.geometry; mesh.geometry = merged([old.clone(), add]); old.dispose(); };
+        grow(stones, w.parts.stones);
+        if (veils && runes) { grow(veils, w.parts.veil); grow(runes, w.parts.runes); }
+        else { veilParts.push(w.parts.veil); runeParts.push(w.parts.runes); makeLight(); }
+      }
+      wakers.length = 0;
+    },
+  } : null;
   return {
     arches,
-    /** The merged meshes: every arch's stones; the open arches' veils and runes (null - none open). */
-    stones, veils, runes,
+    /** The merged meshes: every arch's stones; the open arches' veils and runes (null - none open; made by `wake.done`). */
+    stones,
+    get veils(): THREE.Mesh | null { return veils; },
+    get runes(): THREE.Mesh | null { return runes; },
+    /** The arches waking now (null - none): see above. */
+    wake,
     /** Breathes the veils and the runes of the open arches: in step, the veil's breath is the runes'. */
-    update(time: number) { breathe(time, []); },
+    update(time: number) {
+      breathe(time, []);
+      for (const w of wakers) w.glow.emissiveIntensity = light * (0.9 + 0.5 * Math.sin(time * 1.6 + w.phase));
+    },
   };
 }
 

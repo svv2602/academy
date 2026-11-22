@@ -56,3 +56,16 @@ export function openArches(leadsTo: readonly (string | null)[], done: (id: strin
     return open ? id : null;
   });
 }
+
+/** The flag of the hub's part of the save that marks the arch of a place of the shelf awake (./index.ts, `wakingArches`). */
+export const woke = (shelf: number) => `woke${shelf}`;
+
+/**
+ * The arches that wake as she comes into the hub (docs/worlds/hub.md «Сценарий первого входа», step 4): open
+ * (`openArches`) and not marked awake in the hub's flags - the forest's after the fairies are done, the sea's after the
+ * forest. The first arch, the fairies', is open from the start and never wakes. `heard` - a flag of the world's own
+ * that already marks its word of waking said (the sea's `sea_wake`, before the flags of waking): such an arch is awake.
+ */
+export function wakingArches(open: readonly (string | null)[], flags: Readonly<Record<string, unknown>>, heard: Readonly<Record<string, string>> = {}): number[] {
+  return open.flatMap((id, shelf) => (shelf > 0 && id !== null && flags[woke(shelf)] !== true && !(heard[id] && flags[heard[id]] === true) ? [shelf] : []));
+}
