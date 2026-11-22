@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Save } from '../../core/save';
+import type { Save, WorldState } from '../../core/save';
 import { worldClips } from '../../core/voice';
 import { artifactBack, artifactCount, knownWorlds } from '../../game/artifacts';
 import type { Game } from '../../game/context';
@@ -70,6 +70,24 @@ const doneIn = (save: Save) => (id: string) => (save.worlds[id] as { final?: boo
 export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME): 'hub_asleep' | null {
   if (somethingNew(openArches(portalWorlds(knownWorlds()), doneIn(save)), doneIn(save))) return null;
   return why === 'tap' || leadHome ? 'hub_asleep' : null;
+}
+/** The flags of the hub's part of the save: the cat's three words of the sea, each said once. */
+export const SEA_WORDS = { wake: 'sea_wake', home: 'sea_home', after: 'sea_after' } as const;
+/**
+ * The cat's words of the sea as she comes into the hub (docs/worlds/world-3.md, the lines of 2026-11-18), each once,
+ * before the usual word: its arch leads to it and she has not been there - "the portal to the sea woke up"; the sea
+ * done - "the pearl is home, one more nest lit"; the next time - the tree grew. Marks what it returns; null - none.
+ */
+export function seaWord(ws: WorldState, save: Save, worlds: readonly (string | null)[]): 'hub_sea_wake' | 'hub_sea_home' | 'hub_sea_after' | null {
+  if (!worlds.includes('sea')) return null;
+  const said = (flag: string) => ws.flags[flag] === true;
+  let word: 'hub_sea_wake' | 'hub_sea_home' | 'hub_sea_after' | null = null, flag = '';
+  if (doneIn(save)('sea')) {
+    if (!said(SEA_WORDS.home)) { word = 'hub_sea_home'; flag = SEA_WORDS.home; }
+    else if (!said(SEA_WORDS.after)) { word = 'hub_sea_after'; flag = SEA_WORDS.after; }
+  } else if (save.worlds.sea === undefined && !said(SEA_WORDS.wake)) { word = 'hub_sea_wake'; flag = SEA_WORDS.wake; }
+  if (word) ws.flags[flag] = true;
+  return word;
 }
 /** The flag of the hub's part of the save that marks the tour done (the id of its item). */
 export const TOUR = 'toured';
@@ -280,7 +298,7 @@ export const hub: WorldDef<HubLoads, WorldSky> = {
     return at < 0 ? null : arrivalAt(at);
   },
   ground,
-  left: (_ws, save, why) => hubLeft(save, why),
+  left: (ws, save, why) => (why === 'entry' ? seaWord(ws, save, portalWorlds(knownWorlds())) : null) ?? hubLeft(save, why),
   characters: [],
   // the feathers of the Great Tree's bird, one a day (./feathers.ts, the customer's word of 2026-11-20)
   collect: HUB_COLLECT,

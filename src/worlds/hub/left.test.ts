@@ -5,9 +5,9 @@
  * while LEAD_HOME. With an open world not done - the shared words.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { defaultSave, type Save } from '../../core/save';
+import { defaultSave, defaultWorld, type Save } from '../../core/save';
 import { knowWorlds, knownWorlds } from '../../game/artifacts';
-import { hubLeft } from './index';
+import { SEA_WORDS, hubLeft, seaWord } from './index';
 import { somethingNew } from './portals';
 import { strings } from './strings';
 
@@ -60,5 +60,30 @@ describe('the cat by a sleeping arch (D)', () => {
   it('the line is the hub\'s own and spoken', () => {
     expect(strings.table.uk.hub_sleeping).toBe('Цей світ ще спить. Він прокинеться згодом!');
     expect(strings.spoken.hub_sleeping).toBe('warm');
+  });
+});
+
+describe('the cat\'s words of the sea in the hub (seaWord), each once as she comes in', () => {
+  const ARCHES = ['fairy', 'forest', 'sea', null, null];
+  it('its arch open and the sea not visited: the portal woke up; then nothing more until the sea is done', () => {
+    const ws = defaultWorld(), s = defaultSave();
+    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_wake');
+    expect(ws.flags[SEA_WORDS.wake]).toBe(true);
+    expect(seaWord(ws, s, ARCHES)).toBeNull();
+  });
+  it('the sea done: its pearl is home, the next time the tree grew, then nothing', () => {
+    const ws = defaultWorld(), s = defaultSave(); final(s, 'sea');
+    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_home');
+    expect(seaWord(ws, s, ARCHES)).toBe('hub_sea_after');
+    expect(seaWord(ws, s, ARCHES)).toBeNull();
+  });
+  it('visited but not done, or no arch to the sea (the published build): no word of the sea', () => {
+    const ws = defaultWorld(), s = defaultSave();
+    (s.worlds as Record<string, unknown>).sea = { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
+    expect(seaWord(ws, s, ARCHES)).toBeNull();
+    expect(seaWord(defaultWorld(), defaultSave(), ['fairy', null, null, null, null])).toBeNull();
+  });
+  it('they are spoken lines of the hub', () => {
+    for (const k of ['hub_sea_wake', 'hub_sea_home', 'hub_sea_after']) expect(Object.hasOwn(strings.spoken, k), k).toBe(true);
   });
 });

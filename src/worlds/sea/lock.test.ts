@@ -28,12 +28,12 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 function game(ws = defaultWorld()) {
   const quick = () => Promise.resolve() as Spoken;
   let seed = 7;
-  const captions: unknown[] = [];
+  const captions: unknown[] = [], said: string[] = [];
   const tasks = { n: 0 };
   const g = {
     scene: new THREE.Scene(), groundY: () => 0, hero: { root: new THREE.Object3D() }, ws, save: defaultSave(),
     rng: () => ((seed = (seed * 16807) % 2147483647) / 2147483647), persist: () => {}, busy: false, touch: true,
-    speech: { caption: (c: unknown) => { captions.push(c); }, shown: null },
+    speech: { caption: (c: unknown) => { captions.push(c); }, shown: null, line: (k: string) => { said.push(k); return Promise.resolve(); } },
     hooksFor: () => ({ prompt: () => {}, number: () => {}, good: () => {}, wrong: quick, hint: quick }),
     sparks: { burst: () => {} }, task: (open: () => Promise<TaskResult>) => { tasks.n++; return open(); },
   };
@@ -44,7 +44,7 @@ function game(ws = defaultWorld()) {
     get open() { return open; }, tap: () => false, update: (t: number) => open?.update(t),
   } as WorldTaskPlayer;
   const scope = createWorldScope(new THREE.Scene());
-  return { g: g as unknown as Game, captions, opened, player, scope, ws, tasks };
+  return { g: g as unknown as Game, captions, said, opened, player, scope, ws, tasks };
 }
 const queen = { def: { id: 'khvylia' } } as Npc;
 const gate = LANDMARKS.gate;
@@ -60,7 +60,7 @@ describe('the shell lock in the gate (WORLD-19)', () => {
     expect(lock.owner!()).toBe('khvylia');
     expect(keptOf(ws, LOCK)).toHaveLength(2);
     // on the way the bubble is the queen's "one more task" (a tap says it again), not the lock's question
-    expect(captions.at(-1)).toMatchObject({ key: 'npc_next', speaker: '🧜‍♀️' });
+    expect(captions.at(-1)).toMatchObject({ key: 'khvylia_t3', speaker: '🧜‍♀️' });
     expect(captions.some((c) => (c as { key: string }).key === 't_missing')).toBe(false);
     const goal = lock.goal()!;
     expect(Math.hypot(goal.x - gate.x, goal.z - gate.z)).toBeLessThan(4);
@@ -93,7 +93,7 @@ describe('the shell lock in the gate (WORLD-19)', () => {
   });
 
   it('solved: the step ends with the result of the lock, its middle goes, the doors sink into the floor', async () => {
-    const { g, opened, player, scope, ws } = game(), lock = createLock(g, player, scope);
+    const { g, said, opened, player, scope, ws } = game(), lock = createLock(g, player, scope);
     const results: (TaskResult | undefined)[] = [];
     lock.start!(queen, (r) => { results.push(r); });
     expect(lock.doors.visible).toBe(true);
@@ -105,6 +105,8 @@ describe('the shell lock in the gate (WORLD-19)', () => {
     opened[0].solve();
     await vi.runAllTimersAsync();
     expect(results).toEqual([{ solved: true, wrong: 1 }]);
+    // the queen says the gates open before her step is done
+    expect(said).toEqual(['khvylia_lock_finish']);
     expect(lock.active!()).toBe(false);
     expect(keptOf(ws, LOCK)).toEqual([]);
     for (let i = 0; i < 90; i++) lock.update(1 / 60, true);

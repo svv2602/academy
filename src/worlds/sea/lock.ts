@@ -69,9 +69,10 @@ export function createLock(g: Game, player: WorldTaskPlayer, scope: WorldScope):
   if (k0.length === 2) build(k0[0], k0[1]); else build(Math.floor(g.rng() * 1e6), levelFor(g.save, 'compose'));
 
   let on = false, owner: Npc | null = null, finished: (played?: TaskResult) => void = () => {}, armed = true, playing = false;
-  // On the way: a subtitle (`sea_lock`, no voice) under the line the queen has just said, "here is one more task"
-  // (`npc_next`) - a tap on the bubble says that again, never the lock's question before the numbers are on the screen.
-  const WAY = 'npc_next';
+  // On the way: a subtitle (`sea_lock`, no voice) under the line the queen has just said, what the step is about
+  // (`khvylia_t3`, FRIENDS asks of ./index.ts) - a tap on the bubble says that again, never the lock's question before
+  // the numbers are on the screen.
+  const WAY = 'khvylia_t3';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🧜‍♀️', text: tf('sea_lock', {}) }); };
 
   function play() {
@@ -87,7 +88,8 @@ export function createLock(g: Game, player: WorldTaskPlayer, scope: WorldScope):
       open = true; sfx('fanfare');
       g.sparks.burst(new THREE.Vector3(gate.x, groundY(gate.x, gate.z) + 3, gate.z), '#bff4ff', 50, 4);
       g.persist();
-      finished(res);
+      // the queen as the gates open (in her voice), then her step is done and her thanks come with the pearl
+      void g.speech.line('khvylia_lock_finish', 'story', 0, '🧜‍♀️').then(() => finished(res));
     });
   }
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { gltf, type Rig } from '../../core/assets';
-import { setCast, sfx } from '../../core/audio';
+import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
@@ -71,15 +71,22 @@ const FIGURE: Record<string, { h: number; r: number; color: string; lift?: numbe
 
 /** The pearls that lie in the world (WORLD-08): whose chain says where, the flag of the pearl taken, how it is taken. */
 export const PEARLS = [
-  { owner: 'bulk', flag: 'pearl_reef', hint: 'bulk_hint', at: CORAL_NEST, how: 'walk' },
-  { owner: 'pantsyr', flag: 'pearl_ship', hint: 'pantsyr_hint', at: CABIN, how: 'act' },
+  { owner: 'bulk', flag: 'pearl_reef', hint: 'bulk_hint', at: CORAL_NEST, how: 'walk', found: 'sea_pearl_reef_found' },
+  { owner: 'pantsyr', flag: 'pearl_ship', hint: 'pantsyr_hint', at: CABIN, how: 'act', found: 'sea_pearl_ship_found' },
 ] as const;
 export const FINALE = 'final';
 const TOUR = 'toured';
+/**
+ * The cat's words of the first visit, each said once (the flag of the save): after the tour, his bubble (he does not
+ * like water); as she first swims a few metres, that she swims as she walks; after the first pearl, he is wet but stays.
+ */
+export const ONCE = { bubble: 'told_bubble', swim: 'told_swim', wet: 'told_wet' } as const;
+/** m she swims after the cat's bubble before he says she swims like a fish. */
+const SWIM_SAID_AT = 1.5;
 /** m: swimming this near a pearl of `walk` takes it; the spot of the cabin's door; the throne's spot. */
 const TAKE_R = 1.2, CABIN_R = 2.6, THRONE_R = 3;
 
-const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'sea_part', partText: 'sea_count' };
+const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'sea_all_pearls', partTitle: 'sea_part', partText: 'sea_count' };
 /** A calm mode of D (the grey build's own; VOICE-12 later). */
 const MUSIC: MusicParams = {
   scale: [293.7, 329.6, 349.2, 392, 440, 493.9, 523.3],
@@ -185,7 +192,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const take = (p: Pearl) => {
     ws.flags[p.flag] = true; p.mesh.visible = false;
     sfx('chime'); g.sparks.burst(p.mesh.position, '#bff4ff', 36, 3);
-    stepDone(npc(p.owner), p.step);
+    // the cat names the pearl found, then the chain moves on and its character thanks
+    void g.speech.line(p.found, 'story').then(() => stepDone(npc(p.owner), p.step));
   };
   const part: WorldTask = {
     skill: 'count',     // a step of no skill: the conversation reads the skill of a task it runs, never of this one
@@ -226,11 +234,17 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     g.cam.focus = g.above(throne, 2);
     sfx('fanfare');
     g.sparks.burst(g.above(throne, 2.4), '#bff4ff', 60, 5);
+    const whole = g.speech.line('sea_pearl_whole', 'story');
     await new Promise<void>((done) => { finaleLeft = 2; finaleEnd = done; });
     ws.final = true; g.persist();
+    await whole;
+    // the queen's song of a sea that sings again, then the cat's last words
+    await g.speech.line('khvylia_song', 'story', 0, '🧜‍♀️');
+    await g.speech.line('sea_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  });
+  }).then(() => g.speech.line('sea_free', 'hint', 6000));
   const cabinPearl = pearls.find((p) => p.how === 'act')!;
+  let swamFrom: THREE.Vector3 | null = null;   // where she was as the cat spoke of his bubble
   const cabin = point(CABIN);
 
   return {
@@ -259,6 +273,14 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
           if (p.how === 'walk' && canMove && Math.hypot(hp.x - p.at.x, hp.z - p.at.z) < TAKE_R) take(p);
         }
         lock.update(dt, canMove);
+        // the cat's words of the first visit (ONCE): only while she is free and nobody speaks, so no line is cut
+        // and never while a task in the world is open: closing one must leave the save as it was
+        if (canMove && !g.busy && !player.open && !speaking() && ws.flags[TOUR] === true && flyoverOf(g)?.active !== true) {
+          const once = (flag: string, key: 'sea_cat_bubble' | 'sea_swim_first' | 'sea_cat_wet') => { ws.flags[flag] = true; g.persist(); void g.speech.line(key, 'hint', 5000); };
+          if (!ws.flags[ONCE.bubble]) { once(ONCE.bubble, 'sea_cat_bubble'); swamFrom = hp.clone(); }
+          else if (!ws.flags[ONCE.swim]) { swamFrom ??= hp.clone(); if (hp.distanceTo(swamFrom) > SWIM_SAID_AT) once(ONCE.swim, 'sea_swim_first'); }
+          else if (!ws.flags[ONCE.wet] && npcs.some(finished)) once(ONCE.wet, 'sea_cat_wet');
+        }
         if (finaleEnd && (finaleLeft -= dt) <= 0) { const done = finaleEnd; finaleEnd = null; done(); }
         pearlOfDeep.visible = ws.final;
         pearlOfDeep.rotation.y = time;

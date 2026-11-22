@@ -41,6 +41,14 @@ describe('the own lines of the sea\'s characters', () => {
     }
   });
 
+  it('every spoken line of the sea has its clip: a character\'s in its voice, the cat\'s under its key', () => {
+    const owner = (k: string) => Object.keys(cast).find((id) => id !== voices.narrator && k.startsWith(`${id}_`));
+    const want = Object.keys(strings.spoken).map((k) => { const who = owner(k); return who ? `${k}@${cast[who].voice}` : k; });
+    const missing = want.filter((name) => !(CLIPS as string[]).includes(name));
+    expect(missing, `no clip in src/worlds/sea/clips.json for ${missing.length} of the ${want.length} lines of the sea: ${missing.join(' ')}. `
+      + 'Record them: python3 tools/gen_voice.py --only=<key>,<key> (after a --dry-run)').toEqual([]);
+  });
+
   it('each has its clip in the character\'s voice: none goes to the synthesizer', () => {
     const missing = lines.map(({ who, key }) => `${key}@${cast[who].voice}`).filter((name) => !(CLIPS as string[]).includes(name));
     expect(missing, `no clip in src/worlds/sea/clips.json for ${missing.length} line(s) of the characters: ${missing.join(' ')}. `

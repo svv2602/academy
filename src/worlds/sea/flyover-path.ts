@@ -9,7 +9,7 @@ import { CASTLE, SCALE, SHIP, SPAWN, ZONES } from './layout';
 const h = (m: number) => m * Math.max(1, SCALE * 0.8);
 export const SEA_FLYOVER: FlyoverPath = {
   seconds: 14,
-  line: null,
+  line: 'sea_flyover',
   points: [
     { pos: [SPAWN.x + 8, h(9), SPAWN.z - 10], look: [CASTLE.x, 8, CASTLE.z] },
     { pos: [SHIP.x - 16, h(14), SHIP.z + 14], look: [SHIP.x, 4, SHIP.z] },
