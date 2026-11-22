@@ -91,6 +91,23 @@ export function paintMaterial(): THREE.MeshStandardMaterial {
   return m;
 }
 
+/**
+ * The painted material with a light of its own over the vertices' glow: `lift.value` (0 - none) more of each colour
+ * shining. A shape that the magic lights (./magic.ts: the castle with the Pearl back) is drawn with it instead of the
+ * shared one - its own program, the same draw calls.
+ */
+export function liftedPaintMaterial(lift: { value: number }): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
+  m.name = 'sea-paint-lifted';
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uLift = lift;
+    sh.vertexShader = 'attribute float glow;\nvarying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = glow;');
+    sh.fragmentShader = 'uniform float uLift;\nvarying float vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * (vGlow + uLift);');
+  };
+  m.customProgramCacheKey = () => 'sea-paint|glow|lift';
+  return m;
+}
+
 /** A matrix: at (x, y, z), turned `yaw` about up (and `tilt` about x, `roll` about z, in that order before the yaw), scaled `s`. */
 export function place(x: number, y: number, z: number, yaw = 0, s: number | THREE.Vector3 = 1, tilt = 0, roll = 0): THREE.Matrix4 {
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt, yaw, roll, 'YXZ'));

@@ -27,6 +27,9 @@ import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
+import { createSeaCreatures } from './creatures';
+import { buildBubbles } from './bubbles';
+import { createSeaMagic } from './magic';
 
 /**
  * The Underwater Kingdom (WORLD-03), its grey build (WORLD-12): the map of docs/worlds/world-3.md in simple shapes at
@@ -199,6 +202,11 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scene.add(chest.root);
   g.ground.block(CHEST.x, CHEST.z, 0.6);
   const shafts = buildShafts(scene, SHAFTS);
+  // the creatures of no task (PLAY-11, PLAY-12): schools of fish, jellyfish, crabs, starfish; the columns of bubbles
+  const creatures = createSeaCreatures(g);
+  const bubbles = buildBubbles(scene);
+  // the magic of the sea (WORLD-09): from the pearls in the save; after everything it touches
+  const magic = createSeaMagic(g, scope, { creatures, bubbles, characters: FRIENDS });
   // In the water her wand and petals are hidden (src/game/gear.ts).
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks, () => swimming(g));
   const point = (p: { x: number; z: number }, y = 0) => new THREE.Vector3(p.x, groundY(p.x, p.z) + y, p.z);
@@ -315,7 +323,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         { pos: cabin, r: CABIN_R, label: 'sea_cabin', on: () => waiting(cabinPearl), run: () => take(cabinPearl) },
         { pos: throne, r: THRONE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],
-      tap: (screenDist) => player.tap(screenDist) || corals.tap(screenDist),
+      tap: (screenDist) => player.tap(screenDist) || corals.tap(screenDist) || creatures.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -354,6 +362,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         // the throne's lid opens under the pearl in the finale's seconds and stays open
         floor.throne.open(ws.final || lidShown ? 1 : finaleEnd ? 1 - finaleLeft / 2 : 0);
         chest.update(dt);
+        creatures.update(dt);
+        magic.update(dt);
         pearlOfDeep.rotation.y = time;
       },
       goal: () => {
@@ -365,7 +375,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (n) return n.pos;
         return finaleItem.done() ? null : throne;
       },
-      animate: (_dt, time) => { flies.update(time); shafts.sway(time); floor.sway(time); player.update(time); },
+      animate: (_dt, time) => { flies.update(time); shafts.sway(time); floor.sway(time); bubbles.update(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => {
         sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp);
@@ -382,6 +392,12 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         openGate: () => lock.opened(true),
         // the throne's lid as the finale leaves it (the pictures of the landmarks)
         openThrone: () => { lidShown = true; },
+        // the creatures of no task (kind, state, position, taps), the middle of one's body over its point, one held still
+        creatures: creatures.herd.all,
+        creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
+        holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
+        // the magic of the sea (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
+        magic, setMagic: (v: number | null) => magic.set(v),
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },
