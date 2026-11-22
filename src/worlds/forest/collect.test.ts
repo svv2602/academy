@@ -5,6 +5,7 @@ import { COLLECT, DAILY_PLACES } from './collect';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, SECRET_CLEARINGS, STREAM_HALF, ZONES, inMaze } from './layout';
 import { lineDist, pathDist, streamDist } from './terrain';
 import { placeTrees, villageHouses } from './scenery';
+import { FIND_CLEAR, placePlants } from './undergrowth';
 
 /** The squirrel's tracks (the last path of the map): Shustrik's nuts lie along them (./tracks.ts). */
 const TRACKS = PATHS[PATHS.length - 1];
@@ -33,6 +34,11 @@ describe('the collections of the forest (PLAY-25, the customer\'s word of 2026-1
       trees.some((t) => Math.hypot(t.x - it.x, t.z - it.z) < 1.8) && 'at a trunk',
     ].filter(Boolean).map((w) => `${i} ${it.kind} (${it.x}, ${it.z}): ${w}`));
     expect(bad).toEqual([]);
+  });
+
+  it('no plant of the undergrowth grows on a find or a place of the find of the day: none hides one', () => {
+    const plants = placePlants();
+    for (const f of places) expect(plants.filter((p) => Math.hypot(p.x - f.x, p.z - f.z) <= FIND_CLEAR), `${f.kind} (${f.x}, ${f.z})`).toEqual([]);
   });
 
   it('apart: two finds 5 m at least; the places of the find of the day 6 m from every find and 12 m apart', () => {

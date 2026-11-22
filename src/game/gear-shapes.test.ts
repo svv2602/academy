@@ -57,8 +57,8 @@ describe('the things built by code (the gifts of a trade, PLAY-28)', () => {
     // the owlet's model (worlds-data/forest/models/forest/owlet.glb): y -0.97-0.95, x ±0.57, its Head bone at y 0.18;
     // the scarf round the neck, no wider than the owlet and a little, its end hanging in front (+z)
     const scarf = box('owlet_leaf_scarf');
-    expect(scarf.min.y).toBeGreaterThan(-0.2);
-    expect(scarf.max.y).toBeLessThan(0.45);
+    expect(scarf.min.y).toBeGreaterThan(-0.6);
+    expect(scarf.max.y).toBeLessThan(0.25);
     expect(Math.max(-scarf.min.x, scarf.max.x)).toBeLessThan(0.7);
     expect(scarf.max.z).toBeGreaterThan(Math.abs(scarf.min.z));
   });

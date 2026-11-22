@@ -1,3 +1,4 @@
+import { COLLECT, DAILY_PLACES } from './collect';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { staticGeo } from '../../core/assets';
@@ -31,6 +32,8 @@ export const CELL = 16;
 export const RANGE = 20;
 /** m off the middle of a path: nothing grows there - the camera walks the paths behind her, a bush at its lens fills the frame. */
 export const PATH_CLEAR = 2.4;
+/** m round a find (./collect.ts) where nothing grows: the largest bush is some 1.2 m across at its biggest. */
+export const FIND_CLEAR = 1.4;
 /** m² of the map a plant. */
 export const PLANT_AREA = 9;
 
@@ -51,7 +54,10 @@ export function placePlants(seed = 11): Plant[] {
     while ((pick -= weights[k]) > 0) k++;
     out.push({ k, x, z, s: 0.75 + rnd() * 0.6, rot: rnd() * 6.28 });
   }
-  return out;
+  // the finds of the collections and the places of the find of the day (./collect.ts): their plants taken out after the
+  // rest are placed - a bush there hid a cone or the bilberries - so that every other plant stays where it grew
+  const finds = [...COLLECT.items, ...DAILY_PLACES];
+  return out.filter((p) => finds.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > FIND_CLEAR));
 }
 
 /** The leaves of the undergrowth as the trees' of the evening (./scenery.ts), a shade deeper: not the pack's lime. */

@@ -94,16 +94,20 @@ function fawnLeafBow(): THREE.Group {
  */
 export const AGARIC = { cap: '#d8443a', dot: '#fff4e2', gills: '#f3e2c4' } as const;
 function mushroomHat(): THREE.Group {
-  const Z = 1.1, R = [0.27, 0.26, 0.14];
+  const Z = 1.1, R = [0.27, 0.26, 0.17];
   const parts: Part[] = [
     { geo: egg(facets(0.6), [0, 0.02, Z + 0.02], R), mat: mat.cloth(AGARIC.cap) },
     { geo: new THREE.CylinderGeometry(R[0] * 0.96, R[0] * 0.8, 0.035, 14).rotateX(Math.PI / 2).translate(0, 0.02, Z), mat: mat.cloth(AGARIC.gills) },
   ];
   const dot = mat.cloth(AGARIC.dot);
-  // seven dots on its top and sides, flat on the cap; none hangs over the face (-y)
-  for (const [el, az] of [[0, 0], [0.75, 90], [0.75, 150], [0.75, 210], [0.75, 270], [0.75, 330], [0.45, 30]] as const) {
+  // seven dots on its top and sides, flat on the cap (each turned to the cap's normal there); none over the face (-y)
+  const up = new THREE.Vector3(0, 0, 1);
+  for (const [el, az] of [[0, 0], [0.8, 90], [0.8, 150], [0.8, 30], [0.75, 210], [0.75, 330], [0.45, 250]] as const) {
     const a = THREE.MathUtils.degToRad(az), s = Math.sin(el), c = Math.cos(el);
-    parts.push({ geo: egg(5, [R[0] * s * Math.cos(a), 0.02 + R[1] * s * Math.sin(a), Z + 0.02 + R[2] * c], [0.035, 0.035, 0.012], [0, el, a]), mat: dot });
+    const at = new THREE.Vector3(R[0] * s * Math.cos(a), 0.02 + R[1] * s * Math.sin(a), Z + 0.02 + R[2] * c);
+    const n = new THREE.Vector3(s * Math.cos(a) / R[0], s * Math.sin(a) / R[1], c / R[2]).normalize();
+    const geo = new THREE.SphereGeometry(1, 6, 3).scale(0.042, 0.042, 0.014).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, n));
+    parts.push({ geo: geo.translate(at.x, at.y, at.z), mat: dot });
   }
   return assemble('mushroom_hat', parts);
 }
@@ -113,15 +117,18 @@ function mushroomHat(): THREE.Group {
  * high, its Head bone 0.18 over the middle) with three leaves on it and a short end hanging in front.
  */
 function owletLeafScarf(): THREE.Group {
-  const Z = 0.2, r = 0.47;
+  // its middle a little to the front (-y): the owlet's chest bulges forward, its back is flat
+  const Z = -0.06, r = 0.42, F = -0.22;
   const leaf = [mat.cloth('#e8892e'), mat.cloth('#d9502a'), mat.cloth('#f2b233')];
   const parts: Part[] = [
-    { geo: new THREE.TorusGeometry(r, 0.075, 6, 18).translate(0, 0, Z), mat: leaf[0] },
-    { geo: egg(6, [0.14, -r - 0.02, Z - 0.16], [0.075, 0.04, 0.17], [0.15, 0, 0]), mat: leaf[0] },
+    { geo: new THREE.TorusGeometry(r, 0.085, 6, 18).scale(1, 1, 1.3).translate(0, F, Z), mat: leaf[0] },
+    // its end hanging in front, a little aside
+    { geo: egg(6, [0.12, F - r - 0.05, Z - 0.17], [0.075, 0.045, 0.16], [0.2, 0, 0]), mat: leaf[0] },
   ];
-  [-40, 0, 40].forEach((deg, i) => {
+  // three leaves on its front, flat against it, pointing out and down
+  [-35, 0, 35].forEach((deg, i) => {
     const a = THREE.MathUtils.degToRad(deg - 90);
-    parts.push({ geo: egg(5, [Math.cos(a) * (r + 0.06), Math.sin(a) * (r + 0.06), Z + 0.03], [0.11, 0.025, 0.065], [0.3, 0, a + Math.PI / 2]), mat: leaf[(i + 1) % 3] });
+    parts.push({ geo: egg(5, [Math.cos(a) * (r + 0.07), F + Math.sin(a) * (r + 0.07), Z + 0.02], [0.1, 0.03, 0.07], [0, 0, a + Math.PI / 2]), mat: leaf[(i + 1) % 3] });
   });
   return assemble('owlet_leaf_scarf', parts);
 }
