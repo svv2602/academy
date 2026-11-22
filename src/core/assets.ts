@@ -197,6 +197,7 @@ export async function staticGeo(path: string, height: number, recolor?: Record<s
   merged.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
   merged.scale(s, s, s);
   merged.computeBoundingBox(); merged.computeBoundingSphere();
+  merged.name = path;   // what the tools of measure (tools/tris.mjs) name it by
   return merged;
 }
 
@@ -216,6 +217,7 @@ export async function texturedParts(path: string, height: number, normals: 'mode
     if (!m.isMesh) return;
     const mat = m.material as THREE.MeshStandardMaterial;
     const geo = m.geometry.clone().applyMatrix4(m.matrixWorld);
+    geo.name = `${path}:${mat.name}`;
     geo.computeBoundingBox(); box.union(geo.boundingBox!);
     if (mat.map) { mat.map.anisotropy = 4; mat.map.colorSpace = THREE.SRGBColorSpace; }
     parts.push({ geo, name: mat.name, map: mat.map, cutout: mat.alphaTest > 0 });
