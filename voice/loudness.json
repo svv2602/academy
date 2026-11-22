@@ -3459,10 +3459,30 @@
   "tp": -2.27,
   "sha256": "d61cc2dd82151e2fcc1923c49d6d5943b015a2041469df26e9e1a3c44662422f"
  },
+ "worlds-data/forest/voice/forest/kolyuchka_done@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -3.34,
+  "sha256": "194b023886427c542065541348d543ab679ba6d5fa2c7b8649eac5e45a38d6a2"
+ },
  "worlds-data/forest/voice/forest/kolyuchka_hi@Leda.mp3": {
   "lufs": -17.97,
   "tp": -4.25,
   "sha256": "346d865ef9794b05cccdafdf0c1b2c6e6c89737f458ec70ebc3d58ed7a8478fe"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_t1@Leda.mp3": {
+  "lufs": -18.09,
+  "tp": -3.73,
+  "sha256": "ad1d4769bdf68eb297ce4de3b58d60604a74d483f1eb4b24a64423e18e09d45e"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_t2@Leda.mp3": {
+  "lufs": -18.11,
+  "tp": -2.55,
+  "sha256": "fa1d2a87bb13bd46a87757744cad7a9017f82fbc2fcf012a2e1048aba1eb5eb7"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_t3@Leda.mp3": {
+  "lufs": -17.95,
+  "tp": -6.2,
+  "sha256": "4e3b75c092e364c21d0451f6ff5fe024ba4cafe2373b3d42d6475eb0f04fb8f9"
  },
  "worlds-data/forest/voice/forest/mudrena_again_1@Charon.mp3": {
   "lufs": -18.28,

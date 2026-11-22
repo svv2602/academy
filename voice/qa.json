@@ -6712,5 +6712,37 @@
   "style": "joy",
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_t1@Leda": {
+  "text": "Я ніс яблучка на колючках, а дехто впав. Скільки лишилося?",
+  "heard": "Яніс яблучко на колючках, а дехто впав. Скільки лишилося?",
+  "score": 0.972,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_t2@Leda": {
+  "text": "Мої камінці розкотилися! Постав їх по порядку, від найменшого.",
+  "heard": "Мої камінці розкотилися, постав їх по порядку від найменшого.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_t3@Leda": {
+  "text": "Ходімо в лабіринт! Стежки заплуталися, але ми впораємося.",
+  "heard": "Ходімо в лабіринт, стежки заплуталися, але ми впораємося!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_done@Leda": {
+  "text": "Ти справжня слідопитка! Дивись, ось і листочок!",
+  "heard": "Ти справжня слідопитка! Дивись, ось і листочок!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
