@@ -57,7 +57,8 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
     page.on('pageerror', (e) => problems.push(`${name}: pageerror: ${e.message}`));
     const g = (fn, arg) => page.evaluate(fn, arg);
     const until = (fn, arg, what, ms = 120000) => page.waitForFunction(fn, arg, { timeout: T(ms), polling: 200 }).catch(() => { throw new Error(`${name}: ${what}`); }); /* clock: helper */
-    const inWorld = (id) => until((w) => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); if (!document.querySelector('#fanfare').classList.contains('hidden')) document.querySelector('#fanfareOk')?.click(); return __game.world === w && !__game.transitioning && !__game.busy; }, id, `not in the world "${id}"`);
+    // a first entry plays the world's scene (its way in) and its tour: both are skipped, as the measurements do
+    const inWorld = (id) => until((w) => { if (__game.story?.active) __game.story.skip(); if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); if (!document.querySelector('#fanfare').classList.contains('hidden')) document.querySelector('#fanfareOk')?.click(); return __game.world === w && !__game.transitioning && !__game.busy; }, id, `not in the world "${id}"`);
     const act = async (x, z, what) => {
       await g(([px, pz]) => { __game.teleport(px, pz); }, [x, z]);
       await until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, `no action button ${what}`, 20000);

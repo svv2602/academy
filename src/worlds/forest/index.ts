@@ -305,9 +305,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
+  // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
   const sceneOn = (id: string) => () => story.active && story.id === id;
-  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'auto', active: sceneOn('story_intro') });
-  const emeraldItem = marked(ws, { kind: 'scene', id: 'story_emerald', how: 'auto', after: [FINALE], active: sceneOn('story_emerald') });
+  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
+  const emeraldItem = marked(ws, { kind: 'scene', id: 'story_emerald', how: 'tap', after: [FINALE], active: sceneOn('story_emerald') });
   const own: readonly WorldItem[] = [introItem, tourItem, ...leafItems, ...secretItems, finaleItem, emeraldItem];
   const restore = () => playScene(stage, 'forest finale', async () => {
     finaleOn = true;
@@ -386,6 +387,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, ground: (x: number, z: number) => groundY(x, z) },
         // the maze that stands now (WORLD-14): its paths and forks, where she is in it - for its pictures and its time on foot
         forestMaze: maze,
+        // the cut-scenes' player (./story.ts): the tools skip a scene on the way (tools/hub-grey.mjs, tools/forest-grey.mjs)
+        story,
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and where it stands, for their pictures and their draw calls
