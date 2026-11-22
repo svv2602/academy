@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Rig } from '../../core/assets';
 import { note, sfx, speaking } from '../../core/audio';
 import { mat } from '../../core/style';
-import { GRAVITY } from '../../core/tuning';
+import { GRAVITY, camDistance } from '../../core/tuning';
 import { Actor, shadowFromBody } from '../../game/actor';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
@@ -170,6 +170,16 @@ export function caveRocks(): { x: number; z: number; r: number; h: number; spin:
 }
 /** m from the cave's middle: the opening (behind the curtain), and the chest at the back. */
 const OPENING = 3.1, CHEST_BACK = 1.1;
+/**
+ * The camera in the cave, m from her: the usual one stood outside its rocks and showed them, not her and the chest. By
+ * where she stands, as the first world's glade: CAVE_CAM inside CAVE_CAM_IN m of the middle, the usual distance from
+ * CAVE_CAM_OUT m on, a smooth step between - walking through the curtain it moves with her steps, never jumps.
+ */
+export const CAVE_CAM = 2.2, CAVE_CAM_IN = 2.0, CAVE_CAM_OUT = 5.2;
+export function caveCamDist(d: number, far: number): number {
+  const k = Math.min(1, Math.max(0, (d - CAVE_CAM_IN) / (CAVE_CAM_OUT - CAVE_CAM_IN)));
+  return CAVE_CAM + (far - CAVE_CAM) * k * k * (3 - 2 * k);
+}
 
 export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): ForestSecrets {
   const { scene, ws, save, hero } = g;
@@ -221,6 +231,14 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
   chest.root.rotation.y = CAVE.face;
   colliders.push({ x: cx, z: cz, r: 0.6 });
   if (found(CAVE_FLAG)) chest.pose('Chest_Open');
+  let caveCam = false;     // the camera's distance is the cave's now
+  scope.own(() => { if (caveCam) g.camOverride = null; });
+  /** The cave's camera: by where she stands; never over a distance another rule has set. */
+  function caveCamera(d: number) {
+    if (!caveCam && g.camOverride !== null) return;
+    if (d >= CAVE_CAM_OUT) { if (caveCam) { g.camOverride = null; caveCam = false; } return; }
+    g.camOverride = caveCamDist(d, camDistance(g.camera.aspect)); caveCam = true;
+  }
   cave.add(chest.root);
   scene.add(cave);
   const chestFront = new THREE.Vector3(cx + fx * 1.3, groundY(cx + fx * 1.3, cz + fz * 1.3), cz + fz * 1.3);
@@ -375,6 +393,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     update(dt, time, canMove) {
       const hp = hero.root.position;
       cave.visible = show(CAVE);
+      caveCamera(Math.hypot(hp.x - CAVE.x, hp.z - CAVE.z));
       bounceLook.visible = show(house);
       songLook.visible = show(SONG_TREE);
       ringLook.visible = show(FAIRY_RING);

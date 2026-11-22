@@ -4,7 +4,7 @@ import { GRAVITY } from '../../core/tuning';
 import { CAVE, FAIRY_RING, HALF, SECRET_CLEARINGS, SONG_TREE, STREAM_HALF, ZONES, inMaze } from './layout';
 import { placeTrees, villageHouses, HOUSE_STEM_TOP } from './scenery';
 import {
-  FOREST_SECRETS, OVER_ROOF, ROOF_R, SPRING, TRAMPOLINE, caveRocks, type Song, restSong, roofHeight, showSeconds, singingAt, startSong, touchSong, trampolineOf,
+  CAVE_CAM, CAVE_CAM_IN, CAVE_CAM_OUT, caveCamDist, FOREST_SECRETS, OVER_ROOF, ROOF_R, SPRING, TRAMPOLINE, caveRocks, type Song, restSong, roofHeight, showSeconds, singingAt, startSong, touchSong, trampolineOf,
 } from './secrets';
 import { bounce, colliders, height, pathDist, resolve, streamDist, support, tops } from './terrain';
 
@@ -33,6 +33,16 @@ describe('the places of the secrets', () => {
     for (const c of SECRET_CLEARINGS) expect(trees.every((t) => Math.hypot(t.x - c.x, t.z - c.z) > c.clear)).toBe(true);
     // the clearings only take trees out: the forest keeps nearly all of them
     expect(trees.length).toBeGreaterThan(100);
+  });
+});
+
+describe('the camera in the cave', () => {
+  it('close inside, the usual one from outside it, a smooth step between: no jump as she walks in', () => {
+    expect(caveCamDist(0, 5.8)).toBe(CAVE_CAM);
+    expect(caveCamDist(CAVE_CAM_IN, 5.8)).toBe(CAVE_CAM);
+    expect(caveCamDist(CAVE_CAM_OUT, 5.8)).toBeCloseTo(5.8, 10);
+    let last = caveCamDist(0, 5.8);
+    for (let d = 0; d <= CAVE_CAM_OUT; d += 0.05) { const v = caveCamDist(d, 5.8); expect(v - last).toBeLessThan(0.12); expect(v).toBeGreaterThanOrEqual(last); last = v; }
   });
 });
 
