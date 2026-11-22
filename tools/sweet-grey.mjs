@@ -9,8 +9,9 @@
 // 2. dist-grey/ served on E2E_PORT (4183 by default).
 // 3. The walkthrough every world shares, by the Sweet Land's description, from its entry to its finale
 //    (tools/world-pass.mjs, E2E_WORLD=sweet E2E_WORLD_NEED=grey, the phone size); pictures in shots-e2e/sweet-grey/;
-//    its report must show the chains, the tour and the finale done and the two rubies in the world among its items
-//    (`passProblems`; they are taken on the way, inside their chains).
+//    its report must show the chains, the tour and the finale done, the two rubies in the world among its items
+//    (`passProblems`; they are taken on the way, inside their chains) and the gingerbread house played in the world
+//    (WORLD-21: one wrong piece, left in its middle and come back to, assembled - the steps of tools/world-pass.mjs).
 //    --no-pass leaves it out. CI plays the same walkthrough as the part "sweet-grey" of tools/worlds.mjs.
 // 4. For every stretch of the map in --scales (`?scale=`, src/worlds/sweet/layout.ts; 1.6 by default), the phone size:
 //    - the time on foot of every way of the map: she walks it with the key held, turned along the way at every frame,
@@ -82,7 +83,8 @@ export function passEnv(base, out) {
 
 /** What is wrong with the report of the walkthrough (`report`: the parsed E2E_WORLD_OUT, null - none): [] when it came to its end, online, every kind done. */
 export function passProblems(report, size = 'mobile') {
-  const out = reportProblems(report, { world: SWEET, size, offline: false, kinds: PASS_KINDS });
+  // the gingerbread house is played in the world (WORLD-21): the pass must have met it there
+  const out = reportProblems(report, { world: SWEET, size, offline: false, kinds: PASS_KINDS, inWorld: true });
   const parts = (report?.items ?? []).filter((i) => i.kind === 'part').length;
   if (report && parts < PARTS_IN_WORLD) out.push(`the description has ${parts} part(s) of the artifact in the world, ${PARTS_IN_WORLD} expected`);
   return out;

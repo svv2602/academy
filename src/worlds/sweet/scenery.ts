@@ -140,12 +140,11 @@ export function buildScenery(scene: THREE.Scene): Scenery {
     [new THREE.ConeGeometry(2.1, 2.4, 4).rotateY(Math.PI / 4).translate(0, tower.top - 1.2, 0), '#fffaf2'],
   ]);
   colliders.push({ x: tower.x, z: tower.z, r: 1.9 });
-  // Imbir's house that fell apart: its walls stand, its roof lies by them in pieces (WORLD-21 assembles it later)
+  // Imbir's house that fell apart: its body stands, dark inside on its east side - its front with the door and the roof
+  // is assembled before it in the world (WORLD-21, ./house.ts), the pieces lie on the ground there
   paintedAt(scene, 'imbir-house', HOUSE.x, HOUSE.z, [
     [new THREE.BoxGeometry(HOUSE.w, HOUSE.h, HOUSE.d).translate(0, HOUSE.h / 2, 0), '#c0844a'],
-    [new THREE.BoxGeometry(0.15, 1.9, 1.1).translate(HOUSE.w / 2 + 0.05, 0.95, 0), '#5a3418'],        // its door, toward Imbir
-    [new THREE.ConeGeometry(1.4, 1, 4).rotateZ(1.2).translate(-1, 0.5, HOUSE.d / 2 + 1.2), '#fffaf2'],
-    [new THREE.ConeGeometry(1.1, 0.8, 4).rotateZ(-1.4).translate(1.2, 0.45, HOUSE.d / 2 + 1.4), '#fffaf2'],
+    [new THREE.BoxGeometry(0.04, HOUSE.h - 0.1, HOUSE.d - 0.3).translate(HOUSE.w / 2 + 0.02, HOUSE.h / 2, 0), '#3a2212'],
   ]);
   colliders.push({ x: HOUSE.x, z: HOUSE.z, r: HOUSE.w / 2 + 0.6 });
 

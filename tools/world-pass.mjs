@@ -25,11 +25,14 @@
 //      by its `active`. A task played in the world (PLAY-01) on a step the chain names in `inWorld` is played through
 //      the debug door of the task (__game.worldTask, src/game/worldtasks/core.ts), whatever its kind, in the steps of
 //      WORLD_TASK_STEPS: a) it is open, waiting, with no mistake and no hint (a card there instead fails); b) one wrong
-//      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1; c) closed - nothing is
-//      recorded (the world's part of the save in memory and stored, the stars, the skills: as at its opening), the
-//      heroine walks; d) the action again opens the same task anew (one that opens where she goes - the sea's lock at
-//      the gate - after the world's move brings her there); e) solved - the step is stored, 3 stars, one task
-//      more in one skill. A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
+//      move - counted, "try again" and the hint said by their clips, back to waiting on rung 1; a kind that keeps its
+//      middle (the gingerbread house, WORLD-21) is then played to about its half (`half` of the door) - those right
+//      moves are its middle, kept in the save at once; c) closed - nothing more is recorded (the world's part of the
+//      save in memory and stored, the stars, the skills: as at its opening, or as its middle left them), the heroine
+//      walks; d) the action again opens the same task anew (one that opens where she goes - the sea's lock at the gate,
+//      the house - after the world's move brings her there, a step away first), in the middle she left it in; e)
+//      solved - the step is stored, 3 stars, one task more in one skill (in none for a step the chain names in
+//      `noSkill`). A task in the world on a step `inWorld` does not name fails with the id of the chain. An item that does not get done fails with its id: the action tried twice with its mark in
 //      the save unchanged, no action button at its place, no start, or `active` that never ends. Once, before the first
 //      item, the order is tried: at the place of an item that comes after an undone one nothing can be done yet;
 //   5. the end: every item done, each mark in the stored save under the id of its item, every step a chain names in
@@ -128,6 +131,8 @@ export function descriptionProblems(seen) {
     if (!HOWS.includes(i.how)) wrong.push(`how ${JSON.stringify(i.how)}`);
     if (!Array.isArray(i.after) || i.after.some((a) => typeof a !== 'string')) wrong.push(`after ${JSON.stringify(i.after)}`);
     if (i.inWorld !== undefined && (i.kind !== 'chain' || !Array.isArray(i.inWorld) || i.inWorld.some((k) => !Number.isInteger(k) || k < 0))) wrong.push(`inWorld ${JSON.stringify(i.inWorld)}`);
+    // the steps written to no skill are steps played in the world
+    if (i.noSkill !== undefined && (i.kind !== 'chain' || !Array.isArray(i.noSkill) || i.noSkill.some((k) => !(i.inWorld ?? []).includes(k)))) wrong.push(`noSkill ${JSON.stringify(i.noSkill)}`);
     if (typeof i.done !== 'boolean') wrong.push(`done ${JSON.stringify(i.done)}`);
     if (typeof i.active !== 'boolean') wrong.push(`active ${JSON.stringify(i.active)}`);
     if (wrong.length) out.push(`the item ${n} ("${i.id}") is not of the shape of an item: ${wrong.join(', ')}`);
@@ -315,7 +320,7 @@ export function reportProblems(report, want) {
  * `wrong` - one wrong move and its course; c) `close` - the close button, nothing recorded, the heroine walks; d)
  * `again` - the action again, the same task anew; e) `solve` - solved through the door, the step recorded.
  */
-export const WORLD_TASK_STEPS = ['open', 'wrong', 'close', 'again', 'solve'];
+export const WORLD_TASK_STEPS = ['open', 'wrong', 'half', 'close', 'again', 'solve'];
 /** Stars a step of a chain gives (src/game/dialogue.ts): the same with or without mistakes. */
 export const STEP_STARS = 3;
 
@@ -334,15 +339,38 @@ export function worldStepOf(item, part, kind) {
   return { step, error: null };
 }
 
-/** a) and d): the task just opened (`state`: __game.worldTask.state) waits for input, with no mistake, no hint and nothing kept. */
-export function openProblems(state, kind) {
+/**
+ * a) and d): the task just opened (`state`: __game.worldTask.state) waits for input, with no mistake and no hint, and
+ * nothing kept - or, opened anew after it was left in its middle, exactly that middle (`middle`).
+ */
+export function openProblems(state, kind, middle = []) {
   if (!state) return ['no task in the world is open'];
   const out = [];
   if (kind && state.kind !== kind) out.push(`the task is "${state.kind}", not the "${kind}" opened before`);
   if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input"`);
   if (state.wrongs !== 0) out.push(`${state.wrongs} wrong move(s) at its start`);
   if (state.rung !== 0) out.push(`the rung ${state.rung} of the hint at its start`);
-  if (!Array.isArray(state.progress) || state.progress.length) out.push(`it starts in a middle: ${JSON.stringify(state.progress)}`);
+  if (!Array.isArray(state.progress)) out.push(`its middle is ${JSON.stringify(state.progress)}, not a list`);
+  else if (JSON.stringify(state.progress) !== JSON.stringify(middle)) {
+    out.push(middle.length ? `it opens anew in the middle ${JSON.stringify(state.progress)}, not in the one it was left in ${JSON.stringify(middle)}` : `it starts in a middle: ${JSON.stringify(state.progress)}`);
+  }
+  if (Array.isArray(state.progress) && middle.length && state.moves !== middle.length) out.push(`${state.moves} right move(s) at its start in a middle of ${middle.length}`);
+  return out;
+}
+
+/**
+ * The middle (after `half` of the door made `made` right moves; `state` - where the task stands, `rec` - RECORD): still
+ * open and waiting, the one mistake of b) still counted, the moves made and kept as its middle, and that middle in the
+ * stored save as in the game's (a child may leave at any moment: what is done is stored at once).
+ */
+export function halfProblems(state, made, rec) {
+  if (!state) return ['the task in the world is not open in its middle'];
+  const out = [];
+  if (state.phase !== 'input') out.push(`its phase is "${state.phase}", not "input"`);
+  if (state.wrongs !== 1) out.push(`${state.wrongs} wrong moves counted, the one of b) expected`);
+  if (state.moves !== made) out.push(`${state.moves} right move(s) counted for the ${made} made`);
+  if (!Array.isArray(state.progress) || !state.progress.length) out.push(`its middle is ${JSON.stringify(state.progress)}: a kind that keeps one keeps nothing`);
+  if (rec.held !== rec.stored) out.push(`the stored save holds ${rec.stored}, the game ${rec.held}: the middle is not stored at once`);
   return out;
 }
 
@@ -389,15 +417,22 @@ export function closeProblems(before, after) {
 
 /**
  * e): solved (`after`) - no task open; in memory and in the stored save the chain `id` is at step `step` + 1, STEP_STARS
- * more stars, one task more in exactly one skill, the rest of the record as at the opening (`before`).
+ * more stars, one task more in exactly one skill - or, for a task written to no skill (`skilled` false, the chain's
+ * `noSkill`), every skill exactly as at the opening (`before`).
  */
-export function solveProblems(before, after, id, step) {
+export function solveProblems(before, after, id, step, skilled = true) {
   if (after.state) return [`the task is still open after solve(): ${JSON.stringify(after.state)}`];
   const out = [];
   for (const where of ['held', 'stored']) {
     const was = JSON.parse(before[where]), now = JSON.parse(after[where]), name = where === 'held' ? 'the game' : 'the stored save';
     if (now.part?.quests?.[id] !== step + 1) out.push(`${name} holds the chain "${id}" at ${JSON.stringify(now.part?.quests?.[id])}, not ${step + 1}`);
     if (now.stars !== was.stars + STEP_STARS) out.push(`${name} holds ${now.stars} stars, ${was.stars} + ${STEP_STARS} expected`);
+    if (!skilled) {
+      // a task written to no skill: not one number of any skill moves (its level is only read)
+      const moved = [...new Set([...Object.keys(now.skills ?? {}), ...Object.keys(was.skills ?? {})])].filter((k) => JSON.stringify(now.skills?.[k]) !== JSON.stringify(was.skills?.[k]));
+      if (moved.length) out.push(`${name}: the skills changed in ${moved.map((k) => `${k} ${JSON.stringify(was.skills?.[k])} -> ${JSON.stringify(now.skills?.[k])}`).join(', ')}, the step is written to no skill`);
+      continue;
+    }
     const grew = Object.keys(now.skills ?? {}).filter((k) => now.skills[k].tasks !== was.skills?.[k]?.tasks);
     const one = grew.length === 1 && now.skills[grew[0]].tasks === was.skills[grew[0]].tasks + 1;
     if (!one) out.push(`${name}: the tasks of the skills changed in ${grew.map((k) => `${k} ${was.skills?.[k]?.tasks} -> ${now.skills[k].tasks}`).join(', ') || 'none'}, one task more in one skill expected`);
@@ -562,8 +597,8 @@ export async function playWorld(h, o = {}) {
     if (metWorld.includes(key)) fail(`${where}: the task in the world of step ${step + 1} is open again after it was solved`);
     const name = `${where}, step ${step + 1}, the task in the world "${first.kind}"`;
     const bad = (what, list) => { if (list.length) fail(`world task: ${mode} ${name}: ${what}: ${list.join('; ')}`); };
-    let before = null;
-    const played = [];
+    let before = null, middle = [];
+    const played = [], skilled = !(item.noSkill ?? []).includes(step);
     for (const st of WORLD_TASK_STEPS) {
       if (st === 'open') {
         bad('a) open', openProblems(await worldState(), first.kind));
@@ -598,6 +633,18 @@ export async function playWorld(h, o = {}) {
         }), v0);
         bad('b) a wrong move', wrongProblems(await worldState(), voice));
         await shot(`world-task-${first.kind}-hint1`);
+      } else if (st === 'half') {
+        // a kind that keeps its middle: right moves to about its half, then it is left there (c) and come back to (d)
+        const made = await g(() => window.__game.worldTask.half?.() ?? 0);
+        if (!made) continue;
+        // the last piece of it lands in the world's time; the middle is what the task says it is then
+        await gameUntil(() => false, null, REACTS);
+        const rec = await g(RECORD, worldId);
+        bad('the middle', halfProblems(rec.state, made, rec));
+        middle = [...rec.state.progress];
+        before = rec;
+        await shot(`world-task-${first.kind}-half`);
+        console.log(`world task: ${first.kind}: ${made} right move(s) made, its middle ${JSON.stringify(middle)} kept in the stored save`);
       } else if (st === 'close') {
         if (!(await g(() => window.__game.worldTask.close()))) fail(`world task: ${mode} ${name}: c) the door found no task to close`);
         if (!(await gameUntil(() => !window.__game.worldTask.state && !window.__game.busy, null, REACTS))) fail(`world task: ${mode} ${name}: c) after its close button the task or its scene is still on`);
@@ -611,17 +658,21 @@ export async function playWorld(h, o = {}) {
           if (!(await g(() => window.__game.cheat()))) break;
         }
         if (!(await gameUntil(() => !!window.__game.worldTask.state, null, STARTS))) fail(`world task: ${mode} ${name}: d) the action again did not open the task in ${STARTS} s of game time`);
-        bad('d) opened again', openProblems(await worldState(), first.kind));
+        bad('d) opened again', openProblems(await worldState(), first.kind, middle));
+        if (middle.length) console.log(`world task: ${first.kind}: opened anew in its middle ${JSON.stringify((await worldState()).progress)}`);
       } else if (st === 'solve') {
         if (!(await g(() => window.__game.worldTask.solve()))) fail(`world task: ${mode} ${name}: e) the door found no task to solve`);
         const recorded = ([w, id, k]) => !window.__game.worldTask.state && (window.__game.save.worlds[w]?.quests?.[id] ?? 0) > k;
         if (!(await gameUntil(recorded, [worldId, item.id, step], STARTS))) fail(`world task: ${mode} ${name}: e) solved, but the task did not end with its step recorded in ${STARTS} s of game time`);
-        bad('e) solved', solveProblems(before, await g(RECORD, worldId), item.id, step));
+        bad('e) solved', solveProblems(before, await g(RECORD, worldId), item.id, step, skilled));
+        // what the world does once a task with a middle is done (the house's door opens): pictured after it
+        if (middle.length) { await gameUntil(() => false, null, REACTS); await shot(`world-task-${first.kind}-done`); }
       }
       played.push(st);
     }
     metWorld.push(key);
-    console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, a wrong move on rung 1 with its clips, closed with nothing recorded and the heroine walking, opened anew, solved and recorded`);
+    const kept = middle.length ? `${middle.length} right move(s) kept as its middle, ` : '';
+    console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, a wrong move on rung 1 with its clips, ${kept}closed with nothing recorded and the heroine walking, opened anew${middle.length ? ' in its middle' : ''}, solved and recorded${skilled ? '' : ' in no skill'}`);
   };
   /** The card of the fanfare that is up: an achievement's scene is closed by `fanfareUp`, the block's own is pictured and closed here. */
   const closeCard = async (where, picture) => {

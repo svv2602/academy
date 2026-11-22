@@ -82,9 +82,14 @@ export const MILL = { x: ZONES.mill.x + 7, z: ZONES.mill.z - 2, towerR: 2.6, tow
 export const MILLSTONE = { x: MILL.x, z: MILL.z + MILL.towerR + 2 };
 /** The carousel: east of the square's middle, out of the ways that meet there. */
 export const CAROUSEL = { x: ZONES.square.x + 9, z: ZONES.square.z - 1, r: 3.6, top: 6.5 } as const;
-/** Imbir's gingerbread house, the one that fell apart (WORLD-21 later assembles it): ruby 2 lies inside, at its door. */
-export const HOUSE = { x: ZONES.town.x - 6, z: ZONES.town.z + 5, w: 4, d: 4, h: 3.2 } as const;
-/** The door of the house, on its east side toward Imbir: the action there takes ruby 2 (the grey build's stand-in). */
+/**
+ * Imbir's gingerbread house, the one that fell apart: its body (`h` - as high as its walls) stands, its front is
+ * assembled in the world (WORLD-21, ./house.ts); ruby 2 lies inside, seen in the doorway once the door opens.
+ */
+export const HOUSE = { x: ZONES.town.x - 6, z: ZONES.town.z + 5, w: 4, d: 4, h: 2.2 } as const;
+/** The middle of the front the assembly stands in: on the east side toward Imbir, a little before the body, the dark inside between. */
+export const HOUSE_FACADE = { x: HOUSE.x + HOUSE.w / 2 + 0.4, z: HOUSE.z };
+/** Before the door of the house, toward Imbir: the action there takes ruby 2 once the door stands open. */
 export const HOUSE_DOOR = { x: HOUSE.x + HOUSE.w / 2 + 0.9, z: HOUSE.z };
 /**
  * The arch back to the Great Tree on the square (./hub-way.ts): south-east of its middle, by the spawn and out of the

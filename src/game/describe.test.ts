@@ -123,6 +123,19 @@ describe('the steps a world plays as a task in the world (WorldDef.worldTasks)',
     // the same description against the world without its declaration: the named steps are not the world's
     expect(problems({ ...TASKS, worldTasks: undefined }, items).map((p) => p.split(' names')[0])).toEqual(['the chain "owl"', 'the chain "hedgehog"']);
   });
+
+  it('the steps written to no skill (WorldDef.noSkill, the gingerbread house): named on their chain, each one of worldTasks', () => {
+    const ws = marks(), QUIET: Declared = { ...TASKS, noSkill: ['stones'] };
+    const items = describeWorld({ world: QUIET, ws }, own(ws));
+    expect(items.map((i) => i.noSkill)).toEqual([undefined, [1, 2], ...items.slice(2).map(() => undefined)]);
+    expect(look(items)[1]).toMatchObject({ inWorld: [1, 2], noSkill: [1, 2] });
+    expect('noSkill' in look(items)[0]).toBe(false);
+    expect(problems(QUIET, items)).toEqual([]);
+    // a chain that does not name them, or a world that names one it does not play in the world
+    expect(problems(QUIET, describeWorld({ world: TASKS, ws }, own(ws)))).toEqual(['the chain "hedgehog" names the steps [] as written to no skill, the world\'s noSkill makes them [1,2]']);
+    const odd = { ...TASKS, noSkill: ['add'] };
+    expect(problems(odd, describeWorld({ world: odd, ws }, own(ws)))).toEqual(['the task "add" of the world\'s noSkill is not one of its worldTasks']);
+  });
 });
 
 describe('the id of an item is the name of its mark', () => {

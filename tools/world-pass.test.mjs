@@ -12,7 +12,7 @@ import {
   PART_MAGIC,
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
   GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
-  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems,
+  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
 import { gameWaits } from './game-wait.mjs';
@@ -259,8 +259,8 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
   const was = rec2({ quests: { hare: 1 }, flags: {} }, 5, { compare: { tasks: 2 }, add: { tasks: 4 } });
   const rec = (o = {}) => ({ state: null, held: was, stored: was, ...o });
 
-  it('is played in five steps, in this order: open, a wrong move, closed, opened anew, solved', () => {
-    expect(WORLD_TASK_STEPS).toEqual(['open', 'wrong', 'close', 'again', 'solve']);
+  it('is played in these steps, in this order: open, a wrong move, to its middle (a kind that keeps one), closed, opened anew, solved', () => {
+    expect(WORLD_TASK_STEPS).toEqual(['open', 'wrong', 'half', 'close', 'again', 'solve']);
     expect(STEP_STARS).toBe(3);
   });
 
@@ -278,6 +278,22 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
     expect(openProblems(null)).toEqual(['no task in the world is open']);
     expect(openProblems(st({ phase: 'mistake', wrongs: 1, rung: 1, progress: [2] }), 'stones')).toEqual([
       'the task is "tally", not the "stones" opened before', 'its phase is "mistake", not "input"', '1 wrong move(s) at its start', 'the rung 1 of the hint at its start', 'it starts in a middle: [2]']);
+  });
+
+  it('d) a task left in its middle opens anew in exactly that middle, its moves with it (the gingerbread house, WORLD-21)', () => {
+    expect(openProblems(st({ progress: [0, 3], moves: 2 }), 'tally', [0, 3])).toEqual([]);
+    expect(openProblems(st(), 'tally', [0, 3])).toEqual(['it opens anew in the middle [], not in the one it was left in [0,3]', '0 right move(s) at its start in a middle of 2']);
+    expect(openProblems(st({ progress: [0], moves: 1 }), 'tally', [0, 3])).toEqual(['it opens anew in the middle [0], not in the one it was left in [0,3]', '1 right move(s) at its start in a middle of 2']);
+    expect(openProblems(st({ progress: null }), 'tally')).toEqual(['its middle is null, not a list']);
+  });
+
+  it('the middle: open and waiting after the right moves of `half`, the one mistake counted, the moves kept and stored at once', () => {
+    const at = rec2({ quests: { hare: 1 }, flags: {}, tasks: { gingerhouse: [7, 1, 0] } }, 5, {});
+    expect(halfProblems(st({ wrongs: 1, moves: 1, progress: [0] }), 1, { held: at, stored: at })).toEqual([]);
+    expect(halfProblems(null, 1, { held: at, stored: at })).toEqual(['the task in the world is not open in its middle']);
+    expect(halfProblems(st({ wrongs: 2, moves: 0, progress: [], phase: 'solved' }), 1, { held: at, stored: was })).toEqual([
+      'its phase is "solved", not "input"', '2 wrong moves counted, the one of b) expected', '0 right move(s) counted for the 1 made',
+      'its middle is []: a kind that keeps one keeps nothing', `the stored save holds ${was}, the game ${at}: the middle is not stored at once`]);
   });
 
   it('b) one wrong move: counted once, waiting again on rung 1, "try again" and the hint by their clips', () => {
@@ -314,11 +330,27 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
     expect(solveProblems(before, rec({ held: two, stored: two }), 'hare', 1)[0]).toBe('the game: the tasks of the skills changed in compare 2 -> 3, add 4 -> 5, one task more in one skill expected');
   });
 
+  it('e) a step written to no skill (the chain\'s `noSkill`): solved, every skill exactly as at its opening', () => {
+    const before = rec();
+    const quiet = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 2 }, add: { tasks: 4 } });
+    expect(solveProblems(before, rec({ held: quiet, stored: quiet }), 'hare', 1, false)).toEqual([]);
+    const now = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 3 }, add: { tasks: 4 } });
+    expect(solveProblems(before, rec({ held: now, stored: now }), 'hare', 1, false)).toEqual([
+      'the game: the skills changed in compare {"tasks":2} -> {"tasks":3}, the step is written to no skill',
+      'the stored save: the skills changed in compare {"tasks":2} -> {"tasks":3}, the step is written to no skill']);
+  });
+
   it('a step declared but never met as a task in the world is named at the end', () => {
     const list = [chain({ inWorld: [0, 2] }), item('chain', 'owl'), item('secret', 'well')];
     expect(unmetWorldSteps(list, ['hare 0'])).toEqual(['hare 2']);
     expect(unmetWorldSteps(list, ['hare 0', 'hare 2'])).toEqual([]);
     expect(unmetWorldSteps(items(), [])).toEqual([]);
+  });
+
+  it('the description: `noSkill` names steps of the chain\'s own `inWorld` only', () => {
+    const seen = (items) => descriptionProblems({ items, missing: [], problems: [] });
+    expect(seen([chain({ inWorld: [0, 3], noSkill: [3] })])).toEqual([]);
+    expect(seen([chain({ inWorld: [0], noSkill: [2] }), item('secret', 'well', { noSkill: [0] })]).map((p) => p.split(': ')[1])).toEqual(['noSkill [2]', 'noSkill [0]']);
   });
 
   it('the description: `inWorld` is a list of step numbers on a chain only', () => {
@@ -413,7 +445,7 @@ function standIn(o = {}) {
   const talk = (d) => {
     busy = true; say('npc_hi');
     after(0.3, () => {
-      if ((d.opens ?? []).includes(ws.quests[d.id] ?? 0)) { wt = { d, kind: d.world, phase: 'input', wrongs: fault.openWrong ? 1 : 0, rung: 0, progress: [] }; say('t_compare_more'); return; }
+      if ((d.opens ?? []).includes(ws.quests[d.id] ?? 0)) { wt = { d, kind: d.world, phase: 'input', wrongs: fault.openWrong ? 1 : 0, rung: 0, progress: fault.forgetsMiddle ? [] : [...(ws.tasks?.[d.id] ?? [])] }; say('t_compare_more'); return; }
       els.taskStage.className = `t-stage t-${d.task ?? 'add'}`;
       if (fault.watch) els.taskStage.classList.add('watch');
       els.task.classList.remove('hidden', 'won');
@@ -430,7 +462,8 @@ function standIn(o = {}) {
     step(d, was);
   };
   const step = (d, was) => {
-    if (!was && d.world && !fault.noSkill) save.skills.compare.tasks++;
+    if (!was && d.world && !fault.noSkill && (!d.noSkill || fault.quietSkill)) save.skills.compare.tasks++;
+    if (!was && ws.tasks) delete ws.tasks;
     win(fault.noStars ? 0 : was ? 1 : 3);
     if (fault.touchesOther === 'chain') save.worlds.other.quests.elder = 3;
     if (!was) { ws.quests[d.id] = (ws.quests[d.id] ?? 0) + (fault.skipsStep === d.id ? 2 : 1); persist(); }
@@ -476,12 +509,21 @@ function standIn(o = {}) {
   const game = () => ({
     get items() {
       if (fault.noDescription) return null;
-      return defs.map((d) => ({ kind: d.kind, id: d.id, at: d.at ?? null, how: d.how, after: [...(d.after ?? [])], done: done(d), active: on.has(d.id), ...(d.inWorld ? { inWorld: [...d.inWorld] } : {}) }));
+      return defs.map((d) => ({ kind: d.kind, id: d.id, at: d.at ?? null, how: d.how, after: [...(d.after ?? [])], done: done(d), active: on.has(d.id), ...(d.inWorld ? { inWorld: [...d.inWorld] } : {}), ...(d.noSkill ? { noSkill: [...d.noSkill] } : {}) }));
     },
     get hero() { return { root: { position: hero } }; },
     /** The debug door of the task in the world (src/game/worldtasks/core.ts): its calls are logged in `log.door`. */
     worldTask: {
-      get state() { return wt && { kind: wt.kind, phase: wt.phase, wrongs: wt.wrongs, moves: 0, rung: wt.rung, progress: [...wt.progress] }; },
+      get state() { return wt && { kind: wt.kind, phase: wt.phase, wrongs: wt.wrongs, moves: wt.progress.length, rung: wt.rung, progress: [...wt.progress] }; },
+      /** A kind that keeps its middle (`d.middle`): one right move, kept in the world's part at once (unless the fault says otherwise). */
+      half() {
+        if (!wt || !wt.d.middle) return 0;
+        log.door.push('half');
+        wt.progress = [0];
+        ws.tasks = { [wt.d.id]: [0] };
+        if (!fault.middleUnstored) persist();
+        return 1;
+      },
       wrong() {
         if (!wt) return false;
         log.door.push('wrong');
@@ -737,6 +779,26 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     ['noSkill', 'e) solved: the game: the tasks of the skills changed in none'],
   ])('a task in the world that breaks the rule "%s" fails with its chain, its step and the letter of the step', async (name, text) => {
     const r = await pass({ defs: hare(), fault: { [name]: true } });
+    expect(r.thrown).toContain(`world task: mobile the item "hare" (chain, done by "act" at 3,-6), step 1, the task in the world "tally": ${text}`);
+  });
+
+  it('a task that keeps its middle and is written to no skill (the gingerbread house): left in its middle, come back to, solved in no skill', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'world-pass-')); dirs.push(dir);
+    const r = await pass({ defs: hare({ middle: true, noSkill: [0] }) }, { need: 'one', out: join(dir, 'pass.json') });
+    expect(r.thrown).toBeNull();
+    expect(r.errors).toEqual([]);
+    expect(r.log.door).toEqual(['wrong', 'half', 'close', 'solve']);
+    expect(r.printed).toContain('world task: hare step 1 "tally": open, wrong, half, close, again, solve - opened waiting, a wrong move on rung 1 with its clips, 1 right move(s) kept as its middle, closed with nothing recorded and the heroine walking, opened anew in its middle, solved and recorded in no skill');
+    expect(r.printed).toContain('world task: tally: opened anew in its middle [0]');
+    expect(r.log.shots).toEqual(expect.arrayContaining(['world-task-tally', 'world-task-tally-hint1', 'world-task-tally-half', 'world-task-tally-done']));
+  });
+
+  it.each([
+    ['forgetsMiddle', 'd) opened again: it opens anew in the middle [], not in the one it was left in [0]'],
+    ['middleUnstored', 'the middle: the stored save holds'],
+    ['quietSkill', 'e) solved: the game: the skills changed in compare'],
+  ])('a task with a middle that breaks the rule "%s" fails with its chain, its step and what is wrong', async (name, text) => {
+    const r = await pass({ defs: hare({ middle: true, noSkill: [0] }), fault: { [name]: true } });
     expect(r.thrown).toContain(`world task: mobile the item "hare" (chain, done by "act" at 3,-6), step 1, the task in the world "tally": ${text}`);
   });
 

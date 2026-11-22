@@ -139,6 +139,12 @@ export interface WorldItem {
    * task in the world on a step not named here is a failure. Absent: no step of the chain is played in the world.
    */
   inWorld?: readonly number[];
+  /**
+   * A chain only: those of `inWorld` whose task is written to no skill (WorldDef.noSkill - the gingerbread house of
+   * world 4, WORLD-21): solved, the walkthrough expects every skill of the save as it was, not one task more in one.
+   * Absent: every step of `inWorld` records its task in its skill.
+   */
+  noSkill?: readonly number[];
 }
 
 /**
@@ -202,6 +208,13 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * of its own).
    */
   readonly worldTasks?: readonly string[];
+  /**
+   * Those of `worldTasks` that are written to no skill (the customer's decisions: the gingerbread house of world 4,
+   * WORLD-21, docs/worlds/world-4.md question 3): the level of a skill is only read for them, and the step is done with
+   * no result (src/game/dialogue.ts `stepDone`). The description names their steps (WorldItem.noSkill), so the
+   * walkthrough knows not to look for one task more in a skill. Absent - every task in the world is recorded.
+   */
+  readonly noSkill?: readonly string[];
   /**
    * The places the mysterious stars of a day may stand at (src/game/mystery.ts): out of sight, where she has to walk;
    * at least MYSTERY_MIN_SPOTS of them, MYSTERY_COUNT a day. Absent - the world has none.

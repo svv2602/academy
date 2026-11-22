@@ -10,7 +10,8 @@
  * - its timers are the world's (`WorldScope`): a world left in the middle of a task takes them away with it;
  * - one debug door for the walkthrough (`__game.worldTask`, ?debug only): solve, make a wrong move, close, and a state
  *   that says where the task stands without knowing its kind;
- * - the middle of a task can be kept (`progress` / `resume`, a list of numbers); the world's progress stores it.
+ * - the middle of a task can be kept (`progress` / `resume`, a list of numbers); the world's progress stores it, and
+ *   the walkthrough leaves such a task in its middle and comes back to it (`half`, the gingerbread house of WORLD-21).
  */
 import type * as THREE from 'three';
 import type { Spoken } from '../../core/audio';
@@ -69,6 +70,12 @@ export interface WorldTaskShow {
   solve(): void;
   /** Makes one wrong move through the same handler a tap goes through; false when no wrong move is possible now. */
   wrong(): boolean;
+  /**
+   * A kind that keeps its middle (the gingerbread house, WORLD-21): right moves through the same handler a tap goes
+   * through until about half of it is done - never its end - and how many were made. The walkthrough leaves the task
+   * there and comes back to it (tools/world-pass.mjs, the step "half"). Absent or 0: the kind has no middle to leave in.
+   */
+  half?(): number;
   /** The close button: the task ends unsolved and leaves nothing in the scene; the save is not changed. */
   close(): void;
   update(time: number): void;
@@ -178,6 +185,8 @@ export function worldTaskDoor(g: object) {
     solve: () => { const s = cur(); if (!s) return false; s.solve(); return true; },
     /** One wrong move; false when none is open or none is possible. */
     wrong: () => cur()?.wrong() ?? false,
+    /** Right moves up to the middle of a kind that keeps one (WorldTaskShow.half): how many; 0 - none open, or no middle. */
+    half: () => cur()?.half?.() ?? 0,
     /** The close button; false when none is open. */
     close: () => { const s = cur(); if (!s) return false; s.close(); return true; },
     /** Where the open task stands; null - none is open. */

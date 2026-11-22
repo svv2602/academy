@@ -26,8 +26,10 @@ describe('tools/sweet-grey.mjs', () => {
   it('a report is right only when the pass came to the finale in the Sweet Land, every kind done', () => {
     const items = [{ id: 'pastila', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ruby_house', kind: 'part' }, { id: 'ruby_mill', kind: 'part' }, { id: 'final', kind: 'finale' }];
     // the rubies are taken inside the chains: not in the order of the items done by the pass itself
-    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'] };
+    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2'] };
     expect(passProblems(report)).toEqual([]);
+    // the gingerbread house is played in the world (WORLD-21): a pass that never met it there is wrong
+    expect(passProblems({ ...report, worldTasks: [] })).toEqual(['no task in the world was played by the pass: the world declares one']);
     expect(passProblems(null)).toHaveLength(1);
     expect(passProblems({ ...report, order: ['pastila', 'toured'] })).toEqual(['no item of kind "finale" was done by the pass']);
     expect(passProblems({ ...report, items: items.filter((i) => i.id !== 'ruby_mill') })).toEqual(['the description has 1 part(s) of the artifact in the world, 2 expected']);

@@ -13,7 +13,9 @@ import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SWEET_FLYOVER } from './flyover-path';
+import { DOORWAY, HOUSE_STEP, createHouse } from './house';
 import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
@@ -31,15 +33,17 @@ import { buildGround, colliders, ground } from './terrain';
  */
 
 /**
- * The characters (docs/worlds/world-4.md, the table «Персонажи»). The three tasks the document plays in the world stand
- * in, in step 1, as the panel task of the same skill (LATER_IN_WORLD): the gingerbread house (WORLD-21, no skill) as the
- * number house, the shape bridge (WORLD-20, classify) as "the odd one out", the scales (WORLD-22, compare) as
+ * The characters (docs/worlds/world-4.md, the table «Персонажи»). Of the three tasks the document plays in the world,
+ * the gingerbread house (WORLD-21, written to no skill) is played in the world since step 2: Imbir's third step, the
+ * house assembled before his house (./house.ts). The other two stand in as the panel task of the same skill
+ * (LATER_IN_WORLD): the shape bridge (WORLD-20, classify) as "the odd one out", the scales (WORLD-22, compare) as
  * comparing. `part`: the ruby is not handed over - the character says where it lies (inside the gingerbread house, in
- * the millstone; WORLD-08), and she takes it there by the action button (RUBIES).
+ * the millstone; WORLD-08), and she takes it there by the action button (RUBIES); ruby 2 is seen in the doorway once the
+ * house is assembled and its door opens.
  */
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d' },
-  { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', 'house', 'part'], shard: '#e8364f' },
+  { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f' },
   { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', 'compare'], shard: '#ff6b8a' },
   { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: ['odd', 'simon', 'signs', 'part'], shard: '#d62e5c' },
   { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3' },
@@ -48,11 +52,10 @@ export const FRIENDS: readonly CharacterDef[] = [
 /**
  * The steps that become tasks in the world in a later step of the grey build, each standing in now as the panel task
  * of the same skill: whose chain, the number of the step, its stand-in, the card of the task in the world and its
- * skill (the house is written to no skill, docs/worlds/world-4.md question 3). Played in the world, the step's id
- * becomes the task's own (the world's `tasks` and `worldTasks`), as the sea's lock replaced its `house`.
+ * skill. Played in the world, the step's id becomes the task's own (the world's `tasks` and `worldTasks`), as the
+ * gingerbread house (WORLD-21) replaced the number house that stood in for it in step 1.
  */
 export const LATER_IN_WORLD = [
-  { owner: 'imbir', step: 2, now: 'house', card: 'WORLD-21', skill: null },
   { owner: 'kakao', step: 0, now: 'odd', card: 'WORLD-20', skill: 'classify' },
   { owner: 'tyanuchka', step: 2, now: 'compare', card: 'WORLD-22', skill: 'compare' },
 ] as const;
@@ -68,13 +71,14 @@ const FIGURE: Record<string, { h: number; r: number; color: string; top: string 
 
 /**
  * The rubies that lie in the world (WORLD-08): whose chain says where, the flag of the ruby taken (the id of its item),
- * where it is taken and the label of its action. In step 1 both are taken by the action at their place: ruby 2 at the
- * door of Imbir's house (WORLD-21 later opens the door of the assembled house), ruby 4 at the millstone (the action
- * there later turns the millstone open).
+ * where it is seen (`spot`, `lift` m over the ground), where it is taken and the label of its action. Ruby 2 is seen in
+ * the doorway of Imbir's house once the house is assembled and its door has opened (WORLD-21, ./house.ts), and taken
+ * by the action before the door; ruby 4 is taken by the action at the millstone (in the step of WORLD-08 the action
+ * there turns the millstone open).
  */
 export const RUBIES = [
-  { owner: 'imbir', flag: 'ruby_house', hint: 'imbir_hint', spot: HOUSE_DOOR, at: HOUSE_DOOR, label: 'sweet_house' },
-  { owner: 'kakao', flag: 'ruby_mill', hint: 'kakao_hint', spot: MILLSTONE, at: { x: MILLSTONE.x, z: MILLSTONE.z + 1.6 }, label: 'sweet_millstone' },
+  { owner: 'imbir', flag: 'ruby_house', hint: 'imbir_hint', spot: DOORWAY, lift: 0.75, at: HOUSE_DOOR, label: 'sweet_house' },
+  { owner: 'kakao', flag: 'ruby_mill', hint: 'kakao_hint', spot: MILLSTONE, lift: 1.4, at: { x: MILLSTONE.x, z: MILLSTONE.z + 1.6 }, label: 'sweet_millstone' },
 ] as const;
 export const FINALE = 'final';
 const TOUR = 'toured';
@@ -159,7 +163,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   const rubies = RUBIES.map((r) => {
     const def = FRIENDS.find((c) => c.id === r.owner)!;
     const mesh = rubyMesh(def.shard);
-    mesh.position.copy(point(r.spot, 1.4)); mesh.visible = false;
+    mesh.position.copy(point(r.spot, r.lift)); mesh.visible = false;
     scene.add(mesh);
     return { ...r, mesh, step: def.steps.indexOf('part') };
   });
@@ -179,9 +183,19 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
-  // The tasks of the chains: the panel ones by the shared conversation; `part` here. The tasks in the world of a later
-  // step (LATER_IN_WORLD) join this record under their own ids, with the world's `worldTasks`.
-  const tasks: Record<string, WorldTask> = { part };
+  // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
+  const player = worldTaskPlayer(g, scope);
+  // Imbir's gingerbread house (WORLD-21): he asks, the heroine walks to his house, the assembly opens before it; once
+  // assembled its door opens and ruby 2 is seen inside - the step `part` of his chain is on at once, no talk needed
+  const imbir = FRIENDS.find((c) => c.id === 'imbir')!;
+  const house = createHouse(g, player, scope, { inside: () => { ws.flags.imbir_hint = true; g.persist(); } });
+  scope.own(() => house.dispose());
+  house.opened((ws.quests.imbir ?? 0) > imbir.steps.indexOf(HOUSE_STEP));
+  // The tasks of the chains: the panel ones by the shared conversation; `part` and the house here. The tasks in the
+  // world of a later step (LATER_IN_WORLD) join this record under their own ids, with the world's `worldTasks`.
+  const tasks: Record<string, WorldTask> = { part, [HOUSE_STEP]: house };
+  const wrongTasks = worldTaskProblems(sweet.worldTasks, tasks);
+  if (wrongTasks.length) throw new Error(`the Sweet Land: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
@@ -226,7 +240,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
       ],
-      tap: () => false,
+      tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -239,8 +253,9 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         }
         for (const r of rubies) {
           r.mesh.visible = waiting(r);
-          if (r.mesh.visible) { r.mesh.rotation.y = time * 1.6; r.mesh.position.y = groundY(r.spot.x, r.spot.z) + 1.4 + Math.sin(time * 2) * 0.12; }
+          if (r.mesh.visible) { r.mesh.rotation.y = time * 1.6; r.mesh.position.y = groundY(r.spot.x, r.spot.z) + r.lift + Math.sin(time * 2) * 0.12; }
         }
+        house.update(dt, time, canMove);
         // the finale: the five fly up from round the shrine to the candle's top over GATHER_S s of game time
         if (finaleEnd) {
           const k = 1 - Math.max(0, finaleLeft) / GATHER_S, top = scenery.candleTop;
@@ -259,13 +274,15 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         scenery.turn(dt, WINGS_TURN);
       },
       goal: () => {
+        const h = house.goal();
+        if (h) return h;
         const r = rubies.find(waiting);
         if (r) return r.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
         return finaleItem.done() ? null : shrine;
       },
-      animate: (_dt, time) => { flies.update(time); hubWay.update(time); },
+      animate: (_dt, time) => { flies.update(time); hubWay.update(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
@@ -277,9 +294,11 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         // landmarks, the route, the river and its bridge
         sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) } },
       talk: (id) => { void dialogue.talk(npc(id)); },
-      // a task in the world open: its right move (the walkthrough's door); else a ruby waiting in the world is taken
+      // a task in the world open: its right move (the walkthrough's door); the house's step on: she is brought before
+      // it (./house.ts `cheat`); else a ruby waiting in the world is taken
       cheatWorld: () => {
         if (worldTaskDoor(g).solve()) return 'world task';
+        if (house.cheat()) return 'house';
         const r = rubies.find(waiting);
         if (!r) return '';
         take(r);
@@ -311,4 +330,7 @@ export const sweet: WorldDef<Record<string, never>, WorldSky> = {
   sky: buildSky,
   load: loadSweet,
   build: buildSweet,
+  // the gingerbread house is played in the world (WORLD-21), and written to no skill (the customer's decision 2026-11-18)
+  worldTasks: [HOUSE_STEP],
+  noSkill: [HOUSE_STEP],
 };

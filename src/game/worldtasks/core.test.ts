@@ -91,7 +91,12 @@ describe('the debug door of the walkthrough (__game.worldTask)', () => {
     expect(door.solve()).toBe(true);
     expect(door.close()).toBe(true);
     expect(calls).toEqual(['wrong', 'solve', 'close']);
+    // a kind with no middle to leave in: the door's `half` makes no move
+    expect(door.half()).toBe(0);
+    setWorldTask(g, { ...show, half: () => { calls.push('half'); return 2; } });
+    expect(door.half()).toBe(2);
     setWorldTask(g, null);
     expect(door.state).toBeNull();
+    expect(door.half()).toBe(0);
   });
 });

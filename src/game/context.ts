@@ -166,6 +166,8 @@ export interface WorldEntry {
   move?: WorldDef['move'];
   /** The steps it plays as tasks in the world (WorldDef.worldTasks): its description names them (src/game/describe.ts). */
   worldTasks?: WorldDef['worldTasks'];
+  /** Those of them written to no skill (WorldDef.noSkill): its description names their steps too. */
+  noSkill?: WorldDef['noSkill'];
   /** Where she appears coming from another world (WorldDef.arrive); absent - where she was left, else the spawn. */
   arrive?: WorldDef['arrive'];
   /** Its own word for where she stopped (WorldDef.left); absent - the shared ones (src/ui/welcome.ts). */
