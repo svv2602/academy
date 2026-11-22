@@ -59,8 +59,8 @@ export const STEPS = 'steps';
 export const TRACKS = 'tracks';
 
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort'], shard: '#4fd08a',
-    hi: 'borovik_hi', asks: ['borovik_t1', 'borovik_t2', 'borovik_t3'], thanks: 'borovik_done', again: ['borovik_again_1', 'borovik_again_2'] },
+  { id: 'borovik', emoji: '🍄', x: ZONES.village.x + 2, z: ZONES.village.z + 1.5, heading: 1.2, steps: ['count', 'neighbors', 'sort', 'puzzle'], shard: '#4fd08a',
+    hi: 'borovik_hi', asks: ['borovik_t1', 'borovik_t2', 'borovik_t3', 'borovik_t4'], thanks: 'borovik_done', again: ['borovik_again_1', 'borovik_again_2'] },
   { id: 'mudrena', emoji: '🦉', x: ZONES.owl.x + 1.5, z: ZONES.owl.z + 1.5, heading: 0.6, steps: ['pattern', STEPS, 'compare', 'part'], shard: '#3fc27a',
     hi: 'mudrena_hi', asks: ['mudrena_t1', 'mudrena_t2', 'mudrena_t3', 'mudrena_hint'], thanks: 'mudrena_done', again: ['mudrena_again_1', 'mudrena_again_2'],
     after: 'mudrena_owlet_ask' },

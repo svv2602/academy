@@ -1,7 +1,9 @@
 /** The puzzle (LEARN-19): the generator by the ladder, the model's answers, the solution. */
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
-import { PICTURE_CROP, PICTURE_SIZE, PUZZLE_LEVELS, PUZZLE_PICTURES, generate, openPictures, puzzle, setAlike, setPuzzleSeen, type PuzzleInput } from './puzzle';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { PICTURE_CROP, PICTURE_SIZE, PUZZLE_LEVELS, PUZZLE_PICTURES, generate, openPictures, pictureImage, puzzle, setAlike, setPuzzleWorld, type PuzzleInput } from './puzzle';
 import { ALIKE, alikeGroups, pieceBackground } from '../taskviews/puzzle';
 
 const makeRng = (n: number) => createRng(String(n));
@@ -52,11 +54,45 @@ describe('the puzzle by the ladder (docs/11-learning.md, «Сборка карт
     const crystal = (id: string) => id.startsWith('w1_crystal');
     expect(openPictures().some((p) => crystal(p.id))).toBe(false);
     for (let level = 1; level <= 5; level++) for (const seed of SEEDS) expect(crystal(generate(level, makeRng(seed)).body.picture)).toBe(false);
-    const undo = setPuzzleSeen((story) => story === 'story_crystal');
+    const undo = setPuzzleWorld(() => 'fairy', (world, story) => world === 'fairy' && story === 'story_crystal');
     try {
       expect(new Set(SEEDS.map((seed) => generate(5, makeRng(seed)).body.picture)).has('w1_crystal_1')).toBe(true);
     } finally { undo(); }
     expect(openPictures().some((p) => crystal(p.id))).toBe(false);
+  });
+});
+
+describe('the frames of the world played (the lead\'s word of 2026-11-22: the forest\'s frames only)', () => {
+  const ROOT = join(__dirname, '..', '..', '..');
+  const pics = (world: string, level: number) => new Set(SEEDS.map((seed) => {
+    const undo = setPuzzleWorld(() => world, () => false);
+    try { return generate(level, makeRng(seed)).body.picture; } finally { undo(); }
+  }));
+
+  it('in the forest only the forest\'s frames; the beginning always, the Emerald\'s only once she has seen it there', () => {
+    for (let level = 1; level <= 5; level++) for (const id of pics('forest', level)) expect(id, `level ${level}`).toMatch(/^w2_intro_/);
+    expect(pics('forest', 4)).toEqual(new Set(['w2_intro_3']));   // the one calm frame of the beginning
+    const undo = setPuzzleWorld(() => 'forest', (world, story) => world === 'forest' && story === 'story_emerald');
+    try {
+      const got = new Set(SEEDS.map((seed) => generate(4, makeRng(seed)).body.picture));
+      expect(got).toEqual(new Set(['w2_intro_3', 'w2_back_1', 'w2_back_3']));
+    } finally { undo(); }
+    // the Emerald's story seen in the first world's save is not the forest's
+    const other = setPuzzleWorld(() => 'forest', (world, story) => world === 'fairy' && story === 'story_emerald');
+    try { expect(openPictures().map((p) => p.id)).toEqual(['w2_intro_1', 'w2_intro_2', 'w2_intro_3']); } finally { other(); }
+  });
+
+  it('a world with no frames of its own (the hub, the sea) cuts the first world\'s; the first world never the forest\'s', () => {
+    for (const world of ['hub', 'sea', 'fairy']) for (const id of pics(world, 1)) expect(id, world).toMatch(/^w1_/);
+  });
+
+  it('every frame is a file of the build at its image: the first world\'s in public/, the forest\'s among its files', () => {
+    for (const p of PUZZLE_PICTURES) {
+      const dir = p.world === 'fairy' ? join(ROOT, 'public') : join(ROOT, 'worlds-data', p.world);
+      expect(existsSync(join(dir, `${pictureImage(p.id)}.webp`)), p.image).toBe(true);
+      expect(pictureImage(p.id).endsWith(p.id), p.image).toBe(true);
+    }
+    expect(new Set(PUZZLE_PICTURES.map((p) => p.id)).size).toBe(PUZZLE_PICTURES.length);
   });
 });
 

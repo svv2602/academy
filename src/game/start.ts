@@ -12,7 +12,7 @@ import type { Game } from './context';
 import { tour } from './flyover';
 import { atPlay } from './stops';
 import { playStory, seenStories } from './story';
-import { setPuzzleSeen } from './tasks/puzzle';
+import { setPuzzleWorld } from './tasks/puzzle';
 import type { Gear } from './gear';
 import type { BookInfo, WorldLines } from './world';
 
@@ -91,8 +91,8 @@ export function initStartScreen(g: Game, o: {
   launched: { world: string; refused: boolean; refuse(): void };
 }): void {
   const { save, hero, cam, speech, persist, refreshHud } = g;
-  // the puzzle cuts the frames of a story of the first world only once she has seen it (LEARN-19)
-  setPuzzleSeen((story) => g.save.worlds?.fairy?.flags?.[story] === true);
+  // the puzzle cuts the frames of the world played, of a story only once she has seen it there (LEARN-19)
+  setPuzzleWorld(() => g.world.id, (world, story) => g.save.worlds?.[world]?.flags?.[story] === true);
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
   el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
   el.play.addEventListener('click', async () => {

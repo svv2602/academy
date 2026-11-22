@@ -1,5 +1,5 @@
 /**
- * The puzzle (LEARN-19): a frame of a story of the first world cut into pieces; the child drags each piece into its
+ * The puzzle (LEARN-19): a frame of a story of the world played cut into pieces; the child drags each piece into its
  * place in the frame. The picture is a whole scene - sky, rainbow, gazebo, path - so the pieces are tied by their lines
  * and colours (the customer's word of 2026-11-21: «да, переключаем на кадры заставок»). A frame is 16:9; the puzzle
  * takes its middle 4:3 (PICTURE_CROP).
@@ -10,8 +10,10 @@
  *   3 - 12 (4 x 3), the frame empty;
  *   4 - 16 (4 x 4), a calm frame - much sky and grass, pieces alike;
  *   5 - 20 (5 x 4), a busy frame, some pieces turned: a touch turns a piece a quarter round.
- * The frames of a story she has not seen yet are not used (`setPuzzleSeen`): the crystal's story tells how the world
- * ends.
+ * A world's puzzle cuts its own frames (`setPuzzleWorld`): the first world's in the install, the forest's among its
+ * files (the lead's word of 2026-11-22: the forest's frames only); a world with none of its own cuts the first world's.
+ * The frames of a story she has not seen yet in that world are not used: the crystal's story and the Emerald's tell
+ * how the world ends.
  *
  * Pieces alike: two pieces that look the same (sky, grass) are one to the child, so a piece dropped on the free cell
  * of a piece alike to it stays there, and that piece takes its cell instead (`alike`, given by the view, which compares
@@ -23,34 +25,55 @@ import type { Rng } from '../../core/rng';
 import type { Outcome, Spec, TaskModel } from './types';
 
 /**
- * The frames of the first world's stories (public/story/<id>.webp, src/worlds/fairy/story.ts) the puzzle takes: the
- * story each belongs to, and whether it is calm (much sky and grass, pieces alike - level 4) or busy (level 5).
+ * The frames of the worlds' stories the puzzle takes: the world each is cut in, its image (`<image>.webp` under the
+ * build: the first world's public/story/, src/worlds/fairy/story.ts; the forest's worlds-data/forest/story/forest/,
+ * src/worlds/forest/story.ts), the story it belongs to, and whether it is calm (much sky and grass or sand, pieces
+ * alike - level 4) or busy (level 5).
  */
 export const PUZZLE_PICTURES = [
-  { id: 'w1_intro_1', story: 'story_intro', calm: true },
-  { id: 'w1_intro_2', story: 'story_intro', calm: true },
-  { id: 'w1_intro_3', story: 'story_intro', calm: false },
-  { id: 'w1_intro_4', story: 'story_intro', calm: true },
-  { id: 'w1_intro_5', story: 'story_intro', calm: false },
-  { id: 'w1_crystal_1', story: 'story_crystal', calm: false },
-  { id: 'w1_crystal_2', story: 'story_crystal', calm: false },
-  { id: 'w1_crystal_3', story: 'story_crystal', calm: false },
+  { id: 'w1_intro_1', world: 'fairy', image: 'story/w1_intro_1', story: 'story_intro', calm: true },
+  { id: 'w1_intro_2', world: 'fairy', image: 'story/w1_intro_2', story: 'story_intro', calm: true },
+  { id: 'w1_intro_3', world: 'fairy', image: 'story/w1_intro_3', story: 'story_intro', calm: false },
+  { id: 'w1_intro_4', world: 'fairy', image: 'story/w1_intro_4', story: 'story_intro', calm: true },
+  { id: 'w1_intro_5', world: 'fairy', image: 'story/w1_intro_5', story: 'story_intro', calm: false },
+  { id: 'w1_crystal_1', world: 'fairy', image: 'story/w1_crystal_1', story: 'story_crystal', calm: false },
+  { id: 'w1_crystal_2', world: 'fairy', image: 'story/w1_crystal_2', story: 'story_crystal', calm: false },
+  { id: 'w1_crystal_3', world: 'fairy', image: 'story/w1_crystal_3', story: 'story_crystal', calm: false },
+  // the forest: the sleeping forest from above and the Emerald coming apart are busy; the heroine at the arch (sky and
+  // sand), the Emerald whole over the altar and the Great Tree (sky and grass) calm
+  { id: 'w2_intro_1', world: 'forest', image: 'story/forest/w2_intro_1', story: 'story_intro', calm: false },
+  { id: 'w2_intro_2', world: 'forest', image: 'story/forest/w2_intro_2', story: 'story_intro', calm: false },
+  { id: 'w2_intro_3', world: 'forest', image: 'story/forest/w2_intro_3', story: 'story_intro', calm: true },
+  { id: 'w2_back_1', world: 'forest', image: 'story/forest/w2_back_1', story: 'story_emerald', calm: true },
+  { id: 'w2_back_2', world: 'forest', image: 'story/forest/w2_back_2', story: 'story_emerald', calm: false },
+  { id: 'w2_back_3', world: 'forest', image: 'story/forest/w2_back_3', story: 'story_emerald', calm: true },
 ] as const;
 export type PuzzlePicture = typeof PUZZLE_PICTURES[number]['id'];
+/** The image of a frame (`<image>.webp` under the build). */
+export const pictureImage = (id: string) => PUZZLE_PICTURES.find((p) => p.id === id)?.image ?? `story/${id}`;
 /** The stories whose frames may be used before she has seen them: the beginning tells nothing away. */
 const OPEN_STORIES: readonly string[] = ['story_intro'];
+/** The world whose frames a world with none of its own cuts: the first world's are in the install. */
+const FIRST_WORLD = 'fairy';
 /** The size of a frame (px) and the middle 4:3 the puzzle takes of it. */
 export const PICTURE_SIZE = { w: 960, h: 536 } as const;
 export const PICTURE_CROP = { x: Math.round((PICTURE_SIZE.w - PICTURE_SIZE.h * 4 / 3) / 2), w: Math.round(PICTURE_SIZE.h * 4 / 3), h: PICTURE_SIZE.h } as const;
 
-let seen: (story: string) => boolean = () => false;
-/** Tells the generator which stories she has seen (the game, from the save); returns the undo. */
-export function setPuzzleSeen(fn: (story: string) => boolean): () => void {
-  seen = fn;
-  return () => { seen = () => false; };
+let played: () => string = () => FIRST_WORLD;
+let seen: (world: string, story: string) => boolean = () => false;
+/**
+ * Tells the generator the world played now and which stories she has seen in a world (the game, from the save);
+ * returns the undo.
+ */
+export function setPuzzleWorld(world: () => string, fn: (world: string, story: string) => boolean): () => void {
+  played = world; seen = fn;
+  return () => { played = () => FIRST_WORLD; seen = () => false; };
 }
-/** The frames she may get now. */
-export const openPictures = () => PUZZLE_PICTURES.filter((p) => OPEN_STORIES.includes(p.story) || seen(p.story));
+/** The frames she may get now: of the world played (none of its own - of the first world), of stories open or seen. */
+export function openPictures() {
+  const own = PUZZLE_PICTURES.some((p) => p.world === played()) ? played() : FIRST_WORLD;
+  return PUZZLE_PICTURES.filter((p) => p.world === own && (OPEN_STORIES.includes(p.story) || seen(own, p.story)));
+}
 
 /** The cut and the frame of each level. `guide`: how strongly the picture shows in the frame (0 - not at all). */
 export const PUZZLE_LEVELS: Record<number, { cols: number; rows: number; guide: number; pictures: 'any' | 'calm' | 'busy'; turn: boolean }> = {

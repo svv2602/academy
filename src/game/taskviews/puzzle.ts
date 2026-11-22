@@ -10,7 +10,7 @@
  * picture in the frame are the same image file as backgrounds placed by percent, nothing is drawn. Once the frame is
  * loaded its cells are compared small (ALIKE) and the cells that look the same are told to the model (`setAlike`).
  */
-import { PICTURE_CROP, PICTURE_SIZE, puzzle, setAlike, type PuzzleSpec } from '../tasks/puzzle';
+import { PICTURE_CROP, PICTURE_SIZE, pictureImage, puzzle, setAlike, type PuzzleSpec } from '../tasks/puzzle';
 import { el, type PanelCtx } from './panel';
 import './puzzle.css';
 
@@ -21,7 +21,7 @@ const TAP_PX = 8;
 /** The cells compared as ALIKE.w x ALIKE.h colours; alike when the mean difference of a channel is under ALIKE.d (0-255). */
 export const ALIKE = { w: 8, h: 6, d: 10 } as const;
 
-const pictureUrl = (id: string) => `${import.meta.env.BASE_URL}story/${id}.webp`;
+const pictureUrl = (id: string) => `${import.meta.env.BASE_URL}${pictureImage(id)}.webp`;
 
 /**
  * The background of the piece `x, y` of a frame cut `cols` x `rows` (its middle 4:3), by percent of the element: the

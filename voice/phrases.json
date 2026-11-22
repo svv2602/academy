@@ -318,6 +318,7 @@
  "borovik_t1@Orus": ["Хто ж так гриби складає? Порахуй-но, скільки їх у кошику.", "warm", "borovik", "forest"],
  "borovik_t2@Orus": ["Номери на хатках переплуталися! Хто сусід цього числа?", "warm", "borovik", "forest"],
  "borovik_t3@Orus": ["А тепер розклади все по місцях. Люблю, коли лад!", "warm", "borovik", "forest"],
+ "borovik_t4@Orus": ["Вітер розкидав мою картинку! Допоможеш скласти?", "warm", "borovik", "forest"],
  "borovik_done@Orus": ["Ох і молодчина! Тримай листочок-смарагд. Бережи, не загуби!", "joy", "borovik", "forest"],
  "borovik_again_1@Orus": ["Знову ти? Ну заходь, заходь. У мене тепер чистота!", "warm", "borovik", "forest"],
  "borovik_again_2@Orus": ["Бурчу, бурчу, а сам радий тебе бачити. Хе-хе!", "joy", "borovik", "forest"],
