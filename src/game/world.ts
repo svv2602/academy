@@ -33,6 +33,11 @@ export interface WorldGround {
    * where there is none. Absent: the world has none, she stands on its relief.
    */
   support?(x: number, z: number, feet: number): number | null;
+  /**
+   * A springy top (the forest's mushroom trampoline): landing on it from a jump or a fall she is thrown up again at this
+   * speed, m/s; null where there is none. Absent: the world has none.
+   */
+  bounce?(x: number, z: number): number | null;
 }
 
 /** What the renderer needs of a world's sky: the sun follows the heroine (and the quality tier sets its shadows). */

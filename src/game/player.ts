@@ -43,6 +43,9 @@ export function jumpStep(y: number, vy: number, dt: number): [number, number] {
   return [y + vy * dt - 0.5 * GRAVITY * dt * dt, vy - GRAVITY * dt];
 }
 
+/** m/s downwards: a landing at least this fast on a springy top bounces (stepping onto it does not). */
+export const BOUNCE_FROM = 1;
+
 /** The world played has the heroine swim (WorldDef.move): the one test of the mode, for the frame and for her items. */
 export const swimming = (g: Pick<Game, 'world'>): boolean => g.world.move?.kind === 'swim';
 
@@ -156,7 +159,12 @@ export function createPlayer(g: Game): Player {
       else {
         if (input.jump && grounded && canMove) { vy = tuning.jump; grounded = false; sfx('jump'); }
         [hp.y, vy] = jumpStep(hp.y, vy, dt);
-        if (hp.y <= ground) { hp.y = ground; vy = 0; grounded = true; }
+        if (hp.y <= ground) {
+          // landing on a springy top (WorldGround.bounce) from a jump or a fall throws her up again
+          const spring = vy < -BOUNCE_FROM ? g.ground.bounce?.(hp.x, hp.z) ?? null : null;
+          hp.y = ground;
+          if (spring) { vy = spring; grounded = false; sfx('jump'); } else { vy = 0; grounded = true; }
+        }
       }
       input.jump = false;
       const v = real(hp.x, hp.z, dt);
