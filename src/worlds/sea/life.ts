@@ -13,6 +13,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { mulberry32 } from '../../core/util';
 import { facets } from '../../core/style';
 import { fadeAtCamera } from '../../core/materials';
+import { MUTE_GLSL, uMute } from './terrain';
 
 export type CoralKind = 'tube' | 'branch' | 'brain' | 'table' | 'fan';
 export const REEF_KINDS: readonly CoralKind[] = ['tube', 'branch', 'brain', 'table', 'fan'];
@@ -162,6 +163,7 @@ export function swayMaterial(base: THREE.MeshStandardMaterial, strength = 0.35):
   m.onBeforeCompile = (s) => {
     s.uniforms.uSwayTime = time;
     s.uniforms.uKelpSway = uKelpSway;
+    s.uniforms.uMute = uMute;
     s.vertexShader = s.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uSwayTime;\nuniform float uKelpSway;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -185,8 +187,10 @@ export function swayMaterial(base: THREE.MeshStandardMaterial, strength = 0.35):
       float kd = kb[kq.x + kq.y * 4] / 16.0 + 1.0 / 32.0;   // the 4x4 ordered dither of fadeAtCamera's
       if (kelpKeep < kd) discard;
     }
-  }`);
+  }`).replace('#include <opaque_fragment>', `${MUTE_GLSL}
+  #include <opaque_fragment>`);
+    s.fragmentShader = 'uniform float uMute;\n' + s.fragmentShader;
   };
-  m.customProgramCacheKey = () => `sea-sway-${strength}|fade|kelp`;
+  m.customProgramCacheKey = () => `sea-sway-${strength}|fade|kelp|mute`;
   return { material: m, time };
 }

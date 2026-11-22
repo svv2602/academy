@@ -91,20 +91,41 @@ export function paintMaterial(): THREE.MeshStandardMaterial {
   return m;
 }
 
+/** What the magic does to a lifted painted shape (./magic.ts: the castle with the Pearl back); 0 each - nothing. */
+export interface PaintLift {
+  /** More of each colour shining. */
+  lift: { value: number };
+  /** The shimmer of mother-of-pearl over its faces: a soft rainbow that turns with the faces' angle to the eye. */
+  nacre: { value: number };
+  /** How many times more its pearls shine (a glow of GLOWING and more), and how much turquoise light its windows (WINDOW and more) give. */
+  lights: { value: number };
+}
+/** The glow from which a painted part counts as a light of the shape (the castle's tower bodies glow 0.1, its pearls 0.4 and more). */
+export const GLOWING = 0.3;
+/** The glow from which it is a window (the castle's glow 0.75; its pearls less). */
+export const WINDOW = 0.7;
+
 /**
- * The painted material with a light of its own over the vertices' glow: `lift.value` (0 - none) more of each colour
- * shining. A shape that the magic lights (./magic.ts: the castle with the Pearl back) is drawn with it instead of the
- * shared one - its own program, the same draw calls.
+ * The painted material with a light of its own over the vertices' glow (`PaintLift`). A shape that the magic lights is
+ * drawn with it instead of the shared one - its own program, the same draw calls.
  */
-export function liftedPaintMaterial(lift: { value: number }): THREE.MeshStandardMaterial {
+export function liftedPaintMaterial(u: PaintLift): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true });
   m.name = 'sea-paint-lifted';
   m.onBeforeCompile = (sh) => {
-    sh.uniforms.uLift = lift;
+    sh.uniforms.uLift = u.lift; sh.uniforms.uNacre = u.nacre; sh.uniforms.uLights = u.lights;
     sh.vertexShader = 'attribute float glow;\nvarying float vGlow;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGlow = glow;');
-    sh.fragmentShader = 'uniform float uLift;\nvarying float vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * (vGlow + uLift);');
+    sh.fragmentShader = 'uniform float uLift;\nuniform float uNacre;\nuniform float uLights;\nvarying float vGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  // its lights (windows: a glow of WINDOW and more) shine turquoise, not white; its pearls brighter
+  float isWindow = step(${WINDOW.toFixed(2)}, vGlow), isLight = step(${GLOWING.toFixed(2)}, vGlow) - isWindow;
+  totalEmissiveRadiance += diffuseColor.rgb * (vGlow * (1.0 + uLights * isLight) + uLift) + vec3(0.05, 0.7, 0.8) * uLights * isWindow;
+  // mother-of-pearl: each face tinted a colour of the rainbow by its angle to the eye - its own colour shifts, nothing
+  // white is added (added, the shimmer washed the castle out: the pictures of 2026-11-22)
+  float edge = 1.0 - abs(dot(normal, normalize(vViewPosition)));
+  vec3 rainbow = 0.5 + 0.5 * cos(6.2832 * (edge * 1.6 + vViewPosition.y * 0.04 + vec3(0.0, 0.33, 0.67)));
+  diffuseColor.rgb *= mix(vec3(1.0), 0.45 + rainbow * 0.8, uNacre * (1.0 - isWindow));`);
   };
-  m.customProgramCacheKey = () => 'sea-paint|glow|lift';
+  m.customProgramCacheKey = () => 'sea-paint|glow|lift|nacre';
   return m;
 }
 
