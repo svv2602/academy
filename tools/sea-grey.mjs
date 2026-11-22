@@ -13,7 +13,8 @@
 //      timed in game seconds; her speed, the clips she swims with and her height over the floor on the way; next to it,
 //      the length of the way over her top speed on foot;
 //    - from every target of the route (src/worlds/sea/layout.ts ROUTE), whether the landmark of the next one is seen
-//      (a ray from the camera behind her to points of the landmark) and the draw calls and the triangles there;
+//      (a ray from the camera behind her to points of the landmark) and the draw calls and the triangles there; the
+//      throne from the gate with the gate open, as she only goes to it once the shell lock is solved;
 //    - the heroine at her swimming height still, talking and dancing, the cat in its bubble: a picture of each;
 //    - the draw at every point of the tour, and a picture from every target and every point of the tour.
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/sea-grey by default.
@@ -151,6 +152,9 @@ async function measure(browser, url, scale, out) {
     const a = map.route[i], b = map.route[i + 1];
     if (views.some((v) => v.from === a && v.to === b)) continue;
     const line = pathBetween(map.paths, map.zones, a, b);
+    // to the throne she swims only through the gate the shell lock opened: its doors sunk into the floor, as the game
+    // leaves them (src/worlds/sea/lock.ts `opened`; the throne is the last of the route); this measurement's save has it shut
+    if (b === 'throne') await page.evaluate(() => __game.openGate());
     await stand(map.zones[a], line[1]); await settle(1.2);
     const seen = await page.evaluate(([b, lm]) => {
       const { THREE, scene, camera } = __game;

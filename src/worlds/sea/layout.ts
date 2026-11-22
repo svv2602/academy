@@ -94,7 +94,9 @@ export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   garden: { x: ZONES.garden.x - 4, z: ZONES.garden.z + 3, top: 5 },
   grotto: { x: ZONES.grotto.x + 4, z: ZONES.grotto.z + 3, top: 9 },
   gate: { x: CASTLE.x, z: CASTLE.z - CASTLE.ring, top: 5.2 },        // the lintel of the gate
-  throne: { ...TOWERS[2], top: CASTLE.towerH },                      // the tower behind the throne hall
+  // the shell of the throne itself, where she swims from the gate: the tower behind the hall stood 18 m off past the
+  // gate's wall, its top above the picture from 4 m before the gate, its foot behind the lintel (2026-11-22)
+  throne: { ...THRONE, top: 0.75 },
 };
 /** The order she swims through the zones in the measurement of WORLD-12: every way of the map once, the throne last. */
 export const ROUTE: readonly ZoneId[] = ['square', 'ship', 'square', 'reef', 'trench', 'reef', 'garden', 'gate', 'grotto', 'square', 'grotto', 'gate', 'throne'];

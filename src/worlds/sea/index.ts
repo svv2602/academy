@@ -360,6 +360,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         // the map as the measurements of the grey build read it (tools/sea-grey.mjs): its stretch, zones, ways, landmarks
         seaMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, swim: SWIM_HEIGHT, ground: (x: number, z: number) => groundY(x, z) },
         bubbles: () => ({ cat: waterOf(g)?.catBubble.visible === true }),
+        // the gate as the solved shell lock leaves it - its doors sunk into the floor (tools/sea-grey.mjs looks at the throne so)
+        openGate: () => lock.opened(true),
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },
