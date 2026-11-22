@@ -15,6 +15,9 @@ export function createCompanion(g: Game): { update(dt: number): void } {
   const real = speedometer();   // the cat's speed over the ground as it is
   const steps = paceFollower();  // its pace, smoothed in time
   let running = false, moving = '';   // the walking clip it plays now
+  // the walking clip the follow last gave it, kept through a scene: a scene that began while the cat walked and gave it
+  // no clip of its own would leave it running on the spot once it is there (a talk to the crab, 2026-11-22)
+  let mine = '';
   return {
     update: (dt) => {
       const hp = hero.root.position, cp = cat.root.position;
@@ -33,10 +36,11 @@ export function createCompanion(g: Game): { update(dt: number): void } {
         // CAT_WALK_MAX and walking again only below CAT_WALK_BACK; the pace by the speed it goes at, smoothed in time
         running = Math.max(speed, followSpeed(cd)) / GROUND.catWalk > (running ? CAT_WALK_BACK : CAT_WALK_MAX);
         const [clip, target] = running ? ['Run', pace(speed, GROUND.catRun, CAT_RUN_MAX)] : ['Walk', pace(speed, GROUND.catWalk, CAT_WALK_MAX)];
-        if (!g.busy) { cat.play(clip, 0.3, moving !== clip ? steps.reset(target) : steps.next(target, dt)); moving = clip; }
+        if (!g.busy) { cat.play(clip, 0.3, moving !== clip ? steps.reset(target) : steps.next(target, dt)); moving = clip; mine = clip; }
       } else {
         real(cp.x, cp.z, dt); running = false;
-        if (!g.busy) { cat.play('Idle', 0.3); moving = ''; }
+        if (!g.busy || (mine && cat.playing === mine)) { cat.play('Idle', 0.3); moving = ''; }
+        mine = '';
         cat.face(hero.heading, dt, 4);
       }
       if (g.busy) moving = '';

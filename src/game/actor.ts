@@ -21,6 +21,8 @@ export class Actor {
   }
 
   has(name: string) { return this.actions.has(name); }
+  /** The name of the clip it plays now ('' - none). */
+  get playing() { return this.current; }
 
   /**
    * Clips of a world (src/game/hero.ts `worldClips`) join this character's own for as long as the world is played: the
