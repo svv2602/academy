@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { gltf, type Rig } from '../../core/assets';
-import { sfx } from '../../core/audio';
+import { setCast, sfx } from '../../core/audio';
+import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { loadFailed } from '../../game/boot';
@@ -21,6 +22,8 @@ import { CABIN, CORAL_NEST, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, THRONE,
 import { buildScenery, buildShafts } from './scenery';
 import { LOCK, createLock } from './lock';
 import { strings } from './strings';
+import { voices } from './voices';
+import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
 
 /**
@@ -41,13 +44,20 @@ import { buildGround, colliders, ground } from './terrain';
  * patterns) as `pattern`. The shell lock (WORLD-19, the composition of a number) is played in the world: the queen's
  * last step, the lock in the gate of the castle (./lock.ts). `part`: the pearl is not
  * handed over - the character says where it lies (in the corals, in the captain's cabin; WORLD-08).
+ * Each says its own lines in its own voice (./strings.ts, ./voices.ts): its greeting, what each step is about (the
+ * turtle's last one: where its pearl lies), its thanks with the pearl and its words when met again.
  */
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', LOCK], shard: '#a8e4ff' },
-  { id: 'bulk', emoji: '🐉', x: ZONES.reef.x + 2, z: ZONES.reef.z + 1.5, heading: 1.2, steps: ['pattern', 'count', 'odd', 'part'], shard: '#7fe6d6' },
-  { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: ['pattern', 'simon', 'sub', 'part'], shard: '#9fd0a8' },
-  { id: 'kleshnya', emoji: '🦀', x: ZONES.grotto.x - 2, z: ZONES.grotto.z - 1, heading: -1.8, steps: ['add', 'sort', 'compare'], shard: '#ffb0a0' },
-  { id: 'iskorka', emoji: '🐟', x: ZONES.trench.x + 2, z: ZONES.trench.z + 2, heading: 0.8, steps: ['pairs', 'order', 'add'], shard: '#fff0a0' },
+  { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', LOCK], shard: '#a8e4ff',
+    hi: 'khvylia_hi', asks: ['khvylia_t1', 'khvylia_t2', 'khvylia_t3'], thanks: 'khvylia_done', again: ['khvylia_again_1', 'khvylia_again_2'] },
+  { id: 'bulk', emoji: '🐉', x: ZONES.reef.x + 2, z: ZONES.reef.z + 1.5, heading: 1.2, steps: ['pattern', 'count', 'odd', 'part'], shard: '#7fe6d6',
+    hi: 'bulk_hi', asks: ['bulk_t1', 'bulk_t2', 'bulk_t3', null], thanks: 'bulk_done', again: ['bulk_again_1', 'bulk_again_2'] },
+  { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: ['pattern', 'simon', 'sub', 'part'], shard: '#9fd0a8',
+    hi: 'pantsyr_hi', asks: ['pantsyr_t1', 'pantsyr_t2', 'pantsyr_t3', 'pantsyr_hint'], thanks: 'pantsyr_done', again: ['pantsyr_again_1', 'pantsyr_again_2'] },
+  { id: 'kleshnya', emoji: '🦀', x: ZONES.grotto.x - 2, z: ZONES.grotto.z - 1, heading: -1.8, steps: ['add', 'sort', 'compare'], shard: '#ffb0a0',
+    hi: 'kleshnya_hi', asks: ['kleshnya_t1', 'kleshnya_t2', 'kleshnya_t3'], thanks: 'kleshnya_done', again: ['kleshnya_again_1', 'kleshnya_again_2'] },
+  { id: 'iskorka', emoji: '🐟', x: ZONES.trench.x + 2, z: ZONES.trench.z + 2, heading: 0.8, steps: ['pairs', 'order', 'add'], shard: '#fff0a0',
+    hi: 'iskorka_hi', asks: ['iskorka_t1', 'iskorka_t2', 'iskorka_t3'], thanks: 'iskorka_done', again: ['iskorka_again_1', 'iskorka_again_2'] },
 ];
 
 /** The shape of each character in the grey build: its height (as it floats or stands), its colour, a mark of its kind. */
@@ -135,6 +145,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(() => { colliders.length = 0; });
   // The heroine swims here: the world lends her its swimming clips, taken back as it is left.
   scope.own(hero.lend(g.heroRig.worldClips(L.swim)));
+  // its own voice (TECH-09): each character with its voice, the clips of voice/sea/ while the world is played
+  setCast(voices);
+  scope.own(() => setCast({ narrator: '', cast: {} }));
+  scope.own(worldClips('sea', CLIPS));
   scene.add(buildGround(160));
   buildScenery(scene);
   const shafts = buildShafts(scene, SHAFTS);
