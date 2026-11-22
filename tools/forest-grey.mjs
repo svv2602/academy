@@ -283,7 +283,9 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const id of Object.keys(sec.at)) {
     // the roof's find is up on the house: she is pictured on the trampoline beside it
     const m = sec.middle[id], f = id === 'bounce' ? sec.trampoline : sec.at[id];
-    const dx = f.x - m.x, dz = f.z - m.z, d = Math.hypot(dx, dz) || 1;
+    // a find in its very middle (the ring): she comes from the side of the central glade
+    const far = Math.hypot(f.x - m.x, f.z - m.z) > 0.5;
+    const dx = far ? f.x - m.x : map.zones.center.x - m.x, dz = far ? f.z - m.z : map.zones.center.z - m.z, d = Math.hypot(dx, dz) || 1;
     // the way she comes: out of its middle through its find, SECRET_LOOK m on
     const from = { x: m.x + (dx / d) * SECRET_LOOK, z: m.z + (dz / d) * SECRET_LOOK };
     for (const [where, a, b] of [['near', from, m], ['at', f, m]]) {
