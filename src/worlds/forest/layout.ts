@@ -122,6 +122,13 @@ export const LANDMARKS: Record<ZoneId, Place & { top: number }> = {
   grove: { x: ZONES.grove.x - 6, z: ZONES.grove.z + 4, top: 11 },
   ash: { x: ZONES.ash.x, z: ZONES.ash.z - 2.6, top: 15 },
 };
+/**
+ * The arch of the Great Tree on the central glade (./hub-way.ts): its turn (as the grey build's arch stood, its passage
+ * toward the spawn) and how far in front of it she comes out of it from the hub - the place a child stands on that glade.
+ */
+export const HUB_ARCH = { facing: 0.4, out: 7 } as const;
+export const ARRIVAL: Place = { x: LANDMARKS.center.x + Math.sin(HUB_ARCH.facing) * HUB_ARCH.out, z: LANDMARKS.center.z + Math.cos(HUB_ARCH.facing) * HUB_ARCH.out };
+
 /** The order she goes through the zones in the measurement of WORLD-12: every path of the map once, the Oak last. */
 export const ROUTE: readonly ZoneId[] = ['center', 'village', 'owl', 'village', 'maze', 'grove', 'ash', 'stream', 'center', 'oak'];
 

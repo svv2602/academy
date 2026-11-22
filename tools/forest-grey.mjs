@@ -206,7 +206,9 @@ async function measure(browser, url, scale, out, q = 2) {
     const a = map.route[i], b = map.route[i + 1];
     if (views.some((v) => v.from === a && v.to === b)) continue;
     const line = pathBetween(map.paths, map.zones, a, b);
-    await stand(map.zones[a], line[1]); await settle(1.2);
+    // she stands where a child stands in the zone: on the central glade not in the middle - the arch of the Great Tree
+    // stands there and filled the frame - but where she comes out of it (forestMap.arrival)
+    await stand(a === 'center' ? map.arrival : map.zones[a], line[1]); await settle(1.2);
     const seen = await page.evaluate(([b, lm]) => {
       const { THREE, scene, camera } = __game;
       const named = (o, name) => { for (let x = o; x; x = x.parent) if (x.name === name) return true; return false; };

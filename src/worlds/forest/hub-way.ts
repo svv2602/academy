@@ -5,7 +5,7 @@ import { travel } from '../../game/travel';
 import type { Arrival } from '../../game/world';
 import { HUB } from '../fairy/tree-way';
 import { archStoneMaterial, breathe, buildArch, crestTree } from '../hub/arch-look';
-import { LANDMARKS } from './layout';
+import { ARRIVAL, HUB_ARCH, LANDMARKS } from './layout';
 
 /**
  * The way back to the Great Tree (WORLD-01, docs/worlds/hub.md; the hub's arch of the forest leads here): the hub's
@@ -16,18 +16,16 @@ import { LANDMARKS } from './layout';
  */
 
 /** The arch's turn: as the grey build's arch stood, its passage toward the spawn (she comes out facing the forest). */
-export const FACING = 0.4;
+export const FACING = HUB_ARCH.facing;
 /** m in front of the arch, toward the spawn, where she comes out of it: the camera behind her stands on the glade (as the first world's OUT). */
-export const OUT = 7;
+export const OUT = HUB_ARCH.out;
 /** The green-gold of the Great Tree's light: the veil and the runes of its arch (as the first world's arch to the tree). */
 const TREE_LIGHT = '#b6e88a';
 /** m: how near the arch the action button takes her through it. */
 const SPOT_R = 2;
 
 /** Where she comes out of the arch from the hub: in front of it, facing the forest (WorldDef.arrive). */
-export const FROM_HUB: Arrival = {
-  x: LANDMARKS.center.x + Math.sin(FACING) * OUT, z: LANDMARKS.center.z + Math.cos(FACING) * OUT, facing: FACING,
-};
+export const FROM_HUB: Arrival = { ...ARRIVAL, facing: FACING };
 
 /** The forest's `WorldDef.arrive`: out of this arch coming from the hub; from anywhere else at the spawn (null). */
 export const arriveFrom = (from: string): Arrival | null => (from === HUB ? FROM_HUB : null);

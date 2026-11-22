@@ -3,7 +3,7 @@ import { staticGeo } from '../../core/assets';
 import { instanced } from '../../core/instancing';
 import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, SECRET_CLEARINGS, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
+import { ALTAR, ARRIVAL, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, SECRET_CLEARINGS, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
 import { buildHouses, buildTower } from './village';
 
@@ -45,6 +45,12 @@ export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
   const from = ZONES[ROUTE[i]], to = LANDMARKS[b], d = Math.hypot(to.x - from.x, to.z - from.z) || 1, k = Math.max(0, d - SIGHT_SHORT) / d;
   return [from, { x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k }];
 });
+
+/** The line of sight from where she comes out of the hub's arch to the landmark of the village, stopped as the others. */
+export const arrivalSight = (): Place[] => {
+  const from = ARRIVAL, to = LANDMARKS.village, d = Math.hypot(to.x - from.x, to.z - from.z) || 1, k = Math.max(0, d - SIGHT_SHORT) / d;
+  return [from, { x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k }];
+};
 
 /**
  * m² of the map a tree: 60 in the grey build (its trees a trunk and a crown, a few dozen triangles); 90 with the models
@@ -88,6 +94,11 @@ export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   // of the forest stands where it stood before them
   const open = (t: Put) => SECRET_CLEARINGS.every((c) => Math.hypot(c.x - t.x, c.z - t.z) > c.clear);
   for (let i = trees.length - 1; i >= 0; i--) if (!open(trees[i])) trees.splice(i, 1);
+  // the line of sight from where she comes out of the hub's arch (./layout.ts ARRIVAL) to the village: the route's lines
+  // start at the middles of the zones, and the middle of the central glade is the arch itself; its trees taken out after
+  // the rest are placed too
+  const fromArrival = arrivalSight();
+  for (let i = trees.length - 1; i >= 0; i--) if (lineDist(fromArrival, trees[i].x, trees[i].z) <= SIGHT) trees.splice(i, 1);
   // the spruces of the edge: thick, past the edge of the map, where nobody walks
   const ring = Math.round((2 * Math.PI * HALF) / 2.6);
   for (let i = 0; i < ring * 3; i++) {

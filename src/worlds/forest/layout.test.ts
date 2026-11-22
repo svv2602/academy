@@ -50,6 +50,8 @@ describe('the map of the forest, the grey build (WORLD-12)', () => {
         expect(m.pathDist(t.x, t.z)).toBeGreaterThan(3.5);
         expect(m.lineDist(tracks, t.x, t.z)).toBeGreaterThan(m.CLEARING);
         for (const l of m.sightLines()) expect(m.lineDist(l, t.x, t.z)).toBeGreaterThan(m.SIGHT);
+        // and from where she comes out of the hub's arch to the village (the middle of the central glade is the arch)
+        expect(m.lineDist(m.arrivalSight(), t.x, t.z)).toBeGreaterThan(m.SIGHT);
         expect(m.streamDist(t.x, t.z)).toBeGreaterThan(m.STREAM_HALF + 2);
       }
       // the tallest tree (its kind's height, scaled 1.3): the middle of the Oak's crown is over it, its top 5 m over it
