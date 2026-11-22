@@ -16,6 +16,10 @@ const uk = { subtitle: 'Велике Дерево', hub_title: 'Велике Д�
   // the cat as she takes a feather of the Great Tree's bird, the hub's find of the day (R38)
   hub_feather: 'Це перо птаха з Великого Дерева! Завтра тут знайдеться ще одне.',
   hub_tour: 'Це Велике Дерево! Світло Кристала вже тут. Але дивись: ще чотири гнізда порожні. Їхні світи поки сплять.',
+  // the cat after the forest (docs/worlds/world-2.md, the draft of 2026-11-15): its portal awake, its Emerald home, the tree in bloom
+  hub_forest_wake: 'Чуєш? Портал до лісу прокинувся! Біжи за іскорками.',
+  hub_forest_home: 'Смарагд мудрості вдома! Дивись, на Дереві розквітли квіти.',
+  hub_forest_after: 'Дерево стало веселішим. Світлячки прилетіли! А нас кличе новий портал.',
   // the cat after the sea (docs/worlds/world-3.md, the draft of 2026-11-18): its portal awake, its pearl home, the tree grown
   hub_sea_wake: 'Чуєш, як шумлять хвилі? Прокинувся портал до моря!',
   hub_sea_home: 'Перлина глибин удома! Дивись, ще одне гніздо засяяло.',
@@ -28,12 +32,15 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Великое Древ
   hub_sleeping: 'Этот мир ещё спит. Он проснётся позже!',
   hub_feather: 'Это перо птицы с Великого Древа! Завтра здесь найдётся ещё одно.',
   hub_tour: 'Это Великое Древо! Свет Кристалла уже здесь. Но смотри: ещё четыре гнезда пустые. Их миры пока спят.',
+  hub_forest_wake: 'Слышишь? Портал в лес проснулся! Беги за искорками.',
+  hub_forest_home: 'Изумруд мудрости дома! Смотри, на Древе распустились цветы.',
+  hub_forest_after: 'Древо повеселело. Светлячки прилетели! А нас зовёт новый портал.',
   hub_sea_wake: 'Слышишь, как шумят волны? Проснулся портал к морю!',
   hub_sea_home: 'Жемчужина глубин дома! Смотри, ещё одно гнездо засияло.',
   hub_sea_after: 'Крона стала гуще, а у корней выросли грибочки!',
 };
 
-export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm' } } satisfies WorldStrings;
+export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm' } } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { hub: typeof strings }

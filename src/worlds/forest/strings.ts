@@ -1,19 +1,179 @@
 /**
- * The texts of the Enchanted Forest, the grey build (./index.ts, WORLD-12). The grey build speaks nothing of its own:
- * its conversations say the shared recorded lines; the forest's own lines (docs/worlds/world-2.md) are written and
- * recorded once the customer has taken the grey build.
+ * The texts of the Enchanted Forest (./index.ts, WORLD-02). Its own lines (docs/worlds/world-2.md, the draft of
+ * 2026-11-15 checked against the world as it is now) are listed in `spoken`: the cat's under `forest_*`, each
+ * character's under `<id>_*` (./voices.ts says who speaks with which voice). Not recorded yet: the customer's word on
+ * the recording (2026-11-22) waits for the count of the lines.
  *
  * Only `import type` and `declare module` here: tools/sync_phrases.mjs loads this file in Node. Its keys start with
- * `forest_`: a key the shared strings already have is an error (`addStrings`, src/ui/strings.ts).
+ * `forest_` or a character's id: a key the shared strings already have is an error (`addStrings`, src/ui/strings.ts).
  */
-import type { WorldStrings } from '../../ui/strings';
+import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}' };
+const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}',
+  // --- the forest's own lines: the cut-scenes (WORLD-13) and the tour (WORLD-11), the cat's
+  forest_story_intro_1: 'Далеко за порталом є Зачарований ліс. Та він міцно заснув.',
+  forest_story_intro_2: 'Смарагд мудрості розсипався на листочки. І дерева забули слова.',
+  forest_story_intro_3: 'Знайдімо всі листочки, і ліс знову заговорить!',
+  forest_story_back_1: 'Листочки злетілися до Старого Дуба. Смарагд знову цілий!',
+  forest_story_back_2: 'Ліс прокинувся! Дерева знову вміють говорити.',
+  forest_story_back_3: 'Віднесімо Смарагд мудрості додому, до Великого Дерева.',
+  forest_flyover: 'Ось і Зачарований ліс! Бачиш Старий Дуб? Його видно звідусіль.',
+  // --- the characters: a greeting, a line before each step of the chain (in the order of ./index.ts FRIENDS), the
+  // thanks with the leaf, two words of a meeting again
+  borovik_hi: 'Ой, гостя! Я Боровик. Тільки по моїх грибочках не топчися!',
+  borovik_t1: 'Хто ж так гриби складає? Порахуй-но, скільки їх у кошику.',
+  borovik_t2: 'Номери на хатках переплуталися! Хто сусід цього числа?',
+  borovik_t3: 'А тепер розклади все по місцях. Люблю, коли лад!',
+  borovik_done: 'Ох і молодчина! Тримай листочок-смарагд. Бережи, не загуби!',
+  borovik_again_1: 'Знову ти? Ну заходь, заходь. У мене тепер чистота!',
+  borovik_again_2: 'Бурчу, бурчу, а сам радий тебе бачити. Хе-хе!',
+  mudrena_hi: 'У-ху… Хто це прийшов на мою поляну? Відгадаєш мої загадки?',
+  mudrena_t1: 'У лісі все ходить по колу. Що прийде наступним?',
+  mudrena_t2: 'До мого дупла ведуть грибні сходинки. Та одна загубилася.',
+  mudrena_t3: 'Не поспішай, подивись уважно: де більше, а де менше?',
+  mudrena_done: 'Ти розгадала всі мої загадки. А ось іще одна…',
+  mudrena_hint: 'Те, що шукаєш, спить там, де сплю я. У-ху.',
+  mudrena_owlet_ask: 'Моє совеня кудись побігло до білчиного гаю. Пригледиш за малим?',
+  mudrena_again_1: 'У-ху… Загадка: хто в лісі найуважніший? Відповідь — ти.',
+  mudrena_again_2: 'Ліс тихий, і я тиха. Посидь зі мною трішечки.',
+  shustrik_hi: 'Ой-ой-ой! Привіт! Я Шустрик. Я знову все погубив!',
+  shustrik_t1: 'Мої горішки! Ходімо по слідах — вони приведуть до схованки!',
+  shustrik_t2: 'У мої запаси щось чуже затесалося. Що тут зайве?',
+  shustrik_t3: 'Я склав усе парами… і забув, де що. Допоможеш?',
+  shustrik_done: 'Ура, усе знайшлося! І листочок-смарагд! Тримай, поки я не загубив.',
+  shustrik_again_1: 'Привіт-привіт! Я нічого не загубив! Ну… майже нічого.',
+  shustrik_again_2: 'Знову ти! Пострибаємо по гілках? Ой, ти ж не білочка.',
+  yasen_hi: 'Ох… я… дерево. Я… Ясен. Слова… розбіглися…',
+  yasen_t1: 'Я… памʼятаю… поляну. Але… іншою. Що… змінилося?',
+  yasen_t2: 'Уже краще… Я пригадую більше. Запамʼятовуй разом зі мною.',
+  yasen_t3: 'Слова повертаються! Допоможи скласти разом — і я згадаю все.',
+  yasen_done: 'Я знову говорю, як колись! Дякую. Візьми листочок-смарагд із моїх гілок.',
+  yasen_again_1: 'Тепер я не мовчу ані хвилинки. Чуєш, як шелестить? Це ми розмовляємо!',
+  yasen_again_2: 'Поглянь на мою поляну. Тепер я памʼятаю кожну квіточку.',
+  kolyuchka_hi: 'Пирх! Привіт! Я Колючка. Знаю тут кожнісіньку стежинку!',
+  kolyuchka_t1: 'Я ніс яблучка на колючках, а дехто впав. Скільки лишилося?',
+  kolyuchka_t2: 'Мої камінці розкотилися! Постав їх по порядку, від найменшого.',
+  kolyuchka_t3: 'Ходімо в лабіринт! Стежки заплуталися, але ми впораємося.',
+  kolyuchka_done: 'Ти справжня слідопитка! Дивись, ось і листочок!',
+  kolyuchka_again_1: 'Пирх-пирх! Хочеш, покажу ще одну таємну стежинку?',
+  kolyuchka_again_2: 'Ти вже знаєш ліс, як я! Ну, майже як я.',
+  // --- the leaves found in the world (WORLD-08), the cat's
+  forest_leaf_hollow: 'Ось він, листочок у дуплі! Мудрена загадала — ти відгадала.',
+  forest_leaf_maze: 'Ось і листочок у кінці лабіринту! Колючка не підвів.',
+  // --- the tasks in the world: the maze (WORLD-14), the tracks (WORLD-15), the steps (WORLD-16), the differences (LEARN-18)
+  forest_maze_glow: 'Дивись, одна стежинка засвітилася. Підемо нею?',
+  kolyuchka_maze_exit: 'Відпочинь! Я запамʼятаю, де ми зупинилися.',
+  kolyuchka_maze_resume: 'Повертаємося туди, де зупинилися. Уперед!',
+  shustrik_tracks_found_1: 'Знайшла! Ой, це ж мій горішок!',
+  shustrik_tracks_found_2: 'Ще один! Ти чудово бачиш сліди.',
+  shustrik_tracks_all: 'Слідочки скінчилися! Здається, усе знайшли.',
+  mudrena_steps_finish: 'Сходинки цілі. Піднімайся до мого дупла, у-ху!',
+  yasen_diff_found: 'Так… так! Тепер… я пригадую.',
+  // --- the secrets (PLAY-10) and the pet (PLAY-09), the cat's
+  forest_secret_cave: 'Ого, за водоспадиком печера! А в ній скриня із зірочками!',
+  forest_secret_bounce: 'Гриб-батут! Стрибни вище — що там на даху?',
+  forest_secret_fireflies: 'Світлячки співають! Торкнися їх по черзі — почуєш пісеньку.',
+  forest_secret_ring: 'Хі-хі, ти стала крихітною! Не бійся, зараз знову виростеш.',
+  forest_pet_found: 'Ось де совеня, під листям! Воно вже тупцяє до тебе.',
+  forest_pet_follow: 'Совеня гулятиме з тобою лісом і біля Великого Дерева.',
+  // --- the finale at the Old Oak: the cat's, and the trees together (the wise elder's voice, several takes over each other)
+  forest_all_leaves: 'Усі листочки в нас! Несімо їх до Старого Дуба.',
+  forest_emerald_whole: 'Листочки склалися докупи — Смарагд мудрості знову цілий!',
+  yasen_chorus: 'Дякуємо, Хранителько! Ліс памʼятає тебе!',
+  forest_final_text: 'Ти повернула мудрість Зачарованому лісу!',
+  forest_free: 'Гуляй лісом! Тут ще багато таємниць.',
+};
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}' };
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}',
+  forest_story_intro_1: 'Далеко за порталом есть Зачарованный лес. Но он крепко уснул.',
+  forest_story_intro_2: 'Изумруд мудрости рассыпался на листочки. И деревья забыли слова.',
+  forest_story_intro_3: 'Найдём все листочки, и лес снова заговорит!',
+  forest_story_back_1: 'Листочки слетелись к Старому Дубу. Изумруд снова целый!',
+  forest_story_back_2: 'Лес проснулся! Деревья снова умеют говорить.',
+  forest_story_back_3: 'Отнесём Изумруд мудрости домой, к Великому Древу.',
+  forest_flyover: 'Вот и Зачарованный лес! Видишь Старый Дуб? Его видно отовсюду.',
+  borovik_hi: 'Ой, гостья! Я Боровик. Только по моим грибочкам не топчись!',
+  borovik_t1: 'Кто ж так грибы складывает? Посчитай-ка, сколько их в корзинке.',
+  borovik_t2: 'Номера на домиках перепутались! Кто сосед этого числа?',
+  borovik_t3: 'А теперь разложи всё по местам. Люблю, когда порядок!',
+  borovik_done: 'Ох и молодчина! Держи листочек-изумруд. Береги, не потеряй!',
+  borovik_again_1: 'Опять ты? Ну заходи, заходи. У меня теперь чистота!',
+  borovik_again_2: 'Ворчу, ворчу, а сам рад тебя видеть. Хе-хе!',
+  mudrena_hi: 'У-ху… Кто это пришёл на мою поляну? Отгадаешь мои загадки?',
+  mudrena_t1: 'В лесу всё ходит по кругу. Что придёт следующим?',
+  mudrena_t2: 'К моему дуплу ведут грибные ступеньки. Но одна потерялась.',
+  mudrena_t3: 'Не спеши, посмотри внимательно: где больше, а где меньше?',
+  mudrena_done: 'Ты разгадала все мои загадки. А вот ещё одна…',
+  mudrena_hint: 'То, что ищешь, спит там, где сплю я. У-ху.',
+  mudrena_owlet_ask: 'Мой совёнок куда-то убежал в беличью рощу. Присмотришь за малышом?',
+  mudrena_again_1: 'У-ху… Загадка: кто в лесу самый внимательный? Ответ — ты.',
+  mudrena_again_2: 'Лес тихий, и я тихая. Посиди со мной немножко.',
+  shustrik_hi: 'Ой-ой-ой! Привет! Я Шустрик. Я опять всё растерял!',
+  shustrik_t1: 'Мои орешки! Пойдём по следам — они приведут к тайнику!',
+  shustrik_t2: 'В мои запасы что-то чужое затесалось. Что тут лишнее?',
+  shustrik_t3: 'Я сложил всё парами… и забыл, где что. Поможешь?',
+  shustrik_done: 'Ура, всё нашлось! И листочек-изумруд! Держи, пока я не потерял.',
+  shustrik_again_1: 'Привет-привет! Я ничего не потерял! Ну… почти ничего.',
+  shustrik_again_2: 'Опять ты! Попрыгаем по веткам? Ой, ты же не белочка.',
+  yasen_hi: 'Ох… я… дерево. Я… Ясень. Слова… разбежались…',
+  yasen_t1: 'Я… помню… поляну. Но… другой. Что… изменилось?',
+  yasen_t2: 'Уже лучше… Я вспоминаю больше. Запоминай вместе со мной.',
+  yasen_t3: 'Слова возвращаются! Помоги сложить вместе — и я вспомню всё.',
+  yasen_done: 'Я снова говорю, как раньше! Спасибо. Возьми листочек-изумруд с моих веток.',
+  yasen_again_1: 'Теперь я не молчу ни минутки. Слышишь, как шелестит? Это мы разговариваем!',
+  yasen_again_2: 'Взгляни на мою поляну. Теперь я помню каждый цветочек.',
+  kolyuchka_hi: 'Пырх! Привет! Я Колючка. Знаю здесь каждую-прекаждую тропинку!',
+  kolyuchka_t1: 'Я нёс яблочки на иголках, а некоторые упали. Сколько осталось?',
+  kolyuchka_t2: 'Мои камешки раскатились! Поставь их по порядку, от самого маленького.',
+  kolyuchka_t3: 'Пойдём в лабиринт! Тропинки запутались, но мы справимся.',
+  kolyuchka_done: 'Ты настоящая следопытка! Смотри, вот и листочек!',
+  kolyuchka_again_1: 'Пырх-пырх! Хочешь, покажу ещё одну тайную тропинку?',
+  kolyuchka_again_2: 'Ты уже знаешь лес, как я! Ну, почти как я.',
+  forest_leaf_hollow: 'Вот он, листочек в дупле! Мудрена загадала — ты отгадала.',
+  forest_leaf_maze: 'Вот и листочек в конце лабиринта! Колючка не подвёл.',
+  forest_maze_glow: 'Смотри, одна тропинка засветилась. Пойдём по ней?',
+  kolyuchka_maze_exit: 'Отдохни! Я запомню, где мы остановились.',
+  kolyuchka_maze_resume: 'Возвращаемся туда, где остановились. Вперёд!',
+  shustrik_tracks_found_1: 'Нашла! Ой, это же мой орешек!',
+  shustrik_tracks_found_2: 'Ещё один! Ты отлично видишь следы.',
+  shustrik_tracks_all: 'Следочки закончились! Кажется, всё нашли.',
+  mudrena_steps_finish: 'Ступеньки целые. Поднимайся к моему дуплу, у-ху!',
+  yasen_diff_found: 'Да… да! Теперь… я вспоминаю.',
+  forest_secret_cave: 'Ого, за водопадиком пещера! А в ней сундук со звёздочками!',
+  forest_secret_bounce: 'Гриб-батут! Прыгни повыше — что там на крыше?',
+  forest_secret_fireflies: 'Светлячки поют! Коснись их по очереди — услышишь песенку.',
+  forest_secret_ring: 'Хи-хи, ты стала крошечной! Не бойся, сейчас снова вырастешь.',
+  forest_pet_found: 'Вот где совёнок, под листьями! Он уже топает к тебе.',
+  forest_pet_follow: 'Совёнок будет гулять с тобой по лесу и у Великого Древа.',
+  forest_all_leaves: 'Все листочки у нас! Несём их к Старому Дубу.',
+  forest_emerald_whole: 'Листочки сложились вместе — Изумруд мудрости снова целый!',
+  yasen_chorus: 'Спасибо, Хранительница! Лес помнит тебя!',
+  forest_final_text: 'Ты вернула мудрость Зачарованному лесу!',
+  forest_free: 'Гуляй по лесу! Здесь ещё много тайн.',
+};
 
-export const strings = { id: 'forest', table: { uk, ru }, spoken: {} } satisfies WorldStrings;
+/** The lines spoken, with the intonation of their recording. */
+const spoken = {
+  forest_story_intro_1: 'calm', forest_story_intro_2: 'calm', forest_story_intro_3: 'joy',
+  forest_story_back_1: 'joy', forest_story_back_2: 'joy', forest_story_back_3: 'warm',
+  forest_flyover: 'joy',
+  borovik_hi: 'warm', borovik_t1: 'warm', borovik_t2: 'warm', borovik_t3: 'warm', borovik_done: 'joy', borovik_again_1: 'warm', borovik_again_2: 'joy',
+  mudrena_hi: 'calm', mudrena_t1: 'calm', mudrena_t2: 'calm', mudrena_t3: 'calm', mudrena_done: 'warm', mudrena_hint: 'calm', mudrena_owlet_ask: 'warm',
+  mudrena_again_1: 'joy', mudrena_again_2: 'calm',
+  shustrik_hi: 'joy', shustrik_t1: 'joy', shustrik_t2: 'warm', shustrik_t3: 'warm', shustrik_done: 'joy', shustrik_again_1: 'joy', shustrik_again_2: 'joy',
+  yasen_hi: 'calm', yasen_t1: 'calm', yasen_t2: 'calm', yasen_t3: 'warm', yasen_done: 'joy', yasen_again_1: 'joy', yasen_again_2: 'warm',
+  kolyuchka_hi: 'joy', kolyuchka_t1: 'warm', kolyuchka_t2: 'warm', kolyuchka_t3: 'joy', kolyuchka_done: 'joy', kolyuchka_again_1: 'joy', kolyuchka_again_2: 'joy',
+  forest_leaf_hollow: 'joy', forest_leaf_maze: 'joy',
+  forest_maze_glow: 'warm', kolyuchka_maze_exit: 'warm', kolyuchka_maze_resume: 'warm',
+  shustrik_tracks_found_1: 'joy', shustrik_tracks_found_2: 'joy', shustrik_tracks_all: 'joy',
+  mudrena_steps_finish: 'joy', yasen_diff_found: 'joy',
+  forest_secret_cave: 'joy', forest_secret_bounce: 'joy', forest_secret_fireflies: 'warm', forest_secret_ring: 'joy',
+  forest_pet_found: 'joy', forest_pet_follow: 'warm',
+  forest_all_leaves: 'joy', forest_emerald_whole: 'joy', yasen_chorus: 'joy', forest_final_text: 'joy', forest_free: 'warm',
+} as const satisfies Partial<Record<keyof typeof uk, VoiceStyle>>;
+
+export const strings = { id: 'forest', table: { uk, ru }, spoken } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { forest: typeof strings }
