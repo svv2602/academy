@@ -49,14 +49,15 @@ describe('the catalog of pets (PLAY-09, R18, R57)', () => {
     expect(WORLDS.flatMap((w) => petProblems(w))).toEqual([]);
   });
 
-  it('every world\'s pet stands farther from the character it comes after than that one\'s talk spot reaches: one button, not two', () => {
+  it('every world\'s pet stands farther from each of its characters than their talk spot reaches: there, its own button', () => {
     // TALK_R: the radius of a character's spot "talk" (src/worlds/fairy/index.ts, `r: 3.0`); the pet's own covers PET_SPOT_R.
+    // Where both reach, the character's button shows (src/game/player.ts spotOrder: a world's spot wins over a pet's);
+    // at the pet itself it must be the pet's.
     const TALK_R = 3.0;
-    const near = WORLDS.flatMap((w) => {
-      const c = w.pet?.after === undefined ? undefined : w.characters.find((x) => x.id === w.pet!.after);
-      const d = c && w.pet ? Math.hypot(w.pet.at.x - c.x, w.pet.at.z - c.z) : Infinity;
-      return d > TALK_R ? [] : [`${w.id}: the pet at ${w.pet!.at.x},${w.pet!.at.z} is ${d.toFixed(2)} m from "${c!.id}"`];
-    });
+    const near = WORLDS.flatMap((w) => (w.pet ? w.characters : []).flatMap((c) => {
+      const d = Math.hypot(w.pet!.at.x - c.x, w.pet!.at.z - c.z);
+      return d > TALK_R ? [] : [`${w.id}: the pet at ${w.pet!.at.x},${w.pet!.at.z} is ${d.toFixed(2)} m from "${c.id}"`];
+    }));
     expect(near).toEqual([]);
     // the first world declares its pet (PLAY-09): the fawn, after the deer's chain
     expect(WORLDS.find((w) => w.id === FAWN.world)?.pet).toMatchObject({ species: FAWN.id, after: 'deer' });
