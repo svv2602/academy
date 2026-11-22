@@ -2277,11 +2277,17 @@ try {
       if (has('collisions')) {
         const fail = (what) => { throw new Error(`collisions: ${what}`); };
         const at = await g(() => { const n = __game.npcs[0]; return { id: n.def.id, x: n.pos.x, z: n.pos.z }; });
-        await g((p) => { __game.teleport(p.x, p.z + 2.5); __game.cam.yaw = 0; window.__near = 99;
+        // The block sets up its own start, whatever the block before it left (2026-11-22: after the broken talk she still
+        // faced the fox, turned while running, met the unicorn off its middle and slid round it): free, no scene, no
+        // task, facing the character (-z) with the camera behind her, at rest.
+        if (!(await gameUntil(() => !__game.busy && !__game.cam.focus && !__game.inTask, null, 10))) fail('the heroine is not free before the walk');
+        await g((p) => { __game.teleport(p.x, p.z + 2.5); __game.hero.heading = Math.PI; __game.hero.root.rotation.y = Math.PI; __game.cam.yaw = 0; window.__near = 99;
           const look = () => { if (window.__near === undefined) return;
             window.__near = Math.min(window.__near, Math.hypot(__game.hero.root.position.x - p.x, __game.hero.root.position.z - p.z)); requestAnimationFrame(look); };
           look(); }, at);
         await framesDrawn(2);
+        // the camera has come to rest behind her before she walks
+        if (!(await gameUntil(() => { const p = __game.camera.position.toArray(), w = window.__camAt; window.__camAt = p; return !!w && Math.hypot(p[0] - w[0], p[1] - w[1], p[2] - w[2]) < 0.01; }, null, 10))) fail('the camera did not come to rest behind her');
         const t0 = await g(() => __game.time);
         await page.keyboard.down('KeyW');
         try {
