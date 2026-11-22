@@ -189,6 +189,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /** The next scene (a conversation or the finale) throws once, right after it has taken the controls. */
     failNext() { g.failNext = true; },
     teleport(x: number, z: number) { hero.root.position.set(x, g.groundY(x, z), z); },
+    /** Whether a walker of radius `r` at (x, z) stands clear of the world's obstacles (WorldGround.resolve leaves it there). */
+    free(x: number, z: number, r: number) { const p = { x, z }; g.ground.resolve(p, r); return Math.hypot(p.x - x, p.z - z) < 1e-6; },
     closeup(d: number | null) { g.camOverride = d; },
     /**
      * The transition between worlds (TECH-15), stopped at the point `p` of its closing (0 - open, 1 - closed, with the

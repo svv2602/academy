@@ -2957,7 +2957,15 @@ try {
               const t0 = await p2.evaluate(() => __game.time);
               const h = await p2.waitForFunction(`(${pred})(${JSON.stringify(arg)}) ? 'yes' : __game.time - ${t0} > ${seconds} ? 'no' : false`,
                 null, { timeout: T(600000) /* clock: ceiling */ });
-              if ((await h.jsonValue()) !== 'yes') fail(`after the reload: ${what} (in ${seconds} s of game time)`);
+              if ((await h.jsonValue()) !== 'yes') {
+                // what held it, for the log: where both stand, the pet's state, what keeps the controls
+                const at = await p2.evaluate(`(() => { const p = (${petNow})(), h = __game.hero.root.position, c = __game.cat?.root?.position;
+                  const shown = (id) => { const e = document.getElementById(id); return !!e && !e.classList.contains('hidden'); };
+                  return { hero: [h.x, h.z].map((v) => +v.toFixed(2)), cat: c ? [c.x, c.z].map((v) => +v.toFixed(2)) : null, pet: p && { x: +p.x.toFixed(2), z: +p.z.toFixed(2), d: +p.d.toFixed(2), follows: p.follows },
+                    busy: __game.busy, paused: __game.paused, still: __game.still, story: !!__game.story?.active, line: __game.line,
+                    cards: ['fanfare', 'task', 'book', 'shop', 'answers', 'reload'].filter(shown) }; })()`).catch((e) => ({ error: String(e) }));
+                fail(`after the reload: ${what} (in ${seconds} s of game time): ${JSON.stringify(at)}`);
+              }
             };
             await p2.goto(page.url());
             await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) /* clock: page-load */ });
@@ -2966,11 +2974,29 @@ try {
             await p2.evaluate(() => __game.ach.hold());
             await p2.click('#play');
             await until2(after, FOLLOW_M, 'the fawn does not walk after her');
-            // she is put 5 m east: the fawn comes after her
-            const from = await p2.evaluate(() => { const h = __game.hero.root.position; __game.teleport(h.x + 5, h.z); return __game.scene.getObjectByName('pet:fawn').position.x; });
-            await until2(`(a) => (${after})(a[0]) && __game.scene.getObjectByName('pet:fawn').position.x - a[1] > 3`, [FOLLOW_M, from], 'the fawn does not come after her when she has gone 5 m');
+            // she is put 5 m on, facing the way she went (the fawn's place behind her, as when she walks): the fawn comes
+            // after her. The way is one where she stands clear and the fawn's straight way to its place there is clear of
+            // the world's obstacles - east, else west, south, north: the reload puts her where the save had her, and a
+            // friend or a tree on the fawn's way held it there past the time (the full walkthrough, 2026-11-22)
+            const went = await p2.evaluate((PET_R) => {
+              const g = __game, h = g.hero.root.position, pet = g.scene.getObjectByName('pet:fawn').position;
+              for (const a of [Math.PI / 2, -Math.PI / 2, 0, Math.PI]) {
+                const tx = h.x + Math.sin(a) * 5, tz = h.z + Math.cos(a) * 5;
+                // its place by her there (src/game/pets.ts petPlace): behind her on her left
+                const px = tx - Math.cos(a) * 0.9 - Math.sin(a) * 0.7, pz = tz + Math.sin(a) * 0.9 - Math.cos(a) * 0.7;
+                let clear = g.free(tx, tz, 0.4);
+                for (let i = 0; i <= 25 && clear; i++) clear = g.free(pet.x + ((px - pet.x) * i) / 25, pet.z + ((pz - pet.z) * i) / 25, PET_R);
+                if (!clear) continue;
+                g.teleport(tx, tz); g.hero.heading = a; g.hero.root.rotation.y = a;
+                return { a, from: [pet.x, pet.z] };
+              }
+              return null;
+            }, 0.3);
+            if (!went) fail('after the reload: no way of 5 m from where she stands is clear for her and the fawn');
+            else await until2(`(a) => { if (!(${after})(a[0])) return false; const p = __game.scene.getObjectByName('pet:fawn').position; return Math.hypot(p.x - a[1][0], p.z - a[1][1]) > 3; }`,
+              [FOLLOW_M, went.from], `the fawn does not come after her when she has gone 5 m (heading ${went?.a.toFixed(2)})`);
             const r = await p2.evaluate(`(${petNow})()`);
-            console.log(`pet: "${label}" at ${at.x}, ${at.z} found the fawn (flag "pet", save.pets), chosen in the book; after the reload it walks after her (${r.d.toFixed(2)} m)`);
+            console.log(`pet: "${label}" at ${at.x}, ${at.z} found the fawn (flag "pet", save.pets), chosen in the book; after the reload it walks after her (${r.d.toFixed(2)} m), and comes after her 5 m on (heading ${went?.a.toFixed(2)})`);
           } finally { await p2.close().catch(() => {}); }
         });
         if (bookOpen) {
