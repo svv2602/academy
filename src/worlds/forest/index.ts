@@ -93,15 +93,15 @@ type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.Buf
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
 export const LEAVES = [
-  { owner: 'mudrena', flag: 'leaf_hollow', hint: 'mudrena_hint', at: HOLLOW },
-  { owner: 'kolyuchka', flag: 'leaf_maze', hint: 'kolyuchka_hint', at: MAZE_END },
+  { owner: 'mudrena', flag: 'leaf_hollow', hint: 'mudrena_hint', at: HOLLOW, found: 'forest_leaf_hollow' },
+  { owner: 'kolyuchka', flag: 'leaf_maze', hint: 'kolyuchka_hint', at: MAZE_END, found: 'forest_leaf_maze' },
 ] as const;
 export const FINALE = 'final';
 const TOUR = 'toured';
 /** m: walking this near a leaf takes it; the altar's spot. */
 const TAKE_R = 1.1, ALTAR_R = 2.4;
 
-const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'forest_part', partText: 'forest_count' };
+const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'forest_all_leaves', partTitle: 'forest_part', partText: 'forest_count' };
 const MUSIC: MusicParams = {
   scale: [220, 246.9, 277.2, 329.6, 370, 440, 493.9],
   chords: [[110, 164.8, 277.2], [123.5, 185, 293.7], [98, 146.8, 246.9]],
@@ -220,7 +220,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const take = (l: (typeof leaves)[number]) => {
     ws.flags[l.flag] = true; l.mesh.visible = false;
     sfx('chime'); g.sparks.burst(l.mesh.position, '#7ff0b0', 36, 3);
-    stepDone(npc(l.owner), l.step);
+    // the cat names the leaf found, then the chain moves on and its character thanks
+    void g.speech.line(l.found, 'story').then(() => stepDone(npc(l.owner), l.step));
   };
   const part: WorldTask = {
     skill: 'count',     // a step of no skill: the conversation reads the skill of a task it runs, never of this one
@@ -280,10 +281,15 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
     g.cam.focus = g.above(altar, 2);
     sfx('fanfare');
     g.sparks.burst(g.above(altar, 2.6), '#7ff0b0', 60, 5);
+    const whole = g.speech.line('forest_emerald_whole', 'story');
     await new Promise<void>((done) => { finaleLeft = 2; finaleEnd = done; });
     ws.final = true; g.persist();
+    await whole;
+    // the trees of a forest that speaks again, together (the old ash's voice), then the cat's last words
+    await g.speech.line('yasen_chorus', 'story', 0, '🌳');
+    await g.speech.line('forest_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  });
+  }).then(() => g.speech.line('forest_free', 'hint', 6000));
 
   return {
     frame: {

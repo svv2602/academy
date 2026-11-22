@@ -9,7 +9,7 @@ import { SCALE, SPAWN, ZONES } from './layout';
 const h = (m: number) => m * Math.max(1, SCALE * 0.8);
 export const FOREST_FLYOVER: FlyoverPath = {
   seconds: 14,
-  line: null,
+  line: 'forest_flyover',
   points: [
     { pos: [SPAWN.x + 8, h(9), SPAWN.z + 12], look: [ZONES.oak.x, 8, ZONES.oak.z] },
     { pos: [ZONES.oak.x - 14, h(16), ZONES.oak.z + 16], look: [ZONES.oak.x, 9, ZONES.oak.z] },

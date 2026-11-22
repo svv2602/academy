@@ -325,7 +325,7 @@
  "mudrena_t1@Charon": ["У лісі все ходить по колу. Що прийде наступним?", "calm", "mudrena", "forest"],
  "mudrena_t2@Charon": ["До мого дупла ведуть грибні сходинки. Та одна загубилася.", "calm", "mudrena", "forest"],
  "mudrena_t3@Charon": ["Не поспішай, подивись уважно: де більше, а де менше?", "calm", "mudrena", "forest"],
- "mudrena_done@Charon": ["Ти розгадала всі мої загадки. А ось іще одна…", "warm", "mudrena", "forest"],
+ "mudrena_done@Charon": ["Ти розгадала й мою найхитрішу загадку! Цей листочок — тобі. У-ху.", "warm", "mudrena", "forest"],
  "mudrena_hint@Charon": ["Те, що шукаєш, спить там, де сплю я. У-ху.", "calm", "mudrena", "forest"],
  "mudrena_owlet_ask@Charon": ["Моє совеня кудись побігло до білчиного гаю. Пригледиш за малим?", "warm", "mudrena", "forest"],
  "mudrena_again_1@Charon": ["У-ху… Загадка: хто в лісі найуважніший? Відповідь — ти.", "joy", "mudrena", "forest"],
