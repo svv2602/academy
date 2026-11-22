@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32 } from '../../core/util';
 import { facets } from '../../core/style';
+import { fadeAtCamera } from '../../core/materials';
 
 export type CoralKind = 'tube' | 'branch' | 'brain' | 'table' | 'fan';
 export const REEF_KINDS: readonly CoralKind[] = ['tube', 'branch', 'brain', 'table', 'fan'];
@@ -143,9 +144,14 @@ export function shellGeometry(kind: 'fan' | 'spiral'): THREE.BufferGeometry {
   return flat(g);
 }
 
+/** m from the camera: kelp nearer than `out` thins, nearer than `in` is gone (the camera's own window, see swayMaterial). */
+export const KELP_FADE = { in: 2.5, out: 5.5 };
+
 /**
  * A material that sways what it draws with the water: each vertex moves sideways by its height over the instance's
  * foot (a ribbon bends, its foot stays), in time and in a phase of the instance's place. `strength` m at 3 m up.
+ * Kelp at the lens or between the camera and her dissolves (src/core/materials.ts fadeAtCamera), as the forest's trees:
+ * a clump by the camera never fills half the picture.
  */
 export function swayMaterial(base: THREE.MeshStandardMaterial, strength = 0.35): { material: THREE.MeshStandardMaterial; time: { value: number } } {
   const time = { value: 0 };
@@ -163,7 +169,20 @@ export function swayMaterial(base: THREE.MeshStandardMaterial, strength = 0.35):
         float swK = max(0.0, transformed.y) / 3.0;
         transformed.x += sin(uSwayTime * 0.9 + swPh) * ${strength.toFixed(3)} * swK * swK;
         transformed.z += cos(uSwayTime * 0.7 + swPh * 1.3) * ${(strength * 0.6).toFixed(3)} * swK * swK;`);
+    fadeAtCamera(s);
+    // and wider than the forest's lens (NEAR_FADE): she swims low, the ribbons stand as high as the camera - a clump
+    // nearer than KELP_FADE.out thins into dots, nearer than `in` it is gone
+    s.fragmentShader = s.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  {
+    float kelpKeep = smoothstep(${KELP_FADE.in.toFixed(2)}, ${KELP_FADE.out.toFixed(2)}, length(vViewPosition));
+    if (kelpKeep < 1.0) {
+      ivec2 kq = ivec2(mod(gl_FragCoord.xy, 4.0));
+      const float kb[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+      float kd = kb[kq.x + kq.y * 4] / 16.0 + 1.0 / 32.0;   // the 4x4 ordered dither of fadeAtCamera's
+      if (kelpKeep < kd) discard;
+    }
+  }`);
   };
-  m.customProgramCacheKey = () => `sea-sway-${strength}`;
+  m.customProgramCacheKey = () => `sea-sway-${strength}|fade|kelp`;
   return { material: m, time };
 }
