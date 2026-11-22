@@ -6,6 +6,7 @@ import type { Rig } from '../core/assets';
 import { defaultSave, worldState, type Save } from '../core/save';
 import { Actor } from './actor';
 import {
+  CATCH_UP,
   PETS, PET_FLAG, PET_GAP, PET_SPOT_R, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
@@ -268,7 +269,7 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     const clips = new Map(['Idle', 'Walk', 'Gallop'].map((n) => [n, new THREE.AnimationClip(n, 1, [])]));
     const pets = createPets(g, { rigs: { [FAWN.id]: { root: new THREE.Group(), model: new THREE.Object3D(), clips } }, chainDone: () => false });
     const playing = () => (pets.follower as unknown as { current: string }).current;
-    g.hero.root.position.set(30, 0, 0);
+    g.hero.root.position.set(8, 0, 0);   // nearer than CATCH_UP.farM: it goes to her
     for (let i = 0; i < 20; i++) pets.update(1 / 60);
     expect(['Walk', 'Gallop']).toContain(playing());
     const p = pets.follower!.root.position.clone();
@@ -281,6 +282,66 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     for (let i = 0; i < 5; i++) pets.update(1 / 60);
     expect(['Walk', 'Gallop']).toContain(playing());
   });
+
+describe('the pet catches up (CATCH_UP)', () => {
+  /** A world of round obstacles resolved as the first world resolves them (src/worlds/fairy/terrain.ts). */
+  const world = (cols: { x: number; z: number; r: number }[]) => {
+    const save = defaultSave();
+    worldState(save, WORLD).flags.pet = true; save.pet = FAWN.id;
+    const g = host(save);
+    (g as unknown as { ground: unknown }).ground = { resolve: (p: { x: number; z: number }, radius: number) => {
+      for (const c of cols) {
+        const dx = p.x - c.x, dz = p.z - c.z, m = c.r + radius, d2 = dx * dx + dz * dz;
+        if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * m; p.z = c.z + (dz / d) * m; }
+      }
+    } };
+    const pets = createPets(g, { rigs: rigs(), chainDone: () => false });
+    // she faces +x and is put 10 m on: its place 0.7 m behind her
+    g.hero.heading = Math.PI / 2;
+    g.hero.root.position.set(10, 0, 0); g.cat.root.position.set(10.5, 0, -0.9);
+    const run = (s: number) => { for (let i = 0; i < s * 60; i++) pets.update(1 / 60); };
+    const near = () => pets.follower!.root.position.distanceTo(g.hero.root.position);
+    const bursts = () => (g.sparks.burst as ReturnType<typeof vi.fn>).mock.calls.length;
+    return { g, pets, run, near, bursts };
+  };
+
+  it('one tree on its way: it slides round it by itself, no catching up', () => {
+    const w = world([{ x: 5, z: 0.9, r: 0.8 }]);
+    w.run(5);
+    expect(w.near()).toBeLessThan(CATCH_UP.stuckM);
+    expect(w.bursts()).toBe(0);
+  });
+
+  it.each([
+    ['a pocket of two trees', [{ x: 5, z: 0.1, r: 0.8 }, { x: 5, z: 1.7, r: 0.8 }]],
+    ['a row across its way (a fence, bushes)', [-3, -2, -1, 0, 1, 2, 3, 4, 5].map((k) => ({ x: 5, z: 0.9 + k, r: 0.6 }))],
+  ])('%s: it would stand there for good - it appears behind her with sparkles within a couple of seconds', (_, cols) => {
+    const w = world(cols);
+    w.run(CATCH_UP.stuckS + 1.5);
+    expect(w.near()).toBeLessThan(CATCH_UP.stuckM);
+    expect(w.bursts()).toBe(2);   // where it stood and where it comes
+  });
+
+  it('left far behind (she ran off, was put elsewhere): it is by her at once', () => {
+    const w = world([]);
+    w.g.hero.root.position.set(40, 0, 0);
+    w.run(0.1);
+    expect(w.near()).toBeLessThan(CATCH_UP.stuckM);
+    expect(w.bursts()).toBe(2);
+  });
+
+  it('a scene holds the game: it stands where it is, stuck or far, and catches up only after', () => {
+    const w = world([{ x: 5, z: 0.1, r: 0.8 }, { x: 5, z: 1.7, r: 0.8 }]);
+    w.g.busy = true;
+    w.g.hero.root.position.set(40, 0, 0);
+    w.run(3);
+    expect(w.near()).toBeGreaterThan(30);
+    expect(w.bursts()).toBe(0);
+    w.g.busy = false;
+    w.run(0.1);
+    expect(w.near()).toBeLessThan(CATCH_UP.stuckM);
+  });
+});
 
   it('dispose: the pets leave the scene and the frame', () => {
     const save = defaultSave();

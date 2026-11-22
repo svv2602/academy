@@ -74,6 +74,14 @@ const SIDE = 0.9, BACK = 0.7;
 export const PET_GAP = 0.8;
 /** Closer than this to its place by the heroine, the pet stands. */
 const NEAR = 0.45;
+/**
+ * The pet catches up (the lead's decision 2026-11-22, reversible): it walks to its place in a straight line and the
+ * world's obstacles push it out (WorldGround.resolve) - one tree it slides round, but in a pocket of two or at a row
+ * (a fence, bushes) it would stand for good. So once it has come no nearer its place for `stuckS` s while more than
+ * `stuckM` m from it, or is more than `farM` m from it (she ran off, was put elsewhere), it appears at its place behind
+ * her with a puff of sparkles - not while a scene holds the game nor during a trick.
+ */
+export const CATCH_UP = { stuckS: 1, stuckM: 2, farM: 12 } as const;
 
 const flagsOf = (save: Save, world: string): Record<string, unknown> | null => {
   const w = save.worlds[world] as unknown;
@@ -249,6 +257,7 @@ export function createPets(g: PetHost, o: {
   const real = speedometer();   // the follower's speed over the ground as it is
   const steps = paceFollower();  // its pace, smoothed in time
   let galloping = false, moving = '';   // the walking clip it plays now
+  let best = Infinity, stuckT = 0;   // the nearest it came to its place lately, and for how long no nearer
   let gone = false;
 
   const spots: Spot[] = [];
@@ -356,6 +365,16 @@ export function createPets(g: PetHost, o: {
           const x0 = p.x, z0 = p.z;
           const d = followStep(p, place, g.cat.root.position, dt);
           g.ground.resolve(p, 0.3);
+          // stuck or left far behind: it appears at its place behind her (CATCH_UP)
+          const left = Math.hypot(place.x - p.x, place.z - p.z);
+          if (left <= CATCH_UP.stuckM || left < best - 0.1) { best = left; stuckT = 0; } else stuckT += dt;
+          if (trickT === 0 && (left > CATCH_UP.farM || stuckT >= CATCH_UP.stuckS)) {
+            g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 14, 2);
+            p.set(place.x, p.y, place.z);
+            g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 24, 3);
+            best = 0; stuckT = 0;
+            real(p.x, p.z, dt);   // the jump is no speed: the next frame measures from here
+          }
           const moved = Math.hypot(p.x - x0, p.z - z0);
           const speed = real(p.x, p.z, dt);
           if (d > NEAR && moved > 1e-4) {
