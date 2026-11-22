@@ -97,13 +97,15 @@ export function groundColor(x: number, z: number, out: THREE.Color): THREE.Color
   return out.lerp(rim, smoothstep(HALF, HALF + 20, Math.hypot(x, z)));
 }
 
-export interface Collider { x: number; z: number; r: number }
+/** A round obstacle; `top` - over this height (m) a walker is above it (on a roof) and it does not hold her. */
+export interface Collider { x: number; z: number; r: number; top?: number }
 /** The round obstacles of the forest (trunks, houses, characters); emptied as the world is left (./index.ts). */
 export const colliders: Collider[] = [];
 
 /** Keeps a walker out of the obstacles and inside the map. */
-export function resolve(p: { x: number; z: number }, radius: number) {
+export function resolve(p: { x: number; z: number; y?: number }, radius: number) {
   for (const c of colliders) {
+    if (c.top !== undefined && p.y !== undefined && p.y > c.top) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius, d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
   }
@@ -132,8 +134,34 @@ export function raycast(origin: THREE.Vector3, dir: THREE.Vector3, out: THREE.Ve
   return false;
 }
 
+/**
+ * A top she can stand on (WorldGround.support): round, `r` m across from (x, z), its height at `d` m from the middle
+ * `top(d)` (over the sea level, not the ground); she gets onto it from `from` m below at most (a jump), from lower she
+ * is beside it. `spring`: landing on it throws her up at this speed (WorldGround.bounce). Emptied as the world is left.
+ */
+export interface Top { x: number; z: number; r: number; top(d: number): number; from: number; spring?: number }
+export const tops: Top[] = [];
+
+/** The highest top under (x, z) she can be on with her feet at `feet`, null where there is none. */
+export function support(x: number, z: number, feet: number): number | null {
+  let best: number | null = null;
+  for (const t of tops) {
+    const d = Math.hypot(x - t.x, z - t.z);
+    if (d > t.r) continue;
+    const h = t.top(d);
+    if (feet >= h - t.from && (best === null || h > best)) best = h;
+  }
+  return best;
+}
+
+/** The speed a springy top throws her up at, when (x, z) is on one; null where there is none. */
+export function bounce(x: number, z: number): number | null {
+  for (const t of tops) if (t.spring && Math.hypot(x - t.x, z - t.z) <= t.r) return t.spring;
+  return null;
+}
+
 export const ground: WorldGround = {
-  height, resolve, raycast,
+  height, resolve, raycast, support, bounce,
   block: (x, z, r) => { colliders.push({ x, z, r }); },
 };
 

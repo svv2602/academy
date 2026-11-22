@@ -28,6 +28,7 @@ import { buildDecor, loadDecor, type Decor } from './decor';
 import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
+import { CAVE_FLAG, FOREST_SECRETS, SONG_FLAG, createForestSecrets } from './secrets';
 import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
@@ -98,7 +99,7 @@ export const BYSTANDERS = [
 export const OWLET_HEAP = { x: ZONES.grove.x - 1.6, z: ZONES.grove.z + 1.2 };
 /** The heap: m across and high - over the owlet (0.38 m) that waits under it. */
 const HEAP_R = 0.62, HEAP_H = 0.5;
-type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.BufferGeometry[]; decor: Decor };
+type ForestModels = { rigs: Record<string, Rig>; flora: Flora; plants: THREE.BufferGeometry[]; decor: Decor; chest: Rig };
 
 /** The leaves that lie in the world: whose chain says where, the flag of the leaf taken (the id of its item). */
 export const LEAVES = [
@@ -141,15 +142,17 @@ function buildSky(scene: THREE.Scene): WorldSky {
 
 /** The characters' models (the rest of the grey build is made of shapes; the heroine and the cat are the game's). */
 const loadForest = async (_scene: THREE.Scene, _save: Save, _touch: boolean, scope: WorldScope): Promise<ForestModels> => {
-  const [rigs, flora, plants, decor] = await Promise.all([
+  const [rigs, flora, plants, decor, , chest] = await Promise.all([
     Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`forest/${id}`, h)] as const)).then((e) => Object.fromEntries(e)),
     loadFlora(),
     loadUndergrowth(),
     loadDecor(),
     // the owlet, the pet of the forest: a model of the world's own, loaded as a pet's (src/game/pets.ts)
     loadOwnPets('forest', ['owlet'], scope),
+    // the chest of the cave behind the waterfall (./secrets.ts): the first world's, a file every build has
+    rig('platformer_game_pack/Chest', 0.9),
   ]);
-  return { rigs, flora, plants, decor };
+  return { rigs, flora, plants, decor, chest };
 };
 
 /** A character without a model (none now but the Ash, which is its tree): a figure of its height and colour on a rig with no clips. */
@@ -222,6 +225,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   g.ground.block(OWLET_HEAP.x, OWLET_HEAP.z, 0.2);
   let heapGone = ws.flags[PET_FLAG] === true;
   heap.visible = !heapGone;
+
+  // ----- the secrets (PLAY-10, ./secrets.ts): the cave, the trampoline's roof, the singing fireflies, the fairy ring -----
+  const secrets = createForestSecrets(g, scope, L.chest);
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the leaves that lie in the world (WORLD-08): the step `part` of the owl's and the hedgehog's chains -----
@@ -290,11 +296,12 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
-  // the finale waits for the chains, the tour and the leaves; the pet is the child's own, never needed (as in the first world)
+  // the finale waits for the chains, the tour and the leaves; the pet and the secrets are the child's own, never needed
+  const secretItems = FOREST_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: id === CAVE_FLAG || id === SONG_FLAG ? 'act' : 'walk', at: secrets.at[id] }));
   const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
-  const own: readonly WorldItem[] = [tourItem, ...leafItems, finaleItem];
+  const own: readonly WorldItem[] = [tourItem, ...leafItems, ...secretItems, finaleItem];
   const restore = () => playScene(stage, 'forest finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(altar, 2);
@@ -316,8 +323,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
+        ...secrets.spots,
       ],
-      tap: (screenDist) => player.tap(screenDist),
+      // a firefly of the hollow while they wait for her, else the tasks played in the world
+      tap: (screenDist) => secrets.tap(screenDist) || player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -337,6 +346,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         }
         fireflies.update(time);
         nuts.update(dt, time, canMove);
+        secrets.update(dt, time, canMove);
         maze.update(dt, time, canMove);
         for (const l of leaves) {
           l.mesh.visible = waiting(l);
@@ -357,7 +367,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         if (n) return n.pos;
         return finaleItem.done() ? null : altar;
       },
-      animate: (_dt, time) => { flies.update(time); player.update(time); hubWay.update(time); },
+      animate: (dt, time) => { flies.update(time); player.update(time); hubWay.update(time); secrets.animate(dt); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); undergrowth.near(hp.x, hp.z); },
     },
@@ -374,7 +384,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
-      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; if (nuts.cheat()) return 'tracks'; if (maze.cheat()) return 'maze'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
+      cheatWorld: () => { if (worldTaskDoor(g).solve()) return 'world task'; const s = secrets.cheat(); if (s) return s; if (nuts.cheat()) return 'tracks'; if (maze.cheat()) return 'maze'; const l = leaves.find(waiting); if (!l) return ''; hero.root.position.set(l.at.x, groundY(l.at.x, l.at.z), l.at.z); return 'part'; },
     },
     book: {
       parts: () => npcs.map((n) => ({ color: n.def.shard, icon: n.def.emoji, got: finished(n) })),
@@ -384,6 +394,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
     hud: () => `${npcs.filter(finished).length}/${npcs.length}`,
     gear,
     items: () => own,
+    glimmer: () => secrets.glimmer(),
   };
 }
 
@@ -393,7 +404,7 @@ function buildHeap(at: THREE.Vector3): THREE.Mesh {
   const LUMPS = [[0, 0, 1], [0.32, 0.1, 0.7], [-0.28, 0.22, 0.75], [0.05, -0.33, 0.7], [-0.12, 0.02, 0.6]] as const;
   for (const [x, z, k] of LUMPS) {
     const r = HEAP_R * k;
-    lumps.push(new THREE.IcosahedronGeometry(r, 1).toNonIndexed().scale(1, HEAP_H / r * (k === 1 ? 1 : 0.7), 1).translate(x, 0, z));
+    lumps.push(new THREE.IcosahedronGeometry(r, 1).scale(1, HEAP_H / r * (k === 1 ? 1 : 0.7), 1).translate(x, 0, z));
   }
   const geo = mergeGeometries(lumps, false)!;
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#c8702a', roughness: 0.95, flatShading: true }));
@@ -417,6 +428,9 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   sky: buildSky,
   load: loadForest,
   build: buildForest,
+  // PLAY-10: the four secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
+  secrets: FOREST_SECRETS,
+  chest: CAVE_FLAG,
   // PLAY-09: the owlet, under its heap in the squirrel grove once Mudrena's chain is done
   pet: { species: 'owlet', at: OWLET_HEAP, after: 'mudrena', found: 'forest_pet_found', follow: 'forest_pet_follow' },
 };

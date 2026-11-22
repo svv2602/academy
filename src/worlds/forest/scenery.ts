@@ -3,7 +3,7 @@ import { staticGeo } from '../../core/assets';
 import { instanced } from '../../core/instancing';
 import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
+import { ALTAR, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, SECRET_CLEARINGS, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
 import { buildHouses, buildTower } from './village';
 
@@ -57,6 +57,16 @@ export const TREE_SHADOW = 12;
 /** A placed thing: where, how big, turned how. */
 interface Put { x: number; z: number; s: number; rot?: number }
 
+/** The gnomes' mushroom houses round the middle of the village (those clear of the paths), deterministic. */
+export function villageHouses(): Put[] {
+  return Array.from({ length: 5 }, (_, i) => {
+    const a = (i / 5) * Math.PI * 2 + 0.4;
+    return { x: ZONES.village.x + Math.cos(a) * 6.5, z: ZONES.village.z + Math.sin(a) * 6.5, s: 1, rot: a };
+  }).filter((h) => pathDist(h.x, h.z) > 2.6);
+}
+/** m over the ground: the top of a house's stem, where its cap starts (./village.ts mushroomHouse(3.6, 1.2): 3.6 x 0.62). */
+export const HOUSE_STEM_TOP = 3.6 * 0.62;
+
 /** The trees of the forest, deterministic: away from the paths, the zones, the stream and each other. */
 export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
   const rnd = mulberry32(seed), trees: Put[] = [], rim: Put[] = [];
@@ -74,6 +84,10 @@ export function placeTrees(seed = 7): { trees: Put[]; rim: Put[] } {
     if (!clear(x, z) || trees.some((t) => Math.hypot(t.x - x, t.z - z) < 3.2)) continue;
     trees.push({ x, z, s: 0.8 + rnd() * 0.5, rot: rnd() * 6.28 });
   }
+  // the places of the secrets (./layout.ts): their trees taken out after the rest are placed, so that every other tree
+  // of the forest stands where it stood before them
+  const open = (t: Put) => SECRET_CLEARINGS.every((c) => Math.hypot(c.x - t.x, c.z - t.z) > c.clear);
+  for (let i = trees.length - 1; i >= 0; i--) if (!open(trees[i])) trees.splice(i, 1);
   // the spruces of the edge: thick, past the edge of the map, where nobody walks
   const ring = Math.round((2 * Math.PI * HALF) / 2.6);
   for (let i = 0; i < ring * 3; i++) {
@@ -121,11 +135,9 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   instances(scene, 'rim', new THREE.ConeGeometry(2.4, 9, 6).translate(0, 4.2, 0), mat('#2c5a46'), rim, 0, false);
 
   // the gnomes' village: five mushroom houses round its middle
-  const houses: Put[] = Array.from({ length: 5 }, (_, i) => {
-    const a = (i / 5) * Math.PI * 2 + 0.4;
-    return { x: ZONES.village.x + Math.cos(a) * 6.5, z: ZONES.village.z + Math.sin(a) * 6.5, s: 1, rot: a };
-  }).filter((h) => pathDist(h.x, h.z) > 2.6);
-  for (const h of houses) colliders.push({ x: h.x, z: h.z, r: 1.4 });
+  const houses = villageHouses();
+  // over the top of a house's stem she is on its roof (the trampoline's secret, ./secrets.ts): its wall holds her no more
+  for (const h of houses) colliders.push({ x: h.x, z: h.z, r: 1.4, top: height(h.x, h.z) + HOUSE_STEM_TOP });
   // their doors to the middle of the village (the houses stand round it, `rot` their angle round it)
   buildHouses(scene, houses.map((h) => ({ x: h.x, y: height(h.x, h.z), z: h.z, rot: Math.atan2(ZONES.village.x - h.x, ZONES.village.z - h.z) })));
   // the grove's great orange tree at the edge of its glade: the grove's landmark (WORLD-10)
