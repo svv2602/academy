@@ -177,9 +177,9 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   scene.add(stream);
   // the bridges are Kenney's, with the other things of the forest (./decor.ts)
 
-  // the arches of stones: at the central glade (where the hub's arch will lead in) and at the way into the maze
+  // the arch of stones at the way into the maze (the central glade's is the hub's arch: ./hub-way.ts)
   const archGeo = [new THREE.BoxGeometry(0.5, 2.8, 0.5).translate(-1.3, 1.4, 0), new THREE.BoxGeometry(0.5, 2.8, 0.5).translate(1.3, 1.4, 0), new THREE.BoxGeometry(3.3, 0.45, 0.6).translate(0, 3, 0)];
-  for (const [p, yaw, name] of [[LANDMARKS.center, 0.4, 'landmark-center'], [LANDMARKS.maze, Math.PI / 2, 'landmark-maze']] as const) {
+  for (const [p, yaw, name] of [[LANDMARKS.maze, Math.PI / 2, 'landmark-maze']] as const) {
     const arch = new THREE.Group();
     arch.name = name;
     for (const gm of archGeo) { const m = new THREE.Mesh(gm, mat('#9b968c')); m.castShadow = true; arch.add(m); }

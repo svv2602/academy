@@ -40,3 +40,19 @@ export function portalWorlds(worlds: readonly PortalWorld[], places = 5): (strin
   if (test && free >= 0) out[free] = test.id;
   return out;
 }
+
+/**
+ * Which arches are open (docs/worlds/hub.md «Какая арка открыта», the lead's decision 2026-11-22): an arch whose world
+ * is in the registry (`leadsTo`, from `portalWorlds`) wakes once the world before it is done - the world of the nearest
+ * place before it that has one (the forest after the fairies, the sea after the forest; with no forest in a build, the
+ * sea after the fairies). The first place is open with its world. A world not yet woken: null, its arch sleeps. The
+ * published game lists the first world alone (src/worlds/index.ts), so there the others sleep whatever is done.
+ */
+export function openArches(leadsTo: readonly (string | null)[], done: (id: string) => boolean): (string | null)[] {
+  let before: string | null = null;
+  return leadsTo.map((id, i) => {
+    const open = id !== null && (i === 0 || (before !== null && done(before)));
+    if (id !== null) before = id;
+    return open ? id : null;
+  });
+}

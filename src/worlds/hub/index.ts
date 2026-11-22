@@ -12,7 +12,7 @@ import { travel } from '../../game/travel';
 import type { BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
 import { HUB_FLYOVER } from './flyover-path';
 import { PORTALS, RADIUS, arrivalAt } from './layout';
-import { portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
+import { openArches, portalWorlds, sleepingToSpeakOf, somethingNew } from './portals';
 import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads, type TreeStage } from './tree-look';
@@ -68,7 +68,7 @@ const doneIn = (save: Save) => (id: string) => (save.worlds[id] as { final?: boo
  * comes in only while LEAD_HOME. With an open world not done yet - the shared words.
  */
 export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME): 'hub_asleep' | null {
-  if (somethingNew(portalWorlds(knownWorlds()), doneIn(save))) return null;
+  if (somethingNew(openArches(portalWorlds(knownWorlds()), doneIn(save)), doneIn(save))) return null;
   return why === 'tap' || leadHome ? 'hub_asleep' : null;
 }
 /** The flag of the hub's part of the save that marks the tour done (the id of its item). */
@@ -203,7 +203,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     g.persist();
     sleep();
   };
-  const { arches: portals, update: breathe } = buildArches(scene, portalWorlds(knownWorlds()), ground.block);
+  const { arches: portals, update: breathe } = buildArches(scene, openArches(portalWorlds(knownWorlds()), doneIn(save)), ground.block);
   const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
   const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);

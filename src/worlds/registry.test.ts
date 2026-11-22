@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The registry (src/worlds/index.ts) with stand-ins for the worlds: the real ones need a page to load. The probe
 // world (TECH-15) is a test world: the published game must not list it, a build made with `--mode probe` must.
-vi.mock('./fairy', () => ({ fairy: { id: 'fairy' } }));
+vi.mock('./fairy', () => ({ fairy: { id: 'fairy', shelf: 0 } }));
 vi.mock('./hub', () => ({ hub: { id: 'hub' } }));
-vi.mock('./probe', () => ({ probe: { id: 'probe' } }));
-vi.mock('./forest', () => ({ forest: { id: 'forest' } }));
-vi.mock('./sea', () => ({ sea: { id: 'sea' } }));
+vi.mock('./probe', () => ({ probe: { id: 'probe', shelf: 1, test: true } }));
+vi.mock('./forest', () => ({ forest: { id: 'forest', shelf: 1 } }));
+vi.mock('./sea', () => ({ sea: { id: 'sea', shelf: 2 } }));
 const RAW = import.meta.glob(['./index.ts', './*/index.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 /** The registry as a build of `mode` makes it. */
@@ -49,10 +49,24 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(ids).toContain(DEFAULT_WORLD);
   });
 
+  it.each([
+    ['production', ['fairy'], ['fairy', null, null, null, null]],
+    ['grey', [], ['fairy', null, null, null, null]],
+    ['grey', ['fairy'], ['fairy', 'forest', null, null, null]],
+    ['grey', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
+    ['probe', ['fairy'], ['fairy', 'probe', null, null, null]],
+  ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game the fairies\' alone)', async (mode, done, open) => {
+    const { WORLDS } = await registry(mode);
+    const { openArches, portalWorlds } = await import('./hub/portals');
+    expect(openArches(portalWorlds(WORLDS), (id) => (done as readonly string[]).includes(id))).toEqual(open);
+  });
+
   it('the stand-ins above have the ids of the real worlds, each named after its folder', () => {
     const folders = Object.keys(RAW).filter((p) => p !== './index.ts').map((p) => p.split('/')[1]).sort();
     expect(folders).toEqual(['fairy', 'forest', 'hub', 'probe', 'sea']);
     for (const id of folders) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*id: '${id}',$`, 'm'));
+    // and their places on the shelf (the arches of the hub)
+    for (const [id, shelf] of [['fairy', 0], ['probe', 1], ['forest', 1], ['sea', 2]] as const) expect(RAW[`./${id}/index.ts`], `src/worlds/${id}/index.ts`).toMatch(new RegExp(`^\\s*shelf: ${shelf},`, 'm'));
   });
 
   it('the probe world is reached only through the registry, by a dynamic import behind the mode of the build', () => {

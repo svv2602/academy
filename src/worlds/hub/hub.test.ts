@@ -9,7 +9,7 @@ import { createFlyover, pathProblems } from '../../game/flyover';
 import { SHELF } from '../../ui/book';
 import { HUB_FLYOVER } from './flyover-path';
 import { ARRIVE_IN, NESTS, PORTALS, PORTAL_R, RADIUS, TREE, arrivalAt, trunkR } from './layout';
-import { portalWorlds } from './portals';
+import { openArches, portalWorlds } from './portals';
 import { strings } from './strings';
 
 describe('the map of the hub', () => {
@@ -45,6 +45,20 @@ describe('the worlds behind the arches', () => {
 
   it('a test world stands behind the first arch no world has: the forest\'s in the probe build (R32)', () => {
     expect(portalWorlds([{ id: 'fairy', shelf: 0 }, { id: 'hub' }, { id: 'probe', test: true }])).toEqual(['fairy', 'probe', null, null, null]);
+  });
+
+  it('an arch wakes once the world before it is done: the forest after the fairies, the sea after the forest', () => {
+    const leads = ['fairy', 'forest', 'sea', null, null];
+    const done = (...ids: string[]) => (id: string) => ids.includes(id);
+    expect(openArches(leads, done())).toEqual(['fairy', null, null, null, null]);
+    expect(openArches(leads, done('fairy'))).toEqual(['fairy', 'forest', null, null, null]);
+    expect(openArches(leads, done('fairy', 'forest'))).toEqual(['fairy', 'forest', 'sea', null, null]);
+    // the sea done but not the forest (a save of a test): the sea's arch waits for the forest still
+    expect(openArches(leads, done('fairy', 'sea'))).toEqual(['fairy', 'forest', null, null, null]);
+    // no forest in the build: the sea after the fairies, the world of the nearest place before it
+    expect(openArches(['fairy', null, 'sea', null, null], done('fairy'))).toEqual(['fairy', null, 'sea', null, null]);
+    // the published game: the fairies alone, whatever is done
+    expect(openArches(['fairy', null, null, null, null], done('fairy', 'forest'))).toEqual(['fairy', null, null, null, null]);
   });
 });
 

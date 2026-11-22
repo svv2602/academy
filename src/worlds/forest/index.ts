@@ -20,6 +20,7 @@ import { FOREST_FLYOVER } from './flyover-path';
 import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
+import { arriveFrom, createHubWay } from './hub-way';
 import { buildDecor, loadDecor, type Decor } from './decor';
 import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { buildFireflies } from './fireflies';
@@ -152,6 +153,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   scope.own(() => { colliders.length = 0; });
   scene.add(buildGround(160));
   const scenery = buildScenery(scene, L.flora);
+  // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
+  const hubWay = createHubWay(g);
   buildDecor(scene, L.decor, bridges());
   const undergrowth = buildUndergrowth(scene, L.plants);
   const fireflies = buildFireflies(scene);
@@ -272,6 +275,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       spots: [
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
+        hubWay.spot,
       ],
       tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
@@ -308,7 +312,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         if (n) return n.pos;
         return finaleItem.done() ? null : altar;
       },
-      animate: (_dt, time) => { flies.update(time); player.update(time); },
+      animate: (_dt, time) => { flies.update(time); player.update(time); hubWay.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); undergrowth.near(hp.x, hp.z); },
     },
@@ -343,6 +347,8 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   id: 'forest',
   shelf: 1,
   spawn: SPAWN,
+  // out of the arch of the Great Tree on the central glade, from the hub (./hub-way.ts); else at the spawn
+  arrive: arriveFrom,
   ground,
   characters: FRIENDS,
   worldTasks: WORLD_TASKS,

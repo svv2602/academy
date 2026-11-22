@@ -1,6 +1,6 @@
 // The grey build of the forest (WORLD-12): its walkthrough and its measurements.
 //
-//   node tools/forest-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
+//   node tools/forest-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-way] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
 //   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): a look is measured on q2 and q0
 //
 // 1. `vite build --mode grey --outDir dist-grey`: the registry lists the forest in that mode only (src/worlds/index.ts).
@@ -11,6 +11,16 @@
 //    E2E_WORLD=forest E2E_WORLD_NEED=grey, the phone size); pictures in shots-e2e/forest-grey/. --no-pass leaves it out.
 //    The page itself must have asked for every file of the forest's own models (models/forest/…): a model the world
 //    never loads would only weigh on the download of the world.
+// 3b. The way between the hub and the forest (WORLD-01, docs/worlds/hub.md; --no-way leaves it out), the phone size:
+//    - the first world done: in the hub the forest's arch is open, the sea's asleep (src/worlds/hub/portals.ts
+//      openArches: an arch wakes once the world before it is done), the cat's sparkles lead to the forest's arch;
+//      through it by its action button into the forest, out of the arch of the Great Tree on its central glade
+//      (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
+//    - the forest done too: the sea's arch open as well;
+//    - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
+//    - without network, the forest's files never cached (refused to the page from the start): the forest's arch
+//      refuses - the game stays in the hub, the frame never closes, the cat says "need_net" (src/main.ts `refuse`).
+//    Pictures shots-e2e/forest-grey/way-*.png.
 // 4. For every stretch of the map in --scales (`?scale=`, src/worlds/forest/layout.ts), in the phone size:
 //    - the time on foot of every path of the map: she runs it with the key held, turned along the path at every frame,
 //      timed in game seconds; next to it, the length of the path over her top speed;
@@ -36,17 +46,20 @@ import { chromium } from 'playwright-core';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { greyWorldFiles } from './vite-worlds.mjs';
+import { HUB_SAVES } from './e2e-saves.mjs';
+import { HUB_ARCH, HUB_ARRIVAL } from './worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1.6], q: 2, pass: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
+  const o = { scales: [1.6], q: 2, pass: true, way: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
     else if (a === '--no-measure') o.measure = false;
+    else if (a === '--no-way') o.way = false;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
       if (!v.length || v.some((x) => !(x >= 0.5 && x <= 3))) return { error: '--scales takes numbers 0.5-3, e.g. 1,1.6' };
@@ -106,7 +119,7 @@ export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hyp
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-way] [--no-measure] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
@@ -147,11 +160,20 @@ async function main() {
     console.log(`[grey] the forest's own models: ${own.length - never.length} of ${own.length} asked for by the page${never.length ? `; never: ${never.join(', ')}` : ''}`);
     if (!own.length || never.length) failed = true;
   }
+  const gl = process.env.E2E_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=gl', '--enable-gpu'];
+  const launch = () => chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
+  // ---- 3b. the way between the hub and the forest ----
+  if (args.way) {
+    const b = await launch();
+    try {
+      const problems = await hubWay(b, url, join(root, 'shots-e2e', 'forest-grey'));
+      if (problems.length) { console.log(`[grey] the way between the hub and the forest: FAILED\n  ${problems.join('\n  ')}`); failed = true; }
+    } finally { await b.close(); }
+  }
   // ---- 4. the measurements ----
   if (!args.measure) { server.close(); process.exit(failed ? 1 : 0); }
   mkdirSync(args.out, { recursive: true });
-  const gl = process.env.E2E_GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=gl', '--enable-gpu'];
-  const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
+  const browser = await launch();
   const all = [];
   try {
     for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
@@ -160,6 +182,106 @@ async function main() {
   if (all.some((m) => m.failed)) failed = true;
   console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`);
   process.exit(failed ? 1 : 0);
+}
+
+/** The way between the hub and the forest (3b in the head of the file). Returns the problems; prints what was seen. */
+async function hubWay(browser, url, shots) {
+  mkdirSync(shots, { recursive: true });
+  const problems = [], told = [];
+  const open = async (name, save, { noForest = false } = {}) => {
+    const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+    await ctx.addInitScript((s) => { if (!localStorage.getItem('amw-save')) localStorage.setItem('amw-save', s); for (const k of ['amw-gift-hold', 'amw-deal-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); }, JSON.stringify(save));
+    // the forest's own files never reach the page: its download (the next world's, while the hub is played) fails
+    if (noForest) await ctx.route((u) => /\/(models|voice|frames)\/forest\//.test(u.pathname), (r) => r.abort());
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => problems.push(`${name}: pageerror: ${e.message}`));
+    const g = (fn, arg) => page.evaluate(fn, arg);
+    const until = (fn, arg, what, ms = 120000) => page.waitForFunction(fn, arg, { timeout: ms, polling: 200 }).catch(() => { throw new Error(`${name}: ${what}`); }); /* clock: helper */
+    const inWorld = (id) => until((w) => { if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); if (!document.querySelector('#fanfare').classList.contains('hidden')) document.querySelector('#fanfareOk')?.click(); return __game.world === w && !__game.transitioning && !__game.busy; }, id, `not in the world "${id}"`);
+    const act = async (x, z, what) => {
+      await g(([px, pz]) => { __game.teleport(px, pz); }, [x, z]);
+      await until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, `no action button ${what}`, 20000);
+      await page.locator('#btnAct').dispatchEvent('pointerdown');   // as tools/shot.mjs presses it: the button breathes
+    };
+    const at = () => g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, heading: __game.hero.heading }));
+    const near = (p, want, what) => { if (Math.hypot(p.x - want.x, p.z - want.z) > 1.5 || Math.cos(p.heading - want.facing) < 0.9) problems.push(`${name}: ${what}: she stands at ${p.x.toFixed(1)}, ${p.z.toFixed(1)} facing ${p.heading.toFixed(2)}, not at ${want.x.toFixed(1)}, ${want.z.toFixed(1)} facing ${want.facing.toFixed(2)}`); };
+    const calls = async () => {
+      await g(() => { const G = __game; G.teleport(0, 6.5); G.hero.heading = Math.PI; G.hero.root.rotation.y = Math.PI; G.cam.yaw = 0; });
+      const t0 = await g(() => __game.time);
+      await until((t) => __game.time > t + 1, t0, 'the game time stood', 60000);
+      return g(() => __game.renderer.info.render.calls);
+    };
+    await page.goto(`${url}?debug&world=hub&q=2`);
+    await page.locator('#play').waitFor({ state: 'visible', timeout: 240000 }); /* clock: page-load */
+    await page.click('#play');
+    await inWorld('hub');
+    return { ctx, page, g, until, inWorld, act, at, near, calls };
+  };
+  const arches = (p) => p.g(() => __game.hub.portals().map((a) => a.world));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  try {
+    // ---- the first world done: the forest's arch open, there and back ----
+    {
+      const name = 'the fairies done';
+      const p = await open(name, HUB_SAVES.one());
+      const open1 = await arches(p);
+      if (!same(open1, ['fairy', 'forest', null, null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open1)}, not the fairies' and the forest's (the sea's asleep until the forest is done)`);
+      const goal = await p.g(() => __game.hub.goal());
+      if (!goal || Math.hypot(goal.x - HUB_ARCH[1].x, goal.z - HUB_ARCH[1].z) > 2) problems.push(`${name}: the cat's sparkles lead to ${JSON.stringify(goal)}, not to the forest's arch`);
+      const n = await p.calls();
+      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival, more than 80`);
+      await p.page.screenshot({ path: join(shots, 'way-hub-two-open.png') });
+      await p.act(HUB_ARCH[1].x * 0.9, HUB_ARCH[1].z * 0.9, 'at the forest\'s arch');
+      await p.inWorld('forest');
+      const map = await p.g(() => JSON.parse(JSON.stringify(__game.forestMap.landmarks.center)));
+      const FACING = 0.4, OUT = 7;   // src/worlds/forest/hub-way.ts
+      const fromHub = { x: map.x + Math.sin(FACING) * OUT, z: map.z + Math.cos(FACING) * OUT, facing: FACING };
+      p.near(await p.at(), fromHub, 'in the forest from the hub');
+      // the camera comes down behind her (the tour of a first entry skipped)
+      { const t0 = await p.g(() => __game.time); await p.until((t) => __game.time > t + 1.5, t0, 'the game time stood', 60000); }
+      await p.page.screenshot({ path: join(shots, 'way-forest-from-hub.png') });
+      // back by the arch of the Great Tree: its spot is the arch itself, she steps up to it from the glade
+      await p.act(map.x + Math.sin(FACING) * 1.5, map.z + Math.cos(FACING) * 1.5, 'at the arch of the Great Tree in the forest');
+      await p.inWorld('hub');
+      p.near(await p.at(), HUB_ARRIVAL[1], 'back in the hub');
+      await p.page.screenshot({ path: join(shots, 'way-hub-back.png') });
+      told.push(`the fairies done: the forest's arch open, the sea's asleep, the sparkles to the forest's arch, ${n} draw calls at the arrival; through it into the forest out of the arch of the Great Tree, back to the hub at the forest's arch`);
+      await p.ctx.close();
+    }
+    // ---- the forest done too: the sea's arch open as well ----
+    {
+      const name = 'the forest done';
+      const save = HUB_SAVES.one();
+      save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      const p = await open(name, save);
+      const open2 = await arches(p);
+      if (!same(open2, ['fairy', 'forest', 'sea', null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open2)}, not the fairies', the forest's and the sea's`);
+      const n = await p.calls();
+      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with three arches open, more than 80`);
+      await p.page.screenshot({ path: join(shots, 'way-hub-three-open.png') });
+      told.push(`the forest done: the sea's arch open too, ${n} draw calls at the arrival`);
+      await p.ctx.close();
+    }
+    // ---- without network, the forest never downloaded: refused at its arch ----
+    {
+      const name = 'no network';
+      const p = await open(name, HUB_SAVES.one(), { noForest: true });
+      await p.ctx.setOffline(true);
+      // the frames of the transition's layer drawn so far: a refused change draws none (src/game/travel.ts, step 0)
+      const layer = await p.g(() => __game.fade.frames);
+      await p.act(HUB_ARCH[1].x * 0.9, HUB_ARCH[1].z * 0.9, 'at the forest\'s arch');
+      await p.until(() => __game.line === 'need_net', null, 'the cat did not say "need_net"', 30000).catch((e) => problems.push(e.message));
+      const after = await p.g(() => ({ world: __game.world, frames: __game.fade.frames, phase: __game.fade.phase, going: __game.transitioning }));
+      if (after.world !== 'hub') problems.push(`${name}: the game went to "${after.world}" without network`);
+      if (after.frames !== layer || after.phase !== 'idle' || after.going) problems.push(`${name}: the frame was touched by a refused change (${layer} -> ${after.frames} frames of the layer, phase ${after.phase}, changing: ${after.going})`);
+      told.push('without network and without the forest\'s files: the forest\'s arch refused, the game stayed in the hub, the frame never closed, the cat said "need_net"');
+      await p.ctx.close();
+    }
+  } catch (e) {
+    problems.push(e.message);
+  }
+  console.log(`[grey] the way between the hub and the forest: ${told.join('; ')}; pictures ${shots}/way-*.png`);
+  return problems;
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
