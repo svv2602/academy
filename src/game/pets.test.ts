@@ -268,7 +268,7 @@ describe('the pet in the world (R22 rule 3) and after the heroine (R19)', () => 
     // a rig with the clips of the fawn: the clip it plays can be read
     const clips = new Map(['Idle', 'Walk', 'Gallop'].map((n) => [n, new THREE.AnimationClip(n, 1, [])]));
     const pets = createPets(g, { rigs: { [FAWN.id]: { root: new THREE.Group(), model: new THREE.Object3D(), clips } }, chainDone: () => false });
-    const playing = () => (pets.follower as unknown as { current: string }).current;
+    const playing = () => pets.follower!.playing;
     g.hero.root.position.set(8, 0, 0);   // nearer than CATCH_UP.farM: it goes to her
     for (let i = 0; i < 20; i++) pets.update(1 / 60);
     expect(['Walk', 'Gallop']).toContain(playing());
