@@ -84,6 +84,16 @@ Their depth maps `w1_intro_1_depth.webp`, `w1_intro_2_depth.webp`, `w1_intro_3_d
 from those frames on 2026-11-15 with Depth Anything V2 Small (Apache-2.0, the ONNX export of onnx-community) by
 `tools/depth.py`, locally; the model is not part of the game. Dedicated to the public domain under CC0 1.0.
 
+Cut-scene frames of the second world, the Enchanted Forest (WORLD-13; `worlds-data/forest/story/forest/`, in the build
+`story/forest/`), each file: `w2_intro_1.webp`, `w2_intro_2.webp`, `w2_intro_3.webp`, `w2_back_1.webp`, `w2_back_2.webp`,
+`w2_back_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter service on 2026-11-22
+(saving of the requests in the account turned off), dedicated to the public domain under CC0 1.0; viewed and accepted by
+the customer on 2026-11-22.
+Their depth maps `w2_intro_1_depth.webp`, `w2_intro_2_depth.webp`, `w2_intro_3_depth.webp`, `w2_back_1_depth.webp`,
+`w2_back_2_depth.webp`, `w2_back_3_depth.webp` — computed from those frames on 2026-11-22 with Depth Anything V2 Small
+(Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
+Dedicated to the public domain under CC0 1.0.
+
 Cut-scene frames of the third world, the Underwater Kingdom (WORLD-13; `worlds-data/sea/story/sea/`, in the build
 `story/sea/`), each file: `w3_intro_1.webp`, `w3_intro_2.webp`, `w3_intro_3.webp`, `w3_back_1.webp`, `w3_back_2.webp`,
 `w3_back_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter service on 2026-11-23,

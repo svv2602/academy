@@ -18,6 +18,7 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { PET_FLAG, loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
+import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
 import { ALTAR, CAVE, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
@@ -29,6 +30,7 @@ import { buildUndergrowth, loadUndergrowth } from './undergrowth';
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
 import { CAVE_FLAG, FOREST_SECRETS, SONG_FLAG, createForestSecrets } from './secrets';
+import { FOREST_STORIES } from './story';
 import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
@@ -255,6 +257,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
+  // the cut-scenes (WORLD-13, ./story.ts): the way in at the first entry (src/game/start.ts enterWorld), the Emerald after the finale
+  const story = setStories(g, FOREST_STORIES, scope);
   // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
   const player = worldTaskPlayer(g, scope);
   // Mudrena's steps (WORLD-16): the row rises across, before the hollow of her tree, the mushrooms on the ground toward
@@ -301,7 +305,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
-  const own: readonly WorldItem[] = [tourItem, ...leafItems, ...secretItems, finaleItem];
+  const sceneOn = (id: string) => () => story.active && story.id === id;
+  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'auto', active: sceneOn('story_intro') });
+  const emeraldItem = marked(ws, { kind: 'scene', id: 'story_emerald', how: 'auto', after: [FINALE], active: sceneOn('story_emerald') });
+  const own: readonly WorldItem[] = [introItem, tourItem, ...leafItems, ...secretItems, finaleItem, emeraldItem];
   const restore = () => playScene(stage, 'forest finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(altar, 2);
@@ -315,7 +322,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
     await g.speech.line('yasen_chorus', 'story', 0, '🌳');
     await g.speech.line('forest_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  }).then(() => g.speech.line('forest_free', 'hint', 6000));
+  }).then(() => playStory(g, 'story_emerald')).then(() => g.speech.line('forest_free', 'hint', 6000));
 
   return {
     frame: {

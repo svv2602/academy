@@ -9,7 +9,7 @@
  */
 import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_listen: 'Послухати', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}',
+const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_listen: 'Послухати', forest_story_title_intro: 'Початок історії лісу', forest_story_title_emerald: 'Смарагд мудрості повернувся', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}',
   // --- the forest's own lines: the cut-scenes (WORLD-13) and the tour (WORLD-11), the cat's
   forest_story_intro_1: 'Далеко за порталом є Зачарований ліс. Та він міцно заснув.',
   forest_story_intro_2: 'Смарагд мудрості розсипався на листочки. І дерева забули слова.',
@@ -85,7 +85,7 @@ const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Д
 };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_listen: 'Послушать', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}',
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_listen: 'Послушать', forest_story_title_intro: 'Начало истории леса', forest_story_title_emerald: 'Изумруд мудрости вернулся', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}',
   forest_story_intro_1: 'Далеко за порталом есть Зачарованный лес. Но он крепко уснул.',
   forest_story_intro_2: 'Изумруд мудрости рассыпался на листочки. И деревья забыли слова.',
   forest_story_intro_3: 'Найдём все листочки, и лес снова заговорит!',
