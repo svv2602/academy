@@ -283,9 +283,11 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const id of Object.keys(sec.at)) {
     // the roof's find is up on the house: she is pictured on the trampoline beside it
     const m = sec.middle[id], f = id === 'bounce' ? sec.trampoline : sec.at[id];
-    // a find in its very middle (the ring): she comes from the side of the central glade
-    const far = Math.hypot(f.x - m.x, f.z - m.z) > 0.5;
-    const dx = far ? f.x - m.x : map.zones.center.x - m.x, dz = far ? f.z - m.z : map.zones.center.z - m.z, d = Math.hypot(dx, dz) || 1;
+    // a find in its very middle (the ring): she comes from the side of the central glade; the roof from the middle of
+    // the village (the way to the trampoline round the house is among the trees)
+    const far = Math.hypot(f.x - m.x, f.z - m.z) > 0.5 && id !== 'bounce';
+    const toward = id === 'bounce' ? map.zones.village : map.zones.center;
+    const dx = far ? f.x - m.x : toward.x - m.x, dz = far ? f.z - m.z : toward.z - m.z, d = Math.hypot(dx, dz) || 1;
     // the way she comes: out of its middle through its find, SECRET_LOOK m on
     const from = { x: m.x + (dx / d) * SECRET_LOOK, z: m.z + (dz / d) * SECRET_LOOK };
     for (const [where, a, b] of [['near', from, m], ['at', f, m]]) {
@@ -308,6 +310,15 @@ async function measure(browser, url, scale, out, q = 2) {
   await page.screenshot({ path: join(out, `${tag}-owlet-flying.png`) });
   await settle(1.5);
   await page.screenshot({ path: join(out, `${tag}-owlet-standing.png`) });
+  // and as a child sees it best: on the light path of the grove, flying beside her, the camera at her side and close
+  const grove = map.zones.grove, along = map.zones.ash;
+  // the camera turned a quarter and close; she runs sideways to it (the stick to the side): it is seen from the side
+  await stand(grove, along); await settle(0.6);
+  await page.evaluate(() => { __game.cam.yaw += Math.PI / 2; __game.closeup(3.2); });
+  await page.keyboard.down('KeyD'); await settle(1.4);
+  await page.screenshot({ path: join(out, `${tag}-owlet-side.png`) });
+  await page.keyboard.up('KeyD');
+  await page.evaluate(() => { __game.closeup(null); });
   console.log(`[grey]   the secrets: ${secrets.map((x) => `${x.id} ${x.where} ${x.calls}/${Math.round(x.tris / 1000)}k`).join(', ')}`);
   await page.evaluate(() => __game.setMagic(null));
   await ctx.close();
