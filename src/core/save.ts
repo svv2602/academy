@@ -204,7 +204,7 @@ export const WING_COLOR = '#d8f6ff';
 const KEY = 'amw-save';
 /** The skills a fresh save counts: the ids of src/game/skills.ts (save.test.ts checks that the two lists agree). */
 /** The pets a save may choose: the ids of PETS of src/game/pets.ts (save.test.ts checks that the two lists agree). */
-const PET_IDS = ['fawn', 'owlet'];
+const PET_IDS = ['fawn', 'owlet', 'bulchik'];
 const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
 /** The lowest level of a skill whose ladder does not start at 1 (LEVELS of src/game/skills.ts; save.test.ts compares). */
 const FIRST_LEVEL: Record<string, number> = { compose: 3 };

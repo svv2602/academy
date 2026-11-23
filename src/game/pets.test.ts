@@ -12,6 +12,7 @@ import {
   type PetHost, type WorldPet,
 } from './pets';
 import { WORLDS } from '../worlds';
+import { COLLECT_KINDS } from './collections';
 
 vi.mock('../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 // The particles draw their sprite on a canvas at import; the page of the tests has no 2D context.
@@ -588,5 +589,97 @@ describe('the owlet of the forest (PLAY-09): a pet whose model is a file of its 
       createPets(g2, { pet: TEST_PET, rigs: rigs(), chainDone: () => true }).spots[0].run();
       expect((g2.speech.line as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual(['pet_found']);
     });
+  });
+});
+
+describe('Bulchik of the sea (PLAY-09): his brother\'s model made small and lighter, that swims after her and floats', () => {
+  const BULCHIK = petSpecies('bulchik')!;
+  const OWLET = petSpecies('owlet')!;
+  const scopeOf = () => { const owned: (() => void)[] = []; return { own: (f: () => void) => { owned.push(f); }, end: () => owned.forEach((f) => f()) }; };
+  /** Bulk's clips (src/worlds/sea/index.ts: Idle, Talk, Swim) on a model of one mesh. */
+  const swimmingRig = (): Rig => {
+    const model = new THREE.Group();
+    model.add(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: '#808080' })));
+    return { root: new THREE.Group().add(model), model, clips: new Map(['Idle', 'Talk', 'Swim'].map((n) => [n, new THREE.AnimationClip(n, 1, [])])) };
+  };
+  const following = () => {
+    const save = defaultSave();
+    worldState(save, 'sea').flags.pet = true; save.pet = 'bulchik';
+    const g = host(save, 'sea');
+    const pets = createPets(g, { rigs: { bulchik: swimmingRig() }, chainDone: () => true, world: { id: 'sea', shelf: 2 } });
+    return { g, pets, it: pets.follower! };
+  };
+  const rest = BULCHIK.fly!.rest!;
+
+  it('of the sea, his brother Bulk\'s file (no file of his own), half as tall; the shared load leaves him out', () => {
+    expect(BULCHIK).toMatchObject({ world: 'sea', model: 'sea/bulk', own: true, fly: { clip: 'Swim' } });
+    expect(BULCHIK.height).toBeLessThan(0.9 * 0.6);   // Bulk is 0.9 m (src/worlds/sea/index.ts MODELS)
+    expect(BULCHIK.fly!.rest).toBeGreaterThan(0.3);    // he floats where he stops: under water, not on the floor
+    expect(BULCHIK.lighter).toBeGreaterThan(0);
+    expect(PETS.filter((p) => !p.own).map((p) => p.id)).not.toContain('bulchik');
+    // the owlet comes down to stand, as before
+    expect(OWLET.fly!.rest ?? 0).toBe(0);
+  });
+
+  it('every pet\'s treats are kinds of finds the stash holds', () => {
+    for (const p of PETS) for (const k of p.treats ?? []) {
+      expect(Object.keys(COLLECT_KINDS), `${p.id}: ${k}`).toContain(k);
+      expect(k, p.id).not.toBe('piece');
+    }
+  });
+
+  it('the world and the hub load him lighter than his brother: each colour of his model times 1 + lighter', async () => {
+    const scope = scopeOf(), r = swimmingRig(), load = vi.fn(async () => r);
+    await loadOwnPets('sea', ['bulchik'], scope, load);
+    expect(load.mock.calls).toEqual([[BULCHIK.model, BULCHIK.height]]);
+    const mat = (r.model.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    expect(mat.color.r).toBeCloseTo(new THREE.Color('#808080').r * (1 + BULCHIK.lighter!), 6);
+    expect(ownPetRigs('sea').bulchik).toBe(r);
+    scope.end();
+    // the owlet has no `lighter`: its colours as the file has them
+    const o = swimmingRig(), o0 = ((o.model.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).color.clone();
+    const s2 = scopeOf();
+    await loadOwnPets('forest', ['owlet'], s2, async () => o);
+    expect(((o.model.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial).color.equals(o0)).toBe(true);
+    s2.end();
+  });
+
+  it('he swims after her on Swim, and where he stops he stays floating at his rest, not lying on the floor', () => {
+    const { g, pets, it: b } = following();
+    expect(b.root.position.y).toBeCloseTo(rest, 6);            // he joins floating, from the first frame
+    g.hero.root.position.set(6, 0, 0);
+    for (let i = 0; i < 40; i++) { g.hero.root.position.x += 0.05; pets.update(1 / 60); }
+    expect(b.root.position.y).toBeGreaterThan(BULCHIK.fly!.height * 0.9);
+    expect(b.root.position.y).toBeLessThanOrEqual(BULCHIK.fly!.height + 1e-9);
+    expect(b.playing).toBe('Swim');
+    for (let i = 0; i < 600; i++) pets.update(1 / 60);
+    expect(b.playing).toBe('Idle');
+    expect(b.root.position.y).toBeGreaterThan(rest * 0.95);
+    expect(b.root.position.y).toBeLessThan(rest + 1e-6);
+  });
+
+  it('he catches up (CATCH_UP) floating at his rest, as he would stand there', () => {
+    const { g, pets, it: b } = following();
+    g.hero.root.position.set(6, 0, 0);
+    for (let i = 0; i < 40; i++) { g.hero.root.position.x += 0.05; pets.update(1 / 60); }
+    g.hero.root.position.set(60, 0, 0);   // farther than CATCH_UP.farM
+    pets.update(1 / 60);
+    expect(b.root.position.distanceTo(g.hero.root.position)).toBeLessThan(CATCH_UP.stuckM + BULCHIK.fly!.height);
+    expect(b.root.position.y).toBeGreaterThan(rest * 0.95);
+    expect(b.root.position.y).toBeLessThan(BULCHIK.fly!.height + 1e-6);
+  });
+
+  it('waiting to be found he floats at his rest; found, he swims on from there with no dip to the floor', () => {
+    const save = defaultSave(), g = host(save, 'sea');
+    const pet: WorldPet = { species: 'bulchik', at: { x: 4, z: 4 }, after: 'bulk', found: 'sea_pet_found', follow: 'sea_pet_follow' };
+    (g.speech.line as ReturnType<typeof vi.fn>).mockImplementation(() => Promise.resolve());
+    const pets = createPets(g, { pet, rigs: { bulchik: swimmingRig() }, chainDone: () => true, world: { id: 'sea', shelf: 2 } });
+    const w = pets.waiting!;
+    expect(w.root.position.y).toBeCloseTo(rest, 6);
+    pets.spots[0].run();
+    let low = Infinity;
+    for (let i = 0; i < 120; i++) { pets.update(1 / 60); low = Math.min(low, pets.follower!.root.position.y); }
+    expect(pets.follower).toBe(w);
+    expect(low).toBeGreaterThan(rest * 0.95);
   });
 });

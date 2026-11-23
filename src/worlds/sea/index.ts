@@ -12,6 +12,7 @@ import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
 import { swimming, type Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
+import { loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
@@ -63,7 +64,8 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'khvylia', emoji: '🧜‍♀️', x: ZONES.square.x + 2.5, z: ZONES.square.z - 2.5, heading: -2.4, steps: ['compare', 'missing', LOCK], shard: '#a8e4ff',
     hi: 'khvylia_hi', asks: ['khvylia_t1', 'khvylia_t2', 'khvylia_t3'], thanks: 'khvylia_done', again: ['khvylia_again_1', 'khvylia_again_2'] },
   { id: 'bulk', emoji: '🐉', x: ZONES.reef.x + 2, z: ZONES.reef.z + 1.5, heading: 1.2, steps: ['pattern', 'count', CORALS, 'part'], shard: '#7fe6d6',
-    hi: 'bulk_hi', asks: ['bulk_t1', 'bulk_t2', 'bulk_t3', null], thanks: 'bulk_done', again: ['bulk_again_1', 'bulk_again_2'] },
+    hi: 'bulk_hi', asks: ['bulk_t1', 'bulk_t2', 'bulk_t3', null], thanks: 'bulk_done', again: ['bulk_again_1', 'bulk_again_2'],
+    after: 'bulk_pet_ask' },
   { id: 'pantsyr', emoji: '🐢', x: ZONES.ship.x - 2, z: ZONES.ship.z + 4, heading: 2.6, steps: [HALF_STEP, 'simon', 'sub', 'part'], shard: '#9fd0a8',
     hi: 'pantsyr_hi', asks: ['pantsyr_t1', 'pantsyr_t2', 'pantsyr_t3', 'pantsyr_hint'], thanks: 'pantsyr_done', again: ['pantsyr_again_1', 'pantsyr_again_2'] },
   { id: 'kleshnya', emoji: '🦀', x: ZONES.grotto.x - 2, z: ZONES.grotto.z - 1, heading: -1.8, steps: ['add', 'sort', 'compare'], shard: '#ffb0a0',
@@ -86,6 +88,13 @@ export const PEARLS = [
   { owner: 'bulk', flag: 'pearl_reef', hint: 'bulk_hint', at: CORAL_NEST, how: 'walk', found: 'sea_pearl_reef_found' },
   { owner: 'pantsyr', flag: 'pearl_ship', hint: 'pantsyr_hint', at: CABIN, how: 'act', found: 'sea_pearl_ship_found' },
 ] as const;
+/**
+ * Bulchik, Bulk's little brother (world-3.md, PLAY-09): once Bulk's chain is done and he has asked for him, he hides in
+ * the shell garden behind its great shell - a free spot off its collider, the small shells, the echo shells and the
+ * creatures (./pet.test.ts); swimming up to him finds him and he swims after her. His model is his brother's, loaded
+ * as a pet's (src/game/pets.ts `loadOwnPets`).
+ */
+export const BULCHIK = { x: ZONES.garden.x - 6.1, z: ZONES.garden.z + 4.6 };
 export const FINALE = 'final';
 /** m from the turtle to the hinge of the shell before him. */
 const HALF_AT = 2.6;
@@ -156,7 +165,7 @@ function buildSky(scene: THREE.Scene): WorldSky {
 const MODELS: Record<string, number> = { khvylia: 1.9, bulk: 1.6, pantsyr: 0.9, kleshnya: 1.05, iskorka: 0.6 };
 
 /** The files of the grey build: the swimming clips (the heroine and the cat are the game's) and the characters' models. Null = failed (TECH-08). */
-async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
+async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean, scope: WorldScope) {
   const [swim, rigs, wreck, chest] = await Promise.all([
     gltf(SWIM_CLIPS),
     Promise.all(Object.entries(MODELS).map(async ([id, h]) => {
@@ -168,6 +177,8 @@ async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
     })).then((e) => Object.fromEntries(e) as Record<string, Rig>),
     gltf(WRECK),
     rig(CHEST_MODEL, 0.9),
+    // Bulchik, the pet of the sea: his brother's model, loaded as a pet's (src/game/pets.ts); missing, he stays at home
+    loadOwnPets('sea', ['bulchik'], scope),
   ]).catch((e: unknown) => { loadFailed(e); return [null, null, null, null] as const; });
   return swim && rigs && wreck && chest ? { swim, rigs, wreck: wreck.scene, chest } : null;
 }
@@ -306,7 +317,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   let lidShown = false;   // the throne's lid open before the finale: the pictures of the look only (debug `openThrone`)
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const pearlItems = PEARLS.map((p) => marked(ws, { kind: 'part', id: p.flag, how: p.how, at: { x: p.at.x, z: p.at.z } }));
-  const before = [...declared(g), tourItem, ...pearlItems];
+  // the finale waits for the chains, the tour and the pearls; the pet (Bulchik) is the child's own, never needed
+  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...pearlItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...THRONE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
@@ -473,6 +485,8 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   // PLAY-07: the four secrets (./secrets.ts); the hold's chest is the world's chest (PLAY-08)
   secrets: SEA_SECRETS,
   chest: CHEST_FLAG,
+  // PLAY-09: Bulchik, behind the great shell of the garden once Bulk's chain is done and he has asked for him
+  pet: { species: 'bulchik', at: BULCHIK, after: 'bulk', found: 'sea_pet_found', follow: 'sea_pet_follow' },
   sky: buildSky,
   load: loadSea,
   build: buildSea,

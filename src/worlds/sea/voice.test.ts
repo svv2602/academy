@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * The sea's characters say their own lines in their own voice (./index.ts FRIENDS: hi, asks, thanks, again; ./voices.ts,
+ * The sea's characters say their own lines in their own voice (./index.ts FRIENDS: hi, asks, thanks, again, after; ./voices.ts,
  * ./strings.ts). Each such line must have its clip in the world's list (./clips.json, written by tools/gen_voice.py):
  * without one the game would quietly hand it to the device's synthesizer. Here that fails, with the line to record.
  */
@@ -15,7 +15,7 @@ import { voices } from './voices';
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
 
 /** Every own line of a character of the sea, with the character. */
-const lines = FRIENDS.flatMap((c) => [c.hi, ...(c.asks ?? []), c.thanks, ...(c.again ?? [])]
+const lines = FRIENDS.flatMap((c) => [c.hi, ...(c.asks ?? []), c.thanks, ...(c.again ?? []), c.after]
   .filter((k): k is NonNullable<typeof k> => !!k).map((key) => ({ who: c.id, emoji: c.emoji, key: key as string })));
 const cast = voices.cast as Record<string, { emoji: string; voice: string }>;
 

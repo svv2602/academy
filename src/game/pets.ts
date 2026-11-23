@@ -18,8 +18,8 @@ import { inStash, spend } from './stash';
  * Which pets are found is the save's own list (`save.pets`), written by the find in whatever world it was made: a
  * species that waits in a world other than the one of its catalog entry is found there too.
  * The models are of the core (R23, R46): the shared load (src/game/boot.ts) brings the model of every species once -
- * but a species marked `own`, whose model is a file of its world (the owlet: the core's models have no room for it,
- * the lead's decision of 2026-11-22). Its world and the hub load it themselves (`loadOwnPets`).
+ * but a species marked `own`, whose model is a file of its world (the owlet, Bulchik: the core's models have no room
+ * for them, the lead's decision of 2026-11-22). Its world and the hub load it themselves (`loadOwnPets`).
  */
 
 /**
@@ -39,9 +39,15 @@ export interface PetSpecies {
   readonly own?: boolean;
   /**
    * It flies after her instead of walking (the owlet: its model has no walking clip): `clip` while it goes, `height` m
-   * over the ground it rises to; standing, it comes down and plays Idle. `walk` and `run` are not read then.
+   * over the ground it rises to; standing, it comes down to `rest` m (absent: 0, on the ground) and plays Idle. `walk`
+   * and `run` are not read then. Under water (Bulchik) `rest` keeps it floating where it stops: on the floor it would lie.
    */
-  readonly fly?: { readonly clip: string; readonly height: number };
+  readonly fly?: { readonly clip: string; readonly height: number; readonly rest?: number };
+  /**
+   * Its model is a grown-up's of its world made small and lighter (Bulchik: his brother Bulk's file): each material's
+   * colour times 1 + `lighter` as its world or the hub loads it (`loadOwnPets`). Absent: as the file has it.
+   */
+  readonly lighter?: number;
 }
 
 /** The pet of a world as the world describes it (WorldDef.pet). */
@@ -60,6 +66,11 @@ export const PETS: readonly PetSpecies[] = [
   // 0.55 m and flying at her shoulder: at 0.38 m and 0.4 m over the grass a child did not see it in the frame (the
   // lead, 2026-11-22, by the pictures of the grey build)
   { id: 'owlet', world: 'forest', model: 'forest/owlet', height: 0.55, own: true, walk: 1, fly: { clip: 'Flap', height: 0.75 }, treats: ['acorn', 'feather'] },
+  // Bulchik of the sea (world-3.md, PLAY-09): the baby dragon, Bulk's little brother - his brother's Meshy model of the
+  // sea's files (`own`, no file of its own), half as tall and lighter (the lead's decision 2026-11-23). Its Swim clip is
+  // its "flying": it swims after her at her swimming height (0.6 m, src/worlds/sea/index.ts SWIM_HEIGHT) and stays
+  // there when it stops (`rest`), as Bulk floats over the corals.
+  { id: 'bulchik', world: 'sea', model: 'sea/bulk', height: 0.48, own: true, walk: 1, fly: { clip: 'Swim', height: 0.6, rest: 0.6 }, lighter: 0.3, treats: ['feather', 'butterfly'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
@@ -82,10 +93,21 @@ export async function loadOwnPets(world: string, ids: readonly string[], scope: 
     return null;
   })));
   const rigs = got.filter((x) => x !== null);
+  for (const [id, r] of rigs) lighten(r, petSpecies(id)?.lighter ?? 0);
   // its things (the owlet's scarf, a trade's gift) hung on it while it stands in its rest pose (src/game/petgear.ts)
   const unhang = await Promise.all(rigs.map(([id, r]) => hang(id, r)));
   ownRigs.set(world, Object.fromEntries(rigs));
   scope.own(() => { ownRigs.delete(world); for (const u of unhang) u(); });
+}
+
+/** A model's colours lighter by the share `by` (PetSpecies.lighter): its own materials (src/core/assets.ts rig clones them). */
+function lighten(r: Rig, by: number): void {
+  if (by <= 0) return;
+  r.model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) (mat as THREE.MeshStandardMaterial).color?.multiplyScalar(1 + by);
+  });
 }
 
 /** The `own` pets' models the world `world` has loaded (none: an empty record). */
@@ -121,6 +143,8 @@ export const flapPace = (speed: number): number => 1 + (FLAP_MAX - 1) * Math.min
 /** A flying pet's height over the ground goes to `to` at this rate (1/s): most of the way in some 0.4 s. */
 const LIFT_RATE = 6;
 const ease = (now: number, to: number, dt: number): number => to + (now - to) * Math.exp(-LIFT_RATE * dt);
+/** m over the ground a species stands at: its `fly.rest`, else on the ground. */
+const restOf = (s: PetSpecies | undefined): number => s?.fly?.rest ?? 0;
 
 /** The radius of the action spot around the place of a pet: it covers `at` (R22, rule 3). */
 export const PET_SPOT_R = 2.2;
@@ -370,14 +394,17 @@ export function createPets(g: PetHost, o: {
     const nextFollower = walker ? actorOf(walker) : null;
     const nextWaiting = wait ? actorOf(wait) : null;
     if (nextWaiting && nextWaiting !== waiting) {
+      // a pet that floats when it stops (`fly.rest`, under water) waits floating too, not lying on the floor
       const at = o.pet!.at;
-      nextWaiting.root.position.set(at.x, g.groundY(at.x, at.z), at.z);
+      nextWaiting.root.position.set(at.x, g.groundY(at.x, at.z) + restOf(wait), at.z);
     }
+    // a new follower starts at the height it stands at: the one found goes on from where it waited, no dip to the floor
+    if (nextFollower !== follower) lift = restOf(walker);
     if (nextFollower && nextFollower !== follower && nextFollower !== waiting) {
       // A pet that joins (chosen, or loaded with the game) appears at its place by the heroine.
       const hp = g.hero.root.position;
       petPlace(hp, g.hero.heading, place);
-      nextFollower.root.position.set(place.x, g.groundY(place.x, place.z), place.z);
+      nextFollower.root.position.set(place.x, g.groundY(place.x, place.z) + restOf(walker), place.z);
       nextFollower.heading = g.hero.heading; nextFollower.root.rotation.y = g.hero.heading;
     }
     for (const a of actors.values()) {
@@ -434,7 +461,7 @@ export function createPets(g: PetHost, o: {
             g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 14, 2);
             p.set(place.x, p.y, place.z);
             g.sparks.burst(g.above(p, 0.6), '#ffd1f0', 24, 3);
-            best = 0; stuckT = 0; lift = 0;   // a flying pet appears on the ground and rises again
+            best = 0; stuckT = 0; lift = fly?.rest ?? 0;   // a flying pet appears where it stands (on the ground, or floating) and rises again
             real(p.x, p.z, dt);   // the jump is no speed: the next frame measures from here
           }
           const moved = Math.hypot(p.x - x0, p.z - z0);
@@ -459,8 +486,8 @@ export function createPets(g: PetHost, o: {
             moving = clip;
           } else { galloping = false; moving = ''; follower.play('Idle', 0.3); follower.face(g.hero.heading, dt, 4); }
         }
-        // a flying pet rises while it goes and comes down to stand (some 0.4 s either way)
-        lift = fly ? ease(lift, going ? fly.height : 0, dt) : 0;
+        // a flying pet rises while it goes and comes down to stand (some 0.4 s either way) - to its `rest`, under water
+        lift = fly ? ease(lift, going ? fly.height : (fly.rest ?? 0), dt) : 0;
         p.y = g.groundY(p.x, p.z) + lift;
         follower.update(dt);
         treatAt.copy(p);
