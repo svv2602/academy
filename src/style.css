@@ -340,15 +340,24 @@ button.it { min-width: 44px; min-height: 44px; }
 #shopSay:empty, #shopSay.quiet, #bookSay.quiet { display: none; }
 #shopSay .cat, #bookSay .cat { font-size: 30px; line-height: 1; }
 #shopSay p, #bookSay p { margin: 0; font-size: clamp(15px, min(2.2vw, 4.6vh), 21px); font-weight: 600; line-height: 1.25; }
+/* However many things a tab holds and however low the screen, the tabs and «Готово» stay on it: the card never grows
+   past the screen, and its tiles scroll inside it when they do not fit (a swipe, as a list on the phone). The tabs, the
+   line under the tiles and «Готово» never shrink. The padding keeps the ring of a chosen tile and the "−40%" of a deal
+   inside the scrolling box; the margin as big takes that room back, so a tab that fits looks as before. The class
+   `scroll-area` tells the layout check of tools/shot.mjs that a tile out of sight in it is scrolled away, not cut off. */
+#shopTabs, #shopAct, #shopDone { flex-shrink: 0; }
+#shopItems { flex: 0 1 auto; min-height: 0; max-width: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  touch-action: pan-y; padding: 8px 10px; margin: -8px -10px; scrollbar-width: thin; }
 /* A phone held flat: six tiles a row, so the head's eleven (the forest's hat among them) take two rows, not three,
-   and «Готово» stays on the screen of 844x390. */
+   on the screen of 844x390. */
 @media (max-height: 480px) {
   .shop-card { gap: 4px; padding: 8px 10px; }
   .tile { width: 60px; height: 60px; } .tile .ic { font-size: 27px; }
   .shop-items .tiles { gap: 6px; }
 }
 @media (max-aspect-ratio: 5/4) {
-  .shop-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
+  .shop-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh;
+    max-height: calc(100% - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom))); }
   #shopSay, #bookSay { width: auto; right: max(12px, env(safe-area-inset-right)); }
 }
 
