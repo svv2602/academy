@@ -340,9 +340,12 @@ button.it { min-width: 44px; min-height: 44px; }
 #shopSay:empty, #shopSay.quiet, #bookSay.quiet { display: none; }
 #shopSay .cat, #bookSay .cat { font-size: 30px; line-height: 1; }
 #shopSay p, #bookSay p { margin: 0; font-size: clamp(15px, min(2.2vw, 4.6vh), 21px); font-weight: 600; line-height: 1.25; }
+/* A phone held flat: six tiles a row, so the head's eleven (the forest's hat among them) take two rows, not three,
+   and «Готово» stays on the screen of 844x390. */
 @media (max-height: 480px) {
   .shop-card { gap: 4px; padding: 8px 10px; }
-  .tile { width: 64px; height: 64px; } .tile .ic { font-size: 28px; }
+  .tile { width: 60px; height: 60px; } .tile .ic { font-size: 27px; }
+  .shop-items .tiles { gap: 6px; }
 }
 @media (max-aspect-ratio: 5/4) {
   .shop-card { top: auto; left: max(10px, env(safe-area-inset-left)); width: auto; min-height: 46vh; }
