@@ -13,6 +13,7 @@ import { createGear } from '../../game/gear';
 import { swimming, type Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
+import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { waterOf } from '../../game/water';
 import { worldTaskDoor } from '../../game/worldtasks/core';
@@ -30,6 +31,7 @@ import { buildGround, colliders, ground } from './terrain';
 import { createSeaCreatures } from './creatures';
 import { buildBubbles } from './bubbles';
 import { createSeaMagic } from './magic';
+import { SEA_STORIES } from './story';
 import { CHEST_FLAG, SEA_SECRETS, SECRET_HOW, createSeaSecrets } from './secrets';
 
 /**
@@ -260,6 +262,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
+  // the cut-scenes (WORLD-13, ./story.ts): the way in at the first entry (src/game/start.ts enterWorld), the Pearl after the finale
+  const story = setStories(g, SEA_STORIES, scope);
   // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
   const player = worldTaskPlayer(g, scope);
   // The queen's shell lock (WORLD-19): she asks, the heroine swims to the gate, the lock opens there
@@ -304,7 +308,11 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
   const secretItems = SEA_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
-  const own: readonly WorldItem[] = [tourItem, ...pearlItems, ...secretItems, finaleItem];
+  // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
+  const sceneOn = (id: string) => () => story.active && story.id === id;
+  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
+  const pearlStoryItem = marked(ws, { kind: 'scene', id: 'story_pearl', how: 'tap', after: [FINALE], active: sceneOn('story_pearl') });
+  const own: readonly WorldItem[] = [introItem, tourItem, ...pearlItems, ...secretItems, finaleItem, pearlStoryItem];
   const restore = () => playScene(stage, 'sea finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(throne, 2);
@@ -321,7 +329,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     if (queen.has('Idle')) queen.play('Idle');
     await g.speech.line('sea_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  }).then(() => g.speech.line('sea_free', 'hint', 6000));
+  }).then(() => playStory(g, 'story_pearl')).then(() => g.speech.line('sea_free', 'hint', 6000));
   const cabinPearl = pearls.find((p) => p.how === 'act')!;
   let swamFrom: THREE.Vector3 | null = null, swum = 0, quiet = 0;   // where she was a frame ago; m swum since the cat spoke of his bubble
   const cabin = point(CABIN);
@@ -409,6 +417,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         creatures: creatures.herd.all,
         creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
         holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
+        // the cut-scenes' player (./story.ts): the tools skip a scene on the way (tools/sea-grey.mjs)
+        story,
         // the magic of the sea (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and its things, for their pictures and their draw calls
