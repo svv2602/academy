@@ -47,9 +47,13 @@ const SIT_S = 0.6;          // s a wrong weight sits on the pan, the beam tipped
 const TURN = 5;             // the beam's approach to its angle, per second
 const LIFT = 0.12;          // m: a weight on the pan stands this much over it
 const FRAME_DEPTH = 2.6;    // m the frame takes in along the view (./core.ts taskFrame): the tall beam, tipped, under the bubble on a phone held sideways
-// m the frame of the signs takes in: their beam is held level until the right sign (a pin), so it needs no room to tip -
-// and nearer, the sign cards stay big enough to tap
-const SIGN_DEPTH = 2.2;
+// While a sign is chosen the panel's hint of the signs is four lines: its bubble reaches down to a third of a phone held
+// sideways and covered the right pan (the lead, 2026-11-23). The camera then looks at a point higher over the scales
+// (SIGN_LOOK_Y m instead of 1.1), so that they lie lower in the picture; the sign cards lie nearer it (SIGN_ROW) and a
+// size bigger (SIGN_CARD), to stay big enough to tap.
+const SIGN_LOOK_Y = 1.75;
+const SIGN_ROW = 1.6;
+const SIGN_CARD = 1.25;
 
 /** A point of the scales: `u` to the child's right, `v` away from the child, `y` over the ground at the post. */
 function local(u: number, v: number, y: number, floor: number) {
@@ -256,7 +260,10 @@ export function drawScales(scene: THREE.Scene, groundY: (x: number, z: number) =
         g.add(card, label);
       }
       g.userData = { choice: c, top: typeof c === 'number' ? 0.6 : 0.3 };
-      const p = local((i - (n - 1) / 2) * ROW_GAP, -ROW, 0, floor);
+      // a sign card a size bigger (SIGN_CARD): it lies farther down the picture of the signs
+      const size = typeof c === 'number' ? 1 : SIGN_CARD;
+      g.userData.size = size; g.userData.top = (g.userData.top as number) * size; g.scale.setScalar(size);
+      const p = local((i - (n - 1) / 2) * ROW_GAP, body.mode === 'sign' ? -SIGN_ROW : -ROW, 0, floor);
       p.y = groundY(p.x, p.z);
       lying.push(p);
       g.position.copy(p);
@@ -285,7 +292,8 @@ export function drawScales(scene: THREE.Scene, groundY: (x: number, z: number) =
     if (ring) { const p = panAt(1); ring.position.copy(p).setY(p.y + 0.045); ring.visible = put === null && !(moving && moving.i >= 0); }
     choices.forEach((g, i) => {
       const lie = lying[i];
-      g.scale.setScalar(1);
+      const size = g.userData.size as number;
+      g.scale.setScalar(size);
       if (put === i && !moving) { g.position.copy(placeOf()); return; }
       if (moving?.i === i) {
         const t = time - moving.t0, to = placeOf();
@@ -302,7 +310,7 @@ export function drawScales(scene: THREE.Scene, groundY: (x: number, z: number) =
       g.rotation.z = 0;
       // the lit answer of the third rung: it hops and swells a little, its head glowing (the label alone would hide the glow)
       if (i === glowing) g.position.y += 0.08 + Math.abs(Math.sin(time * 5)) * 0.1;
-      if (i === glowing) g.scale.setScalar(1.15 + 0.08 * Math.sin(time * 6));
+      if (i === glowing) g.scale.setScalar(size * (1.15 + 0.08 * Math.sin(time * 6)));
     });
     for (const s of dotSprites) s.position.copy((s.userData.at as () => THREE.Vector3)());
   }
@@ -312,14 +320,14 @@ export function drawScales(scene: THREE.Scene, groundY: (x: number, z: number) =
     get angle() { return angle; },
     pan: (side) => panAt(side),
     get things() { return { candies: [...candies], choices: [...choices], slot }; },
-    center: local(0, -0.45, 1.1, floor),
+    get center() { return local(0, -0.45, spec?.body.mode === 'sign' ? SIGN_LOOK_Y : 1.1, floor); },
     facing: FACING,
     // the beam and its pans across; along the view more than the row and the post take on the ground (FRAME_DEPTH): the
     // camera stands back far enough that the beam over the post stays under the bubble of the line
-    get extent() { return { side: HALF_BEAM + PAN_R + 0.15, depth: spec?.body.mode === 'sign' ? SIGN_DEPTH : FRAME_DEPTH }; },
+    get extent() { return { side: HALF_BEAM + PAN_R + 0.15, depth: FRAME_DEPTH }; },
     choice: (i) => {
       const g = choices[i];
-      return { pos: g ? g.position.clone().setY(g.position.y + (g.userData.top as number)) : new THREE.Vector3(), r: TAP_R };
+      return { pos: g ? g.position.clone().setY(g.position.y + (g.userData.top as number)) : new THREE.Vector3(), r: TAP_R * ((g?.userData.size as number | undefined) ?? 1) };
     },
     put: (i, a) => { moving = { i, t0: -1, stay: true, angle: a }; put = i; },
     back: (i, a, r) => { moving = { i, t0: -1, stay: false, angle: a }; rest = r; },

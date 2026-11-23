@@ -223,11 +223,13 @@ describe('the scales in their frame on a phone', () => {
     return { corners: corners.map(scr), sizes: Array.from({ length: n }, (_, i) => size(d.choice(i))), at: Array.from({ length: n }, (_, i) => scr(d.choice(i).pos)), left: scr(d.pan(0)), right: scr(d.pan(1)) };
   }
 
-  it.each([[844, 390, 4], [390, 844, 4], [844, 390, 5]])('%ix%i, level %i: the whole scales and the dots of the hint in the picture under the bubble, the left pan on the left, every weight big enough to tap', (w, h, level) => {
+  // The bubble of the line over the picture: two lines take its top 0.22 on a phone held sideways; the hint of the signs
+  // (the panel's, «Знак відкриває ротик…») takes four, its top 0.36 (the lead, 2026-11-23: it covered the right pan).
+  it.each([[844, 390, 4, 0.22], [390, 844, 4, 0.22], [844, 390, 5, 0.36], [390, 844, 5, 0.36]])('%ix%i, level %i: the whole scales and the dots of the hint in the picture under the bubble (its top %f), the left pan on the left, every weight big enough to tap', (w, h, level, top) => {
     const f = framed(w, h, level);
-    for (const p of f.corners) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(1); expect(p.y).toBeGreaterThan(0.22); expect(p.y).toBeLessThan(0.97); }
+    for (const p of f.corners) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(1); expect(p.y).toBeGreaterThan(top); expect(p.y).toBeLessThan(0.97); }
     expect(f.left.x).toBeLessThan(f.right.x);
     for (const p of f.at) expect(p.y).toBeGreaterThan(0.25);
-    for (const s of f.sizes) expect(s).toBeGreaterThanOrEqual(48);
+    for (const s of f.sizes) expect(s, JSON.stringify(f.sizes)).toBeGreaterThanOrEqual(48);
   });
 });
