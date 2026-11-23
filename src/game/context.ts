@@ -176,6 +176,8 @@ export interface WorldEntry {
   mystery?: WorldDef['mystery'];
   /** The finds of its collections (WorldDef.collect); absent: none. */
   collect?: WorldDef['collect'];
+  /** The places of its find of the day (WorldDef.daily, src/game/daily-find.ts); absent: none. */
+  daily?: WorldDef['daily'];
 }
 
 /** The heading of the heroine as a world opens, when it names none: facing -z, the camera behind her (yaw 0). */

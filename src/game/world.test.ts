@@ -40,7 +40,7 @@ describe('pickWorld', () => {
 // The registry itself (src/worlds/index.ts) with a stand-in for the world: the real one needs a page to load.
 vi.mock('../worlds/fairy', () => ({ fairy: { id: 'fairy' } }));
 vi.mock('../worlds/hub', () => ({ hub: { id: 'hub' } }));
-const RAW = import.meta.glob(['../main.ts', '../worlds/index.ts', '../worlds/fairy/index.ts'],{ query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const RAW = import.meta.glob(['../main.ts', '../worlds/index.ts', '../worlds/fairy/index.ts', './context.ts'],{ query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('the registry names the published world (R04, R22)', () => {
   it('the default world is the first world, the Fairy Kingdom', async () => {
@@ -68,6 +68,18 @@ const MAIN = RAW['../main.ts'];
 describe('the world reaches the audio', () => {
   it('main.ts hands the chosen world\'s music to setMusic', () => {
     expect(MAIN).toMatch(/^setMusic\(world\.music\b/m);
+  });
+});
+
+// What the game is told of a world (WorldEntry) is one literal of main.ts (entryOf): a field of the entry left out of it
+// never reaches the game - the find of the day (WorldDef.daily) lay in every world's description and was never shown.
+describe('the world reaches the game', () => {
+  it('main.ts entryOf hands the game every field of WorldEntry', () => {
+    const entry = /export interface WorldEntry \{([\s\S]*?)\n\}/.exec(RAW['./context.ts'])![1];
+    const fields = [...entry.matchAll(/^ {2}(?:readonly )?(\w+)\??:/gm)].map((m) => m[1]);
+    const literal = /const entryOf = \(world: WorldDef\): WorldEntry => \(\{([\s\S]*?)\}\);/.exec(MAIN)![1];
+    expect(fields).toContain('daily');
+    expect(fields.filter((f) => !new RegExp(`\\b${f}:`).test(literal))).toEqual([]);
   });
 });
 
