@@ -9,7 +9,8 @@ import { colliders, height, lineDist, pathDist, riverColliders, riverDist } from
  * docs/worlds/world-4.md, so the pictures show what is where - the square's pink carousel, the gingerbread town brown
  * with white icing, the candy garden's red-white lollipop trees, the marmalade market green and yellow with its scales,
  * the chocolate river and the waffle bridge; the cake palace and the mill are ./landmarks.ts. The edge of the world is
- * a ring of whipped-cream hills and a wall of tall lollipops past HALF (with colliders: she cannot leave). Every kind of
+ * whipped-cream hills past HALF: a close row of them (with colliders: she cannot leave) and a farther one; the customer
+ * had the wall of tall lollipops there replaced with hills (2026-11-23), the lollipops are the garden's. Every kind of
  * scattered thing is one instanced mesh. Models replace them once the customer has accepted the grey build.
  */
 
@@ -27,6 +28,10 @@ export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
 /** A placed thing: where, how big, turned how. */
 export interface Put { x: number; z: number; s: number; rot?: number }
 
+/** m: a hill of the close row of the edge (its radius), and how far past HALF its middle stands: it reaches over the
+ * edge a little, so that she meets its slope where the land ends. */
+const RIM_R = 3.4, RIM_OUT = 2.4;
+
 /** m: the radius round the candy garden's middle its lollipop trees grow in (the stretch of the map widens it). */
 const GARDEN_GROVE = 15 * SCALE;
 
@@ -34,7 +39,7 @@ const GARDEN_GROVE = 15 * SCALE;
 const KEEP_OFF = 9;
 
 /** The sweets scattered over the land and its rim, deterministic: away from the ways, the river, the zones, the lines of sight and each other; the lollipop trees in the candy garden only. */
-export function placeSweets(seed = 23): { lollipops: Put[]; candies: Put[]; hills: Put[]; wall: Put[] } {
+export function placeSweets(seed = 23): { lollipops: Put[]; candies: Put[]; hills: Put[]; rim: Put[] } {
   const rnd = mulberry32(seed), zones = Object.values(ZONES), sights = sightLines();
   const clear = (x: number, z: number) => pathDist(x, z) > 3 && riverDist(x, z) > 4 && sights.every((l) => lineDist(l, x, z) > SIGHT)
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > KEEP_OFF) && Math.hypot(CAKE.x - x, CAKE.z - z) > CAKE.tiers[0].r + 3
@@ -55,16 +60,17 @@ export function placeSweets(seed = 23): { lollipops: Put[]; candies: Put[]; hill
   // the lollipop trees grow in the candy garden only: elsewhere they made every place look the same (the customer,
   // accepting the grey build, 2026-11-23); the small sweets stay over the whole land
   const lollipops = scatter(1 / 160, 3, 0.8, 0.6, { ...ZONES.garden, r: GARDEN_GROVE }), candies = scatter(1 / 220, 2.4, 0.8, 0.6);
-  // the rim: two rows of whipped-cream hills, the tall lollipops between them - past the edge, where nobody walks
-  const hills: Put[] = [], wall: Put[] = [], ring = Math.round((2 * Math.PI * HALF) / 5);
+  // the edge: whipped-cream hills past it, where nobody walks - a close row that closes the land (`rim`, with colliders)
+  // between two farther ones (`hills`)
+  const hills: Put[] = [], rim: Put[] = [], ring = Math.round((2 * Math.PI * HALF) / 5);
   for (let i = 0; i < ring; i++) {
     const a = (i / ring) * Math.PI * 2 + rnd() * 0.05;
     hills.push({ x: Math.cos(a) * (HALF + 3 + rnd() * 2), z: Math.sin(a) * (HALF + 3 + rnd() * 2), s: 1 + rnd() * 0.5, rot: rnd() * 6.28 });
     const b = a + Math.PI / ring;
-    wall.push({ x: Math.cos(b) * (HALF + 1), z: Math.sin(b) * (HALF + 1), s: 1 + rnd() * 0.4, rot: rnd() * 6.28 });
+    rim.push({ x: Math.cos(b) * (HALF + RIM_OUT), z: Math.sin(b) * (HALF + RIM_OUT), s: 1 + rnd() * 0.4, rot: rnd() * 6.28 });
     hills.push({ x: Math.cos(b) * (HALF + 9 + rnd() * 3), z: Math.sin(b) * (HALF + 9 + rnd() * 3), s: 1.4 + rnd() * 0.6, rot: rnd() * 6.28 });
   }
-  return { lollipops, candies, hills, wall };
+  return { lollipops, candies, hills, rim };
 }
 
 const mat = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true, ...extra });
@@ -96,18 +102,19 @@ export interface Scenery extends Landmarks {
 
 /** The Sweet Land in the scene, and its colliders. */
 export function buildScenery(scene: THREE.Scene): Scenery {
-  const { lollipops, candies, hills, wall } = placeSweets();
+  const { lollipops, candies, hills, rim } = placeSweets();
   colliders.push(...riverColliders());
   for (const l of lollipops) colliders.push({ x: l.x, z: l.z, r: 0.5 * l.s });
   for (const c of candies) colliders.push({ x: c.x, z: c.z, r: 0.6 * c.s });
-  for (const w of wall) colliders.push({ x: w.x, z: w.z, r: 1.2 * w.s });
+  for (const h of rim) colliders.push({ x: h.x, z: h.z, r: RIM_R * 0.8 * h.s });
 
   // ----- the scattered sweets and the rim -----
   const pop = paint(lollipop(3.2, 1.1));
   instances(scene, 'lollipops', pop, paintMaterial(), lollipops);
   instances(scene, 'candies', new THREE.DodecahedronGeometry(0.7, 0).scale(1.4, 0.7, 1).translate(0, 0.5, 0), mat('#ffd166'), candies);
   instances(scene, 'cream-hills', new THREE.SphereGeometry(5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1), mat('#fff4ea', { roughness: 0.95 }), hills, 0, false);
-  instances(scene, 'lollipop-wall', paint(lollipop(9, 2.4)), paintMaterial(), wall, 0, false);
+  // the close row: a little taller than round - it closes the land the way the lollipops did, a soft white wall of cream
+  instances(scene, 'cream-rim', new THREE.SphereGeometry(RIM_R, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.3, 1), mat('#fff8f0', { roughness: 0.95 }), rim, 0, false);
 
   // ----- the square: the pink carousel (the square's landmark), a stall of lemonade -----
   const pole = CAROUSEL.top - 1.6;
