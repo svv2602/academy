@@ -34,16 +34,26 @@ export const ZONE_OF: Readonly<Record<string, ZoneId>> = { pastila: 'square', im
 /** m: a zone has all of its own colour within the first radius from its middle, none of it past the second. */
 export const ZONE_R: readonly [number, number] = [11 * SCALE, 15 * SCALE];
 /** How much of their colour the land's things lose with no magic (0: none), and how much nearer white they go: pastel, light. */
-export const PALE = 0.55, PALE_LIGHT = 0.3;
+export const PALE = 0.7, PALE_LIGHT = 0.32;
 /** How much of its paleness the land out of the zones loses with all the rubies (the rest goes with the Ruby). */
-export const NEUTRAL = 0.4;
+export const NEUTRAL = 0.7;
 /** The roughness of the glaze where it shines (it is 0.85 as made). */
 export const GLAZE_ROUGH = 0.3;
+/** How much richer than as made the land's colours go with the Ruby back (a paleness under 0). */
+export const RICH = 0.18;
+/** The cream hills around the land (./scenery.ts): cool and grey with no magic, as made with the rubies, rosy with the Ruby. */
+/**
+ * The ground of each zone takes a colour of its own as its ruby comes back - the big patches seen from above (the
+ * customer, 2026-11-23: "сделать разницу на общем виде заметнее"): how much of it, and the rest of the land's with the Ruby.
+ */
+export const ZONE_TINT: Readonly<Record<ZoneId, string>> = { square: '#ffc4dc', town: '#f0c08e', market: '#ffc59e', mill: '#e2bf9f', garden: '#bfeccf', bridge: '#ffd9e8', palace: '#ffd9e8' } as Readonly<Record<ZoneId, string>>;
+export const TINT = 0.8, REST_TINT = '#ffd3e6', REST = 0.45;
+export const CREAM: readonly [string, string, string] = ['#dcdbe2', '#fff4ea', '#ffd9e4'];
 /** The sky, the haze and the light: with no magic, with all the rubies (the grey build's as taken, ./index.ts SKY), with the Ruby back. */
 type Steps = readonly [number, number, number];
-export const BACKGROUND: readonly [string, string, string] = ['#f7e8ef', '#ffd6ea', '#ffcbe5'];
-export const HAZE: readonly [string, string, string] = ['#ece8f4', '#e6dcff', '#e0d4ff'];
-export const SUN_POWER: Steps = [2.15, 2.4, 2.5];
+export const BACKGROUND: readonly [string, string, string] = ['#f3edf2', '#ffd6ea', '#ffc0de'];
+export const HAZE: readonly [string, string, string] = ['#e6e5ea', '#e6dcff', '#f4d2f2'];
+export const SUN_POWER: Steps = [2.1, 2.4, 2.55];
 export const HEMI_POWER: Steps = [1.4, 1.5, 1.6];
 /** rad/s: the carousel with all the magic; m/s: the river's current. */
 export const CAROUSEL_TURN = 0.7, FLOW = 1.2;
@@ -77,8 +87,10 @@ export function sweetLook(m: number, back: readonly boolean[]) {
   return {
     life: a, ruby, lively,
     /** how pale the land is out of the zones, and in each character's zone */
-    pale: PALE * (1 - NEUTRAL * a) * (1 - ruby),
-    zones: back.map((b) => (b ? 0 : PALE * (1 - ruby))),
+    pale: PALE * (1 - NEUTRAL * a) * (1 - ruby) - RICH * ruby,
+    zones: back.map((b) => (b ? 0 : PALE * (1 - ruby)) - RICH * ruby),
+    /** 0 - the grey cream, 1 - as made, 2 - rosy */
+    cream: a + ruby,
     /** 0 - the pale sky, 1 - the sky taken, 2 - the Ruby's */
     sky: a + ruby,
     sun: step(SUN_POWER), hemi: step(HEMI_POWER),
@@ -96,17 +108,18 @@ const U = {
   uSweetZones: { value: [0, 1, 2, 3, 4].map(() => new THREE.Vector2()) },
   uSweetSway: { value: 0 }, uSweetGlow: { value: 0 },
   uSweetFlow: { value: 0 }, uSweetStreak: { value: 0 },
+  uSweetTint: { value: [0, 1, 2, 3, 4].map(() => new THREE.Color()) }, uSweetRest: { value: new THREE.Color(REST_TINT) },
 };
 
 /** What a material of the land does besides its colour: sway (instanced), glow where its colour is `glow`, flow (the river). */
-interface Sweeten { sway?: boolean; glow?: string; flow?: boolean }
+interface Sweeten { sway?: boolean; glow?: string; flow?: boolean; tint?: boolean }
 
 /** `base` cloned with the magic's colour by zone (and what `o` adds): the clone is the magic's, the base stays as it was. */
 function sweetened(base: THREE.MeshStandardMaterial, name: string, o: Sweeten = {}): THREE.MeshStandardMaterial {
   const m = base.clone();
   m.name = `sweet-magic:${name}`;
   const key = new THREE.Color(o.glow ?? '#000000');
-  m.defines = { ...m.defines, ...(o.sway ? { SWEET_SWAY: '' } : {}), ...(o.glow ? { SWEET_GLOW: '' } : {}), ...(o.flow ? { SWEET_FLOW: '' } : {}) };
+  m.defines = { ...m.defines, ...(o.sway ? { SWEET_SWAY: '' } : {}), ...(o.glow ? { SWEET_GLOW: '' } : {}), ...(o.flow ? { SWEET_FLOW: '' } : {}), ...(o.tint ? { SWEET_TINT: '' } : {}) };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, { uTime, uSweetKey: { value: key } });
     sh.vertexShader = `uniform float uTime;\nuniform float uSweetSway;\nvarying vec2 vSweetAt;\n#ifdef SWEET_FLOW\nattribute vec2 flow;\nvarying vec2 vSweetFlow;\n#endif\n`
@@ -128,19 +141,29 @@ function sweetened(base: THREE.MeshStandardMaterial, name: string, o: Sweeten = 
           #endif
           vSweetAt = (modelMatrix * sweetW).xz;
         }`);
-    sh.fragmentShader = `uniform float uTime;\nuniform float uSweetPale[6];\nuniform vec2 uSweetZones[5];\nuniform float uSweetGlow;\nuniform vec3 uSweetKey;\nuniform float uSweetFlow;\nuniform float uSweetStreak;\nvarying vec2 vSweetAt;\n#ifdef SWEET_FLOW\nvarying vec2 vSweetFlow;\n#endif\n`
+    sh.fragmentShader = `uniform float uTime;\nuniform float uSweetPale[6];\nuniform vec2 uSweetZones[5];\nuniform float uSweetGlow;\nuniform vec3 uSweetKey;\nuniform float uSweetFlow;\nuniform float uSweetStreak;\nuniform vec3 uSweetTint[5];\nuniform vec3 uSweetRest;\nvarying vec2 vSweetAt;\n#ifdef SWEET_FLOW\nvarying vec2 vSweetFlow;\n#endif\n`
       + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
         // pale by where it stands: the zone of a character whose ruby is back has its colour, the rest washed toward white
         float sweetPale = uSweetPale[5];
         for (int i = 0; i < 5; i++) sweetPale = mix(sweetPale, uSweetPale[i], 1.0 - smoothstep(${ZONE_R[0].toFixed(1)}, ${ZONE_R[1].toFixed(1)}, distance(vSweetAt, uSweetZones[i])));
-        float sweetShine = 1.0 - sweetPale / ${PALE.toFixed(3)};
+        float sweetShine = 1.0 - max(sweetPale, 0.0) / ${PALE.toFixed(3)};
+        #ifdef SWEET_TINT
+          // the light ground (not the golden ways) takes its zone's colour as the zone's ruby comes back
+          float sweetLight = smoothstep(0.5, 0.7, diffuseColor.b); // the cream, not the golden ways (their blue is low)
+          diffuseColor.rgb = mix(diffuseColor.rgb, uSweetRest, sweetLight * ${REST.toFixed(2)} * clamp(-uSweetPale[5] / ${RICH.toFixed(3)}, 0.0, 1.0));
+          for (int i = 0; i < 5; i++) {
+            float sweetIn = 1.0 - smoothstep(${ZONE_R[0].toFixed(1)}, ${ZONE_R[1].toFixed(1)}, distance(vSweetAt, uSweetZones[i]));
+            diffuseColor.rgb = mix(diffuseColor.rgb, uSweetTint[i], sweetLight * sweetIn * ${TINT.toFixed(2)} * clamp(1.0 - uSweetPale[i] / ${PALE.toFixed(3)}, 0.0, 1.0));
+          }
+        #endif
         #ifdef SWEET_FLOW
           // the current: lighter streaks of chocolate running along the river toward the mill's pond
           float sweetStreak = smoothstep(0.55, 1.0, sin(vSweetFlow.x * 0.7 - uSweetFlow + sin(vSweetFlow.y * 2.5 + vSweetFlow.x * 0.3) * 1.2));
           diffuseColor.rgb *= 1.0 + uSweetStreak * sweetStreak * 0.6;
         #endif
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114))), sweetPale);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), sweetPale * ${(PALE_LIGHT / PALE).toFixed(3)});`)
+        diffuseColor.rgb = clamp(diffuseColor.rgb, 0.0, 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), max(sweetPale, 0.0) * ${(PALE_LIGHT / PALE).toFixed(3)});`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         #ifdef USE_COLOR
           // the glaze - the white icing and the cream - shines where the colour is back
@@ -151,7 +174,7 @@ function sweetened(base: THREE.MeshStandardMaterial, name: string, o: Sweeten = 
           totalEmissiveRadiance += vColor.rgb * uSweetGlow * ${GLOW.toFixed(2)} * (1.0 - smoothstep(0.12, 0.3, distance(vColor.rgb, uSweetKey)));
         #endif`);
   };
-  m.customProgramCacheKey = () => `sweet-magic:${o.sway ? 's' : ''}${o.glow ? 'g' : ''}${o.flow ? 'f' : ''}`;
+  m.customProgramCacheKey = () => `sweet-magic:${o.sway ? 's' : ''}${o.glow ? 'g' : ''}${o.flow ? 'f' : ''}${o.tint ? 't' : ''}`;
   return m;
 }
 
@@ -227,24 +250,26 @@ export function buildSparkle(scene: THREE.Scene, groundY: (x: number, z: number)
 export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groundY'>, scope: WorldScope,
   o: { sky: WorldSky; scenery: Pick<Scenery, 'spin'>; characters: readonly CharacterDef[]; dancers: readonly THREE.Object3D[] }): Magic {
   const { scene, ws, flies } = g;
-  o.characters.forEach((c, i) => { const z = ZONES[ZONE_OF[c.id]]; U.uSweetZones.value[i].set(z.x, z.z); });
+  o.characters.forEach((c, i) => { const z = ZONES[ZONE_OF[c.id]]; U.uSweetZones.value[i].set(z.x, z.z); U.uSweetTint.value[i].set(ZONE_TINT[ZONE_OF[c.id]]); });
   // the land's materials: the shared paint of the shapes, the lollipops', the stalls', the ground's, the river's, the candies'
   const paint = paintMaterial();
   const own = new Map<string, THREE.MeshStandardMaterial>();
   const mine = (key: string, make: () => THREE.MeshStandardMaterial) => own.get(key) ?? (own.set(key, make()), own.get(key)!);
   const was: { mesh: THREE.Mesh; material: THREE.Material | THREE.Material[] }[] = [];
   let candies: THREE.MeshStandardMaterial | null = null;
+  const creams: { material: THREE.MeshStandardMaterial; was: THREE.Color }[] = [];
   let hemi: THREE.HemisphereLight | null = null;
   scene.traverse((x) => {
     if (x instanceof THREE.HemisphereLight) hemi = x;
     if (!(x instanceof THREE.Mesh) || !(x.material instanceof THREE.MeshStandardMaterial)) return;
     const base = x.material;
+    if (x.name === 'cream-hills' || x.name === 'cream-rim') { creams.push({ material: base, was: base.color.clone() }); return; }
     let next: THREE.MeshStandardMaterial | null = null;
     if (base === paint) {
       next = LOLLIPOPS.includes(x.name) ? mine('lollipops', () => sweetened(paint, 'lollipops', { sway: true, glow: LOLLIPOP_RED }))
         : x.name === 'market-stalls' ? mine('stalls', () => sweetened(paint, 'stalls', { glow: AWNING_YELLOW }))
           : mine('paint', () => sweetened(paint, 'paint'));
-    } else if (x.name === 'sweet-ground') next = mine('ground', () => sweetened(base, 'ground'));
+    } else if (x.name === 'sweet-ground') next = mine('ground', () => sweetened(base, 'ground', { tint: true }));
     else if (x.name === 'chocolate-river') next = mine('river', () => sweetened(base, 'river', { flow: true }));
     else if (x.name === 'candies') {
       next = candies = mine('candies', () => { const c = sweetened(base, 'candies'); c.emissive.set(CANDY_GLOW_COLOUR); return c; });
@@ -256,6 +281,7 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
   const bg = scene.background as THREE.Color, fog = scene.fog as THREE.Fog;
   const sunWas = { power: o.sky.sun.intensity }, hemiWas = (hemi as THREE.HemisphereLight | null)?.intensity;
   const bgWas = bg.clone(), fogWas = fog.color.clone();
+  const [cream0, cream1, cream2] = CREAM.map((c) => new THREE.Color(c));
   const [bg0, bg1, bg2] = BACKGROUND.map((c) => new THREE.Color(c)), [haze0, haze1, haze2] = HAZE.map((c) => new THREE.Color(c));
   const sparkle = buildSparkle(scene, g.groundY);
 
@@ -276,6 +302,7 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
     o.sky.sun.intensity = sunWas.power;
     if (hemi && hemiWas !== undefined) (hemi as THREE.HemisphereLight).intensity = hemiWas;
     bg.copy(bgWas); fog.color.copy(fogWas);
+    for (const c of creams) c.material.color.copy(c.was);
     flies.mesh.visible = true;
     for (const d of o.dancers) { d.position.y = 0; d.rotation.y = 0; }
     U.uSweetSway.value = 0; U.uSweetGlow.value = 0; U.uSweetStreak.value = 0;
@@ -296,6 +323,7 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
     U.uSweetFlow.value += dt * l.flow; U.uSweetStreak.value = l.life;
     if (candies) candies.emissiveIntensity = CANDY_GLOW * l.glow;
     bg.copy(bg0).lerp(bg1, Math.min(1, l.sky)).lerp(bg2, Math.max(0, l.sky - 1));
+    for (const c of creams) c.material.color.copy(cream0).lerp(cream1, Math.min(1, l.cream)).lerp(cream2, Math.max(0, l.cream - 1));
     fog.color.copy(haze0).lerp(haze1, Math.min(1, l.sky)).lerp(haze2, Math.max(0, l.sky - 1));
     o.sky.sun.intensity = l.sun;
     if (hemi) (hemi as THREE.HemisphereLight).intensity = l.hemi;

@@ -15,7 +15,7 @@ import { FRIENDS, RUBIES, SKY } from './index';
 import { ZONES } from './layout';
 import { paintMaterial } from './landmarks';
 import {
-  BACKGROUND, BUTTERFLIES, BUTTERFLIES_RUBY, CAROUSEL_TURN, HEMI_POWER, PALE, SUN_POWER, ZONE_OF, ZONE_R, createSweetMagic, sweetLook, sweetMagicOf, sweetUniforms,
+  BACKGROUND, BUTTERFLIES, CREAM, RICH, BUTTERFLIES_RUBY, CAROUSEL_TURN, HEMI_POWER, PALE, SUN_POWER, ZONE_OF, ZONE_R, createSweetMagic, sweetLook, sweetMagicOf, sweetUniforms,
 } from './magic';
 import { buildScenery } from './scenery';
 import { buildGround, colliders } from './terrain';
@@ -112,8 +112,9 @@ describe('the magic of the Sweet Land (WORLD-09): read from the rubies the save 
     expect(hsl.l).toBeGreaterThan(0.85);
     // and the Ruby back is all of it, unlike none
     const all = sweetLook(1, FRIENDS.map(() => true));
-    expect(all).toMatchObject({ ruby: 1, lively: 1, pale: 0, sway: 1, glow: 1, sparkle: 1, dance: 1, sky: 2 });
-    expect(all.zones.every((z) => z === 0)).toBe(true);
+    expect(all).toMatchObject({ ruby: 1, lively: 1, sway: 1, glow: 1, sparkle: 1, dance: 1, sky: 2 });
+    // richer than as made: a paleness under 0, everywhere
+    expect(all.pale).toBeCloseTo(-RICH); expect(all.zones.every((z) => Math.abs(z + RICH) < 1e-9)).toBe(true);
     expect(all.carousel).toBeCloseTo(CAROUSEL_TURN); expect(all.butterflies).toBe(BUTTERFLIES + BUTTERFLIES_RUBY);
   });
 
@@ -160,12 +161,16 @@ describe('the magic of the Sweet Land (WORLD-09): read from the rubies the save 
     expect(seats.rotation.y).toBe(turned);
     expect(f.flies.mesh.visible).toBe(false);
     expect(sweetUniforms.uSweetPale.value.every((p) => p >= PALE * 0.99)).toBe(true);
+    // the cream hills around the land: grey-cool with no magic, rosy with the Ruby
+    const rim = (f.scene.getObjectByName('cream-rim') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    expect(rim.color.getHexString()).toBe(new THREE.Color(CREAM[0]).getHexString());
     f.magic.set(1);
     f.magic.update(1);
     expect(seats.rotation.y).toBeGreaterThan(turned);
     expect(f.flies.mesh.visible).toBe(true);
     expect((f.scene.getObjectByName('sugar-sparkle') as THREE.Points).visible).toBe(true);
-    expect(sweetUniforms.uSweetPale.value.every((p) => p === 0)).toBe(true);
+    expect(sweetUniforms.uSweetPale.value.every((p) => Math.abs(p + RICH) < 1e-9)).toBe(true);
+    expect(rim.color.getHexString()).toBe(new THREE.Color(CREAM[2]).getHexString());
     expect(f.sun.intensity).toBeCloseTo(SUN_POWER[2]);
     expect((f.scene.background as THREE.Color).getHexString()).toBe(new THREE.Color(BACKGROUND[2]).getHexString());
     f.magic.set(null);
