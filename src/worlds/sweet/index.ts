@@ -25,13 +25,14 @@ import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
 import { createSweetCreatures } from './creatures';
 import { createSweetMagic } from './magic';
+import { CHEST_FLAG, SECRET_HOW, SWEET_SECRETS, createSweetSecrets } from './secrets';
 
 /**
  * The Sweet Land (WORLD-04), its grey build (WORLD-12), step 1: the map of docs/worlds/world-4.md in simple shapes at
  * their real sizes, stretched by one number (./layout.ts SCALE, `?scale=`), the cake palace and the mill as its
  * landmarks (./landmarks.ts), its five characters as figures of their height with their chains of tasks the game
- * already has, the two rubies that lie in the world, the finale at the cake, the tour and the arch back to the Great
- * Tree (./hub-way.ts). It loads no file and speaks no line of its own: the conversations say the shared recorded lines,
+ * already has, the two rubies that lie in the world, its four secrets (./secrets.ts), the finale at the cake, the tour
+ * and the arch back to the Great Tree (./hub-way.ts). It loads no file and speaks no line of its own: the conversations say the shared recorded lines,
  * as the forest's grey build did. The registry lists it only in a build made with `--mode grey` (src/worlds/index.ts):
  * the published game does not change. What the measurements of the grey build read: tools/sweet-grey.mjs.
  */
@@ -164,6 +165,9 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   // the creatures of no task (PLAY-11, PLAY-12): gummy bears, caramel butterflies, gingerbread birds, dragee ladybugs;
   // after the scenery and the characters, whose colliders they keep clear of
   const creatures = createSweetCreatures(g, scope);
+  // the secrets (PLAY-07, ./secrets.ts): the candy box, the cotton cloud, the lemonade fountain, the gum machine; after the
+  // creatures, whose places they keep as they were, before the magic, whose paint they take
+  const secrets = createSweetSecrets(g, scope);
   // the magic of the Sweet Land (WORLD-09): from the rubies in the save; after the scenery, the characters and the creatures it touches
   const magic = createSweetMagic(g, scope, { sky, scenery, characters: FRIENDS, dancers: npcs.map((n) => n.actor.model), creatures });
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
@@ -235,7 +239,9 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   const before = [...declared(g), tourItem, ...rubyItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
-  const own: readonly WorldItem[] = [tourItem, ...rubyItems, finaleItem];
+  // the secrets are the child's own, never needed by the finale
+  const secretItems = SWEET_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
+  const own: readonly WorldItem[] = [tourItem, ...rubyItems, ...secretItems, finaleItem];
   const CONFETTI = ['#ff8fb1', '#ffd84a', '#7bd36a', '#a8e4ff', '#ffffff'];
   const restore = () => playScene(stage, 'sweet finale', async () => {
     finaleOn = true;
@@ -255,6 +261,8 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   return {
     frame: {
       spots: [
+        // the secrets' first: where one's reach meets a character's, the character's is the button (the last in reach)
+        ...secrets.spots,
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         ...rubySpots,
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
@@ -278,6 +286,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         house.update(dt, time, canMove);
         scales.update(dt, time);
         bridge.update(dt, time, canMove);
+        secrets.update(dt, time, canMove);
         // the finale: the five fly up from round the shrine to the candle's top over GATHER_S s of game time
         if (finaleEnd) {
           const k = 1 - Math.max(0, finaleLeft) / GATHER_S, top = scenery.candleTop;
@@ -322,7 +331,9 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         // the creatures of no task (kind, state, position, taps), the middle of one's body over its point, one held still
         creatures: creatures.herd.all,
         creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
-        holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)) },
+        holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
+        // the secrets (./secrets.ts): where each is found and its things, for their pictures and their draw calls
+        sweetSecrets: { at: secrets.at, ...secrets.debug } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a task in the world open: its right move (the walkthrough's door); the house's or the bridge's step on: she is
       // brought before it (./house.ts, ./bridge.ts `cheat`); else a ruby waiting in the world is taken
@@ -330,6 +341,8 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         if (worldTaskDoor(g).solve()) return 'world task';
         if (house.cheat()) return 'house';
         if (bridge.cheat()) return 'bridge';
+        const s = secrets.cheat();
+        if (s) return s;
         const r = rubies.find(waiting);
         if (!r) return '';
         take(r);
@@ -344,6 +357,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
     hud: () => `${npcs.filter(finished).length}/${npcs.length}`,
     gear,
     items: () => own,
+    glimmer: () => secrets.glimmer(),
   };
 }
 
@@ -365,4 +379,7 @@ export const sweet: WorldDef<Record<string, never>, WorldSky> = {
   // the house is written to no skill, the scales to `compare`, the bridge to `classify` (the customer's decision 2026-11-18)
   worldTasks: [HOUSE_STEP, SCALES_STEP, BRIDGE_STEP],
   noSkill: [HOUSE_STEP],
+  // PLAY-07: the four secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
+  secrets: SWEET_SECRETS,
+  chest: CHEST_FLAG,
 };

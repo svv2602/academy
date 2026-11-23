@@ -16,6 +16,7 @@ import { SCALES_STEP } from './scales';
 import { BRIDGE_STEP } from './bridge';
 import { FINALE, FRIENDS, LATER_IN_WORLD, RUBIES, sweet } from './index';
 import { SHRINE, ZONES } from './layout';
+import { CHEST_FLAG, SECRET_HOW, SWEET_SECRETS } from './secrets';
 import { strings } from './strings';
 
 // the world's module draws the glow of the sparks on a canvas as it loads (src/game/fx.ts): not needed here
@@ -112,14 +113,21 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     }
   });
 
-  it('its description is the one of a grey build: five chains, two parts, the tour and the finale, nothing that disagrees', () => {
+  it('its description is the one of a grey build: five chains, two parts, the tour, four secrets and the finale, nothing that disagrees', () => {
     const ws = { quests: {}, flags: {}, final: false };
     const tour = marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => false });
     const parts = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: r.at }));
     const before = [...declared({ world: sweet, ws }), tour, ...parts];
-    const items: WorldItem[] = [...before, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
+    // the secrets (PLAY-07, ./secrets.ts) are the world's own, never needed by the finale
+    const secrets = SWEET_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: { x: 0, z: 0 } }));
+    const items: WorldItem[] = [...before, ...secrets, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
     expect(problems(sweet, items)).toEqual([]);
-    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 0, pet: 0, scene: 0 })).toEqual([]);
+    // the template's three secrets at least (PLAY-07), the tin box the world's chest (PLAY-08)
+    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 3, pet: 0, scene: 0 })).toEqual([]);
+    expect(sweet.secrets).toEqual(SWEET_SECRETS);
+    expect(sweet.chest).toBe(CHEST_FLAG);
+    // a secret the world declares but its description has not is a problem
+    expect(problems(sweet, items.filter((i) => i.id !== 'lemonade'))).not.toEqual([]);
   });
 
   it('every character stands in its zone, the heroine\'s place before it free of the ways\' ends', () => {

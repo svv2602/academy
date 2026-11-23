@@ -177,7 +177,8 @@ export function buildScenery(scene: THREE.Scene): Scenery {
     [new THREE.BoxGeometry(HOUSE.w, HOUSE.h, HOUSE.d).translate(0, HOUSE.h / 2, 0), '#c0844a'],
     [new THREE.BoxGeometry(0.04, HOUSE.h - 0.1, HOUSE.d - 0.3).translate(HOUSE.w / 2 + 0.02, HOUSE.h / 2, 0), '#3a2212'],
   ]);
-  colliders.push({ x: HOUSE.x, z: HOUSE.z, r: HOUSE.w / 2 + 0.6 });
+  // over its flat top she walks free: the cotton cloud tosses her up there (./secrets.ts), she stands on it
+  colliders.push({ x: HOUSE.x, z: HOUSE.z, r: HOUSE.w / 2 + 0.6, under: height(HOUSE.x, HOUSE.z) + HOUSE.h - 0.2 });
 
   // ----- the candy garden: its tallest lollipop (the landmark), striped trees round it -----
   const g = LANDMARKS.garden;

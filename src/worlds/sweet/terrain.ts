@@ -63,9 +63,29 @@ export function groundColor(x: number, z: number, out: THREE.Color): THREE.Color
   return out.lerp(cream, smoothstep(HALF, HALF + 16, Math.hypot(x, z)));
 }
 
-export interface Collider { x: number; z: number; r: number }
+/** A round obstacle; `under`: a walker whose feet are this high or higher passes over it (the roof of Imbir's house, ./secrets.ts). */
+export interface Collider { x: number; z: number; r: number; under?: number }
 /** The round obstacles of the Sweet Land (houses, lollipops, the cake, the river, characters); emptied as the world is left (./index.ts). */
 export const colliders: Collider[] = [];
+
+/**
+ * A flat top she can stand on (./secrets.ts: the roof of Imbir's house, where the cotton cloud tosses her): a rectangle
+ * `w` by `d` round (x, z), axis-aligned, its top at `top`. Emptied as the world is left.
+ */
+export interface Top { x: number; z: number; w: number; d: number; top: number }
+export const tops: Top[] = [];
+/** m: how far under a top her feet may be and still land on it (she comes down onto it; walking she is far below). */
+export const TOP_FROM = 0.5;
+
+/** The height of the top under (x, z) for feet at `feet` (WorldGround.support), null where none carries her. */
+export function support(x: number, z: number, feet: number): number | null {
+  let best: number | null = null;
+  for (const t of tops) {
+    if (Math.abs(x - t.x) > t.w / 2 || Math.abs(z - t.z) > t.d / 2) continue;
+    if (feet >= t.top - TOP_FROM && (best === null || t.top > best)) best = t.top;
+  }
+  return best;
+}
 
 /** m: the river's colliders stand this far apart along its middle line. */
 export const RIVER_STEP = 0.8;
@@ -87,9 +107,10 @@ export function riverColliders(gap = BRIDGE.w / 2 + RIVER_HALF): Collider[] {
   return out;
 }
 
-/** Keeps a walker out of the obstacles and inside the map. */
-export function resolve(p: { x: number; z: number }, radius: number) {
+/** Keeps a walker out of the obstacles and inside the map (a point with `y` over a collider's `under` passes it). */
+export function resolve(p: { x: number; z: number; y?: number }, radius: number) {
   for (const c of colliders) {
+    if (c.under !== undefined && p.y !== undefined && p.y >= c.under) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius, d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
   }
@@ -119,7 +140,7 @@ export function raycast(origin: THREE.Vector3, dir: THREE.Vector3, out: THREE.Ve
 }
 
 export const ground: WorldGround = {
-  height, resolve, raycast,
+  height, resolve, raycast, support,
   block: (x, z, r) => { colliders.push({ x, z, r }); },
 };
 

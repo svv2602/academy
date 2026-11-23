@@ -104,6 +104,20 @@ export const SCALES_AT = { x: ZONES.market.x + 1.5, z: ZONES.market.z + 4.5, fac
 export const TREE_ARCH = { x: ZONES.square.x + 8, z: ZONES.square.z + 12 };
 
 /**
+ * The places of the secrets (docs/worlds/world-4.md «Секреты»; ./secrets.ts), each off the ways and out of the lines of
+ * sight, on foot:
+ * - the tin box of candies on the market's bank, tucked under the bridge's south-west end (downstream: the shape
+ *   bridge's tiles float upstream, its bank is the east one), its front `yaw` to the west, away from the chocolate;
+ * - the cotton-candy cloud on the town's quiet side, south-west of Imbir's house: the roof it tosses her onto;
+ * - the lemonade fountain on the square, south-west of its middle (the ways to the town and the mill pass it 4-5 m off);
+ * - the gum machine on the market's north-east side, toward the way to the bridge, clear of the stalls and the scales.
+ */
+export const CANDY_BOX = { x: BRIDGE.x - BRIDGE.len / 2 + 0.8, z: BRIDGE.z + BRIDGE.w / 2 + 1.4, yaw: -Math.PI / 2 } as const;
+export const COTTON_CLOUD = { x: HOUSE.x - 6, z: HOUSE.z + 4 };
+export const FOUNTAIN = { x: ZONES.square.x - 6, z: ZONES.square.z + 5, r: 1.2 } as const;
+export const GUM_MACHINE = { x: ZONES.market.x + 6, z: ZONES.market.z - 8 };
+
+/**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m.
  * The square - its carousel; the palace - the cake's candle tower; the garden - its tallest lollipop; the town - the
  * gingerbread tower; the market - the scales on their post; the mill - its tower and roof (its wings turn over it); the bridge - a post of it on the market's bank.
