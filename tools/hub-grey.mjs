@@ -61,7 +61,13 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
     const inWorld = (id) => until((w) => { if (__game.story?.active) __game.story.skip(); if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip(); if (!document.querySelector('#fanfare').classList.contains('hidden')) document.querySelector('#fanfareOk')?.click(); return __game.world === w && !__game.transitioning && !__game.busy; }, id, `not in the world "${id}"`);
     const act = async (x, z, what) => {
       await g(([px, pz]) => { __game.teleport(px, pz); }, [x, z]);
-      await until(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, `no action button ${what}`, 20000);
+      // a tour that starts only once the world's scene is over (the forest's, skipped by inWorld) may begin after inWorld
+      // returned: on the runners it still flies when she stands at the arch, so it is skipped here too
+      await until(() => {
+        if (__game.story?.active) __game.story.skip();
+        if (__game.flyoverPlayer?.active) __game.flyoverPlayer.skip();
+        return !document.querySelector('#btnAct').classList.contains('hidden');
+      }, null, `no action button ${what}`, 20000);
       await page.locator('#btnAct').dispatchEvent('pointerdown');   // as tools/shot.mjs presses it: the button breathes
     };
     const at = () => g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, heading: __game.hero.heading }));
