@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { BRIDGE, CAKE, CAROUSEL, HALF, HOUSE, LANDMARKS, MILL, ROUTE, TREE_ARCH, ZONES, type Place } from './layout';
+import { BRIDGE, CAKE, CAROUSEL, HALF, HOUSE, LANDMARKS, MILL, ROUTE, SCALE, TREE_ARCH, ZONES, type Place } from './layout';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
 import { colliders, height, lineDist, pathDist, riverColliders, riverDist } from './terrain';
 
@@ -27,26 +27,34 @@ export const sightLines = (): Place[][] => ROUTE.slice(1).map((b, i) => {
 /** A placed thing: where, how big, turned how. */
 export interface Put { x: number; z: number; s: number; rot?: number }
 
+/** m: the radius round the candy garden's middle its lollipop trees grow in (the stretch of the map widens it). */
+const GARDEN_GROVE = 15 * SCALE;
+
 /** m: what scattered sweets keep clear of: the zones, the cake, the mill, the arch to the Tree. */
 const KEEP_OFF = 9;
 
-/** The sweets scattered over the land and its rim, deterministic: away from the ways, the river, the zones, the lines of sight and each other. */
+/** The sweets scattered over the land and its rim, deterministic: away from the ways, the river, the zones, the lines of sight and each other; the lollipop trees in the candy garden only. */
 export function placeSweets(seed = 23): { lollipops: Put[]; candies: Put[]; hills: Put[]; wall: Put[] } {
   const rnd = mulberry32(seed), zones = Object.values(ZONES), sights = sightLines();
   const clear = (x: number, z: number) => pathDist(x, z) > 3 && riverDist(x, z) > 4 && sights.every((l) => lineDist(l, x, z) > SIGHT)
     && zones.every((p) => Math.hypot(p.x - x, p.z - z) > KEEP_OFF) && Math.hypot(CAKE.x - x, CAKE.z - z) > CAKE.tiers[0].r + 3
     && Math.hypot(MILL.x - x, MILL.z - z) > MILL.wingR + 2 && Math.hypot(TREE_ARCH.x - x, TREE_ARCH.z - z) > 6;
-  const scatter = (perM2: number, gap: number, s0: number, ds: number) => {
-    const want = Math.round(Math.PI * HALF * HALF * perM2), out: Put[] = [];
+  // `within`: a circle of the map the things stand in (the whole map without it); the density is per square metre of it
+  const scatter = (perM2: number, gap: number, s0: number, ds: number, within?: { x: number; z: number; r: number }) => {
+    const area = within ? Math.PI * within.r * within.r : Math.PI * HALF * HALF;
+    const want = Math.round(area * perM2), out: Put[] = [];
     for (let tries = 0; out.length < want && tries < want * 40; tries++) {
-      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (HALF - 3), x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (!clear(x, z) || out.some((t) => Math.hypot(t.x - x, t.z - z) < gap)) continue;
+      const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * (within ? within.r : HALF - 3);
+      const x = (within?.x ?? 0) + Math.cos(a) * r, z = (within?.z ?? 0) + Math.sin(a) * r;
+      if (Math.hypot(x, z) > HALF - 3 || !clear(x, z) || out.some((t) => Math.hypot(t.x - x, t.z - z) < gap)) continue;
       out.push({ x, z, s: s0 + rnd() * ds, rot: rnd() * 6.28 });
     }
     return out;
   };
   // the density per square metre stays the same whatever the stretch of the map
-  const lollipops = scatter(1 / 160, 3, 0.8, 0.6), candies = scatter(1 / 220, 2.4, 0.8, 0.6);
+  // the lollipop trees grow in the candy garden only: elsewhere they made every place look the same (the customer,
+  // accepting the grey build, 2026-11-23); the small sweets stay over the whole land
+  const lollipops = scatter(1 / 160, 3, 0.8, 0.6, { ...ZONES.garden, r: GARDEN_GROVE }), candies = scatter(1 / 220, 2.4, 0.8, 0.6);
   // the rim: two rows of whipped-cream hills, the tall lollipops between them - past the edge, where nobody walks
   const hills: Put[] = [], wall: Put[] = [], ring = Math.round((2 * Math.PI * HALF) / 5);
   for (let i = 0; i < ring; i++) {

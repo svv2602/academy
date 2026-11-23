@@ -105,7 +105,13 @@ describe('the map of the Sweet Land, the grey build (WORLD-12, docs/worlds/world
     it(`at ${scale}: the sweets stand off the ways, the river, the zones and the lines of sight; the cake's candle over all`, async () => {
       const m = await mapAt(scale);
       const { lollipops, candies, hills, wall } = m.placeSweets();
-      expect(lollipops.length).toBeGreaterThan(20 * scale * scale);
+      // the lollipop trees in the candy garden only (the customer, 2026-11-23): none by the other zones or the ways out of it
+      expect(lollipops.length).toBeGreaterThanOrEqual(3);
+      for (const t of lollipops) {
+        const near = Object.entries(m.ZONES).sort(([, a], [, b]) => Math.hypot(a.x - t.x, a.z - t.z) - Math.hypot(b.x - t.x, b.z - t.z))[0][0];
+        expect(near).toBe('garden');
+        expect(Math.hypot(m.ZONES.garden.x - t.x, m.ZONES.garden.z - t.z)).toBeLessThan(15 * scale + 1e-6);
+      }
       for (const t of [...lollipops, ...candies]) {
         expect(m.pathDist(t.x, t.z)).toBeGreaterThan(3);
         expect(m.riverDist(t.x, t.z)).toBeGreaterThan(4);
