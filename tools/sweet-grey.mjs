@@ -24,6 +24,12 @@
 //      and the point is inside the picture) and the draw calls and the triangles there;
 //    - the draw at every point of the tour; a picture from every target toward the next one and from every point of
 //      the tour; the cake after the finale (the Ruby on its lit candle, the carousel turning) - finale-*.png;
+//    - all of it with the magic at 1 (WORLD-09, src/worlds/sweet/magic.ts): the most the land draws (the butterflies,
+//      the sugar in the air);
+//    - the magic: from MAGIC_POINT of the tour, the world still, pictures at the magic 0, 0 again, 0.32 (two rubies),
+//      0.64 (four) and 1 - 0 and 1 differ over the whole and over the sky by more than MAGIC_DIFF, and by more than
+//      MAGIC_DIFF.same times two pictures of the same magic; else the run fails. Then from MAGIC_NEAR_POINT the same
+//      magic for the eye alone (magic-near-*.png);
 //    on q2 a point over BUDGET (triangles or draw calls) fails the run.
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/sweet-grey by default.
 import { execFileSync, spawn } from 'node:child_process';
@@ -33,11 +39,18 @@ import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
+import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { reportProblems } from './world-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the world (src/worlds/sweet/index.ts). */
 export const SWEET = 'sweet';
+/** The point of the tour (0-based) the pictures of the magic are taken from: over the square to the town - the sky, the carousel and the sweets in the frame. */
+export const MAGIC_POINT = 0;
+/** The magic of the pictures (two and four rubies given back between) and the names of their files. */
+export const MAGIC_PICTURES = [[0, 'magic-0'], [0, 'magic-0-again'], [0.32, 'magic-0_32'], [0.64, 'magic-0_64'], [1, 'magic-1']];
+/** The point of the tour (0-based) pictured once more for the eye alone. */
+export const MAGIC_NEAR_POINT = 2;
 /** m from the end of a way where she has come: the end of a way is the middle of its zone. */
 export const REACHED = 3.5;
 /**
@@ -172,6 +185,8 @@ async function measure(browser, url, scale, out, q = 2) {
   await page.evaluate(() => { for (const s of ['#debug', '#fps', '.debug', '#bubble']) document.querySelectorAll(s).forEach((e) => (e.style.visibility = 'hidden')); });
   const map = await page.evaluate(() => JSON.parse(JSON.stringify(__game.sweetMap)));
   if (Math.abs(map.scale - scale) > 1e-9) throw new Error(`the page plays the scale ${map.scale}, not ${scale}`);
+  // all the magic: the most the land draws (the butterflies, the sugar in the air) - the frame to measure
+  await page.evaluate(() => __game.setMagic(1));
   const tag = `x${String(scale).replace('.', '_')}`;
   /** Seconds of game time, waited for frame by frame. */
   const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
@@ -253,6 +268,32 @@ async function measure(browser, url, scale, out, q = 2) {
     tour.push({ point: i + 1, ...(await draw()) });
     await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
+  // the magic: the camera on its point, the world still (no game time: the butterflies, the river and the carousel
+  // stand), so two pictures of the same magic differ by nothing that lives in the frame
+  await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
+  await settle(0.6);
+  const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+  const pics = [];
+  await page.evaluate(() => __game.still(true));
+  try {
+    for (const [m, name] of MAGIC_PICTURES) {
+      await page.evaluate((m) => __game.setMagic(m), m);
+      await frames();
+      pics.push((await page.screenshot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
+    }
+    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
+    await page.evaluate(() => __game.still(false));
+    await settle(0.6);
+    await page.evaluate(() => __game.still(true));
+    for (const [m, name] of MAGIC_PICTURES.filter(([, n]) => n !== 'magic-0-again')) {
+      await page.evaluate((m) => __game.setMagic(m), m);
+      await frames();
+      await page.screenshot({ path: join(out, `${tag}-${name.replace('magic', 'magic-near')}.png`) });
+    }
+  } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(1); }); }
+  const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 4, 1], [0, 4, 0.2], [0, 1, 1], [0, 2, 1]]);
+  const magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
+  magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   // the cake after the finale: the world's part of the save marked final in memory (never stored: the page is closed
   // after it) - the Ruby over the lit candle, the carousel turning; from the palace's middle and from the square
@@ -281,8 +322,9 @@ async function measure(browser, url, scale, out, q = 2) {
   console.log(`[grey]   after the finale: ${finale.map((f) => `${f.at} ${f.calls}/${Math.round(f.tris / 1000)}k`).join(', ')}`);
   const over = q === 2 ? overBudget(views, tour) : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
+  console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.32 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-*.png, ${tag}-magic-near-*.png)`);
   const notReached = legs.filter((l) => !l.reached);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, finale, heaviest, mostCalls, over, failed: over.length > 0 || notReached.length > 0 };
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, finale, heaviest, mostCalls, over, magic, failed: over.length > 0 || notReached.length > 0 || !magic.ok };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

@@ -96,7 +96,7 @@ function lollipop(h: number, r: number, x = 0, z = 0): Part[] {
 }
 
 export interface Scenery extends Landmarks {
-  /** Turns the carousel by `speed` radians a second (still at 0: no ruby back). */
+  /** Turns the carousel by `speed` radians a second (still at 0: no ruby back; the magic turns it, ./magic.ts). */
   spin(dt: number, speed: number): void;
 }
 
@@ -204,7 +204,8 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   }
   const deck = paintedAt(scene, 'landmark-bridge', BRIDGE.x, BRIDGE.z, deckParts, BRIDGE.yaw);
   deck.position.y = height(BRIDGE.x, BRIDGE.z);
-  // the river itself: a chocolate band over its bed, just under the banks (still at the magic 0, docs/worlds/world-4.md)
+  // the river itself: a chocolate band over its bed, just under the banks (still at the magic 0, docs/worlds/world-4.md;
+  // the magic sets it flowing, ./magic.ts)
   const river = riverMesh();
   scene.add(river);
 
@@ -218,8 +219,12 @@ export function buildScenery(scene: THREE.Scene): Scenery {
 /** The river's surface: a ribbon along its middle line, RIVER_HALF wide each side, a little under the banks. */
 function riverMesh(): THREE.Mesh {
   const line = riverLine();
-  const pos: number[] = [], idx: number[] = [];
+  // `flow`: m along the middle line from its south end, and -1 / 1 across - the magic's current runs along it (./magic.ts)
+  const pos: number[] = [], idx: number[] = [], flow: number[] = [];
+  let along = 0;
   line.forEach((p, i) => {
+    if (i > 0) along += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
+    flow.push(along, 1, along, -1);
     const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
     const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l, w = 2.6;
     const y = Math.max(height(p.x, p.z), height(p.x + nx * w, p.z + nz * w) - 0.25, height(p.x - nx * w, p.z - nz * w) - 0.25) + 0.05;
@@ -228,6 +233,7 @@ function riverMesh(): THREE.Mesh {
   });
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
   geo.setIndex(idx);
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#7a4a2a', roughness: 0.35, side: THREE.DoubleSide }));
