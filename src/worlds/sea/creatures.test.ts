@@ -48,20 +48,23 @@ describe('the creatures of the sea (PLAY-11, PLAY-12)', () => {
   });
 
   it('they stay where they live: crabs and starfish on the floor near home, jellyfish round their middle, fish over their zone', () => {
-    const herd = createSeaHerd(hab);
+    const herd = createSeaHerd(hab), wrong: string[] = [];
+    // the faults are gathered and checked once: an expect per creature per step took a second, past the timeout under a
+    // loaded machine (the full run of 2026-11-23)
+    const want = (ok: boolean, what: string) => { if (!ok && wrong.length < 5) wrong.push(what); };
     run(herd, 60, () => {
       for (const c of herd.all) {
-        const off = Math.hypot(c.pos.x - c.home.x, c.pos.z - c.home.z), floor = hab.ground(c.pos.x, c.pos.z);
-        if (c.kind === 'crab') { expect(off).toBeLessThan(2.6); expect(c.pos.y).toBeGreaterThan(floor - 0.31); expect(c.pos.y).toBeLessThan(floor + 0.06); }
-        if (c.kind === 'star') { expect(off).toBeLessThan(0.9); expect(c.pos.y).toBeGreaterThanOrEqual(floor - 1e-6); }
-        if (c.kind === 'jelly') { expect(off).toBeLessThan(0.7); expect(Math.abs(c.pos.y - c.home.y)).toBeLessThan(1); }
+        const off = Math.hypot(c.pos.x - c.home.x, c.pos.z - c.home.z), floor = hab.ground(c.pos.x, c.pos.z), at = `${c.kind} ${c.slot}`;
+        if (c.kind === 'crab') want(off < 2.6 && c.pos.y > floor - 0.31 && c.pos.y < floor + 0.06, `${at}: ${off.toFixed(2)} m from home, ${(c.pos.y - floor).toFixed(2)} m over the floor`);
+        if (c.kind === 'star') want(off < 0.9 && c.pos.y >= floor - 1e-6, `${at}: ${off.toFixed(2)} m from home, ${(c.pos.y - floor).toFixed(2)} m over the floor`);
+        if (c.kind === 'jelly') want(off < 0.7 && Math.abs(c.pos.y - c.home.y) < 1, `${at}: ${off.toFixed(2)} m from home, ${(c.pos.y - c.home.y).toFixed(2)} m off its height`);
         if (c.kind === 'fish') {
           const s = hab.schools[c.school];
-          expect(Math.hypot(c.pos.x - s.x, c.pos.z - s.z)).toBeLessThan(Math.max(s.r, Math.hypot(s.hide.x - s.x, s.hide.z - s.z)) + 6);
-          expect(c.pos.y).toBeGreaterThan(floor + 0.2);
+          want(Math.hypot(c.pos.x - s.x, c.pos.z - s.z) < Math.max(s.r, Math.hypot(s.hide.x - s.x, s.hide.z - s.z)) + 6 && c.pos.y > floor + 0.2, `${at}: off its zone or ${(c.pos.y - floor).toFixed(2)} m over the floor`);
         }
       }
     });
+    expect(wrong).toEqual([]);
   });
 
   it('the magic fills the schools: with none only part of each is shown, and a hidden fish is not tapped', () => {
