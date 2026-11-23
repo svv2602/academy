@@ -6744,5 +6744,341 @@
   "style": "joy",
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/borovik_t4@Orus": {
+  "text": "Вітер розкидав мою картинку! Допоможеш скласти?",
+  "heard": "Вітер розкидав мою картинку. Допоможеш скласти?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_again_1@Leda": {
+  "text": "Пирх-пирх! Хочеш, покажу ще одну таємну стежинку?",
+  "heard": "Пирх-пирх, хочеш покажу ще одну таємну стежинку?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_again_2@Leda": {
+  "text": "Ти вже знаєш ліс, як я! Ну, майже як я.",
+  "heard": "Ти вже знаєш ліс як я. Ну, майже як я.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_leaf_hollow": {
+  "text": "Ось він, листочок у дуплі! Мудрена загадала — ти відгадала.",
+  "heard": "Ось він, листочок у дуплі. Мудрена загадала, ти відгадала.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_leaf_maze": {
+  "text": "Ось і листочок у кінці лабіринту! Колючка не підвів.",
+  "heard": "Ось і листочок у кінці лабіринту, Колючка не підвів!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_maze_glow": {
+  "text": "Дивись, одна стежинка засвітилася. Підемо нею?",
+  "heard": "Дивись, одна стежинка засвітилася. Підемо нею?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_maze_exit@Leda": {
+  "text": "Відпочинь! Я запамʼятаю, де ми зупинилися.",
+  "heard": "Відпочинь, я запам'ятаю, де ми зупинилися.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_maze_resume@Leda": {
+  "text": "Повертаємося туди, де зупинилися. Уперед!",
+  "heard": "Повертаємося туди, де зупинилися. Вперед!",
+  "score": 0.974,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_tracks_found_1@Leda": {
+  "text": "Знайшла! Ой, це ж мій горішок!",
+  "heard": "Знайшла! Ой, це ж мій горішок!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_tracks_found_2@Leda": {
+  "text": "Ще один! Ти чудово бачиш сліди.",
+  "heard": "Що день, ти чудово бачиш сліди!",
+  "score": 0.862,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_tracks_all@Leda": {
+  "text": "Слідочки скінчилися! Здається, усе знайшли.",
+  "heard": "Слідочки скінчилися. Здається, усе знайшли.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/mudrena_steps_finish@Charon": {
+  "text": "Сходинки цілі. Піднімайся до мого дупла, у-ху!",
+  "heard": "Сходинке цілі, піднімайся до мого дупла, угу!",
+  "score": 0.941,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/yasen_diff_found@Charon": {
+  "text": "Так… так! Тепер… я пригадую.",
+  "heard": "Так, так, тепер я пригадую.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/borovik_trade_ask@Orus": {
+  "text": "Шишки й ягідки — для ладу в коморі. Поміняємося?",
+  "heard": "Шишки-ягідки для ладу в коморі. Поміняємося?",
+  "score": 0.977,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/borovik_trade_far@Orus": {
+  "text": "Кажуть, у Королівстві фей ростуть чарівні грибочки. Принесеш мені?",
+  "heard": "Кажуть, у королівстві фей ростуть чарівні грибочки. Принесеш мені?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/borovik_trade_thanks@Orus": {
+  "text": "Ото лад! Тримай подарунок від старого Боровика.",
+  "heard": "Ото лад, тримай подарунок від старого Боровика.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/mudrena_trade_ask@Charon": {
+  "text": "У-ху. Знахідки лісу бувають мудрими. Поміняємося?",
+  "heard": "Ух-ух, знахідки лісу бувають мудрими. Поміняємося.",
+  "score": 0.968,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/mudrena_trade_far@Charon": {
+  "text": "Золоте перо Великого Древа… Я так давно мрію його побачити.",
+  "heard": "Золоте перо великого древа! Я так давно мрію його побачити!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/mudrena_trade_thanks@Charon": {
+  "text": "Дякую, люба. Це тобі від мене. У-ху.",
+  "heard": "Дякую, Люба, це тобі від мене.",
+  "score": 0.915,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_trade_ask@Leda": {
+  "text": "Шишки! Ягідки! Я все ховаю на зиму. Поміняємося?",
+  "heard": "Шишки, ягідки я все ховаю на зиму. Поміняємося?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_trade_far@Leda": {
+  "text": "А в Королівстві фей є жолуді? Ой, як хочу хоч два!",
+  "heard": "А в королівстві фей є жолуді? Ой, як хочу, хоч два!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/shustrik_trade_thanks@Leda": {
+  "text": "Ура! Тримай подарунок, швидко-швидко!",
+  "heard": "Ура, тримай подарунок, швидко-швидко!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/yasen_trade_ask@Charon": {
+  "text": "Мої корені люблять шишки й ягоди. Поміняємося?",
+  "heard": "Мої корені люблять шишки й ягоди. Поміняємося?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/yasen_trade_far@Charon": {
+  "text": "Я ніколи не бачив метелика з Королівства фей.",
+  "heard": "Я ніколи не бачив метелика з королівства фей.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/yasen_trade_thanks@Charon": {
+  "text": "Дякую тобі. Хай мій подарунок тебе радує.",
+  "heard": "Дякую тобі, хай мій подарунок тебе радує.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_trade_ask@Leda": {
+  "text": "На моїх голочках є місце для ягідок. Поміняємося?",
+  "heard": "На моїх голочках є місце для ягідок. Поміняємося?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_trade_far@Leda": {
+  "text": "Пірʼїнка з Королівства фей! От би приколоти її на голочки!",
+  "heard": "Пір’їнка з королівства фей, от би приколоти її на голочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/kolyuchka_trade_thanks@Leda": {
+  "text": "Хі-хі! Тримай подарунок від Колючки.",
+  "heard": "Хі-хі, тримай подарунок від колючки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_cave": {
+  "text": "Ого, за водоспадиком печера! А в ній скриня із зірочками!",
+  "heard": "Ого, за водоспадиком печера, а в ній скриня із зірочками!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_bounce": {
+  "text": "Гриб-батут! Стрибни вище — що там на даху?",
+  "heard": "Гриба тут, стрибни вище, що там на даху?",
+  "score": 0.96,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_fireflies": {
+  "text": "Світлячки співають! Торкнися їх по черзі — почуєш пісеньку.",
+  "heard": "Світлячки співають, торкнись їх по черзі, почуєш пісеньку.",
+  "score": 0.982,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_ring": {
+  "text": "Хі-хі, ти стала крихітною! Не бійся, зараз знову виростеш.",
+  "heard": "Ти стала крихітною. Не бійся, зараз знову виростеш!",
+  "score": 0.941,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_pet_found": {
+  "text": "Ось де совеня, під листям! Воно вже тупцяє до тебе.",
+  "heard": "Ось та совеня під листям, воно вже тупцяє до тебе.",
+  "score": 0.958,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_pet_follow": {
+  "text": "Совеня гулятиме з тобою лісом і біля Великого Дерева.",
+  "heard": "Совеня гулятиме з тобою лісом і біля великого дерева.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_all_leaves": {
+  "text": "Усі листочки в нас! Несімо їх до Старого Дуба.",
+  "heard": "Усі листочки в нас, несимо їх до старого дуба.",
+  "score": 0.977,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_emerald_whole": {
+  "text": "Листочки склалися докупи — Смарагд мудрості знову цілий!",
+  "heard": "Листочки склалися докупи. Смарагд мудрості знову цілий!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/yasen_chorus@Charon": {
+  "text": "Дякуємо, Хранителько! Ліс памʼятає тебе!",
+  "heard": "Дякуємо, хранителько, ліс пам'ятає тебе.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_final_text": {
+  "text": "Ти повернула мудрість Зачарованому лісу!",
+  "heard": "Ти повернула мудрість зачарованому лісу.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_free": {
+  "text": "Гуляй лісом! Тут ще багато таємниць.",
+  "heard": "Гуляй лісом, тут ще багато таємниць.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_forest_wake": {
+  "text": "Чуєш? Портал до лісу прокинувся! Біжи за іскорками.",
+  "heard": "Чуєш, портал до лісу прокинувся, біжи за іскорками!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_forest_home": {
+  "text": "Смарагд мудрості вдома! Дивись, на Дереві розквітли квіти.",
+  "heard": "Смарагд мудрості вдома, дивись, на дереві розквітли квіти.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_forest_after": {
+  "text": "Дерево стало веселішим. Світлячки прилетіли! А нас кличе новий портал.",
+  "heard": "Дерево стало веселі́шим, світлячки прилетіли, а нас кличе новий портал.",
+  "score": 0.993,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

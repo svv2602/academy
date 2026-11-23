@@ -2329,6 +2329,21 @@
   "tp": -3.55,
   "sha256": "ad1027ee376a913891c1dc1f6d30693c4438b6c8d3bd3ce48f76431445565f67"
  },
+ "public/voice/hub/hub_forest_after.mp3": {
+  "lufs": -18.1,
+  "tp": -2.33,
+  "sha256": "2d3625f17848e6ca3b2bc46cd14b3bd2f79996790bbb3e3f9a67de4964be1fa4"
+ },
+ "public/voice/hub/hub_forest_home.mp3": {
+  "lufs": -18.03,
+  "tp": -3.68,
+  "sha256": "8fcacd53512a20a73a8e341dec54497852f30602efc4844b4edd55cf641e2097"
+ },
+ "public/voice/hub/hub_forest_wake.mp3": {
+  "lufs": -17.96,
+  "tp": -3.29,
+  "sha256": "547e62b0f5fba7d59032f8c78a2f2182af9ba5912c398c94dc5c09e4646cd709"
+ },
  "public/voice/hub/hub_sea_after.mp3": {
   "lufs": -18.15,
   "tp": -2.76,
@@ -3424,10 +3439,95 @@
   "tp": -2.95,
   "sha256": "cf938f5aa1401aab9a997c012f8acacbbc8614916aef9ca2a961f43cff68e6e6"
  },
+ "worlds-data/forest/voice/forest/borovik_t4@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -2.8,
+  "sha256": "7abbbcdc9dc44ba3315fb829561c26b3b9463642af8242feb23fc6490454474f"
+ },
+ "worlds-data/forest/voice/forest/borovik_trade_ask@Orus.mp3": {
+  "lufs": -17.94,
+  "tp": -2.76,
+  "sha256": "672986aea20f21b4f83fb488945e1b66564fba94bcece6874d2726ca4902d2fb"
+ },
+ "worlds-data/forest/voice/forest/borovik_trade_far@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -3.35,
+  "sha256": "eeea80a1f0471e31fb2cb84d711b432e7424506a1420fb0be5f2b7ab53a16e69"
+ },
+ "worlds-data/forest/voice/forest/borovik_trade_thanks@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -3.76,
+  "sha256": "b57d21a5482290659908d55eb8f2edff327040bc9c90dbd72645c788c2231799"
+ },
+ "worlds-data/forest/voice/forest/forest_all_leaves.mp3": {
+  "lufs": -18.04,
+  "tp": -2.28,
+  "sha256": "c6dd06df0b59cafbfecc8fae20cc8f6e831a2faf85998fb27b15e6c1ab2296d1"
+ },
+ "worlds-data/forest/voice/forest/forest_emerald_whole.mp3": {
+  "lufs": -17.98,
+  "tp": -4.21,
+  "sha256": "e7dd37da6b42b6db0ef3843fe4fcdd2eda4ab7fdf74dac5544ba5ae3d143f818"
+ },
+ "worlds-data/forest/voice/forest/forest_final_text.mp3": {
+  "lufs": -18.0,
+  "tp": -6.61,
+  "sha256": "320d56dbd735e2e4d69d9bf4b9baff68d9268230f50348a7b577060c84dd08be"
+ },
  "worlds-data/forest/voice/forest/forest_flyover.mp3": {
   "lufs": -17.97,
   "tp": -2.37,
   "sha256": "a2dbe63056b2233c49409d3f3908be35cbde0015034d6284868525784a253b98"
+ },
+ "worlds-data/forest/voice/forest/forest_free.mp3": {
+  "lufs": -18.12,
+  "tp": -3.38,
+  "sha256": "c636201f4b3912b0e3abc87ce3a8d5ad28f182ee0f60e4ddaf6c554e37d1d21e"
+ },
+ "worlds-data/forest/voice/forest/forest_leaf_hollow.mp3": {
+  "lufs": -18.01,
+  "tp": -1.8,
+  "sha256": "de05fac83c3cc79477e655e1d10d6a7fb87920b559f67610cd7db1f9b940a8bf"
+ },
+ "worlds-data/forest/voice/forest/forest_leaf_maze.mp3": {
+  "lufs": -18.05,
+  "tp": -5.18,
+  "sha256": "4c4d0cc3d21465bf2c37871b0735329ce750c447a18d4dbd87b89ce5c8005e79"
+ },
+ "worlds-data/forest/voice/forest/forest_maze_glow.mp3": {
+  "lufs": -18.02,
+  "tp": -2.49,
+  "sha256": "b79cd77919ac303cad231bcd71010c106019253546579333ae09a252040f45a0"
+ },
+ "worlds-data/forest/voice/forest/forest_pet_follow.mp3": {
+  "lufs": -18.18,
+  "tp": -2.27,
+  "sha256": "5955442316027e04c5a02c3023d3ebc7c44780c4c2fe2b72f71465c8cf615473"
+ },
+ "worlds-data/forest/voice/forest/forest_pet_found.mp3": {
+  "lufs": -18.01,
+  "tp": -4.19,
+  "sha256": "0f54c30be447a8139843886df450780dffe34bfc63d87f28d3e5a01a9c172774"
+ },
+ "worlds-data/forest/voice/forest/forest_secret_bounce.mp3": {
+  "lufs": -18.02,
+  "tp": -2.61,
+  "sha256": "5d8e062394bb2cc26f2b4340476bb0a81ebacce8135d8afdd745daed8fc2ff49"
+ },
+ "worlds-data/forest/voice/forest/forest_secret_cave.mp3": {
+  "lufs": -18.13,
+  "tp": -3.24,
+  "sha256": "b8a090c46b3c64e76a8848600bffc35c366b96e65a18fd3e00f8efc1bb7c2671"
+ },
+ "worlds-data/forest/voice/forest/forest_secret_fireflies.mp3": {
+  "lufs": -18.04,
+  "tp": -2.13,
+  "sha256": "ee6565a0f0765f4fc22f314b3c4ec59ede6ff2540ded661d9d141440d39cc8ce"
+ },
+ "worlds-data/forest/voice/forest/forest_secret_ring.mp3": {
+  "lufs": -18.03,
+  "tp": -2.59,
+  "sha256": "4bcfb963a65ee21d3cf1499a13c8b5f806f643ac77dd2ae078b1fb630eade41b"
  },
  "worlds-data/forest/voice/forest/forest_story_back_1.mp3": {
   "lufs": -18.05,
@@ -3459,6 +3559,16 @@
   "tp": -2.27,
   "sha256": "d61cc2dd82151e2fcc1923c49d6d5943b015a2041469df26e9e1a3c44662422f"
  },
+ "worlds-data/forest/voice/forest/kolyuchka_again_1@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -6.02,
+  "sha256": "c2a4fdae462525e627527138d746660bbcef3e52a4fbbda81fc20622ad50e796"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_again_2@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -3.8,
+  "sha256": "11d3628040f064a7e725b122f3c1259043c982755f5308dfcc7196c529cf365a"
+ },
  "worlds-data/forest/voice/forest/kolyuchka_done@Leda.mp3": {
   "lufs": -17.98,
   "tp": -3.34,
@@ -3468,6 +3578,16 @@
   "lufs": -17.97,
   "tp": -4.25,
   "sha256": "346d865ef9794b05cccdafdf0c1b2c6e6c89737f458ec70ebc3d58ed7a8478fe"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_maze_exit@Leda.mp3": {
+  "lufs": -18.11,
+  "tp": -5.21,
+  "sha256": "2ab65fe5a259d15cab0a36c5c395c1d4321df9ffd43324d66bbc8cd93f89ed01"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_maze_resume@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -4.73,
+  "sha256": "b31eb6c2f3731057a3ad900551c04c4a298e2598fb258809cadedd6f4878ebf3"
  },
  "worlds-data/forest/voice/forest/kolyuchka_t1@Leda.mp3": {
   "lufs": -18.09,
@@ -3483,6 +3603,21 @@
   "lufs": -17.95,
   "tp": -6.2,
   "sha256": "4e3b75c092e364c21d0451f6ff5fe024ba4cafe2373b3d42d6475eb0f04fb8f9"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_trade_ask@Leda.mp3": {
+  "lufs": -17.88,
+  "tp": -5.05,
+  "sha256": "d570a093a9045c16f3625f4739fbf4dad3c3667b690f5c0ccbe0f53fa4ccc87c"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_trade_far@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -3.17,
+  "sha256": "9459c94a8f5473c6d683cb281307406229eb89f62836a259c5c18e57461e1b82"
+ },
+ "worlds-data/forest/voice/forest/kolyuchka_trade_thanks@Leda.mp3": {
+  "lufs": -18.02,
+  "tp": -5.4,
+  "sha256": "11f2fd448497e6a1c0c5f9b256f83c7b5e900408a7a247e5144b1dae5324b8d8"
  },
  "worlds-data/forest/voice/forest/mudrena_again_1@Charon.mp3": {
   "lufs": -18.28,
@@ -3514,6 +3649,11 @@
   "tp": -3.19,
   "sha256": "2c681686e267dd6dda4a18364761961555df27060f5a19a258dc92f065d9c91b"
  },
+ "worlds-data/forest/voice/forest/mudrena_steps_finish@Charon.mp3": {
+  "lufs": -18.04,
+  "tp": -2.19,
+  "sha256": "e8cda18abb50b0b576e09bae3722665c68a4d04aa0c60013be9f17d03aae832d"
+ },
  "worlds-data/forest/voice/forest/mudrena_t1@Charon.mp3": {
   "lufs": -18.13,
   "tp": -2.32,
@@ -3528,6 +3668,21 @@
   "lufs": -18.0,
   "tp": -2.52,
   "sha256": "b461e4ac0537a20567a279c7e414f6780726720315a04c7970ad02198768ebd8"
+ },
+ "worlds-data/forest/voice/forest/mudrena_trade_ask@Charon.mp3": {
+  "lufs": -17.99,
+  "tp": -3.31,
+  "sha256": "a2ae19fb651f34c06ba34d74d19f4325a170551e0018ea4c1171ca080db49b12"
+ },
+ "worlds-data/forest/voice/forest/mudrena_trade_far@Charon.mp3": {
+  "lufs": -18.1,
+  "tp": -1.99,
+  "sha256": "70ac21a6bd026e9928dafaf5ee5ce36f705363a37cde11b90ee055af23778b02"
+ },
+ "worlds-data/forest/voice/forest/mudrena_trade_thanks@Charon.mp3": {
+  "lufs": -18.17,
+  "tp": -2.86,
+  "sha256": "66c6dfe977b81a08aac9e3e3d2b6ae33fd5b1a43a605ac44fded3446b8402492"
  },
  "worlds-data/forest/voice/forest/shustrik_again_1@Leda.mp3": {
   "lufs": -17.99,
@@ -3564,6 +3719,36 @@
   "tp": -5.47,
   "sha256": "99552decd611a200fa14d6e6724147560810a9effb99bf43cc86bfd3ff2baa84"
  },
+ "worlds-data/forest/voice/forest/shustrik_tracks_all@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -3.73,
+  "sha256": "a15415f0432a1f3c8811e06816006b88af695143607ed1ca3842d83676f5ea77"
+ },
+ "worlds-data/forest/voice/forest/shustrik_tracks_found_1@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -5.43,
+  "sha256": "4a6308d70349738926ff22eeb2af803d18fb3a217b75f242910d1170f9d71fc4"
+ },
+ "worlds-data/forest/voice/forest/shustrik_tracks_found_2@Leda.mp3": {
+  "lufs": -17.93,
+  "tp": -5.55,
+  "sha256": "1ca858e70e2abc552e4a61ebe226e74684a48333eb9e5663774557b15c633eb7"
+ },
+ "worlds-data/forest/voice/forest/shustrik_trade_ask@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -4.74,
+  "sha256": "d1a7dfc28b323f4a03c98aafb8a52f121c6c85625631c43e0d95c0e6c6a1e5b6"
+ },
+ "worlds-data/forest/voice/forest/shustrik_trade_far@Leda.mp3": {
+  "lufs": -18.01,
+  "tp": -2.89,
+  "sha256": "88c1b7f5dfe3265ce27a3d08f1551d16294dee6a03cf43ef0be140d97761e8ca"
+ },
+ "worlds-data/forest/voice/forest/shustrik_trade_thanks@Leda.mp3": {
+  "lufs": -17.97,
+  "tp": -7.16,
+  "sha256": "77b152d879f0d58590db86f6c251c425094e6545b117da49e1ce627b5ad07f3b"
+ },
  "worlds-data/forest/voice/forest/yasen_again_1@Charon.mp3": {
   "lufs": -18.01,
   "tp": -2.1,
@@ -3573,6 +3758,16 @@
   "lufs": -18.22,
   "tp": -2.82,
   "sha256": "e8a7e2d4ea6bd95153e82dcc6eb5bf9eba3578e2f804dad03c7d32843cfd487a"
+ },
+ "worlds-data/forest/voice/forest/yasen_chorus@Charon.mp3": {
+  "lufs": -18.29,
+  "tp": -2.26,
+  "sha256": "bc63a2d51a73b4aa2a17dc01ac55fd542c00ac225ab8ae263b7a5b3c839b540b"
+ },
+ "worlds-data/forest/voice/forest/yasen_diff_found@Charon.mp3": {
+  "lufs": -18.25,
+  "tp": -2.22,
+  "sha256": "034ec98414301201cddc3d849ab92b375fa3b5d4a8ca55a0f51bdbccfe63698a"
  },
  "worlds-data/forest/voice/forest/yasen_done@Charon.mp3": {
   "lufs": -18.09,
@@ -3598,6 +3793,21 @@
   "lufs": -17.98,
   "tp": -2.7,
   "sha256": "d4b5a37d3214bbf99e66314d1be107b7fd588a5431fd99ae7c621ae81c2db9cd"
+ },
+ "worlds-data/forest/voice/forest/yasen_trade_ask@Charon.mp3": {
+  "lufs": -18.18,
+  "tp": -2.16,
+  "sha256": "db403a0687af3e5f0e0743b09291ef93c2027dad79391a9f58874b427da5ab59"
+ },
+ "worlds-data/forest/voice/forest/yasen_trade_far@Charon.mp3": {
+  "lufs": -18.02,
+  "tp": -2.95,
+  "sha256": "8aab87ee93b420b1fb7c63d5471839b4de5a297e3fed803558a11eadfc813632"
+ },
+ "worlds-data/forest/voice/forest/yasen_trade_thanks@Charon.mp3": {
+  "lufs": -18.0,
+  "tp": -2.91,
+  "sha256": "ac874ef7bdd99da703b449c279326acec200ba673406fc8e136d0d19826144a6"
  },
  "worlds-data/sea/voice/sea/bulk_again_1@Leda.mp3": {
   "lufs": -18.02,
