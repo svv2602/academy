@@ -343,11 +343,12 @@ button.it { min-width: 44px; min-height: 44px; }
 /* However many things a tab holds and however low the screen, the tabs and «Готово» stay on it: the card never grows
    past the screen, and its tiles scroll inside it when they do not fit (a swipe, as a list on the phone). The tabs, the
    line under the tiles and «Готово» never shrink. The padding keeps the ring of a chosen tile and the "−40%" of a deal
-   inside the scrolling box; the margin as big takes that room back, so a tab that fits looks as before. The class
+   inside the scrolling box; the margin takes that room back at the sides, and only half of it above and below - no more
+   than the card's gap of a low screen, so a tile scrolled up never shows over the tabs. The class
    `scroll-area` tells the layout check of tools/shot.mjs that a tile out of sight in it is scrolled away, not cut off. */
 #shopTabs, #shopAct, #shopDone { flex-shrink: 0; }
 #shopItems { flex: 0 1 auto; min-height: 0; max-width: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
-  touch-action: pan-y; padding: 8px 10px; margin: -8px -10px; scrollbar-width: thin; }
+  touch-action: pan-y; padding: 8px 10px; margin: -4px -10px; scrollbar-width: thin; }
 /* A phone held flat: six tiles a row, so the head's eleven (the forest's hat among them) take two rows, not three,
    on the screen of 844x390. */
 @media (max-height: 480px) {
