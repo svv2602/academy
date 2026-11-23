@@ -46,7 +46,10 @@ const FLY_S = 0.5;          // s of game time a weight takes to go to the pan (a
 const SIT_S = 0.6;          // s a wrong weight sits on the pan, the beam tipped, before it comes back
 const TURN = 5;             // the beam's approach to its angle, per second
 const LIFT = 0.12;          // m: a weight on the pan stands this much over it
-const FRAME_DEPTH = 2.2;    // m the frame takes in along the view (./core.ts taskFrame): the tall beam under the bubble on a phone held sideways
+const FRAME_DEPTH = 2.6;    // m the frame takes in along the view (./core.ts taskFrame): the tall beam, tipped, under the bubble on a phone held sideways
+// m the frame of the signs takes in: their beam is held level until the right sign (a pin), so it needs no room to tip -
+// and nearer, the sign cards stay big enough to tap
+const SIGN_DEPTH = 2.2;
 
 /** A point of the scales: `u` to the child's right, `v` away from the child, `y` over the ground at the post. */
 function local(u: number, v: number, y: number, floor: number) {
@@ -313,7 +316,7 @@ export function drawScales(scene: THREE.Scene, groundY: (x: number, z: number) =
     facing: FACING,
     // the beam and its pans across; along the view more than the row and the post take on the ground (FRAME_DEPTH): the
     // camera stands back far enough that the beam over the post stays under the bubble of the line
-    extent: { side: HALF_BEAM + PAN_R + 0.15, depth: FRAME_DEPTH },
+    get extent() { return { side: HALF_BEAM + PAN_R + 0.15, depth: spec?.body.mode === 'sign' ? SIGN_DEPTH : FRAME_DEPTH }; },
     choice: (i) => {
       const g = choices[i];
       return { pos: g ? g.position.clone().setY(g.position.y + (g.userData.top as number)) : new THREE.Vector3(), r: TAP_R };

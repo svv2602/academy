@@ -71,8 +71,13 @@ export function balances(body: ScalesBody, choice: ScalesChoice): boolean {
 /** The indices of the choices that are right: exactly one for every description. */
 export const rightOnes = (body: ScalesBody) => body.choices.flatMap((c, i) => (balances(body, c) ? [i] : []));
 
-/** rad: the tilt of the beam for the smallest difference, and for a difference of TILT_SPAN and more. */
-export const TILT_MIN = 0.1, TILT_MAX = 0.28, TILT_SPAN = 10;
+/**
+ * rad: the tilt of the beam for the smallest difference, and for a difference of TILT_SPAN and more. The camera of the
+ * task looks down on the scales, which flattens a tilt: at 0.1-0.28 rad 14 against 11 hardly showed in the picture (the
+ * lead, 2026-11-23); at 0.45 the pan under the heavier side still hangs over the ground (the beam 1.15 m, its pivot
+ * 1.2 m up, a pan 0.55 m under its end).
+ */
+export const TILT_MIN = 0.18, TILT_MAX = 0.45, TILT_SPAN = 6;
 /**
  * The angle of the beam for two sides: positive - the left pan goes down (the left side is heavier), negative - the
  * right one, 0 - balanced. Always visible for a difference of one, larger for a larger one, never past TILT_MAX.
