@@ -12,7 +12,8 @@
 //    its report must show the chains, the tour and the finale done, the two rubies in the world among its items
 //    (`passProblems`; they are taken on the way, inside their chains) and the gingerbread house played in the world
 //    (WORLD-21: one wrong piece, left in its middle and come back to, assembled - the steps of tools/world-pass.mjs) and
-//    Tyanuchka's scales (WORLD-22: three wrong weights, then the right one), each recorded as WORLD_SKILLS says.
+//    Tyanuchka's scales (WORLD-22: three wrong weights, then the right one) and Kakao's shape bridge (WORLD-20: three
+//    wrong tiles, left half built and come back to, finished), each recorded as WORLD_SKILLS says.
 //    --no-pass leaves it out. CI plays the same walkthrough as the part "sweet-grey" of tools/worlds.mjs.
 // 4. For every stretch of the map in --scales (`?scale=`, src/worlds/sweet/layout.ts; 1.6 by default), the phone size:
 //    - the time on foot of every way of the map: she walks it with the key held, turned along the way at every frame,
@@ -51,9 +52,10 @@ export const PARTS_IN_WORLD = 2;
 /**
  * The tasks the Sweet Land plays in the world ("<chain> <step>", tools/world-pass.mjs `worldTasks`) and the skill each
  * must have recorded once solved (the report's `worldSkills`; docs/worlds/world-4.md question 3, the customer's
- * decision 2026-11-18): the gingerbread house none, the scales `compare` - as a panel task of comparing.
+ * decision 2026-11-18): the gingerbread house none, the scales `compare` - as a panel task of comparing, the shape
+ * bridge `classify` - as a panel task of classification.
  */
-export const WORLD_SKILLS = { 'imbir 2': null, 'tyanuchka 2': 'compare' };
+export const WORLD_SKILLS = { 'imbir 2': null, 'tyanuchka 2': 'compare', 'kakao 0': 'classify' };
 /** s: the target of the document for the time on foot between neighbouring targets (docs/worlds/world-4.md). */
 export const LEG_TARGET = [15, 25];
 /** The names of the objects that count as the landmark of a target (src/worlds/sweet/scenery.ts, landmarks.ts). */
@@ -94,7 +96,8 @@ export function passProblems(report, size = 'mobile') {
   const out = reportProblems(report, { world: SWEET, size, offline: false, kinds: PASS_KINDS, inWorld: true });
   const parts = (report?.items ?? []).filter((i) => i.kind === 'part').length;
   if (report && parts < PARTS_IN_WORLD) out.push(`the description has ${parts} part(s) of the artifact in the world, ${PARTS_IN_WORLD} expected`);
-  // every task of the world met in it, and recorded where it must be: the house in no skill, the scales in `compare`
+  // every task of the world met in it, and recorded where it must be: the house in no skill, the scales in `compare`,
+  // the bridge in `classify`
   if (report) {
     for (const [key, skill] of Object.entries(WORLD_SKILLS)) {
       if (!(report.worldTasks ?? []).includes(key)) { out.push(`the task in the world "${key}" was not played by the pass`); continue; }

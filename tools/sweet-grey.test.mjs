@@ -26,25 +26,29 @@ describe('tools/sweet-grey.mjs', () => {
   it('a report is right only when the pass came to the finale in the Sweet Land, every kind done', () => {
     const items = [{ id: 'pastila', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ruby_house', kind: 'part' }, { id: 'ruby_mill', kind: 'part' }, { id: 'final', kind: 'finale' }];
     // the rubies are taken inside the chains: not in the order of the items done by the pass itself
-    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2'], worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'compare' } };
+    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2', 'kakao 0'], worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'compare', 'kakao 0': 'classify' } };
     expect(passProblems(report)).toEqual([]);
-    // the gingerbread house (WORLD-21) and the scales (WORLD-22) are played in the world: a pass that never met them there is wrong
+    // the gingerbread house (WORLD-21), the scales (WORLD-22) and the bridge (WORLD-20) are played in the world: a pass that never met them there is wrong
     expect(passProblems({ ...report, worldTasks: [], worldSkills: {} })).toEqual(['no task in the world was played by the pass: the world declares one',
-      'the task in the world "imbir 2" was not played by the pass', 'the task in the world "tyanuchka 2" was not played by the pass']);
+      'the task in the world "imbir 2" was not played by the pass', 'the task in the world "tyanuchka 2" was not played by the pass', 'the task in the world "kakao 0" was not played by the pass']);
+    expect(passProblems({ ...report, worldTasks: ['imbir 2', 'tyanuchka 2'] })).toEqual(['the task in the world "kakao 0" was not played by the pass']);
     expect(passProblems(null)).toHaveLength(1);
     expect(passProblems({ ...report, order: ['pastila', 'toured'] })).toEqual(['no item of kind "finale" was done by the pass']);
     expect(passProblems({ ...report, items: items.filter((i) => i.id !== 'ruby_mill') })).toEqual(['the description has 1 part(s) of the artifact in the world, 2 expected']);
     expect(passProblems({ ...report, world: 'sea' })[0]).toContain('"sea"');
   });
 
-  it('the house is recorded in no skill, the scales in `compare` as a panel task of comparing (the customer\'s decision 2026-11-18)', () => {
-    expect(WORLD_SKILLS).toEqual({ 'imbir 2': null, 'tyanuchka 2': 'compare' });
+  it('the house is recorded in no skill, the scales in `compare`, the bridge in `classify` - each as a panel task of its skill (the customer\'s decision 2026-11-18)', () => {
+    expect(WORLD_SKILLS).toEqual({ 'imbir 2': null, 'tyanuchka 2': 'compare', 'kakao 0': 'classify' });
     const items = [{ id: 'pastila', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ruby_house', kind: 'part' }, { id: 'ruby_mill', kind: 'part' }, { id: 'final', kind: 'finale' }];
-    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2'] };
-    expect(passProblems({ ...report, worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'sub' } })).toEqual(['the task in the world "tyanuchka 2" recorded the skill "sub", "compare" expected']);
-    expect(passProblems({ ...report, worldSkills: { 'imbir 2': 'classify', 'tyanuchka 2': null } })).toEqual([
+    const report = { world: SWEET, size: 'mobile', online: true, items, order: ['toured', 'pastila', 'final'], worldTasks: ['imbir 2', 'tyanuchka 2', 'kakao 0'] };
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'sub', 'kakao 0': 'classify' } })).toEqual(['the task in the world "tyanuchka 2" recorded the skill "sub", "compare" expected']);
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': 'classify', 'tyanuchka 2': null, 'kakao 0': 'classify' } })).toEqual([
       'the task in the world "imbir 2" recorded the skill "classify", no skill expected', 'the task in the world "tyanuchka 2" recorded no skill, "compare" expected']);
-    expect(passProblems(report)).toEqual(['the task in the world "imbir 2" recorded nothing the report shows, no skill expected', 'the task in the world "tyanuchka 2" recorded nothing the report shows, "compare" expected']);
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'compare', 'kakao 0': 'memory' } })).toEqual(['the task in the world "kakao 0" recorded the skill "memory", "classify" expected']);
+    expect(passProblems({ ...report, worldSkills: { 'imbir 2': null, 'tyanuchka 2': 'compare', 'kakao 0': null } })).toEqual(['the task in the world "kakao 0" recorded no skill, "classify" expected']);
+    expect(passProblems(report)).toEqual(['the task in the world "imbir 2" recorded nothing the report shows, no skill expected', 'the task in the world "tyanuchka 2" recorded nothing the report shows, "compare" expected',
+      'the task in the world "kakao 0" recorded nothing the report shows, "classify" expected']);
   });
 
   it('the route\'s time sums the ways it walks, twice for one walked there and back', () => {

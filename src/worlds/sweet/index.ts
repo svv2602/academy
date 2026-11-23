@@ -17,6 +17,7 @@ import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SWEET_FLYOVER } from './flyover-path';
 import { DOORWAY, HOUSE_STEP, createHouse } from './house';
 import { SCALES_STEP, createScales } from './scales';
+import { BRIDGE_STEP, createBridge } from './bridge';
 import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
@@ -37,8 +38,9 @@ import { buildGround, colliders, ground } from './terrain';
  * The characters (docs/worlds/world-4.md, the table «Персонажи»). Of the three tasks the document plays in the world,
  * the gingerbread house (WORLD-21, written to no skill) is played in the world since step 2: Imbir's third step, the
  * house assembled before his house (./house.ts). The scales with candies (WORLD-22, written to `compare`) are played in
- * the world since step 3: Tyanuchka's third step, at his scales on the market (./scales.ts). The shape bridge
- * (WORLD-20, classify) stands in as the panel task of the same skill, "the odd one out" (LATER_IN_WORLD). `part`: the ruby is not handed over - the character says where it lies (inside the gingerbread house, in
+ * the world since step 3: Tyanuchka's third step, at his scales on the market (./scales.ts). The shape bridge (WORLD-20,
+ * written to `classify`) is played in the world since step 4: Kakao's first step, at the river by the bridge
+ * (./bridge.ts). `part`: the ruby is not handed over - the character says where it lies (inside the gingerbread house, in
  * the millstone; WORLD-08), and she takes it there by the action button (RUBIES); ruby 2 is seen in the doorway once the
  * house is assembled and its door opens.
  */
@@ -46,7 +48,7 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d' },
   { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f' },
   { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', SCALES_STEP], shard: '#ff6b8a' },
-  { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: ['odd', 'simon', 'signs', 'part'], shard: '#d62e5c' },
+  { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: [BRIDGE_STEP, 'simon', 'signs', 'part'], shard: '#d62e5c' },
   { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3' },
 ];
 
@@ -54,12 +56,11 @@ export const FRIENDS: readonly CharacterDef[] = [
  * The steps that become tasks in the world in a later step of the grey build, each standing in now as the panel task
  * of the same skill: whose chain, the number of the step, its stand-in, the card of the task in the world and its
  * skill. Played in the world, the step's id becomes the task's own (the world's `tasks` and `worldTasks`), as the
- * gingerbread house (WORLD-21) replaced the number house that stood in for it in step 1 and the scales (WORLD-22) the
- * panel's comparing in step 3.
+ * gingerbread house (WORLD-21) replaced the number house that stood in for it in step 1, the scales (WORLD-22) the
+ * panel's comparing in step 3 and the shape bridge (WORLD-20) the odd one out in step 4. None is left: all three tasks
+ * the document plays in the world are played there; the list stays for a world's step that would stand one in again.
  */
-export const LATER_IN_WORLD = [
-  { owner: 'kakao', step: 0, now: 'odd', card: 'WORLD-20', skill: 'classify' },
-] as const;
+export const LATER_IN_WORLD: readonly { owner: string; step: number; now: string; card: string; skill: string }[] = [];
 
 /** The shape of each character in the grey build: its height, its colour, the mark of its kind on its top. */
 const FIGURE: Record<string, { h: number; r: number; color: string; top: string }> = {
@@ -196,9 +197,16 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   // `compare` by the conversation as a panel task is
   const scales = createScales(g, player, scope);
   scope.own(() => scales.dispose());
-  // The tasks of the chains: the panel ones by the shared conversation; `part`, the house and the scales here. The
-  // task in the world of a later step (LATER_IN_WORLD) joins this record under its own id, with the world's `worldTasks`.
-  const tasks: Record<string, WorldTask> = { part, [HOUSE_STEP]: house, [SCALES_STEP]: scales };
+  // Kakao's shape bridge (WORLD-20): he asks, the heroine walks to the river by the bridge, the task opens on the bank;
+  // its result is handed to the conversation, which records it in `classify` as a panel task; the river stays crossable
+  // by the bridge all along (./bridge.ts)
+  const kakao = FRIENDS.find((c) => c.id === 'kakao')!;
+  const bridge = createBridge(g, player, scope);
+  scope.own(() => bridge.dispose());
+  bridge.opened((ws.quests.kakao ?? 0) > kakao.steps.indexOf(BRIDGE_STEP));
+  // The tasks of the chains: the panel ones by the shared conversation; `part`, the house, the scales and the bridge here.
+  // A task in the world of a later step (LATER_IN_WORLD) would join this record under its own id, with `worldTasks`.
+  const tasks: Record<string, WorldTask> = { part, [HOUSE_STEP]: house, [SCALES_STEP]: scales, [BRIDGE_STEP]: bridge };
   const wrongTasks = worldTaskProblems(sweet.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the Sweet Land: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -262,6 +270,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         }
         house.update(dt, time, canMove);
         scales.update(dt, time);
+        bridge.update(dt, time, canMove);
         // the finale: the five fly up from round the shrine to the candle's top over GATHER_S s of game time
         if (finaleEnd) {
           const k = 1 - Math.max(0, finaleLeft) / GATHER_S, top = scenery.candleTop;
@@ -280,7 +289,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         scenery.turn(dt, WINGS_TURN);
       },
       goal: () => {
-        const h = house.goal();
+        const h = house.goal() ?? bridge.goal();
         if (h) return h;
         const r = rubies.find(waiting);
         if (r) return r.mesh.position;
@@ -300,11 +309,12 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         // landmarks, the route, the river and its bridge
         sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) } },
       talk: (id) => { void dialogue.talk(npc(id)); },
-      // a task in the world open: its right move (the walkthrough's door); the house's step on: she is brought before
-      // it (./house.ts `cheat`); else a ruby waiting in the world is taken
+      // a task in the world open: its right move (the walkthrough's door); the house's or the bridge's step on: she is
+      // brought before it (./house.ts, ./bridge.ts `cheat`); else a ruby waiting in the world is taken
       cheatWorld: () => {
         if (worldTaskDoor(g).solve()) return 'world task';
         if (house.cheat()) return 'house';
+        if (bridge.cheat()) return 'bridge';
         const r = rubies.find(waiting);
         if (!r) return '';
         take(r);
@@ -336,8 +346,8 @@ export const sweet: WorldDef<Record<string, never>, WorldSky> = {
   sky: buildSky,
   load: loadSweet,
   build: buildSweet,
-  // the gingerbread house (WORLD-21) and the scales (WORLD-22) are played in the world; the house is written to no
-  // skill, the scales to `compare` (the customer's decision 2026-11-18)
-  worldTasks: [HOUSE_STEP, SCALES_STEP],
+  // the gingerbread house (WORLD-21), the scales (WORLD-22) and the shape bridge (WORLD-20) are played in the world;
+  // the house is written to no skill, the scales to `compare`, the bridge to `classify` (the customer's decision 2026-11-18)
+  worldTasks: [HOUSE_STEP, SCALES_STEP, BRIDGE_STEP],
   noSkill: [HOUSE_STEP],
 };
