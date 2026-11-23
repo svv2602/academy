@@ -104,7 +104,7 @@ describe('the map of the Sweet Land, the grey build (WORLD-12, docs/worlds/world
 
     it(`at ${scale}: the sweets stand off the ways, the river, the zones and the lines of sight; the cake's candle over all`, async () => {
       const m = await mapAt(scale);
-      const { lollipops, candies, hills, wall } = m.placeSweets();
+      const { lollipops, candies, hills, rim } = m.placeSweets();
       // the lollipop trees in the candy garden only (the customer, 2026-11-23): none by the other zones or the ways out of it
       expect(lollipops.length).toBeGreaterThanOrEqual(3);
       for (const t of lollipops) {
@@ -118,9 +118,10 @@ describe('the map of the Sweet Land, the grey build (WORLD-12, docs/worlds/world
         for (const l of m.sightLines()) expect(m.lineDist(l, t.x, t.z)).toBeGreaterThan(m.SIGHT);
         for (const z of Object.values(m.ZONES)) expect(Math.hypot(z.x - t.x, z.z - t.z)).toBeGreaterThan(8);
       }
-      // the edge: the wall of lollipops and the hills stand past HALF, round the whole map
-      for (const t of [...wall, ...hills]) expect(Math.hypot(t.x, t.z)).toBeGreaterThan(m.HALF);
-      expect(wall.length).toBeGreaterThan((2 * Math.PI * m.HALF) / 6);
+      // the edge: whipped-cream hills past HALF round the whole map, the close row of them close enough to close it
+      // (the customer, 2026-11-23: hills, not a wall of lollipops)
+      for (const t of [...rim, ...hills]) expect(Math.hypot(t.x, t.z)).toBeGreaterThan(m.HALF);
+      expect(rim.length).toBeGreaterThan((2 * Math.PI * m.HALF) / 6);
       // the tallest scattered thing is a lollipop of 3.2 m at 1.4 its size: the candle and the mill's wings stand well over it
       expect(m.CAKE.top).toBeGreaterThanOrEqual(18);
       expect(m.LANDMARKS.mill.top).toBeGreaterThan(3.2 * 1.4 * 2);
