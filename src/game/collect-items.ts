@@ -6,7 +6,7 @@ import { addToStash } from './stash';
 import { showPicture } from '../ui/picture';
 import { createDaily } from './daily-find';
 import {
-  CHASE, COLLECT_KINDS, TAP_R, foundOf, isSet, kindsOf, pictureDone, reaches, setDone, setKindsOf, type CollectDef, type CollectItem, type CollectKind,
+  CHASE, COLLECT_KINDS, TAP_R, floorOf, foundOf, isSet, kindsOf, pictureDone, reaches, setDone, setKindsOf, type CollectDef, type CollectItem, type CollectKind,
 } from './collections';
 
 /**
@@ -35,7 +35,7 @@ export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2, shell: 3.0, coral: 2.8 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -98,7 +98,22 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
   const berries = [[-0.06, 0, 0.03], [0.06, 0.01, 0.02], [0, 0.02, -0.06]].map(([x, y, z]) =>
     paint(new THREE.SphereGeometry(0.065, 7, 5).translate(x, y, z), COLLECT_KINDS.berry.color));
   const leaves = [0.9, -2.2].map((a) => paint(new THREE.SphereGeometry(0.09, 5, 2).scale(1, 0.18, 0.55).rotateY(a).translate(Math.cos(a) * 0.08, -0.05, -Math.sin(a) * 0.08), '#4f9a3c'));
+  // the sea's (the customer's word of 2026-11-23): a spiral shell lying on its side - whorls narrowing to a point, pink
+  // and pearl in turn, its mouth pale; a coral twig - a stem forking into three branches, each with a rounded tip
+  const whorls = [0, 1, 2, 3].map((k) => paint(new THREE.TorusGeometry(0.1 - k * 0.022, 0.045 - k * 0.008, 5, 9).rotateX(Math.PI / 2).translate(0, k * 0.055, 0), k % 2 ? '#fde0ec' : COLLECT_KINDS.shell.color));
+  const tip = paint(new THREE.ConeGeometry(0.03, 0.08, 6).translate(0, 0.25, 0), COLLECT_KINDS.shell.color);
+  const mouth = paint(new THREE.CircleGeometry(0.07, 8).rotateX(Math.PI / 2).translate(0, -0.03, 0), '#fff6f0');
+  const shell = mergeGeometries([...whorls, tip, mouth])!.rotateZ(Math.PI / 2 - 0.25).translate(0.05, -0.02, 0);
+  const twig: THREE.BufferGeometry[] = [paint(new THREE.CylinderGeometry(0.025, 0.035, 0.22, 5).translate(0, 0.11, 0), COLLECT_KINDS.coral.color)];
+  for (const [a, t, h] of [[0, 0.55, 0.16], [2.1, 0.7, 0.13], [4.2, 0.45, 0.15]] as const) {
+    twig.push(paint(new THREE.CylinderGeometry(0.016, 0.022, h, 5).translate(0, h / 2, 0).rotateZ(t).rotateY(a).translate(0, 0.12, 0), COLLECT_KINDS.coral.color));
+    const ex = -Math.sin(t) * h * Math.cos(a), ey = 0.12 + Math.cos(t) * h, ez = Math.sin(t) * h * Math.sin(a);
+    twig.push(paint(new THREE.SphereGeometry(0.03, 6, 4).translate(ex, ey, ez), '#ff9a8a'));
+  }
+  twig.push(paint(new THREE.SphereGeometry(0.032, 6, 4).translate(0, 0.23, 0), '#ff9a8a'));
+  const coral = mergeGeometries(twig)!.translate(0, -0.12, 0);
   return {
+    shell, coral,
     mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
     piece: mergeGeometries([tile, knob, knob2])!, cone, berry: mergeGeometries([...berries, ...leaves])!,
   };
@@ -203,7 +218,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
     update: (dt, time, canMove) => {
       if (gone) return;
       daily.update(dt, time, canMove);
-      const hp = g.hero.root.position, scale = g.hero.root.scale.x;
+      const hp = g.hero.root.position, scale = g.hero.root.scale.x, floor = floorOf(g, hp.x, hp.z);
       const sparkle = (twinkle += dt) > TWINKLE;
       if (sparkle) twinkle = 0;
       dirty.clear();
@@ -246,7 +261,7 @@ export function createCollections(g: CollectHost): CollectInWorld {
         const k = SIZE[it.kind];
         mesh.setMatrixAt(it.slot, m4.compose(it.pos, q.setFromEuler(e), s.set(k * open, k, k)));
         if (sparkle && Math.hypot(it.pos.x - hp.x, it.pos.z - hp.z) < NEAR) g.sparks.burst(it.pos.clone(), '#fff6c8', 3, 0.8);
-        if (canMove && reaches(it.way, it.pos, hp, scale)) take(it);
+        if (canMove && reaches(it.way, it.pos, hp, scale, floor)) take(it);
       }
       for (const mesh of dirty) mesh.instanceMatrix.needsUpdate = true;
     },

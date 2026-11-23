@@ -26,6 +26,9 @@ export const COLLECT_KINDS = {
    */
   cone: { icon: '', svg: 'cone', color: '#a8683a', world: 'forest' },
   berry: { icon: '🫐', color: '#5b6fd6', world: 'forest' },
+  /** the sea's (the customer's word of 2026-11-23): spiral shells and coral twigs, lying on the sand by its ways */
+  shell: { icon: '🐚', color: '#ff9fc4', world: 'sea' },
+  coral: { icon: '🪸', color: '#ff6f61', world: 'sea' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
    * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
   treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },
@@ -100,14 +103,24 @@ export const jumpApex = (v: number, g: number) => (v * v) / (2 * g);
 /** m: the highest point her hands reach, her feet at `feet` and her size `scale`. */
 export const handsAt = (feet: number, scale: number) => feet + HERO_TOP * scale + HANDS;
 
-/** Whether she, her feet at `hero` and of size `scale`, takes a find that is at `at` (its middle): touching is apart. */
-export function reaches(way: CollectWay, at: { x: number; y: number; z: number }, hero: { x: number; y: number; z: number }, scale: number): boolean {
+/**
+ * Whether she, her feet at `hero` and of size `scale`, takes a find that is at `at` (its middle): touching is apart.
+ * `floor`: the ground under her when she swims over it (floorOf) - a find lying there is in her reach as she swims by.
+ */
+export function reaches(way: CollectWay, at: { x: number; y: number; z: number }, hero: { x: number; y: number; z: number }, scale: number, floor?: number): boolean {
   if (way === 'tap') return false;
   if (Math.hypot(at.x - hero.x, at.z - hero.z) > TAKE_R * Math.max(1, scale)) return false;
-  if (at.y < hero.y - 0.3 || at.y > handsAt(hero.y, scale)) return false;
+  if (at.y < Math.min(hero.y - 0.3, floor ?? Infinity) || at.y > handsAt(hero.y, scale)) return false;
   // on a support: her feet up there too, not below its edge
   return way !== 'hop' || hero.y >= at.y - HOP_LIFT - STAND;
 }
+
+/**
+ * The lowest a find is taken from under her, at (x, z): the ground when the world has her swim (WorldDef.move, the
+ * test of src/game/player.ts `swimming`) - she floats over the sand, the finds lie on it; else none (her feet).
+ */
+export const floorOf = (g: { world: { move?: { kind: string } }; groundY(x: number, z: number): number }, x: number, z: number): number | undefined =>
+  (g.world.move?.kind === 'swim' ? g.groundY(x, z) : undefined);
 
 /** The finds found in the world, mended where read (a broken field is an empty list). */
 export function foundOf(ws: WorldState): number[] {

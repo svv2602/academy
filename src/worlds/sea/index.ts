@@ -32,6 +32,7 @@ import { createSeaCreatures } from './creatures';
 import { buildBubbles } from './bubbles';
 import { createSeaMagic } from './magic';
 import { SEA_STORIES } from './story';
+import { COLLECT, DAILY_PLACES } from './collect';
 import { CHEST_FLAG, SEA_SECRETS, SECRET_HOW, createSeaSecrets } from './secrets';
 
 /**
@@ -464,6 +465,8 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   music: MUSIC,
   move: { kind: 'swim', height: SWIM_HEIGHT },
   worldTasks: [LOCK, HALF_STEP],
+  collect: COLLECT,                  // shells and coral twigs (PLAY-25, ./collect.ts)
+  daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   // PLAY-07: the four secrets (./secrets.ts); the hold's chest is the world's chest (PLAY-08)
   secrets: SEA_SECRETS,
   chest: CHEST_FLAG,

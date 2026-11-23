@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { sfx } from '../core/audio';
 import type { WorldState } from '../core/save';
-import { reaches, setKindsOf, type CollectDef, type CollectKind } from './collections';
+import { floorOf, reaches, setKindsOf, type CollectDef, type CollectKind } from './collections';
 import { dayKey } from './playtime';
 import { addToStash } from './stash';
 import type { Game } from './context';
@@ -61,7 +61,8 @@ export function createDaily(g: DailyHost, shapeOf: (kind: CollectKind) => THREE.
       }
       pos.set(today.x, g.groundY(today.x, today.z) + 0.3 + Math.sin(time * 1.6) * 0.05, today.z);
       mesh.position.copy(pos); mesh.rotation.y = time * 0.8;
-      if (canMove && reaches('run', pos, g.hero.root.position, g.hero.root.scale.x)) {
+      const hp = g.hero.root.position;
+      if (canMove && reaches('run', pos, hp, g.hero.root.scale.x, floorOf(g, hp.x, hp.z))) {
         addToStash(g.save, kind);
         g.ws.daily = day;
         sfx('good');

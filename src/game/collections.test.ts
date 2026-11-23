@@ -7,7 +7,7 @@ import { WORLDS } from '../worlds';
 import { createCollections, type CollectHost } from './collect-items';
 import {
   CHASE, COLLECT_KINDS, COLLECT_WAYS, HANDS, HOP_LIFT, SET_SIZE, STAND, TAKE_R, collectProblems, foundOf, handsAt, itemsOf,
-  jumpApex, kindsOf, reaches, setDone, type CollectDef, type CollectItem,
+  floorOf, jumpApex, kindsOf, reaches, setDone, type CollectDef, type CollectItem,
 } from './collections';
 import { HERO_TOP } from './hero';
 import { groundUnder, jumpStep } from './player';
@@ -62,6 +62,18 @@ describe('how high she reaches (PLAY-25, the physics of src/game/player.ts)', ()
     expect(reaches('hop', onStump, { x: 0.3, y: 0.7 - STAND, z: 0 }, 1)).toBe(true);        // up there
     expect(reaches('run', new THREE.Vector3(0, 0.12, 0), { x: 0.9, y: 0, z: 0 }, 1)).toBe(true);
   });
+
+  it('reaches: swimming over the sand she takes what lies on it (floorOf: the ground under her in a world she swims)', () => {
+    const onSand = new THREE.Vector3(0, 1 + 0.08, 0), swimmer = { x: 0.5, y: 1 + 0.6, z: 0 };   // the sea's: a find bobbing low, her 0.6 over the floor
+    expect(reaches('run', onSand, swimmer, 1)).toBe(false);                                // from her feet alone: below them
+    expect(reaches('run', onSand, swimmer, 1, 1)).toBe(true);                              // the sand under her: in reach
+    expect(reaches('run', new THREE.Vector3(0, 0.9, 0), swimmer, 1, 1)).toBe(false);       // under the sand: not
+    expect(reaches('tap', onSand, swimmer, 1, 1)).toBe(false);
+    const world = (kind: string) => ({ world: { move: { kind } }, groundY: (x: number, z: number) => x + z });
+    expect(floorOf(world('swim'), 2, 3)).toBe(5);
+    expect(floorOf(world('walk'), 2, 3)).toBeUndefined();
+    expect(floorOf({ world: {}, groundY: () => 1 }, 0, 0)).toBeUndefined();
+  });
 });
 
 describe('the rule of the collections (src/game/collections.ts)', () => {
@@ -71,7 +83,7 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
   it('sets of six, of the known kinds and the six ways', () => {
     expect(collectProblems(def)).toEqual([]);
     expect(collectProblems({ items: def.items.slice(1) })).toEqual(['the set "acorn" has 5 finds, not 6']);
-    expect(collectProblems({ items: [{ ...def.items[0], kind: 'shell' as never, way: 'bend' as never }] }).length).toBe(3);
+    expect(collectProblems({ items: [{ ...def.items[0], kind: 'pebble' as never, way: 'bend' as never }] }).length).toBe(3);
     expect(COLLECT_WAYS).toEqual(['run', 'jump', 'potion', 'hop', 'tap', 'chase']);
     expect(kindsOf(def)).toEqual(['acorn', 'feather']);
     expect(itemsOf(def, 'feather')).toEqual([6, 7, 8, 9, 10, 11]);
@@ -97,6 +109,10 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
     const forest = WORLDS.find((w) => w.id === 'forest')?.collect;
     if (forest) expect(kindsOf(forest).sort()).toEqual(own('forest').sort());
     expect(own('forest').sort()).toEqual(['berry', 'cone']);
+    // the sea its shells and coral twigs (src/worlds/sea/collect.ts)
+    const sea = WORLDS.find((w) => w.id === 'sea')?.collect;
+    if (sea) expect(kindsOf(sea).sort()).toEqual(own('sea').sort());
+    expect(own('sea').sort()).toEqual(['coral', 'shell']);
     // every way, the catching ones one or two in a world (the decision of 2026-11-20)
     for (const way of COLLECT_WAYS) expect(fairy.items.some((i) => i.way === way), way).toBe(true);
     const chase = fairy.items.filter((i) => i.way === 'chase').length;
