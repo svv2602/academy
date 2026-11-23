@@ -169,7 +169,7 @@ describe('the id of an item is the name of its mark', () => {
 
   it('`active` and `after` of the item are kept', () => {
     let on = false;
-    const scene = marked(marks(), { kind: 'scene', id: 'opening', how: 'auto', after: ['cave'], active: () => on });
+    const scene = marked(marks(), { kind: 'scene', id: 'opening', how: 'tap', after: ['cave'], active: () => on });
     expect(scene.after).toEqual(['cave']);
     on = true;
     expect(scene.active!()).toBe(true);
@@ -226,7 +226,16 @@ describe('the description against what the world declares', () => {
 
   it('an item that plays by itself tells when it is on', () => {
     const ws = marks();
-    expect(one(problems(WORLD, [...whole(WORLD, ws), marked(ws, { kind: 'scene', id: 'ending', how: 'auto' })]))).toBe('the item "ending" plays by itself and does not tell when it is on (active)');
+    expect(one(problems(WORLD, [...whole(WORLD, ws), marked(ws, { kind: 'flyover', id: 'sweep', how: 'auto' })]))).toBe('the item "sweep" plays by itself and does not tell when it is on (active)');
+  });
+
+  it('a cut-scene goes on by a tap: the player of src/game/story.ts never ends a scene by itself', () => {
+    const ws = marks();
+    for (const how of ['auto', 'act', 'walk'] as const) {
+      expect(problems(WORLD, [...whole(WORLD, ws), marked(ws, { kind: 'scene', id: 'ending', how, active: () => false })])).toContain(`the scene "ending" is a cut-scene and goes on by a tap, not by "${how}"`);
+    }
+    // a scene with a place of its own (the probe world's sign) is not a cut-scene of the player
+    expect(problems(WORLD, [...whole(WORLD, ws), marked(ws, { kind: 'scene', id: 'ending', how: 'act', at: { x: 1, z: 1 } })])).toEqual([]);
   });
 
   it('the chains are the world\'s characters one to one', () => {

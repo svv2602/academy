@@ -107,6 +107,8 @@ export function problems(world: Declared, items: readonly WorldItem[]): string[]
     }
     if ((i.how === 'act' || i.how === 'walk') && !i.at) out.push(`the item "${i.id}" is done by "${i.how}" and has no place (at)`);
     if (i.how === 'auto' && !i.active) out.push(`the item "${i.id}" plays by itself and does not tell when it is on (active)`);
+    // a cut-scene (no place of its own) goes on frame by frame with a tap only (src/game/story.ts): it never ends by itself
+    if (i.kind === 'scene' && !i.at && i.how !== 'tap') out.push(`the scene "${i.id}" is a cut-scene and goes on by a tap, not by "${i.how}"`);
   }
   const oneToOne = (kind: WorldItemKind, names: readonly string[], field: string) => {
     const have = items.filter((i) => i.kind === kind).map((i) => i.id);

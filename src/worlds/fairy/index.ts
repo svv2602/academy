@@ -330,13 +330,13 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   const chestRot = chestStars.chest.root.rotation.y, chestAt = chestStars.chest.root.position;
   const items: readonly WorldItem[] = [
     marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => flyover.active }),
-    marked(ws, { kind: 'scene', id: 'story_intro', how: 'auto', active: () => story.active && story.id === 'story_intro' }),
+    marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: () => story.active && story.id === 'story_intro' }),
     marked(ws, { kind: 'secret', id: 'chest', how: 'act', at: { x: chestAt.x + Math.sin(chestRot) * 1.3, z: chestAt.z + Math.cos(chestRot) * 1.3 } }),
     marked(ws, { kind: 'secret', id: GLADE_FLAG, how: 'walk', at: secrets.gladeAt }),
     marked(ws, { kind: 'secret', id: HOUSE_FLAG, how: 'act', at: secrets.boxAt }),
     ...HIDDEN_PARTS.map((p) => marked(ws, { kind: 'part', id: p.flag, how: 'walk', at: { x: p.at.x, z: p.at.z } })),
     marked(ws, { kind: 'finale', id: 'final', how: 'act', at: { x: shrine.pos.x, z: shrine.pos.z }, after: QUESTS.map((q) => q.id) }),
-    marked(ws, { kind: 'scene', id: 'story_crystal', how: 'auto', after: ['final'], active: () => story.active && story.id === 'story_crystal' }),
+    marked(ws, { kind: 'scene', id: 'story_crystal', how: 'tap', after: ['final'], active: () => story.active && story.id === 'story_crystal' }),
   ];
   // What the book shows of this world (src/ui/ui.ts draws it): a shard per friend, then the stars and the chest.
   const book: BookInfo = {
