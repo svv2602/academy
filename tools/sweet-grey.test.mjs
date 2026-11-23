@@ -63,7 +63,7 @@ describe('tools/sweet-grey.mjs', () => {
 
   it('is a part of tools/worlds.mjs of the grey build: played in ci.yml, never before a publication', () => {
     expect(PARTS).toContain('sweet-grey');
-    expect(GREY_PARTS).toEqual(['hub-grey', 'sweet-grey']);
+    expect(GREY_PARTS).toEqual(['hub-grey', 'sweet-grey', 'sea-grey']);
     expect(PUBLISH_PARTS).not.toContain('sweet-grey');
   });
 });
