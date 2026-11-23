@@ -93,18 +93,23 @@ export interface SweetHerd {
 }
 
 /** m: a bear hops this far from its pair's middle at most; a hop's length, height (all the magic), s it takes. */
-export const BEAR_ROAM = 1.4;
-const HOP_STEP = 0.45, HOP_HIGH = 0.28, HOP_T = 0.55;
+export const BEAR_ROAM = 2;
+const HOP_STEP = 0.6, HOP_HIGH = 0.3, HOP_T = 0.6;
 /** m: the two bears of a pair dance round their middle this far from it; rad/s they go round. */
-const DANCE_R = 0.45, DANCE_SPIN = 1.8;
+const DANCE_R = 0.7, DANCE_SPIN = 1.6;
 /** How high the bears hop with no magic, of HOP_HIGH: the land is quiet then (world-4.md «Мир оживает»). */
 export const BEAR_QUIET = 0.55;
 /** m/s a butterfly flies to its lollipop and back; a bird flies from roof to roof; a ladybug crawls. */
 const BF_SPEED = 2.2, BIRD_SPEED = 3.2, BUG_SPEED = 0.09;
 /** s a butterfly blends from where a reaction left it back into its circle. */
 const BF_BLEND = 1.2;
+/**
+ * How much larger than its shape a marmalade leaf is: big enough for the ladybug on it (the customer, 2026-11-23:
+ * "живность мира 4 сделать крупнее" - it must read on the overview from the usual camera).
+ */
+export const LEAF_K = 1.3;
 /** m: a ladybug crawls this far from its leaf's middle; the leaf's top over its middle; how deep a hidden ladybug sits under it. */
-export const LEAF_ROAM = 0.3, LEAF_TOP = 0.08, LEAF_UNDER = 0.08;
+export const LEAF_ROAM = 0.3 * LEAF_K, LEAF_TOP = 0.08 * LEAF_K, LEAF_UNDER = 0.08 * LEAF_K;
 /** m: a bird sits this far from its roof's top (each bird on its own side). */
 const ROOF_SEAT = 0.25;
 
@@ -451,8 +456,8 @@ export function ladybugGeometry(): THREE.BufferGeometry {
 /** A marmalade leaf lying on the ground, its middle at y 0: a flat jelly drop with a lighter vein. */
 export function leafGeometry(): THREE.BufferGeometry {
   return shape([
-    { geo: new THREE.SphereGeometry(1, 10, 4).scale(0.42, 0.05, 0.65).translate(0, 0.03, 0), colour: '#ffffff' },
-    { geo: new THREE.BoxGeometry(0.03, 0.012, 0.9).translate(0, LEAF_TOP + 0.002, 0), colour: '#fff6c8' },
+    { geo: new THREE.SphereGeometry(LEAF_K, 10, 4).scale(0.42, 0.05, 0.65).translate(0, 0.03 * LEAF_K, 0), colour: '#ffffff' },
+    { geo: new THREE.BoxGeometry(0.03 * LEAF_K, 0.012 * LEAF_K, 0.9 * LEAF_K).translate(0, LEAF_TOP + 0.002 * LEAF_K, 0), colour: '#fff6c8' },
   ]);
 }
 
@@ -500,8 +505,14 @@ const LEAF = ['#7bd36a', '#a6e05a', '#5fbf52'];
 const SPARK = { bear: '#ffd0dc', butterfly: '#ffd27a', bird: '#fff4d6', ladybug: '#ffe0e8' } as const;
 /** The game's sounds (src/core/audio.ts sfx): the land has no recorded creature voice. */
 const SOUND = { bear: 'jump', butterfly: 'chime', bird: 'pop', ladybug: 'soft' } as const;
-/** How much larger than its shape each kind is drawn: on a phone a ladybug of 0.17 m is a speck (as the sea's step C found). */
-export const SIZE = { bear: 1.4, bird: 1.6, ladybug: 2, leaf: 1 } as const;
+/**
+ * How much larger than its shape each kind is drawn: on a phone a ladybug of 0.17 m is a speck (as the sea's step C
+ * found), and every kind must read on the overview from the usual camera. The customer's sizes by the heroine's
+ * 1.53 m (2026-11-24, the table of the proportions): a bear 0.95 m tall, a bird 0.65 m, a ladybug 0.55 m long on a
+ * leaf of 1.6 m (LEAF_K), a butterfly 0.8 m across (BUTTERFLY_SIZE times the flock's 0.6).
+ */
+export const SIZE = { bear: 1.71, bird: 2.4, ladybug: 2.84, leaf: 1 } as const;
+export const BUTTERFLY_SIZE = 1.33;
 /** m above a creature's point where its drawn body's middle is (a butterfly is drawn round its point). */
 const BODY = { bear: 0.25 * SIZE.bear, butterfly: 0, bird: 0.14 * SIZE.bird, ladybug: 0.03 * SIZE.ladybug } as const;
 
@@ -565,7 +576,7 @@ export function createSweetCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' |
   const sparks = g.sparks;
   const life = (k: number, n: number) => {
     herd.share(n, k);
-    for (const { c, f } of bfs) f.scale = c.grow;
+    for (const { c, f } of bfs) f.scale = c.grow * BUTTERFLY_SIZE;
     // the flock is drawn only while it has a butterfly of a size: the land has no others
     flies.mesh.visible = first > 0 || bfs.some(({ f }) => f.scale > 0);
   };

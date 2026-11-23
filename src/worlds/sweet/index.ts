@@ -65,13 +65,13 @@ export const FRIENDS: readonly CharacterDef[] = [
  */
 export const LATER_IN_WORLD: readonly { owner: string; step: number; now: string; card: string; skill: string }[] = [];
 
-/** The shape of each character in the grey build: its height, its colour, the mark of its kind on its top. */
+/** The shape of each character in the grey build: its height (the customer's, by the heroine's 1.53 m, 2026-11-24), its colour, the mark of its kind on its top. */
 const FIGURE: Record<string, { h: number; r: number; color: string; top: string }> = {
   pastila: { h: 1.7, r: 0.3, color: '#f7a8c8', top: '#ffffff' },       // the fairy confectioner: her white cap
-  imbir: { h: 1.0, r: 0.3, color: '#b8763c', top: '#fffaf2' },         // the gingerbread man: his icing
-  tyanuchka: { h: 1.6, r: 0.5, color: '#6fd06a', top: '#ffd84a' },     // the marmalade strongman: wide, green and yellow
+  imbir: { h: 1.1, r: 0.3, color: '#b8763c', top: '#fffaf2' },         // the gingerbread man: his icing
+  tyanuchka: { h: 1.85, r: 0.5, color: '#6fd06a', top: '#ffd84a' },     // the marmalade strongman: wide, green and yellow
   kakao: { h: 1.75, r: 0.32, color: '#6b4226', top: '#f5e6c8' },       // the old miller: chocolate, his flour-white hat
-  polosatik: { h: 0.9, r: 0.18, color: '#e8364f', top: '#fffaf2' },    // the little candy-cane watchman
+  polosatik: { h: 1.0, r: 0.18, color: '#e8364f', top: '#fffaf2' },    // the little candy-cane watchman
 };
 
 /**
