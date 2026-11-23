@@ -26,6 +26,7 @@ import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import { lengthOf, pathBetween, routeLegs } from './grey-route.mjs';
+import { passEnv, passProblems } from './sea-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';
@@ -81,10 +82,14 @@ async function main() {
   if (args.pass) {
     const shots = join('shots-e2e', 'sea-grey');
     mkdirSync(join(root, shots), { recursive: true });
-    const env = { ...process.env, E2E_WORLD: 'sea', E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: join(root, shots, 'pass-mobile.json'), E2E_ONLY: '', E2E_MUTE: '0' };
-    const code = await new Promise((r) => spawn(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, 'mobile'], { cwd: root, stdio: 'inherit', env }).on('exit', r));
-    console.log(`[grey] the walkthrough of the sea by its description (phone): ${code === 0 ? 'ok' : `FAILED (code ${code})`}`);
-    if (code !== 0) failed = true;
+    const report = join(root, shots, 'pass-mobile.json');
+    rmSync(report, { force: true });
+    const code = await new Promise((r) => spawn(process.execPath, [join(root, 'tools/shot.mjs'), url, shots, 'mobile'], { cwd: root, stdio: 'inherit', env: passEnv(process.env, report) }).on('exit', r));
+    // the same check of its report as the CI part "sea-grey" (tools/worlds.mjs)
+    const wrong = code === 0 ? passProblems(existsSync(report) ? JSON.parse(readFileSync(report, 'utf8')) : null) : [];
+    for (const p of wrong) console.log(`[grey] the walkthrough: ${p}`);
+    console.log(`[grey] the walkthrough of the sea by its description (phone): ${code === 0 && !wrong.length ? 'ok' : `FAILED (${code !== 0 ? `code ${code}` : `${wrong.length} problem(s)`})`}`);
+    if (code !== 0 || wrong.length) failed = true;
   }
   // ---- 4. the measurements ----
   if (!args.measure && !args.water) { server.close(); process.exit(failed ? 1 : 0); }

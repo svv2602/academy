@@ -626,8 +626,8 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(src).not.toContain('describedScenario');
     expect(src).not.toContain('export function nextItem');
     expect(src).toContain("import { ITEM_KINDS, reportProblems } from './world-pass.mjs';");
-    // the shared walkthrough of tools/shot.mjs: the probe world's ("walk") and the Sweet Land's in the grey build ("sweet-grey")
-    expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(3);
+    // the shared walkthrough of tools/shot.mjs: the probe world's ("walk"), the Sweet Land's and the sea's in the grey build ("sweet-grey", "sea-grey")
+    expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(4);
   });
 
   it('the change of world reads the description of the world played', () => {
@@ -1045,7 +1045,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -1061,7 +1061,7 @@ describe('node tools/worlds.mjs', () => {
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -1083,9 +1083,10 @@ describe('node tools/worlds.mjs', () => {
     // the probe build is made for every part
     expect(src).toMatch(/\n {2}try \{\n\s+rmSync\(probeDist, [^\n]*\n\s+await vite\('the probe build'/);
     for (const call of ['await cacheScenarios(', 'await transitionScenarios(', 'await travelScenarios(']) expect(src.split(call)).toHaveLength(2);
-    // tools/shot.mjs is run by two parts: the probe world's walkthroughs ("walk") and the Sweet Land's in the grey build ("sweet-grey")
-    expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(3);
+    // tools/shot.mjs is run by three parts: the probe world's walkthroughs ("walk"), the Sweet Land's and the sea's in the grey build ("sweet-grey", "sea-grey")
+    expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(4);
     expect(src).toMatch(/if \(play\('sweet-grey'\)\) try \{\n\s+await greyBuild\(\);\n(?:(?!\n {2}\}).*\n)*? {6}const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)[^\n]*sweetPassEnv\(process\.env, out\)\);/);
+    expect(src).toMatch(/if \(play\('sea-grey'\)\) try \{\n\s+await greyBuild\(\);\n(?:(?!\n {2}\}).*\n)*? {6}const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\)[^\n]*seaPassEnv\(process\.env, out\)\);/);
   });
 
   it('tools/e2e.mjs runs it as the step "worlds", after "update", on the dist/ it built', () => {

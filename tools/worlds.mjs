@@ -114,6 +114,10 @@
 //      made it in this run) and the walkthrough of the Sweet Land by its description in it, the phone size
 //      (E2E_WORLD=sweet E2E_WORLD_NEED=grey): from its entry to its finale - its chains, the two rubies in the world,
 //      the tour, the finale. Pictures shots-e2e/worlds-grey/sweet/. A job of ci.yml only, as "hub-grey".
+//  11. The part "sea-grey" (tools/sea-pass.mjs `passEnv`, `passProblems`): the walkthrough of the sea by its description
+//      in the same grey build, the phone size (E2E_WORLD=sea E2E_WORLD_NEED=grey): its chains with the two tasks in
+//      the world (the shell lock, the second half) and the two pearls in it, the tour, its four secrets, the finale.
+//      Pictures shots-e2e/worlds-grey/sea/. A job of ci.yml only, as "hub-grey".
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
@@ -131,6 +135,7 @@ import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 import { HUB_SAVES } from './e2e-saves.mjs';
 import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, hubWay, serveDir } from './hub-grey.mjs';
+import { passEnv as seaPassEnv, passProblems as seaPassProblems } from './sea-pass.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems } from './sweet-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -148,9 +153,9 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
-export const GREY_PARTS = ['hub-grey', 'sweet-grey'];
+export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sea-grey'];
 /**
  * The parts played before a publication (.github/workflows/pages.yml): all but the grey build's (GREY_PARTS) - the grey
  * worlds are not published and must not hold a publication; main only gets a commit already green in ci.yml, which
@@ -804,7 +809,7 @@ async function main() {
 
   // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
   // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone. The part
-  // "sweet-grey" plays in the same build: it is made once a run.
+  // "sweet-grey" and "sea-grey" play in the same build: it is made once a run.
   let greyBuilt = false;
   const greyDist = join(root, GREY_DIST);
   const greyBuild = async () => {
@@ -848,6 +853,27 @@ async function main() {
         const wrong = sweetPassProblems(existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null);
         for (const p of wrong) fail(`the walkthrough of the Sweet Land: ${p}`);
         if (!wrong.length) console.log('[worlds] the Sweet Land of the grey build: played by its description from its entry to its finale');
+      }
+    } finally { server.close(); }
+  } catch (e) { fail(e.message); }
+  // ---- the part "sea-grey": the walkthrough of the sea by its description in the grey build (tools/sea-pass.mjs) ----
+  if (play('sea-grey')) try {
+    await greyBuild();
+    const greyPort = await freePort();
+    const server = await serveDir(greyDist, greyPort);
+    console.log(`[worlds] ${GREY_DIST}/ served on http://127.0.0.1:${greyPort}/ for the sea`);
+    try {
+      const shots = join('shots-e2e', 'worlds-grey', 'sea');
+      mkdirSync(join(root, shots), { recursive: true });
+      const out = join(root, shots, 'pass-mobile.json');
+      rmSync(out, { force: true });
+      const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), `http://127.0.0.1:${greyPort}/`, shots, 'mobile'], runTimeoutMs, seaPassEnv(process.env, out));
+      if (timedOut) fail(`the walkthrough of the sea was killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
+      else if (code !== 0) fail(`the walkthrough of the sea failed: tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
+      else {
+        const wrong = seaPassProblems(existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null);
+        for (const p of wrong) fail(`the walkthrough of the sea: ${p}`);
+        if (!wrong.length) console.log('[worlds] the sea of the grey build: played by its description from its entry to its finale, its four secrets found');
       }
     } finally { server.close(); }
   } catch (e) { fail(e.message); }
