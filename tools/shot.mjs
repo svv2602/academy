@@ -26,8 +26,9 @@
 //            1 — console error or warning, page exception, stuck quest or timed-out wait, failed request
 //                (network error or HTTP >= 400), request to another origin, element linking to another origin,
 //                layout problem on a screen ("layout: <size> <screen>: …"): the document or a panel scrolls,
-//                a panel, button or input is outside the window or cut off by its panel, two buttons or inputs
-//                overlap, the speech bubble covers a button, a button is smaller than 44x44 px;
+//                a panel, button or input is outside the window or cut off by its panel (in a scroll area - the
+//                shop's tiles - only at its sides: up and down it scrolls), two buttons or inputs overlap, the
+//                speech bubble covers a button, a button is smaller than 44x44 px;
 //            2 — bad arguments or environment.
 // Environment:
 //   Q=<0|1|2>               fixed graphics tier (?q=…); default: the game picks and lowers it itself
@@ -705,8 +706,23 @@ try {
       const reachable = (e) => !layers.some((l) => !l.contains(e) && above(l, top(e)));
       const isButton = (e) => e.matches('button, [role=button], input[type=button], input[type=submit], input[type=reset], input[type=checkbox], input[type=radio]');
       // No exceptions: every <button> counts, also the pictures of a task that are only counted, not pressed.
-      const els = [...document.querySelectorAll('button, input, select, textarea, a[href], [role=button]')].filter((e) => shown(e) && reachable(e));
-      const boxes = new Map(els.map((e) => [e, box(e)]));
+      // A button in a scroll area (class `scroll-area`: the shop's tiles, style.css) is seen through it: the part of it
+      // inside the area counts, one scrolled out of sight is not on the screen at all (a swipe brings it); cut off at
+      // a side it is an error all the same - the areas scroll up and down only.
+      const els = [], boxes = new Map();
+      for (const e of document.querySelectorAll('button, input, select, textarea, a[href], [role=button]')) {
+        if (!shown(e) || !reachable(e)) continue;
+        let b = box(e);
+        const area = e.parentElement?.closest('.scroll-area');
+        if (area) {
+          const r = area.getBoundingClientRect();
+          if (b.l < r.left - 1 || b.r > r.right + 1) out.push(`${label(e)} is cut off at the side by ${label(area)}: ${at(b)}`);
+          const t = Math.max(b.t, r.top), bt = Math.min(b.b, r.bottom);
+          if (bt - t <= 1) continue;
+          b = { ...b, t, b: bt };
+        }
+        els.push(e); boxes.set(e, b);
+      }
       for (const e of els) {
         const b = boxes.get(e);
         if (outside(b, win)) out.push(`${label(e)} is outside the ${vw}x${vh} window: ${at(b)}`);
@@ -3195,6 +3211,33 @@ try {
         const s4 = await state(), st4 = await stored();
         if (s4.hair !== hair || s4.wingColor !== wingColor || s4.gear.wings !== null || s4.worn.wings !== null) fail(`the choice: hair ${s4.hair}, wings ${s4.gear.wings} (on her ${s4.worn.wings}) of colour ${s4.wingColor}`);
         if (st4.hair !== hair || st4.wingColor !== wingColor || st4.gear?.wings !== null) fail('the choice of the wings was not stored at once');
+        // 5. a smaller phone held flat (the mobile size only): at 740x360 the head's eleven tiles take three rows, more
+        // than the card holds. The tabs and «Готово» stay whole on the screen (the layout check of the pictures), the
+        // tiles scroll inside the card: the last one is scrolled to and tapped, the list stays there after the tap; then
+        // the tile of what she wore puts it back. The size of the window comes back before «Готово».
+        if (mode === 'mobile') {
+          const size = page.viewportSize();
+          await page.setViewportSize({ width: 740, height: 360 }); await calm();
+          await tab('head');
+          const grid = await g(() => {
+            const a = document.querySelector('#shopItems'), ts = [...a.querySelectorAll('[data-id]')];
+            return { rows: new Set(ts.map((x) => Math.round(x.offsetTop))).size, scrolls: a.scrollHeight > a.clientHeight + 1, last: ts.at(-1)?.dataset.id, head: __game.gear.get('head') };
+          });
+          if (grid.rows < 3) fail(`at 740x360 the head's tiles take ${grid.rows} rows, not three`);
+          if (!grid.scrolls) errors.push(`shop: ${mode}: at 740x360 the head's ${grid.rows} rows fit the card, its scroll went unchecked`);
+          await shot('shop-small');
+          await tap(`#shopItems [data-id=${grid.last}]`); await calm();
+          const end = await g((id) => {
+            const a = document.querySelector('#shopItems'), e = a.querySelector(`[data-id=${id}]`), r = e?.getBoundingClientRect(), ar = a.getBoundingClientRect();
+            return { sel: !!e?.classList.contains('sel'), inView: !!r && r.top >= ar.top - 1 && r.bottom <= ar.bottom + 1, top: a.scrollTop };
+          }, grid.last);
+          if (!end.sel) fail(`at 740x360 the last tile (${grid.last}) is not chosen after a tap on it`);
+          if (grid.scrolls && (!end.inView || end.top === 0)) fail(`at 740x360 the list jumped after a tap on its last tile (${grid.last}): ${JSON.stringify(end)}`);
+          await shot('shop-small-end');
+          await tap(`#shopItems [data-id=${grid.head ?? 'none'}]`); await calm();
+          if ((await g(() => __game.gear.get('head'))) !== grid.head) fail(`at 740x360 the tile of ${grid.head} did not put it back on`);
+          await page.setViewportSize(size); await calm();
+        }
         await tap('#shopDone'); await calm();
         const s5 = await state();
         if (s5.worn.wand !== 'wand_star' || s5.worn.wings !== null || s5.worn.trail !== start.gear.trail || s5.worn.head !== head) fail(`after "done" she wears wand ${s5.worn.wand}, wings ${s5.worn.wings}, trail ${s5.worn.trail}, head ${s5.worn.head}`);
