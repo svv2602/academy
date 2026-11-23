@@ -245,7 +245,16 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
   };
 
   const isWearer = (id: Tab): id is PetWearer => (PET_WEARERS as readonly string[]).includes(id);
+  // The tiles scroll inside the card when they do not fit (style.css #shopItems): a tap on one draws the tab anew, and
+  // the list stays where she scrolled it; another tab starts at its top.
+  let drawn: Tab | null = null;
   function render() {
+    const top = drawn === tab ? items.scrollTop : 0;
+    draw();
+    items.scrollTop = top;
+    drawn = tab;
+  }
+  function draw() {
     tabs.innerHTML = '';
     for (const tb of TABS) {
       if (isWearer(tb.id) && !petOpen(save, tb.id)) continue;   // a pet's tab once it is found
@@ -282,7 +291,7 @@ export function initShop(save: Save, gear: Gear, hooks: ShopHooks): () => void {
 
   const open = () => {
     if (!root.classList.contains('hidden')) return;
-    trial = {}; petTrial = {}; peek = null; potion = null; tab = 'dress';
+    trial = {}; petTrial = {}; peek = null; potion = null; tab = 'dress'; drawn = null;
     // The deal of the day (src/game/deal.ts): the shop opens on its tab, and the cat tells of it once a day.
     const deal = dealOf(save), day = dealDay();
     if (deal) tab = item(deal.id)?.slot ?? petItem(deal.id)?.pet ?? 'potions';
