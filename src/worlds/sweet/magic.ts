@@ -7,6 +7,7 @@ import type { WorldScope } from '../../game/scope';
 import type { CharacterDef, WorldSky } from '../../game/world';
 import { HALF, SCALE, ZONES, type ZoneId } from './layout';
 import { paintMaterial } from './landmarks';
+import type { SweetCreatures } from './creatures';
 import type { Scenery } from './scenery';
 
 /**
@@ -23,8 +24,9 @@ import type { Scenery } from './scenery';
  *   over the zones;
  * - the Ruby back: the whole land its full colour, sugar sparkling in the air, the characters dance a little.
  * The colour is taken off in the shaders of the land's own materials by where a thing stands (`ZONE_OF`), so one
- * uniform a zone does it for every mesh; the butterflies are the game's flock, the sparkle one mesh of points: the magic
- * adds two draw calls at most.
+ * uniform a zone does it for every mesh; the butterflies are the caramel butterflies of the creatures (./creatures.ts,
+ * PLAY-11: they land on the lollipops and answer a tap), drawn by the game's flock, the sparkle one mesh of points: the
+ * magic adds two draw calls at most.
  */
 
 /** How much of the change a magic `m` brings: more with the first rubies (three give two thirds), as the sea's. */
@@ -247,9 +249,9 @@ export function buildSparkle(scene: THREE.Scene, groundY: (x: number, z: number)
  * The magic of the Sweet Land: built after the scenery and the characters (it gives the land's meshes materials of its
  * own and turns the carousel), its `update` in the frame.
  */
-export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groundY'>, scope: WorldScope,
-  o: { sky: WorldSky; scenery: Pick<Scenery, 'spin'>; characters: readonly CharacterDef[]; dancers: readonly THREE.Object3D[] }): Magic {
-  const { scene, ws, flies } = g;
+export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'groundY'>, scope: WorldScope,
+  o: { sky: WorldSky; scenery: Pick<Scenery, 'spin'>; characters: readonly CharacterDef[]; dancers: readonly THREE.Object3D[]; creatures: Pick<SweetCreatures, 'life'> }): Magic {
+  const { scene, ws } = g;
   o.characters.forEach((c, i) => { const z = ZONES[ZONE_OF[c.id]]; U.uSweetZones.value[i].set(z.x, z.z); U.uSweetTint.value[i].set(ZONE_TINT[ZONE_OF[c.id]]); });
   // the land's materials: the shared paint of the shapes, the lollipops', the stalls', the ground's, the river's, the candies'
   const paint = paintMaterial();
@@ -285,16 +287,6 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
   const [bg0, bg1, bg2] = BACKGROUND.map((c) => new THREE.Color(c)), [haze0, haze1, haze2] = HAZE.map((c) => new THREE.Color(c));
   const sparkle = buildSparkle(scene, g.groundY);
 
-  // the caramel butterflies: two over each character's zone, no size until the magic brings them
-  const caramel = ['#e8a04a', '#f5c16c', '#d9822b', '#ffd27a', '#c97a3a'];
-  const first = flies.flies.length;
-  const bfs = Array.from({ length: BUTTERFLIES + BUTTERFLIES_RUBY }, (_, i) => {
-    const c = o.characters[i % o.characters.length], z = ZONES[ZONE_OF[c.id]], a = i * 2.4;
-    const id = flies.add(z.x + Math.cos(a) * 4, z.z + Math.sin(a) * 4, 3.5, caramel[i % caramel.length]);
-    flies.flies[id].scale = 0;
-    return flies.flies[id];
-  });
-
   scope.own(() => {
     for (const { mesh, material } of was) mesh.material = material;
     for (const m of own.values()) m.dispose();
@@ -303,7 +295,6 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
     if (hemi && hemiWas !== undefined) (hemi as THREE.HemisphereLight).intensity = hemiWas;
     bg.copy(bgWas); fog.color.copy(fogWas);
     for (const c of creams) c.material.color.copy(c.was);
-    flies.mesh.visible = true;
     for (const d of o.dancers) { d.position.y = 0; d.rotation.y = 0; }
     U.uSweetSway.value = 0; U.uSweetGlow.value = 0; U.uSweetStreak.value = 0;
   });
@@ -328,9 +319,8 @@ export function createSweetMagic(g: Pick<Game, 'scene' | 'ws' | 'flies' | 'groun
     o.sky.sun.intensity = l.sun;
     if (hemi) (hemi as THREE.HemisphereLight).intensity = l.hemi;
     o.scenery.spin(dt, l.carousel);
-    bfs.forEach((f, i) => { f.scale = clamp01(l.butterflies - i); });
-    // the flock is drawn only while it has a butterfly of a size: the land has no others
-    flies.mesh.visible = first > 0 || bfs.some((f) => f.scale > 0);
+    // the creatures: the caramel butterflies come (two over each zone, no size until the magic brings them), the bears hop higher
+    o.creatures.life(l.life, l.butterflies);
     sparkle.material.uniforms.uOpacity.value = l.sparkle;
     sparkle.points.visible = l.sparkle > 0;
     const t = uTime.value;

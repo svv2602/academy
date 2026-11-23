@@ -17,6 +17,7 @@ import { paintMaterial } from './landmarks';
 import {
   BACKGROUND, BUTTERFLIES, CREAM, RICH, BUTTERFLIES_RUBY, CAROUSEL_TURN, HEMI_POWER, PALE, SUN_POWER, ZONE_OF, ZONE_R, createSweetMagic, sweetLook, sweetMagicOf, sweetUniforms,
 } from './magic';
+import { createSweetCreatures } from './creatures';
 import { buildScenery } from './scenery';
 import { buildGround, colliders } from './terrain';
 
@@ -66,7 +67,9 @@ function land(done: readonly string[] = [], final = false) {
   const before = new Map<THREE.Object3D, THREE.Material | THREE.Material[]>();
   scene.traverse((x) => { if (x instanceof THREE.Mesh) before.set(x, x.material); });
   const scope = createWorldScope(scene);
-  const magic = createSweetMagic(g, scope, { sky: { sun, sunOffset: new THREE.Vector3() }, scenery, characters: FRIENDS, dancers });
+  // the caramel butterflies are the creatures' (./creatures.ts): the magic says how many fly
+  const creatures = createSweetCreatures(g, scope);
+  const magic = createSweetMagic(g, scope, { sky: { sun, sunOffset: new THREE.Vector3() }, scenery, characters: FRIENDS, dancers, creatures });
   const named = (name: string) => scene.getObjectByName(name) as THREE.Mesh;
   return { scene, ws, sun, hemi, flies, scope, magic, dancers, before, named };
 }

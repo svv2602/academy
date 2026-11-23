@@ -73,6 +73,26 @@ export function placeSweets(seed = 23): { lollipops: Put[]; candies: Put[]; hill
   return { lollipops, candies, hills, rim };
 }
 
+/** The houses of the gingerbread town round its square, in the quarters the ways leave free (m from the town's middle): off the ways, Imbir's house, the tower and the lines of sight. Their roofs are the gingerbread birds' (./creatures.ts). */
+export function townHouses(): Put[] {
+  const town = ZONES.town, tower = LANDMARKS.town;
+  return [[6, -7], [7, 6], [-8, -10], [-9, -1]].map(([dx, dz], i) => ({ x: town.x + dx, z: town.z + dz, s: 1, rot: i * 0.7 }))
+    .filter((h) => pathDist(h.x, h.z) > 3.5 && Math.hypot(h.x - HOUSE.x, h.z - HOUSE.z) > 5 && Math.hypot(h.x - tower.x, h.z - tower.z) > 4.5
+      && sightLines().every((l) => lineDist(l, h.x, h.z) > SIGHT + 1.5));
+}
+/** m: the top of a town house's icing roof over its foot, its cone's radius; the tower's roof is LANDMARKS.town.top high, 2.1 m round. */
+export const HOUSE_ROOF = { top: 4.4, r: 2.8, h: 1.8 } as const;
+
+/** The striped trees round the candy garden's tallest lollipop: off the ways, the landmark and the lines of sight. */
+export function gardenTrees(): Put[] {
+  const g = LANDMARKS.garden;
+  return Array.from({ length: 10 }, (_, i) => ({ x: ZONES.garden.x + Math.cos(i * 2.4) * (6 + (i % 3) * 2), z: ZONES.garden.z + Math.sin(i * 2.4) * (6 + (i % 3) * 2), s: 0.9 + (i % 3) * 0.15, rot: i }))
+    .filter((t) => pathDist(t.x, t.z) > 2.5 && Math.hypot(t.x - g.x, t.z - g.z) > 2.5 && sightLines().every((l) => lineDist(l, t.x, t.z) > SIGHT));
+}
+/** The lollipop tree's height and its candy's radius (times a tree's size), the garden's tallest one's; its candy's top is LOLLY_TOP of the radius over the stick. */
+export const LOLLY = { h: 3.2, r: 1.1 } as const, LOLLY_BIG = { h: LANDMARKS.garden.top - 2.3, r: 1.6 } as const;
+export const LOLLY_TOP = 1.43;
+
 const mat = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true, ...extra });
 
 /** One instanced mesh of `geo` at every `put`, standing on the ground; `y` lifts each. */
@@ -109,7 +129,7 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   for (const h of rim) colliders.push({ x: h.x, z: h.z, r: RIM_R * 0.8 * h.s });
 
   // ----- the scattered sweets and the rim -----
-  const pop = paint(lollipop(3.2, 1.1));
+  const pop = paint(lollipop(LOLLY.h, LOLLY.r));
   instances(scene, 'lollipops', pop, paintMaterial(), lollipops);
   instances(scene, 'candies', new THREE.DodecahedronGeometry(0.7, 0).scale(1.4, 0.7, 1).translate(0, 0.5, 0), mat('#ffd166'), candies);
   instances(scene, 'cream-hills', new THREE.SphereGeometry(5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1), mat('#fff4ea', { roughness: 0.95 }), hills, 0, false);
@@ -138,12 +158,8 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   scene.add(seats);
 
   // ----- the gingerbread town: brown houses with white icing roofs round its square, the gingerbread tower -----
-  const town = ZONES.town;
   const tower = LANDMARKS.town;
-  // in the quarters the ways leave free, metres from the town's middle: off the ways, Imbir's house, the tower and the lines of sight
-  const houses: Put[] = [[6, -7], [7, 6], [-8, -10], [-9, -1]].map(([dx, dz], i) => ({ x: town.x + dx, z: town.z + dz, s: 1, rot: i * 0.7 }))
-    .filter((h) => pathDist(h.x, h.z) > 3.5 && Math.hypot(h.x - HOUSE.x, h.z - HOUSE.z) > 5 && Math.hypot(h.x - tower.x, h.z - tower.z) > 4.5
-      && sightLines().every((l) => lineDist(l, h.x, h.z) > SIGHT + 1.5));
+  const houses = townHouses();
   for (const h of houses) colliders.push({ x: h.x, z: h.z, r: 2.2 });
   instances(scene, 'gingerbread-houses', paint([
     [new THREE.BoxGeometry(3.4, 2.6, 3.4).translate(0, 1.3, 0), '#b8763c'],
@@ -165,10 +181,9 @@ export function buildScenery(scene: THREE.Scene): Scenery {
 
   // ----- the candy garden: its tallest lollipop (the landmark), striped trees round it -----
   const g = LANDMARKS.garden;
-  paintedAt(scene, 'landmark-garden', g.x, g.z, lollipop(g.top - 2.3, 1.6));
+  paintedAt(scene, 'landmark-garden', g.x, g.z, lollipop(LOLLY_BIG.h, LOLLY_BIG.r));
   colliders.push({ x: g.x, z: g.z, r: 0.6 });
-  const trees: Put[] = Array.from({ length: 10 }, (_, i) => ({ x: ZONES.garden.x + Math.cos(i * 2.4) * (6 + (i % 3) * 2), z: ZONES.garden.z + Math.sin(i * 2.4) * (6 + (i % 3) * 2), s: 0.9 + (i % 3) * 0.15, rot: i }))
-    .filter((t) => pathDist(t.x, t.z) > 2.5 && Math.hypot(t.x - g.x, t.z - g.z) > 2.5 && sightLines().every((l) => lineDist(l, t.x, t.z) > SIGHT));
+  const trees = gardenTrees();
   for (const t of trees) colliders.push({ x: t.x, z: t.z, r: 0.5 * t.s });
   instances(scene, 'garden-lollipops', pop, paintMaterial(), trees);
 

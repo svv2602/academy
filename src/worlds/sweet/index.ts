@@ -23,6 +23,7 @@ import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SC
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
+import { createSweetCreatures } from './creatures';
 import { createSweetMagic } from './magic';
 
 /**
@@ -160,8 +161,11 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
-  // the magic of the Sweet Land (WORLD-09): from the rubies in the save; after the scenery and the characters it touches
-  const magic = createSweetMagic(g, scope, { sky, scenery, characters: FRIENDS, dancers: npcs.map((n) => n.actor.model) });
+  // the creatures of no task (PLAY-11, PLAY-12): gummy bears, caramel butterflies, gingerbread birds, dragee ladybugs;
+  // after the scenery and the characters, whose colliders they keep clear of
+  const creatures = createSweetCreatures(g, scope);
+  // the magic of the Sweet Land (WORLD-09): from the rubies in the save; after the scenery, the characters and the creatures it touches
+  const magic = createSweetMagic(g, scope, { sky, scenery, characters: FRIENDS, dancers: npcs.map((n) => n.actor.model), creatures });
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the rubies that lie in the world (WORLD-08): the step `part` of Imbir's and Kakao's chains -----
@@ -256,7 +260,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
       ],
-      tap: (screenDist) => player.tap(screenDist),
+      tap: (screenDist) => player.tap(screenDist) || creatures.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -288,6 +292,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         whole.rotation.y = time;
         scenery.flame.visible = ws.final;
         scenery.flame.scale.setScalar(1 + Math.sin(time * 9) * 0.08);
+        creatures.update(dt);
         // the magic: the colours, the light, the river and the carousel, the butterflies, the sugar, the dance
         magic.update(dt);
         scenery.turn(dt, WINGS_TURN);
@@ -313,7 +318,11 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         // landmarks, the route, the river and its bridge
         sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) },
         // the magic of the Sweet Land (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
-        magic, setMagic: (v: number | null) => magic.set(v) },
+        magic, setMagic: (v: number | null) => magic.set(v),
+        // the creatures of no task (kind, state, position, taps), the middle of one's body over its point, one held still
+        creatures: creatures.herd.all,
+        creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
+        holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)) },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a task in the world open: its right move (the walkthrough's door); the house's or the bridge's step on: she is
       // brought before it (./house.ts, ./bridge.ts `cheat`); else a ruby waiting in the world is taken
