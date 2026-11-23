@@ -1,7 +1,8 @@
 // The pure parts of tools/sea-pass.mjs: the environment of the sea's walkthrough and the check of its report, the part
 // "sea-grey" of tools/worlds.mjs (a job of ci.yml, never before a publication).
 import { describe, expect, it } from 'vitest';
-import { PASS_KINDS, SEA, SECRETS, WORLD_SKILLS, passEnv, passProblems } from './sea-pass.mjs';
+import { readFileSync } from 'node:fs';
+import { PASS_KINDS, PASS_TIMEOUT_MS, SEA, SECRETS, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs } from './sea-pass.mjs';
 import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
 /** A report of a walkthrough that came to its end: every chain, the tour, the pearls, the secrets, the finale. */
@@ -38,6 +39,16 @@ describe('tools/sea-pass.mjs', () => {
       'the task in the world "khvylia 2" recorded the skill "count", "compose" expected',
       'the task in the world "pantsyr 0" was not played by the pass',
     ]);
+  });
+
+  it('has a limit of its own, twice the slowest walkthrough seen on the runner and inside the job, unless a run asks its own', () => {
+    expect(passTimeoutMs({})).toBe(PASS_TIMEOUT_MS);
+    expect(PASS_TIMEOUT_MS).toBeGreaterThanOrEqual(2 * 600000);
+    expect(PASS_TIMEOUT_MS).toBeLessThan(25 * 60000);
+    expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
+    // tools/worlds.mjs plays the sea with it, not with the shared limit of the other walkthroughs
+    const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    expect(worlds).toContain("shots, 'mobile'], seaMs, seaPassEnv(process.env, out));");
   });
 
   it('is a part of tools/worlds.mjs of the grey build: played in ci.yml, never before a publication', () => {

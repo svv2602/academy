@@ -120,7 +120,8 @@
 //      Pictures shots-e2e/worlds-grey/sea/. A job of ci.yml only, as "hub-grey".
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
-// E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000).
+// E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
+// the sea's of part 11, default tools/sea-pass.mjs PASS_TIMEOUT_MS).
 // Exit code: 0 — passed; 1 — a check failed (every failure is printed as "worlds: …"); 2 — bad arguments.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -135,7 +136,7 @@ import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 import { HUB_SAVES } from './e2e-saves.mjs';
 import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, hubWay, serveDir } from './hub-grey.mjs';
-import { passEnv as seaPassEnv, passProblems as seaPassProblems } from './sea-pass.mjs';
+import { passEnv as seaPassEnv, passProblems as seaPassProblems, passTimeoutMs as seaPassTimeoutMs } from './sea-pass.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems } from './sweet-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -867,8 +868,10 @@ async function main() {
       mkdirSync(join(root, shots), { recursive: true });
       const out = join(root, shots, 'pass-mobile.json');
       rmSync(out, { force: true });
-      const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), `http://127.0.0.1:${greyPort}/`, shots, 'mobile'], runTimeoutMs, seaPassEnv(process.env, out));
-      if (timedOut) fail(`the walkthrough of the sea was killed after ${runTimeoutMs} ms (E2E_RUN_TIMEOUT_MS)`);
+      // the sea's own limit: the longest walkthrough of this file (tools/sea-pass.mjs PASS_TIMEOUT_MS)
+      const seaMs = seaPassTimeoutMs(process.env);
+      const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/shot.mjs'), `http://127.0.0.1:${greyPort}/`, shots, 'mobile'], seaMs, seaPassEnv(process.env, out));
+      if (timedOut) fail(`the walkthrough of the sea was killed after ${seaMs} ms (tools/sea-pass.mjs PASS_TIMEOUT_MS, or E2E_RUN_TIMEOUT_MS when set)`);
       else if (code !== 0) fail(`the walkthrough of the sea failed: tools/shot.mjs exited with ${signal ?? `code ${code}`} — see ERRORS above`);
       else {
         const wrong = seaPassProblems(existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null);

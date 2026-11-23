@@ -22,6 +22,19 @@ export const SECRETS = ['ship_chest', 'bubble_lift', 'echo_shells', 'whale'];
  */
 export const WORLD_SKILLS = { 'khvylia 2': 'compose', 'pantsyr 0': 'pattern' };
 
+/**
+ * The limit of the sea's walkthrough in tools/worlds.mjs, ms. It is the longest world walked there: on the CI runner
+ * (swiftshader, ~1 fps) it took 8.4-10 min of the shared 10 (E2E_RUN_TIMEOUT_MS, 600000) - its chains 5.5-6.3 min,
+ * the secrets 1-1.5, the two cut-scenes half a minute - and was killed at 10 once. Twice the slowest seen, inside the
+ * job's 25 minutes (.github/workflows/ci.yml "worlds").
+ */
+export const PASS_TIMEOUT_MS = 1200000;
+
+/** The limit of the sea's walkthrough: E2E_RUN_TIMEOUT_MS when it is set (a run asks its own), PASS_TIMEOUT_MS else. */
+export function passTimeoutMs(env) {
+  return env.E2E_RUN_TIMEOUT_MS ? Number(env.E2E_RUN_TIMEOUT_MS) : PASS_TIMEOUT_MS;
+}
+
 /** The environment of tools/shot.mjs for the sea's walkthrough in the phone size, its report written to `out`. */
 export function passEnv(base, out) {
   return { ...base, E2E_WORLD: SEA, E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: out, E2E_ONLY: '', E2E_MUTE: '0' };
