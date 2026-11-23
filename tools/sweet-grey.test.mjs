@@ -1,14 +1,25 @@
 // The pure parts of tools/sweet-grey.mjs: its arguments, the walkthrough's environment and the check of its report,
 // the time of the route. The run itself (a build, a browser) is not played here.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { GREY_BUILD } from './world-pass.mjs';
-import { LANDMARK_NAMES, PARTS_IN_WORLD, PASS_KINDS, SECRETS, SWEET, WORLD_SKILLS, passEnv, passProblems, readArgs, routeSeconds } from './sweet-grey.mjs';
+import { LANDMARK_NAMES, PARTS_IN_WORLD, PASS_KINDS, PASS_TIMEOUT_MS, SECRETS, SWEET, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs, readArgs, routeSeconds } from './sweet-grey.mjs';
 
 /** The secrets of the description (src/worlds/sweet/secrets.ts), each done by the pass. */
 const SECRET_ITEMS = SECRETS.map((id) => ({ id, kind: 'secret' }));
 
 describe('tools/sweet-grey.mjs', () => {
+  it('has a limit of its own, twice the shared limit of a walkthrough and inside the job, unless a run asks its own', () => {
+    expect(passTimeoutMs({})).toBe(PASS_TIMEOUT_MS);
+    expect(PASS_TIMEOUT_MS).toBeGreaterThanOrEqual(2 * 600000);
+    expect(PASS_TIMEOUT_MS).toBeLessThan(25 * 60000);
+    expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
+    // tools/worlds.mjs plays the Sweet Land with it, not with the shared limit of the other walkthroughs
+    const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    expect(worlds).toContain("shots, 'mobile'], sweetMs, sweetPassEnv(process.env, out));");
+  });
+
   it('reads its arguments: the chosen stretch 1.6 and q2 by default', () => {
     const o = readArgs([]);
     expect([o.scales, o.q, o.pass, o.measure]).toEqual([[1.6], 2, true, true]);
