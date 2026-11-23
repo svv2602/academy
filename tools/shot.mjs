@@ -1313,7 +1313,7 @@ try {
         await g(([x, z]) => __game.teleport(x, z), back); await gameWait(1);
         console.log(`the heroine: one model, feet on the ground in ${(await g(() => __game.hero.actions.size))} clips, ${body.skin} skin texels kept, ${body.dressPainted} dress texels painted`);
 
-        // ---- her items (PLAY-04, PLAY-05, PLAY-06, src/game/gear.ts): all thirteen modelled items hang on her, none but the petals
+        // ---- her items (PLAY-04, PLAY-05, PLAY-06, src/game/gear.ts): all sixteen modelled items hang on her, none but the petals
         // shown by default; each modelled item, in every clip sampled 13 times, rides on its bone (the distance from a point
         // of the item to the bone stays the same within 1 cm and within the reach of its slot); in Walk, Run, Jump and
         // Interact the wand, beyond the grip, keeps out
@@ -1328,8 +1328,9 @@ try {
             if (gear.get(slot) !== id) out.errors.push(`by default the slot "${slot}" wears ${gear.get(slot)}, not ${id}`);
           }
           for (const [id, part] of Object.entries(gear.parts)) if (part.object.visible) out.errors.push(`${id} is worn by default`);
-          // the seven of the shop, the six of the looks (PLAY-06, src/game/looks.ts) and the two gifts of a trade (PLAY-28)
-          const want = ['acorn_cap', 'crown', 'earrings_star', 'elf_ears', 'feather_crown', 'tiara', 'wand_crystal', 'wand_flower', 'wand_leaf', 'wand_moon', 'wand_star', 'wings_butterfly', 'wizard_cap', 'wizard_hat', 'wreath'];
+          // the seven of the shop, the six of the looks (PLAY-06, src/game/looks.ts) and the three gifts of a trade (PLAY-28):
+          // the fairies' feather crown and acorn cap, Borovik's fly-agaric hat (src/worlds/forest/trade.ts)
+          const want = ['acorn_cap', 'crown', 'earrings_star', 'elf_ears', 'feather_crown', 'mushroom_hat', 'tiara', 'wand_crystal', 'wand_flower', 'wand_leaf', 'wand_moon', 'wand_star', 'wings_butterfly', 'wizard_cap', 'wizard_hat', 'wreath'];
           if (Object.keys(gear.parts).sort().join() !== want.join()) out.errors.push(`the items on her: ${Object.keys(gear.parts).sort().join(', ')}, not ${want.join(', ')}`);
           let mesh; const B = {};
           model.traverse((o) => { if (o.isSkinnedMesh) mesh = o; if (o.isBone) B[o.name] = o; });
