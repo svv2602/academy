@@ -199,3 +199,31 @@ export const HUB_SAVES = {
     return s;
   },
 };
+
+/**
+ * The sea's steps of each chain (src/worlds/sea/index.ts FRIENDS; the unit test compares): Bulk and Pantsyr end theirs
+ * on a pearl in the world.
+ */
+export const SEA_CHAINS = { khvylia: 3, bulk: 4, pantsyr: 4, kleshnya: 3, iskorka: 3 };
+/**
+ * The marks of the sea done (the unit test compares with the world): the pearls in the world with their hints, the
+ * tour, both cut-scenes, the four secrets, the cat's three first lines (said already: none of them breaks in later).
+ */
+export const SEA_DONE_FLAGS = [
+  'bulk_hint', 'pearl_reef', 'pantsyr_hint', 'pearl_ship', 'toured', 'story_intro', 'story_pearl',
+  'ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'told_bubble', 'told_swim', 'told_wet',
+];
+
+/**
+ * The saves of the sea: `done` - the shop's save (the first world done) with the sea done too: its five chains, the
+ * Pearl restored, every mark - the sea at magic 1 as a child sees it after its finale (the phone's measure of the world
+ * alive, docs/perf.md; a walkthrough of what comes after the finale). The 20 stars of the sea's walkthrough on top.
+ */
+export const SEA_SAVES = {
+  done: () => {
+    const s = GROUPS.shop.save();
+    s.stars += 20;
+    s.worlds.sea = { quests: { ...SEA_CHAINS }, final: true, starsTaken: [], flags: Object.fromEntries(SEA_DONE_FLAGS.map((f) => [f, true])), pos: null };
+    return s;
+  },
+};
