@@ -23,6 +23,7 @@ import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SC
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
+import { createSweetMagic } from './magic';
 
 /**
  * The Sweet Land (WORLD-04), its grey build (WORLD-12), step 1: the map of docs/worlds/world-4.md in simple shapes at
@@ -86,8 +87,8 @@ export const FINALE = 'final';
 const TOUR = 'toured';
 /** m: the action spot of a ruby's place; the shrine's. */
 const RUBY_R = 2.6, SHRINE_R = 3;
-/** rad/s: the mill's wings turn all the time (by code, docs/worlds/world-4.md); the carousel once the Ruby is whole. */
-export const WINGS_TURN = 0.35, CAROUSEL_TURN = 0.7;
+/** rad/s: the mill's wings turn all the time (by code, docs/worlds/world-4.md); the carousel turns with the magic (./magic.ts). */
+export const WINGS_TURN = 0.35;
 /** s of game time the five rubies fly up to the candle in the finale. */
 const GATHER_S = 2;
 
@@ -159,6 +160,8 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
+  // the magic of the Sweet Land (WORLD-09): from the rubies in the save; after the scenery and the characters it touches
+  const magic = createSweetMagic(g, scope, { sky, scenery, characters: FRIENDS, dancers: npcs.map((n) => n.actor.model) });
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the rubies that lie in the world (WORLD-08): the step `part` of Imbir's and Kakao's chains -----
@@ -236,7 +239,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
     sfx('fanfare');
     five.forEach((m) => { m.visible = true; });
     await new Promise<void>((done) => { finaleLeft = GATHER_S; finaleEnd = done; });
-    // the Ruby whole on the candle: the candle lights, the carousel turns, confetti of sugar powder from the sky
+    // the Ruby whole on the candle: the candle lights, the magic comes to 1 (the carousel at its fastest), confetti of sugar powder from the sky
     five.forEach((m) => { m.visible = false; });
     ws.final = true; g.persist();
     for (const [i, c] of CONFETTI.entries()) g.sparks.burst(g.above(shrine, 5 + i), c, 40, 6);
@@ -285,7 +288,8 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
         whole.rotation.y = time;
         scenery.flame.visible = ws.final;
         scenery.flame.scale.setScalar(1 + Math.sin(time * 9) * 0.08);
-        scenery.spin(dt, ws.final ? CAROUSEL_TURN : 0);
+        // the magic: the colours, the light, the river and the carousel, the butterflies, the sugar, the dance
+        magic.update(dt);
         scenery.turn(dt, WINGS_TURN);
       },
       goal: () => {
@@ -307,7 +311,9 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
       more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SWEET_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // the map as the measurements of the grey build read it (tools/sweet-grey.mjs): its stretch, zones, ways,
         // landmarks, the route, the river and its bridge
-        sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) } },
+        sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) },
+        // the magic of the Sweet Land (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
+        magic, setMagic: (v: number | null) => magic.set(v) },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a task in the world open: its right move (the walkthrough's door); the house's or the bridge's step on: she is
       // brought before it (./house.ts, ./bridge.ts `cheat`); else a ruby waiting in the world is taken
