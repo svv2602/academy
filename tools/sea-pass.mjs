@@ -7,11 +7,11 @@ import { reportProblems } from './world-pass.mjs';
 /** The id of the sea (src/worlds/sea/index.ts). */
 export const SEA = 'sea';
 /**
- * The kinds of the description the walkthrough must have done in its own order: the chains, the tour, the secrets, the
- * finale. The pearls in the world are taken inside the chains (as the Sweet Land's rubies), not as items of their own:
+ * The kinds of the description the walkthrough must have done in its own order: the chains, the tour, the secrets,
+ * Bulchik the pet (found after Bulk's chain), the finale. The pearls in the world are taken inside the chains (as the Sweet Land's rubies), not as items of their own:
  * the finale waits for them, so a finale done says they were.
  */
-export const PASS_KINDS = ['chain', 'flyover', 'secret', 'finale'];
+export const PASS_KINDS = ['chain', 'flyover', 'secret', 'pet', 'finale'];
 /** The pearls of the artifact that lie in the sea (WORLD-08): in the corals and in the cabin. */
 export const PARTS_IN_WORLD = 2;
 /** The sea's secrets (src/worlds/sea/secrets.ts SEA_SECRETS). */

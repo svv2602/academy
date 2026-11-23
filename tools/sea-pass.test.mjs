@@ -10,7 +10,7 @@ function report() {
   const items = [
     ...['khvylia', 'bulk', 'pantsyr', 'kleshnya', 'iskorka'].map((id) => ({ id, kind: 'chain', how: 'act' })),
     { id: 'toured', kind: 'flyover', how: 'auto' }, { id: 'pearl_reef', kind: 'part', how: 'walk' }, { id: 'pearl_ship', kind: 'part', how: 'act' },
-    ...SECRETS.map((id) => ({ id, kind: 'secret', how: 'act' })), { id: 'final', kind: 'finale', how: 'act' },
+    ...SECRETS.map((id) => ({ id, kind: 'secret', how: 'act' })), { id: 'bulchik', kind: 'pet', how: 'act' }, { id: 'final', kind: 'finale', how: 'act' },
   ];
   return { world: SEA, size: 'mobile', online: true, need: 'grey', items, order: items.filter((i) => i.kind !== 'part').map((i) => i.id),
     worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };
@@ -23,7 +23,11 @@ describe('tools/sea-pass.mjs', () => {
 
   it('a walkthrough that came to its end has nothing wrong', () => {
     expect(passProblems(report())).toEqual([]);
-    expect(PASS_KINDS).toEqual(['chain', 'flyover', 'secret', 'finale']);
+    expect(PASS_KINDS).toEqual(['chain', 'flyover', 'secret', 'pet', 'finale']);
+    // Bulchik not found: the pass did no item of the kind "pet"
+    const r = report();
+    r.items = r.items.filter((i) => i.kind !== 'pet'); r.order = r.order.filter((id) => id !== 'bulchik');
+    expect(passProblems(r).join('; ')).toContain('no item of kind "pet"');
   });
 
   it('says what is missing: no report, a secret not found, a pearl not in the description, a task in the world not played or written to another skill', () => {
