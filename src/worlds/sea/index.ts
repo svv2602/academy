@@ -30,6 +30,7 @@ import { buildGround, colliders, ground } from './terrain';
 import { createSeaCreatures } from './creatures';
 import { buildBubbles } from './bubbles';
 import { createSeaMagic } from './magic';
+import { CHEST_FLAG, SEA_SECRETS, SECRET_HOW, createSeaSecrets } from './secrets';
 
 /**
  * The Underwater Kingdom (WORLD-03), its grey build (WORLD-12): the map of docs/worlds/world-3.md in simple shapes at
@@ -195,13 +196,20 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(worldClips('sea', CLIPS));
   scene.add(buildGround(160));
   const floor = buildScenery(scene, L.wreck);
-  // the chest in the hold, by the cabin's door: shut - the world's secret `ship_chest` (docs/worlds/world-3.md) opens it later
+  // the chest in the hold, by the cabin's door: the world's secret `ship_chest` (./secrets.ts) opens it
   const chest = new Actor(L.chest);
-  chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z); chest.root.rotation.y = 0.3 + Math.PI / 2;
+  // its lid away from the cabin's door and from Pantsyr: the action of each stays its own (the button of the nearest
+  // spot is the last in reach - opened by the chest's, the cabin's door was the chest's: the walkthrough of 2026-11-23)
+  const PANTSYR = FRIENDS.find((c) => c.id === 'pantsyr')!;
+  const toCabin = Math.atan2(CABIN.x - CHEST.x, CABIN.z - CHEST.z), toTurtle = Math.atan2(PANTSYR.x - CHEST.x, PANTSYR.z - CHEST.z);
+  chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z);
+  chest.root.rotation.y = Math.atan2(-(Math.sin(toCabin) + Math.sin(toTurtle)), -(Math.cos(toCabin) + Math.cos(toTurtle)));
   chest.root.traverse((o) => { o.castShadow = true; });
   scene.add(chest.root);
   g.ground.block(CHEST.x, CHEST.z, 0.6);
   const shafts = buildShafts(scene, SHAFTS);
+  // the secrets (PLAY-07, ./secrets.ts): the chest, the bubble lift, the echo shells, the whale from the lookout
+  const secrets = createSeaSecrets(g, scope, { chest });
   // the creatures of no task (PLAY-11, PLAY-12): schools of fish, jellyfish, crabs, starfish; the columns of bubbles
   const creatures = createSeaCreatures(g);
   const bubbles = buildBubbles(scene);
@@ -294,7 +302,9 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const before = [...declared(g), tourItem, ...pearlItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...THRONE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
-  const own: readonly WorldItem[] = [tourItem, ...pearlItems, finaleItem];
+  // the secrets are the child's own, never needed by the finale
+  const secretItems = SEA_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
+  const own: readonly WorldItem[] = [tourItem, ...pearlItems, ...secretItems, finaleItem];
   const restore = () => playScene(stage, 'sea finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(throne, 2);
@@ -319,11 +329,13 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   return {
     frame: {
       spots: [
+        // the secrets' first: where one's reach meets a character's or the cabin's, theirs is the button
+        ...secrets.spots,
         ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         { pos: cabin, r: CABIN_R, label: 'sea_cabin', on: () => waiting(cabinPearl), run: () => take(cabinPearl) },
         { pos: throne, r: THRONE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],
-      tap: (screenDist) => player.tap(screenDist) || corals.tap(screenDist) || creatures.tap(screenDist),
+      tap: (screenDist) => player.tap(screenDist) || corals.tap(screenDist) || secrets.tap(screenDist) || creatures.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         const hp = hero.root.position;
@@ -347,6 +359,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         (swamFrom ??= new THREE.Vector3()).copy(hp);
         lock.update(dt, canMove);
         corals.update(dt, time, canMove);
+        secrets.update(dt, time, canMove);
         // the cat's words of the first visit (ONCE): only while she is free and nobody speaks, so no line is cut
         // and never while a task in the world is open: closing one must leave the save as it was
         // and only after QUIET s of game time free so: never in the moment a task or a talk has just ended or begins
@@ -398,6 +411,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
         // the magic of the sea (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
+        // the secrets (./secrets.ts): where each is found and its things, for their pictures and their draw calls
+        seaSecrets: { at: secrets.at, ...secrets.debug },
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },
@@ -407,6 +422,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (worldTaskDoor(g).solve()) return 'world task';
         if (lock.cheat()) return 'lock';
         if (corals.cheat()) return 'corals';
+        const s = secrets.cheat();
+        if (s) return s;
         const p = pearls.find(waiting);
         if (!p) return '';
         if (p.how === 'act') { take(p); return 'part'; }
@@ -422,6 +439,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     hud: () => `${npcs.filter(finished).length}/${npcs.length}`,
     gear,
     items: () => own,
+    glimmer: () => secrets.glimmer(),
   };
 }
 
@@ -436,6 +454,9 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   music: MUSIC,
   move: { kind: 'swim', height: SWIM_HEIGHT },
   worldTasks: [LOCK, HALF_STEP],
+  // PLAY-07: the four secrets (./secrets.ts); the hold's chest is the world's chest (PLAY-08)
+  secrets: SEA_SECRETS,
+  chest: CHEST_FLAG,
   sky: buildSky,
   load: loadSea,
   build: buildSea,

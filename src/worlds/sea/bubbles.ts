@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { LANDMARKS, ZONES } from './layout';
+import { liftOf } from './secrets';
 import { height } from './terrain';
 
 /**
@@ -8,15 +9,17 @@ import { height } from './terrain';
  * mesh - one draw call - for all of them, no shadow; the magic brings more of them (`share`: 1-2 pearls).
  */
 
-/** Where the columns rise: the garden's great shell and two of its shells, three corals of the reef, two of the crab's pots, the square: nine. */
+/** Where the columns rise: the garden's great shell and two of its shells, three corals of the reef, two of the crab's pots, the square, the bubble lift's at its rock (./secrets.ts): ten. */
 export function bubbleSources(): THREE.Vector3[] {
   const at = (x: number, z: number, y = 0.3) => new THREE.Vector3(x, height(x, z) + y, z);
-  const g = LANDMARKS.garden, r = ZONES.reef, sq = ZONES.square;
+  const g = LANDMARKS.garden, r = ZONES.reef, sq = ZONES.square, lift = liftOf().column;
   return [
     at(g.x + 0.4, g.z + 0.6, 1.4), at(ZONES.garden.x + 3, ZONES.garden.z + 1), at(ZONES.garden.x - 2, ZONES.garden.z + 4),
     at(r.x - 7, r.z + 2), at(r.x + 1, r.z - 7), at(r.x - 3, r.z + 8),
     // the soup of two of the crab's pots (./landmarks.ts grotto) bubbles
     at(ZONES.grotto.x - 1.5, ZONES.grotto.z - 2.5, 0.55), at(ZONES.grotto.x + 1.5, ZONES.grotto.z - 2.5, 0.55), at(sq.x + 5, sq.z - 4),
+    // the column of the bubble lift: it carries her up its rock
+    at(lift.x, lift.z, 0.1),
   ];
 }
 

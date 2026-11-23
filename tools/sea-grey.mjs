@@ -210,6 +210,24 @@ async function measure(browser, url, scale, out, q = 2) {
     poses.push({ what, clip, ...at });
   }
   await page.evaluate(() => __game.pose(null));
+  // the secrets (src/worlds/sea/secrets.ts): the draw and a picture by each - the chest from its front, the lift's
+  // column toward its rock, the shells from where she listens, the lookout's top with the whale passing
+  const secretDraws = [];
+  const sec = await page.evaluate(() => JSON.parse(JSON.stringify(__game.seaSecrets)));
+  if (sec) {
+    // the chest from a step before it, the column toward its rock (the starfish on top), the shells from where she listens
+    const near = [['chest', { x: sec.chestFront.x * 2 - sec.chest.x, z: sec.chestFront.z * 2 - sec.chest.z }, sec.chest], ['lift', sec.lift.column, sec.lift.star], ['shells', sec.shells.front, sec.shells.at[1]]];
+    for (const [name, a, b] of near) {
+      await stand(a, b); await settle(1);
+      secretDraws.push({ secret: name, ...(await draw()) });
+      await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+    }
+    // the lookout: she on its top, faced toward the middle of the map, the whale halfway across high over it
+    await page.evaluate((l) => { const h = __game.hero.root.position; h.set(l.x, l.top + __game.seaMap.swim, l.z); const d = Math.hypot(l.x, l.z); const yaw = Math.atan2(l.x / d, l.z / d); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; __game.seaSecrets.showWhale(); }, sec.lookout);
+    await settle(5);
+    secretDraws.push({ secret: 'whale', ...(await draw()), shown: await page.evaluate(() => __game.seaSecrets.whale() !== null) });
+    await page.screenshot({ path: join(out, `${tag}-secret-whale.png`) });
+  }
   // the tour
   const tour = [];
   const points = await page.evaluate(() => __game.flyoverPoints.length);
@@ -226,14 +244,15 @@ async function measure(browser, url, scale, out, q = 2) {
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
   // the route walks some paths twice (there and back): its time is the sum over the route, not over the legs
   const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + l.walked; }, 0);
-  const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris }))].sort((x, y) => y.tris - x.tris)[0];
+  const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris })), ...secretDraws.map((d) => ({ at: `secret ${d.secret}`, calls: d.calls, tris: d.tris }))].sort((x, y) => y.tris - x.tris)[0];
   console.log(`[grey] scale ${scale}: top speed ${speed} m/s on foot; swum ${(legs.reduce((n, l) => n + l.speed, 0) / legs.length).toFixed(2)} m/s on average; clips ${[...new Set(legs.flatMap((l) => l.clips))].join(', ')}`);
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s swum at ${l.speed} m/s (${l.byLength} s by its length at the speed on foot), ${l.height[0]}-${l.height[1]} m over the floor${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays, the haze ${Math.round(v.fog * 100)} %), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
+  if (secretDraws.length) console.log(`[grey]   the secrets: ${secretDraws.map((d) => `${d.secret} ${d.calls}/${Math.round(d.tris / 1000)}k${d.shown === false ? ' (the whale NOT shown)' : ''}`).join(', ')}`);
   console.log(`[grey]   the heroine in the water: ${poses.map((p) => `${p.what} ${p.clip} (plays ${p.playing}) at ${p.over} m, bubbles ${JSON.stringify(p.bubbles)}`).join('; ')}`);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, heaviest };
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, secrets: secretDraws, heaviest };
 }
 /**
  * The heroine swimming and the cat in its bubble, in pictures (the main risk of the world, docs/worlds/world-3.md): at the

@@ -71,6 +71,14 @@ export const SHIP = { x: ZONES.ship.x + 4, z: ZONES.ship.z - 4, len: 14, mastH: 
 export const CABIN = { x: SHIP.x - SHIP.len / 2 + 2, z: SHIP.z + 4.2 };
 /** In the corals of the reef, at the end of Bulk's search: the second pearl (WORLD-08). */
 export const CORAL_NEST = { x: ZONES.reef.x - 5, z: ZONES.reef.z - 3 };
+/**
+ * The secrets' rocks (docs/worlds/world-3.md «Секреты»; ./secrets.ts): the rock of the bubble lift, a pillar off the
+ * ways between the square and the ship, its top flat; the lookout at the east edge, a mound she swims up onto, its top
+ * facing the open water where the whale passes. r: the flat top's radius, h: its height over the floor, m; slope: how
+ * far its side runs down (0: a cliff).
+ */
+export const LIFT_ROCK = { ...at(6, -17), r: 1.7, h: 5, slope: 0 };
+export const LOOKOUT = { ...at(37, -12), r: 2, h: 3.2, slope: 6 };
 /** The shell of the throne where the pearls come together: the finale. */
 export const THRONE = { x: ZONES.throne.x, z: ZONES.throne.z };
 
