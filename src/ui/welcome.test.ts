@@ -51,6 +51,7 @@ function game(gift?: string) {
 
 beforeEach(() => {
   mod.giftState.held = false;
+  mod.giftState.at = null;
   localStorage.clear();
   $('bubble').classList.add('hidden');
 });
@@ -126,6 +127,21 @@ describe('the meeting after "Play" (R37, R40, R44)', () => {
     expect(said).toEqual(['welcome_back']);
     expect(gifts).toEqual([]);
     expect(save.gift).toBe('2000-01-01');
+  });
+
+  it('the walkthrough\'s moment: the day is read from it, not the clock - past midnight it is still the same day', async () => {
+    // the gift was given on the pinned day; the clock has gone on to the next one
+    mod.giftState.at = NOW;
+    const { g, save, said, gifts } = game(dayKey(new Date(NOW)));
+    await mod.meet(g, NOW + DAY);
+    expect(said).toEqual(['welcome_back']);
+    expect(gifts).toEqual([]);
+    expect(save.gift).toBe(dayKey(new Date(NOW)));
+    // and a new day by the moment gives the star, whatever the clock says
+    const other = game(dayKey(new Date(NOW - DAY)));
+    await mod.meet(other.g, NOW - 5 * DAY);
+    expect(other.gifts).toEqual([1]);
+    expect(other.save.gift).toBe(dayKey(new Date(NOW)));
   });
 
   it('every line of the meeting has its text in both languages', () => {

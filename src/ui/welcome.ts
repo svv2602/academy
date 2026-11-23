@@ -14,6 +14,10 @@
  * `giftState.held`: the walkthrough's own lever (window.__game.gift, ?debug only, src/game/debug.ts): while it is pulled
  * no gift is given and the meeting is the same-day welcome - the saves of its pieces do not depend on the real date
  * (R61). The game never pulls it.
+ * `giftState.at`: the walkthrough's moment of the gift (window.__game.gift.pin): while set, the gift reads its day from
+ * it, not from the clock - a block that meets the cat a new day and then the same day is one day even when it runs
+ * through midnight (the CI run of 2026-11-23 went over 00:00 UTC between the two: "the same day changed the date of
+ * the gift"). Null in the game.
  */
 import { speaking } from '../core/audio';
 import type { Game } from '../game/context';
@@ -38,8 +42,8 @@ const CAPTION_MS = 4000;
 /** The hello said last, on this device (a hello of yesterday is not said again today). */
 const LAST_KEY = 'amw-hello';
 
-/** The walkthrough's lever (see the head of the file); false in the game. */
-export const giftState = { held: false };
+/** The walkthrough's lever and its moment of the gift (see the head of the file); false and null in the game. */
+export const giftState: { held: boolean; at: number | null } = { held: false, at: null };
 
 /** What the line "where we stopped" reads of the world played: its characters (their chains) and its progress. */
 export interface LeftWorld { characters?: readonly { id: string; steps: readonly unknown[] }[] }
@@ -93,7 +97,7 @@ type Host = Pick<Game, 'save' | 'speech' | 'addStars' | 'above' | 'cat' | 'persi
  * new date, else the old welcome back. Settles when the cat has said its lines.
  */
 export async function meet(g: Host, now = Date.now()): Promise<void> {
-  const gift = giftState.held ? 0 : dailyGift(g.save, now);
+  const gift = giftState.held ? 0 : dailyGift(g.save, giftState.at ?? now);
   if (!gift) { await g.speech.line('welcome_back', 'hint', 5000); return; }
   g.persist();   // the date of the gift is stored at once: a reload in the middle of the meeting gives no second star
   const hello = pickOther(HELLOS, lastHello());
@@ -111,7 +115,7 @@ export async function meet(g: Host, now = Date.now()): Promise<void> {
  */
 export function firstDay(g: Pick<Game, 'save' | 'persist'>, now = Date.now()): void {
   if (giftState.held) return;
-  if (dailyGift(g.save, now)) g.persist();
+  if (dailyGift(g.save, giftState.at ?? now)) g.persist();
 }
 
 /** A tap on the cat (src/game/player.ts): the line of the bubble once more; with the bubble empty - where we stopped. */

@@ -25,6 +25,8 @@ import { tradeState } from '../ui/trade';
 
 /** The key of the tab's storage that keeps the walkthrough's lever of the gift (`__game.gift`) over a reload. */
 export const GIFT_HOLD = 'amw-gift-hold';
+/** The walkthrough's moment of the gift of the day (ms), kept for the tab over reloads (src/ui/welcome.ts giftState.at). */
+export const GIFT_AT = 'amw-gift-at';
 /** The walkthrough's lever of the deal of the day (src/game/deal.ts), kept for the tab like the gift's. */
 export const DEAL_HOLD = 'amw-deal-hold';
 /** The same for the walkthrough's lever of the break (`__game.brk`). */
@@ -62,6 +64,7 @@ export interface DebugBuilt { items?(): readonly WorldItem[] }
 export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): (next: DebugExtras) => void {
   // The walkthrough's lever of the gift of the day, pulled in this tab before (window.__game.gift below).
   try { giftState.held = sessionStorage.getItem(GIFT_HOLD) === '1'; } catch { /* ignore */ }
+  try { const at = Number(sessionStorage.getItem(GIFT_AT)); giftState.at = at > 0 ? at : null; } catch { /* ignore */ }
   try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
   try { dealState.held = sessionStorage.getItem(DEAL_HOLD) === '1'; } catch { /* ignore */ }
   try { mysteryHold.held = sessionStorage.getItem(MYSTERY_HOLD) === '1'; } catch { /* ignore */ }
@@ -129,7 +132,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     },
     /**
      * The gift of the day (PLAY-21, src/ui/welcome.ts): `hold()` - no gift, the meeting is the same-day welcome back,
-     * `release()` - the gift by the clock again, `held` - whether it is pulled. The walkthrough's own lever (R61: the saves
+     * `release()` - the gift by the clock again, `held` - whether it is pulled; `pin(ms)` - the day of the gift read from
+     * that moment, not the clock (null - the clock again). The walkthrough's own lever (R61: the saves
      * of its pieces do not depend on the real date), never the game's; it lasts for the tab (sessionStorage), reloads too.
      */
     /**
@@ -183,6 +187,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       get held() { return giftState.held; },
       hold() { giftState.held = true; try { sessionStorage.setItem(GIFT_HOLD, '1'); } catch { /* ignore */ } },
       release() { giftState.held = false; try { sessionStorage.removeItem(GIFT_HOLD); } catch { /* ignore */ } },
+      /** The moment the gift reads its day from (ms; null - the clock again), kept over reloads: one day for a whole block. */
+      get at() { return giftState.at; },
+      pin(at: number | null) {
+        giftState.at = at;
+        try { if (at === null) sessionStorage.removeItem(GIFT_AT); else sessionStorage.setItem(GIFT_AT, String(at)); } catch { /* ignore */ }
+      },
     },
     /** Seconds of game time: a frame counts at most 0.05 s, so on a slow machine it runs behind the wall clock. */
     get time() { return uTime.value; },

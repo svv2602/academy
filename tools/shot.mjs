@@ -4370,7 +4370,9 @@ try {
           else if (!said.bubble) left.push(`"${want}" is said without its subtitle`);
           await silence().catch(() => {});
           // ---- a new day: the lever let go, the last gift long ago (stored by the page's own save on leaving) ----
-          await g(() => { __game.gift.release(); __game.save.gift = '2000-01-01'; });
+          // the day of the gift is pinned to this moment for the whole block: a new day and then the same day are one day
+          // even when the block runs through midnight (CI 2026-11-23: "the same day changed the date of the gift")
+          await g(() => { __game.gift.release(); __game.gift.pin(Date.now()); __game.save.gift = '2000-01-01'; }); /* clock: day-mark */
           const s0 = await replay();
           if (s0.held) fail('the lever of the gift is still pulled after the reload');
           if (s0.gift !== '2000-01-01') fail(`the save did not keep the date of the last gift over the reload: ${s0.gift}`);
@@ -4410,7 +4412,7 @@ try {
           if (s3.said.length) left.push(`the same day the cat said ${s3.said.join(', ')}`);
           if (!(await walks())) left.push('the heroine does not walk after the meeting');
           if (!left.length) console.log(`welcome: a tap on the cat said "${want}"; a new day: "${hello}", "${giftLine}", +1 star (${s0.stars} -> ${s1.stars}), the caption "${s1.caption}"; the same day: welcome back, no star`);
-          await g(() => __game.gift.hold());
+          await g(() => { __game.gift.hold(); __game.gift.pin(null); });
         });
         if (left.length) errors.push(`welcome: ${mode}: ${left.join('; ')}`);
       }

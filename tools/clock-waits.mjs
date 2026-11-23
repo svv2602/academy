@@ -19,6 +19,7 @@ export const CLOCK_REASONS = {
   'quiet-window': 'a window in which nothing may happen (no request, no error) on a page with no game running',
   helper: 'the definition of a wait helper (T, wait, gameUntil): the places that call it carry their own reason',
   'context-lost': 'the picture of the game is lost on purpose (src/core/contextloss.ts): the game\'s clock stands, only the wall clock runs',
+  'day-mark': 'the moment a day of the game is pinned to (the gift of the day for one block): read once, nothing waits on it',
 };
 
 /**
