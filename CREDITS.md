@@ -77,7 +77,7 @@ world already has, no new files.
 Cut-scene frames of the first world (WORLD-13; `public/story/`), each file:
 `w1_intro_1.webp`, `w1_intro_2.webp`, `w1_intro_3.webp`, `w1_intro_4.webp`, `w1_intro_5.webp`, `w1_crystal_1.webp`,
 `w1_crystal_2.webp`, `w1_crystal_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter
-service on 2026-11-15 (saving of the requests in the account turned off), dedicated to the public domain under CC0 1.0;
+service on 2026-11-15, dedicated to the public domain under CC0 1.0;
 viewed and accepted by the customer on 2026-11-15.
 Their depth maps `w1_intro_1_depth.webp`, `w1_intro_2_depth.webp`, `w1_intro_3_depth.webp`, `w1_intro_4_depth.webp`,
 `w1_intro_5_depth.webp`, `w1_crystal_1_depth.webp`, `w1_crystal_2_depth.webp`, `w1_crystal_3_depth.webp` — computed
