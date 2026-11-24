@@ -151,7 +151,9 @@ function buildSky(scene: THREE.Scene): WorldSky {
  * larger (the customer, 2026-11-22: "увеличиваем" - at their figures' size they were lost on the screen), each floating as
  * high as its figure did; their skeletons and clips our own (Idle, Talk; Khvylia's Sing for the finale, Bulk's Swim).
  */
-const MODELS: Record<string, number> = { khvylia: 1.9, bulk: 0.9, pantsyr: 0.7, kleshnya: 0.8, iskorka: 0.5 };
+// m, the height of each in the world beside her 1.53 (the customer's word of 2026-11-24 on the proportions: Bulk her
+// height, a big friendly dragon; Pantsyr up to her chest; Kleshnya over the plain crabs; Iskorka small, a little more seen)
+const MODELS: Record<string, number> = { khvylia: 1.9, bulk: 1.6, pantsyr: 0.9, kleshnya: 1.05, iskorka: 0.6 };
 
 /** The files of the grey build: the swimming clips (the heroine and the cat are the game's) and the characters' models. Null = failed (TECH-08). */
 async function loadSea(_scene: THREE.Scene, _save: Save, _touch: boolean) {
@@ -353,7 +355,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
           n.mark.visible = !finished(n) && !g.busy;
           n.mark.rotation.y = time * 2;
           const f = FIGURE[n.def.id];
-          n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, (f.lift ?? 0) + f.h + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
+          // over the model's head (MODELS: its height in the world, larger than its grey figure's since 2026-11-24)
+          n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, (f.lift ?? 0) + (MODELS[n.def.id] ?? f.h) + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
           n.actor.update(dt);
         }
         for (const p of pearls) {

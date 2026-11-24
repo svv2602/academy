@@ -413,9 +413,10 @@ const SPARK = { fish: '#d6f6ff', jelly: '#ffe6fb', crab: '#ffd8c8', star: '#fff2
 const SOUND = { fish: 'pop', jelly: 'chime', crab: 'jump', star: 'soft' } as const;
 /**
  * How much larger than its shape each kind is drawn: on a phone's screen a fish of 0.34 m and a crab of 0.4 m were
- * specks (the pictures of step C, 2026-11-22) - drawn 0.6 m both.
+ * specks (the pictures of step C, 2026-11-22) - drawn 0.6 m both. A crab 0.9 m across, not 1.2: wider than Kleshnya,
+ * the crab cook, it was taken for him (the customer's word of 2026-11-24 on the proportions).
  */
-export const SIZE = { fish: 1.8, jelly: 1.2, crab: 1.6, star: 1.4 } as const;
+export const SIZE = { fish: 1.8, jelly: 1.2, crab: 1.2, star: 1.4 } as const;
 /** m above a creature's point where its drawn body's middle is (fish and jellyfish are drawn round their point). */
 const BODY = { fish: 0, jelly: 0.12 * SIZE.jelly, crab: 0.12 * SIZE.crab, star: 0.03 * SIZE.star } as const;
 /** How much a jellyfish shines with no flash: with no magic and with all of it (world-3.md: they glow at 3-4 pearls). */
