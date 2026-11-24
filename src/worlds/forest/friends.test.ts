@@ -2,16 +2,18 @@
 /**
  * Where the forest's characters stand, at their size (./index.ts FIGURE; the customer's word of 2026-11-24: the
  * squirrel, the hedgehog and the owl made bigger): each body keeps off the walkway of the paths, out of the maze's hedge,
- * clear of the trees and of the gnomes' houses - a bigger character must not stand in her way or in a wall.
+ * clear of the trees and of the gnomes' houses - a bigger character must not stand in her way or in a wall - and no
+ * plant grows round it (a fern hid the hedgehog from her camera).
  */
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
 import { HERO_TOP } from '../../game/hero';
-import { FIGURE, FRIENDS } from './index';
+import { FIGURE, FRIEND_CLEAR, FRIENDS } from './index';
 import { inMaze } from './layout';
 import { placeTrees, villageHouses } from './scenery';
 import { pathDist } from './terrain';
+import { FIND_CLEAR, placePlants } from './undergrowth';
 
 /** m each side of a path's line that stays free to walk (its sand reaches a little further, ./decor.ts keeps 1.2). */
 const WALKWAY = 1.0;
@@ -37,6 +39,15 @@ describe('the forest\'s characters where they stand (the sizes of 2026-11-24)', 
       expect(inMaze(b.x, b.z, b.r + ROOM), `${b.id} in the maze's hedge`).toBe(false);
       expect(near(trees) - b.r, `${b.id} by a tree`).toBeGreaterThan(ROOM + 1);
       expect(near(houses) - b.r, `${b.id} by a house`).toBeGreaterThan(HOUSE_R + ROOM);
+    }
+  });
+
+  it('have no plant round them: their bodies and the largest bush clear', () => {
+    const clear = FRIEND_CLEAR(), plants = placePlants(undefined, clear);
+    for (const b of bodies) {
+      const c = clear.find((x) => x.x === b.x && x.z === b.z)!;
+      expect(c.r, b.id).toBe(b.r + FIND_CLEAR);
+      expect(plants.filter((p) => Math.hypot(p.x - b.x, p.z - b.z) <= c.r), b.id).toEqual([]);
     }
   });
 });

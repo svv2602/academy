@@ -39,8 +39,11 @@ export const PLANT_AREA = 9;
 
 export interface Plant { k: number; x: number; z: number; s: number; rot: number }
 
-/** Where the plants grow, deterministic: off the paths, the stream, the zones' middles, the maze and what stands. */
-export function placePlants(seed = 11): Plant[] {
+/**
+ * Where the plants grow, deterministic: off the paths, the stream, the zones' middles, the maze and what stands; `clear`:
+ * round places taken out besides the finds (the characters where they stand, ./index.ts - a fern hid the hedgehog).
+ */
+export function placePlants(seed = 11, clear: readonly { x: number; z: number; r: number }[] = []): Plant[] {
   const rnd = mulberry32(seed), out: Plant[] = [];
   const weights = PLANTS.map((p) => p[2]), sum = weights.reduce((a, b) => a + b, 0);
   const zones = Object.values(ZONES);
@@ -57,7 +60,7 @@ export function placePlants(seed = 11): Plant[] {
   // the finds of the collections and the places of the find of the day (./collect.ts): their plants taken out after the
   // rest are placed - a bush there hid a cone or the bilberries - so that every other plant stays where it grew
   const finds = [...COLLECT.items, ...DAILY_PLACES];
-  return out.filter((p) => finds.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > FIND_CLEAR));
+  return out.filter((p) => finds.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > FIND_CLEAR) && clear.every((c) => Math.hypot(c.x - p.x, c.z - p.z) > c.r));
 }
 
 /** The leaves of the undergrowth as the trees' of the evening (./scenery.ts), a shade deeper: not the pack's lime. */

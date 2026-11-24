@@ -28,7 +28,7 @@ import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
 import { buildDecor, loadDecor, type Decor } from './decor';
-import { buildUndergrowth, loadUndergrowth } from './undergrowth';
+import { FIND_CLEAR, buildUndergrowth, loadUndergrowth, placePlants } from './undergrowth';
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
 import { CAVE_FLAG, FOREST_SECRETS, SONG_FLAG, createForestSecrets } from './secrets';
@@ -101,6 +101,12 @@ const MODELS: Record<string, number> = { ...Object.fromEntries(['borovik', 'mudr
 export const BYSTANDERS = [
   { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
 ] as const;
+/**
+ * The ground round each character where no plant grows, its body and the largest bush (./undergrowth.ts FIND_CLEAR):
+ * at their sizes of 2026-11-24 a fern beside the hedgehog hid him from her camera.
+ */
+export const FRIEND_CLEAR = () => [...FRIENDS.map((f) => ({ x: f.x, z: f.z, r: FIGURE[f.id].r + FIND_CLEAR })),
+  ...BYSTANDERS.map((b) => ({ x: b.x, z: b.z, r: b.r + FIND_CLEAR }))];
 /**
  * The owlet (world-2.md, PLAY-09): once Mudrena's chain is done and she has asked for it, it waits in the squirrel grove
  * under a heap of leaves; walking up to the heap finds it, the leaves fly off and it follows her.
@@ -194,7 +200,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
   const hubWay = createHubWay(g);
   buildDecor(scene, L.decor, bridges());
-  const undergrowth = buildUndergrowth(scene, L.plants);
+  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, FRIEND_CLEAR()));
   const fireflies = buildFireflies(scene);
   // the magic of the forest (WORLD-09): from the leaves in the save; after what it lights, before the frame moves the fireflies
   const magic = createForestMagic(g, scope, { sky, fireflies, characters: FRIENDS });
