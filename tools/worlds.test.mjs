@@ -626,7 +626,7 @@ describe('the walkthroughs of the part "walk": the probe world by its descriptio
     expect(src).not.toContain('describedScenario');
     expect(src).not.toContain('export function nextItem');
     expect(src).toContain("import { ITEM_KINDS, reportProblems } from './world-pass.mjs';");
-    // the shared walkthrough of tools/shot.mjs: the probe world's ("walk") and a whole world's (`worldPass`: "sweet-grey", "forest", "sea")
+    // the shared walkthrough of tools/shot.mjs: the probe world's ("walk") and a whole world's (`worldPass`: "sweet-grey", "sky-grey", "forest", "sea")
     expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(3);
   });
 
@@ -1045,7 +1045,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'hub-forest', 'forest', 'sea']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -1061,7 +1061,7 @@ describe('node tools/worlds.mjs', () => {
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, hub-forest, forest, sea');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sky-grey, hub-forest, forest, sea');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -1088,10 +1088,11 @@ describe('node tools/worlds.mjs', () => {
     expect(src).toMatch(/\n {2}try \{\n\s+rmSync\(probeDist, [^\n]*\n\s+await vite\('the probe build'/);
     for (const call of ['await cacheScenarios(', 'await transitionScenarios(', 'await travelScenarios(']) expect(src.split(call)).toHaveLength(2);
     // tools/shot.mjs is run in two places: the probe world's walkthroughs ("walk") and `worldPass`, the walkthrough of a
-    // whole world - the Sweet Land's in the grey build ("sweet-grey"), the forest's and the sea's in the published one
+    // whole world - the Sweet Land's and the Sky Islands' in the grey build ("sweet-grey", "sky-grey"), the forest's and the sea's in the published one
     expect(src.split("join(root, 'tools/shot.mjs')")).toHaveLength(3);
     expect(src).toMatch(/const worldPass = async \(name, dir, shots, env, ms, problemsOf, done\) => \{\n(?:(?!\n {2}\};).*\n)*? {6}const \{ code, signal, timedOut \} = await run\(process\.execPath, \[join\(root, 'tools\/shot\.mjs'\), `http:\/\/127\.0\.0\.1:\$\{port\}\/`, shots, 'mobile'\], ms, env\(out\)\);/);
     expect(src).toMatch(/if \(play\('sweet-grey'\)\) try \{\n\s+await greyBuild\(\);\n\s+await worldPass\('the Sweet Land', greyDist, [^\n]*sweetPassEnv\(process\.env, out\), sweetPassTimeoutMs\(process\.env\), sweetPassProblems,/);
+    expect(src).toMatch(/if \(play\('sky-grey'\)\) try \{\n\s+await greyBuild\(\);\n\s+await worldPass\('the Sky Islands', greyDist, [^\n]*skyPassEnv\(process\.env, out\), skyPassTimeoutMs\(process\.env\), skyPassProblems,/);
     expect(src).toMatch(/if \(play\('sea'\)\) try \{\n\s+await publishedBuild\(\);\n\s+const next = buildWorlds\(dist\);\n[^\n]*next\.includes\('sea'\)[^\n]*\n\s+await worldPass\('the sea', dist, [^\n]*seaPassEnv\(process\.env, out\), seaPassTimeoutMs\(process\.env\), seaPassProblems,/);
     // the published forest: in the published build, which must list it, by its own module, with its own limit
     expect(src).toMatch(/if \(play\('forest'\)\) try \{\n\s+await publishedBuild\(\);\n\s+const next = buildWorlds\(dist\);\n\s+if \(!next\.includes\('forest'\)\) throw [^\n]*\n\s+await worldPass\('the forest', dist, [^\n]*forestPassEnv\(process\.env, out\), forestPassTimeoutMs\(process\.env\), forestPassProblems,/);
@@ -1121,7 +1122,7 @@ describe('the published worlds: each has a part of its own before a publication'
   it('the published build of today lists the forest and the sea; the probe and the grey builds more', () => {
     expect(nextOf('production')).toEqual(['forest', 'sea']);
     expect(nextOf('probe')).toContain('probe');
-    expect(nextOf('grey')).toEqual(expect.arrayContaining(['forest', 'sea', 'sweet']));
+    expect(nextOf('grey')).toEqual(expect.arrayContaining(['forest', 'sea', 'sweet', 'sky']));
   });
 
   it('every next world of the published build has a part of PUBLISH_PARTS named by its id (a world published with none fails here)', () => {

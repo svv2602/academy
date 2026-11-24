@@ -1,6 +1,6 @@
 // What the way between the hub and the forest expects of the arches (tools/hub-grey.mjs `hubExpect`), held to the
 // hub's own rules (src/worlds/hub/portals.ts) for the worlds of each build: the published one (the forest), the grey
-// one (the forest, the sea, the Sweet Land) and the probe one. No browser.
+// one (the forest, the sea, the Sweet Land, the Sky Islands) and the probe one. No browser.
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +10,7 @@ import { GREY_PARTS, NO_PROBE_PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { openArches, portalWorlds, wakingArches, woke } from '../src/worlds/hub/portals.ts';
 
 /** The places of the shelf of the worlds (src/worlds/<id>/index.ts `shelf`, `test`): the hub has none. */
-const PLACE = { fairy: { shelf: 0 }, hub: {}, probe: { shelf: 1, test: true }, forest: { shelf: 1 }, sea: { shelf: 2 }, sweet: { shelf: 3 } };
+const PLACE = { fairy: { shelf: 0 }, hub: {}, probe: { shelf: 1, test: true }, forest: { shelf: 1 }, sea: { shelf: 2 }, sweet: { shelf: 3 }, sky: { shelf: 4 } };
 /** The registry of a build: its worlds in the order src/worlds/index.ts lists them. */
 const registry = (ids) => ids.map((id) => ({ id, ...PLACE[id] }));
 
@@ -24,7 +24,7 @@ describe('the way between the hub and the forest: what the arches show by the wo
   it.each([
     ['the published build before the sea (the forest)', ['fairy', 'hub', 'forest'], ['forest']],
     ['the published build (the forest, the sea)', ['fairy', 'hub', 'forest', 'sea'], ['forest', 'sea']],
-    ['the grey build (the forest, the sea, the Sweet Land)', ['fairy', 'hub', 'forest', 'sea', 'sweet'], ['forest', 'sea', 'sweet']],
+    ['the grey build (the forest, the sea, the Sweet Land, the Sky Islands)', ['fairy', 'hub', 'forest', 'sea', 'sweet', 'sky'], ['forest', 'sea', 'sweet', 'sky']],
   ])('%s: hubExpect is what the hub\'s rules give', (_, ids, next) => {
     const want = hubExpect(next);
     expect(hubShows(ids, ['fairy'])).toEqual(want.fairies);
@@ -38,6 +38,13 @@ describe('the way between the hub and the forest: what the arches show by the wo
       expect(wakingArches(open, { woke1: true })).toEqual(want.older.woke);
       expect(want.older.flags).toContain(woke(2));
     } else expect(next).not.toContain('sea');
+  });
+
+  it('the Sky Islands\' arch (shelf 4) sleeps in the saves of the way and wakes once the Sweet Land is done (the hub\'s rules)', () => {
+    const grey = ['fairy', 'hub', 'forest', 'sea', 'sweet', 'sky'];
+    expect(hubExpect(['forest', 'sea', 'sweet', 'sky'])).toEqual(hubExpect(['forest', 'sea', 'sweet']));
+    expect(hubShows(grey, ['fairy', 'forest', 'sea']).arches).toEqual(['fairy', 'forest', 'sea', 'sweet', null]);
+    expect(hubShows(grey, ['fairy', 'forest', 'sea', 'sweet'])).toEqual({ arches: ['fairy', 'forest', 'sea', 'sweet', 'sky'], woke: [1, 2, 3, 4] });
   });
 
   it('without the sea in the build, the forest done wakes the forest\'s arch alone and the sea\'s place sleeps', () => {
@@ -77,7 +84,7 @@ describe('the probe build: the probe world stands behind the forest\'s arch', ()
   });
 
   it('in the probe build (the published worlds and the probe world) the place 1 is the probe world\'s', () => {
-    const probeBuild = order.filter((id) => id !== 'sea' && id !== 'sweet');
+    const probeBuild = order.filter((id) => !['sea', 'sweet', 'sky'].includes(id));
     expect(portalWorlds(registry(probeBuild))).toEqual(['fairy', 'probe', null, null, null]);
     // the forest put before it would take the place: what this test is for
     expect(portalWorlds(registry(['fairy', 'hub', 'forest', 'probe']))[1]).toBe('forest');

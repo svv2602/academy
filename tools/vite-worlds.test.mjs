@@ -43,21 +43,21 @@ describe('buildWorlds: the next worlds of a build', () => {
   });
 
   it('the sources as they are: the hub is installed, so the published build has no next world, the probe build the probe world', () => {
-    // the worlds of a mode as vite.config.ts names them (the grey forest, sea and Sweet Land have folders of their own too)
-    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey' };
+    // the worlds of a mode as vite.config.ts names them (the grey forest, sea, Sweet Land and Sky Islands have folders of their own too)
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey', sky: 'grey' };
     expect(buildWorlds('production', modes)).toEqual([]);
     expect(buildWorlds('probe', modes)).toEqual(['probe']);
   });
 
   it('a map of worlds and modes: each world of it only in its own mode (the grey forest, WORLD-12)', () => {
     const more = () => folder({ 'index.ts': "export const DEFAULT_WORLD = 'fairy';", 'fairy/index.ts': '', 'forest/index.ts': '', 'probe/index.ts': '' });
-    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey' };
+    const modes = { probe: 'probe', forest: 'grey', sea: 'grey', sweet: 'grey', sky: 'grey' };
     expect(buildWorlds('production', modes, more())).toEqual([]);
     expect(buildWorlds('grey', modes, more())).toEqual(['forest']);
     expect(buildWorlds('probe', modes, more())).toEqual(['probe']);
-    // the sources as they are: the grey build has the forest, the sea and the Sweet Land, the published one nothing
+    // the sources as they are: the grey build has the forest, the sea, the Sweet Land and the Sky Islands, the published one nothing
     expect(buildWorlds('production', modes)).toEqual([]);
-    expect(buildWorlds('grey', modes)).toEqual(['forest', 'sea', 'sweet']);
+    expect(buildWorlds('grey', modes)).toEqual(['forest', 'sea', 'sky', 'sweet']);
   });
 });
 
@@ -208,7 +208,7 @@ describe('vite.config.ts uses all of it', () => {
   const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 
   it('the next worlds are the ones of the sources, the probe world by the mode of the build, the forest and the sea in every build', () => {
-    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, sweet: GREY_MODE \}\);/);
+    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, sweet: GREY_MODE, sky: GREY_MODE \}\);/);
     expect(config).toMatch(/^const GREY_MODE = 'grey';$/m);
   });
 
@@ -226,7 +226,7 @@ describe('vite.config.ts uses all of it', () => {
   });
 
   it('a next world\'s own files (worlds-data/<id>/) are in its builds at their paths: the forest\'s in every build, a grey world\'s in the grey one alone', () => {
-    const modes = { probe: 'probe', sweet: 'grey' };
+    const modes = { probe: 'probe', sweet: 'grey', sky: 'grey' };
     const grey = greyWorldFiles(buildWorlds('grey', modes), {}, root);
     const forest = Object.keys(grey).filter((p) => p.startsWith('models/forest/'));
     // every file of worlds-data/forest, at the path the game asks for (models/forest/…), from where it lies
@@ -234,7 +234,7 @@ describe('vite.config.ts uses all of it', () => {
     expect(forest).toContain('models/forest/borovik.glb');
     expect(grey['models/forest/borovik.glb']).toBe('worlds-data/forest/models/forest/borovik.glb');
     for (const from of Object.values(grey)) expect(existsSync(join(root, from)), from).toBe(true);
-    // the published build (and the probe one) has the forest and the sea (published 2026-11-24), not the Sweet Land
+    // the published build (and the probe one) has the forest and the sea (published 2026-11-24), not the Sweet Land nor the Sky Islands
     for (const mode of ['production', 'probe']) {
       const files = Object.keys(greyWorldFiles(buildWorlds(mode, modes), {}, root));
       expect(files, mode).toEqual(Object.keys(grey).filter((p) => /^(models|voice|story)\/(forest|sea)\//.test(p)));

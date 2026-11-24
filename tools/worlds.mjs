@@ -116,6 +116,10 @@
 //      (E2E_WORLD=sweet E2E_WORLD_NEED=grey): from its entry to its finale - its chains, the two rubies in the world,
 //      the tour, the finale. Pictures shots-e2e/worlds-grey/sweet/. A job of ci.yml only, as "hub-grey".
 //  11. (The part "sea-grey" played the sea's walkthrough in the grey build until the sea was published: now part 14.)
+//  11b. The part "sky-grey" (tools/sky-grey.mjs `passEnv`, `passProblems`): the walkthrough of the Sky Islands by their
+//      description in the same grey build, the phone size (E2E_WORLD=sky E2E_WORLD_NEED=grey): their chains, the two
+//      rays in the world (ray 4 on the far islet, where the airship's stand-in takes her), the tour, the finale.
+//      Pictures shots-e2e/worlds-grey/sky/. A job of ci.yml only, as "hub-grey".
 //  12. The part "hub-forest" (tools/hub-grey.mjs `hubWay`): the way between the hub and the forest of part 9, played in
 //      the published build (the forest published 2026-11-24) - the given one, or one made anew (once a run, with the
 //      parts "walk" and "forest"). What the arches show follows the next worlds of that build (its worlds.json,
@@ -137,7 +141,7 @@
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
 // the forest's of part 13 and the sea's of part 14, default tools/sea-pass.mjs and tools/forest-pass.mjs PASS_TIMEOUT_MS;
-// the Sweet Land's, tools/sweet-grey.mjs PASS_TIMEOUT_MS).
+// the Sweet Land's and the Sky Islands', tools/sweet-grey.mjs and tools/sky-grey.mjs PASS_TIMEOUT_MS).
 // Exit code: 0 — passed; 1 — a check failed (every failure is printed as "worlds: …"); 2 — bad arguments.
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -154,6 +158,7 @@ import { HUB_SAVES } from './e2e-saves.mjs';
 import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, buildWorlds, hubWay, serveDir } from './hub-grey.mjs';
 import { passEnv as forestPassEnv, passProblems as forestPassProblems, passTimeoutMs as forestPassTimeoutMs } from './forest-pass.mjs';
 import { passEnv as seaPassEnv, passProblems as seaPassProblems, passTimeoutMs as seaPassTimeoutMs } from './sea-pass.mjs';
+import { passEnv as skyPassEnv, passProblems as skyPassProblems, passTimeoutMs as skyPassTimeoutMs } from './sky-grey.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems, passTimeoutMs as sweetPassTimeoutMs } from './sweet-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -176,9 +181,9 @@ export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
  * whose `timeout-minutes` is this (tools/ci-pieces.test.mjs). tools/e2e.mjs plays the parts so, one run each.
  */
 export const PART_TIMEOUT_MS = 30 * 60000;
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'hub-forest', 'forest', 'sea'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
-export const GREY_PARTS = ['hub-grey', 'sweet-grey'];
+export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sky-grey'];
 /**
  * The parts played before a publication (.github/workflows/pages.yml): all but the grey build's (GREY_PARTS) - the grey
  * worlds are not published and must not hold a publication; main only gets a commit already green in ci.yml, which
@@ -847,7 +852,7 @@ async function main() {
 
   // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
   // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone. The part
-  // "sweet-grey" plays in the same build: it is made once a run.
+  // "sweet-grey" and "sky-grey" play in the same build: it is made once a run.
   let greyBuilt = false;
   const greyDist = join(root, GREY_DIST);
   /** The browser of the parts of the way to the forest: nothing but this machine is reached (the refusal without network rests on it too). */
@@ -917,6 +922,12 @@ async function main() {
     await greyBuild();
     await worldPass('the Sweet Land', greyDist, join('shots-e2e', 'worlds-grey', 'sweet'), (out) => sweetPassEnv(process.env, out), sweetPassTimeoutMs(process.env), sweetPassProblems,
       'the Sweet Land of the grey build: played by its description from its entry to its finale');
+  } catch (e) { fail(e.message); }
+  // ---- the part "sky-grey": the walkthrough of the Sky Islands by their description in the grey build (tools/sky-grey.mjs) ----
+  if (play('sky-grey')) try {
+    await greyBuild();
+    await worldPass('the Sky Islands', greyDist, join('shots-e2e', 'worlds-grey', 'sky'), (out) => skyPassEnv(process.env, out), skyPassTimeoutMs(process.env), skyPassProblems,
+      'the Sky Islands of the grey build: played by their description from their entry to their finale');
   } catch (e) { fail(e.message); }
   // ---- the part "forest": the walkthrough of the published forest in the published build (tools/forest-pass.mjs) ----
   // a job of its own in both workflows: a publication waits for it. A build without the forest among its next worlds fails

@@ -1,9 +1,10 @@
 import * as THREE from 'three';
-import type { Rig } from '../../core/assets';
+import { rig, type Rig } from '../../core/assets';
 import { setCast, sfx } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -118,8 +119,23 @@ function buildSky(scene: THREE.Scene): WorldSky {
   return { sun, sunOffset: new THREE.Vector3(-20, 34, 16) };
 }
 
-/** Nothing to load: the grey build is made of shapes (and the heroine and the cat are the game's). */
-const loadSweet = (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<Record<string, never>> => Promise.resolve({});
+/**
+ * The characters' models (the lead's decisions of 2026-11-24 on the customer's word; CREDITS.md): Pastila, Imbir,
+ * Tyanuchka and Kakao from Meshy, Polosatik made whole in Blender by code (Meshy's two tries were no candy cane). The
+ * world's own files (models/sweet/, TECH-09), by their height in metres - their figures' (FIGURE); their skeletons and
+ * clips our own: Idle, Talk, and Cheer for the finale (Pastila claps, Imbir jumps, Tyanuchka shows his strength, Kakao
+ * waves, Polosatik salutes).
+ */
+export const MODELS: Readonly<Record<string, number>> = Object.fromEntries(FRIENDS.map((f) => [f.id, FIGURE[f.id].h]));
+
+/** The files of the grey build: the characters' models (the heroine and the cat are the game's). Null = failed (TECH-08). */
+async function loadSweet(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig> } | null> {
+  const rigs = await Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`sweet/${id}`, h)] as const))
+    .then((e) => Object.fromEntries(e) as Record<string, Rig>)
+    .catch((e: unknown) => { loadFailed(e); return null; });
+  return rigs ? { rigs } : null;
+}
+type SweetLoads = NonNullable<Awaited<ReturnType<typeof loadSweet>>>;
 
 /** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */
 function figure(id: string): Rig {
@@ -142,7 +158,7 @@ function rubyMesh(color: string): THREE.Group {
   return g;
 }
 
-function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: WorldScope): BuiltWorld {
+function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
@@ -160,7 +176,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
   const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(figure(def.id));
+    const actor = new Actor(L.rigs[def.id] ?? figure(def.id));
     const pos = point(def);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
@@ -261,6 +277,8 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
     ws.final = true; g.persist();
     for (const [i, c] of CONFETTI.entries()) g.sparks.burst(g.above(shrine, 5 + i), c, 40, 6);
     g.sparks.burst(scenery.candleTop.clone(), '#ffd27a', 50, 3);
+    // the five are glad of a land that laughs again (each its clip of the finale), then stand as before
+    for (const n of npcs) if (n.actor.has('Cheer') && n.actor.has('Idle')) n.actor.once('Cheer', 'Idle');
     finaleOn = false; g.cam.focus = null;
   });
   const rubySpots = rubies.map((r): Spot => ({ pos: point(r.spot), r: RUBY_R, label: r.label, on: () => waiting(r), run: () => take(r) }));
@@ -369,7 +387,7 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
 }
 
 /** The Sweet Land, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
-export const sweet: WorldDef<Record<string, never>, WorldSky> = {
+export const sweet: WorldDef<SweetLoads, WorldSky> = {
   id: 'sweet',
   shelf: 3,
   spawn: SPAWN,
