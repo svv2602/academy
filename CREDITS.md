@@ -40,6 +40,15 @@ Blender for this game (Meshy rigs only bipeds and quadrupeds). Set right in Blen
 cut away, the crab's hat let down onto his eyes and his eyes made black, the fish's stalk and its light added as our own
 shapes. Joined and their textures shrunk in Blender for this game.
 
+The characters of the Sweet Land (world 4; `models-src/sweet/`, shipped with the world from `worlds-data/sweet/`): the
+meshes and textures of Pastila (the fairy confectioner), Imbir (the gingerbread man), Tyanuchka (the marmalade strongman)
+and Kakao (the old miller) were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-24;
+under Meshy's terms for paid plans the models belong to the customer (not CC0). Skeletons and clips: our own, made in
+Blender for this game. Set right in Blender: Pastila's wings added as our own shapes (Meshy gave her none), the faces
+joining Pastila's hands to her skirt, Tyanuchka's fists to his belt and Kakao's right hand to his apron cut, Kakao's
+near-black beard made chocolate. Their textures shrunk in Blender for this game. Polosatik (the candy-cane watchman) is
+made whole in Blender by code for this game, with no generated part: our own, the customer's.
+
 The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
 `worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page
 (read 2026-11-22); its materials' colours put into its vertices in code. The sea's other landmarks — the castle of

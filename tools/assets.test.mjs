@@ -56,7 +56,7 @@ describe('public/models is the output of npm run assets', () => {
 
 describe('a model made with a service says so in its file (CREDITS.md)', () => {
   it('the Meshy models carry asset.copyright and asset.extras.source; no other model claims Meshy', () => {
-    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'forest/borovik.glb', 'forest/kolyuchka.glb', 'forest/mudrena.glb', 'forest/owlet.glb', 'forest/shustrik.glb', 'forest/tropka.glb', 'hero/child.glb', 'sea/bulk.glb', 'sea/iskorka.glb', 'sea/khvylia.glb', 'sea/kleshnya.glb', 'sea/pantsyr.glb']);
+    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'forest/borovik.glb', 'forest/kolyuchka.glb', 'forest/mudrena.glb', 'forest/owlet.glb', 'forest/shustrik.glb', 'forest/tropka.glb', 'hero/child.glb', 'sea/bulk.glb', 'sea/iskorka.glb', 'sea/khvylia.glb', 'sea/kleshnya.glb', 'sea/pantsyr.glb', 'sweet/imbir.glb', 'sweet/kakao.glb', 'sweet/pastila.glb', 'sweet/tyanuchka.glb']);
     for (const [rel, made] of Object.entries(PROVENANCE)) {
       const asset = json.get(rel)?.asset;
       expect(asset?.copyright, `${rel}: ${RUN}`).toBe(made.copyright);
