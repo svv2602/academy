@@ -10,15 +10,16 @@ import { hub } from './hub';
 // The hub (./hub, WORLD-01) is the home between the worlds: part of the installation (INSTALLED below).
 // The forest (./forest, WORLD-02) is published (the customer's word of 2026-11-24: «выкладывай лес»): listed in every
 // build, a next world downloaded while the fairies are played (TECH-09); its files lie in worlds-data/forest/.
-// The sea (./sea, WORLD-03) is in its grey build (WORLD-12): listed only in a build or a dev server made with
-// `--mode grey` (tools/sea-grey.mjs), never in the published game, until the customer has taken the grey build; the
-// Sweet Land (./sweet, WORLD-04) in its grey build too (tools/sweet-grey.mjs): the hub's arch of its place (shelf 3)
-// wakes once the sea is done.
+// The sea (./sea, WORLD-03) is published too (the customer's word of 2026-11-24: «да, пусть П3 готовит море»): listed
+// in every build, downloaded while the forest is played; its files lie in worlds-data/sea/ (its swimming clips:
+// vite.config.ts SEA_FILES). The Sweet Land (./sweet, WORLD-04) is in its grey build (WORLD-12): listed only in a build
+// or a dev server made with `--mode grey` (tools/sweet-grey.mjs), never in the published game, until the customer has
+// taken the grey build; the hub's arch of its place (shelf 3) wakes once the sea is done.
 export const WORLDS = [
   fairy, hub,
   ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : []),
-  (await import('./forest')).forest,
-  ...(import.meta.env.MODE === 'grey' ? [(await import('./sea')).sea, (await import('./sweet')).sweet] : []),
+  (await import('./forest')).forest, (await import('./sea')).sea,
+  ...(import.meta.env.MODE === 'grey' ? [(await import('./sweet')).sweet] : []),
 ];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';

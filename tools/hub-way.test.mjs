@@ -22,7 +22,8 @@ function hubShows(ids, done) {
 
 describe('the way between the hub and the forest: what the arches show by the worlds of the build', () => {
   it.each([
-    ['the published build (the forest)', ['fairy', 'hub', 'forest'], ['forest']],
+    ['the published build before the sea (the forest)', ['fairy', 'hub', 'forest'], ['forest']],
+    ['the published build (the forest, the sea)', ['fairy', 'hub', 'forest', 'sea'], ['forest', 'sea']],
     ['the grey build (the forest, the sea, the Sweet Land)', ['fairy', 'hub', 'forest', 'sea', 'sweet'], ['forest', 'sea', 'sweet']],
   ])('%s: hubExpect is what the hub\'s rules give', (_, ids, next) => {
     const want = hubExpect(next);
@@ -31,10 +32,17 @@ describe('the way between the hub and the forest: what the arches show by the wo
     // the flags set as they wake: woke<shelf> of each (src/worlds/hub/index.ts), never one of a place that slept
     expect(want.forest.woke.map(woke).every((f) => want.forest.flags.includes(f))).toBe(true);
     expect(want.forest.none.some((f) => want.forest.woke.map(woke).includes(f))).toBe(false);
+    // a save from before the sea was in the build: the forest's arch awake already
+    if (want.older) {
+      const open = openArches(portalWorlds(registry(ids)), (id) => ['fairy', 'forest'].includes(id));
+      expect(wakingArches(open, { woke1: true })).toEqual(want.older.woke);
+      expect(want.older.flags).toContain(woke(2));
+    } else expect(next).not.toContain('sea');
   });
 
   it('without the sea in the build, the forest done wakes the forest\'s arch alone and the sea\'s place sleeps', () => {
     expect(hubExpect(['forest']).forest).toEqual({ arches: ['fairy', 'forest', null, null, null], woke: [1], flags: ['woke1'], none: ['woke2', 'sea_wake'] });
+    expect(hubExpect(['forest']).older).toBeNull();
     expect(hubExpect(['forest', 'sea']).forest.arches).toEqual(['fairy', 'forest', 'sea', null, null]);
   });
 

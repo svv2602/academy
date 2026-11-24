@@ -9,6 +9,8 @@
 //     (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
 //   - the forest done too: the sea's arch open as well when the build has the sea, asleep (no world behind it) when it
 //     has not; the Sweet Land's (shelf 3) still asleep - it wakes once the sea is done;
+//   - with the sea in the build, a save of the forest done whose forest's arch woke already (from before the sea was
+//     published): the sea's arch alone wakes, the cat says hub_sea_wake, through it into the sea;
 //   - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
 //   - without network, the forest's files never cached (refused to the page from the start): the forest's arch
 //     refuses - the game stays in the hub, the frame never closes, the cat says "need_net" (src/main.ts `refuse`).
@@ -33,7 +35,8 @@ export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) *
  * What the hub must show for the next worlds `next` of the build (the ids of its dist/worlds.json), the save of the
  * fairies done (`fairies`) and of the forest done too (`forest`): the worlds behind the five arches, the shelves waking
  * on the first entry, the flags of the hub's part of the save after it. The sea's arch (shelf 2) has a world only when
- * the build has the sea (src/worlds/hub/portals.ts portalWorlds, openArches); without it its place sleeps.
+ * the build has the sea (src/worlds/hub/portals.ts portalWorlds, openArches); without it its place sleeps. With the sea,
+ * `older`: the forest done and its arch awake already (woke1) - a save from before the sea was published.
  */
 export function hubExpect(next) {
   const sea = next.includes('sea');
@@ -42,6 +45,8 @@ export function hubExpect(next) {
     forest: sea
       ? { arches: ['fairy', 'forest', 'sea', null, null], woke: [1, 2], flags: ['woke1', 'woke2', 'sea_wake'], none: [] }
       : { arches: ['fairy', 'forest', null, null, null], woke: [1], flags: ['woke1'], none: ['woke2', 'sea_wake'] },
+    // a save of the forest done whose forest's arch woke before the sea was in the build (an update of the game)
+    older: sea ? { woke: [2], flags: ['woke1', 'woke2', 'sea_wake'] } : null,
   };
 }
 
@@ -170,6 +175,26 @@ export async function hubWay(browser, url, shots, { slow = false, next = ['fores
       if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with ${want.forest.arches.filter(Boolean).length} arches open, more than 80`);
       await p.page.screenshot({ path: join(shots, 'way-hub-forest-done.png') });
       told.push(`the forest done: the arches ${JSON.stringify(want.forest.woke)} woke, the cat said hub_forest_wake, open ${JSON.stringify(open2)}, ${n} draw calls at the arrival`);
+      await p.ctx.close();
+    }
+    // ---- with the sea in the build: a save of the forest done before the sea was published (its arch woke then) ----
+    if (want.older) {
+      const name = 'the forest done before the sea';
+      const save = HUB_SAVES.one();
+      save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      save.worlds.hub = { ...(save.worlds.hub ?? { quests: {}, final: false, starsTaken: [], pos: null }), flags: { ...(save.worlds.hub?.flags ?? {}), woke1: true } };
+      const p = await open(name, save);
+      if (!same(p.woke, want.older.woke)) problems.push(`${name}: the arches waking on the entry are ${JSON.stringify(p.woke)}, not ${JSON.stringify(want.older.woke)}`);
+      await p.until(() => __game.line === 'hub_sea_wake', null, 'the cat did not say "hub_sea_wake" as the sea\'s arch woke', 30000).catch((e) => problems.push(`${name}: ${e.message}`));
+      const flags = await p.g(() => __game.save.worlds.hub?.flags ?? {});
+      if (want.older.flags.some((f) => !flags[f])) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: ${want.older.flags.join(', ')} expected`);
+      const open3 = await arches(p);
+      if (!same(open3, want.forest.arches)) problems.push(`${name}: the arches lead to ${JSON.stringify(open3)}, not ${JSON.stringify(want.forest.arches)}`);
+      // through the sea's arch into the sea, as the forest's above: the way the save of an update takes first
+      await p.act(HUB_ARCH[2].x * 0.9, HUB_ARCH[2].z * 0.9, 'at the sea\'s arch');
+      await p.inWorld('sea');
+      await p.page.screenshot({ path: join(shots, 'way-sea-from-hub.png') });
+      told.push(`the forest done before the sea: the sea's arch alone woke, the cat said hub_sea_wake, through it into the sea`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----

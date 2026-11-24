@@ -41,6 +41,7 @@ describe('pickWorld', () => {
 vi.mock('../worlds/fairy', () => ({ fairy: { id: 'fairy' } }));
 vi.mock('../worlds/hub', () => ({ hub: { id: 'hub' } }));
 vi.mock('../worlds/forest', () => ({ forest: { id: 'forest' } }));
+vi.mock('../worlds/sea', () => ({ sea: { id: 'sea' } }));
 const RAW = import.meta.glob(['../main.ts', '../worlds/index.ts', '../worlds/fairy/index.ts', './context.ts'],{ query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 describe('the registry names the published world (R04, R22)', () => {

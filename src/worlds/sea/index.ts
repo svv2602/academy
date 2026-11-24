@@ -41,12 +41,12 @@ import { CHEST_FLAG, SEA_SECRETS, SECRET_HOW, createSeaSecrets } from './secrets
  * The Underwater Kingdom (WORLD-03), its grey build (WORLD-12): the map of docs/worlds/world-3.md in simple shapes at
  * their real sizes, stretched by one number (./layout.ts SCALE, `?scale=`), its five characters as figures of their
  * height with their chains of tasks the game already has, the two pearls that lie in the world, the finale at the
- * shell of the throne and the tour. The heroine swims (WorldDef.move): the swimming clips are the world's one file,
- * models/sea/swim.glb - put into the grey build only (vite.config.ts), from the probe world's copy of the same two
- * clips. The cat swims in its bubble, and the camera, her bubbles and the motes are the game's under water
+ * shell of the throne and the tour. The heroine swims (WorldDef.move): the swimming clips, models/sea/swim.glb, are
+ * put into every build that has the sea (vite.config.ts SEA_FILES) from the probe world's copy of the same two clips.
+ * The cat swims in its bubble, and the camera, her bubbles and the motes are the game's under water
  * (src/game/water.ts, src/game/camera.ts); a pet goes to no world but its own and the Great Tree (decision of the
- * customer 2026-11-20). The registry lists the sea only in a build made with `--mode grey`
- * (src/worlds/index.ts): the published game and the hub do not change. Its measurements: tools/sea-grey.mjs.
+ * customer 2026-11-20). Made as the grey build, published 2026-11-24: the registry lists it in every build
+ * (src/worlds/index.ts), its files from worlds-data/sea/. Its measurements: tools/sea-grey.mjs.
  */
 
 /**
@@ -470,7 +470,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   };
 }
 
-/** The Underwater Kingdom, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
+/** The Underwater Kingdom: listed in src/worlds/index.ts in every build (published 2026-11-24). */
 export const sea: WorldDef<SeaLoads, WorldSky> = {
   id: 'sea',
   shelf: 2,

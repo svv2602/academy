@@ -46,6 +46,11 @@ The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wre
 shells, the throne, the grotto, the arch of the trench, the great shell, the reef's fans — and the cabin's door are our own
 simple shapes built in code (`src/worlds/sea/landmarks.ts`); the chest is the Platformer Game Kit's (above).
 
+The heroine's swimming in the sea (world 3; in the build `models/sea/swim.glb`, from
+`worlds-test/probe/models/probe/swim.glb`, `vite.config.ts` SEA_FILES): the clips `Swim_Fwd_Loop` and `Swim_Idle_Loop`
+of Quaternius "Universal Animation Library" (`UAL1.glb`) — CC0 1.0, the source of the heroine's clips (above); cut and
+compressed with `tools/pack_world_clips.mjs`, clips only, no mesh (`worlds-test/probe/README.md`).
+
 The forest's things (world 2, 2026-11-21): the bridges, the fence, the woodpiles and the signpost are Kenney's
 "Nature Kit" 2.1 (https://kenney.nl/assets/nature-kit) — CC0 1.0 (its License.txt: "Creative Commons Zero, CC0");
 `models-src/forest/kenney/`. Its undergrowth — bushes, plants, flowers, mossy stones, the mossy log and the berry bush —

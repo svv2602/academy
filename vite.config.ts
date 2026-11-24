@@ -41,12 +41,12 @@ function probeFiles(): Plugin {
 // The files of the next worlds of a build that lie outside public/ (tools/vite-worlds.mjs `greyWorldFiles`): every
 // file of worlds-data/<id>/ of a next world of the build, put in under the path the world asks for (the forest's
 // characters, models/forest/…, written there by tools/assets.mjs; the voice, voice/<id>/…, written there by
-// tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest (published
-// 2026-11-24) and gets its files; a grey build (WORLD-12, `--mode grey`) also the sea's and the Sweet Land's, and
-// GREY_FILES - the sea swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the UAL,
-// worlds-test/probe/README.md), no second copy in git.
+// tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest and the
+// sea (published 2026-11-24) and gets their files; a grey build (WORLD-12, `--mode grey`) also the Sweet Land's. With
+// the sea, SEA_FILES too: it swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the
+// UAL, worlds-test/probe/README.md), no second copy in git; models/sea/ counts them in the sea's own budget.
 const GREY_MODE = 'grey';
-const GREY_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
+const SEA_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
 function worldFiles(next: string[], extra: Record<string, string>): Plugin {
   let root = '.';
   return {
@@ -66,8 +66,8 @@ function worldFiles(next: string[], extra: Record<string, string>): Plugin {
 // when the page first asks for it, and by the download in the background while the previous world is played
 // (src/core/worldcache.ts). A build without a next world would get none of this; the published game has the forest.
 export default defineConfig(({ mode }) => {
-  // the sea and the Sweet Land only in their grey build (WORLD-12, src/worlds/index.ts); the forest in every build
-  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sea: GREY_MODE, sweet: GREY_MODE });
+  // the Sweet Land only in its grey build (WORLD-12, src/worlds/index.ts); the forest and the sea in every build
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sweet: GREY_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
   return {
@@ -82,7 +82,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
-      worldFiles(next, mode === GREY_MODE ? GREY_FILES : {}),
+      worldFiles(next, next.includes('sea') ? SEA_FILES : {}),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
       list,
       VitePWA({
