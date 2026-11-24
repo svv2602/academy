@@ -317,6 +317,30 @@ export function reportProblems(report, want) {
 }
 
 /**
+ * The report of a walkthrough of a whole world (tools/sea-pass.mjs, tools/forest-pass.mjs) against its world's own
+ * `spec` ({ world, kinds, parts, secrets, skills }): `reportProblems` online in `size`, then the parts of the artifact
+ * in the world its description has (at least `parts`), every secret of `secrets` in it and found, every task in the
+ * world of `skills` ("<character> <step>" -> the skill) played and written to that skill. [] when it is right.
+ */
+export function worldPassProblems(report, spec, size = 'mobile') {
+  const out = reportProblems(report, { world: spec.world, size, offline: false, kinds: spec.kinds, inWorld: true });
+  if (!report) return out;
+  const items = report.items ?? [], did = new Set(report.order ?? []);
+  const parts = items.filter((i) => i.kind === 'part').length;
+  if (parts < spec.parts) out.push(`the description has ${parts} part(s) of the artifact in the world, ${spec.parts} expected`);
+  for (const id of spec.secrets) {
+    if (!items.some((i) => i.kind === 'secret' && i.id === id)) out.push(`the description has no secret "${id}"`);
+    else if (!did.has(id)) out.push(`the secret "${id}" was not found by the pass`);
+  }
+  for (const [key, skill] of Object.entries(spec.skills)) {
+    if (!(report.worldTasks ?? []).includes(key)) { out.push(`the task in the world "${key}" was not played by the pass`); continue; }
+    const got = report.worldSkills?.[key];
+    if (got !== skill) out.push(`the task in the world "${key}" recorded ${got === undefined ? 'nothing the report shows' : got === null ? 'no skill' : `the skill "${got}"`}, "${skill}" expected`);
+  }
+  return out;
+}
+
+/**
  * The play of a task in the world on a step a chain declares (R97), in order: a) `open` - it is open and waits; b)
  * `wrong` - one wrong move and its course; c) `close` - the close button, nothing recorded, the heroine walks; d)
  * `again` - the action again, the same task anew; e) `solve` - solved through the door, the step recorded.

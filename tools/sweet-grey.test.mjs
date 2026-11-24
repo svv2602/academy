@@ -13,11 +13,10 @@ describe('tools/sweet-grey.mjs', () => {
   it('has a limit of its own, twice the shared limit of a walkthrough and inside the job, unless a run asks its own', () => {
     expect(passTimeoutMs({})).toBe(PASS_TIMEOUT_MS);
     expect(PASS_TIMEOUT_MS).toBeGreaterThanOrEqual(2 * 600000);
-    expect(PASS_TIMEOUT_MS).toBeLessThan(25 * 60000);
     expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
     // tools/worlds.mjs plays the Sweet Land with it, not with the shared limit of the other walkthroughs
     const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
-    expect(worlds).toContain("shots, 'mobile'], sweetMs, sweetPassEnv(process.env, out));");
+    expect(worlds).toContain('(out) => sweetPassEnv(process.env, out), sweetPassTimeoutMs(process.env), sweetPassProblems,');
   });
 
   it('reads its arguments: the chosen stretch 1.6 and q2 by default', () => {

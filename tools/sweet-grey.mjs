@@ -104,7 +104,7 @@ export function readArgs(argv) {
 /**
  * The limit of the Sweet Land's walkthrough in tools/worlds.mjs, ms. On the CI runner (swiftshader, ~1 fps) it took
  * 7.7 min of the shared 10 (E2E_RUN_TIMEOUT_MS, 600000) before its four secrets, which took the sea 1-1.5 min more.
- * As the sea's (tools/sea-pass.mjs PASS_TIMEOUT_MS): twice the shared limit, inside the job's 25 minutes
+ * As the sea's (tools/sea-pass.mjs PASS_TIMEOUT_MS): twice the shared limit, inside the job's 30 minutes
  * (.github/workflows/ci.yml "worlds").
  */
 export const PASS_TIMEOUT_MS = 1200000;

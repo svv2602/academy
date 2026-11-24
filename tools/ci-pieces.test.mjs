@@ -14,6 +14,9 @@ import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_ALL
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
 import { PARTS, PUBLISH_PARTS } from './worlds.mjs';
+import { PASS_TIMEOUT_MS as FOREST_PASS_MS } from './forest-pass.mjs';
+import { PASS_TIMEOUT_MS as SEA_PASS_MS } from './sea-pass.mjs';
+import { PASS_TIMEOUT_MS as SWEET_PASS_MS } from './sweet-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -827,6 +830,11 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     // a failed part keeps its own pictures: two parts must not upload under one name
     expect(worlds).toContain('          name: worlds-failure-${{ matrix.part }}-a${{ github.run_attempt }}\n');
     expect(worlds.match(/tools\/worlds\.mjs/g)).toHaveLength(1);
+  });
+
+  it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" holds the longest walkthrough of a whole world with its setup (npm ci, the build of the run: 4 minutes kept for them)', (name) => {
+    const minutes = Number(key(workflow(name).jobs.worlds, 'timeout-minutes'));
+    expect(minutes * 60000).toBeGreaterThanOrEqual(Math.max(FOREST_PASS_MS, SEA_PASS_MS, SWEET_PASS_MS) + 4 * 60000);
   });
 });
 
