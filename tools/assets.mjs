@@ -85,6 +85,13 @@ export const PROVENANCE = {
   'sea/pantsyr.glb': forest('2026-11-22', 'skeleton and clips: our own'),
   'sea/kleshnya.glb': forest('2026-11-22', 'skeleton and clips: our own'),
   'sea/iskorka.glb': forest('2026-11-22', 'skeleton and clips: our own'),
+  // the Sweet Land (2026-11-24, the lead's decisions on the customer's word): Meshy's mesh and texture, our own skeleton,
+  // clips and wings
+  'sweet/pastila.glb': forest('2026-11-24', 'skeleton, clips and wings: our own'),
+  // and Imbir, Tyanuchka and Kakao the same way; Polosatik is made by code, no Meshy in him (not listed)
+  'sweet/imbir.glb': forest('2026-11-24', 'skeleton and clips: our own'),
+  'sweet/tyanuchka.glb': forest('2026-11-24', 'skeleton and clips: our own'),
+  'sweet/kakao.glb': forest('2026-11-24', 'skeleton, clips and the beard\'s chocolate colour: our own'),
 };
 
 const quiet = { debug() {}, info() {}, warn(m) { throw new Error(`gltf-transform warning: ${m}`); }, error(m) { throw new Error(m); } };
