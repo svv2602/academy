@@ -83,6 +83,20 @@ export function worldRoute(worlds) {
 }
 
 /**
+ * The name of a chunk of the build (`output.chunkFileNames`): the chunk a next world of `worlds` is entered by - its
+ * src/worlds/<id>/index.ts, imported when she enters it (src/worlds/index.ts) - lies in code/<id>/, a folder of the
+ * world (WORLD_FOLDERS): out of the service worker's list, in the world's list and in its budget, downloaded with its
+ * files. Every other chunk - the core's, and one that more than one world shares - stays in assets/.
+ */
+export function worldChunkFile(worlds) {
+  const own = new RegExp(`[\\\\/]src[\\\\/]worlds[\\\\/](${worlds.map(escape).join('|') || '(?!)'})[\\\\/]index\\.ts$`);
+  return (chunk) => {
+    const id = chunk.facadeModuleId ? own.exec(chunk.facadeModuleId)?.[1] : undefined;
+    return id ? `code/${id}/[name]-[hash].js` : 'assets/[name]-[hash].js';
+  };
+}
+
+/**
  * The list of a build: `files` are [{ path, bytes }] (paths relative to the build, with "/"), `worlds` the ids of the
  * next worlds. Returns { cache, worlds: { <id>: { revision, size, files: [{ url, size, revision }] } } }: the files of
  * every world sorted by address, `revision` of a file the SHA-256 of its bytes, of a world the SHA-256 over the
@@ -131,8 +145,9 @@ export function worldList(worlds) {
     configResolved(config) { publicDir = config.publicDir || ''; },
     generateBundle(_, bundle) {
       entry = null;
-      const emitted = Object.values(bundle).filter((f) => f.type === 'asset' && worldOf(f.fileName, worlds) !== null)
-        .map((f) => ({ path: f.fileName, bytes: Buffer.from(f.source) }));
+      // the files of a world and its code (code/<id>/: its chunk, `worldChunkFile`) as the build writes them
+      const emitted = Object.values(bundle).filter((f) => worldOf(f.fileName, worlds) !== null)
+        .map((f) => ({ path: f.fileName, bytes: Buffer.from(f.type === 'chunk' ? f.code : f.source) }));
       const taken = new Set(emitted.map((f) => f.path));
       const fixed = publicDir ? publicWorldFiles(publicDir, worlds).filter((f) => !taken.has(f.path)) : [];
       const list = listWorlds([...emitted, ...fixed], worlds);
