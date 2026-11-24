@@ -53,6 +53,12 @@ export interface WorldCacheEnv {
   /** SHA-256 of the bytes, in hex; rejects where the page cannot count it. */
   digest: (bytes: ArrayBuffer) => Promise<string>;
   mayDownload: () => boolean;
+  /**
+   * Does the browser tell it is online (navigator.onLine)? Offline the download in the background does not start: its
+   * first file could only fail (a failed request and an error in the console); the next call - a launch, an arrival in
+   * a world - starts it once the network is back. A world asked for by name (`download`) still asks: the gate says why.
+   */
+  online: () => boolean;
 }
 
 const LIST = 'worlds.json';
@@ -64,7 +70,7 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 function pageEnv(): WorldCacheEnv {
   return {
     fetch: (url) => fetch(url), caches: 'caches' in globalThis ? caches : undefined, base: document.baseURI, digest: sha256,
-    mayDownload: () => mayDownload(),
+    mayDownload: () => mayDownload(), online: () => navigator.onLine !== false,
   };
 }
 
@@ -210,6 +216,7 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
   async function downloadNext(candidates: readonly string[]): Promise<WorldDownload | null> {
     if (!candidates.length) return null;
     if (!env.mayDownload()) return last = { world: candidates[0], status: 'none', done: 0, total: 0, running: false, error: 'saving' };
+    if (!env.online()) return last = { world: candidates[0], status: 'none', done: 0, total: 0, running: false, error: 'network' };
     // The state tells of the download from the call itself: choosing the world asks for the list and the cache first.
     const before = last;
     const choosing: WorldDownload = last = { world: candidates[0], status: 'none', done: 0, total: 0, running: true, error: null };

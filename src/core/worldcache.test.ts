@@ -88,7 +88,7 @@ function fakeServer(list: unknown, files: Files) {
 function setup(list: unknown, files: Files, more: Partial<WorldCacheEnv> = {}) {
   const store = fakeCaches();
   const server = fakeServer(list, files);
-  const env: WorldCacheEnv = { fetch: server.fetch, caches: store.caches, base: BASE, digest: sha256, mayDownload: () => true, ...more };
+  const env: WorldCacheEnv = { fetch: server.fetch, caches: store.caches, base: BASE, digest: sha256, mayDownload: () => true, online: () => true, ...more };
   return { store, server, worlds: createWorldCache(env) };
 }
 /** The addresses asked for, without the list itself. */
@@ -351,6 +351,15 @@ describe('downloadNext: the next world, while the previous one is played', () =>
     expect(await worlds.downloadNext(['ocean'])).toEqual({ world: 'ocean', status: 'none', done: 0, total: 0, running: false, error: 'saving' });
     expect(server.s.asked).toEqual([]);
     expect(worlds.state()).toMatchObject({ error: 'saving' });
+  });
+
+  it('offline (the browser says so): nothing is asked for, the state says "network"; online again the next call downloads', async () => {
+    let online = false;
+    const { worlds, server } = setup(await listOf({ ocean: OCEAN }), OCEAN, { online: () => online });
+    expect(await worlds.downloadNext(['ocean'])).toEqual({ world: 'ocean', status: 'none', done: 0, total: 0, running: false, error: 'network' });
+    expect(server.s.asked).toEqual([]);
+    online = true;
+    expect(await worlds.downloadNext(['ocean'])).toMatchObject({ world: 'ocean', status: 'ready', error: null });
   });
 });
 
