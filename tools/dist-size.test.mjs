@@ -20,8 +20,8 @@ function folder(files) {
 }
 
 describe('the size budget of the build', () => {
-  it('is the one of docs/15-tech.md: 12.5 MB for the game (12 until the worlds\' code leaves the installation), 6 MB for the voice, 1 MB per file', () => {
-    expect([MAX_DIST, MAX_VOICE, MAX_DIST_FILE]).toEqual([12_500_000, 6_000_000, 1_000_000]);
+  it('is the one of docs/15-tech.md: 12 MB for the game (back from 12.5 once the worlds\' code left the installation), 6 MB for the voice, 1 MB per file', () => {
+    expect([MAX_DIST, MAX_VOICE, MAX_DIST_FILE]).toEqual([12_000_000, 6_000_000, 1_000_000]);
   });
 
   it('counts the voice apart: clips do not use up the game\'s 12 MB, and the voice has its own limit', () => {
@@ -128,12 +128,12 @@ describe('the size budget of every world', () => {
     // exactly the limit fits; the models and the frames are within it each and over it together
     expect(checkDistSize(folder({ 'a.glb': 900, 'models/probe/tree.glb': 600, 'story/probe/01.webp': 400 }), 1000, 1000, 1000, two).problems).toEqual([]);
     const r = checkDistSize(folder({ 'a.glb': 900, 'models/probe/tree.glb': 600, 'story/probe/01.webp': 401, 'models/sea/fish.glb': 1000 }), 1000, 1000, 1000, two);
-    expect(r.problems).toEqual(['the world probe (models/probe/ and story/probe/): 1001 bytes in 2 files, the limit is 1000']);
+    expect(r.problems).toEqual(['the world probe (models/probe/, story/probe/ and code/probe/): 1001 bytes in 2 files, the limit is 1000']);
     // each world against its own limit: two worlds within it are not one world above it
     const both = checkDistSize(folder({ 'models/probe/tree.glb': 700, 'models/sea/fish.glb': 700 }), 1000, 1000, 1000, two);
     expect(both.problems).toEqual([]);
     const sea = checkDistSize(folder({ 'models/probe/tree.glb': 700, 'models/sea/fish.glb': 700, 'story/sea/01.webp': 301 }), 1000, 1000, 1000, two);
-    expect(sea.problems).toEqual(['the world sea (models/sea/ and story/sea/): 1001 bytes in 2 files, the limit is 1000']);
+    expect(sea.problems).toEqual(['the world sea (models/sea/, story/sea/ and code/sea/): 1001 bytes in 2 files, the limit is 1000']);
   });
 
   it('fails a next world above its limit of voice, naming the world; its voice does not use up its models', () => {
@@ -144,7 +144,7 @@ describe('the size budget of every world', () => {
     // both limits of one world at once: two problems
     const twice = checkDistSize(folder({ 'models/sea/fish.glb': 1000, 'story/sea/01.webp': 1, 'voice/sea/a.mp3': 501 }), 1000, 1000, 1000, two);
     expect(twice.problems).toEqual([
-      'the world sea (models/sea/ and story/sea/): 1001 bytes in 2 files, the limit is 1000',
+      'the world sea (models/sea/, story/sea/ and code/sea/): 1001 bytes in 2 files, the limit is 1000',
       'the voice of the world sea (voice/sea/): 501 bytes in 1 files, the limit is 500',
     ]);
   });
@@ -194,7 +194,7 @@ describe('the size budget of every world', () => {
     writeFileSync(join(dirs.at(-1), 'story/probe/last.bin'), Buffer.alloc(1));
     writeFileSync(join(dirs.at(-1), 'voice/probe/last.bin'), Buffer.alloc(1));
     expect(checkDistSize(dirs.at(-1), undefined, undefined, undefined, layout).problems).toEqual([
-      'the world probe (models/probe/ and story/probe/): 8000001 bytes in 9 files, the limit is 8000000',
+      'the world probe (models/probe/, story/probe/ and code/probe/): 8000001 bytes in 9 files, the limit is 8000000',
       'the voice of the world probe (voice/probe/): 3000001 bytes in 4 files, the limit is 3000000',
     ]);
   });
@@ -237,8 +237,8 @@ describe('the size budget of every world', () => {
   it('sums the result up in one line for the step "dist size": the first load and every next world', () => {
     const r = checkDistSize(folder({ 'assets/index.js': 915_028, 'models/hero/base.glb': 500_000, 'voice/intro.mp3': 120_000, 'models/probe/tree.glb': 250_000, 'story/probe/01.webp': 40_000, 'voice/probe/a.mp3': 30_000 }), undefined, undefined, undefined, { worlds: ['probe', 'sea'], first: 'fairy' });
     expect(r.problems).toEqual([]);
-    expect(sizeSummary(r)).toBe('the core and the first world (fairy): 1.42 MB of the game and 0.12 MB of voice; the world probe: 0.29 MB of models and frames and 0.03 MB of voice; '
-      + 'the world sea: 0.00 MB of models and frames and 0.00 MB of voice; 6 files; the heaviest: assets/index.js, 0.92 MB');
+    expect(sizeSummary(r)).toBe('the core and the first world (fairy): 1.42 MB of the game and 0.12 MB of voice; the world probe: 0.29 MB of models, frames and code and 0.03 MB of voice; '
+      + 'the world sea: 0.00 MB of models, frames and code and 0.00 MB of voice; 6 files; the heaviest: assets/index.js, 0.92 MB');
     const alone = checkDistSize(folder({ 'assets/index.js': 915_028, 'voice/intro.mp3': 120_000 }), undefined, undefined, undefined, { worlds: [] });
     expect(sizeSummary(alone)).toBe('the core and the first world: 0.92 MB of the game and 0.12 MB of voice; 2 files; the heaviest: assets/index.js, 0.92 MB');
     // a result of before the worlds, and one with nothing measured

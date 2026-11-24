@@ -1,8 +1,9 @@
 // The size budget of the build (docs/15-tech.md, "Бюджет" and TECH-09), counted per part of the build (tools/world-files.mjs).
 // The first load is the core with the first world (the service worker caches it with the installation): the game - code
-// and models - at most 12.5 MB (12 MB until 2026-11-24, see MAX_DIST), the recorded voice (dist/voice/) at most 5 MB of its own (decision 2026-11-16: the voice
+// and models - at most 12 MB (12.5 for a while on 2026-11-24, see MAX_DIST), the recorded voice (dist/voice/) at most 5 MB of its own (decision 2026-11-16: the voice
 // must not crowd out the worlds, nor they the voice; 4 MB raised to 5 on 2026-11-18 for the cat's lines of stage 4). Every next world (decision Q14) has a budget of its own: at most
-// 8 MB of models and story frames (dist/models/<id>/, dist/story/<id>/) and 3 MB of voice (dist/voice/<id>/).
+// 8 MB of models, story frames and code (dist/models/<id>/, dist/story/<id>/, dist/code/<id>/: its chunk, loaded as she
+// enters it) and 3 MB of voice (dist/voice/<id>/).
 // One file is at most 1 MB, whatever it belongs to.
 // The bank of the old game's clips (dist/bank/, tools/import_old_voice.py) is not part of the first load (R37: the
 // service worker does not cache it, vite.config.ts `globIgnores`), so it is in neither limit; the limit for one file holds.
@@ -14,20 +15,20 @@ import { fileURLToPath } from 'node:url';
 import { BANK, CORE, groupOf, isBank, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
 /**
- * Bytes, as in docs/15-tech.md (12.5 MB and 1 MB, decimal - the same unit as tools/assets.mjs). 12 -> 12.5 MB on
- * 2026-11-24, the lead's decision on the customer's charge («Если понадобится поднять предел или считать вес по-другому —
- * прими самостоятельное решение»): the code of every world - its JS chunk, with its lines - is still part of the
- * installation, and the Sweet Land's recorded lines took the core 27 KB over 12 MB. For a while: once a world's code is
- * loaded on entering it, out of the precache and within the world's own budget (П3's change), it goes back to 12 MB.
+ * Bytes, as in docs/15-tech.md (12 MB and 1 MB, decimal - the same unit as tools/assets.mjs). It was 12.5 MB for a while
+ * on 2026-11-24 (the lead's decision on the customer's charge: «Если понадобится поднять предел или считать вес
+ * по-другому — прими самостоятельное решение»), while the code of every world - its JS chunk, with its lines - was
+ * part of the installation; back to 12 MB once a next world's code is loaded as she enters it, out of the precache and
+ * within the world's own budget (code/<id>/, src/worlds/index.ts).
  */
-export const MAX_DIST = 12_500_000;
+export const MAX_DIST = 12_000_000;
 export const MAX_DIST_FILE = 1_000_000;
 /**
  * The recorded voice of the first load: the clips under dist/voice/, a budget of its own (4 -> 5 MB 2026-11-18, 5 -> 6 MB
  * the customer's word of 2026-11-21: the cauldron, the treats, the trade and the puzzle speak in the installation).
  */
 export const MAX_VOICE = 6_000_000;
-/** A next world: its models and story frames together, and its voice apart (TECH-09). */
+/** A next world: its models, story frames and code together, and its voice apart (TECH-09). */
 export const MAX_WORLD = 8_000_000;
 export const MAX_WORLD_VOICE = 3_000_000;
 
@@ -97,7 +98,7 @@ export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE,
   if (total > maxTotal) problems.push(`${firstLoad}: ${total} bytes in ${game.length} files, the limit is ${maxTotal}`);
   if (voice > maxVoice) problems.push(`${firstVoice}: ${voice} bytes in ${clips.length} files, the limit is ${maxVoice}`);
   for (const w of parts) {
-    if (sum(w.game) > maxWorld) problems.push(`the world ${w.id} (models/${w.id}/ and story/${w.id}/): ${sum(w.game)} bytes in ${w.game.length} files, the limit is ${maxWorld}`);
+    if (sum(w.game) > maxWorld) problems.push(`the world ${w.id} (models/${w.id}/, story/${w.id}/ and code/${w.id}/): ${sum(w.game)} bytes in ${w.game.length} files, the limit is ${maxWorld}`);
     if (sum(w.clips) > maxWorldVoice) problems.push(`the voice of the world ${w.id} (voice/${w.id}/): ${sum(w.clips)} bytes in ${w.clips.length} files, the limit is ${maxWorldVoice}`);
   }
   if (!files.length) problems.push(`${dir} holds no files`);
@@ -124,7 +125,7 @@ const mb = (bytes) => (bytes / 1e6).toFixed(2);
  */
 export function sizeSummary(r) {
   const parts = [`the core and the first world${r.first ? ` (${r.first})` : ''}: ${mb(r.total)} MB of the game and ${mb(r.voice)} MB of voice`];
-  for (const w of r.worlds ?? []) parts.push(`the world ${w.id}: ${mb(w.total)} MB of models and frames and ${mb(w.voice)} MB of voice`);
+  for (const w of r.worlds ?? []) parts.push(`the world ${w.id}: ${mb(w.total)} MB of models, frames and code and ${mb(w.voice)} MB of voice`);
   parts.push(`${r.files} files`);
   if (r.heaviest) parts.push(`the heaviest: ${r.heaviest.path}, ${mb(r.heaviest.size)} MB`);
   return parts.join('; ');
