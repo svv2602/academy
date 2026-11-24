@@ -7080,5 +7080,125 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_trade_ask@Sulafat": {
+  "text": "Мушлі моря співають, якщо їх зібрати разом. Поміняємося?",
+  "heard": "Мушлі моря співають, якщо їх зібрати разом. Поміняємося?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_trade_far@Sulafat": {
+  "text": "Кажуть, у Великого Древа є золоте перо. Я б так хотіла його побачити!",
+  "heard": "Кажуть, у великого древа є золоте перо. Я б так хотіла його побачити!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/khvylia_trade_thanks@Sulafat": {
+  "text": "Дякую! Тримай — подарунок з глибин.",
+  "heard": "Дякую. Тримай подарунок з глибин.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_trade_ask@Leda": {
+  "text": "Кораловий риф любить гостинці. Поміняємося?",
+  "heard": "Кораловий риф любить гостинці. Поміняємося?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_trade_far@Leda": {
+  "text": "У лісі ростуть ялинові шишки. Ніколи таких не бачив! Принесеш?",
+  "heard": "У лісі ростуть ялинові шишки. Ніколи таких не бачив. Принесеш?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/bulk_trade_thanks@Leda": {
+  "text": "Ух ти! Дякую, подружко. Це тобі!",
+  "heard": "Ух ти! Дякую, подружка! Це тобі.",
+  "score": 0.964,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_trade_ask@Charon": {
+  "text": "Я збираю корали вже сто років. Поміняємося?",
+  "heard": "Я збираю корали вже сто років. Поміняємося?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_trade_far@Charon": {
+  "text": "Лісові ягідки… Кажуть, вони сині, як море. Принесеш мені?",
+  "heard": "Лісові ягідки, кажуть вони сині, як море. Принесеш мені?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/pantsyr_trade_thanks@Charon": {
+  "text": "Дякую, мала. Не поспішай — це тобі.",
+  "heard": "Дякую, мала, не поспішай, це тобі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_trade_ask@Orus": {
+  "text": "Мушлі й корали — для мого супу! Поміняємося?",
+  "heard": "Мушлі й корали для мого супу. Поміняємося?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_trade_far@Orus": {
+  "text": "Грибочки з Королівства фей — от би їх до мого казана!",
+  "heard": "Грибочки з королівства фей, от би їх до мого казана!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/kleshnya_trade_thanks@Orus": {
+  "text": "Клац-клац! Смакота буде. Тримай!",
+  "heard": "Клац-клац! Смакота буде, тримай!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_trade_ask@Leda": {
+  "text": "Корали світяться, коли їх багато. Поміняємося?",
+  "heard": "Корали світяться, коли їх багато. Поміняємося?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_trade_far@Leda": {
+  "text": "Метелик із Королівства фей! Він теж світиться? Принесеш?",
+  "heard": "Метелик із королівства фей. Він теж світиться. Принесеш?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/iskorka_trade_thanks@Leda": {
+  "text": "Дякую! Ти сяєш, як я! Тримай.",
+  "heard": "Дякую! Ти сяєш, як я! Тримай!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

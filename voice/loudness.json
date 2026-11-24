@@ -3869,6 +3869,21 @@
   "tp": -3.55,
   "sha256": "0127a7bcedc7123a3244efc3e880385db16f37196a9c0a03e145def262789d06"
  },
+ "worlds-data/sea/voice/sea/bulk_trade_ask@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -5.66,
+  "sha256": "68f0683eb6a06187cd9021f56aa11ebcee6cbdf5da77cd5d12abcfc294d2fad2"
+ },
+ "worlds-data/sea/voice/sea/bulk_trade_far@Leda.mp3": {
+  "lufs": -18.02,
+  "tp": -5.21,
+  "sha256": "9a9d72a6488adec15ca135036774f2be7262a8fb5aa4450ee39b3380e06acd75"
+ },
+ "worlds-data/sea/voice/sea/bulk_trade_thanks@Leda.mp3": {
+  "lufs": -18.07,
+  "tp": -6.06,
+  "sha256": "b6075f28efe4f7fb048877c53c6714d9362cb1b999a13be31af4619ad0dba2ab"
+ },
  "worlds-data/sea/voice/sea/iskorka_again_1@Leda.mp3": {
   "lufs": -17.97,
   "tp": -3.42,
@@ -3903,6 +3918,21 @@
   "lufs": -18.02,
   "tp": -4.83,
   "sha256": "114a813ca6d2cb17cba58a8a8f616a3c1947b000729f6e373078826dd9a2bf41"
+ },
+ "worlds-data/sea/voice/sea/iskorka_trade_ask@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -4.2,
+  "sha256": "d41161f46beb3066ea70bf6c3088dfc94c9b57e61eb0263a5155a6a46c096112"
+ },
+ "worlds-data/sea/voice/sea/iskorka_trade_far@Leda.mp3": {
+  "lufs": -18.03,
+  "tp": -5.34,
+  "sha256": "54f4a5cb82554608fbb1f60c74fc716637634c3abdbe0c0dde4a96af4e0ddc57"
+ },
+ "worlds-data/sea/voice/sea/iskorka_trade_thanks@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -4.43,
+  "sha256": "8670d60b58c3452ffc43ad0ca49c70b51bfdfb9a45aec8d1d0c5f2032c8c3f33"
  },
  "worlds-data/sea/voice/sea/khvylia_again_1@Sulafat.mp3": {
   "lufs": -18.03,
@@ -3949,6 +3979,21 @@
   "tp": -4.58,
   "sha256": "0613c81f96a4ee02166156c01bf8e7a944bce1abb2470e3410a025f9e7c95e9a"
  },
+ "worlds-data/sea/voice/sea/khvylia_trade_ask@Sulafat.mp3": {
+  "lufs": -18.07,
+  "tp": -2.15,
+  "sha256": "b64d37c7b8b86b3239b181bf643b877e7bcb29518c28c78181105c79cfdff904"
+ },
+ "worlds-data/sea/voice/sea/khvylia_trade_far@Sulafat.mp3": {
+  "lufs": -18.24,
+  "tp": -2.43,
+  "sha256": "598b1209b29722fe4c3c9e2adc4869c897cdd68758213aff21ee80558b0965ee"
+ },
+ "worlds-data/sea/voice/sea/khvylia_trade_thanks@Sulafat.mp3": {
+  "lufs": -17.99,
+  "tp": -2.45,
+  "sha256": "2b577112951b3af985fd1d1a1e418e438b332f14001bda29410a9d446b844aa4"
+ },
  "worlds-data/sea/voice/sea/kleshnya_again_1@Orus.mp3": {
   "lufs": -18.17,
   "tp": -3.63,
@@ -3983,6 +4028,21 @@
   "lufs": -17.95,
   "tp": -2.23,
   "sha256": "334a200f0515343968cc7d22e8d2a02e3c8fc97876b6a8f423c0b373ab47daf1"
+ },
+ "worlds-data/sea/voice/sea/kleshnya_trade_ask@Orus.mp3": {
+  "lufs": -18.07,
+  "tp": -2.14,
+  "sha256": "e2bf1b1b452fc97055f101c0b7a265098341d2d2971d07bd9eb2294fc6792d24"
+ },
+ "worlds-data/sea/voice/sea/kleshnya_trade_far@Orus.mp3": {
+  "lufs": -18.05,
+  "tp": -1.56,
+  "sha256": "45cdc0555bf7d6aff9d61d9091c142c8a17f25a1aaffe8e1b218ec2403d177d6"
+ },
+ "worlds-data/sea/voice/sea/kleshnya_trade_thanks@Orus.mp3": {
+  "lufs": -17.93,
+  "tp": -3.92,
+  "sha256": "467245d738dff341de041d367e34be02cdce98913e348b77980883cd27cab90b"
  },
  "worlds-data/sea/voice/sea/pantsyr_again_1@Charon.mp3": {
   "lufs": -18.21,
@@ -4033,6 +4093,21 @@
   "lufs": -17.98,
   "tp": -1.98,
   "sha256": "97000cc65aad85422baf0f856966c88faadc387acb6aceea37f4024c5956c25c"
+ },
+ "worlds-data/sea/voice/sea/pantsyr_trade_ask@Charon.mp3": {
+  "lufs": -18.17,
+  "tp": -2.29,
+  "sha256": "30ddd38d24b8738ca540137ccd4ad9f1df5a8edf0ac0498a136e329cb40f7858"
+ },
+ "worlds-data/sea/voice/sea/pantsyr_trade_far@Charon.mp3": {
+  "lufs": -18.01,
+  "tp": -3.78,
+  "sha256": "704c8c73ef52f897dcecb3af7b11a8e27ae56d919fd0a3b29ea46952824640e6"
+ },
+ "worlds-data/sea/voice/sea/pantsyr_trade_thanks@Charon.mp3": {
+  "lufs": -17.96,
+  "tp": -5.4,
+  "sha256": "1195beea86e86adf05332af9e2cf970b30b949e231c19b433c51858b3e2c7591"
  },
  "worlds-data/sea/voice/sea/sea_all_pearls.mp3": {
   "lufs": -18.01,
