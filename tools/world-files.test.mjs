@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { BANK, CORE, WORLD_FOLDERS, groupOf, isBank, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
 describe('the part of the build a file belongs to', () => {
-  it('gives a next world the files inside its own folders of models, voice and story frames (TECH-09)', () => {
-    expect(WORLD_FOLDERS).toEqual(['models', 'voice', 'story']);
-    for (const path of ['models/probe/tree.glb', 'models/probe/tex/bark.webp', 'voice/probe/intro.mp3', 'story/probe/01.webp']) {
+  it('gives a next world the files inside its own folders of models, voice, story frames and code (TECH-09)', () => {
+    expect(WORLD_FOLDERS).toEqual(['models', 'voice', 'story', 'code']);
+    for (const path of ['models/probe/tree.glb', 'models/probe/tex/bark.webp', 'voice/probe/intro.mp3', 'story/probe/01.webp', 'code/probe/probe-1a2b.js']) {
       expect([path, worldOf(path, ['probe'])]).toEqual([path, 'probe']);
       expect([path, groupOf(path, ['probe'])]).toEqual([path, 'world:probe']);
     }

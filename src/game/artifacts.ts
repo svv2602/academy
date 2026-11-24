@@ -1,5 +1,5 @@
 import type { Save, WorldState } from '../core/save';
-import type { CollectDef } from './collections';
+import type { CollectKinds } from './collections';
 
 /**
  * The artifacts the heroine has brought back (WORLD-01, the hub's tree, the shelf of the book): one per world that
@@ -14,7 +14,7 @@ import type { CollectDef } from './collections';
 /** `secrets`, `collect`: the world's secrets and collections (WorldDef) - the keepsakes of the hub's tree (src/worlds/hub/keepsakes.ts). */
 export interface ArtifactWorld {
   readonly id: string; readonly shelf?: number; readonly test?: boolean;
-  readonly secrets?: readonly string[]; readonly collect?: CollectDef;
+  readonly secrets?: readonly string[]; readonly collect?: CollectKinds;
 }
 
 let known: readonly ArtifactWorld[] = [];

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { WORLDS_CACHE, WORLDS_LIST, WORLD_EXTRA_FILES, buildWorlds, extraFiles, greyWorldFiles, listWorlds, publicWorldFiles, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
+import { WORLDS_CACHE, WORLDS_LIST, WORLD_EXTRA_FILES, buildWorlds, extraFiles, greyWorldFiles, listWorlds, publicWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -62,9 +62,20 @@ describe('buildWorlds: the next worlds of a build', () => {
 });
 
 describe('what the service worker leaves out and what its route takes', () => {
-  it('worldGlobs: the three folders of every next world; nothing without next worlds', () => {
-    expect(worldGlobs(['ocean', 'space'])).toEqual(['models/ocean/**', 'voice/ocean/**', 'story/ocean/**', 'models/space/**', 'voice/space/**', 'story/space/**']);
+  it('worldGlobs: the four folders of every next world (its code too); nothing without next worlds', () => {
+    expect(worldGlobs(['ocean', 'space'])).toEqual(['models/ocean/**', 'voice/ocean/**', 'story/ocean/**', 'code/ocean/**', 'models/space/**', 'voice/space/**', 'story/space/**', 'code/space/**']);
     expect(worldGlobs([])).toEqual([]);
+  });
+
+  it('worldChunkFile: the chunk a next world is entered by lies in its folder code/<id>/; every other chunk in assets/', () => {
+    const name = worldChunkFile(['ocean', 'space']);
+    expect(name({ facadeModuleId: '/src/src/worlds/ocean/index.ts' })).toBe('code/ocean/[name]-[hash].js');
+    expect(name({ facadeModuleId: 'C:\\game\\src\\worlds\\space\\index.ts' })).toBe('code/space/[name]-[hash].js');
+    // a module of the world that two worlds share, the first world, the core, a world the build does not have
+    for (const id of ['/src/src/worlds/ocean/magic.ts', '/src/src/worlds/fairy/index.ts', '/src/src/main.ts', '/src/src/worlds/moon/index.ts', null, undefined]) {
+      expect([id, name({ facadeModuleId: id })]).toEqual([id, 'assets/[name]-[hash].js']);
+    }
+    expect(worldChunkFile([])({ facadeModuleId: '/src/src/worlds/ocean/index.ts' })).toBe('assets/[name]-[hash].js');
   });
 
   it('worldRoute: no route without next worlds', () => {
@@ -188,6 +199,18 @@ describe('worldList: the plugin that writes worlds.json into the build', () => {
     });
   });
 
+  it('lists the code of a world too: its chunk in code/<id>/, by the bytes the build writes; a chunk of assets/ is the core\'s', () => {
+    const bundle = {
+      'code/ocean/ocean-AbCd.js': { type: 'chunk', fileName: 'code/ocean/ocean-AbCd.js', code: 'the code of the ocean' },
+      'assets/magic-EfGh.js': chunk('assets/magic-EfGh.js'), 'models/ocean/reef.glb': asset('models/ocean/reef.glb', 'reef'),
+    };
+    const { emitted } = build(['ocean'], bundle);
+    expect(JSON.parse(emitted[0].source).worlds.ocean.files).toEqual([
+      { url: 'code/ocean/ocean-AbCd.js', size: 21, revision: sha256('the code of the ocean') },
+      { url: 'models/ocean/reef.glb', size: 4, revision: sha256('reef') },
+    ]);
+  });
+
   it('a file emitted under the path of a static one wins, as in the build', () => {
     const pub = folder({ 'models/ocean/reef.glb': 'the static reef' });
     const { emitted } = build(['ocean'], { 'models/ocean/reef.glb': asset('models/ocean/reef.glb', 'the emitted reef') }, pub);
@@ -243,6 +266,10 @@ describe('vite.config.ts uses all of it', () => {
     }
     // a next world's files stay in worlds-data/, never under public/ (copied whole into every build, precached)
     expect(existsSync(join(root, 'public/models/forest')), 'the forest\'s files lie in worlds-data/forest').toBe(false);
+  });
+
+  it('a next world\'s chunk is named into its own folder (code/<id>/): out of the precache with the rest of the world', () => {
+    expect(config).toMatch(/chunkFileNames: worldChunkFile\(next\)/);
   });
 
   it('their folders are left out of the service worker\'s list, next to the bank', () => {

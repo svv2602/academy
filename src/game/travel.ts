@@ -4,6 +4,7 @@ import { beginTask, endTask, setMusic } from '../core/audio';
 import type { Save } from '../core/save';
 import type { WorldCache } from '../core/worldcache';
 import { wearSaved } from '../ui/shop';
+import { addStrings } from '../ui/strings';
 import { bubble, el, hideAnswers, setAct, showNotice } from '../ui/ui';
 import type { Game, WorldEntry } from './context';
 import { flyoverOf, setTour, type WorldTour } from './flyover';
@@ -12,7 +13,7 @@ import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import { createWorldScope, type WorldScope } from './scope';
 import { transition } from './transition';
-import type { BookInfo, BuiltWorld, WorldDef, WorldSky } from './world';
+import type { BookInfo, BuiltWorld, WorldDef, WorldMeta, WorldSky } from './world';
 
 /**
  * The change of world without reloading the page (TECH-15, TECH-09): `travel(<id of a world>)`.
@@ -127,8 +128,8 @@ export const DOWNLOAD_SHARE = 0.8;
 /** What the change of world needs of the game (src/main.ts wires it). */
 export interface TravelHost {
   g: Game; scene: THREE.Scene; save: Save; touch: boolean;
-  /** The worlds of the registry (src/worlds/index.ts): the shared code is handed them, it imports no world. */
-  worlds: readonly WorldDef[];
+  /** The worlds of the registry (src/worlds/index.ts): the shared code is handed them, it imports no world. A world's code is loaded as she enters it (`WorldMeta.code`). */
+  worlds: readonly WorldMeta[];
   /** What the game is told of a world (`WorldEntry`): the same function makes it for the first world. */
   entryOf(world: WorldDef): WorldEntry;
   /** The world's parts of the frame from the next frame on (the loop). */
@@ -321,9 +322,13 @@ export function createTravel(host: TravelHost): Travel {
     const fetched = gate.from === 'network' ? await download(id) : true;
     const base = gate.from === 'network' ? DOWNLOAD_SHARE : 0;
     setProgressHandler((f) => transition.setProgress(base + (1 - base) * f));
+    // The world's code (a next world's chunk, from the cache of worlds or the network), and its texts with it: not had,
+    // the world left again, as a world that could not be opened.
+    const def = fetched ? await next.code().catch((e: unknown) => { console.error(`the world "${id}" could not be loaded:`, e); return null; }) : null;
+    if (def) addStrings(def.strings, false);
     // She comes from the world left: the new one may say where she appears (WorldDef.arrive); back in the world left,
     // she stands where she was.
-    let now = fetched ? await open(next, was.opening.world.id) : null;
+    let now = def ? await open(def, was.opening.world.id) : null;
     const arrived = now !== null;
     if (!now) now = await open(was.opening.world, null);
     if (!now) {

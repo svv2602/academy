@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { WORLDS_CACHE, buildWorlds, extraFiles, greyWorldFiles, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
+import { WORLDS_CACHE, buildWorlds, extraFiles, greyWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
 // else. Sources without git (an archive) still build: the number is then the placeholder. tools/e2e.mjs works the
@@ -77,7 +77,9 @@ export default defineConfig(({ mode }) => {
     // its chunk in the cache of the phone.
     build: {
       target: 'es2022', chunkSizeWarningLimit: 1200,
-      rolldownOptions: { output: { codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/ }] } } },
+      // A next world's chunk lies in its own folder, code/<id>/ (tools/vite-worlds.mjs `worldChunkFile`): downloaded with
+      // the world, not precached with the core (decision of 2026-11-24, «вариант Б»).
+      rolldownOptions: { output: { codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/ }] }, chunkFileNames: worldChunkFile(next) } },
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),

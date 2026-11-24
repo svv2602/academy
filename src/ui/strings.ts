@@ -462,17 +462,21 @@ export const tapKey = (n: number): SpokenKey | null => (Number.isInteger(n) ? TA
 
 /** The shared table with every world's table added (`addStrings`): what `t`, `tf` and `voiceText` read. */
 const TABLE: Record<Lang, Record<string, string>> = { uk: { ...S.uk }, ru: { ...S.ru } };
+/** The worlds whose texts are in the table already: a world entered again adds nothing. */
+const added = new Set<string>();
 /**
- * Adds a world's texts (src/main.ts, for each world of the registry, before the start screen). A key that already
- * exists is an error: one key, one clip. The keys of `WORLD_OWN` come only from the world `played`, and only one
- * world is played.
+ * Adds a world's texts (src/main.ts: the world played and the installation's, before the start screen; src/game/travel.ts:
+ * a next world's, once its code is loaded). A key that already exists is an error: one key, one clip. The keys of
+ * `WORLD_OWN` come only from the world `played`, and only one world is played. A world added before adds nothing.
  */
 export function addStrings(w: WorldStrings, played: boolean): void {
+  if (added.has(w.id)) return;
   const langs = Object.keys(TABLE) as Lang[];
   const taken = langs.flatMap((l) => Object.keys(w.table[l]))
     .filter((k) => (played || !own(k)) && (Object.hasOwn(TABLE.uk, k) || Object.hasOwn(TABLE.ru, k)));
   if (taken.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${[...new Set(taken)].join(', ')}`);
   for (const l of langs) Object.assign(TABLE[l], Object.fromEntries(Object.entries(w.table[l]).filter(([k]) => played || !own(k))));
+  added.add(w.id);
 }
 /**
  * A line as it is recorded: the name placeholder is cut out, so neither a clip nor a request to the voice service
