@@ -20,8 +20,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
-import { worldOf } from './world-files.mjs';
+import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { splitRequested } from './models-split.mjs';
 import { GROUPS, PIECES } from './e2e-saves.mjs';
 import { blocksOf, limitReport, reportToGitHub } from './run-limit.mjs';
 
@@ -425,21 +425,17 @@ function checkPlayed() {
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
 // compared with public/models by a unit test (tools/models-used.test.mjs), so a model nobody loads cannot be shipped.
 // A next world's own files (the forest's: the game downloads them in the background while the fairies are played) are
-// not public/models': a file inside models/<id>/ of a next world - a folder of src/worlds/ but the first world's and
-// those of the installation (tools/world-files.mjs `worldOf`) - lies in worlds-data/<id>/ (tools/assets.mjs) and is
-// left out here; it must lie there. The sources say which worlds those are, so --combine (no build) reads the same.
+// not public/models': they lie in worlds-data/<id>/ and are left out here, told by their path and the sources
+// (tools/models-split.mjs) - --combine has no build to read a list from. Each must lie there.
 function checkModels() {
-  const installed = installedWorlds();
-  const next = sourceWorlds().worlds.filter((id) => !installed.includes(id));
-  const own = { has: (p) => worldOf(p, next) !== null };
-  const ofWorlds = new Set();
-  const requested = new Set();
+  const all = [];
   for (const job of jobs) {
     let list;
     try { list = JSON.parse(readFileSync(modelsOut(job), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${jobLabel(job)} walkthrough (${e.message})`); }
-    for (const p of list) if (own.has(p)) ofWorlds.add(p); else requested.add(p);
+    all.push(...list);
   }
-  const nowhere = [...ofWorlds].filter((p) => !existsSync(join(root, 'worlds-data', worldOf(p, next), p)));
+  const { core, ofWorlds, nowhere } = splitRequested(all);
+  const requested = new Set(core);
   if (nowhere.length) throw new Error(`${nowhere.length} file(s) of a next world requested that do not lie in worlds-data/<id>/:\n    ${nowhere.join('\n    ')}`);
   const actual = [...requested].sort();
   if (!actual.length) throw new Error('the walkthroughs requested no model files at all');
@@ -458,7 +454,7 @@ function checkModels() {
       + (notRequested.length ? `\n  in the list, but not requested in any walkthrough:\n    ${notRequested.join('\n    ')}` : '')
       + '\n  if the change is intended: npm run e2e -- --update-models; a model nobody requests: move its source from models-src/ to models-unused/ and run npm run assets');
   }
-  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}` + (ofWorlds.size ? `; ${ofWorlds.size} file(s) of the next worlds apart, each in worlds-data/<id>/` : '');
+  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}` + (ofWorlds.length ? `; ${ofWorlds.length} file(s) of the next worlds apart, each in worlds-data/<id>/` : '');
 }
 
 // No element in any built .html may point to another site. Elements and their attributes are checked, not every
