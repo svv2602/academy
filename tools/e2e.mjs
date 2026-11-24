@@ -62,7 +62,7 @@ plays the probe world in a job of its own (node tools/worlds.mjs dist).
 own files of a next world (the forest's, downloaded in the background: models/<id>/… of a world of src/worlds/ that is
 neither the first nor installed) are left out of it - they lie in worlds-data/<id>/, not under public/models/; each must
 be there. Read from the sources, not from a build: --combine has none.
-"dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12 MB
+"dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12.5 MB
 without voice/ and 4 MB of voice/, every next world (models/<id>/, story/<id>/, voice/<id>/) at most 8 MB and 3 MB of voice,
 one file at most 1 MB (tools/dist-size.mjs).
 Every walkthrough leaves its summary in shots-e2e/summary-<size>.json: the commit, how the walkthrough ended and

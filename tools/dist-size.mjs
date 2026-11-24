@@ -1,6 +1,6 @@
 // The size budget of the build (docs/15-tech.md, "Бюджет" and TECH-09), counted per part of the build (tools/world-files.mjs).
 // The first load is the core with the first world (the service worker caches it with the installation): the game - code
-// and models - at most 12 MB, the recorded voice (dist/voice/) at most 5 MB of its own (decision 2026-11-16: the voice
+// and models - at most 12.5 MB (12 MB until 2026-11-24, see MAX_DIST), the recorded voice (dist/voice/) at most 5 MB of its own (decision 2026-11-16: the voice
 // must not crowd out the worlds, nor they the voice; 4 MB raised to 5 on 2026-11-18 for the cat's lines of stage 4). Every next world (decision Q14) has a budget of its own: at most
 // 8 MB of models and story frames (dist/models/<id>/, dist/story/<id>/) and 3 MB of voice (dist/voice/<id>/).
 // One file is at most 1 MB, whatever it belongs to.
@@ -13,8 +13,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BANK, CORE, groupOf, isBank, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
-/** Bytes, as in docs/15-tech.md (12 MB and 1 MB, decimal - the same unit as tools/assets.mjs). */
-export const MAX_DIST = 12_000_000;
+/**
+ * Bytes, as in docs/15-tech.md (12.5 MB and 1 MB, decimal - the same unit as tools/assets.mjs). 12 -> 12.5 MB on
+ * 2026-11-24, the lead's decision on the customer's charge («Если понадобится поднять предел или считать вес по-другому —
+ * прими самостоятельное решение»): the code of every world - its JS chunk, with its lines - is still part of the
+ * installation, and the Sweet Land's recorded lines took the core 27 KB over 12 MB. For a while: once a world's code is
+ * loaded on entering it, out of the precache and within the world's own budget (П3's change), it goes back to 12 MB.
+ */
+export const MAX_DIST = 12_500_000;
 export const MAX_DIST_FILE = 1_000_000;
 /**
  * The recorded voice of the first load: the clips under dist/voice/, a budget of its own (4 -> 5 MB 2026-11-18, 5 -> 6 MB
