@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installedWorlds, sourceWorlds } from './dist-size.mjs';
+import { WORLD_EXTRA_FILES } from './vite-worlds.mjs';
 import { worldOf } from './world-files.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,11 +22,13 @@ export function nextWorldIds(dir = undefined) {
 /**
  * `paths` (requested files, relative to the build) split: { core, ofWorlds, nowhere } - each sorted, without repeats.
  * `ofWorlds` are the files of the next worlds `next`, `nowhere` those of them that do not lie in
- * <root>/worlds-data/<id>/ at their path (models/<id>/x.glb -> worlds-data/<id>/models/<id>/x.glb).
+ * <root>/worlds-data/<id>/ at their path (models/<id>/x.glb -> worlds-data/<id>/models/<id>/x.glb), nor where the build
+ * takes it from (`extra`: tools/vite-worlds.mjs WORLD_EXTRA_FILES - the sea's swimming clips, from the probe world).
  */
-export function splitRequested(paths, next = nextWorldIds(), root = ROOT) {
+export function splitRequested(paths, next = nextWorldIds(), root = ROOT, extra = WORLD_EXTRA_FILES) {
   const core = new Set(), ofWorlds = new Set();
   for (const p of paths) (worldOf(p, next) === null ? core : ofWorlds).add(p);
-  const nowhere = [...ofWorlds].filter((p) => !existsSync(join(root, 'worlds-data', worldOf(p, next), p)));
+  const lies = (p) => { const id = worldOf(p, next), from = extra[id]?.[p]; return existsSync(join(root, 'worlds-data', id, p)) || (from !== undefined && existsSync(join(root, from))); };
+  const nowhere = [...ofWorlds].filter((p) => !lies(p));
   return { core: [...core].sort(), ofWorlds: [...ofWorlds].sort(), nowhere: nowhere.sort() };
 }

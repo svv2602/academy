@@ -59,6 +59,16 @@ export function worldGlobs(worlds) {
   return worlds.flatMap((id) => WORLD_FOLDERS.map((folder) => `${folder}/${id}/**`));
 }
 
+/**
+ * The files of a next world that lie elsewhere than worlds-data/<id>/, by world: { <id>: { <path in the build>: <source,
+ * relative to the root> } }. The sea swims (WorldDef.move) with the probe world's swimming clips - the same two clips of
+ * the UAL, worlds-test/probe/README.md - and keeps no second copy in git. vite.config.ts puts them into every build that
+ * has the world; the check "models used" (tools/models-split.mjs) takes them as the world's own files.
+ */
+export const WORLD_EXTRA_FILES = { sea: { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' } };
+/** The files of `WORLD_EXTRA_FILES` of the next worlds `worlds`, as one map. */
+export const extraFiles = (worlds, extra = WORLD_EXTRA_FILES) => Object.assign({}, ...worlds.map((id) => extra[id] ?? {}));
+
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**

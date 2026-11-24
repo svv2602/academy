@@ -369,7 +369,7 @@ Universal Base Characters со своим хвостом. Генерация м�
 - `flyover-path.ts`, `index.ts`, `strings.ts`.
 
 Море сделано серой сборкой (`--mode grey`), с 2026-11-24 опубликовано (раздел «Выпуск» ниже): в реестре любой
-сборки (`src/worlds/index.ts`, свой чанк). Клипы плавания `models/sea/swim.glb` `vite.config.ts` (`SEA_FILES`) кладёт
+сборки (`src/worlds/index.ts`, свой чанк). Клипы плавания `models/sea/swim.glb` `vite.config.ts` по карте `WORLD_EXTRA_FILES` (`tools/vite-worlds.mjs`) кладёт
 в каждую сборку с морем из файла пробного мира (`worlds-test/probe/models/probe/swim.glb`, те же два клипа UAL, CC0),
 второй копии в репозитории нет; лежат в `models/sea/` и считаются в бюджет мира. Остальные файлы мира — в
 `worlds-data/sea/`, в `public/` не переезжают (правило docs/15-tech.md).

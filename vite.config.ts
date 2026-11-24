@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { WORLDS_CACHE, buildWorlds, greyWorldFiles, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
+import { WORLDS_CACHE, buildWorlds, extraFiles, greyWorldFiles, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
 // else. Sources without git (an archive) still build: the number is then the placeholder. tools/e2e.mjs works the
@@ -42,11 +42,10 @@ function probeFiles(): Plugin {
 // file of worlds-data/<id>/ of a next world of the build, put in under the path the world asks for (the forest's
 // characters, models/forest/…, written there by tools/assets.mjs; the voice, voice/<id>/…, written there by
 // tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest and the
-// sea (published 2026-11-24) and gets their files; a grey build (WORLD-12, `--mode grey`) also the Sweet Land's. With
-// the sea, SEA_FILES too: it swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the
-// UAL, worlds-test/probe/README.md), no second copy in git; models/sea/ counts them in the sea's own budget.
+// sea (published 2026-11-24) and gets their files; a grey build (WORLD-12, `--mode grey`) also the Sweet Land's. A
+// world's files from elsewhere (tools/vite-worlds.mjs WORLD_EXTRA_FILES: the sea's swimming clips, the probe world's
+// copy) too, under its folder - models/sea/ counts them in the sea's own budget.
 const GREY_MODE = 'grey';
-const SEA_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
 function worldFiles(next: string[], extra: Record<string, string>): Plugin {
   let root = '.';
   return {
@@ -82,7 +81,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
-      worldFiles(next, next.includes('sea') ? SEA_FILES : {}),
+      worldFiles(next, extraFiles(next)),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
       list,
       VitePWA({

@@ -12,7 +12,7 @@ import { hub } from './hub';
 // build, a next world downloaded while the fairies are played (TECH-09); its files lie in worlds-data/forest/.
 // The sea (./sea, WORLD-03) is published too (the customer's word of 2026-11-24: «да, пусть П3 готовит море»): listed
 // in every build, downloaded while the forest is played; its files lie in worlds-data/sea/ (its swimming clips:
-// vite.config.ts SEA_FILES). The Sweet Land (./sweet, WORLD-04) is in its grey build (WORLD-12): listed only in a build
+// tools/vite-worlds.mjs WORLD_EXTRA_FILES). The Sweet Land (./sweet, WORLD-04) is in its grey build (WORLD-12): listed only in a build
 // or a dev server made with `--mode grey` (tools/sweet-grey.mjs), never in the published game, until the customer has
 // taken the grey build; the hub's arch of its place (shelf 3) wakes once the sea is done.
 export const WORLDS = [

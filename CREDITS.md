@@ -47,7 +47,7 @@ shells, the throne, the grotto, the arch of the trench, the great shell, the ree
 simple shapes built in code (`src/worlds/sea/landmarks.ts`); the chest is the Platformer Game Kit's (above).
 
 The heroine's swimming in the sea (world 3; in the build `models/sea/swim.glb`, from
-`worlds-test/probe/models/probe/swim.glb`, `vite.config.ts` SEA_FILES): the clips `Swim_Fwd_Loop` and `Swim_Idle_Loop`
+`worlds-test/probe/models/probe/swim.glb`, `tools/vite-worlds.mjs` WORLD_EXTRA_FILES): the clips `Swim_Fwd_Loop` and `Swim_Idle_Loop`
 of Quaternius "Universal Animation Library" (`UAL1.glb`) — CC0 1.0, the source of the heroine's clips (above); cut and
 compressed with `tools/pack_world_clips.mjs`, clips only, no mesh (`worlds-test/probe/README.md`).
 

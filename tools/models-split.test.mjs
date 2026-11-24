@@ -26,6 +26,15 @@ describe('the requested model files split: the core\'s and a next world\'s own (
     expect(got).toEqual({ core: ['models/extra/cat.glb'], ofWorlds: ['models/forest/borovik.glb', 'models/forest/tex/owl.webp'], nowhere: [] });
   });
 
+  it('a file of a next world the build takes from elsewhere (WORLD_EXTRA_FILES: the sea\'s swimming clips) lies where it is taken from', () => {
+    const root = rootWith(['worlds-test/probe/models/probe/swim.glb']);
+    const extra = { sea: { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb', 'models/sea/gone.glb': 'worlds-test/gone.glb' } };
+    expect(splitRequested(['models/sea/swim.glb', 'models/sea/gone.glb', 'models/sea/fish.glb'], ['sea'], root, extra))
+      .toEqual({ core: [], ofWorlds: ['models/sea/fish.glb', 'models/sea/gone.glb', 'models/sea/swim.glb'], nowhere: ['models/sea/fish.glb', 'models/sea/gone.glb'] });
+    // the repository as it is: every file the sea is played with lies somewhere (the walkthrough of the sea asks for swim.glb)
+    expect(splitRequested(['models/sea/swim.glb'], ['forest', 'sea']).nowhere).toEqual([]);
+  });
+
   it('a file merely named after a world, or of a folder no next world has, stays the core\'s', () => {
     const root = rootWith([]);
     const got = splitRequested(['models/forest.glb', 'models/nature_pack/forest/tree.glb', 'models/fairy/x.glb', 'models/hub/y.glb'], ['forest'], root);

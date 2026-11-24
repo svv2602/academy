@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { WORLDS_CACHE, WORLDS_LIST, buildWorlds, greyWorldFiles, listWorlds, publicWorldFiles, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
+import { WORLDS_CACHE, WORLDS_LIST, WORLD_EXTRA_FILES, buildWorlds, extraFiles, greyWorldFiles, listWorlds, publicWorldFiles, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -213,15 +213,15 @@ describe('vite.config.ts uses all of it', () => {
   });
 
   it('the sea takes its one file from where it lies: it swims with the probe world\'s clips, no second copy', () => {
-    const files = /const SEA_FILES: Record<string, string> = (\{[^\n]*\});/.exec(config);
-    expect(files, 'SEA_FILES in vite.config.ts').not.toBeNull();
-    const map = JSON.parse(files[1].replace(/'/g, '"'));
-    expect(map).toEqual({ 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' });
-    for (const from of Object.values(map)) expect(existsSync(join(root, from)), from).toBe(true);
+    expect(WORLD_EXTRA_FILES).toEqual({ sea: { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' } });
+    for (const from of Object.values(WORLD_EXTRA_FILES.sea)) expect(existsSync(join(root, from)), from).toBe(true);
+    expect(existsSync(join(root, 'worlds-data/sea/models/sea/swim.glb')), 'no second copy of the clips').toBe(false);
     // the sea's files are a next world's: never under public/ (copied whole into every build, precached with the core)
     expect(existsSync(join(root, 'public/models/sea')), 'the sea\'s files lie in worlds-data/sea').toBe(false);
-    // every build gets the files of worlds-data/ of its next worlds; SEA_FILES every build that has the sea
-    expect(config).toMatch(/^ {6}worldFiles\(next, next\.includes\('sea'\) \? SEA_FILES : \{\}\),$/m);
+    // a build gets them with the world, and only then
+    expect(extraFiles(['forest', 'sea'])).toEqual(WORLD_EXTRA_FILES.sea);
+    expect(extraFiles(['forest', 'sweet'])).toEqual({});
+    expect(config).toMatch(/^ {6}worldFiles\(next, extraFiles\(next\)\),$/m);
     expect(config).toMatch(/greyWorldFiles\(next, extra, root\)/);
   });
 
