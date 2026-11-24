@@ -20,7 +20,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { createServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkDistSize, sizeSummary } from './dist-size.mjs';
+import { checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
+import { worldOf } from './world-files.mjs';
 import { GROUPS, PIECES } from './e2e-saves.mjs';
 import { blocksOf, limitReport, reportToGitHub } from './run-limit.mjs';
 
@@ -58,8 +59,9 @@ of the sources, and the world is played there in the mobile size by the walkthro
 (E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/). E2E_WORLDS=0 leaves the step out (the summary says so): CI
 plays the probe world in a job of its own (node tools/worlds.mjs dist).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json; the
-own files of a next world (the forest's, downloaded in the background - those dist/worlds.json lists) are left out of
-it: they lie in worlds-data/<id>/, not under public/models/, and the list of the world checks them.
+own files of a next world (the forest's, downloaded in the background: models/<id>/… of a world of src/worlds/ that is
+neither the first nor installed) are left out of it - they lie in worlds-data/<id>/, not under public/models/; each must
+be there. Read from the sources, not from a build: --combine has none.
 "dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12 MB
 without voice/ and 4 MB of voice/, every next world (models/<id>/, story/<id>/, voice/<id>/) at most 8 MB and 3 MB of voice,
 one file at most 1 MB (tools/dist-size.mjs).
@@ -423,15 +425,13 @@ function checkPlayed() {
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
 // compared with public/models by a unit test (tools/models-used.test.mjs), so a model nobody loads cannot be shipped.
 // A next world's own files (the forest's: the game downloads them in the background while the fairies are played) are
-// not public/models': they are the ones the build's list of the next worlds names (dist/worlds.json, written from
-// worlds-data/<id>/ by tools/vite-worlds.mjs), and are left out here.
-function nextWorldFiles() {
-  const file = join(root, 'dist', 'worlds.json');
-  if (!existsSync(file)) return new Set();
-  return new Set(Object.values(JSON.parse(readFileSync(file, 'utf8')).worlds).flatMap((w) => w.files.map((f) => f.url)));
-}
+// not public/models': a file inside models/<id>/ of a next world - a folder of src/worlds/ but the first world's and
+// those of the installation (tools/world-files.mjs `worldOf`) - lies in worlds-data/<id>/ (tools/assets.mjs) and is
+// left out here; it must lie there. The sources say which worlds those are, so --combine (no build) reads the same.
 function checkModels() {
-  const own = nextWorldFiles();
+  const installed = installedWorlds();
+  const next = sourceWorlds().worlds.filter((id) => !installed.includes(id));
+  const own = { has: (p) => worldOf(p, next) !== null };
   const ofWorlds = new Set();
   const requested = new Set();
   for (const job of jobs) {
@@ -439,6 +439,8 @@ function checkModels() {
     try { list = JSON.parse(readFileSync(modelsOut(job), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${jobLabel(job)} walkthrough (${e.message})`); }
     for (const p of list) if (own.has(p)) ofWorlds.add(p); else requested.add(p);
   }
+  const nowhere = [...ofWorlds].filter((p) => !existsSync(join(root, 'worlds-data', worldOf(p, next), p)));
+  if (nowhere.length) throw new Error(`${nowhere.length} file(s) of a next world requested that do not lie in worlds-data/<id>/:\n    ${nowhere.join('\n    ')}`);
   const actual = [...requested].sort();
   if (!actual.length) throw new Error('the walkthroughs requested no model files at all');
   if (opts.updateModels) {
@@ -456,7 +458,7 @@ function checkModels() {
       + (notRequested.length ? `\n  in the list, but not requested in any walkthrough:\n    ${notRequested.join('\n    ')}` : '')
       + '\n  if the change is intended: npm run e2e -- --update-models; a model nobody requests: move its source from models-src/ to models-unused/ and run npm run assets');
   }
-  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}` + (own.size ? `; the next worlds' own files apart (dist/worlds.json: ${ofWorlds.size} of their ${own.size} file(s) requested)` : '');
+  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}` + (ofWorlds.size ? `; ${ofWorlds.size} file(s) of the next worlds apart, each in worlds-data/<id>/` : '');
 }
 
 // No element in any built .html may point to another site. Elements and their attributes are checked, not every
