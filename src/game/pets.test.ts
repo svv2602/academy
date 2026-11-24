@@ -611,9 +611,11 @@ describe('Bulchik of the sea (PLAY-09): his brother\'s model made small and ligh
   };
   const rest = BULCHIK.fly!.rest!;
 
-  it('of the sea, his brother Bulk\'s file (no file of his own), half as tall; the shared load leaves him out', () => {
+  it('of the sea, his brother Bulk\'s file (no file of his own), smaller than him; the shared load leaves him out', () => {
     expect(BULCHIK).toMatchObject({ world: 'sea', model: 'sea/bulk', own: true, fly: { clip: 'Swim' } });
-    expect(BULCHIK.height).toBeLessThan(0.9 * 0.6);   // Bulk is 0.9 m (src/worlds/sea/index.ts MODELS)
+    // the customer's 0.7 m by the heroine's 1.53 (2026-11-24); Bulk is 0.9 m (src/worlds/sea/index.ts MODELS), to be 1.6
+    expect(BULCHIK.height).toBe(0.7);
+    expect(BULCHIK.height).toBeLessThan(0.9);
     expect(BULCHIK.fly!.rest).toBeGreaterThan(0.3);    // he floats where he stops: under water, not on the floor
     expect(BULCHIK.lighter).toBeGreaterThan(0);
     expect(PETS.filter((p) => !p.own).map((p) => p.id)).not.toContain('bulchik');

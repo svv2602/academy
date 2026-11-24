@@ -67,10 +67,11 @@ export const PETS: readonly PetSpecies[] = [
   // lead, 2026-11-22, by the pictures of the grey build)
   { id: 'owlet', world: 'forest', model: 'forest/owlet', height: 0.55, own: true, walk: 1, fly: { clip: 'Flap', height: 0.75 }, treats: ['acorn', 'feather'] },
   // Bulchik of the sea (world-3.md, PLAY-09): the baby dragon, Bulk's little brother - his brother's Meshy model of the
-  // sea's files (`own`, no file of its own), half as tall and lighter (the lead's decision 2026-11-23). Its Swim clip is
+  // sea's files (`own`, no file of its own), 0.7 m tall (the customer, 2026-11-24, by the heroine's 1.53 m) and lighter
+  // (the lead, 2026-11-23). Its Swim clip is
   // its "flying": it swims after her at her swimming height (0.6 m, src/worlds/sea/index.ts SWIM_HEIGHT) and stays
   // there when it stops (`rest`), as Bulk floats over the corals.
-  { id: 'bulchik', world: 'sea', model: 'sea/bulk', height: 0.48, own: true, walk: 1, fly: { clip: 'Swim', height: 0.6, rest: 0.6 }, lighter: 0.3, treats: ['feather', 'butterfly'] },
+  { id: 'bulchik', world: 'sea', model: 'sea/bulk', height: 0.7, own: true, walk: 1, fly: { clip: 'Swim', height: 0.6, rest: 0.6 }, lighter: 0.3, treats: ['feather', 'butterfly'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
