@@ -65,8 +65,8 @@ function worldFiles(next: string[], extra: Record<string, string>): Plugin {
 // when the page first asks for it, and by the download in the background while the previous world is played
 // (src/core/worldcache.ts). A build without a next world would get none of this; the published game has the forest.
 export default defineConfig(({ mode }) => {
-  // the Sweet Land only in its grey build (WORLD-12, src/worlds/index.ts); the forest and the sea in every build
-  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sweet: GREY_MODE });
+  // the Sweet Land and the Sky Islands only in their grey build (WORLD-12, src/worlds/index.ts); the forest and the sea in every build
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sweet: GREY_MODE, sky: GREY_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
   return {

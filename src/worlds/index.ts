@@ -14,12 +14,13 @@ import { hub } from './hub';
 // in every build, downloaded while the forest is played; its files lie in worlds-data/sea/ (its swimming clips:
 // tools/vite-worlds.mjs WORLD_EXTRA_FILES). The Sweet Land (./sweet, WORLD-04) is in its grey build (WORLD-12): listed only in a build
 // or a dev server made with `--mode grey` (tools/sweet-grey.mjs), never in the published game, until the customer has
-// taken the grey build; the hub's arch of its place (shelf 3) wakes once the sea is done.
+// taken the grey build; the hub's arch of its place (shelf 3) wakes once the sea is done; and the Sky Islands (./sky,
+// WORLD-05, tools/sky-grey.mjs) in their grey build too: the arch of shelf 4 wakes once the Sweet Land is done.
 export const WORLDS = [
   fairy, hub,
   ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : []),
   (await import('./forest')).forest, (await import('./sea')).sea,
-  ...(import.meta.env.MODE === 'grey' ? [(await import('./sweet')).sweet] : []),
+  ...(import.meta.env.MODE === 'grey' ? [(await import('./sweet')).sweet, (await import('./sky')).sky] : []),
 ];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';

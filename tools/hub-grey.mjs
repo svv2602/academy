@@ -1,6 +1,6 @@
 // The way between the hub and the forest (WORLD-01, docs/worlds/hub.md): played by tools/forest-grey.mjs (its step 3b)
 // and by tools/worlds.mjs as its parts "hub-grey" (a job of ci.yml, on dist-grey/: `vite build --mode grey`, the forest,
-// the sea and the Sweet Land in the registry) and "hub-forest" (a job of both workflows, on the published build: the
+// the sea, the Sweet Land and the Sky Islands in the registry) and "hub-forest" (a job of both workflows, on the published build: the
 // forest published 2026-11-24, the sea not yet). What is expected of the arches follows the next worlds of the build
 // (`hubExpect`: its dist/worlds.json). The phone size:
 //   - the first world done: in the hub the forest's arch wakes and is open, the sea's asleep (src/worlds/hub/portals.ts
@@ -8,7 +8,8 @@
 //     through it by its action button into the forest, out of the arch of the Great Tree on its central glade
 //     (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
 //   - the forest done too: the sea's arch open as well when the build has the sea, asleep (no world behind it) when it
-//     has not; the Sweet Land's (shelf 3) still asleep - it wakes once the sea is done;
+//     has not; the Sweet Land's (shelf 3) and the Sky Islands' (shelf 4) still asleep - they wake once the sea, then the
+//     Sweet Land, is done;
 //   - with the sea in the build, a save of the forest done whose forest's arch woke already (from before the sea was
 //     published): the sea's arch alone wakes, the cat says hub_sea_wake, through it into the sea;
 //   - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
@@ -36,7 +37,9 @@ export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) *
  * fairies done (`fairies`) and of the forest done too (`forest`): the worlds behind the five arches, the shelves waking
  * on the first entry, the flags of the hub's part of the save after it. The sea's arch (shelf 2) has a world only when
  * the build has the sea (src/worlds/hub/portals.ts portalWorlds, openArches); without it its place sleeps. With the sea,
- * `older`: the forest done and its arch awake already (woke1) - a save from before the sea was published.
+ * `older`: the forest done and its arch awake already (woke1) - a save from before the sea was published. The Sweet
+ * Land's (shelf 3) and the Sky Islands' (shelf 4) arches sleep in every save here, whether the build has them or not:
+ * each wakes only once the world before it is done (the sea, the Sweet Land).
  */
 export function hubExpect(next) {
   const sea = next.includes('sea');
@@ -76,7 +79,7 @@ export async function serveDir(dir, port) {
  * The way between the hub and the forest (see the head of the file), in the build whose next worlds are `next`
  * (`buildWorlds`; the grey build's by default). Returns the problems; prints what was seen.
  */
-export async function hubWay(browser, url, shots, { slow = false, next = ['forest', 'sea', 'sweet'] } = {}) {
+export async function hubWay(browser, url, shots, { slow = false, next = ['forest', 'sea', 'sweet', 'sky'] } = {}) {
   const want = hubExpect(next);
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   /** ms of a wait: on the runners' software rendering (about a frame a second) four times as long. */

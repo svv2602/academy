@@ -17,6 +17,7 @@ import { PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { PASS_TIMEOUT_MS as FOREST_PASS_MS } from './forest-pass.mjs';
 import { PASS_TIMEOUT_MS as SEA_PASS_MS } from './sea-pass.mjs';
 import { PASS_TIMEOUT_MS as SWEET_PASS_MS } from './sweet-grey.mjs';
+import { PASS_TIMEOUT_MS as SKY_PASS_MS } from './sky-grey.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -834,7 +835,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
 
   it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" holds the longest walkthrough of a whole world with its setup (npm ci, the build of the run: 4 minutes kept for them)', (name) => {
     const minutes = Number(key(workflow(name).jobs.worlds, 'timeout-minutes'));
-    expect(minutes * 60000).toBeGreaterThanOrEqual(Math.max(FOREST_PASS_MS, SEA_PASS_MS, SWEET_PASS_MS) + 4 * 60000);
+    expect(minutes * 60000).toBeGreaterThanOrEqual(Math.max(FOREST_PASS_MS, SEA_PASS_MS, SWEET_PASS_MS, SKY_PASS_MS) + 4 * 60000);
   });
 });
 
