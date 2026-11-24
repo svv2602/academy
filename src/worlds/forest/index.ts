@@ -71,19 +71,24 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'yasen', emoji: '🌳', x: ZONES.ash.x, z: ZONES.ash.z, heading: Math.PI, steps: ['diff', 'simon', 'add'], shard: '#36b56c',
     hi: 'yasen_hi', asks: ['yasen_t1', 'yasen_t2', 'yasen_t3'], thanks: 'yasen_done', again: ['yasen_again_1', 'yasen_again_2'] },
   // by the arch of the maze's way in; the maze is the last of the hedgehog's tasks, the leaf lies at its end (WORLD-14)
-  { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 2.5, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0',
+  { id: 'kolyuchka', emoji: '🦔', x: MAZE_IN.x + 3.25, z: MAZE_IN.z - 2, heading: -1.6, steps: ['sub', 'order', MAZE, 'part'], shard: '#7ff0b0',
     hi: 'kolyuchka_hi', asks: ['kolyuchka_t1', 'kolyuchka_t2', 'kolyuchka_t3', null], thanks: 'kolyuchka_done', again: ['kolyuchka_again_1', 'kolyuchka_again_2'] },
 ];
 /** The steps played in the world (WorldDef.worldTasks): Mudrena's steps to her hollow (WORLD-16). */
 export const WORLD_TASKS: readonly string[] = [STEPS];
 
-/** The size of each character: its height and the radius it keeps clear (the Ash is its tree: no figure of its own). */
-const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string }> = {
+/**
+ * The size of each character: its height and the radius it keeps clear (the Ash is its tree: no figure of its own).
+ * Against the heroine (1.53 m, src/game/hero.ts HERO_TOP; the customer's word of 2026-11-24, docs/worlds/world-2.md
+ * «Размеры»): the gnome a head lower than her, through his own door (1.38 m); the owl clearly bigger than her owlet
+ * (0.55 m); the squirrel a little over the cat (0.75 m), the hedgehog lower and longer - both seen from the game's camera.
+ */
+export const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string }> = {
   borovik: { h: 1.1, r: 0.3, color: '#8a6a4a', hat: '#d8443a' },
-  mudrena: { h: 0.7, r: 0.3, color: '#9a8466' },
-  shustrik: { h: 0.45, r: 0.16, color: '#e07a2c' },
+  mudrena: { h: 1.0, r: 0.43, color: '#9a8466' },
+  shustrik: { h: 0.8, r: 0.28, color: '#e07a2c' },
   yasen: { h: 0, r: 0, color: '#000' },
-  kolyuchka: { h: 0.4, r: 0.22, color: '#6a5442' },
+  kolyuchka: { h: 0.65, r: 0.36, color: '#6a5442' },
 };
 
 /**
@@ -92,7 +97,7 @@ const FIGURE: Record<string, { h: number; r: number; color: string; hat?: string
  * Tropka in the village a step aside from Borovik (out of the way to him). The owlet, Mudrena's little one, is the pet
  * of the world (PLAY-09, src/game/pets.ts): its model is loaded as a pet's (`loadOwnPets`), not here.
  */
-const MODELS: Record<string, number> = { borovik: 1.1, mudrena: 0.7, shustrik: 0.45, kolyuchka: 0.4, tropka: 1.0 };
+const MODELS: Record<string, number> = { ...Object.fromEntries(['borovik', 'mudrena', 'shustrik', 'kolyuchka'].map((id) => [id, FIGURE[id].h])), tropka: 1.0 };
 export const BYSTANDERS = [
   { id: 'tropka', x: ZONES.village.x - 1.2, z: ZONES.village.z - 2.6, heading: 1.9, r: 0.3 },
 ] as const;
