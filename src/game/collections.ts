@@ -64,6 +64,12 @@ export interface CollectItem {
   flock?: number;
 }
 
+/**
+ * The kinds of a world's finds in their order, all its sets and its keepsakes are counted by (src/worlds/hub/keepsakes.ts):
+ * what the registry knows of a world before its code is loaded (src/worlds/<id>/meta.ts). A CollectDef is one.
+ */
+export interface CollectKinds { readonly items: readonly { readonly kind: CollectKind }[] }
+
 /** What a world lays out: every kind it names has exactly SET_SIZE finds. */
 export interface CollectDef {
   readonly items: readonly CollectItem[];
@@ -129,18 +135,18 @@ export function foundOf(ws: WorldState): number[] {
 }
 
 /** The kinds of a world's finds, in the order they first come in its list. */
-export const kindsOf = (def: CollectDef): CollectKind[] => [...new Set(def.items.map((i) => i.kind))];
+export const kindsOf = (def: CollectKinds): CollectKind[] => [...new Set(def.items.map((i) => i.kind))];
 /** The kinds of a world's sets: its kinds but the pieces of its picture. */
-export const setKindsOf = (def: CollectDef): CollectKind[] => kindsOf(def).filter(isSet);
+export const setKindsOf = (def: CollectKinds): CollectKind[] => kindsOf(def).filter(isSet);
 /** The numbers of the finds of every set (the pieces of the picture are not one). */
 export const setItems = (def: CollectDef): number[] => def.items.flatMap((it, i) => (isSet(it.kind) ? [i] : []));
 
 /** The numbers of the finds of a kind. */
-export const itemsOf = (def: CollectDef, kind: CollectKind): number[] =>
+export const itemsOf = (def: CollectKinds, kind: CollectKind): number[] =>
   def.items.flatMap((it, i) => (it.kind === kind ? [i] : []));
 
 /** A set is whole when every find of its kind is found. */
-export const setDone = (def: CollectDef, kind: CollectKind, found: readonly number[]) => itemsOf(def, kind).every((i) => found.includes(i));
+export const setDone = (def: CollectKinds, kind: CollectKind, found: readonly number[]) => itemsOf(def, kind).every((i) => found.includes(i));
 
 /** The numbers of a world's pieces of its picture, in the order of their cells. */
 export const piecesOf = (def: CollectDef): number[] => itemsOf(def, 'piece');

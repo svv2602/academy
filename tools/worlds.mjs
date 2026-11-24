@@ -388,8 +388,15 @@ export function readList(dir) {
   try { return JSON.parse(readFileSync(join(dir, WORLDS_LIST), 'utf8')); } catch { return null; }
 }
 
+/** The world's code the build `dir` made of it (code/<id>/…, tools/vite-worlds.mjs worldChunkFile): [] when none. */
+export function builtCode(dir, id) {
+  const at = join(dir, 'code', id);
+  return existsSync(at) ? filesOf(at).map((f) => `code/${id}/${f}`) : [];
+}
+
 /**
- * The build `dir` must list the world `id` for the game (worlds.json, tools/vite-worlds.mjs): exactly `files`, each
+ * The build `dir` must list the world `id` for the game (worlds.json, tools/vite-worlds.mjs): exactly `files` and the
+ * world's code the build made (builtCode), each
  * with the size and the SHA-256 of the file in the build; the service worker must precache the list (the game reads
  * it without network) and have a route into the cache the list names. Returns the problems, [] when it is right.
  */
@@ -400,6 +407,7 @@ export function listProblems(dir, id, files) {
   if (!Array.isArray(listed)) return [`${WORLDS_LIST} does not list the world "${id}"`];
   const out = [];
   const urls = listed.map((f) => f.url);
+  files = [...files, ...builtCode(dir, id)];
   for (const f of files) if (!urls.includes(f)) out.push(`${WORLDS_LIST} does not list ${f} of the world "${id}"`);
   for (const u of urls) if (!files.includes(u)) out.push(`${WORLDS_LIST} lists ${u}, which is not a file of the world "${id}"`);
   for (const f of listed) {

@@ -59,10 +59,12 @@ const { world, refused: refusedAtLaunch } = await launchWorld(WORLDS, DEFAULT_WO
     return ready;
   },
 });
-// ARCH-12: the texts of every world of the registry join the shared ones before anything is shown (a key two worlds
-// share is an error, one key per clip), and the start screen's subtitle is the one of the world played;
+// ARCH-12: the texts of the world played and of the worlds of the installation join the shared ones before anything is
+// shown (a key two worlds share is an error, one key per clip), and the start screen's subtitle is the one of the world
+// played; a next world's join once its code is loaded, as she enters it (src/game/travel.ts).
 // ARCH-06: the music is the one of the world played.
-for (const w of WORLDS) addStrings(w.strings, w === world);
+addStrings(world.strings, true);
+for (const w of WORLDS) if (INSTALLED.includes(w.id) && w.id !== world.id) addStrings((await w.code()).strings, false);
 knowWorlds(WORLDS);   // the artifacts and the shelf count the worlds of the registry (src/game/artifacts.ts)
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();

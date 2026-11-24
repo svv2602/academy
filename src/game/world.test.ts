@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { launchWorld, pickWorld, type LaunchEnv, type WorldDef } from './world';
+import { launchWorld, pickWorld, type LaunchEnv, type WorldDef, type WorldMeta } from './world';
 
 /** Only the id matters to pickWorld: the rest of a world is never touched. */
 const world = (id: string) => ({ id }) as unknown as WorldDef;
@@ -88,7 +88,10 @@ describe('the world reaches the game', () => {
 
 describe('launchWorld: the world where she stopped, through the gate (WORLD-01, TECH-09, R17, R27)', () => {
   const first = { id: 'first' } as WorldDef, hub = { id: 'hub' } as WorldDef, far = { id: 'far' } as WorldDef;
-  const list = [first, hub, far];
+  // the registry: what is known of each world, its code loaded on demand (counted: a world never launched is never loaded)
+  const loaded: string[] = [];
+  const meta = (w: WorldDef): WorldMeta => ({ id: w.id, code: async () => { loaded.push(w.id); return w; } });
+  const list = [first, hub, far].map(meta);
   type Answer = Awaited<ReturnType<LaunchEnv['gate']['canEnter']>>;
   const env = (answer: Answer, ready = true) => {
     const asked: string[] = [], downloads: string[] = [];
@@ -131,5 +134,18 @@ describe('launchWorld: the world where she stopped, through the gate (WORLD-01, 
     expect(await launchWorld(list, 'first', 'first', true, 'hub', d.e)).toEqual({ world: first, refused: false });
     expect(d.asked).toEqual([]);
     expect(await launchWorld(list, 'first', 'far', false, 'hub', d.e)).toEqual({ world: hub, refused: false });
+  });
+
+  it('loads the code of the world launched alone; a world whose code cannot be had: the default world, and it says so', async () => {
+    loaded.length = 0;
+    expect(await launchWorld(list, 'first', null, false, 'far', env(OPEN).e)).toEqual({ world: far, refused: false });
+    expect(loaded).toEqual(['far']);
+    loaded.length = 0;
+    const broken = [list[0], list[1], { id: 'far', code: () => Promise.reject(new Error('offline')) }];
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await launchWorld(broken, 'first', null, false, 'far', env(OPEN).e)).toEqual({ world: first, refused: true });
+    expect(quiet).toHaveBeenCalledOnce();
+    quiet.mockRestore();
+    expect(loaded).toEqual(['first']);
   });
 });

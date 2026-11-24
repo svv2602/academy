@@ -11,8 +11,11 @@ import {
   PETS, PET_FLAG, PET_GAP, PET_SPOT_R, FLAP_MAX, flapPace, loadOwnPets, ownFound, ownPetRigs, petSpecies, choosePet, steerPet, petShadows, followerOf, giveTreat, treatKind, tricksKnown, TRICKS_AT, petProblems, createPets, followStep, foundPets, markFound, petPlace,
   type PetHost, type WorldPet,
 } from './pets';
-import { WORLDS } from '../worlds';
+import { loadWorlds } from '../worlds';
 import { COLLECT_KINDS } from './collections';
+
+/** Every world of the registry with its code (a next world's is loaded on demand, src/worlds/index.ts). */
+const WORLDS = await loadWorlds();
 
 vi.mock('../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 // The particles draw their sprite on a canvas at import; the page of the tests has no 2D context.
