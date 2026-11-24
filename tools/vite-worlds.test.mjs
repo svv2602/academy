@@ -207,8 +207,8 @@ describe('worldList: the plugin that writes worlds.json into the build', () => {
 describe('vite.config.ts uses all of it', () => {
   const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 
-  it('the next worlds are the ones of the sources, the probe world by the mode of the build', () => {
-    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE, sweet: GREY_MODE \}\);/);
+  it('the next worlds are the ones of the sources, the probe world by the mode of the build, the forest in every build', () => {
+    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, sea: GREY_MODE, sweet: GREY_MODE \}\);/);
     expect(config).toMatch(/^const GREY_MODE = 'grey';$/m);
   });
 
@@ -219,12 +219,13 @@ describe('vite.config.ts uses all of it', () => {
     expect(map).toEqual({ 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' });
     for (const from of Object.values(map)) expect(existsSync(join(root, from)), from).toBe(true);
     expect(existsSync(join(root, 'public/models/sea')), 'the published build must not have the sea').toBe(false);
-    expect(config).toMatch(/\.\.\.\(mode === GREY_MODE \? \[greyFiles\(next\)\] : \[\]\)/);
-    expect(config).toMatch(/greyWorldFiles\(next, GREY_FILES, root\)/);
+    // every build gets the files of worlds-data/ of its next worlds; GREY_FILES only the grey build
+    expect(config).toMatch(/^ {6}worldFiles\(next, mode === GREY_MODE \? GREY_FILES : \{\}\),$/m);
+    expect(config).toMatch(/greyWorldFiles\(next, extra, root\)/);
   });
 
-  it('a grey world\'s own files (worlds-data/<id>/) are in the grey build at their paths, and in no published build', () => {
-    const modes = { probe: 'probe', forest: 'grey', sea: 'grey' };
+  it('a next world\'s own files (worlds-data/<id>/) are in its builds at their paths: the forest\'s in every build, a grey world\'s in the grey one alone', () => {
+    const modes = { probe: 'probe', sea: 'grey', sweet: 'grey' };
     const grey = greyWorldFiles(buildWorlds('grey', modes), {}, root);
     const forest = Object.keys(grey).filter((p) => p.startsWith('models/forest/'));
     // every file of worlds-data/forest, at the path the game asks for (models/forest/…), from where it lies
@@ -232,10 +233,14 @@ describe('vite.config.ts uses all of it', () => {
     expect(forest).toContain('models/forest/borovik.glb');
     expect(grey['models/forest/borovik.glb']).toBe('worlds-data/forest/models/forest/borovik.glb');
     for (const from of Object.values(grey)) expect(existsSync(join(root, from)), from).toBe(true);
-    // the published build (and the probe one) has no grey world: none of its files
-    for (const mode of ['production', 'probe']) expect(greyWorldFiles(buildWorlds(mode, modes), {}, root), mode).toEqual({});
-    // and they are not under public/, which every build copies
-    expect(existsSync(join(root, 'public/models/forest')), 'the published build must not have the forest').toBe(false);
+    // the published build (and the probe one) has the forest (published 2026-11-24), no grey world: none of its files
+    for (const mode of ['production', 'probe']) {
+      const files = Object.keys(greyWorldFiles(buildWorlds(mode, modes), {}, root));
+      expect(files, mode).toEqual(Object.keys(grey).filter((p) => /^(models|voice|story)\/forest\//.test(p)));
+      expect(files.filter((p) => /^(models|voice|story)\/(sea|sweet)\//.test(p)), mode).toEqual([]);
+    }
+    // a next world's files stay in worlds-data/, never under public/ (copied whole into every build, precached)
+    expect(existsSync(join(root, 'public/models/forest')), 'the forest\'s files lie in worlds-data/forest').toBe(false);
   });
 
   it('their folders are left out of the service worker\'s list, next to the bank', () => {

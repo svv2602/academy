@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // The registry (src/worlds/index.ts) with stand-ins for the worlds: the real ones need a page to load. The probe
-// world (TECH-15) is a test world: the published game must not list it, a build made with `--mode probe` must.
+// world (TECH-15) is a test world: the published game must not list it, a build made with `--mode probe` must. The
+// forest (WORLD-02) is published (2026-11-24): every build lists it; the sea and the Sweet Land only the grey build.
 vi.mock('./fairy', () => ({ fairy: { id: 'fairy', shelf: 0 } }));
 vi.mock('./hub', () => ({ hub: { id: 'hub' } }));
 vi.mock('./probe', () => ({ probe: { id: 'probe', shelf: 1, test: true } }));
@@ -23,24 +24,29 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(import.meta.env.MODE).toBe('test');
   });
 
-  it.each(['test', 'production', 'development'])('in the mode "%s" the worlds are the Fairy Kingdom and the hub', async (mode) => {
+  it.each(['test', 'production', 'development'])('in the mode "%s" the worlds are the Fairy Kingdom, the hub and the forest', async (mode) => {
     const { WORLDS, DEFAULT_WORLD } = await registry(mode);
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
   it('a build made with --mode probe lists the probe world too, and still plays the Fairy Kingdom by default', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('probe');
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'probe']);
+    // the probe world before the forest: it is the next one downloaded while the fairies are played (tools/worlds.mjs)
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'probe', 'forest']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
-  it('a build or a dev server made with --mode grey lists the forest, the sea and the Sweet Land of the grey build (WORLD-12), still playing the Fairy Kingdom', async () => {
+  it('a build or a dev server made with --mode grey lists the sea and the Sweet Land of the grey build (WORLD-12) after the forest, still playing the Fairy Kingdom', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('grey');
     expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea', 'sweet']);
     expect(DEFAULT_WORLD).toBe('fairy');
     expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea|sweet)['"]/m);
-    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/forest'\)\)\.forest, \(await import\('\.\/sea'\)\)\.sea, \(await import\('\.\/sweet'\)\)\.sweet\] : \[\]/);
+    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/sea'\)\)\.sea, \(await import\('\.\/sweet'\)\)\.sweet\] : \[\]/);
+  });
+
+  it('the forest is published: a dynamic import of its own (a chunk of its own, not the core\'s code), behind no mode', () => {
+    expect(RAW['./index.ts']).toMatch(/^ {2}\(await import\('\.\/forest'\)\)\.forest,$/m);
   });
 
   it.each(['test', 'probe', 'grey'])('in the mode "%s" no id is listed twice and the default world is listed', async (mode) => {
@@ -51,14 +57,19 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
   });
 
   it.each([
-    ['production', ['fairy'], ['fairy', null, null, null, null]],
+    ['production', [], ['fairy', null, null, null, null]],
+    // a save with the fairies done (before the forest was published, too) sees the forest's arch open
+    ['production', ['fairy'], ['fairy', 'forest', null, null, null]],
+    ['production', ['fairy', 'forest'], ['fairy', 'forest', null, null, null]],
     ['grey', [], ['fairy', null, null, null, null]],
     ['grey', ['fairy'], ['fairy', 'forest', null, null, null]],
     ['grey', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
     // the Sweet Land's arch (shelf 3) sleeps until the sea is done
     ['grey', ['fairy', 'forest', 'sea'], ['fairy', 'forest', 'sea', 'sweet', null]],
+    // the probe build alone puts the probe world on the forest's place (it is listed first): its walkthrough goes
+    // "hub -> the second arch -> back" (tools/worlds.mjs); every other build has the forest behind that arch
     ['probe', ['fairy'], ['fairy', 'probe', null, null, null]],
-  ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game the fairies\' alone)', async (mode, done, open) => {
+  ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game the fairies\' and the forest\'s)', async (mode, done, open) => {
     const { WORLDS } = await registry(mode);
     const { openArches, portalWorlds } = await import('./hub/portals');
     expect(openArches(portalWorlds(WORLDS), (id) => (done as readonly string[]).includes(id))).toEqual(open);
@@ -141,17 +152,18 @@ describe('nextWorlds: the worlds to download while one is played (TECH-09)', () 
     expect(nextWorlds('nowhere', ORDER, ['fairy'])).toEqual(['ocean', 'space', 'ice']);
   });
 
-  it('the published game: the hub is in the installation with the first world - no next world, no request for the list', async () => {
+  it('the published game: the hub is in the installation with the first world - the forest the next world', async () => {
     const { nextWorlds, INSTALLED, DEFAULT_WORLD } = await registry('production');
     expect(INSTALLED).toEqual([DEFAULT_WORLD, 'hub']);
-    expect(nextWorlds('fairy')).toEqual([]);
-    expect(nextWorlds('hub')).toEqual([]);
+    expect(nextWorlds('fairy')).toEqual(['forest']);
+    expect(nextWorlds('hub')).toEqual(['forest']);
+    expect(nextWorlds('forest')).toEqual([]);
   });
 
-  it('the probe build: the probe world is the next one of the first world and of the hub, and has no next one itself', async () => {
+  it('the probe build: the probe world is the next one of the first world and of the hub, then the forest', async () => {
     const { nextWorlds } = await registry('probe');
-    expect(nextWorlds('fairy')).toEqual(['probe']);
-    expect(nextWorlds('hub')).toEqual(['probe']);
-    expect(nextWorlds('probe')).toEqual([]);
+    expect(nextWorlds('fairy')).toEqual(['probe', 'forest']);
+    expect(nextWorlds('hub')).toEqual(['probe', 'forest']);
+    expect(nextWorlds('probe')).toEqual(['forest']);
   });
 });

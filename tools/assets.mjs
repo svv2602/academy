@@ -3,7 +3,7 @@
 // Reads the source models from models-src/ (never shipped) and writes what the game downloads into public/models/
 // under the same relative paths - but a next world's (TECH-09, decision Q14: models-src/<id>/ of a world that is not the
 // first one nor the installation's) goes to worlds-data/<id>/models/<id>/, outside public/: public/ is copied into
-// every build, and a world's models belong only to a build that has the world (vite.config.ts `greyFiles` puts
+// every build, and a world's models belong only to a build that has the world (vite.config.ts `worldFiles` puts
 // worlds-data/<id>/ into it under models/<id>/, the path the game asks for):
 //   - geometry and animation: EXT_meshopt_compression. Nothing is quantized, simplified or resampled — every float
 //     the loader reads is bit-identical to the source, so src/core/assets.ts needs the decoder and nothing else.

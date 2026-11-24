@@ -38,23 +38,23 @@ function probeFiles(): Plugin {
   };
 }
 
-// A grey build (WORLD-12, `--mode grey`) plays the worlds of the grey build; the files they need come from where they
-// lie, put into the build under the paths their worlds ask for (tools/vite-worlds.mjs `greyWorldFiles`): GREY_FILES -
-// the sea swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the UAL,
-// worlds-test/probe/README.md), no second copy in git - and every file of worlds-data/<id>/ of a next world of the
-// build (the forest's characters, models/forest/…, written there by tools/assets.mjs; the sea's voice, voice/sea/…,
-// written there by tools/gen_voice.py - outside public/, which every build copies). The published build has no next
-// world and gets none of them.
+// The files of the next worlds of a build that lie outside public/ (tools/vite-worlds.mjs `greyWorldFiles`): every
+// file of worlds-data/<id>/ of a next world of the build, put in under the path the world asks for (the forest's
+// characters, models/forest/…, written there by tools/assets.mjs; the voice, voice/<id>/…, written there by
+// tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest (published
+// 2026-11-24) and gets its files; a grey build (WORLD-12, `--mode grey`) also the sea's and the Sweet Land's, and
+// GREY_FILES - the sea swims (WorldDef.move) with the probe world's swimming clips (the same two clips of the UAL,
+// worlds-test/probe/README.md), no second copy in git.
 const GREY_MODE = 'grey';
 const GREY_FILES: Record<string, string> = { 'models/sea/swim.glb': 'worlds-test/probe/models/probe/swim.glb' };
-function greyFiles(next: string[]): Plugin {
+function worldFiles(next: string[], extra: Record<string, string>): Plugin {
   let root = '.';
   return {
-    name: 'grey-world-files',
+    name: 'world-data-files',
     apply: 'build',
     configResolved(config) { root = config.root; },
     generateBundle() {
-      for (const [fileName, from] of Object.entries(greyWorldFiles(next, GREY_FILES, root))) this.emitFile({ type: 'asset', fileName, source: readFileSync(join(root, from)) });
+      for (const [fileName, from] of Object.entries(greyWorldFiles(next, extra, root))) this.emitFile({ type: 'asset', fileName, source: readFileSync(join(root, from)) });
     },
   };
 }
@@ -64,10 +64,10 @@ function greyFiles(next: string[]): Plugin {
 // (models/<id>/, voice/<id>/, story/<id>/) stay out of the service worker's list, the build lists their files in
 // worlds.json (tools/vite-worlds.mjs) and the service worker keeps them in the cache "worlds": a file is put there
 // when the page first asks for it, and by the download in the background while the previous world is played
-// (src/core/worldcache.ts). A build without a next world - the published game today - gets none of this.
+// (src/core/worldcache.ts). A build without a next world would get none of this; the published game has the forest.
 export default defineConfig(({ mode }) => {
-  // the forest, the sea and the Sweet Land only in their grey build (WORLD-12, src/worlds/index.ts)
-  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, forest: GREY_MODE, sea: GREY_MODE, sweet: GREY_MODE });
+  // the sea and the Sweet Land only in their grey build (WORLD-12, src/worlds/index.ts); the forest in every build
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sea: GREY_MODE, sweet: GREY_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
   return {
@@ -82,7 +82,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       ...(mode === PROBE_MODE ? [probeFiles()] : []),
-      ...(mode === GREY_MODE ? [greyFiles(next)] : []),
+      worldFiles(next, mode === GREY_MODE ? GREY_FILES : {}),
       // After the plugin above: the list is made of the files it emits and of the ones under public/.
       list,
       VitePWA({

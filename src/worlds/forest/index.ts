@@ -42,8 +42,8 @@ import { buildGround, colliders, ground } from './terrain';
  * The Enchanted Forest (WORLD-02), its grey build (WORLD-12): the map of docs/worlds/world-2.md in simple shapes at
  * their real sizes, stretched by one number (./layout.ts SCALE, `?scale=`), its five characters with their chains of
  * tasks the game already has, the two leaves of the Emerald that lie in the world, the finale at the Old Oak and the
- * tour. It loads no file. The registry lists it only in a build made with `--mode grey` (src/worlds/index.ts): the
- * published game and the hub do not change. What the measurements of the grey build read: tools/forest-grey.mjs.
+ * tour. Made as the grey build, published 2026-11-24: the registry lists it in every build (src/worlds/index.ts), its
+ * files from worlds-data/forest/. What the measurements of the grey build read: tools/forest-grey.mjs.
  */
 
 /**
@@ -441,7 +441,7 @@ function buildHeap(at: THREE.Vector3): THREE.Mesh {
   return m;
 }
 
-/** The Enchanted Forest, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
+/** The Enchanted Forest: listed in src/worlds/index.ts in every build (published 2026-11-24). */
 export const forest: WorldDef<ForestModels, WorldSky> = {
   id: 'forest',
   shelf: 1,

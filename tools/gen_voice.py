@@ -110,7 +110,7 @@ def world_audio(audio, world):
     - a world of the installation (the hub) keeps its clips in public/voice/<world>/, precached with the core;
     - a test world (worlds-test/<world>/ exists) in worlds-test/<world>/voice/<world>/;
     - every other world - a next world - in worlds-data/<world>/voice/<world>/, outside public/, which every build
-      copies: only a build that has the world puts them in, at voice/<world>/ (vite.config.ts `greyFiles`,
+      copies: only a build that has the world puts them in, at voice/<world>/ (vite.config.ts `worldFiles`,
       tools/vite-worlds.mjs `greyWorldFiles`), as it does the world's models."""
     root = audio.parent.parent
     test = root / 'worlds-test' / world

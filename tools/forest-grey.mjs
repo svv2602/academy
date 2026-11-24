@@ -3,9 +3,10 @@
 //   node tools/forest-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-way] [--no-measure] [--out <dir>]   (the chosen stretch is 1.6)
 //   --q: the quality the measurements are made in (`?q=`, 0-2; 2 by default): a look is measured on q2 and q0
 //
-// 1. `vite build --mode grey --outDir dist-grey`: the registry lists the forest in that mode only (src/worlds/index.ts).
-//    The build must fit the size budget (tools/dist-size.mjs): the forest's own models (models/forest/, from
-//    worlds-data/forest/ - tools/assets.mjs, vite.config.ts `greyFiles`) count as a next world's, apart from the core.
+// 1. `vite build --mode grey --outDir dist-grey` (the forest is in every build since 2026-11-24; the grey one adds the
+//    sea and the Sweet Land, src/worlds/index.ts). The build must fit the size budget (tools/dist-size.mjs): the
+//    forest's own files (models/forest/…, from worlds-data/forest/ - tools/assets.mjs, vite.config.ts `worldFiles`) count
+//    as a next world's, apart from the core.
 // 2. dist-grey/ served on E2E_PORT (4183 by default).
 // 3. The walkthrough every world shares, by the forest's description, from its entry to its finale (tools/world-pass.mjs,
 //    E2E_WORLD=forest E2E_WORLD_NEED=grey, the phone size); pictures in shots-e2e/forest-grey/. --no-pass leaves it out.

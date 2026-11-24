@@ -103,10 +103,12 @@ Their depth maps `w3_intro_1_depth.webp`, `w3_intro_2_depth.webp`, `w3_intro_3_d
 (Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
 Dedicated to the public domain under CC0 1.0.
 
-Voice (`public/voice/`, `public/bank/`; every clip has its record in `voice/qa.json`: text, intonation, model, voice):
+Voice (`public/voice/`, `public/bank/`, and of the forest, published 2026-11-24, `worlds-data/forest/voice/` - in the
+build `voice/forest/`; every clip has its record in `voice/qa.json`: text, intonation, model, voice):
 synthesized speech of the Gemini API (Google), model `gemini-2.5-flash-preview-tts`, its prebuilt voices (the
 narrator Puck; each character's voice is set in `src/worlds/<id>/voices.ts`). 249 clips were recorded for this game
-with `tools/gen_voice.py` on 2026-11-13 to 2026-11-20 (a paid API key); 394 clips of the earlier game, recorded with
+with `tools/gen_voice.py` on 2026-11-13 to 2026-11-20 (a paid API key), and the forest's 81 the same way on 2026-11-22
+and 2026-11-23; 394 clips of the earlier game, recorded with
 the same model and voice, were copied with `tools/import_old_voice.py` (VOICE-07), without any clip that speaks a
 name. Each clip was checked by transcribing it back with an OpenAI speech-to-text model; the transcription is not
 part of the game. Rights: the Gemini API Additional Terms of Service (https://ai.google.dev/gemini-api/terms, effective

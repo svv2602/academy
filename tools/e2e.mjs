@@ -57,7 +57,9 @@ probe world is a test world - dist/ must hold nothing of it (no file, no code); 
 of the sources, and the world is played there in the mobile size by the walkthrough every world shares
 (E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/). E2E_WORLDS=0 leaves the step out (the summary says so): CI
 plays the probe world in a job of its own (node tools/worlds.mjs dist).
-"models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json.
+"models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json; the
+own files of a next world (the forest's, downloaded in the background - those dist/worlds.json lists) are left out of
+it: they lie in worlds-data/<id>/, not under public/models/, and the list of the world checks them.
 "dist size" holds the build to the budget of docs/15-tech.md, counted per world: the core with the first world at most 12 MB
 without voice/ and 4 MB of voice/, every next world (models/<id>/, story/<id>/, voice/<id>/) at most 8 MB and 3 MB of voice,
 one file at most 1 MB (tools/dist-size.mjs).
@@ -420,12 +422,22 @@ function checkPlayed() {
 
 // The model files the page requested in the walkthroughs must be exactly tools/models-used.json. The same list is
 // compared with public/models by a unit test (tools/models-used.test.mjs), so a model nobody loads cannot be shipped.
+// A next world's own files (the forest's: the game downloads them in the background while the fairies are played) are
+// not public/models': they are the ones the build's list of the next worlds names (dist/worlds.json, written from
+// worlds-data/<id>/ by tools/vite-worlds.mjs), and are left out here.
+function nextWorldFiles() {
+  const file = join(root, 'dist', 'worlds.json');
+  if (!existsSync(file)) return new Set();
+  return new Set(Object.values(JSON.parse(readFileSync(file, 'utf8')).worlds).flatMap((w) => w.files.map((f) => f.url)));
+}
 function checkModels() {
+  const own = nextWorldFiles();
+  const ofWorlds = new Set();
   const requested = new Set();
   for (const job of jobs) {
     let list;
     try { list = JSON.parse(readFileSync(modelsOut(job), 'utf8')); } catch (e) { throw new Error(`no list of requested models from the ${jobLabel(job)} walkthrough (${e.message})`); }
-    for (const p of list) requested.add(p);
+    for (const p of list) if (own.has(p)) ofWorlds.add(p); else requested.add(p);
   }
   const actual = [...requested].sort();
   if (!actual.length) throw new Error('the walkthroughs requested no model files at all');
@@ -444,7 +456,7 @@ function checkModels() {
       + (notRequested.length ? `\n  in the list, but not requested in any walkthrough:\n    ${notRequested.join('\n    ')}` : '')
       + '\n  if the change is intended: npm run e2e -- --update-models; a model nobody requests: move its source from models-src/ to models-unused/ and run npm run assets');
   }
-  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}`;
+  return `${actual.length} model file(s) requested, same as ${MODELS_FILE}` + (own.size ? `; the next worlds' own files apart (dist/worlds.json: ${ofWorlds.size} of their ${own.size} file(s) requested)` : '');
 }
 
 // No element in any built .html may point to another site. Elements and their attributes are checked, not every
