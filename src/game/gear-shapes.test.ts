@@ -13,16 +13,16 @@ const tris = (o: THREE.Object3D) => {
 };
 
 describe('the things built by code (the gifts of a trade, PLAY-28)', () => {
-  it('are the five gifts, each a thing of the heroine or of a pet hung under a bone of the head (the owlet\'s of its body)', () => {
-    expect(Object.keys(BUILT).sort()).toEqual(['acorn_cap', 'fawn_leaf_bow', 'feather_crown', 'mushroom_hat', 'owlet_leaf_scarf']);
-    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat'] as const) { expect(GEAR[id]).toEqual({ slot: 'head', bone: 'Head' }); expect(MODEL_IDS).toContain(id); }
+  it('are the six gifts, each a thing of the heroine or of a pet hung under a bone of the head (the owlet\'s of its body)', () => {
+    expect(Object.keys(BUILT).sort()).toEqual(['acorn_cap', 'fawn_leaf_bow', 'feather_crown', 'mushroom_hat', 'owlet_leaf_scarf', 'shell_tiara']);
+    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat', 'shell_tiara'] as const) { expect(GEAR[id]).toEqual({ slot: 'head', bone: 'Head' }); expect(MODEL_IDS).toContain(id); }
     expect(PET_GEAR.fawn_leaf_bow).toEqual({ pet: 'fawn', bone: 'Head' });
     expect(PET_GEAR.owlet_leaf_scarf).toEqual({ pet: 'owlet', bone: 'Body' });
     for (const id of ['fawn_leaf_bow', 'owlet_leaf_scarf'] as const) expect(PET_GEAR_IDS).toContain(id);
   });
 
   it('have no file: nothing for the budget of the core models (TECH-09)', () => {
-    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat']) expect(existsSync(`public/models/items/${id}.glb`), id).toBe(false);
+    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat', 'shell_tiara']) expect(existsSync(`public/models/items/${id}.glb`), id).toBe(false);
     for (const id of ['fawn_leaf_bow', 'owlet_leaf_scarf']) expect(existsSync(`public/models/pet_items/${id}.glb`), id).toBe(false);
   });
 
@@ -42,7 +42,7 @@ describe('the things built by code (the gifts of a trade, PLAY-28)', () => {
 
   it('sit where a loaded thing of their wearer would (the model\'s axes, y up): on top of her head, by the fawn\'s ear, round the owlet\'s neck', () => {
     const box = (id: string) => new THREE.Box3().setFromObject(BUILT[id]());
-    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat']) {
+    for (const id of ['acorn_cap', 'feather_crown', 'mushroom_hat', 'shell_tiara']) {
       const b = box(id);
       // the heroine's unscaled model: the head with its hair y 0.67-1.20, x ±0.31 (tools/items/items.py)
       expect(b.min.y, id).toBeGreaterThan(0.85);

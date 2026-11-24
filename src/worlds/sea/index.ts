@@ -34,6 +34,7 @@ import { buildBubbles } from './bubbles';
 import { createSeaMagic } from './magic';
 import { SEA_STORIES } from './story';
 import { COLLECT, DAILY_PLACES } from './collect';
+import { TRADES } from './trade';
 import { CHEST_FLAG, SEA_SECRETS, SECRET_HOW, createSeaSecrets } from './secrets';
 
 /**
@@ -303,7 +304,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const tasks: Record<string, WorldTask> = { part, [LOCK]: lock, [CORALS]: corals, [HALF_STEP]: halfStep };
   const wrongTasks = worldTaskProblems(sea.worldTasks, tasks);
   if (wrongTasks.length) throw new Error(`the sea: ${wrongTasks.join('; ')}`);
-  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
+  const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks, trades: TRADES });
   stepDone = dialogue.stepDone;
 
   // ----- the tour, the finale -----

@@ -32,6 +32,8 @@ describe('the catalog of the first shop (PLAY-04, decisions of 2026-11-15)', () 
       feather_crown: ['head', 'trade'], acorn_cap: ['head', 'trade'],
       // the forest's (the customer's word of 2026-11-22)
       mushroom_hat: ['head', 'trade'],
+      // the sea's (the customer's word of 2026-11-23)
+      shell_tiara: ['head', 'trade'],
     });
   });
 

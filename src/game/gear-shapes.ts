@@ -4,8 +4,8 @@ import { facets, mat } from '../core/style';
 
 /**
  * The things built by code, not loaded (docs/worlds/style.md: our own shape on the frame, its weight only code): the
- * gifts of the characters for a trade (PLAY-28) - the crown of feathers, the acorn cap and the fly-agaric hat of the
- * heroine, the leaf bow of the fawn, the leaf scarf of the owlet. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
+ * gifts of the characters for a trade (PLAY-28) - the crown of feathers, the acorn cap, the fly-agaric hat and the shell tiara
+ * of the heroine, the leaf bow of the fawn, the leaf scarf of the owlet. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
  *
  * Each is built where a loaded one would be: in the rest-pose space of its wearer's unscaled model, as tools/items/
  * items.py and pet_items.py model theirs - in Blender's axes (z up, the face to -y), turned here into the model's own
@@ -134,6 +134,30 @@ function owletLeafScarf(): THREE.Group {
 }
 
 /** The things built here, by id: what loadGear / loadPetGear hang instead of a loaded model. */
+/**
+ * The shell tiara, Khvylia's gift (the sea's trade, the customer's word of 2026-11-23): a pearl band round her head and
+ * three spiral shells on it - the sea's finds made small (src/game/collect-items.ts), pink and pearl whorls narrowing to
+ * a point - the middle one up over the brow, the other two lower at its sides; none hangs over the face.
+ */
+export const SHELL_TIARA = { band: '#fde0ec', shell: '#ff9fc4', pearl: '#fff2f6' } as const;
+function shellTiara(): THREE.Group {
+  const Z = 1.12, R = 0.2;
+  const band = mat.glow(SHELL_TIARA.band, 0.2), pink = mat.glow(SHELL_TIARA.shell, 0.15), pearl = mat.cloth(SHELL_TIARA.pearl);
+  const parts: Part[] = [{ geo: new THREE.TorusGeometry(R, 0.02, 5, 20).rotateX(THREE.MathUtils.degToRad(8)).translate(0, 0.0, Z), mat: band }];
+  // a shell standing on the band at `deg` round it (0 the front, -y, the face's side), `k` its size, `up` how high on the band
+  const shell = (deg: number, k: number, up: number) => {
+    const a = THREE.MathUtils.degToRad(deg), x = R * Math.sin(a), y = -R * Math.cos(a), z = Z + up;
+    [0, 1, 2].forEach((w) => parts.push({
+      geo: new THREE.TorusGeometry((0.034 - w * 0.01) * k, (0.015 - w * 0.0036) * k, 4, 8).translate(x, y, z + w * 0.022 * k), mat: w % 2 ? pearl : pink,
+    }));
+    parts.push({ geo: new THREE.ConeGeometry(0.011 * k, 0.034 * k, 6).rotateX(Math.PI / 2).translate(x, y, z + 0.07 * k), mat: pink });
+  };
+  shell(0, 1.25, 0.05);
+  shell(-35, 0.9, 0.025);
+  shell(35, 0.9, 0.025);
+  return assemble('shell_tiara', parts);
+}
+
 export const BUILT: Readonly<Record<string, () => THREE.Group>> = {
-  feather_crown: featherCrown, acorn_cap: acornCap, mushroom_hat: mushroomHat, fawn_leaf_bow: fawnLeafBow, owlet_leaf_scarf: owletLeafScarf,
+  feather_crown: featherCrown, acorn_cap: acornCap, mushroom_hat: mushroomHat, shell_tiara: shellTiara, fawn_leaf_bow: fawnLeafBow, owlet_leaf_scarf: owletLeafScarf,
 };

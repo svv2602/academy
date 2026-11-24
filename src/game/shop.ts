@@ -56,6 +56,7 @@ export const CATALOG: readonly Item[] = [
   { id: 'feather_crown', slot: 'head', reward: 'trade' },
   { id: 'acorn_cap', slot: 'head', reward: 'trade' },
   { id: 'mushroom_hat', slot: 'head', reward: 'trade' },
+  { id: 'shell_tiara', slot: 'head', reward: 'trade' },
   { id: 'wings_petals', slot: 'wings', free: true },
   // The things of the four looks (PLAY-06, decision 3 of 2026-11-15): simple versions, free, never sold; the full ones
   // (the crown, the hat with stars, the star and crystal wands) stay in the shop and the rewards.

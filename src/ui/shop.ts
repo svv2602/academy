@@ -36,7 +36,7 @@ const TABS: readonly { id: Tab; icon: string }[] = [
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
 export const ICON: Record<string, string> = {
-  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🧢', mushroom_hat: '🍄',
+  none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🧢', mushroom_hat: '🍄', shell_tiara: '🐚',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
   cat_collar: '📿', cat_bow: '🎀', cat_hat: '🧙', cat_gold_bell: '🔔',
   fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂', owlet_leaf_scarf: '🧣',

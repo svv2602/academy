@@ -18,6 +18,7 @@ export const GEAR = {
   feather_crown: { slot: 'head', bone: 'Head' },
   acorn_cap: { slot: 'head', bone: 'Head' },
   mushroom_hat: { slot: 'head', bone: 'Head' },
+  shell_tiara: { slot: 'head', bone: 'Head' },
   // The things of the four looks (PLAY-06, src/game/looks.ts): simple, free versions, never sold.
   tiara: { slot: 'head', bone: 'Head' },
   wizard_cap: { slot: 'head', bone: 'Head' },
