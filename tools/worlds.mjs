@@ -103,7 +103,8 @@
 //      stand-in: the forest's place on the shelf), the other three sleep; its description is its tour alone (the short
 //      template, decision Q4); no hint "to a new friend". Through the forest's arch by the action button to the probe
 //      world and back to that arch, no second tour; a reload opens the hub where she stood. With the probe world done
-//      too, the forest's nest glows as well. Pictures shots-e2e/worlds-probe/hub-*.png (the tree with one and with two
+//      too (and the sea, published 2026-11-24: in the probe build its arch opens after the probe world's), the forest's
+//      and the sea's nests glow as well. Pictures shots-e2e/worlds-probe/hub-*.png (the tree with one and with two
 //      artifacts: hub-tree-1.png, hub-tree-2.png).
 //   9. The part "hub-grey" (tools/hub-grey.mjs): the grey build made anew (`--mode grey`, dist-grey/; the forest, the sea and
 //      the Sweet Land in the registry) and the way between the hub and the forest played in it - which arches are open for
@@ -1239,24 +1240,31 @@ async function hubScenarios({ url, shots, fail: report }) {
     }
 
     // ----- "two": the probe world done too: the forest's nest glows as well -----
+    // The sea (published 2026-11-24) is in the probe build too, behind the next arch: its arch opens once the probe
+    // world is done. Done as well here, with the cat's words of its coming home said already (the hub's flags sea_home,
+    // sea_after: src/worlds/hub/index.ts worldWord), so that "nothing new" below is still true - every open world done.
     {
-      const p = await open('two artifacts', HUB_SAVES.two());
+      const two = HUB_SAVES.two();
+      two.worlds.sea = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      const hubPart = two.worlds.hub ?? { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
+      two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true } };
+      const p = await open('two artifacts', two);
       await p.page.goto(`${url}?debug&world=hub${q}`);
       await p.play(true);
       const nests = await p.g(() => __game.hub.nests());
-      if (JSON.stringify(nests) !== JSON.stringify([true, true, false, false, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's and the forest's should glow`);
+      if (JSON.stringify(nests) !== JSON.stringify([true, true, true, false, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's, the forest's and the sea's should glow`);
       if (await p.g(() => __game.flyoverPlayer?.active === true)) {
         await p.g(() => __game.flyoverPlayer.hold(2));   // the tree over the glade: both nests on its side
         await p.gameSeconds(0.8);
         await p.shot('hub-tree-2.png');
         await p.g(() => __game.flyoverPlayer.skip());
       } else fail('two artifacts: no tour of the hub on its first entry');
-      told.push('with two artifacts the crystal\'s and the forest\'s nests glow');
-      // nothing new (both open worlds done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
+      told.push('with the probe world and the sea done too the crystal\'s, the forest\'s and the sea\'s nests glow');
+      // nothing new (every open world done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
       // "the other worlds still sleep" (not the shared "new friends live here"), its clip in voice/hub/
       await p.inWorld('hub');
       // the first entry of this save: the forest's arch wakes after the tour - let it
-      await p.until(() => { const w = __game.hub.wake(); return w.shelves.length === 0 || (w.t >= 1 && !w.on && !__game.busy); }, null, 'two artifacts: the forest\'s arch did not finish waking', 60000);
+      await p.until(() => { const w = __game.hub.wake(); return w.shelves.length === 0 || (w.t >= 1 && !w.on && !__game.busy); }, null, 'two artifacts: the arches did not finish waking', 60000);
       const quiet = await p.g(() => ({ goal: __game.hub.goal(), tap: __game.hub.left('tap'), clip: __game.clipFor('hub_asleep') }));
       if (!quiet.goal || Math.hypot(quiet.goal.x - HUB_ARCH[0].x, quiet.goal.z - HUB_ARCH[0].z) > 0.5) fail(`two artifacts: with nothing new the sparkles lead to ${JSON.stringify(quiet.goal)}, not to the fairies' arch ${JSON.stringify(HUB_ARCH[0])}`);
       if (quiet.tap !== 'hub_asleep') fail(`two artifacts: with nothing new a tap on the cat says "${quiet.tap}", expected "hub_asleep"`);
