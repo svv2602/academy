@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
-import { BRIDGES, BRIDGE_W, HALF, ISLANDS, PATHS, RAIL, type Island, type Place, type ZoneId } from './layout';
+import { BRIDGES, BRIDGE_W, CLOUD_GAP, HALF, ISLANDS, PATHS, RAIL, type Island, type Place, type ZoneId } from './layout';
 
 /**
  * The ground of the Sky Islands, the grey build (WORLD-12): the flat tops of the six islands with a gentle relief, the
@@ -51,6 +51,19 @@ export function bridgeAt(x: number, z: number): readonly [ZoneId, ZoneId] | null
   return null;
 }
 
+/** Whether the cloud bridge over the gap (layout.ts CLOUD_GAP) is built: until then she cannot walk across the gap. */
+let gapBuilt = false;
+export function setCloudGap(built: boolean) { gapBuilt = built; }
+export const cloudGapBuilt = () => gapBuilt;
+const GAP_A = ISLANDS[CLOUD_GAP.bridge[0]], GAP_B = ISLANDS[CLOUD_GAP.bridge[1]];
+/** Whether (x, z) is over the gap, within its clouds to each side. */
+export function inCloudGap(x: number, z: number): boolean {
+  const f = bridgeFrame(GAP_A, GAP_B, x, z);
+  return f.along >= CLOUD_GAP.from && f.along <= CLOUD_GAP.from + CLOUD_GAP.length && Math.abs(f.across) <= CLOUD_GAP.half;
+}
+/** m: the deck of a bridge `along` m from island `a` toward `c`: straight from top to top, with a soft sag in the middle. */
+const deckY = (a: Island, c: Island, along: number, len: number) => { const u = along / len; return a.top + (c.top - a.top) * u - Math.sin(u * Math.PI) * 0.3; };
+
 /** What she can stand on: an island or a bridge. */
 export const onGround = (x: number, z: number) => islandAt(x, z) !== null || bridgeAt(x, z) !== null;
 
@@ -63,11 +76,13 @@ function islandTop(i: Island, x: number, z: number): number {
 export function height(x: number, z: number): number {
   const on = islandAt(x, z);
   if (on) return islandTop(ISLANDS[on], x, z);
+  // over the gap the deck's height holds, built or not: a hop onto a cloud of the bridge never drops her
+  if (inCloudGap(x, z)) { const f = bridgeFrame(GAP_A, GAP_B, x, z); return deckY(GAP_A, GAP_B, f.along, f.len); }
   const b = bridgeAt(x, z);
   if (b) {
     // the deck runs straight from the top of one island to the other, with a soft sag in the middle
-    const a = ISLANDS[b[0]], c = ISLANDS[b[1]], f = bridgeFrame(a, c, x, z), u = f.along / f.len;
-    return a.top + (c.top - a.top) * u - Math.sin(u * Math.PI) * 0.3;
+    const a = ISLANDS[b[0]], c = ISLANDS[b[1]], f = bridgeFrame(a, c, x, z);
+    return deckY(a, c, f.along, f.len);
   }
   return CLOUD_SEA;
 }
@@ -106,11 +121,16 @@ export function keepOn(p: { x: number; z: number }, radius: number): void {
   }
   for (const [ka, kb] of BRIDGES) {
     const a = ISLANDS[ka], b = ISLANDS[kb], f = bridgeFrame(a, b, p.x, p.z), half = BRIDGE_W / 2 - radius;
-    const along = Math.max(0, Math.min(f.len, f.along)), across = Math.max(-half, Math.min(half, f.across));
-    if (along === f.along && across === f.across) return;
-    const q = { x: a.x + f.ax * along - f.az * across, z: a.z + f.az * along + f.ax * across };
-    const e = Math.hypot(q.x - p.x, q.z - p.z);
-    if (e < bestD) { bestD = e; best = q; }
+    // the bridge with the gap, not built yet: two decks, each to the gap's edge
+    const gap = !gapBuilt && ka === CLOUD_GAP.bridge[0] && kb === CLOUD_GAP.bridge[1];
+    const spans: [number, number][] = gap ? [[0, CLOUD_GAP.from - radius], [CLOUD_GAP.from + CLOUD_GAP.length + radius, f.len]] : [[0, f.len]];
+    for (const [s0, s1] of spans) {
+      const along = Math.max(s0, Math.min(s1, f.along)), across = Math.max(-half, Math.min(half, f.across));
+      if (along === f.along && across === f.across) return;
+      const q = { x: a.x + f.ax * along - f.az * across, z: a.z + f.az * along + f.ax * across };
+      const e = Math.hypot(q.x - p.x, q.z - p.z);
+      if (e < bestD) { bestD = e; best = q; }
+    }
   }
   if (best) { p.x = best.x; p.z = best.z; }
 }

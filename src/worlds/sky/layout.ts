@@ -61,6 +61,14 @@ export const BRIDGES: readonly (readonly [ZoneId, ZoneId])[] = [
   ['castle', 'observatory'], ['castle', 'dragon'], ['castle', 'mills'], ['castle', 'pier'],
 ];
 
+/**
+ * The gap in the bridge from the castle to the dragon island (WORLD-25, the cloud bridge of Lazur's chain): `from` m
+ * along the bridge from the castle island's middle, `length` m long - room for four steps (the most a level has) and
+ * the far edge; `half` m to each side of the bridge's line the clouds over a step hang within (the deck's height holds
+ * there, so a hop onto a side cloud never drops her). She cannot walk across it until the bridge is built.
+ */
+export const CLOUD_GAP = { bridge: ['castle', 'dragon'] as const, from: 40, length: 13, half: 3.6 };
+
 /** Where she appears: on the castle island, south of the castle, facing -z (every entry's heading) - the observatory's tower ahead. */
 export const SPAWN = at(1.2, 4.4);
 

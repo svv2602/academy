@@ -12,10 +12,12 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
-import { worldTaskDoor } from '../../game/worldtasks/core';
+import { taskFrame, worldTaskDoor } from '../../game/worldtasks/core';
+import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
+import { CLOUD_STEP, GAP_AT, createCloudBridge } from './cloud-bridge';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
-import { BRIDGES, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
@@ -33,15 +35,15 @@ import { buildGround, colliders, ground } from './terrain';
  */
 
 /**
- * The characters (docs/worlds/world-5.md, the table «Персонажи»). The three tasks the document plays in the world stand
- * in, in step 1, as the panel task of the same skill (LATER_IN_WORLD): the cloud bridge (WORLD-25, addition) as
- * addition, the observatory's clock (WORLD-24: three steps - a search, a pattern, the hands by an addition) as addition,
+ * The characters (docs/worlds/world-5.md, the table «Персонажи»). Lazur's last step is the cloud bridge over the gap
+ * in the bridge to the dragon island (WORLD-25, ./cloud-bridge.ts), played in the world since step 2. The two other
+ * tasks the document plays in the world stand in as the panel task of the same skill (LATER_IN_WORLD): the observatory's clock (WORLD-24: three steps - a search, a pattern, the hands by an addition) as addition,
  * the wind route (WORLD-23, no skill) as the number house of the Sweet Land's stand-in. `part`: the ray is not handed
  * over - the character says where it lies (in the clock, on the far islet; WORLD-08), and she takes it there by the
  * action button (RAYS). The colours of the rays: the Star's gold, each a little its own.
  */
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'lazur', emoji: '☁️', x: ZONES.castle.x - 3, z: ZONES.castle.z + 1, heading: 0.4, steps: ['compare', 'add', 'add'], shard: '#ffd54a' },
+  { id: 'lazur', emoji: '☁️', x: ZONES.castle.x - 3, z: ZONES.castle.z + 1, heading: 0.4, steps: ['compare', 'add', CLOUD_STEP], shard: '#ffd54a' },
   { id: 'gromykhalo', emoji: '🐉', x: ZONES.dragon.x + 3, z: ZONES.dragon.z + 2.5, heading: 1.3, steps: ['count', 'sub', 'pattern'], shard: '#ffc93c' },
   { id: 'mertsal', emoji: '🔭', x: ZONES.observatory.x - 3, z: ZONES.observatory.z + 3, heading: 0.3, steps: ['simon', 'pattern', 'add', 'part'], shard: '#ffe27a' },
   { id: 'veterok', emoji: '🧭', x: ZONES.pier.x - 3, z: ZONES.pier.z + 1.5, heading: 2.8, steps: ['order', 'compose', 'house', 'part'], shard: '#ffb84a' },
@@ -55,8 +57,13 @@ export const FRIENDS: readonly CharacterDef[] = [
  * its own skill - the last, the hands, to addition). Played in the world, the step's id becomes the task's own (the
  * world's `tasks` and `worldTasks`), as the Sweet Land's did.
  */
+/** rad: how steeply the camera looks at the cloud bridge (a task's frame on the ground looks from FRAME_PITCH, 0.8). */
+export const CLOUDS_PITCH = 0.42;
+
+/** The steps played as tasks in the world (WorldDef.worldTasks): Lazur's cloud bridge. */
+export const WORLD_TASKS: readonly string[] = [CLOUD_STEP];
+
 export const LATER_IN_WORLD = [
-  { owner: 'lazur', step: 2, now: 'add', card: 'WORLD-25', skill: 'add' },
   { owner: 'mertsal', step: 2, now: 'add', card: 'WORLD-24', skill: 'add' },
   { owner: 'veterok', step: 2, now: 'house', card: 'WORLD-23', skill: null },
 ] as const;
@@ -197,7 +204,16 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   const stage = createStage(g, () => g.speech.caption(null));
   // The tasks of the chains: the panel ones by the shared conversation; `part` here. The tasks in the world of a later
   // step (LATER_IN_WORLD) join this record under their own ids, with the world's `worldTasks`.
-  const tasks: Record<string, WorldTask> = { part };
+  // Lazur's cloud bridge (WORLD-25): she asks, the heroine walks to the gap in the bridge to the dragon island, the task
+  // opens at its edge; its result is handed to the conversation, which records it in `add` as a panel task. Until it is
+  // built the gap cannot be walked across (./terrain.ts): the way to Gromykhalo opens with it.
+  const player = worldTaskPlayer(g, scope);
+  const lazur = FRIENDS.find((c) => c.id === 'lazur')!;
+  const bridge = createCloudBridge(g, player, scope, scenery.gapDeck);
+  bridge.opened((ws.quests.lazur ?? 0) > lazur.steps.indexOf(CLOUD_STEP));
+  const tasks: Record<string, WorldTask> = { part, [CLOUD_STEP]: bridge };
+  const wrongTasks = worldTaskProblems(WORLD_TASKS, tasks);
+  if (wrongTasks.length) throw new Error(`the Sky Islands: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
@@ -243,10 +259,14 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
       ],
-      tap: () => false,
+      tap: (screenDist) => player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
-        void canMove;
+        bridge.update(dt, time, canMove);
+        // over the gap the camera keeps to the step ahead: the cloud bridge's middle moves with her (clouds.ts `center`);
+        // and it looks lower than a task's frame on the ground: from above it would see the white sea of clouds under
+        // the gap, and the sunlit tops of everything washed out on it - lower, the clouds and their numbers stand against the sky
+        if (player.open?.kind === 'clouds') g.camTask = { ...taskFrame(player.open, g.camera).cam, pitch: CLOUDS_PITCH };
         const hp = hero.root.position;
         for (const n of npcs) {
           n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
@@ -275,13 +295,15 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         scenery.turn(dt, ws.final ? SAILS_TURN : 0);
       },
       goal: () => {
+        const b = bridge.goal();
+        if (b) return b;
         const r = rays.find(waiting);
         if (r) return r.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
         return finaleItem.done() ? null : shrine;
       },
-      animate: (_dt, time) => { flies.update(time); hubWay.update(time); },
+      animate: (_dt, time) => { flies.update(time); hubWay.update(time); player.update(time); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); },
     },
@@ -293,11 +315,15 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         // landmarks, the route, the islands and the bridges, the airship's stand-in
         skyMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, islands: ISLANDS, bridges: BRIDGES, gangway: GANGWAY, landing: LANDING, ground: (x: number, z: number) => groundY(x, z) },
         // the airship's stand-in by the debug door: to the far islet (true) or back to the pier (false)
-        skyShip: (out: boolean) => { if (out) hop(LANDING, toIslet); else hop(GANGWAY, toPier); } },
+        skyShip: (out: boolean) => { if (out) hop(LANDING, toIslet); else hop(GANGWAY, toPier); },
+        // the cloud bridge (WORLD-25): its gap, whether it is built, and the deck over it laid by the debug door (the
+        // measurements walk every bridge, the one to the dragon island too, before Lazur's chain has built it)
+        skyBridge: { gap: CLOUD_GAP, at: GAP_AT, built: () => bridge.built, build: () => bridge.opened(true) } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a task in the world open: its right move (the walkthrough's door); else a ray waiting in the world is taken
       cheatWorld: () => {
         if (worldTaskDoor(g).solve()) return 'world task';
+        if (bridge.cheat()) return 'bridge';
         const r = rays.find(waiting);
         if (!r) return '';
         take(r);
@@ -329,4 +355,6 @@ export const sky: WorldDef<Record<string, never>, WorldSky> = {
   sky: buildSky,
   load: loadSky,
   build: buildIslands,
+  // the tasks played in the world (src/game/worldtasks/play.ts): Lazur's cloud bridge
+  worldTasks: WORLD_TASKS,
 };

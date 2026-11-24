@@ -76,8 +76,8 @@ describe('the map of the Sky Islands, the grey build (WORLD-12, docs/worlds/worl
 
 describe('the edges of the islands are closed (the customer\'s decision 1 a, 2026-11-18)', () => {
   /** Walks a walker of radius 0.35 from `from` toward `to` in steps of 0.1 m, kept by `resolve`; where it ends. */
-  const walk = async (from: P, to: P) => {
-    const m = await mapAt(1.6);
+  const walk = async (from: P, to: P, given?: Awaited<ReturnType<typeof mapAt>>) => {
+    const m = given ?? await mapAt(1.6);
     m.colliders.length = 0;
     const q = { ...from }, n = Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / 0.1);
     for (let i = 1; i <= n; i++) { q.x += (to.x - from.x) / n; q.z += (to.z - from.z) / n; m.resolve(q, 0.35); }
@@ -96,13 +96,30 @@ describe('the edges of the islands are closed (the customer\'s decision 1 a, 202
 
   it('a bridge takes her across to the next island; stepping off its side she stays on its deck', async () => {
     const m = await mapAt(1.6);
-    const { q } = await walk(m.ZONES.castle, m.ZONES.dragon);
-    expect(Math.hypot(q.x - m.ZONES.dragon.x, q.z - m.ZONES.dragon.z)).toBeLessThan(0.01);
-    // from the middle of the castle-dragon bridge straight north: she stays on the deck
-    const mid = { x: (m.ZONES.castle.x + m.ZONES.dragon.x) / 2, z: 0 };
+    const { q } = await walk(m.ZONES.castle, m.ZONES.mills);
+    expect(Math.hypot(q.x - m.ZONES.mills.x, q.z - m.ZONES.mills.z)).toBeLessThan(0.01);
+    // from the middle of the castle-mills bridge straight north: she stays on the deck
+    const mid = { x: (m.ZONES.castle.x + m.ZONES.mills.x) / 2, z: 0 };
     const side = await walk(mid, { x: mid.x, z: -20 });
-    expect(side.m.bridgeAt(side.q.x, side.q.z)).toEqual(['castle', 'dragon']);
+    expect(side.m.bridgeAt(side.q.x, side.q.z)).toEqual(['castle', 'mills']);
     expect(Math.abs(side.q.z)).toBeLessThanOrEqual(m.BRIDGE_W / 2 - 0.35 + 1e-6);
+  });
+
+  it('the gap of the cloud bridge (WORLD-25): she stops at its edge until it is built, then walks across to the dragon island', async () => {
+    const m = await mapAt(1.6);
+    m.setCloudGap(false);
+    const before = await walk(m.ZONES.castle, m.ZONES.dragon, m);
+    const along = Math.hypot(before.q.x - m.ZONES.castle.x, before.q.z - m.ZONES.castle.z);
+    expect(along).toBeLessThanOrEqual(m.CLOUD_GAP.from + 1e-6);
+    expect(along).toBeGreaterThan(m.CLOUD_GAP.from - 1);
+    // over the gap the deck's height holds, to the clouds beside it too: a hop onto a cloud never drops her
+    const g = { x: m.ZONES.castle.x - (m.CLOUD_GAP.from + 5), z: m.CLOUD_GAP.half - 0.1 };
+    expect(m.inCloudGap(g.x, g.z)).toBe(true);
+    expect(m.height(g.x, g.z)).toBeGreaterThan(-1);
+    m.setCloudGap(true);
+    const after = await walk(m.ZONES.castle, m.ZONES.dragon, m);
+    expect(Math.hypot(after.q.x - m.ZONES.dragon.x, after.q.z - m.ZONES.dragon.z)).toBeLessThan(0.01);
+    m.setCloudGap(false);
   });
 
   it('the far islet is not reached on foot: from the pier toward it she stays on the pier', async () => {

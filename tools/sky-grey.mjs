@@ -165,6 +165,9 @@ async function measure(browser, url, scale, out, q = 2) {
   const map = await page.evaluate(() => JSON.parse(JSON.stringify(__game.skyMap)));
   if (Math.abs(map.scale - scale) > 1e-9) throw new Error(`the page plays the scale ${map.scale}, not ${scale}`);
   const tag = `x${String(scale).replace('.', '_')}`;
+  // the ways are measured over every bridge: the gap of the cloud bridge (WORLD-25) is built first, as once Lazur's
+  // chain has built it (before that the way to the dragon island ends at the gap: src/worlds/sky/layout.test.ts)
+  if (!(await page.evaluate(() => { __game.skyBridge.build(); return __game.skyBridge.built(); }))) throw new Error('the cloud bridge could not be built by the debug door');
   /** Seconds of game time, waited for frame by frame. */
   const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
   /** She stands at `a`, faced toward `b` (the camera behind her). */

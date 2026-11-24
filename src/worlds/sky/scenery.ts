@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { BRIDGES, BRIDGE_W, CASTLE, HALF, ISLANDS, LANDMARKS, MILL, MILLS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
+import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, HALF, ISLANDS, LANDMARKS, MILL, MILLS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
-import { CLOUD_SEA, SEA_REACH, colliders, height, lineDist, pathDist } from './terrain';
+import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist } from './terrain';
 
 /**
  * The Sky Islands of the grey build in simple shapes at their real sizes (WORLD-12): every island a rock turned upside
@@ -57,7 +57,8 @@ export function placeRails(seed = 31): Put[] {
   for (const [ka, kb] of BRIDGES) {
     const a = ISLANDS[ka], b = ISLANDS[kb], len = Math.hypot(b.x - a.x, b.z - a.z), ax = (b.x - a.x) / len, az = (b.z - a.z) / len;
     for (let t = a.r; t <= len - b.r; t += RAIL_STEP) for (const side of [-1, 1]) {
-      const w = side * (BRIDGE_W / 2 + 0.2);
+      const w = side * (BRIDGE_W / 2 + 0.2), x = a.x + ax * t - az * w, z = a.z + az * t + ax * w;
+      if (inCloudGap(x, z)) continue;      // the gap has no rail: the clouds of the cloud bridge hang there
       out.push({ x: a.x + ax * t - az * w, z: a.z + az * t + ax * w, s: 0.7 + rnd() * 0.3, rot: rnd() * 6.28 });
     }
   }
@@ -108,8 +109,12 @@ function instances(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, 
 
 /** The accents of the islands (docs/worlds/world-5.md): the rock under each, and what grows on the top. */
 const ROCK = '#b9aecb', ROCK_DARK = '#8f84a8', CLOUD = '#ffffff';
+/** The sea of clouds below the islands: its floor (unlit) and its puffs (lit), both under the bloom's threshold. */
+const SEA_FLOOR = '#c9d9ee', SEA_PUFF = '#9fb4d2';
 
 export interface Scenery extends Landmarks {
+  /** The deck over the gap of the cloud bridge (layout.ts CLOUD_GAP): shown once the bridge is built. */
+  gapDeck: THREE.Object3D;
   /** Turns the windmills' sails by `speed` radians a second (still at 0: no ray back). */
   turn(dt: number, speed: number): void;
 }
@@ -130,24 +135,35 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   // the cloud rails on the edges and along the bridges (one instanced mesh)
   instances(scene, 'cloud-rails', new THREE.IcosahedronGeometry(0.75, 1).scale(1.3, 0.8, 1), mat(CLOUD, { roughness: 1 }), rails, 0.4, false);
   // the bridges' decks: white cloud slabs from edge to edge, at the height of the ground under them
-  const decks: Part[] = [];
-  for (const [ka, kb] of BRIDGES) {
-    const a = ISLANDS[ka], b = ISLANDS[kb], len = Math.hypot(b.x - a.x, b.z - a.z), ax = (b.x - a.x) / len, az = (b.z - a.z) / len, n = 12;
-    const from = a.r - 0.5, to = len - b.r + 0.5;
+  // (the bridge with the gap of the cloud bridge: two decks to its edges, the deck over the gap a mesh of its own)
+  const decks: Part[] = [], gapDecks: Part[] = [];
+  const slabs = (out: Part[], a: Island, ax: number, az: number, from: number, to: number, n: number) => {
     for (let k = 0; k < n; k++) {
       const t0 = from + ((to - from) * k) / n, t1 = from + ((to - from) * (k + 1)) / n, tm = (t0 + t1) / 2;
       const x = a.x + ax * tm, z = a.z + az * tm, y = height(x, z);
-      decks.push([new THREE.BoxGeometry(BRIDGE_W, 0.5, t1 - t0 + 0.05).rotateY(Math.atan2(ax, az)).translate(x, y - 0.25, z), k % 2 ? '#f4f8ff' : CLOUD]);
+      out.push([new THREE.BoxGeometry(BRIDGE_W, 0.5, t1 - t0 + 0.05).rotateY(Math.atan2(ax, az)).translate(x, y - 0.25, z), k % 2 ? '#f4f8ff' : CLOUD]);
     }
+  };
+  for (const [ka, kb] of BRIDGES) {
+    const a = ISLANDS[ka], b = ISLANDS[kb], len = Math.hypot(b.x - a.x, b.z - a.z), ax = (b.x - a.x) / len, az = (b.z - a.z) / len;
+    const from = a.r - 0.5, to = len - b.r + 0.5;
+    if (ka === CLOUD_GAP.bridge[0] && kb === CLOUD_GAP.bridge[1]) {
+      const g0 = CLOUD_GAP.from, g1 = CLOUD_GAP.from + CLOUD_GAP.length;
+      slabs(decks, a, ax, az, from, g0, 5); slabs(decks, a, ax, az, g1, to, 5); slabs(gapDecks, a, ax, az, g0, g1, 4);
+    } else slabs(decks, a, ax, az, from, to, 12);
   }
   paintedAt(scene, 'cloud-bridges', 0, 0, decks, 0, 0);
-  // the sea of clouds far below: a white floor into the haze, and puffs on it
-  const sea = new THREE.Mesh(new THREE.CircleGeometry(SEA_REACH, 32).rotateX(-Math.PI / 2), mat('#f4f7ff', { roughness: 1, flatShading: false }));
+  const gapDeck = paintedAt(scene, 'cloud-gap-deck', 0, 0, gapDecks, 0, 0);
+  gapDeck.visible = false;
+  // the sea of clouds far below: a pale floor into the haze, and puffs on it. Kept under the bloom's threshold
+  // (src/core/renderer.ts, tier 2): lit white, it filled the whole view down over a bridge with its glow and washed out
+  // everything in front of it - the floor unlit and a little blue, the puffs a soft grey-blue under the sun
+  const sea = new THREE.Mesh(new THREE.CircleGeometry(SEA_REACH, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: SEA_FLOOR }));
   sea.position.y = CLOUD_SEA; sea.name = 'cloud-sea';
   scene.add(sea);
   const rnd = mulberry32(5), puffs: Put[] = [];
   for (let k = 0; k < 60; k++) { const a = rnd() * Math.PI * 2, r = HALF * (0.2 + rnd() * 1.4); puffs.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, s: 3 + rnd() * 4, rot: rnd() * 6.28 }); }
-  instances(scene, 'cloud-puffs', new THREE.IcosahedronGeometry(2, 1).scale(1.6, 0.6, 1.2), mat(CLOUD, { roughness: 1 }), puffs, 0, false, () => CLOUD_SEA);
+  instances(scene, 'cloud-puffs', new THREE.IcosahedronGeometry(2, 1).scale(1.6, 0.6, 1.2), mat(SEA_PUFF, { roughness: 1 }), puffs, 0, false, () => CLOUD_SEA);
 
   // ----- the trees and bushes of the islands -----
   instances(scene, 'trees', paint([
@@ -212,6 +228,7 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   const landmarks = buildLandmarks(scene);
   return {
     ...landmarks,
+    gapDeck,
     turn: (dt, speed) => { for (const s of sails) s.rotateX(dt * speed); },
   };
 }

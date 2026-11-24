@@ -9,7 +9,8 @@ import { declared, inWorldSteps, marked, missing, problems } from '../../game/de
 import { isSkillStep } from '../../game/tasks';
 import { SKILL } from '../../game/taskviews/panel';
 import type { WorldItem } from '../../game/world';
-import { FINALE, FRIENDS, LATER_IN_WORLD, RAYS, sky } from './index';
+import { CLOUD_STEP } from './cloud-bridge';
+import { FINALE, FRIENDS, LATER_IN_WORLD, RAYS, WORLD_TASKS, sky } from './index';
 import { SHRINE, type ZoneId } from './layout';
 import { SKY_INFO } from './meta';
 import { strings } from './strings';
@@ -19,7 +20,8 @@ import { islandAt } from './terrain';
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
 
 /** The skill a step of a chain trains: a skill named by the step, or the skill of its task type. */
-const skillOf = (step: string) => (isSkillStep(step) ? step : (SKILL as Record<string, string>)[step]);
+/** (A task played in the world trains the skill it records in: the cloud bridge, addition.) */
+const skillOf = (step: string) => (step === CLOUD_STEP ? 'add' : isSkillStep(step) ? step : (SKILL as Record<string, string>)[step]);
 
 describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
   it('is the fifth place of the shelf: the hub\'s arch of shelf 4 leads to it', () => {
@@ -54,10 +56,16 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
       expect(c.steps[l.step], `${l.owner} ${l.card}`).toBe(l.now);
       if (l.skill) expect(skillOf(l.now), l.card).toBe(l.skill);
     }
-    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual(['WORLD-23', 'WORLD-24', 'WORLD-25']);
-    // none is played in the world yet: no world task declared, no chain names one
-    expect(sky.worldTasks).toBeUndefined();
-    for (const c of FRIENDS) expect(inWorldSteps(c, sky.worldTasks)).toEqual([]);
+    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual(['WORLD-23', 'WORLD-24']);
+    for (const l of LATER_IN_WORLD) expect(sky.worldTasks ?? [], l.card).not.toContain(l.now);
+  });
+
+  it('Lazur\'s last step is the cloud bridge played in the world (WORLD-25, step 2); no other chain names a task in the world', () => {
+    expect(sky.worldTasks).toEqual(WORLD_TASKS);
+    expect(WORLD_TASKS).toEqual([CLOUD_STEP]);
+    const lazur = FRIENDS.find((c) => c.id === 'lazur')!;
+    expect(inWorldSteps(lazur, sky.worldTasks)).toEqual([2]);
+    for (const c of FRIENDS.filter((f) => f.id !== 'lazur')) expect(inWorldSteps(c, sky.worldTasks), c.id).toEqual([]);
   });
 
   it('rays 3 and 4 lie in the world, at the end of the chains of Mertsal and Veterok (WORLD-08); the other three are given', () => {
