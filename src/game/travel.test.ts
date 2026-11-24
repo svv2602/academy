@@ -10,7 +10,7 @@ import type { WorldFrame } from './loop';
 import type { Stage } from './stage';
 import type { TaskResult } from './taskviews/panel';
 import { PETS } from './pets';
-import type { BuiltWorld, WorldDef, WorldSky } from './world';
+import type { BuiltWorld, WorldDef, WorldMeta, WorldSky } from './world';
 
 /**
  * The change of world on stand-in worlds (TECH-15). Real here: the game's state (`createGame`), the scope of a world,
@@ -64,7 +64,7 @@ interface FakeWorld extends WorldDef {
   builds: { ws: unknown; worldId: string; visit: number; stage: Stage; task: Game['task']; built: BuiltWorld }[];
   /** The module's own list, like the colliders of a real world: the world empties it when it is left. */
   list: string[];
-  fail: 'load' | 'sky' | 'build' | null;
+  fail: 'code' | 'load' | 'sky' | 'build' | null;
   /** The world hands in a tour of its own when it is built. */
   tour: boolean;
   /** The stage every build made first - a build that broke has one too. */
@@ -197,7 +197,9 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
   const arrivedIn: string[] = [];
   const waiting: (() => void)[] = [];
   const travel = T.createTravel({
-    g, scene, save, touch: false, worlds, entryOf,
+    g, scene, save, touch: false, entryOf,
+    // the registry: a world's code is loaded as she enters it (a next world's chunk), logged; `fail: 'code'` - it cannot be had
+    worlds: worlds.map((w): WorldMeta => ({ id: w.id, code: async () => { log.push(`code ${w.id}`); if (w.fail === 'code') throw new Error(`no code of ${w.id}`); return w; } })),
     setFrame: (f) => { frames.push(f); },
     show: (built, sky) => { log.push('show'); shown.push({ built, sky }); },
     drawn: () => new Promise<void>((done) => { log.push('a frame behind the closed frame'); waiting.push(done); }),
@@ -262,7 +264,7 @@ describe('travel: the order of a change of world (TECH-15)', () => {
     expect(log.slice(closedAt).filter((l, i, all) => l !== all[i - 1])).toEqual([
       'endTask', 'beginTask', 'music off', 'save',
       'own of a', 'a sky freed', 'a land freed', 'a friend freed', 'release a', "a copy of the wand's material freed",
-      'progress from zero', 'sky b', 'models of b', 'load b', 'enter b', 'build b',
+      'code b', 'progress from zero', 'sky b', 'models of b', 'load b', 'enter b', 'build b',
       'wear gear of b', 'show', 'a frame behind the closed frame',
       'endTask', 'ready', 'a frame behind the closed frame', 'music 222', 'save', 'arrived b',
     ]);
@@ -870,6 +872,31 @@ describe('travel: the gate of a world (TECH-09, R07, R12)', () => {
     expect(await play(travel.go('b'))).toBe(false);
     expect(g.busy).toBe(true);
     expect(travel.active).toBe(false);
+  });
+
+  it('a world\'s code is loaded behind the closed frame, after the gate and its download, before its sky; its texts with it', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'network' }) });
+    const { travel, play } = await setup([a, b], { door });
+    log.length = 0;
+    expect(await play(travel.go('b'))).toBe(true);
+    const at = (what: string) => log.indexOf(what);
+    expect(at('code b')).toBeGreaterThan(at('download b'));
+    expect(at('code b')).toBeLessThan(at('sky b'));
+    expect(log.filter((x) => x === 'code b')).toHaveLength(1);
+  });
+
+  it('a world whose code cannot be had (not downloaded, no network): the game is back in the world left, as when its load fails', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const { travel, play } = await setup([a, b]);
+    b.fail = 'code';
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(quiet.mock.calls.some((c) => /the world "b" could not be loaded/.test(String(c[0])))).toBe(true);
+    quiet.mockRestore();
+    expect(travel.world).toBe('a');
+    expect(b.builds).toHaveLength(0);
+    expect(log).not.toContain('sky b');
   });
 
   it('a world in the cache is entered at once: nothing is downloaded', async () => {

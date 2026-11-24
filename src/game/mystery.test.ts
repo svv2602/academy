@@ -6,7 +6,10 @@ import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_MIN_SPOTS, MYSTERY_REWARD, MYSTER
 import { createMystery, mysteryHold, type MysteryHost } from './mystery-stars';
 import type { Stage } from './stage';
 import type { TaskResult } from './taskviews/panel';
-import { WORLDS } from '../worlds';
+import { loadWorlds } from '../worlds';
+
+/** Every world of the registry with its code (a next world's is loaded on demand, src/worlds/index.ts). */
+const WORLDS = await loadWorlds();
 
 vi.mock('../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 vi.mock('./fx', () => ({ glowTex: null, Sparks: class {} }));

@@ -8,6 +8,7 @@ import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { MysteryDef } from './mystery';
+import type { ArtifactWorld } from './artifacts';
 import type { CollectDef } from './collections';
 import type { DailyDef } from './daily-find';
 import type { WorldScope } from './scope';
@@ -265,11 +266,23 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
 }
 
 /**
+ * What the game knows of a world before she enters it (TECH-09): what the hub, its keepsakes and the shelf of the book
+ * read of every world - its place on the shelf, its secrets, the kinds of its finds. A next world's lies in
+ * src/worlds/<id>/meta.ts, data only: its own code is loaded when she enters it (`WorldMeta.code`).
+ */
+export type WorldInfo = ArtifactWorld;
+/** A world of the registry (src/worlds/index.ts): what is known of it, and its code, loaded once she enters it. */
+export interface WorldMeta extends WorldInfo {
+  /** The world's description and code: the installation's at hand, a next world's loaded on its first call (a chunk of its own). */
+  code(): Promise<WorldDef>;
+}
+
+/**
  * The world to play: `?world=<id>` is read only with debug on; otherwise, and for an id no world has, the world the
  * registry names as the default (src/worlds/index.ts `DEFAULT_WORLD`), wherever it stands in the list. The published
  * game never has debug on, so it always plays the default world. A default no world has is an error.
  */
-export function pickWorld(worlds: readonly WorldDef[], byDefault: string, param: string | null, debug: boolean): WorldDef {
+export function pickWorld<W extends { readonly id: string }>(worlds: readonly W[], byDefault: string, param: string | null, debug: boolean): W {
   const main = worlds.find((w) => w.id === byDefault);
   if (!main) throw new Error(`the default world "${byDefault}" is not in src/worlds/index.ts`);
   const asked = debug && param !== null ? worlds.find((w) => w.id === param) : undefined;
@@ -290,17 +303,19 @@ export interface Launch { world: WorldDef; refused: boolean }
 /**
  * The world to launch (WORLD-01, TECH-09, R17, R27): `?world=` with debug as in `pickWorld`; otherwise the world where
  * she stopped (`lastWorld` of the save) - through the same gate as every change of world: in the cache, it opens; to
- * be had from the network, it is downloaded first (under the loading bar); refused or not had after all, the default
- * world opens and `refused` is true. No `lastWorld`, the default world, or a world this build does not have: the
- * default world, and the gate is not asked.
+ * be had from the network, it is downloaded first (under the loading bar); refused, not had after all, or its code not
+ * loaded, the default world opens and `refused` is true. No `lastWorld`, the default world, or a world this build does
+ * not have: the default world, and the gate is not asked. The world launched comes with its code loaded.
  */
-export async function launchWorld(worlds: readonly WorldDef[], byDefault: string, param: string | null, debug: boolean, last: string | undefined, env: LaunchEnv): Promise<Launch> {
+export async function launchWorld(worlds: readonly WorldMeta[], byDefault: string, param: string | null, debug: boolean, last: string | undefined, env: LaunchEnv): Promise<Launch> {
   const picked = pickWorld(worlds, byDefault, param, debug);
-  if (debug && param !== null && worlds.some((w) => w.id === param)) return { world: picked, refused: false };
+  const as = async (w: WorldMeta, refused: boolean): Promise<Launch> => ({ world: await w.code(), refused });
+  if (debug && param !== null && worlds.some((w) => w.id === param)) return as(picked, false);
   const want = last === undefined ? undefined : worlds.find((w) => w.id === last);
-  if (!want || want === picked) return { world: picked, refused: false };
+  if (!want || want === picked) return as(picked, false);
   const answer = await env.gate.canEnter(want.id);
-  if (!answer.enter) return { world: picked, refused: true };
-  if (answer.from === 'network' && !(await env.download(want.id))) return { world: picked, refused: true };
-  return { world: want, refused: false };
+  if (!answer.enter) return as(picked, true);
+  if (answer.from === 'network' && !(await env.download(want.id))) return as(picked, true);
+  const world = await want.code().catch((e: unknown) => { console.error(`the world "${want.id}" could not be loaded:`, e); return null; });
+  return world ? { world, refused: false } : as(picked, true);
 }

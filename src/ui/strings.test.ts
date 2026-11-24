@@ -121,7 +121,9 @@ describe('strings of every world (ARCH-12, PLAY-30)', () => {
   it('refuses a key that already exists, in the game and in the list to record', () => {
     const clash = (id: string, key: string): WorldStrings => ({ id, table: { uk: { subtitle: 'в', [key]: 'а' }, ru: { subtitle: 'г', [key]: 'б' } }, spoken: {} });
     expect(() => addStrings(clash('x', 'play'), false)).toThrow(/"x".*play/);
-    expect(() => addStrings(worlds[0], false)).toThrow(new RegExp(`"${worlds[0].id}"`));
+    // a world added already adds nothing again (she enters a world twice); another world with its keys is refused
+    expect(() => addStrings(worlds[0], false)).not.toThrow();
+    expect(() => addStrings({ ...worlds[0], id: 'copy' }, false)).toThrow(/"copy"/);
     expect(() => recordingList([clash('x', 'play')], bank, casts, FIRST)).toThrow(/"x".*play/);
     expect(() => recordingList([...worlds, ...worlds], bank, casts, FIRST)).toThrow(new RegExp(`"${worlds[0].id}"`));
     // A refused world adds nothing.

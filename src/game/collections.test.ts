@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultSave, worldState } from '../core/save';
 import { GRAVITY, tuning } from '../core/tuning';
-import { WORLDS } from '../worlds';
+import { loadWorlds } from '../worlds';
 import { createCollections, type CollectHost } from './collect-items';
 import {
   CHASE, COLLECT_KINDS, COLLECT_WAYS, HANDS, HOP_LIFT, SET_SIZE, STAND, TAKE_R, collectProblems, foundOf, handsAt, itemsOf,
@@ -13,6 +13,9 @@ import { HERO_TOP } from './hero';
 import { groundUnder, jumpStep } from './player';
 import { EFFECT_TUNING, SCALE } from './supplies';
 import { HUB_COLLECT } from '../worlds/hub/feathers';
+
+/** Every world of the registry with its code (a next world's is loaded on demand, src/worlds/index.ts). */
+const WORLDS = await loadWorlds();
 
 vi.mock('../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 vi.mock('./fx', () => ({ glowTex: null, Sparks: class {} }));

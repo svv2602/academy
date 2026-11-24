@@ -1,8 +1,13 @@
 // The registry of worlds (ARCH-06): one entry per world in WORLDS. The world the published game plays is named in
 // DEFAULT_WORLD, not taken from the order of the list (`?world=<id>` with `?debug` picks another,
 // src/game/world.ts `pickWorld`).
+import type { WorldDef, WorldMeta } from '../game/world';
 import { fairy } from './fairy';
 import { hub } from './hub';
+import { FOREST_INFO } from './forest/meta';
+import { PROBE_INFO } from './probe/meta';
+import { SEA_INFO } from './sea/meta';
+import { SWEET_INFO } from './sweet/meta';
 
 // The probe world (./probe, TECH-15) is a test world: it is listed only in a build made with `--mode probe`
 // (tools/worlds.mjs builds dist-probe/ and plays it there). In any other mode the condition is a constant false, so
@@ -15,14 +20,22 @@ import { hub } from './hub';
 // tools/vite-worlds.mjs WORLD_EXTRA_FILES). The Sweet Land (./sweet, WORLD-04) is in its grey build (WORLD-12): listed only in a build
 // or a dev server made with `--mode grey` (tools/sweet-grey.mjs), never in the published game, until the customer has
 // taken the grey build; the hub's arch of its place (shelf 3) wakes once the sea is done.
-export const WORLDS = [
-  fairy, hub,
-  ...(import.meta.env.MODE === 'probe' ? [(await import('./probe')).probe] : []),
-  (await import('./forest')).forest, (await import('./sea')).sea,
-  ...(import.meta.env.MODE === 'grey' ? [(await import('./sweet')).sweet] : []),
+//
+// A next world is listed by what the game knows of it before she enters it (./<id>/meta.ts: data only) and its code is
+// imported when she enters it (`code`): a chunk of its own, not the core's (decision of 2026-11-24, «вариант Б»). The
+// worlds of the installation are at hand.
+const installed = (w: WorldDef): WorldMeta => ({ id: w.id, shelf: w.shelf, test: w.test, secrets: w.secrets, collect: w.collect, code: async () => w });
+export const WORLDS: readonly WorldMeta[] = [
+  installed(fairy), installed(hub),
+  ...(import.meta.env.MODE === 'probe' ? [{ ...PROBE_INFO, code: async () => (await import('./probe')).probe }] : []),
+  { ...FOREST_INFO, code: async () => (await import('./forest')).forest },
+  { ...SEA_INFO, code: async () => (await import('./sea')).sea },
+  ...(import.meta.env.MODE === 'grey' ? [{ ...SWEET_INFO, code: async () => (await import('./sweet')).sweet }] : []),
 ];
 /** The id of the world the published game plays. */
 export const DEFAULT_WORLD = 'fairy';
+/** Every world of the registry with its code loaded: for the tests that check the descriptions of all of them. */
+export const loadWorlds = (): Promise<WorldDef[]> => Promise.all(WORLDS.map((w) => w.code()));
 /**
  * The worlds of the installation: never downloaded as a next world. The first world, and the hub - it has no files of
  * its own (decision Q5 of the hub, R31: up to 0.5 MB it stays in the installation). Once it has files under

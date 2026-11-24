@@ -43,11 +43,15 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea', 'sweet']);
     expect(DEFAULT_WORLD).toBe('fairy');
     expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea|sweet)['"]/m);
-    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\(await import\('\.\/sweet'\)\)\.sweet\] : \[\]/);
+    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\{ \.\.\.SWEET_INFO, code: async \(\) => \(await import\('\.\/sweet'\)\)\.sweet \}\] : \[\]/);
   });
 
-  it('the forest and the sea are published: a dynamic import each (a chunk of its own), behind no mode', () => {
-    expect(RAW['./index.ts']).toMatch(/^ {2}\(await import\('\.\/forest'\)\)\.forest, \(await import\('\.\/sea'\)\)\.sea,$/m);
+  it('the forest and the sea are published: a dynamic import each (a chunk of its own), behind no mode, made only when she enters them', () => {
+    expect(RAW['./index.ts']).toMatch(/^ {2}\{ \.\.\.FOREST_INFO, code: async \(\) => \(await import\('\.\/forest'\)\)\.forest \},$/m);
+    expect(RAW['./index.ts']).toMatch(/^ {2}\{ \.\.\.SEA_INFO, code: async \(\) => \(await import\('\.\/sea'\)\)\.sea \},$/m);
+    // nothing of a next world is imported at the start but its data (./<id>/meta.ts)
+    expect(RAW['./index.ts']).not.toMatch(/^import [^\n]*['"]\.\/(forest|sea|sweet|probe)['"]/m);
+    expect(RAW['./index.ts']).not.toMatch(/^(?:export )?const [^\n]*= await /m);
   });
 
   it.each(['test', 'probe', 'grey'])('in the mode "%s" no id is listed twice and the default world is listed', async (mode) => {
@@ -91,7 +95,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     const src = RAW['./index.ts'];
     // A static import would put the world into every build; the condition must be the constant the bundler folds.
     expect(src).not.toMatch(/^import .*['"]\.\/probe['"]/m);
-    expect(src).toMatch(/import\.meta\.env\.MODE === 'probe' \? \[\(await import\('\.\/probe'\)\)\.probe\] : \[\]/);
+    expect(src).toMatch(/import\.meta\.env\.MODE === 'probe' \? \[\{ \.\.\.PROBE_INFO, code: async \(\) => \(await import\('\.\/probe'\)\)\.probe \}\] : \[\]/);
   });
 });
 
