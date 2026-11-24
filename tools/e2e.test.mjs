@@ -271,4 +271,18 @@ describe('tools/e2e.mjs and the plan of CI', () => {
     expect(src).toContain("      else await step('worlds', worlds);\n");
     expect(src.split('switchedOff')).toHaveLength(5);   // defined once, read in step() only
   });
+
+  // Played in one run, the parts shared one limit (25 min) while CI gives each a job of 30 (ci.yml, pages.yml): the
+  // walkthroughs of the worlds alone take up to 20 minutes each, so the step could never pass on this machine.
+  it('the step "worlds" plays each part of tools/worlds.mjs alone, with the limit of its CI job, and fails once naming the failed ones', () => {
+    const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
+    expect(src).toContain("import { PART_TIMEOUT_MS, PARTS } from './worlds.mjs';\n");
+    const fn = src.slice(src.indexOf('async function worlds() {'), src.indexOf('\n}\n', src.indexOf('async function worlds() {')));
+    expect(fn).toContain('  for (const part of PARTS) {\n');
+    expect(fn).toContain("await run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist'), '--only', part], PART_TIMEOUT_MS);");
+    expect(fn).toContain('if (bad.length) throw new Error(');
+    // tools/worlds.mjs is started from this one place, never as one run of every part
+    expect(src.split("join(root, 'tools/worlds.mjs')")).toHaveLength(2);
+    expect(src).not.toContain('1500000');
+  });
 });

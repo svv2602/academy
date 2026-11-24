@@ -171,6 +171,11 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
+/**
+ * The limit of one part played alone, as each part is played in CI: a job "worlds" of its own in ci.yml and pages.yml,
+ * whose `timeout-minutes` is this (tools/ci-pieces.test.mjs). tools/e2e.mjs plays the parts so, one run each.
+ */
+export const PART_TIMEOUT_MS = 30 * 60000;
 export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'hub-forest', 'forest', 'sea'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
 export const GREY_PARTS = ['hub-grey', 'sweet-grey'];

@@ -1097,9 +1097,9 @@ describe('node tools/worlds.mjs', () => {
     expect(src).toMatch(/if \(play\('forest'\)\) try \{\n\s+await publishedBuild\(\);\n\s+const next = buildWorlds\(dist\);\n\s+if \(!next\.includes\('forest'\)\) throw [^\n]*\n\s+await worldPass\('the forest', dist, [^\n]*forestPassEnv\(process\.env, out\), forestPassTimeoutMs\(process\.env\), forestPassProblems,/);
   });
 
-  it('tools/e2e.mjs runs it as the step "worlds", after "update", on the dist/ it built', () => {
+  it('tools/e2e.mjs runs it as the step "worlds", after "update", on the dist/ it built: each part alone (tools/e2e.test.mjs)', () => {
     const e2e = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
-    expect(e2e).toContain("run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist')]");
+    expect(e2e).toContain("run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist'), '--only', part], PART_TIMEOUT_MS)");
     expect(e2e).toMatch(/await step\('update', update\);\n\s+if \(opts\.bail && failed\(\)\) skip\('worlds', '--bail'\);\n\s+else await step\('worlds', worlds\);/);
   });
 });

@@ -24,6 +24,7 @@ import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { splitRequested } from './models-split.mjs';
 import { GROUPS, PIECES } from './e2e-saves.mjs';
 import { blocksOf, limitReport, reportToGitHub } from './run-limit.mjs';
+import { PART_TIMEOUT_MS, PARTS } from './worlds.mjs';
 
 const HELP = `Usage: npm run e2e [-- <flags>]      (same as: node tools/e2e.mjs <flags>)
 
@@ -56,8 +57,10 @@ opens the new build with the stars of the old one; on its start screen a third b
 probe world is a test world - dist/ must hold nothing of it (no file, no code); the build that lists it is made anew
 (vite build --mode probe --outDir dist-probe), must hold its files under models/probe/ and story/probe/ and the commit
 of the sources, and the world is played there in the mobile size by the walkthrough every world shares
-(E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/). E2E_WORLDS=0 leaves the step out (the summary says so): CI
-plays the probe world in a job of its own (node tools/worlds.mjs dist).
+(E2E_WORLD=probe; pictures in shots-e2e/worlds-probe/). The step plays every part of tools/worlds.mjs (PARTS: the probe
+world, the hub, the grey worlds, the walkthroughs of the published ones), each in a run of its own with the limit of
+its CI job (PART_TIMEOUT_MS), as CI plays them; it fails once, naming each failed part. E2E_WORLDS=0 leaves the step out
+(the summary says so): CI plays the parts in jobs of their own (node tools/worlds.mjs dist --only <part>).
 "models used" compares the model files the page requested in all the walkthroughs with tools/models-used.json; the
 own files of a next world (the forest's, downloaded in the background: models/<id>/… of a world of src/worlds/ that is
 neither the first nor installed) are left out of it - they lie in worlds-data/<id>/, not under public/models/; each must
@@ -379,12 +382,24 @@ async function update() {
   if (code !== 0) throw new Error(`tools/update.mjs exited with ${signal ?? `code ${code}`} — see "update:" above`);
   return 'the new version waited through a solved task, no controllerchange, no reload; the next launch: new version, same stars';
 }
-// The probe world (TECH-15): tools/worlds.mjs checks that dist/ has nothing of it, builds dist-probe/ and plays it there.
+// The parts of tools/worlds.mjs (TECH-15: the probe world, the hub, the grey worlds, the published worlds' walkthroughs),
+// each in a run of its own with the limit of its own job in CI (PART_TIMEOUT_MS): played in one run they would share
+// one limit, and a walkthrough of a whole world alone takes up to 20 minutes. Every part is played (with --bail, up to
+// the first failed one); the step fails once, naming each failed part.
 async function worlds() {
-  const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist')], 1500000);
-  if (timedOut) throw new Error('killed after 1500000 ms');
-  if (code !== 0) throw new Error(`tools/worlds.mjs exited with ${signal ?? `code ${code}`} — see "worlds:" above`);
-  return 'dist/ holds nothing of the probe world; dist-probe/ built with its files and this commit; the probe world played by its description (the mobile size with the network, the desktop size without it), its cache, the transition and the change of world checked';
+  const played = [], bad = [];
+  for (const part of PARTS) {
+    if (opts.bail && bad.length) { played.push(`${part} skipped (--bail)`); continue; }
+    console.log(`\n[e2e] worlds: the part "${part}" (limit ${PART_TIMEOUT_MS / 60000} min)`);
+    const t0 = Date.now();
+    const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools/worlds.mjs'), join(root, 'dist'), '--only', part], PART_TIMEOUT_MS);
+    const min = ((Date.now() - t0) / 60000).toFixed(1);
+    if (timedOut) bad.push(`${part}: killed after ${PART_TIMEOUT_MS} ms`);
+    else if (code !== 0) bad.push(`${part}: tools/worlds.mjs exited with ${signal ?? `code ${code}`}`);
+    played.push(`${part} ${min} min${timedOut || code !== 0 ? ' FAILED' : ''}`);
+  }
+  if (bad.length) throw new Error(`${bad.length} of ${PARTS.length} part(s) failed — ${bad.join('; ')} — see "worlds:" above (${played.join(', ')})`);
+  return `the ${PARTS.length} parts of tools/worlds.mjs passed, each alone with the limit of its CI job (${PART_TIMEOUT_MS / 60000} min): ${played.join(', ')}`;
 }
 // With all four sizes (the way CI runs) one size must have been played in silence, by the report of each of its
 // walkthroughs (with --only: of every group of it; checkPlayed makes sure the groups of a size are the whole world).

@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { DOCS, GH_TIMEOUT_MS, MAX_LISTED, PLAYING_JOBS, RESULTS, SHARED, TRY_ALL, TRY_ALL_MAX, TRY_LIMITS, TRY_TURN, attemptName, lastAttempts, TRY_MAX, changedFiles, outputs, ownerOf, pick, report, rested, rests, tryPlan, tryResult, turnError, verdict, walkJobName, worldsJobName } from './ci-pieces.mjs';
 import { PIECES } from './e2e-saves.mjs';
 import { SIZES, WORLDS, worldFiles } from './world-pieces.mjs';
-import { PARTS, PUBLISH_PARTS } from './worlds.mjs';
+import { PART_TIMEOUT_MS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { PASS_TIMEOUT_MS as FOREST_PASS_MS } from './forest-pass.mjs';
 import { PASS_TIMEOUT_MS as SEA_PASS_MS } from './sea-pass.mjs';
 import { PASS_TIMEOUT_MS as SWEET_PASS_MS } from './sweet-grey.mjs';
@@ -835,6 +835,10 @@ describe('.github/workflows/pages.yml: before a publication everything is played
   it.each(['ci.yml', 'pages.yml'])('%s: the job "worlds" holds the longest walkthrough of a whole world with its setup (npm ci, the build of the run: 4 minutes kept for them)', (name) => {
     const minutes = Number(key(workflow(name).jobs.worlds, 'timeout-minutes'));
     expect(minutes * 60000).toBeGreaterThanOrEqual(Math.max(FOREST_PASS_MS, SEA_PASS_MS, SWEET_PASS_MS) + 4 * 60000);
+  });
+
+  it.each(['ci.yml', 'pages.yml'])('%s: a part of tools/worlds.mjs has the same limit here as in the local npm run e2e (PART_TIMEOUT_MS: tools/e2e.mjs plays each part alone with it)', (name) => {
+    expect(Number(key(workflow(name).jobs.worlds, 'timeout-minutes')) * 60000).toBe(PART_TIMEOUT_MS);
   });
 });
 
