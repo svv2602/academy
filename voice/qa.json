@@ -7200,5 +7200,725 @@
   "style": "joy",
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_circle@Charon": {
+  "text": "Лише кола!",
+  "heard": "Лише кола.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_square@Charon": {
+  "text": "Лише квадрати!",
+  "heard": "Лише квадрати",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_triangle@Charon": {
+  "text": "Лише трикутники!",
+  "heard": "Лише трикутники.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_rectangle@Charon": {
+  "text": "Лише прямокутники!",
+  "heard": "Лише прямокутники.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_oval@Charon": {
+  "text": "Лише овали!",
+  "heard": "Лише овали.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_rhombus@Charon": {
+  "text": "Лише ромби!",
+  "heard": "Лише ромби.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_round_not_red@Charon": {
+  "text": "Круглі, але не червоні!",
+  "heard": "Круглі, але не червоні.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_ask_corner_not_blue@Charon": {
+  "text": "З кутиками, але не сині!",
+  "heard": "Скутеками, але не сині.",
+  "score": 0.884,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_house_start@Leda": {
+  "text": "Кожна деталь має своє місце. Знайди, куди вона пасує!",
+  "heard": "Кожна деталь має своє місце, знайди, куди вона пасує.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_house_fit@Leda": {
+  "text": "Пасує! Ще трішки — і будиночок готовий.",
+  "heard": "Пасує, ще трішки і будиночок готовий!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_house_hint_1": {
+  "text": "Подивись на форму: дах гострий, а віконце кругле.",
+  "heard": "Подивись на форму: дах гострий, а віконце кругле.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_house_hint_2": {
+  "text": "Я покажу контур. Бачиш, яка деталь у нього влізе?",
+  "heard": "Я покажу контур. Бачиш, яка деталь у нього влізе?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_house_hint_3": {
+  "text": "Ось ця деталь світиться. Постав її!",
+  "heard": "Ось ця деталь світиться, постав її.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_house_exit@Leda": {
+  "text": "Відпочинь! Я посторожу те, що ми вже зібрали.",
+  "heard": "Відпочинь, я постережу те, що ми вже зібрали.",
+  "score": 0.952,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_house_resume@Leda": {
+  "text": "Ти повернулася! Будуємо далі.",
+  "heard": "Ти повернулася! Будуємо далі!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_house_finish@Leda": {
+  "text": "Будиночок готовий! Відчиняй двері!",
+  "heard": "Будиночок готовий, відчиняй двері!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_ruby_house_found": {
+  "text": "Рубінчик у пряниковому будиночку! От несподіванка!",
+  "heard": "Рубінчик у пряниковому будиночку! От несподіванка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_start@Charon": {
+  "text": "Шукай плитки тієї фігури, яку я назву.",
+  "heard": "Шукай плитки тієї фігури, яку я назву.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_bridge_hint_1": {
+  "text": "Придивись до кутиків і боків кожної плитки.",
+  "heard": "Придивись до кутиків і боків кожної плитки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_bridge_hint_2": {
+  "text": "Я обведу потрібну фігуру. Шукай таку саму!",
+  "heard": "Я обведу потрібну фігуру. Шукай таку саму.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_bridge_hint_3": {
+  "text": "Ось ця плитка світиться. Торкнися її!",
+  "heard": "Ось ця плитка світиться, торкнися її.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_bridge_finish@Charon": {
+  "text": "Місток готовий. Рівненько, як я люблю.",
+  "heard": "Місток готовий. Рівненько, як я люблю.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_scales_start@Orus": {
+  "text": "Постав гирю, щоб терези вирівнялися!",
+  "heard": "Постав гирю, щоб терези вирівнялися.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_scales_start_sign@Orus": {
+  "text": "Що важче? Постав між шальками правильний знак!",
+  "heard": "Що важче, постав між шальками правильний знак.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_scales_hint_1": {
+  "text": "Склади цукерки на одній шальці. Скільки там разом?",
+  "heard": "Склади цукерки на одній шальці. Скільки там разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_scales_hint_2": {
+  "text": "Порахуймо разом обидві шальки.",
+  "heard": "Порахуємо разом обидві шальки.",
+  "score": 0.966,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_scales_hint_3": {
+  "text": "Ось що світиться. Спробуй!",
+  "heard": "Ось що світиться. Спробуй.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_scales_finish@Orus": {
+  "text": "Рівно! Оце я розумію — точність!",
+  "heard": "Рівно! Оце я розумію точність!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_hi@Sulafat": {
+  "text": "Ой, гостя! Я Пастила, фея-кондитерка. Пригощайся, мила!",
+  "heard": "Ой гостя! Я пастила. Фея-кондитерка. Пригощайся, мила!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_t1@Sulafat": {
+  "text": "Я спекла тістечка на двох тацях. Скільки їх разом?",
+  "heard": "Я спекла тісточка на двох татях. Скільки їх разом?",
+  "score": 0.958,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_t2@Sulafat": {
+  "text": "У коробці бракує цукерок. Скільки треба докласти?",
+  "heard": "У коробці бракує цукерок. Скільки треба докласти?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_t3@Sulafat": {
+  "text": "Де більше печива? Ой, я знову все переплутала!",
+  "heard": "Дай більше печива... Ой, я знову все переплутала.",
+  "score": 0.966,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_done@Sulafat": {
+  "text": "Дякую, мила! Тримай рубінчик — він солодкий, як усмішка.",
+  "heard": "Дякую, мила, тримай рубінчик, він солодкий, як усмішка.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_again_1@Sulafat": {
+  "text": "Свіжі тістечка якраз із печі! Пригостити тебе?",
+  "heard": "Свіжа тістечка, якраз із печі. Пригостити тебе?",
+  "score": 0.977,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_again_2@Sulafat": {
+  "text": "Де ж моя качалка? А, ось вона, у кишені!",
+  "heard": "Де ж моя качалка? А, ось вона, у кишені.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_hi@Leda": {
+  "text": "Привіт-привіт! Я Імбир, пряниковий чоловічок. Мій будиночок розсипався!",
+  "heard": "Привіт-привіт! Я Імбир, пряниковий чоловічок. Мій будиночок розсипався!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_t1@Leda": {
+  "text": "Пряники лежать у коробках десятками. Порахуймо, скільки всього!",
+  "heard": "Пряники лежать у коробках десятками. Порахуємо, скільки всього.",
+  "score": 0.983,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_t2@Leda": {
+  "text": "Я прикрашаю паркан глазурʼю. Яка смужка наступна?",
+  "heard": "Я прыкрашаю паркан глазур'ю, якая смужка наступна?",
+  "score": 0.968,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_t3@Leda": {
+  "text": "А тепер — мій будиночок! Збери його по шматочках, будь ласка!",
+  "heard": "А тепер мій будиночок. Збери його по шматочках, будь ласка.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_done@Leda": {
+  "text": "Мій будиночок цілий! А всередині… рубінчик! Це тобі!",
+  "heard": "Мій будиночок цілий, а всередині — рубінчик. Це тобі!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_again_1@Leda": {
+  "text": "Заходь у гості! Тепер у мене є дах і віконця!",
+  "heard": "Заходь у гості, тепер у мене є дах і віконця.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_again_2@Leda": {
+  "text": "Ой, а я трішки покусав свій паркан. Тільки нікому!",
+  "heard": "Ой, а я трішки покусав свій паркан! Тільки нікому!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_hi@Orus": {
+  "text": "Гей-гей! Я Тягучка, найсильніший мармеладник на ринку!",
+  "heard": "Гей-гей, я тягучка, найсильніший мармеладник на ринку!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_t1@Orus": {
+  "text": "Я продав кілька цукерок. Скільки лишилося на прилавку?",
+  "heard": "Я продав кілька цукерок. Скільки лишилося на прилавку?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_t2@Orus": {
+  "text": "Мармеладки змішалися! Розклади їх по кольорах.",
+  "heard": "Мармеладки змішалися, розклади їх по кольорах.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_t3@Orus": {
+  "text": "Мої терези стоять криво. Допоможи їх вирівняти!",
+  "heard": "Мої терези стоять криво, допоможи їх вирівняти?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_done@Orus": {
+  "text": "Ох і спритна! Тримай рубінчик. Важкий, га? Жартую!",
+  "heard": "Ох і спритна! Тримай рубінчик. Важкий, га? Жартую!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_pet_ask@Orus": {
+  "text": "Мій малий Желейка десь у цукерковому саду. Знайдеш його?",
+  "heard": "Мій малий Желейка десь у цукерковому саду. Знайдеш його?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_intro_1": {
+  "text": "За порталом є Солодка країна. Там завжди було весело.",
+  "heard": "За порталом є солодка країна, там завжди було весело.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_intro_2": {
+  "text": "Рубін радості розколовся, і все довкола зблякло.",
+  "heard": "Рубін радости розколовся, і все довкола зблякло.",
+  "score": 0.978,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_intro_3": {
+  "text": "Знайдімо рубінчики — і радість повернеться!",
+  "heard": "Знайдімо рубінчики, і радість повернеться!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_back_1": {
+  "text": "Рубінчики злетілися до торта. Рубін радості знову цілий!",
+  "heard": "Рубінчики злетілися до торта, рубін радості знову цілий!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_again_1@Orus": {
+  "text": "Дивись, як я підкину гирю! Ой… краще не треба.",
+  "heard": "Дивись, як я підкину гирю… Ой, краще не треба.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/tyanuchka_again_2@Orus": {
+  "text": "Я такий сильний, а все одно тремчу, як желе. Хе-хе!",
+  "heard": "Я такий сильний, а все одно тремчу, як желе.",
+  "score": 0.932,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_hi@Charon": {
+  "text": "Добридень. Я Какао, мельник. Люблю, коли все на своєму місці.",
+  "heard": "Добрий день! Я — какао. Мельник. Люблю, коли все на своєму місці.",
+  "score": 0.982,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_t1@Charon": {
+  "text": "Шоколадна річка застигла. Збудуймо місток із потрібних плиток.",
+  "heard": "Шоколадна річка застигла, збудуймо місток із потрібних плиток.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_t2@Charon": {
+  "text": "Запамʼятай, у якому мішку яке борошно. Я перевірю.",
+  "heard": "Запамятай, у якому мішку яке борошно. Я перевірю.",
+  "score": 0.989,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_t3@Charon": {
+  "text": "Яке число більше? Постав правильний знак між мішками.",
+  "heard": "Яке число більше? Постав правильний знак між мішками.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_done@Charon": {
+  "text": "Усе на своїх місцях. Порядок — це теж радість.",
+  "heard": "Усе на своїх місцях. Порядок — це теж радість.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_hint@Charon": {
+  "text": "Те, що шукаєш, сховалося в жорнах млина. Подивись там.",
+  "heard": "Те, що шукаєш, сховалося в жорнах млина, подивись там.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_again_1@Charon": {
+  "text": "Чуєш, як рипить млин? Отак він мене вітає.",
+  "heard": "Чуєш, як рипить млин? Отак він мене вітає.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/kakao_again_2@Charon": {
+  "text": "Кругле до круглого, квадратне до квадратного. Ти вже знаєш.",
+  "heard": "Кругле до круглого, квадратне до квадратного, ти вже знаєш.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_hi@Leda": {
+  "text": "Стій! Хто йде? А, це ти… Я Смугастик, вартовий саду.",
+  "heard": "Стій, хто йде? А, це ти! Я Смугастик, вартовий саду.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_t1@Leda": {
+  "text": "Льодяники загубили пари. Знайдеш, який до якого?",
+  "heard": "Льодяники загубили пари. Знайдеш який до якого?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_t2@Leda": {
+  "text": "Цукерки на деревах висять рядочком. Якого числа бракує?",
+  "heard": "Цукерки на деревах висять рядочком. Якого числа бракує?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_t3@Leda": {
+  "text": "Скільки льодяників буде разом? Рахуй уважно!",
+  "heard": "Скільки льодяників буде разом? Рахуй уважно!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_done@Leda": {
+  "text": "Сад у безпеці! Тримай рубінчик. Ти — справжня вартова!",
+  "heard": "Сад у безпеці, тримай рубінчик, ти справжня вартова!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_again_1@Leda": {
+  "text": "Я стою на посту! Але з тобою можна й погратися.",
+  "heard": "Я стою на посту, але з тобою можна й погратися!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/polosatik_again_2@Leda": {
+  "text": "Смужка біла, смужка червона… Я весь у смужечку!",
+  "heard": "Смужка біла, смужка червона, я ввесь у смужечку.",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sweet_wake": {
+  "text": "Чуєш, як пахне ваніллю? Прокинувся портал до Солодкої країни!",
+  "heard": "Чуєш, як пахне ваніллю? Прокинувся портал до солодкої країни!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sweet_home": {
+  "text": "Рубін радості вдома! Ще одне гніздо сяє.",
+  "heard": "Рубін радості дома, ще одне гніздо сяє.",
+  "score": 0.987,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sweet_after": {
+  "text": "На гілках засвітилися плоди-ліхтарики, а пташки співають!",
+  "heard": "На гілках засвітилися плоди-ліхтарики, а пташки співають.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_back_2": {
+  "text": "Карусель крутиться, а всі довкола сміються!",
+  "heard": "Карусель крутиться, а всі довкола сміються.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_story_back_3": {
+  "text": "Віднесімо світло Рубіна додому, до Великого Дерева.",
+  "heard": "Віднесімо світло рубіна додому, до великого дерева.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_flyover": {
+  "text": "Ось і Солодка країна! Бачиш торт-палац? Його видно звідусіль.",
+  "heard": "Ось і солодка країна. Бачиш торт-палац? Його видно звідусіль.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_secret_box": {
+  "text": "Ого, під містком коробка цукерок! А в ній зірочки!",
+  "heard": "Ого, під містком коробка цукерок, а в ній зірочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_secret_cotton": {
+  "text": "Цукрова вата підкидає вгору! Що там, на даху?",
+  "heard": "Цукрова вада підкидає вгору. Що там на даху?",
+  "score": 0.976,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_secret_lemonade": {
+  "text": "Фонтан лимонаду! Дивись, у бризках веселка!",
+  "heard": "Фонтан лимонаду, дивись, у бризках веселка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_secret_gum": {
+  "text": "Яка велика бульбашка з жуйки! Ой, луснула — конфеті!",
+  "heard": "Яка велика бульбашка з жуйки! Ой, луснула, конфетті.",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_pet_found": {
+  "text": "Ось де Желейка, між льодяниками! Застрибав до тебе.",
+  "heard": "Ось де желейка, між льодяниками, застрибав до тебе.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_pet_follow": {
+  "text": "Желейка стрибатиме з тобою. Тепер ви друзі!",
+  "heard": "Желейка стрибатиме з тобою. Тепер ви друзі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_ruby_mill_found": {
+  "text": "Ось він, рубінчик у жорнах! Какао знав, де шукати.",
+  "heard": "Ось він, рубінчик у жорнах! Какао знав, де шукати.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_all_rubies": {
+  "text": "Усі рубінчики в нас! Ходімо до торта-палацу.",
+  "heard": "Усі рубінчики в нас, ходімо до Торта-Палацу!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_ruby_whole": {
+  "text": "Рубінчики склалися докупи — Рубін радості знову цілий!",
+  "heard": "Рубінчики склалися докупи! Рубін радості знову цілий!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/pastila_cheer@Sulafat": {
+  "text": "Дякуємо, Хранителько! Солодка країна знову сміється!",
+  "heard": "Дякуємо, Хранителько! Солодка країна знову сміється.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_final_text": {
+  "text": "Ти повернула радість Солодкій країні!",
+  "heard": "Ти повернула радість солодкій країні?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_free": {
+  "text": "Гуляй скільки хочеш! Тут ще багато смаколиків і таємниць.",
+  "heard": "Гуляй, скільки хочеш. Тут ще багато смаколиків і таємниць.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_magic_1": {
+  "text": "Дивись, цукерки знову кольорові! Країна прокидається.",
+  "heard": "Дивись, цукерки знову кольорові, країна прокидається!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_magic_3": {
+  "text": "Льодяники світяться, а метелики-карамельки кружляють!",
+  "heard": "Льодяники світяться, а метелики карамельки кружляють.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_magic_5": {
+  "text": "Як усе блищить! Країна от-от засміється.",
+  "heard": "Як усе блищить! Країна от-от засміється.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

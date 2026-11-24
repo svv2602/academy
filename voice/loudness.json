@@ -2364,6 +2364,21 @@
   "tp": -1.66,
   "sha256": "90f5ca02e4e37e2556c20aed0d1e18b0bbc8ea176d3dc001fef8ccccfe5c75ff"
  },
+ "public/voice/hub/hub_sweet_after.mp3": {
+  "lufs": -18.21,
+  "tp": -1.86,
+  "sha256": "b0666564cf07e65525fb250d7355bd47ecda7f1e0661ae53513e65e8b264f541"
+ },
+ "public/voice/hub/hub_sweet_home.mp3": {
+  "lufs": -18.05,
+  "tp": -2.22,
+  "sha256": "151c2f9d93a57cc4075b5ab589ea739fe40f59e59e9383d421ab559b936ebe31"
+ },
+ "public/voice/hub/hub_sweet_wake.mp3": {
+  "lufs": -17.98,
+  "tp": -3.12,
+  "sha256": "1b29a86b589d33048464290565b487b2bedf766912244730018f25134744ae18"
+ },
  "public/voice/hub/hub_tour.mp3": {
   "lufs": -18.04,
   "tp": -2.5,
@@ -4248,6 +4263,441 @@
   "lufs": -17.99,
   "tp": -2.52,
   "sha256": "9ac5bc43a26365bc56dc6b1836089384355626f4ff09e7fd249a64bf6f2896a7"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_again_1@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -3.57,
+  "sha256": "ea52d38b72e5466058723646453dc13ae26786e85d6bc2a205ebbabfaa912c31"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_again_2@Leda.mp3": {
+  "lufs": -18.02,
+  "tp": -4.6,
+  "sha256": "5fcdb7ca4bb795ac5e78cec732d08cb227a8f5102bed7cdb598c60813eed1e37"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_done@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -3.96,
+  "sha256": "25d4f739f60744f1eaff089ec64bdfbdcdecbaf4d3b7a0f2f9373aca9574eb75"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_hi@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -3.39,
+  "sha256": "6c276ce506e07735ae0b3a52689af1aaf3c8c2aa3ef4784d636d3dc5fffc8446"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_house_exit@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -6.74,
+  "sha256": "345e91a9a9bd6a6b456712063392d57e99338f78782665dbcf5a267373958368"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_house_finish@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -5.28,
+  "sha256": "f5b36be0effee5997607b64f93688fb54ef101f64a00b0b40cda02a363472e7e"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_house_fit@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -2.18,
+  "sha256": "efa39991d4050b65ece9aab7bd5aab449e16be4b1aabc638e639fc71ffaf760f"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_house_resume@Leda.mp3": {
+  "lufs": -18.07,
+  "tp": -4.3,
+  "sha256": "56e25e420f93aae129a3936a6f5519f775b869425df76aec16200b9592fda6cf"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_house_start@Leda.mp3": {
+  "lufs": -17.84,
+  "tp": -5.61,
+  "sha256": "424966e63cee011f74a506773e6a1374bfbb54054edde88da3eb3bedf706e7c1"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_t1@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -4.4,
+  "sha256": "4874d825c50ec493fd637c56398fe5fcd9a0d083843713ed253a095343071dc3"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_t2@Leda.mp3": {
+  "lufs": -18.06,
+  "tp": -5.72,
+  "sha256": "b6295b64242a532c0d3ea623e2d3b099e3080a4ddf1beb4f242180a886690748"
+ },
+ "worlds-data/sweet/voice/sweet/imbir_t3@Leda.mp3": {
+  "lufs": -17.97,
+  "tp": -3.88,
+  "sha256": "c69fafd04b5107b2463d3a9741b79d74860b836dba241f3a62e22b6c0b6bdc60"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_again_1@Charon.mp3": {
+  "lufs": -17.99,
+  "tp": -2.15,
+  "sha256": "9eaed7e0b38f8b65da20fa29f26827dbf33899e9254e8953978abd4d38d03455"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_again_2@Charon.mp3": {
+  "lufs": -18.11,
+  "tp": -2.48,
+  "sha256": "be40789bdcab7c255e8d9c051717036e56a3ea31f960d16c4d7583572931ceea"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_circle@Charon.mp3": {
+  "lufs": -18.02,
+  "tp": -4.2,
+  "sha256": "69faf00080910ae4b9766041fa480d01b72897e543ab152433d78c43738771f9"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_corner_not_blue@Charon.mp3": {
+  "lufs": -17.88,
+  "tp": -2.26,
+  "sha256": "f5941acdd2befdef76ffc9dc014cb600c124578d31c5c47a812d1506ae4b4ed9"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_oval@Charon.mp3": {
+  "lufs": -18.18,
+  "tp": -2.48,
+  "sha256": "5a74f2893afebd9e00b5495d1ab1435c780fb9aedf0a1872d27d496b601fd39b"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_rectangle@Charon.mp3": {
+  "lufs": -17.97,
+  "tp": -2.19,
+  "sha256": "e09ca61be23fb2246224a3af499186298075105a86b0870e48b8e86c5d10d6f3"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_rhombus@Charon.mp3": {
+  "lufs": -18.05,
+  "tp": -2.88,
+  "sha256": "1a280b0f440ea6982a4506ca3804c7e725faf4b6a98e989afc2f5163fd2ebbf6"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_round_not_red@Charon.mp3": {
+  "lufs": -18.02,
+  "tp": -2.33,
+  "sha256": "e64bc51d2c233ef963b63355477bb1505c5ff0d387d886103499dbe0696b5726"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_square@Charon.mp3": {
+  "lufs": -18.1,
+  "tp": -2.28,
+  "sha256": "329c8c96536629121f808c568c07bf698165520ea74e5241e555b7e75ef4b5a2"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_ask_triangle@Charon.mp3": {
+  "lufs": -18.25,
+  "tp": -2.33,
+  "sha256": "254f510e642f5d2d41fba8446f1ada18ccdd088ec1ff6d898380d29253421601"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_finish@Charon.mp3": {
+  "lufs": -18.06,
+  "tp": -3.42,
+  "sha256": "8fbab163085ce8d965a69820c6c75e591575afbea11fe229e6b32bd4a58df70c"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_bridge_start@Charon.mp3": {
+  "lufs": -18.18,
+  "tp": -2.44,
+  "sha256": "ee79ad4327ac059a6c08b1f3e1d7e7b43be45663276b5e02b044dc5a569fd902"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_done@Charon.mp3": {
+  "lufs": -18.11,
+  "tp": -1.81,
+  "sha256": "cc09222be217e1bcfd58bdf1cd28bf374419869635c4cf852dfb81d57bb36594"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_hi@Charon.mp3": {
+  "lufs": -18.03,
+  "tp": -5.05,
+  "sha256": "e5899116d2a9c4df3999cddab84a8616f949136b2d7ff1d11e9a5242bc3da9d6"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_hint@Charon.mp3": {
+  "lufs": -17.99,
+  "tp": -2.71,
+  "sha256": "3ca76fac4cc68cec7a73412c9a14db5f4ab0dcb40f324fecaa95707b569fbb92"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_t1@Charon.mp3": {
+  "lufs": -18.05,
+  "tp": -2.45,
+  "sha256": "23b1f2db71902771e06e3b4a377fc5df209a15c2c2883e2113ce0689e3d3ce72"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_t2@Charon.mp3": {
+  "lufs": -17.96,
+  "tp": -2.51,
+  "sha256": "f56df636c120bfa318798e13942b0de043d1fbff8ab51a8d836ba90adb75370c"
+ },
+ "worlds-data/sweet/voice/sweet/kakao_t3@Charon.mp3": {
+  "lufs": -18.01,
+  "tp": -3.83,
+  "sha256": "86ab5be79e1c0fd74d2674a9828c215f8cd80a695712d7bcb4961b7187e3eb8d"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_again_1@Sulafat.mp3": {
+  "lufs": -17.95,
+  "tp": -1.54,
+  "sha256": "9fef37033a9a4c5eee1a2d98a3c9b397c088c9949d7d3fbe75b6a1e5c5b3ab68"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_again_2@Sulafat.mp3": {
+  "lufs": -17.97,
+  "tp": -5.34,
+  "sha256": "eeeb024d2fa7bae53a0767fbcf2c009b1e1d1ee682b1c3f36d725291ee8b0e3c"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_cheer@Sulafat.mp3": {
+  "lufs": -17.97,
+  "tp": -5.37,
+  "sha256": "cf44836781d3f366d3bc603968f641e63138af682778be492427c3d6aa47c738"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_done@Sulafat.mp3": {
+  "lufs": -17.9,
+  "tp": -4.03,
+  "sha256": "2584b513c2c8df844e027c3661ea7306fb5a4d503b1e23700923bfd9e4d1cd23"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_hi@Sulafat.mp3": {
+  "lufs": -18.0,
+  "tp": -5.42,
+  "sha256": "1fcd89735292d9e441ae02abf6dd8913f2a5b7c9807719141ca7a3d808550df8"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_t1@Sulafat.mp3": {
+  "lufs": -18.05,
+  "tp": -2.62,
+  "sha256": "00006366fd051cf083d5420908a8b0f629c0f79991d5c6c7363b83c2d549170b"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_t2@Sulafat.mp3": {
+  "lufs": -17.9,
+  "tp": -2.77,
+  "sha256": "62293d483937edb9ca0c917449316ffb9c792ba90a3e67e715f2159b6d4f3b55"
+ },
+ "worlds-data/sweet/voice/sweet/pastila_t3@Sulafat.mp3": {
+  "lufs": -17.99,
+  "tp": -5.59,
+  "sha256": "b3eaafb64a2910fc8088a87d1a18a4b4ecaa05e2629f66f0bbb997fcbe3f67b0"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_again_1@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -5.04,
+  "sha256": "73a19058df69fca6bb64752615aead5cda50e2184baf798070f5c16e3db9a03b"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_again_2@Leda.mp3": {
+  "lufs": -18.03,
+  "tp": -4.52,
+  "sha256": "44a9481d2011cabe8242a82988b05270320be9ac14d1e339f28b84a1d18e84e1"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_done@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -4.19,
+  "sha256": "1bb19b13700f7c7c8ac86d326b4a3b71368de3f48657fe816717bea142fc20c6"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_hi@Leda.mp3": {
+  "lufs": -17.95,
+  "tp": -3.37,
+  "sha256": "e06070f9c1b7f417acfcf7f36c7b452a419a6510b53824b45b9a5b48c6808417"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_t1@Leda.mp3": {
+  "lufs": -18.05,
+  "tp": -5.56,
+  "sha256": "2c51eae4c062a2ba3ed50880f6f4470c806a875a669e71e252971a7e246a22dd"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_t2@Leda.mp3": {
+  "lufs": -18.05,
+  "tp": -4.01,
+  "sha256": "21ff053ff325cc869e5a46407c288abce0bd76f5631604603c73c453f075855f"
+ },
+ "worlds-data/sweet/voice/sweet/polosatik_t3@Leda.mp3": {
+  "lufs": -18.03,
+  "tp": -5.23,
+  "sha256": "da7f522d5d04e100dd72a0d19f7c7685689b1f62abcd265b81ba44652bbb715e"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_all_rubies.mp3": {
+  "lufs": -18.02,
+  "tp": -2.65,
+  "sha256": "2599f4b527222069052f00ac793fb1cc595dcd6c76bdf402ca05f11cb1969e12"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_bridge_hint_1.mp3": {
+  "lufs": -18.1,
+  "tp": -2.76,
+  "sha256": "158171f2b74b3d3b2dca02c13030eec483759e387be33c75eceefa1ed731513d"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_bridge_hint_2.mp3": {
+  "lufs": -18.02,
+  "tp": -2.62,
+  "sha256": "7d30347c29d001292d512b27801a7aebb403de68dced4c13c79bebd66696c2c5"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_bridge_hint_3.mp3": {
+  "lufs": -18.08,
+  "tp": -3.48,
+  "sha256": "614e137db04cd8b0197acaea64a9e69d8a2139dca22e033780aa05b13ffae0ff"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_final_text.mp3": {
+  "lufs": -18.04,
+  "tp": -4.67,
+  "sha256": "35b0426f75d15c453e31b9b834e2e468bdab438c904d7024d87615ec4aaeb072"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_flyover.mp3": {
+  "lufs": -17.99,
+  "tp": -3.12,
+  "sha256": "af27f92b0609dc18efbc507d5adfb362fd82db7a9519b25abd90fcba812507a4"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_free.mp3": {
+  "lufs": -18.26,
+  "tp": -1.81,
+  "sha256": "2c21ba738cf6b71a456674f61675aece0187fd8f894b8f40fdf12426cb447687"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_house_hint_1.mp3": {
+  "lufs": -17.98,
+  "tp": -1.56,
+  "sha256": "bce194a2fc839828d65159021c1c2fdce6817d7a2ea38610a84114a4324efce4"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_house_hint_2.mp3": {
+  "lufs": -17.97,
+  "tp": -1.69,
+  "sha256": "87e925164cd3e5d90682f4f22b594e422e89b498942ce09855fd403ce9b85903"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_house_hint_3.mp3": {
+  "lufs": -18.08,
+  "tp": -2.16,
+  "sha256": "9382a5d25af2e8d7979dff867e34ad17ee68d851ff1fd0aace45a6e68699d05d"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_magic_1.mp3": {
+  "lufs": -17.98,
+  "tp": -2.56,
+  "sha256": "d18ddfddefbb9af27ca1adc3a537d95554ba1dd13bfbf269ad519810a2526557"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_magic_3.mp3": {
+  "lufs": -18.0,
+  "tp": -3.44,
+  "sha256": "2f35f4be233c84e858385e1aa409c0e35633d131e74a6cdcbb0da5f601c9d7f3"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_magic_5.mp3": {
+  "lufs": -18.07,
+  "tp": -1.99,
+  "sha256": "b460166c3b7a4857352e6ec632392c1caa3cd4d2b04ce709f85da48e734670ba"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_pet_follow.mp3": {
+  "lufs": -18.14,
+  "tp": -2.13,
+  "sha256": "cedfa486c15239ddbe1dc348fe2e9537ee907fb4b59ad3870db25a3e3a09c81d"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_pet_found.mp3": {
+  "lufs": -18.01,
+  "tp": -2.66,
+  "sha256": "d86b5596a94f0a2439c8f31d4e756e3f24e90bd40117e93db7b62fe4af821ea6"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_ruby_house_found.mp3": {
+  "lufs": -18.0,
+  "tp": -1.82,
+  "sha256": "87dc4136fe6ae9065c8e9daec014a64e0c2aee28fad18510c5ea1d49634cf209"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_ruby_mill_found.mp3": {
+  "lufs": -17.97,
+  "tp": -5.19,
+  "sha256": "dd851b6c6daee7c08f6c0618b099f0c1cf0880aba3baa3ca4d9b99860264c1a9"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_ruby_whole.mp3": {
+  "lufs": -18.0,
+  "tp": -3.44,
+  "sha256": "8af9df8e5da46c7e5d797d7265821617b143b16dd85d466b67bca9bcac7db1c3"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_scales_hint_1.mp3": {
+  "lufs": -18.18,
+  "tp": -2.36,
+  "sha256": "5eeaa443b365fd6654e2ba20a677594d44d5818b3a6ad951e2fa1ba20611b8fb"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_scales_hint_2.mp3": {
+  "lufs": -18.01,
+  "tp": -2.9,
+  "sha256": "9e3478e50e25a2a7010937cfcf820b524d327182fbc2fc51c3e15cd1b9311c13"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_scales_hint_3.mp3": {
+  "lufs": -18.02,
+  "tp": -2.54,
+  "sha256": "941e10e63f8e8c1ed3004c5000535138305fe3e485410a98873ae7310d672268"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_secret_box.mp3": {
+  "lufs": -18.0,
+  "tp": -3.09,
+  "sha256": "e3581f250fbc7cd955ec7cbc1bbdc252d2f22e6277f611b08ddc1c55023712d1"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_secret_cotton.mp3": {
+  "lufs": -17.93,
+  "tp": -3.64,
+  "sha256": "048965db900d1b30447374fb186f50042f973f5aca2eb8b24366f65b3ea6d803"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_secret_gum.mp3": {
+  "lufs": -17.99,
+  "tp": -4.02,
+  "sha256": "47cc324b5cbb2245f95c9df90da358223c30a23f8f32daf306c57d0475faa43f"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_secret_lemonade.mp3": {
+  "lufs": -17.96,
+  "tp": -3.14,
+  "sha256": "2f347a88c5dfa9a42b9c3450e1162089c9321a88cd687496d4cd177f0b1ffeb5"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_back_1.mp3": {
+  "lufs": -18.03,
+  "tp": -4.75,
+  "sha256": "9663620f284e5758d52e844b43a48d14cbfe62dd77a3920bdd65555650b9cb36"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_back_2.mp3": {
+  "lufs": -18.0,
+  "tp": -2.57,
+  "sha256": "361e3f465fd2ada4184f88ae74432f371da343f5cacd741aeb6a24017b42d820"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_back_3.mp3": {
+  "lufs": -18.11,
+  "tp": -2.36,
+  "sha256": "79b0b429f0c0e79bcbf72d4c95a240519a1f32f881002eb18e34676cd5b59ab6"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_intro_1.mp3": {
+  "lufs": -18.02,
+  "tp": -2.06,
+  "sha256": "754743e774990f11b354b104654c7a370fadc612472a5058fa39f35b1085a3dd"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_intro_2.mp3": {
+  "lufs": -18.2,
+  "tp": -1.61,
+  "sha256": "38e38080ec0b693e0a6afb234d3beb7b96f5525b896c4928b38a624ed2b60bf6"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_story_intro_3.mp3": {
+  "lufs": -18.06,
+  "tp": -1.86,
+  "sha256": "231f94d8f398b49be1afb2a556017ff67e0fa299ea16dd6f2f4aeb8d3a6d4755"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_again_1@Orus.mp3": {
+  "lufs": -18.24,
+  "tp": -2.85,
+  "sha256": "280cbd84647db3236402cd9eef79178ebc2e3abf27e03657049f3c01fb78c359"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_again_2@Orus.mp3": {
+  "lufs": -18.03,
+  "tp": -2.31,
+  "sha256": "bdd4ddd28cf647e0d9195df4bf19117050b8c05a8d8b3dc555112a079aed5a49"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_done@Orus.mp3": {
+  "lufs": -18.26,
+  "tp": -3.1,
+  "sha256": "4e5addd4db9779b47dddd1d1ac703d4efd47720f4c2d149687889709030c3faf"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_hi@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -2.99,
+  "sha256": "1d04b6c44f261fd7b3f213d853b2408d74f03d6aa85767a5c41edec5f7d560b9"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_pet_ask@Orus.mp3": {
+  "lufs": -17.91,
+  "tp": -2.92,
+  "sha256": "135401d98f299616f7d05b428e4614bd4491c84c78ed9e9de6d5ac6da593dfed"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_scales_finish@Orus.mp3": {
+  "lufs": -17.98,
+  "tp": -3.95,
+  "sha256": "155fce774e49bdac946f84c632bd1ebb1bcd3924bc33a5b11e0b8b1cbd878d42"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_scales_start@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -2.82,
+  "sha256": "5eb628a07f04e2d7bbc5839a3df958d391537aaceffa9ceb3e621e2ed7175160"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_scales_start_sign@Orus.mp3": {
+  "lufs": -18.2,
+  "tp": -1.56,
+  "sha256": "bca34f1c4919ec885037346f4d355f9f66c92d9af28eeebfb9f307e01bb79b14"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_t1@Orus.mp3": {
+  "lufs": -18.0,
+  "tp": -2.51,
+  "sha256": "37197747ae3a976f06ed0433ad8adf6e8037511c61dfad8c7e3a5615f46a014d"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_t2@Orus.mp3": {
+  "lufs": -18.03,
+  "tp": -2.56,
+  "sha256": "bbfa1b6757cb5c056700e31b766df4ce574b545014b6af065e61d0a2ca6ed79b"
+ },
+ "worlds-data/sweet/voice/sweet/tyanuchka_t3@Orus.mp3": {
+  "lufs": -17.97,
+  "tp": -2.5,
+  "sha256": "912089d3372f60f1cd876889d0c792429cb913d6562c4cf2e7659f786f324b2b"
  },
  "worlds-test/probe/voice/probe/probe_hi.mp3": {
   "lufs": -18.47,

@@ -28,6 +28,10 @@ const uk = { subtitle: 'Велике Дерево', hub_title: 'Велике Д�
   hub_sea_wake: 'Чуєш, як шумлять хвилі? Прокинувся портал до моря!',
   hub_sea_home: 'Перлина глибин удома! Дивись, ще одне гніздо засяяло.',
   hub_sea_after: 'Крона стала густішою, а біля коріння виросли грибочки!',
+  // the cat after the Sweet Land (docs/worlds/world-4.md, the draft of 2026-11-18): its portal awake, its ruby home, the tree lit
+  hub_sweet_wake: 'Чуєш, як пахне ваніллю? Прокинувся портал до Солодкої країни!',
+  hub_sweet_home: 'Рубін радості вдома! Ще одне гніздо сяє.',
+  hub_sweet_after: 'На гілках засвітилися плоди-ліхтарики, а пташки співають!',
 };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
@@ -42,9 +46,12 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Великое Древ
   hub_sea_wake: 'Слышишь, как шумят волны? Проснулся портал к морю!',
   hub_sea_home: 'Жемчужина глубин дома! Смотри, ещё одно гнездо засияло.',
   hub_sea_after: 'Крона стала гуще, а у корней выросли грибочки!',
+  hub_sweet_wake: 'Чувствуешь, как пахнет ванилью? Проснулся портал в Сладкую страну!',
+  hub_sweet_home: 'Рубин радости дома! Ещё одно гнездо сияет.',
+  hub_sweet_after: 'На ветках засветились плоды-фонарики, а птицы поют!',
 };
 
-export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm' } } satisfies WorldStrings;
+export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm', hub_sweet_wake: 'joy', hub_sweet_home: 'joy', hub_sweet_after: 'warm' } } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { hub: typeof strings }
