@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Rig } from '../../core/assets';
-import { sfx } from '../../core/audio';
+import { setCast, sfx } from '../../core/audio';
+import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
@@ -22,6 +23,8 @@ import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
+import { voices } from './voices';
+import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
 import { createSweetCreatures } from './creatures';
 import { createSweetMagic } from './magic';
@@ -143,6 +146,10 @@ function buildSweet(g: Game, _L: Record<string, never>, sky: WorldSky, scope: Wo
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
+  // its own voice (TECH-09): each character with its voice, the clips of voice/sweet/ while the world is played
+  setCast(voices);
+  scope.own(() => setCast({ narrator: '', cast: {} }));
+  scope.own(worldClips('sweet', CLIPS));
   scene.add(buildGround(160));
   const scenery = buildScenery(scene);
   // the arch back to the Great Tree on the square (./hub-way.ts): she comes out of it from the hub
