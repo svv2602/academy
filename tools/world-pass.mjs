@@ -468,6 +468,24 @@ export function solveProblems(before, after, id, step, skilled = true) {
 }
 
 /**
+ * e) solved, a task of a puzzle of several in one step (WorldTaskState.stage, not its last): no task open, the chain
+ * still at its step, its task recorded in exactly one skill - in memory and in the stored save. The step ends with the
+ * puzzle's last task (`solveProblems`).
+ */
+export function stageProblems(before, after, id, step) {
+  if (after.state) return [`the task is still open after solve(): ${JSON.stringify(after.state)}`];
+  const out = [];
+  for (const where of ['held', 'stored']) {
+    const was = JSON.parse(before[where]), now = JSON.parse(after[where]), name = where === 'held' ? 'the game' : 'the stored save';
+    if ((now.part?.quests?.[id] ?? 0) !== step) out.push(`${name} holds the chain "${id}" at ${JSON.stringify(now.part?.quests?.[id])}, not ${step}: a task of the puzzle before its last ended the step`);
+    const grew = Object.keys(now.skills ?? {}).filter((k) => now.skills[k].tasks !== was.skills?.[k]?.tasks);
+    const one = grew.length === 1 && now.skills[grew[0]].tasks === (was.skills?.[grew[0]]?.tasks ?? 0) + 1;
+    if (!one) out.push(`${name}: the tasks of the skills changed in ${grew.map((k) => `${k} ${was.skills?.[k]?.tasks} -> ${now.skills[k].tasks}`).join(', ') || 'none'}, one task more in one skill expected`);
+  }
+  return out;
+}
+
+/**
  * The skill a solved step recorded (`before`, `after`: RECORD, in the stored save): the one whose tasks grew, null for
  * none - or for more than one, which `solveProblems` reports.
  */
@@ -632,8 +650,10 @@ export async function playWorld(h, o = {}) {
     const first = await worldState();
     const { step, error } = worldStepOf(item, await partNow(), first?.kind);
     if (error) fail(`${where}: ${error}`);
-    const key = `${item.id} ${step}`;
-    if (metWorld.includes(key)) fail(`${where}: the task in the world of step ${step + 1} is open again after it was solved`);
+    // a task of a puzzle of several in one step (the clock, WORLD-24): each is met once, the step by its last
+    const stage = first?.stage ?? null, last = !stage || stage[0] >= stage[1];
+    const key = `${item.id} ${step}`, met = last ? key : `${key} ${first.kind}`;
+    if (metWorld.includes(met)) fail(`${where}: the task in the world of step ${step + 1} is open again after it was solved`);
     const name = `${where}, step ${step + 1}, the task in the world "${first.kind}"`;
     const bad = (what, list) => { if (list.length) fail(`world task: ${mode} ${name}: ${what}: ${list.join('; ')}`); };
     let before = null, middle = [], mistakes = 1;
@@ -707,6 +727,16 @@ export async function playWorld(h, o = {}) {
         if (middle.length) console.log(`world task: ${first.kind}: opened anew in its middle ${JSON.stringify((await worldState()).progress)}`);
       } else if (st === 'solve') {
         if (!(await g(() => window.__game.worldTask.solve()))) fail(`world task: ${mode} ${name}: e) the door found no task to solve`);
+        if (!last) {
+          // not the puzzle's last task: it ends with its own skill recorded, the chain still at its step
+          if (!(await gameUntil(() => !window.__game.worldTask.state && !window.__game.busy, null, STARTS))) fail(`world task: ${mode} ${name}: e) solved, but the task did not end in ${STARTS} s of game time`);
+          const after = await g(RECORD, worldId);
+          bad(`e) solved, task ${stage[0]} of the puzzle's ${stage[1]}`, stageProblems(before, after, item.id, step));
+          metSkills[met] = recordedSkill(before, after);
+          console.log(`world task: ${first.kind}: task ${stage[0]} of ${stage[1]} of the step, recorded in the skill "${metSkills[met]}", the chain still at its step`);
+          played.push(st);
+          continue;
+        }
         const recorded = ([w, id, k]) => !window.__game.worldTask.state && (window.__game.save.worlds[w]?.quests?.[id] ?? 0) > k;
         if (!(await gameUntil(recorded, [worldId, item.id, step], STARTS))) fail(`world task: ${mode} ${name}: e) solved, but the task did not end with its step recorded in ${STARTS} s of game time`);
         const after = await g(RECORD, worldId);
@@ -719,7 +749,7 @@ export async function playWorld(h, o = {}) {
       }
       played.push(st);
     }
-    metWorld.push(key);
+    metWorld.push(met);
     const kept = middle.length ? `${middle.length} right move(s) kept as its middle, ` : '';
     const wrongs = mistakes === 1 ? 'a wrong move on rung 1 with its clips' : `${mistakes} wrong moves on their rungs with their clips`;
     console.log(`world task: ${item.id} step ${step + 1} "${first.kind}": ${played.join(', ')} - opened waiting, ${wrongs}, ${kept}closed with nothing recorded and the heroine walking, opened anew${middle.length ? ' in its middle' : ''}, solved and recorded${skilled ? '' : ' in no skill'}`);

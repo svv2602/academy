@@ -86,6 +86,18 @@ export const OBSERVATORY = { x: ISLANDS.observatory.x, z: ISLANDS.observatory.z 
 export const SHRINE = { x: OBSERVATORY.x, z: OBSERVATORY.z + OBSERVATORY.r + 3 };
 /** The clock of the observatory (WORLD-24 later): its face on the tower's south side; ray 3 lies in it (WORLD-08). */
 export const CLOCK = { x: OBSERVATORY.x + 4.5, z: OBSERVATORY.z + 2.5 };
+/**
+ * The clock's puzzle (WORLD-24): the three gears she finds on the stargazer's island first, scattered round it off its
+ * middle and its bridge (step 1); then the place of its two tasks before the stand - the gears on the axle (step 2), the
+ * hands (step 3) - looked at toward the tower (north, -z).
+ */
+export const GEARS: readonly Place[] = [
+  { x: ISLANDS.observatory.x - 7.5, z: ISLANDS.observatory.z + 3 },
+  { x: ISLANDS.observatory.x + 8, z: ISLANDS.observatory.z - 3.5 },
+  { x: ISLANDS.observatory.x - 5.5, z: ISLANDS.observatory.z - 7.5 },
+];
+// (east of the stand by a little: the heroine, set beside the task, stands out of Mertsal's talk - no "hello" button over it)
+export const CLOCK_AT = { x: CLOCK.x + 1.5, z: CLOCK.z + 1.4, facing: Math.PI } as const;
 /** The windmills of Chirika's island: three, their sails ≈8 m across turning by the magic later. */
 export const MILLS: readonly (Place & { yaw: number })[] = [
   { ...at(APART + 3.75, -3.75), yaw: -0.6 },

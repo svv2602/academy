@@ -40,6 +40,12 @@ export interface WorldTaskState {
   readonly rung: number;
   /** The middle of the task as the world would store it. */
   readonly progress: readonly number[];
+  /**
+   * A task of a puzzle of several tasks in one step of a chain (the observatory's clock, WORLD-24): its place among them
+   * and how many there are, [n, of]. Only the last ends the chain's step; each records its own skill
+   * (tools/world-pass.mjs `stageProblems`). Absent: the task is the whole step.
+   */
+  readonly stage?: readonly [number, number];
 }
 
 /** What every kind of task in the world gives the frame and the world. */

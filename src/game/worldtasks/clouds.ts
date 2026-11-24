@@ -88,7 +88,7 @@ const SPREAD = 1.7;       // m between two clouds across the gap
 const HOP = 0.45;         // s of game time one hop takes
 const SPRING = 0.5;       // s a wrong cloud springs with her on it
 const TAP_UP = 0.35;      // m over a cloud's middle where a tap on it is measured from
-const EXAMPLE_Y = 2.3;    // m over the deck where the example of the step ahead hangs
+const EXAMPLE_Y = 1.85;   // m over the deck where the example of the step ahead hangs (under the bubble at the top of a phone's screen)
 
 /** A wide label: the example over the step ahead. */
 function textTexture(text: string): THREE.Texture | null {

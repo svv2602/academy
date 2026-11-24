@@ -11,7 +11,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   PART_MAGIC,
   HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
-  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, startProblems,
+  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
   unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
@@ -334,6 +334,16 @@ describe('a task played in the world on a step a chain declares (PLAY-01, R97)',
     const more = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 3 }, add: { tasks: 4 } });
     expect(closeProblems(before, rec({ held: more, stored: more })).map((p) => p.split(' holds')[0])).toEqual(['the game', 'the stored save']);
     expect(one(closeProblems(before, rec({ state: st() })))).toContain('the task is still open after its close button');
+  });
+
+  it('e) solved, a task of a puzzle of several in one step (WORLD-24) before its last: the chain still at its step, one task more in one skill', () => {
+    const before = rec();
+    const mid = rec2({ quests: { hare: 1 }, flags: {} }, 5, { compare: { tasks: 2 }, add: { tasks: 4 }, pattern: { tasks: 1 } });
+    expect(stageProblems(before, rec({ held: mid, stored: mid }), 'hare', 1)).toEqual([]);
+    const ended = rec2({ quests: { hare: 2 }, flags: {} }, 8, { compare: { tasks: 2 }, add: { tasks: 4 }, pattern: { tasks: 1 } });
+    expect(one(stageProblems(before, rec({ held: mid, stored: ended }), 'hare', 1))).toContain('a task of the puzzle before its last ended the step');
+    expect(stageProblems(before, rec({ held: was, stored: was }), 'hare', 1)).toEqual(['the game: the tasks of the skills changed in none, one task more in one skill expected', 'the stored save: the tasks of the skills changed in none, one task more in one skill expected']);
+    expect(one(stageProblems(before, rec({ state: st(), held: mid, stored: mid }), 'hare', 1))).toContain('still open');
   });
 
   it('e) solved: the step stored, 3 stars more, one task more in exactly one skill - in memory and in the stored save', () => {
