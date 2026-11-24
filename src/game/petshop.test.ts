@@ -19,13 +19,14 @@ const dealDayOf = (x: Save, id: string) => {
 };
 
 describe('the catalog of the pets', () => {
-  it('has the things and prices of the plan: three of each pet and one rare each, at 30, and the gifts of a trade for the fawn and the owlet', () => {
+  it('has the things and prices of the plan: three of each pet and one rare each, at 30, and the gifts of a trade for the fawn, the owlet and Bulchik', () => {
     expect(Object.fromEntries(PET_ITEMS.map((x) => [x.id, [x.pet, x.price, x.rare === true]]))).toEqual({
       cat_collar: ['cat', 15, false], cat_bow: ['cat', 15, false], cat_hat: ['cat', 25, false], cat_gold_bell: ['cat', 30, true],
       fawn_wreath: ['fawn', 15, false], fawn_ribbon: ['fawn', 15, false], fawn_bell: ['fawn', 20, false], fawn_star_crown: ['fawn', 30, true],
       // a character's gift for a trade (PLAY-28): never sold, no price
       fawn_leaf_bow: ['fawn', undefined, false],
       owlet_leaf_scarf: ['owlet', undefined, false],
+      bulchik_coral_necklace: ['bulchik', undefined, false],
     });
   });
   it('every thing has its model on the bone of its own pet (src/game/petgear.ts)', () => {

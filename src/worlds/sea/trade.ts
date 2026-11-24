@@ -4,7 +4,8 @@ import type { Trades } from '../../game/trade';
  * The asks of the sea's characters (PLAY-28, src/game/trade.ts; the customer's word of 2026-11-23): each two of the sea's
  * own finds (./collect.ts: spiral shells and coral twigs) - for stars or a thing the shop has not - and one "far" ask,
  * finds of another open world: the forest's (open whenever the sea is), the Fairy Kingdom's or the golden feather of the
- * Great Tree. The thing: Khvylia's shell tiara for her. A thing is given once: after that its ask is not made.
+ * Great Tree. The things: Khvylia's shell tiara for her; Bulk's coral necklace for Bulchik, his little brother, asked only once
+ * Bulchik is found (src/game/trade.ts `petOpen`). A thing is given once: after that its ask is not made.
  * The lines: `<id>_trade_ask`, `<id>_trade_far`, `<id>_trade_thanks` in ./strings.ts, said in the character's voice.
  */
 export const TRADES: Trades = {
@@ -14,7 +15,7 @@ export const TRADES: Trades = {
     { id: 'far', need: { treefeather: 1 }, gives: 'stars', far: true },
   ],
   bulk: [
-    { id: 'reef', need: { coral: 3 }, gives: 'stars' },
+    { id: 'reef', need: { coral: 3 }, gives: { item: 'bulchik_coral_necklace' } },
     { id: 'shells', need: { shell: 3 }, gives: 'stars' },
     { id: 'far', need: { cone: 2 }, gives: 'stars', far: true },
   ],

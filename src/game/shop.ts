@@ -110,11 +110,12 @@ export function stock(s: Save, id: SupplyId): number {
 }
 
 /**
- * The pets that wear things: the cat (the companion), the fawn (the pet of the first world) and the owlet (the forest's,
- * src/game/pets.ts; its things hang on its model where a world loads it, src/game/petgear.ts `hangOwnGear`).
+ * The pets that wear things: the cat (the companion), the fawn (the pet of the first world), the owlet (the forest's) and
+ * Bulchik (the sea's) - these two of src/game/pets.ts, their things hung on their models where a world loads them
+ * (src/game/petgear.ts `hangOwnGear`).
  */
-export type PetWearer = 'cat' | 'fawn' | 'owlet';
-export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn', 'owlet'];
+export type PetWearer = 'cat' | 'fawn' | 'owlet' | 'bulchik';
+export const PET_WEARERS: readonly PetWearer[] = ['cat', 'fawn', 'owlet', 'bulchik'];
 /**
  * A thing of a pet: its pet, its price; `rare` - sold only on the day it is the deal of the day; `reward: 'trade'` - not
  * sold, a character's gift for a trade (PLAY-28), no price.
@@ -132,6 +133,7 @@ export const PET_ITEMS: readonly PetItem[] = [
   { id: 'fawn_star_crown', pet: 'fawn', price: 30, rare: true },
   { id: 'fawn_leaf_bow', pet: 'fawn', reward: 'trade' },
   { id: 'owlet_leaf_scarf', pet: 'owlet', reward: 'trade' },
+  { id: 'bulchik_coral_necklace', pet: 'bulchik', reward: 'trade' },
 ];
 export const petItem = (id: string): PetItem | undefined => PET_ITEMS.find((x) => x.id === id);
 

@@ -32,14 +32,14 @@ type Tab = 'dress' | 'hair' | Slot | PetWearer | 'potions';
 const TABS: readonly { id: Tab; icon: string }[] = [
   { id: 'dress', icon: '👗' }, { id: 'hair', icon: '💇' }, { id: 'wings', icon: '🪽' },
   { id: 'head', icon: '👑' }, { id: 'wand', icon: '🪄' }, { id: 'trail', icon: '✨' },
-  { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'owlet', icon: '🦉' }, { id: 'potions', icon: '🧪' },
+  { id: 'cat', icon: '🐱' }, { id: 'fawn', icon: '🦌' }, { id: 'owlet', icon: '🦉' }, { id: 'bulchik', icon: '🐲' }, { id: 'potions', icon: '🧪' },
 ];
 /** The picture of each thing on its tile; `none` is the empty slot (no hat, no wand, no wings, no sparkles). */
 export const ICON: Record<string, string> = {
   none: '🚫', wreath: '🌸', crown: '👑', wizard_hat: '🧙', earrings_star: '⭐', wand_star: '🪄', wand_crystal: '💎', feather_crown: '🪶', acorn_cap: '🧢', mushroom_hat: '🍄', shell_tiara: '🐚',
   wings_petals: '🧚', wings_butterfly: '🦋', trail_sparkle: '✨',
   cat_collar: '📿', cat_bow: '🎀', cat_hat: '🧙', cat_gold_bell: '🔔',
-  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂', owlet_leaf_scarf: '🧣',
+  fawn_wreath: '💐', fawn_ribbon: '🎀', fawn_bell: '🔔', fawn_star_crown: '👑', fawn_leaf_bow: '🍂', owlet_leaf_scarf: '🧣', bulchik_coral_necklace: '📿',
   tiara: '👸', wizard_cap: '🎩', elf_ears: '🧝', wand_flower: '🌼', wand_moon: '🌙', wand_leaf: '🍃',
 };
 /** The price of a tile: the deal of the day has its own price crossed out before the new one. */

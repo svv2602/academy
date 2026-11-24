@@ -1358,6 +1358,8 @@ describe('the things the pets wear: `petGear`, a field of version 4 without a ne
   it('a damaged id is dropped, a damaged field is empty', () => {
     expect(load({ petGear: { cat: 3, fawn: '', dog: 'x' } }).petGear).toEqual({});
     expect(load({ petGear: { cat: 'later_thing' } }).petGear).toEqual({ cat: 'later_thing' });   // a later version's: kept
+    // the pets of the worlds' own models wear things too: the owlet, Bulchik
+    expect(load({ petGear: { owlet: 'owlet_leaf_scarf', bulchik: 'bulchik_coral_necklace' } }).petGear).toEqual({ owlet: 'owlet_leaf_scarf', bulchik: 'bulchik_coral_necklace' });
     for (const bad of [3, 'x', null, ['cat_bow']]) expect(load({ petGear: bad }).petGear, JSON.stringify(bad)).toEqual({});
   });
 });

@@ -5,7 +5,7 @@ import { facets, mat } from '../core/style';
 /**
  * The things built by code, not loaded (docs/worlds/style.md: our own shape on the frame, its weight only code): the
  * gifts of the characters for a trade (PLAY-28) - the crown of feathers, the acorn cap, the fly-agaric hat and the shell tiara
- * of the heroine, the leaf bow of the fawn, the leaf scarf of the owlet. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
+ * of the heroine, the leaf bow of the fawn, the leaf scarf of the owlet, the coral necklace of Bulchik. The core's models are at their budget (TECH-09, 10 MB); a thing of a few shapes costs no file.
  *
  * Each is built where a loaded one would be: in the rest-pose space of its wearer's unscaled model, as tools/items/
  * items.py and pet_items.py model theirs - in Blender's axes (z up, the face to -y), turned here into the model's own
@@ -158,6 +158,45 @@ function shellTiara(): THREE.Group {
   return assemble('shell_tiara', parts);
 }
 
+/**
+ * Bulchik's coral necklace, Bulk's gift (the sea's trade): a pearl string round his neck with coral beads on it and a
+ * twig of coral hanging in front - the sea's coral find made small (src/game/collections.ts). Bulk's model (Bulchik's
+ * too, smaller, src/game/pets.ts): y 0-1.42 (Blender's z), his neck the narrowest at z 0.5-0.56, x ±0.23, y ±0.33 (Blender's),
+ * the big head from z 0.7 up, his chest out to y -0.33 below; the string a little lower in front, as a necklace hangs, the
+ * twig short, off the chest.
+ */
+export const CORAL_NECKLACE = { string: '#fff2f6', coral: '#ff6f61', pearl: '#ffe4ec' } as const;
+function bulchikCoralNecklace(): THREE.Group {
+  const Z = 0.53, Y = 0, RX = 0.27, RY = 0.37, TILT = THREE.MathUtils.degToRad(12);
+  const str = mat.cloth(CORAL_NECKLACE.string), coral = mat.glow(CORAL_NECKLACE.coral, 0.15), pearl = mat.cloth(CORAL_NECKLACE.pearl);
+  // a point on the string at `deg` round it (0 the front, -y, the face's side), the string tilted down in front
+  const on = (deg: number, out = 0) => {
+    const a = THREE.MathUtils.degToRad(deg);
+    const v = new THREE.Vector3((RX + out) * Math.sin(a), -(RY + out) * Math.cos(a), 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), TILT);
+    return [v.x, v.y + Y, v.z + Z];
+  };
+  const parts: Part[] = [{
+    geo: new THREE.TorusGeometry(1, 0.025, 4, 18).scale(RX, RY, 1).rotateX(TILT).translate(0, Y, Z), mat: str,
+  }];
+  // beads round it, coral and pearl in turn, the big ones to the front; none at the back (+y), under the crest
+  [-120, -95, -70, -45, -22, 22, 45, 70, 95, 120].forEach((deg, i) => {
+    const r = Math.abs(deg) < 50 ? 0.05 : 0.04;
+    parts.push({ geo: egg(6, on(deg, 0.01), [r, r, r]), mat: i % 2 ? pearl : coral });
+  });
+  // the twig in front: a stem down from the string and two branches, each with a rounded tip
+  const [fx, fy, fz] = on(0, 0.04);
+  parts.push({ geo: egg(6, [fx, fy, fz], [0.045, 0.045, 0.045]), mat: pearl });
+  parts.push({ geo: new THREE.CylinderGeometry(0.018, 0.024, 0.08, 5).rotateX(Math.PI / 2).translate(fx, fy - 0.01, fz - 0.06), mat: coral });
+  for (const side of [-1, 1]) {
+    const tip = [fx + side * 0.05, fy - 0.015, fz - 0.08];
+    parts.push({ geo: new THREE.CylinderGeometry(0.012, 0.016, 0.07, 5).rotateX(Math.PI / 2).rotateY(side * 0.7).translate(fx + side * 0.025, fy - 0.012, fz - 0.07), mat: coral });
+    parts.push({ geo: egg(5, tip, [0.02, 0.02, 0.02]), mat: coral });
+  }
+  parts.push({ geo: egg(5, [fx, fy - 0.01, fz - 0.11], [0.024, 0.024, 0.024]), mat: coral });
+  return assemble('bulchik_coral_necklace', parts);
+}
+
 export const BUILT: Readonly<Record<string, () => THREE.Group>> = {
   feather_crown: featherCrown, acorn_cap: acornCap, mushroom_hat: mushroomHat, shell_tiara: shellTiara, fawn_leaf_bow: fawnLeafBow, owlet_leaf_scarf: owletLeafScarf,
+  bulchik_coral_necklace: bulchikCoralNecklace,
 };

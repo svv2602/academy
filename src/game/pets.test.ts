@@ -646,6 +646,24 @@ describe('Bulchik of the sea (PLAY-09): his brother\'s model made small and ligh
     s2.end();
   });
 
+  it('his things (the coral necklace, Bulk\'s gift for a trade) hang on his model as a world loads it, the one he wears shown; gone with the world', async () => {
+    const model = new THREE.Group(), root = new THREE.Bone(), body = new THREE.Bone();
+    root.name = 'Root'; body.name = 'Body'; body.position.set(0, 0.31, -0.31); root.add(body); model.add(root);
+    const rig: Rig = { root: new THREE.Group().add(model), model, clips: new Map() };
+    wearPetGear({}, 'bulchik', 'bulchik_coral_necklace');
+    const scope = scopeOf();
+    await loadOwnPets('sea', ['bulchik'], scope, () => Promise.resolve(rig));
+    const necklace = body.getObjectByName('bulchik_coral_necklace')!;
+    expect(necklace).toBeTruthy();
+    expect(necklace.visible).toBe(true);              // worn before the sea was entered: shown as he comes
+    wearPetGear({}, 'bulchik', null);
+    expect(necklace.visible).toBe(false);             // taken off in the shop
+    scope.end();
+    wearPetGear({}, 'bulchik', 'bulchik_coral_necklace');
+    expect(necklace.visible).toBe(false);             // the world gone: its model no more worn on
+    wearPetGear({}, 'bulchik', null);
+  });
+
   it('he swims after her on Swim, and where he stops he stays floating at his rest, not lying on the floor', () => {
     const { g, pets, it: b } = following();
     expect(b.root.position.y).toBeCloseTo(rest, 6);            // he joins floating, from the first frame

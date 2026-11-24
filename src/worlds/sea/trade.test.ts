@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { defaultSave, type Save } from '../../core/save';
 import { COLLECT_KINDS } from '../../game/collections';
 import { GEAR } from '../../game/gear';
-import { item } from '../../game/shop';
+import { item, petItem } from '../../game/shop';
 import { shownOffers, tradeProblems } from '../../game/trade';
 import { FRIENDS } from './index';
 import { strings } from './strings';
@@ -43,9 +43,9 @@ describe('the asks of the sea', () => {
     expect([...farWorlds].sort()).toEqual(['fairy', 'forest', 'hub']);
   });
 
-  it('the thing: Khvylia\'s shell tiara for her, a thing of the head, given once', () => {
+  it('the things: Khvylia\'s shell tiara for her, a thing of the head, given once', () => {
     const things = Object.values(TRADES).flat().flatMap((o) => (o.gives === 'stars' ? [] : [o.gives.item])).sort();
-    expect(things).toEqual(['shell_tiara']);
+    expect(things).toEqual(['bulchik_coral_necklace', 'shell_tiara']);
     expect(item('shell_tiara')).toMatchObject({ slot: 'head', reward: 'trade' });
     expect(GEAR.shell_tiara).toEqual({ slot: 'head', bone: 'Head' });
     const tiara = (s: Save) => shownOffers(s, TRADES.khvylia).some((o) => o.id === 'tiara');
@@ -53,6 +53,18 @@ describe('the asks of the sea', () => {
     expect(tiara(s)).toBe(true);
     s.owned.push('shell_tiara');
     expect(tiara(s)).toBe(false);
+  });
+
+  it('Bulk\'s coral necklace for Bulchik, his little brother: asked only once Bulchik is found, given once', () => {
+    expect(petItem('bulchik_coral_necklace')).toMatchObject({ pet: 'bulchik', reward: 'trade' });
+    expect(TRADES.bulk.find((o) => o.id === 'reef')?.gives).toEqual({ item: 'bulchik_coral_necklace' });
+    const necklace = (s: Save) => shownOffers(s, TRADES.bulk).some((o) => o.id === 'reef');
+    const s = save(['fairy', 'hub', 'forest', 'sea']);
+    expect(necklace(s)).toBe(false);                    // Bulchik still hidden in the shell garden
+    s.worlds.sea!.flags.pet = true;
+    expect(necklace(s)).toBe(true);
+    s.owned.push('bulchik_coral_necklace');
+    expect(necklace(s)).toBe(false);
   });
 
   it('every character says its ask, its far ask and its thanks, in both languages, spoken', () => {

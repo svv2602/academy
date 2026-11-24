@@ -1,5 +1,5 @@
 /**
- * The things of the pets (decision of 2026-11-20): the cat's, the fawn's and the owlet's, modelled by tools/items/pet_items.py in the
+ * The things of the pets (decision of 2026-11-20): the cat's, the fawn's, the owlet's and Bulchik's, modelled by tools/items/pet_items.py in the
  * rest-pose space of each pet's own unscaled model, each under a bone of it. They are loaded with the pets (the shared
  * load, src/game/boot.ts), while the models still stand in their rest pose, and hung hidden under their bones with the
  * inverse of the bone's rest matrix in model space - as the heroine's things (src/game/gear.ts) - so they grow with the
@@ -25,6 +25,8 @@ export const PET_GEAR = {
   fawn_leaf_bow: { pet: 'fawn', bone: 'Head' },
   // the owlet's (a model of the forest's files): round its neck, on its body - the head turns inside it
   owlet_leaf_scarf: { pet: 'owlet', bone: 'Body' },
+  // Bulchik's (a model of the sea's files, Bulk's): round his neck, on his body - the head turns over it
+  bulchik_coral_necklace: { pet: 'bulchik', bone: 'Body' },
 } as const satisfies Record<string, { pet: PetWearer; bone: string }>;
 export type PetGearId = keyof typeof PET_GEAR;
 export const PET_GEAR_IDS = Object.keys(PET_GEAR) as PetGearId[];
