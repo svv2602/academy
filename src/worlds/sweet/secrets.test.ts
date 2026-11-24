@@ -2,7 +2,8 @@
  * The secrets of the Sweet Land (./secrets.ts; PLAY-07, docs/worlds/world-4.md «Секреты»): four, each found once with
  * its stars; the box opens its lid; the cloud tosses her onto the roof of Imbir's house, where the lollipop is the find,
  * and she falls back down off its edge; the fountain splashes every time and the cat is glad; the machine has her blow a
- * bubble every time she comes; all of them where she walks, off the ways and the lines of sight.
+ * bubble every time she comes; the cat's word of each the first time; all of them where she walks, off the ways and the
+ * lines of sight.
  */
 import * as THREE from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,7 +21,7 @@ import { colliders, height, lineDist, pathDist, resolve, riverDist, support, top
 /** A game of what the secrets read: the scene, the save, the heroine, the cat, the stars given. */
 function game() {
   const scene = new THREE.Scene(), hero = { root: new THREE.Object3D(), heading: 0 };
-  const stars: number[] = [], cat: string[] = [];
+  const stars: number[] = [], cat: string[] = [], said: string[] = [];
   const g = {
     scene, hero,
     cat: { once: (c: string) => { cat.push(c); } },
@@ -29,10 +30,11 @@ function game() {
     above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy),
     persist: () => {},
     sparks: { burst: () => {} },
+    speech: { line: (k: string) => { said.push(k); return Promise.resolve(); } },
   };
   const scope = createWorldScope(scene);
   const s = createSweetSecrets(g as unknown as Parameters<typeof createSweetSecrets>[0], scope);
-  return { g, s, stars, cat, scope, hp: hero.root.position, vy: 0 };
+  return { g, s, stars, cat, said, scope, hp: hero.root.position, vy: 0 };
 }
 type T = ReturnType<typeof game>;
 /** A frame of the game as src/game/player.ts walks her: resolve, the ground or a top under her feet, gravity; then the secrets. */
@@ -97,12 +99,14 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     spot.run();
     expect(t.g.ws.flags[CHEST_FLAG]).toBe(true);
     expect(t.stars).toEqual([5]);
+    expect(t.said).toEqual(['sweet_secret_box']);     // the cat's word as it opens
     run(t, 1);
     const lid = t.g.scene.getObjectByName('secret-lid')!;
     expect(lid.rotation.x).toBeLessThan(-1.5);
     expect(spot.on()).toBe(false);
     spot.run();
     expect(t.stars).toEqual([5]);
+    expect(t.said).toEqual(['sweet_secret_box']);
   });
 
   it('the cloud: walked into, it tosses her onto the roof; the lollipop there is the find; off the edge she falls to the ground', () => {
@@ -111,6 +115,7 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     put(t, { x: COTTON_CLOUD.x - 3, z: COTTON_CLOUD.z });
     walk(t, COTTON_CLOUD, 20);
     expect(t.s.active(CLOUD_FLAG)).toBe(true);
+    expect(t.said).toEqual(['sweet_secret_cotton']);  // the cat's word as it tosses her up
     run(t, TOSS_S + 0.2);
     expect(t.s.active(CLOUD_FLAG)).toBe(false);
     expect(t.hp.y).toBeCloseTo(roof.top, 3);
@@ -134,6 +139,7 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     expect(t.s.active(CLOUD_FLAG)).toBe(true);
     run(t, TOSS_S + 0.5);
     expect(t.stars).toEqual([3]);
+    expect(t.said).toEqual(['sweet_secret_cotton']);  // said once
   });
 
   it('the roof: the toss goes up over it and comes down on it; from the ground her jump does not reach it and the house stops her', () => {
@@ -162,12 +168,14 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     expect(t.g.ws.flags[LEMONADE_FLAG]).toBe(true);
     expect(t.stars).toEqual([3]);
     expect(t.cat).toEqual(['Yes']);
+    expect(t.said).toEqual(['sweet_secret_lemonade']);
     run(t, SPLASH_S + 0.2);
     expect(t.s.active(LEMONADE_FLAG)).toBe(false);
     expect(spot.on()).toBe(true);
     spot.run();
     expect(t.cat).toEqual(['Yes', 'Yes']);
     expect(t.stars).toEqual([3]);
+    expect(t.said).toEqual(['sweet_secret_lemonade']);   // the word the first time only
   });
 
   it('the machine: standing before it she blows a bubble, it pops; again only after she has left; the stars the first time', () => {
@@ -187,6 +195,7 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     expect(t.s.debug.bubble()).toBeNull();
     expect(t.g.ws.flags[GUM_FLAG]).toBe(true);
     expect(t.stars).toEqual([3]);
+    expect(t.said).toEqual(['sweet_secret_gum']);     // the cat's word as it pops
     // she stays: no second bubble
     run(t, GUM_WAIT + 1);
     expect(t.s.active(GUM_FLAG)).toBe(false);
@@ -196,6 +205,7 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     expect(t.s.active(GUM_FLAG)).toBe(true);
     run(t, BLOW_S + 0.3);
     expect(t.stars).toEqual([3]);
+    expect(t.said).toEqual(['sweet_secret_gum']);
   });
 
   it('the walkthrough\'s moves find every walk and act secret from where the description puts them; the glimmer shows only those not found', () => {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sfx } from '../../core/audio';
+import { sfx, speaking } from '../../core/audio';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
@@ -22,8 +22,9 @@ import { colliders, height, tops } from './terrain';
  * - bubble_gum: the gum machine at the market: she stands before it a while and blows a bubble, which pops into
  *   confetti - every time she comes again; the stars the first time.
  *
- * The grey build speaks nothing of its own (./strings.ts): the cat's word of a find, as the sea's `sea_secret_*`, comes
- * with the world's recorded lines; until then a find has its sound and its sparks.
+ * The cat says its word of each the first time it is found, as the sea's `sea_secret_*` (./strings.ts `sweet_secret_*`):
+ * the box as it opens, the cloud as it tosses her up (once a visit, until the lollipop is found), the fountain at its
+ * first splash, the bubble as it pops - after the line that sounds then, not over it.
  *
  * The box's body, the fountain, the machine and the cloud are one mesh; the box's lid, the roof's lollipop and the
  * bubble are one each (the lollipop until it is found, the bubble while it is blown): four draw calls at most, none of
@@ -34,6 +35,12 @@ export const SWEET_SECRETS = [CHEST_FLAG, CLOUD_FLAG, LEMONADE_FLAG, GUM_FLAG] a
 export type SweetSecret = (typeof SWEET_SECRETS)[number];
 /** How each is done (WorldItem.how): the box and the fountain by the action button, the cloud and the machine by walking. */
 export const SECRET_HOW: Record<SweetSecret, 'act' | 'walk'> = { candy_box: 'act', cotton_cloud: 'walk', lemonade: 'act', bubble_gum: 'walk' };
+/** The cat's word of each find (./strings.ts). */
+export const SECRET_WORD: Record<SweetSecret, 'sweet_secret_box' | 'sweet_secret_cotton' | 'sweet_secret_lemonade' | 'sweet_secret_gum'> = {
+  candy_box: 'sweet_secret_box', cotton_cloud: 'sweet_secret_cotton', lemonade: 'sweet_secret_lemonade', bubble_gum: 'sweet_secret_gum',
+};
+/** s: how long the cat's word of a find waits for the line that sounds to end; longer, it is not said. */
+export const WORD_WAIT = 8;
 
 // ---------- the candy box ----------
 
@@ -195,9 +202,18 @@ export interface SweetSecrets {
   readonly debug: { box: ReturnType<typeof boxOf>; roof: ReturnType<typeof roofOf>; cloud: { x: number; z: number }; fountain: ReturnType<typeof fountainOf>; gum: ReturnType<typeof gumOf>; bubble: () => number | null; blow: () => void };
 }
 
-export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat' | 'sparks' | 'addStars' | 'above' | 'persist'>, scope: WorldScope): SweetSecrets {
+export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat' | 'sparks' | 'addStars' | 'above' | 'persist' | 'speech'>, scope: WorldScope): SweetSecrets {
   const { scene, ws, hero } = g;
   const found = (flag: SweetSecret) => ws.flags[flag] === true;
+  /** The cat's word of a find: after the line that sounds now, not over it (a hint over another line is turned away). */
+  const tell = (flag: SweetSecret) => {
+    let waited = 0;
+    const tryNow = () => {
+      if (!speaking()) { void g.speech.line(SECRET_WORD[flag], 'hint', 5000); return; }
+      if ((waited += 0.25) < WORD_WAIT) scope.timeout(tryNow, 250);
+    };
+    tryNow();
+  };
   // the stars of the chest and of every other secret, as the forest's and the sea's; literal numbers, so that
   // src/game/no-penalties.test.ts reads them as positive (LEARN-14)
   const give = (flag: SweetSecret, chest: boolean, at: THREE.Vector3) => {
@@ -236,6 +252,7 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
     sfx('good');
     g.sparks.burst(boxAt.clone().setY(boxAt.y + BOX.h + 0.2), '#ffd84a', 30, 2.5);
     give(CHEST_FLAG, true, boxAt);
+    tell(CHEST_FLAG);
   }
 
   // ---------- the cotton cloud and the roof ----------
@@ -244,7 +261,7 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
   swirl.name = 'secret-swirl'; swirl.castShadow = false;
   swirl.position.set(roof.swirl.x, roof.top, roof.swirl.z);
   swirl.visible = !found(CLOUD_FLAG);
-  let tossing = -1;
+  let tossing = -1, cloudTold = false;
   const tossFrom = new THREE.Vector3(), wasAt = hp.clone();
   const onRoof = () => overRoof(hp.x, hp.z) && hp.y > roof.top - 0.2;
   const cloudAt = v3(COTTON_CLOUD);
@@ -255,9 +272,9 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
   function splashUp() {
     splash = 0; splashNext = 0;
     sfx('pop');
-    // the cat is glad with her (its own laugh comes with the world's recorded lines)
+    // the cat is glad with her, every time; its word the first time
     g.cat.once('Yes', 'Idle');
-    if (!found(LEMONADE_FLAG)) give(LEMONADE_FLAG, false, jet);
+    if (!found(LEMONADE_FLAG)) { give(LEMONADE_FLAG, false, jet); tell(LEMONADE_FLAG); }
   }
 
   // ---------- the gum machine ----------
@@ -304,6 +321,7 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
         tossing = 0; tossFrom.copy(hp);
         sfx('jump');
         g.sparks.burst(cloudAt.clone().setY(cloudAt.y + 1), '#ffd6ea', 20, 2);
+        if (!cloudTold && !found(CLOUD_FLAG)) { cloudTold = true; tell(CLOUD_FLAG); }
       }
       wasAt.copy(hp);
       if (swirl.visible) {
@@ -341,7 +359,7 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
           blowing = -1;
           sfx('pop');
           for (const c of CONFETTI) g.sparks.burst(bubble.position, c, 10, 2.2);
-          if (!found(GUM_FLAG)) give(GUM_FLAG, false, gumAt);
+          if (!found(GUM_FLAG)) { give(GUM_FLAG, false, gumAt); tell(GUM_FLAG); }
         }
       }
     },
