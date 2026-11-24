@@ -115,10 +115,7 @@
 //      made it in this run) and the walkthrough of the Sweet Land by its description in it, the phone size
 //      (E2E_WORLD=sweet E2E_WORLD_NEED=grey): from its entry to its finale - its chains, the two rubies in the world,
 //      the tour, the finale. Pictures shots-e2e/worlds-grey/sweet/. A job of ci.yml only, as "hub-grey".
-//  11. The part "sea-grey" (tools/sea-pass.mjs `passEnv`, `passProblems`): the walkthrough of the sea by its description
-//      in the same grey build, the phone size (E2E_WORLD=sea E2E_WORLD_NEED=grey): its chains with the two tasks in
-//      the world (the shell lock, the second half) and the two pearls in it, the tour, its four secrets, the finale.
-//      Pictures shots-e2e/worlds-grey/sea/. A job of ci.yml only, as "hub-grey".
+//  11. (The part "sea-grey" played the sea's walkthrough in the grey build until the sea was published: now part 14.)
 //  12. The part "hub-forest" (tools/hub-grey.mjs `hubWay`): the way between the hub and the forest of part 9, played in
 //      the published build (the forest published 2026-11-24) - the given one, or one made anew (once a run, with the
 //      parts "walk" and "forest"). What the arches show follows the next worlds of that build (its worlds.json,
@@ -133,10 +130,13 @@
 //      published next world has a part of its own, named by its id: the part "walk" fails a published build that
 //      lists a world without one (`publishedWithoutPart`), and so does a test of the sources. Played alone it makes
 //      no probe build. Pictures shots-e2e/worlds-published/forest/.
+//  14. The part "sea" (tools/sea-pass.mjs `passEnv`, `passProblems`): the same for the published sea (2026-11-24): its
+//      chains with the two tasks in the world (the shell lock, the second half) and the two pearls in it, the
+//      cutscenes, the tour, Bulchik, its four secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
-// the sea's of part 11 and the forest's of part 13, default tools/sea-pass.mjs and tools/forest-pass.mjs PASS_TIMEOUT_MS;
+// the forest's of part 13 and the sea's of part 14, default tools/sea-pass.mjs and tools/forest-pass.mjs PASS_TIMEOUT_MS;
 // the Sweet Land's, tools/sweet-grey.mjs PASS_TIMEOUT_MS).
 // Exit code: 0 — passed; 1 — a check failed (every failure is printed as "worlds: …"); 2 — bad arguments.
 import { execFileSync, spawn } from 'node:child_process';
@@ -171,9 +171,9 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey', 'hub-forest', 'forest'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'hub-forest', 'forest', 'sea'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
-export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sea-grey'];
+export const GREY_PARTS = ['hub-grey', 'sweet-grey'];
 /**
  * The parts played before a publication (.github/workflows/pages.yml): all but the grey build's (GREY_PARTS) - the grey
  * worlds are not published and must not hold a publication; main only gets a commit already green in ci.yml, which
@@ -189,7 +189,7 @@ export function publishedWithoutPart(next, parts = PUBLISH_PARTS) {
   return next.filter((id) => !parts.includes(id));
 }
 /** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest and the walkthroughs of the published worlds in the published one. */
-export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest'];
+export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea'];
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -842,7 +842,7 @@ async function main() {
 
   // ---- the part "hub-grey": the way between the hub and the forest in the grey build (tools/hub-grey.mjs) ----
   // Its own build (`--mode grey`, dist-grey/) and server; the probe build is not made for it alone. The part
-  // "sweet-grey" and "sea-grey" play in the same build: it is made once a run.
+  // "sweet-grey" plays in the same build: it is made once a run.
   let greyBuilt = false;
   const greyDist = join(root, GREY_DIST);
   /** The browser of the parts of the way to the forest: nothing but this machine is reached (the refusal without network rests on it too). */
@@ -913,13 +913,6 @@ async function main() {
     await worldPass('the Sweet Land', greyDist, join('shots-e2e', 'worlds-grey', 'sweet'), (out) => sweetPassEnv(process.env, out), sweetPassTimeoutMs(process.env), sweetPassProblems,
       'the Sweet Land of the grey build: played by its description from its entry to its finale');
   } catch (e) { fail(e.message); }
-  // ---- the part "sea-grey": the walkthrough of the sea by its description in the grey build (tools/sea-pass.mjs) ----
-  // the sea's own limit: the longest walkthrough seen on the runner (tools/sea-pass.mjs PASS_TIMEOUT_MS)
-  if (play('sea-grey')) try {
-    await greyBuild();
-    await worldPass('the sea', greyDist, join('shots-e2e', 'worlds-grey', 'sea'), (out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,
-      'the sea of the grey build: played by its description from its entry to its finale, its four secrets found');
-  } catch (e) { fail(e.message); }
   // ---- the part "forest": the walkthrough of the published forest in the published build (tools/forest-pass.mjs) ----
   // a job of its own in both workflows: a publication waits for it. A build without the forest among its next worlds fails
   // here - the part must not be green over a world the build does not have.
@@ -929,6 +922,15 @@ async function main() {
     if (!next.includes('forest')) throw new Error(`the published build ${dist} has no forest among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the forest', dist, join('shots-e2e', 'worlds-published', 'forest'), (out) => forestPassEnv(process.env, out), forestPassTimeoutMs(process.env), forestPassProblems,
       'the forest of the published build: played by its description from its entry to its finale, its four secrets found');
+  } catch (e) { fail(e.message); }
+  // ---- the part "sea": the walkthrough of the published sea in the published build (tools/sea-pass.mjs) ----
+  // as the forest's; the sea's own limit: the longest walkthrough seen on the runner (tools/sea-pass.mjs PASS_TIMEOUT_MS)
+  if (play('sea')) try {
+    await publishedBuild();
+    const next = buildWorlds(dist);
+    if (!next.includes('sea')) throw new Error(`the published build ${dist} has no sea among its next worlds (worlds.json: ${JSON.stringify(next)})`);
+    await worldPass('the sea', dist, join('shots-e2e', 'worlds-published', 'sea'), (out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,
+      'the sea of the published build: played by its description from its entry to its finale, its four secrets found');
   } catch (e) { fail(e.message); }
   if (read.parts.every((x) => NO_PROBE_PARTS.includes(x))) end();
 

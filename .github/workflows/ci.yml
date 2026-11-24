@@ -176,7 +176,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey, hub-forest, forest]   # the parts of tools/worlds.mjs, a job each (hub-grey: the grey build's way to the forest; sweet-grey, sea-grey: the Sweet Land's and the sea's walkthroughs in it; hub-forest: the way to the forest in this run's build; forest: the published forest's walkthrough in it)
+        part: [walk, cache, transition, travel, hub, hub-grey, sweet-grey, hub-forest, forest, sea]   # the parts of tools/worlds.mjs, a job each (hub-grey: the grey build's way to the forest; sweet-grey: the Sweet Land's walkthrough in it; hub-forest: the way to the forest in this run's build; forest, sea: the published worlds' walkthroughs in it)
     steps:
       # The same checkout as in "build": tools/worlds.mjs compares the commit in the build with the one of the sources.
       - uses: actions/checkout@v4

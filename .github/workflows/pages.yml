@@ -112,7 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [walk, cache, transition, travel, hub, hub-forest, forest]   # the parts of tools/worlds.mjs, a job each - PUBLISH_PARTS: not the grey build's (the grey worlds are not published; ci.yml plays them); hub-forest: the way to the published forest; forest: its walkthrough by its description
+        part: [walk, cache, transition, travel, hub, hub-forest, forest, sea]   # the parts of tools/worlds.mjs, a job each - PUBLISH_PARTS: not the grey build's (the grey worlds are not published; ci.yml plays them); hub-forest: the way to the published forest; forest, sea: the published worlds' walkthroughs by their descriptions
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

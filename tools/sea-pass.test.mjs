@@ -1,8 +1,9 @@
 // The pure parts of tools/sea-pass.mjs: the environment of the sea's walkthrough and the check of its report, the part
-// "sea-grey" of tools/worlds.mjs (a job of ci.yml, never before a publication).
+// "sea" of tools/worlds.mjs (in the published build, a job of both workflows: it holds a publication).
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { PASS_KINDS, PASS_TIMEOUT_MS, SEA, SECRETS, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs } from './sea-pass.mjs';
+import { NEED, PASS_KINDS, PASS_TIMEOUT_MS, SEA, SECRETS, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs } from './sea-pass.mjs';
+import { readNeed } from './world-pass.mjs';
 import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
 /** A report of a walkthrough that came to its end: every chain, the tour, the pearls, the secrets, the finale. */
@@ -11,19 +12,23 @@ function report() {
     ...['khvylia', 'bulk', 'pantsyr', 'kleshnya', 'iskorka'].map((id) => ({ id, kind: 'chain', how: 'act' })),
     { id: 'toured', kind: 'flyover', how: 'auto' }, { id: 'pearl_reef', kind: 'part', how: 'walk' }, { id: 'pearl_ship', kind: 'part', how: 'act' },
     ...SECRETS.map((id) => ({ id, kind: 'secret', how: 'act' })), { id: 'bulchik', kind: 'pet', how: 'act' }, { id: 'final', kind: 'finale', how: 'act' },
+    { id: 'story_intro', kind: 'scene', how: 'tap' }, { id: 'story_pearl', kind: 'scene', how: 'tap' },
   ];
-  return { world: SEA, size: 'mobile', online: true, need: 'grey', items, order: items.filter((i) => i.kind !== 'part').map((i) => i.id),
+  return { world: SEA, size: 'mobile', online: true, need: readNeed(NEED).label, items, order: items.filter((i) => i.kind !== 'part').map((i) => i.id),
     worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };
 }
 
 describe('tools/sea-pass.mjs', () => {
   it('plays the sea in the phone size with the network and the voice, its report where it is asked', () => {
-    expect(passEnv({ E2E_GL: 'gl', E2E_ONLY: 'shop' }, '/x/pass.json')).toEqual({ E2E_GL: 'gl', E2E_WORLD: 'sea', E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: '/x/pass.json', E2E_ONLY: '', E2E_MUTE: '0' });
+    expect(passEnv({ E2E_GL: 'gl', E2E_ONLY: 'shop' }, '/x/pass.json')).toEqual({ E2E_GL: 'gl', E2E_WORLD: 'sea', E2E_WORLD_NEED: 'template', E2E_WORLD_OUT: '/x/pass.json', E2E_ONLY: '', E2E_MUTE: '0' });
   });
 
   it('a walkthrough that came to its end has nothing wrong', () => {
     expect(passProblems(report())).toEqual([]);
-    expect(PASS_KINDS).toEqual(['chain', 'flyover', 'secret', 'pet', 'finale']);
+    expect(PASS_KINDS).toEqual(['chain', 'scene', 'flyover', 'secret', 'pet', 'finale']);
+    // the sea is published: its description is held to the numbers of the world template, not to a grey build's
+    expect(NEED).toBe('template');
+    expect(passProblems({ ...report(), need: readNeed('grey').label }).join('; ')).toContain('its description was checked against');
     // Bulchik not found: the pass did no item of the kind "pet"
     const r = report();
     r.items = r.items.filter((i) => i.kind !== 'pet'); r.order = r.order.filter((id) => id !== 'bulchik');
@@ -54,9 +59,10 @@ describe('tools/sea-pass.mjs', () => {
     expect(worlds).toContain('(out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,');
   });
 
-  it('is a part of tools/worlds.mjs of the grey build: played in ci.yml, never before a publication', () => {
-    expect(PARTS).toContain('sea-grey');
-    expect(GREY_PARTS).toContain('sea-grey');
-    expect(PUBLISH_PARTS).not.toContain('sea-grey');
+  it('is a part of tools/worlds.mjs of the published build since the sea was published: played before a publication too', () => {
+    expect(PARTS).toContain('sea');
+    expect(PUBLISH_PARTS).toContain('sea');
+    expect(GREY_PARTS).not.toContain('sea');
+    expect(PARTS).not.toContain('sea-grey');
   });
 });
