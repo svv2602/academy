@@ -1045,7 +1045,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey', 'hub-forest']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -1061,7 +1061,7 @@ describe('node tools/worlds.mjs', () => {
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey, hub-forest');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -1079,7 +1079,11 @@ describe('node tools/worlds.mjs', () => {
     expect(src).toMatch(/if \(play\('travel'\)\) try \{\n\s+const summary = await travelScenarios\(/);
     // every part of PARTS is played somewhere: a part nobody plays would be a green job that checks nothing
     for (const part of PARTS) expect(src.split(`if (play('${part}')) try {`), part).toHaveLength(2);
-    expect(src).toMatch(/if \(!play\('walk'\)\) console\.log\([^\n]*\n\s+else try \{\n\s+if \(!args\[0\]\) await vite\('the published build'\);/);
+    // the published build: made once a run when none is given, checked by "walk", the way to the forest played in it by "hub-forest"
+    expect(src).toContain("let publishedBuilt = !!args[0];\n  const publishedBuild = async () => { if (!publishedBuilt) { await vite('the published build'); publishedBuilt = true; } };");
+    expect(src).toMatch(/if \(!play\('walk'\)\) console\.log\([^\n]*\n\s+else try \{\n\s+await publishedBuild\(\);/);
+    expect(src).toMatch(/if \(play\('hub-forest'\)\) try \{\n\s+await publishedBuild\(\);\n\s+const next = buildWorlds\(dist\);\n(?:(?!\n {2}\}).*\n)*?\s+const wrong = await hubWay\(browser, [^\n]*next \}\);/);
+    expect(src).toMatch(/if \(play\('hub-grey'\)\) try \{\n(?:(?!\n {2}\}).*\n)*?\s+const wrong = await hubWay\(browser, [^\n]*next: buildWorlds\(greyDist\) \}\);/);
     // the probe build is made for every part
     expect(src).toMatch(/\n {2}try \{\n\s+rmSync\(probeDist, [^\n]*\n\s+await vite\('the probe build'/);
     for (const call of ['await cacheScenarios(', 'await transitionScenarios(', 'await travelScenarios(']) expect(src.split(call)).toHaveLength(2);

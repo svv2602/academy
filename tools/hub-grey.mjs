@@ -1,11 +1,14 @@
-// The way between the hub and the forest in the grey build (WORLD-01, docs/worlds/hub.md): played by
-// tools/forest-grey.mjs (its step 3b) and by tools/worlds.mjs as its part "hub-grey" (a job of CI), on dist-grey/
-// (`vite build --mode grey`, the registry lists the forest, the sea and the Sweet Land in that mode only). The phone size:
+// The way between the hub and the forest (WORLD-01, docs/worlds/hub.md): played by tools/forest-grey.mjs (its step 3b)
+// and by tools/worlds.mjs as its parts "hub-grey" (a job of ci.yml, on dist-grey/: `vite build --mode grey`, the forest,
+// the sea and the Sweet Land in the registry) and "hub-forest" (a job of both workflows, on the published build: the
+// forest published 2026-11-24, the sea not yet). What is expected of the arches follows the next worlds of the build
+// (`hubExpect`: its dist/worlds.json). The phone size:
 //   - the first world done: in the hub the forest's arch wakes and is open, the sea's asleep (src/worlds/hub/portals.ts
 //     openArches: an arch wakes once the world before it is done), the cat's sparkles lead to the forest's arch;
 //     through it by its action button into the forest, out of the arch of the Great Tree on its central glade
 //     (src/worlds/forest/hub-way.ts FROM_HUB), back through that arch to the hub at the forest's arch, facing the tree;
-//   - the forest done too: the sea's arch open as well; the Sweet Land's (shelf 3) still asleep - it wakes once the sea is done;
+//   - the forest done too: the sea's arch open as well when the build has the sea, asleep (no world behind it) when it
+//     has not; the Sweet Land's (shelf 3) still asleep - it wakes once the sea is done;
 //   - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
 //   - without network, the forest's files never cached (refused to the page from the start): the forest's arch
 //     refuses - the game stays in the hub, the frame never closes, the cat says "need_net" (src/main.ts `refuse`).
@@ -26,6 +29,28 @@ export const HUB_ARRIVAL = [0, 1, 2, 3, 4].map((shelf) => {
 /** The arch of a place of the shelf, where its action spot is (layout.ts PORTALS, r 12.5). */
 export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) * Math.PI * 2; return { x: Math.sin(a) * 12.5, z: Math.cos(a) * 12.5 }; });
 
+/**
+ * What the hub must show for the next worlds `next` of the build (the ids of its dist/worlds.json), the save of the
+ * fairies done (`fairies`) and of the forest done too (`forest`): the worlds behind the five arches, the shelves waking
+ * on the first entry, the flags of the hub's part of the save after it. The sea's arch (shelf 2) has a world only when
+ * the build has the sea (src/worlds/hub/portals.ts portalWorlds, openArches); without it its place sleeps.
+ */
+export function hubExpect(next) {
+  const sea = next.includes('sea');
+  return {
+    fairies: { arches: ['fairy', 'forest', null, null, null], woke: [1] },
+    forest: sea
+      ? { arches: ['fairy', 'forest', 'sea', null, null], woke: [1, 2], flags: ['woke1', 'woke2', 'sea_wake'], none: [] }
+      : { arches: ['fairy', 'forest', null, null, null], woke: [1], flags: ['woke1'], none: ['woke2', 'sea_wake'] },
+  };
+}
+
+/** The next worlds of the build in `dir`: the ids of its worlds.json (tools/vite-worlds.mjs); [] without one. */
+export function buildWorlds(dir) {
+  const file = join(dir, 'worlds.json');
+  return existsSync(file) ? Object.keys(JSON.parse(readFileSync(file, 'utf8')).worlds ?? {}) : [];
+}
+
 /** Serves `dir` on 127.0.0.1:`port` as static hosting does: a missing file is a 404. Resolves with the server; a busy port rejects. */
 export async function serveDir(dir, port) {
   const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
@@ -42,8 +67,13 @@ export async function serveDir(dir, port) {
   return server;
 }
 
-/** The way between the hub and the forest (see the head of the file). Returns the problems; prints what was seen. */
-export async function hubWay(browser, url, shots, { slow = false } = {}) {
+/**
+ * The way between the hub and the forest (see the head of the file), in the build whose next worlds are `next`
+ * (`buildWorlds`; the grey build's by default). Returns the problems; prints what was seen.
+ */
+export async function hubWay(browser, url, shots, { slow = false, next = ['forest', 'sea', 'sweet'] } = {}) {
+  const want = hubExpect(next);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   /** ms of a wait: on the runners' software rendering (about a frame a second) four times as long. */
   const T = (ms) => (slow ? ms * 4 : ms);
   mkdirSync(shots, { recursive: true });
@@ -89,18 +119,17 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
     return { ctx, page, g, until, inWorld, act, at, near, calls, woke };
   };
   const arches = (p) => p.g(() => __game.hub.portals().map((a) => a.world));
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  try {
+    try {
     // ---- the first world done: the forest's arch open, there and back ----
     {
       const name = 'the fairies done';
       const p = await open(name, HUB_SAVES.one());
-      if (JSON.stringify(p.woke) !== '[1]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's`);
+      if (!same(p.woke, want.fairies.woke)) problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's`);
       // the forest's arch waking says its word (src/worlds/hub/strings.ts hub_forest_wake), never the sea's
       await p.until(() => __game.line === 'hub_forest_wake', null, `${name}: the cat did not say "hub_forest_wake" as the forest's arch woke`, 30000).catch((e) => problems.push(e.message));
       if ((await p.g(() => __game.line)) === 'hub_sea_wake') problems.push(`${name}: the cat said the sea woke while its arch sleeps`);
       const open1 = await arches(p);
-      if (!same(open1, ['fairy', 'forest', null, null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open1)}, not the fairies' and the forest's (the sea's asleep until the forest is done)`);
+      if (!same(open1, want.fairies.arches)) problems.push(`${name}: the arches lead to ${JSON.stringify(open1)}, not the fairies' and the forest's (the sea's asleep until the forest is done)`);
       const goal = await p.g(() => __game.hub.goal());
       if (!goal || Math.hypot(goal.x - HUB_ARCH[1].x, goal.z - HUB_ARCH[1].z) > 2) problems.push(`${name}: the cat's sparkles lead to ${JSON.stringify(goal)}, not to the forest's arch`);
       const n = await p.calls();
@@ -129,18 +158,18 @@ export async function hubWay(browser, url, shots, { slow = false } = {}) {
       const save = HUB_SAVES.one();
       save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const p = await open(name, save);
-      if (JSON.stringify(p.woke) !== '[1,2]') problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not the forest's and the sea's`);
+      if (!same(p.woke, want.forest.woke)) problems.push(`${name}: the arches waking on the first entry are ${JSON.stringify(p.woke)}, not ${JSON.stringify(want.forest.woke)}`);
       // the word of the arches waking together: the first of them that has one, the forest's (src/worlds/hub/index.ts
-      // wakeUp), once; the sea's flag of its word set with woke2 all the same (HEARD_WAKE)
+      // wakeUp), once; the sea's flag of its word set with woke2 all the same (HEARD_WAKE); without the sea, neither
       await p.until(() => __game.line === 'hub_forest_wake', null, 'the cat did not say "hub_forest_wake" as the arches woke', 30000).catch((e) => problems.push(e.message));
       const flags = await p.g(() => __game.save.worlds.hub?.flags ?? {});
-      if (!flags.woke1 || !flags.woke2 || !flags.sea_wake) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: woke1, woke2 and sea_wake expected`);
+      if (want.forest.flags.some((f) => !flags[f]) || want.forest.none.some((f) => flags[f])) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: ${want.forest.flags.join(', ')} expected${want.forest.none.length ? `, not ${want.forest.none.join(', ')}` : ''}`);
       const open2 = await arches(p);
-      if (!same(open2, ['fairy', 'forest', 'sea', null, null])) problems.push(`${name}: the arches lead to ${JSON.stringify(open2)}, not the fairies', the forest's and the sea's`);
+      if (!same(open2, want.forest.arches)) problems.push(`${name}: the arches lead to ${JSON.stringify(open2)}, not ${JSON.stringify(want.forest.arches)}`);
       const n = await p.calls();
-      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with three arches open, more than 80`);
-      await p.page.screenshot({ path: join(shots, 'way-hub-three-open.png') });
-      told.push(`the forest done: the forest's and the sea's arches woke, the cat said hub_forest_wake, the sea's open too, ${n} draw calls at the arrival`);
+      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with ${want.forest.arches.filter(Boolean).length} arches open, more than 80`);
+      await p.page.screenshot({ path: join(shots, 'way-hub-forest-done.png') });
+      told.push(`the forest done: the arches ${JSON.stringify(want.forest.woke)} woke, the cat said hub_forest_wake, open ${JSON.stringify(open2)}, ${n} draw calls at the arrival`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----

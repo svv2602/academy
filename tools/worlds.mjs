@@ -118,6 +118,11 @@
 //      in the same grey build, the phone size (E2E_WORLD=sea E2E_WORLD_NEED=grey): its chains with the two tasks in
 //      the world (the shell lock, the second half) and the two pearls in it, the tour, its four secrets, the finale.
 //      Pictures shots-e2e/worlds-grey/sea/. A job of ci.yml only, as "hub-grey".
+//  12. The part "hub-forest" (tools/hub-grey.mjs `hubWay`): the way between the hub and the forest of part 9, played in
+//      the published build (the forest published 2026-11-24) - the given one, or one made anew. What the arches show
+//      follows the next worlds of that build (its worlds.json, `hubExpect`): today the forest's alone, so with the forest
+//      done the sea's place still sleeps. A job of both workflows: the way to a published world holds a publication.
+//      Played alone it makes no probe build. Pictures shots-e2e/worlds-published/way-*.png.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
@@ -135,7 +140,7 @@ import { WORLDS_LIST } from './vite-worlds.mjs';
 import { isVoice, worldOf } from './world-files.mjs';
 import { ITEM_KINDS, reportProblems } from './world-pass.mjs';
 import { HUB_SAVES } from './e2e-saves.mjs';
-import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, hubWay, serveDir } from './hub-grey.mjs';
+import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, buildWorlds, hubWay, serveDir } from './hub-grey.mjs';
 import { passEnv as seaPassEnv, passProblems as seaPassProblems, passTimeoutMs as seaPassTimeoutMs } from './sea-pass.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems, passTimeoutMs as sweetPassTimeoutMs } from './sweet-grey.mjs';
 
@@ -154,7 +159,7 @@ export const PROBE_CHARACTERS = ['friend', 'kit'];
 /** The heading she arrives with in the probe world from the first one (src/worlds/probe/index.ts ARRIVAL: at the spawn 0,6, facing the portal at 7,3). */
 export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
 /** The parts of a run, in the order they are played; both workflows list them as the jobs "worlds" (tools/ci-pieces.test.mjs). */
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sea-grey', 'hub-forest'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
 export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sea-grey'];
 /**
@@ -163,6 +168,8 @@ export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sea-grey'];
  * plays every part.
  */
 export const PUBLISH_PARTS = PARTS.filter((x) => !GREY_PARTS.includes(x));
+/** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest in the published one. */
+export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest'];
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -787,9 +794,12 @@ async function main() {
 
   console.log(`[worlds] parts: ${read.parts.join(', ')}`);
   // ---- 1. the published build has nothing of the probe world ----
+  // made once a run when no build is given: the part "walk" checks it, the part "hub-forest" plays in it
+  let publishedBuilt = !!args[0];
+  const publishedBuild = async () => { if (!publishedBuilt) { await vite('the published build'); publishedBuilt = true; } };
   if (!play('walk')) console.log('[worlds] the published build: not checked - it is the check of the part "walk"');
   else try {
-    if (!args[0]) await vite('the published build');
+    await publishedBuild();
     const left = publishedProblems(dist);
     for (const p of left) fail(p);
     if (!left.length) console.log(`[worlds] the published build (${args[0] ? 'as given' : 'made anew'}): nothing of the probe world in ${filesOf(dist).length} files`);
@@ -813,6 +823,15 @@ async function main() {
   // "sweet-grey" and "sea-grey" play in the same build: it is made once a run.
   let greyBuilt = false;
   const greyDist = join(root, GREY_DIST);
+  /** The browser of the parts of the way to the forest: nothing but this machine is reached (the refusal without network rests on it too). */
+  const wayBrowser = async () => {
+    const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
+    const gl = process.env.E2E_GL || 'gl';
+    if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
+    const { chromium } = await import('playwright-core');
+    return chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true,
+      args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
+  };
   const greyBuild = async () => {
     if (greyBuilt) return;
     rmSync(greyDist, { recursive: true, force: true });
@@ -824,16 +843,24 @@ async function main() {
     const greyPort = await freePort();
     const server = await serveDir(greyDist, greyPort);
     console.log(`[worlds] ${GREY_DIST}/ served on http://127.0.0.1:${greyPort}/`);
-    const GL_ARGS = { gl: ['--use-angle=gl', '--enable-gpu'], swiftshader: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] };
-    const gl = process.env.E2E_GL || 'gl';
-    if (!GL_ARGS[gl]) throw new Error(`unknown E2E_GL="${gl}": use "gl" or "swiftshader"`);
-    const { chromium } = await import('playwright-core');
-    // the flags of every part: nothing but this machine is reached (the refusal without network rests on it too)
-    const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true,
-      args: [...GL_ARGS[gl], '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'] });
+    const browser = await wayBrowser();
     try {
-      const wrong = await hubWay(browser, `http://127.0.0.1:${greyPort}/`, join(root, 'shots-e2e', 'worlds-grey'), { slow: process.env.E2E_GL === 'swiftshader' });
+      const wrong = await hubWay(browser, `http://127.0.0.1:${greyPort}/`, join(root, 'shots-e2e', 'worlds-grey'), { slow: process.env.E2E_GL === 'swiftshader', next: buildWorlds(greyDist) });
       for (const p of wrong) fail(`the way between the hub and the forest: ${p}`);
+    } finally { await browser.close(); server.close(); }
+  } catch (e) { fail(e.message); }
+  // ---- the part "hub-forest": the same way in the published build (the forest published, tools/hub-grey.mjs) ----
+  if (play('hub-forest')) try {
+    await publishedBuild();
+    const next = buildWorlds(dist);
+    if (!next.includes('forest')) throw new Error(`the published build ${dist} has no forest among its next worlds (worlds.json: ${JSON.stringify(next)})`);
+    const port = await freePort();
+    const server = await serveDir(dist, port);
+    console.log(`[worlds] the published build served on http://127.0.0.1:${port}/ for the way to the forest (next worlds: ${next.join(', ')})`);
+    const browser = await wayBrowser();
+    try {
+      const wrong = await hubWay(browser, `http://127.0.0.1:${port}/`, join(root, 'shots-e2e', 'worlds-published'), { slow: process.env.E2E_GL === 'swiftshader', next });
+      for (const p of wrong) fail(`the way between the hub and the forest of the published build: ${p}`);
     } finally { await browser.close(); server.close(); }
   } catch (e) { fail(e.message); }
   // ---- the part "sweet-grey": the walkthrough of the Sweet Land by its description in the grey build (tools/sweet-grey.mjs) ----
@@ -882,7 +909,7 @@ async function main() {
       }
     } finally { server.close(); }
   } catch (e) { fail(e.message); }
-  if (read.parts.every((x) => GREY_PARTS.includes(x))) end();
+  if (read.parts.every((x) => NO_PROBE_PARTS.includes(x))) end();
 
   // ---- 2. the probe build, made anew ----
   const from = join(root, PROBE_FILES);
