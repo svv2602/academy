@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { buildWorlds as sourceNextWorlds, listWorlds } from './vite-worlds.mjs';
 import {
-  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, builtCode, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
   keyDiff, pelvisKey, playRound, probeBuildProblems, programKind, probeFiles, probeLeft, publishedProblems, publishedWithoutPart, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
@@ -242,6 +242,15 @@ describe('the probe build lists the world for the game (worlds.json, TECH-09)', 
     expect(missed).toEqual(['worlds.json does not list story/probe/sign.webp of the world "probe"']);
     const extra = listProblems(build({ 'models/probe/extra.glb': 'x', 'worlds.json': listOf([...Object.entries(FILES), ['models/probe/extra.glb', 'x']]) }), PROBE, files);
     expect(extra).toEqual(['worlds.json lists models/probe/extra.glb, which is not a file of the world "probe"']);
+  });
+
+  it('the world\'s code the build made (code/probe/) is a file of the world: listed, and missed when it is not', () => {
+    const code = { 'code/probe/probe-abc.js': 'export const probe = 1;' };
+    const listed = build({ ...code, 'worlds.json': listOf([...Object.entries(FILES), ...Object.entries(code)]) });
+    expect(builtCode(listed, PROBE)).toEqual(['code/probe/probe-abc.js']);
+    expect(listProblems(listed, PROBE, files)).toEqual([]);
+    expect(listProblems(build(code), PROBE, files)).toEqual(['worlds.json does not list code/probe/probe-abc.js of the world "probe"']);
+    expect(builtCode(build(), PROBE)).toEqual([]);
   });
 
   it('a listed file the build does not have', () => {
