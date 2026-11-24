@@ -2,7 +2,7 @@
 // its environment and the check of its report. Node's own modules only, nothing else imported statically: the chain the
 // CI plan loads (tools/worlds.mjs -> here) must not pull a package (tools/ci-pieces.test.mjs).
 
-import { reportProblems } from './world-pass.mjs';
+import { worldPassProblems } from './world-pass.mjs';
 
 /** The id of the sea (src/worlds/sea/index.ts). */
 export const SEA = 'sea';
@@ -26,7 +26,7 @@ export const WORLD_SKILLS = { 'khvylia 2': 'compose', 'pantsyr 0': 'pattern' };
  * The limit of the sea's walkthrough in tools/worlds.mjs, ms. It is the longest world walked there: on the CI runner
  * (swiftshader, ~1 fps) it took 8.4-10 min of the shared 10 (E2E_RUN_TIMEOUT_MS, 600000) - its chains 5.5-6.3 min,
  * the secrets 1-1.5, the two cut-scenes half a minute - and was killed at 10 once. Twice the slowest seen, inside the
- * job's 25 minutes (.github/workflows/ci.yml "worlds").
+ * job's 30 minutes with its setup (.github/workflows/ci.yml "worlds", tools/ci-pieces.test.mjs).
  */
 export const PASS_TIMEOUT_MS = 1200000;
 
@@ -42,19 +42,5 @@ export function passEnv(base, out) {
 
 /** What is wrong with the report of the walkthrough (`report`: the parsed E2E_WORLD_OUT, null - none): [] when it came to its end, online, every kind done. */
 export function passProblems(report, size = 'mobile') {
-  const out = reportProblems(report, { world: SEA, size, offline: false, kinds: PASS_KINDS, inWorld: true });
-  if (!report) return out;
-  const items = report.items ?? [], did = new Set(report.order ?? []);
-  const parts = items.filter((i) => i.kind === 'part').length;
-  if (parts < PARTS_IN_WORLD) out.push(`the description has ${parts} part(s) of the artifact in the world, ${PARTS_IN_WORLD} expected`);
-  for (const id of SECRETS) {
-    if (!items.some((i) => i.kind === 'secret' && i.id === id)) out.push(`the description has no secret "${id}"`);
-    else if (!did.has(id)) out.push(`the secret "${id}" was not found by the pass`);
-  }
-  for (const [key, skill] of Object.entries(WORLD_SKILLS)) {
-    if (!(report.worldTasks ?? []).includes(key)) { out.push(`the task in the world "${key}" was not played by the pass`); continue; }
-    const got = report.worldSkills?.[key];
-    if (got !== skill) out.push(`the task in the world "${key}" recorded ${got === undefined ? 'nothing the report shows' : got === null ? 'no skill' : `the skill "${got}"`}, "${skill}" expected`);
-  }
-  return out;
+  return worldPassProblems(report, { world: SEA, kinds: PASS_KINDS, parts: PARTS_IN_WORLD, secrets: SECRETS, skills: WORLD_SKILLS }, size);
 }

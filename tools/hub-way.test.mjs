@@ -42,7 +42,7 @@ describe('the way between the hub and the forest: what the arches show by the wo
     expect(PUBLISH_PARTS).toContain('hub-forest');
     expect(GREY_PARTS).not.toContain('hub-forest');
     expect(PUBLISH_PARTS).not.toContain('hub-grey');
-    expect(NO_PROBE_PARTS).toEqual([...GREY_PARTS, 'hub-forest']);
+    expect(NO_PROBE_PARTS).toEqual([...GREY_PARTS, 'hub-forest', 'forest']);
   });
 
   it('buildWorlds reads the next worlds of a build from its worlds.json; none without the file', () => {

@@ -170,11 +170,13 @@ jobs:
     needs: [plan, build]
     if: ${{ needs.plan.outputs.worlds == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # a walkthrough of a whole world has a limit of 20 minutes (tools/forest-pass.mjs, tools/sea-pass.mjs PASS_TIMEOUT_MS),
+    # the setup before it (npm ci, the build of the run) some 4
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        part: [walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey, hub-forest]   # the parts of tools/worlds.mjs, a job each (hub-grey: the grey build's way to the forest; sweet-grey, sea-grey: the Sweet Land's and the sea's walkthroughs in it; hub-forest: the way to the forest in this run's build)
+        part: [walk, cache, transition, travel, hub, hub-grey, sweet-grey, sea-grey, hub-forest, forest]   # the parts of tools/worlds.mjs, a job each (hub-grey: the grey build's way to the forest; sweet-grey, sea-grey: the Sweet Land's and the sea's walkthroughs in it; hub-forest: the way to the forest in this run's build; forest: the published forest's walkthrough in it)
     steps:
       # The same checkout as in "build": tools/worlds.mjs compares the commit in the build with the one of the sources.
       - uses: actions/checkout@v4

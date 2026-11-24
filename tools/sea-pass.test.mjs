@@ -48,11 +48,10 @@ describe('tools/sea-pass.mjs', () => {
   it('has a limit of its own, twice the slowest walkthrough seen on the runner and inside the job, unless a run asks its own', () => {
     expect(passTimeoutMs({})).toBe(PASS_TIMEOUT_MS);
     expect(PASS_TIMEOUT_MS).toBeGreaterThanOrEqual(2 * 600000);
-    expect(PASS_TIMEOUT_MS).toBeLessThan(25 * 60000);
     expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
     // tools/worlds.mjs plays the sea with it, not with the shared limit of the other walkthroughs
     const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
-    expect(worlds).toContain("shots, 'mobile'], seaMs, seaPassEnv(process.env, out));");
+    expect(worlds).toContain('(out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,');
   });
 
   it('is a part of tools/worlds.mjs of the grey build: played in ci.yml, never before a publication', () => {
