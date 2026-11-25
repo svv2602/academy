@@ -23,7 +23,11 @@ class FakeAudio {
   constructor(public src: string) { FakeAudio.made.push(this); }
   play(): Promise<void> { return Promise.resolve(); }
   pause() {}
-  start() { this.onplaying?.(); }
+  private heard = new Map<string, (() => void)[]>();
+  addEventListener(type: string, fn: () => void) { this.heard.set(type, [...(this.heard.get(type) ?? []), fn]); }
+  /** A media event the clip fires (its listeners, `once` as the voice asks: each fires one time). */
+  emit(type: string) { const fns = this.heard.get(type) ?? []; this.heard.delete(type); fns.forEach((fn) => fn()); }
+  start() { this.emit('playing'); this.onplaying?.(); }
   fail() { this.error = { code: 4 }; this.onerror?.(); }
 }
 class FakeUtterance {

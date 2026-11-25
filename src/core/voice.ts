@@ -41,10 +41,14 @@ export interface ClipTrouble { clip: string; why: string; then: 'retry' | 'synth
  */
 export const voiceLog = { clips: 0, synth: [] as string[], trouble: [] as ClipTrouble[] };
 /**
- * How long a clip may take to start to sound (its `playing`) before it is asked for again, and the second time before
- * the synthesizer takes the line. A first download of a next world's clip goes over the network: 3 s, not less.
+ * How long a clip may stay without a sign of life - no `loadedmetadata`, `loadeddata`, `canplay`, `progress` or
+ * `playing` - before it is asked for again, and the second time before the synthesizer takes the line. A clip that
+ * loads but is slow to sound (the first clip of a page on a slow machine: the browser opens its sound output) is not
+ * asked for again: a new request would only start it over. Its line ends by the 15 s safety timer, as it always did.
  */
-export const CLIP_START_MS = 3000;
+export const CLIP_SILENT_MS = 6000;
+/** What a clip says while it loads: any of them is a sign of life (see CLIP_SILENT_MS). */
+const ALIVE = ['loadedmetadata', 'loadeddata', 'canplay', 'progress', 'playing'] as const;
 /** The voice in the debug counter (`?debug`): clips that sounded and, when it had trouble, the clips that did not start and the lines left to the synthesizer. */
 export function voiceText(log: { clips: number; synth: readonly string[]; trouble: readonly unknown[] } = voiceLog): string {
   const trouble = log.trouble.length || log.synth.length ? ` (${log.trouble.length} not started, ${log.synth.length} synth)` : '';
@@ -258,15 +262,16 @@ function sound(id: SpokenKey, text: string, finish: () => void, live: () => bool
 }
 
 /**
- * Plays the clip at `src`. A clip that does not start - it fails to load, the browser refuses to play it, or it has not
- * started to sound within CLIP_START_MS - is asked for `retries` more times, then `failed` takes the line (the
+ * Plays the clip at `src`. A clip that does not start - it fails to load, the browser refuses to play it, or it gives no
+ * sign of life within CLIP_SILENT_MS - is asked for `retries` more times, then `failed` takes the line (the
  * synthesizer, or the general question for a clip of the bank). Each such clip is written to `voiceLog.trouble`.
  */
 function playClip(src: string, retries: number, finish: () => void, live: () => boolean, failed: () => void) {
   const a = new Audio(src);
   a.volume = level();
   current = a;
-  let started = false, handed = false;
+  let started = false, handed = false, alive = false;
+  for (const e of ALIVE) a.addEventListener(e, () => { alive = true; }, { once: true });
   const again = (why: string) => {
     // once per clip, and only for the line that still sounds: a clip cut off meanwhile is no trouble
     if (handed || started || !live()) return;
@@ -284,7 +289,7 @@ function playClip(src: string, retries: number, finish: () => void, live: () => 
     if (!live() || hidden || a.error) return;
     again(`refused ${(e as { name?: string } | null)?.name ?? 'play'}`);
   });
-  lineTimer(() => again('late'), CLIP_START_MS);
+  lineTimer(() => { if (!alive) again('silent'); }, CLIP_SILENT_MS);
 }
 
 /** Device speech synthesis; without a Ukrainian voice (or with the voice muted) the line is a silent pause long enough to read the subtitle. */
