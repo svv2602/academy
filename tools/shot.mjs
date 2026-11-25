@@ -343,6 +343,8 @@ try {
   // The bubble on a picture of a task: is it shown, with what text, and which line does the game remember for a repeat.
   const bubbleNow = () => g(() => ({ shown: !document.querySelector('#bubble').classList.contains('hidden'), text: document.querySelector('#bubbleText').textContent.trim(), key: __game.line }));
   const asked = {};           // task type -> the bubble on its "task-…" picture
+  /** The question of the star search in its bubble: the text without its count of the stars found (" ⭐ n / 5"). */
+  const searchQuestion = (text) => text.replace(/ ?⭐ \d \/ 5$/, '');
   // On the picture of a task the bubble shows the question of that task (VOICE-09).
   // The one exception: with the voice the question of the star search is shown for six seconds only (the heroine
   // walks, the bubble must not hang over the world), and a slow machine takes the picture later than that. The game
@@ -1637,7 +1639,7 @@ try {
         if (!b.shown) left.push('the bubble is hidden');
         if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search: a tap on the cat would say it`);
         if (!b.text.includes(`⭐ ${found} / 5`)) left.push(`the bubble shows "${b.text}", not the count ⭐ ${found} / 5`);
-        if (mute && !b.text.startsWith(asked.stars?.text ?? '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
+        if (mute && !b.text.startsWith(asked.stars?.question || '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
         if (left.length) fail(`${left.join('; ')} (${other.id})`);
         console.log(`a closed task of "${other.id}" during the search: the bubble shows "${b.text}" (${b.key})`);
         searchResumed = true;
@@ -1657,7 +1659,7 @@ try {
           if (!b.shown) left.push('the bubble is hidden');
           if (b.key !== 't_stars') left.push(`the game remembers "${b.key}", not the line of the search`);
           if (!b.text.includes(count)) left.push(`the bubble shows "${b.text}", not the count ${count}`);
-          if (mute && !b.text.startsWith(asked.stars?.text ?? '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
+          if (mute && !b.text.startsWith(asked.stars?.question || '\0')) left.push(`without the voice the question of the search is not in the bubble: "${b.text}"`);
           if (left.length) fail(`${when}: ${left.join('; ')}`);
         };
         await page.waitForFunction((n) => __game.busy && (window.__starts.t_stars ?? 0) > n, was.n, { timeout: T(10000) }) /* clock: audio */
@@ -2029,6 +2031,10 @@ try {
           }
           if (await g(() => __game.search.active)) {
             if (!seen.has('stars')) { seen.add('stars'); await calm(); await shot('task-stars'); await checkQuestion('stars');
+              // Without the voice the question comes with its count from the start: "<question> ⭐ 0 / 5", one bubble
+              // whichever shows it first, the deer's question or the end of the talk (it raced before 2026-11-25)
+              asked.stars.question = searchQuestion(asked.stars.text);
+              if (mute && (!asked.stars.question || asked.stars.text !== `${asked.stars.question} ⭐ 0 / 5`)) errors.push(`question: ${mode} task-stars: without the voice the bubble is not the question with the count ⭐ 0 / 5: "${asked.stars.text}"`);
               // Without the voice no timer hides the question: it is still there after the six seconds it gets with the voice.
               if (mute) {
                 await wait(6500); /* clock: audio */
@@ -2039,7 +2045,7 @@ try {
             // Without the voice the question stays next to the count of the stars found; with the voice the count replaces it.
             if (!starsCounted && (await g(() => __game.search.found)) >= 1) {
               starsCounted = true; await shot('task-stars-found');
-              const b = await bubbleNow(), q = asked.stars?.text ?? '';
+              const b = await bubbleNow(), q = asked.stars?.question ?? '';
               if (!b.shown || !/⭐ \d \/ 5$/.test(b.text)) errors.push(`question: ${mode} task-stars-found: the bubble does not show the count of the stars: "${b.text}"`);
               else if (mute ? !q || !b.text.startsWith(q) : b.text.length > 10) errors.push(`question: ${mode} task-stars-found: ${mute ? 'without' : 'with'} the voice the bubble shows "${b.text}"`);
             }

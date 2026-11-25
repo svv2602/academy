@@ -51,10 +51,13 @@ export function createStarSearch(g: Game, starGeo: THREE.BufferGeometry, starMat
       return { mesh, found: false };
     });
     Object.assign(search, { active: true, found: 0, idle: 0 });
-    void line('t_stars', 'task', muted() ? 0 : 6000, n.def.emoji);
+    // Without the voice the question comes with its count from the start (⭐ 0 / 5): the bubble of the search is one and
+    // the same whether the deer's question or the end of the talk shows it first (it raced, the walkthrough of 2026-11-25)
+    void line('t_stars', 'task', muted() ? 0 : 6000, n.def.emoji, muted() ? searchText() : undefined);
   }
-  /** The bubble of the search: the count of the stars found, after its question when the voice is off (VOICE-09). */
-  const searchCaption = () => caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: `${muted() ? t('t_stars') + ' ' : ''}⭐ ${search.found} / 5` });
+  /** The text of the search's bubble: the count of the stars found, after its question when the voice is off (VOICE-09). */
+  const searchText = () => `${muted() ? t('t_stars') + ' ' : ''}⭐ ${search.found} / 5`;
+  const searchCaption = () => caption({ key: 't_stars', pri: 'task', hold: 0, speaker: '🦌', text: searchText() });
   /**
    * `last` is the fifth number: the praise comes once it is said to the end. A conversation started at that moment
    * cuts the number off (it is of the story's rank) and is not cut off in turn: the praise is left out then, and the
