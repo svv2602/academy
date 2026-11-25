@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, HALF, ISLANDS, LANDMARKS, MILL, MILLS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
+import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, HALF, ISLANDS, LANDMARKS, MILL, MILLS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
 import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist } from './terrain';
 
@@ -47,7 +47,8 @@ function bridgeEnds(id: ZoneId): Place[] {
 export function placeRails(seed = 31): Put[] {
   const rnd = mulberry32(seed), out: Put[] = [];
   for (const [id, i] of islandList) {
-    const ends = bridgeEnds(id), n = Math.round((2 * Math.PI * i.r) / RAIL_STEP);
+    // (the ways to the nooks of the secrets, layout.ts NOOK_WAYS, come in through a gap too)
+    const ends = [...bridgeEnds(id), ...NOOK_ENDS], n = Math.round((2 * Math.PI * i.r) / RAIL_STEP);
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2, x = i.x + Math.sin(a) * (i.r - 0.3), z = i.z + Math.cos(a) * (i.r - 0.3);
       if (ends.some((e) => Math.hypot(e.x - x, e.z - z) < GAP)) continue;

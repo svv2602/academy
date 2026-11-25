@@ -176,3 +176,41 @@ export function pathBetween(a: ZoneId, b: ZoneId): readonly Place[] | null {
   }
   return null;
 }
+
+/**
+ * The ground of the secrets (PLAY-07, ./secrets.ts): two small discs that are no zones of the map - no target of the
+ * route, no landmark, no way of the measurements - and the two straight ways that join each to its island. The tiny
+ * islet lies behind the dragon island (west-south-west, away from the dragon's rock), its chest the world's chest, and a
+ * short cloud deck leads to it from the dragon island; the lower ledge hangs off the windmill island's east-north-east
+ * edge, under it, and the rainbow slide runs down to it from the island's edge. They are not in ISLANDS or BRIDGES: those
+ * are the map the walkthrough and tools/sky-grey.mjs measure (its six zones, the 15-25 s of each bridge, the route), and
+ * a secret is off the way. ./terrain.ts stands her on them as on the islands; their edges are closed by a rail too.
+ */
+export interface Nook extends Place { r: number; top: number }
+/** m: how far inside a nook's edge she can walk (its own small rail of puffs on the edge). */
+export const NOOK_RAIL = 0.8;
+/** A point `d` m from the middle of `i`, in the direction `angle` (radians from +x toward +z). */
+const toward = (i: Place, angle: number, d: number): Place => ({ x: i.x + Math.cos(angle) * d, z: i.z + Math.sin(angle) * d });
+/** rad: the directions of the islet from the dragon island and of the ledge from the windmill island. */
+export const ISLET_DIR = Math.PI - 0.35, LEDGE_DIR = -0.35;
+/** m: the islet's radius, the length of its deck between the edges; the ledge's radius, the gap the slide crosses, its drop. */
+const ISLET_R = 4.5, ISLET_DECK = 6, LEDGE_R = 3.6, LEDGE_GAP = 5, LEDGE_DROP = 4.5;
+export const NOOKS = {
+  islet: { ...toward(ISLANDS.dragon, ISLET_DIR, ISLANDS.dragon.r + ISLET_DECK + ISLET_R), r: ISLET_R, top: ISLANDS.dragon.top + 0.4 },
+  ledge: { ...toward(ISLANDS.mills, LEDGE_DIR, ISLANDS.mills.r + LEDGE_GAP + LEDGE_R), r: LEDGE_R, top: ISLANDS.mills.top - LEDGE_DROP },
+} as const satisfies Record<string, Nook>;
+/**
+ * The ways to the nooks, each straight from the middle of its island to the middle of its nook, `w` m wide; its height
+ * runs from the island's top at the island's edge to the nook's top at the nook's edge - evenly on the deck to the
+ * islet, steep first and flattening out on the slide (`slide`).
+ */
+export interface NookWay { from: Island; to: Nook; w: number; slide: boolean }
+export const NOOK_WAYS = {
+  islet: { from: ISLANDS.dragon, to: NOOKS.islet, w: BRIDGE_W, slide: false },
+  slide: { from: ISLANDS.mills, to: NOOKS.ledge, w: 2.2, slide: true },
+} as const satisfies Record<string, NookWay>;
+/** Where the ways to the nooks cross the edges of their islands (the cloud rails leave them a gap, ./scenery.ts). */
+export const NOOK_ENDS: readonly Place[] = Object.values(NOOK_WAYS).map((w) => {
+  const d = Math.hypot(w.to.x - w.from.x, w.to.z - w.from.z);
+  return { x: w.from.x + ((w.to.x - w.from.x) / d) * w.from.r, z: w.from.z + ((w.to.z - w.from.z) / d) * w.from.r };
+});

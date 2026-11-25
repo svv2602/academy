@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
-import { BRIDGES, BRIDGE_W, CLOUD_GAP, HALF, ISLANDS, PATHS, RAIL, type Island, type Place, type ZoneId } from './layout';
+import { BRIDGES, BRIDGE_W, CLOUD_GAP, HALF, ISLANDS, NOOKS, NOOK_RAIL, NOOK_WAYS, PATHS, RAIL, type Island, type Nook, type NookWay, type Place, type ZoneId } from './layout';
 
 /**
  * The ground of the Sky Islands, the grey build (WORLD-12): the flat tops of the six islands with a gentle relief, the
@@ -37,6 +37,15 @@ export function islandAt(x: number, z: number): ZoneId | null {
   return null;
 }
 
+/** The nooks of the secrets (layout.ts NOOKS: the islet, the ledge), and their ways from their islands. */
+const nooks = Object.entries(NOOKS) as [keyof typeof NOOKS, Nook][];
+const nookWays = Object.entries(NOOK_WAYS) as [keyof typeof NOOK_WAYS, NookWay][];
+/** The nook (x, z) is on, within its edge, or null. */
+export function nookAt(x: number, z: number): keyof typeof NOOKS | null {
+  for (const [id, n] of nooks) if (Math.hypot(x - n.x, z - n.z) <= n.r) return id;
+  return null;
+}
+
 /** A bridge in its own frame: (along, across) of (x, z) from the middle of island `a` toward `b`, its length between the middles. */
 function bridgeFrame(a: Island, b: Island, x: number, z: number) {
   const len = Math.hypot(b.x - a.x, b.z - a.z), ax = (b.x - a.x) / len, az = (b.z - a.z) / len, dx = x - a.x, dz = z - a.z;
@@ -49,6 +58,20 @@ export function bridgeAt(x: number, z: number): readonly [ZoneId, ZoneId] | null
     if (f.along >= 0 && f.along <= f.len && Math.abs(f.across) <= BRIDGE_W / 2) return pair;
   }
   return null;
+}
+
+/** The way to a nook (x, z) is on, its middle line from the island's middle to the nook's, or null. */
+export function nookWayAt(x: number, z: number): keyof typeof NOOK_WAYS | null {
+  for (const [id, w] of nookWays) {
+    const f = bridgeFrame(w.from, w.to, x, z);
+    if (f.along >= 0 && f.along <= f.len && Math.abs(f.across) <= w.w / 2) return id;
+  }
+  return null;
+}
+/** m: the height of the way to a nook `along` m from its island's middle: from the island's top at its edge to the nook's at its edge. */
+export function nookWayY(w: NookWay, along: number): number {
+  const len = Math.hypot(w.to.x - w.from.x, w.to.z - w.from.z), u = Math.max(0, Math.min(1, (along - w.from.r) / (len - w.from.r - w.to.r)));
+  return w.from.top + (w.to.top - w.from.top) * (w.slide ? u * (2 - u) : u);
 }
 
 /** Whether the cloud bridge over the gap (layout.ts CLOUD_GAP) is built: until then she cannot walk across the gap. */
@@ -65,7 +88,7 @@ export function inCloudGap(x: number, z: number): boolean {
 const deckY = (a: Island, c: Island, along: number, len: number) => { const u = along / len; return a.top + (c.top - a.top) * u - Math.sin(u * Math.PI) * 0.3; };
 
 /** What she can stand on: an island or a bridge. */
-export const onGround = (x: number, z: number) => islandAt(x, z) !== null || bridgeAt(x, z) !== null;
+export const onGround = (x: number, z: number) => islandAt(x, z) !== null || bridgeAt(x, z) !== null || nookAt(x, z) !== null || nookWayAt(x, z) !== null;
 
 /** m: the top of an island at (x, z): its height and a gentle relief, flat toward its middle and its bridges. */
 function islandTop(i: Island, x: number, z: number): number {
@@ -76,6 +99,11 @@ function islandTop(i: Island, x: number, z: number): number {
 export function height(x: number, z: number): number {
   const on = islandAt(x, z);
   if (on) return islandTop(ISLANDS[on], x, z);
+  // the nooks of the secrets: flat tops, and their ways from their islands
+  const nook = nookAt(x, z);
+  if (nook) return NOOKS[nook].top;
+  const way = nookWayAt(x, z);
+  if (way) { const w = NOOK_WAYS[way]; return nookWayY(w, bridgeFrame(w.from, w.to, x, z).along); }
   // over the gap the deck's height holds, built or not: a hop onto a cloud of the bridge never drops her
   if (inCloudGap(x, z)) { const f = bridgeFrame(GAP_A, GAP_B, x, z); return deckY(GAP_A, GAP_B, f.along, f.len); }
   const b = bridgeAt(x, z);
@@ -131,6 +159,22 @@ export function keepOn(p: { x: number; z: number }, radius: number): void {
       const e = Math.hypot(q.x - p.x, q.z - p.z);
       if (e < bestD) { bestD = e; best = q; }
     }
+  }
+  // the nooks of the secrets (inside their own rail) and the ways to them, as the islands and the bridges
+  for (const [, n] of nooks) {
+    const max = n.r - NOOK_RAIL - radius, dx = p.x - n.x, dz = p.z - n.z, d = Math.hypot(dx, dz);
+    if (d <= max) return;
+    const q = d > 1e-9 ? { x: n.x + (dx / d) * max, z: n.z + (dz / d) * max } : { x: n.x, z: n.z };
+    const e = Math.hypot(q.x - p.x, q.z - p.z);
+    if (e < bestD) { bestD = e; best = q; }
+  }
+  for (const [, w] of nookWays) {
+    const f = bridgeFrame(w.from, w.to, p.x, p.z), half = w.w / 2 - radius;
+    const along = Math.max(0, Math.min(f.len, f.along)), across = Math.max(-half, Math.min(half, f.across));
+    if (along === f.along && across === f.across) return;
+    const q = { x: w.from.x + f.ax * along - f.az * across, z: w.from.z + f.az * along + f.ax * across };
+    const e = Math.hypot(q.x - p.x, q.z - p.z);
+    if (e < bestD) { bestD = e; best = q; }
   }
   if (best) { p.x = best.x; p.z = best.z; }
 }

@@ -12,6 +12,7 @@ import type { WorldItem } from '../../game/world';
 import { CLOUD_STEP } from './cloud-bridge';
 import { CLOCK_STEP } from './clock';
 import { WINDS_STEP } from './ship';
+import { SECRET_HOW, SKY_SECRETS } from './secrets';
 import { FINALE, FRIENDS, LATER_IN_WORLD, RAYS, WORLD_TASKS, sky } from './index';
 import { SHRINE, type ZoneId } from './layout';
 import { SKY_INFO } from './meta';
@@ -87,14 +88,17 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
     expect(islandAt(RAYS[1].at.x, RAYS[1].at.z)).toBe('far');
   });
 
-  it('its description is the one of a grey build: five chains, two parts, the tour and the finale, nothing that disagrees', () => {
+  it('its description is the one of a grey build: five chains, two parts, the tour, its four secrets and the finale, nothing that disagrees', () => {
     const ws = { quests: {}, flags: {}, final: false };
     const tour = marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => false });
     const parts = RAYS.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: r.at }));
+    const secrets = SKY_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: { x: 0, z: 0 }, active: () => false }));
     const before = [...declared({ world: sky, ws }), tour, ...parts];
-    const items: WorldItem[] = [...before, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
+    const items: WorldItem[] = [...before, ...secrets, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
     expect(problems(sky, items)).toEqual([]);
-    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 0, pet: 0, scene: 0 })).toEqual([]);
+    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 4, pet: 0, scene: 0 })).toEqual([]);
+    expect(sky.secrets).toEqual(SKY_SECRETS);
+    expect(sky.chest).toBe('sky_chest');
   });
 
   it('every character stands on its island', () => {

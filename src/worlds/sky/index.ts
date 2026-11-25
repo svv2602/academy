@@ -17,6 +17,9 @@ import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { CLOUD_STEP, GAP_AT, createCloudBridge } from './cloud-bridge';
 import { CLOCK_STEP, createClock } from './clock';
 import { WINDS_STEP, createWinds, flightSeconds } from './ship';
+import { createSkyCreatures } from './creatures';
+import { createSkyMagic } from './magic';
+import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
@@ -190,6 +193,13 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   };
 
 
+  // the creatures busy with their own things (PLAY-11, ./creatures.ts): birds, little dragons, cloud lambs
+  const creatures = createSkyCreatures(g, scope);
+  // the secrets (PLAY-07, ./secrets.ts): the chest on the nook behind the dragon island, the rainbow slide, the clouds
+  // that turn into animals, the little dragons' nest
+  const secrets = createSkySecrets(g, scope);
+  // the islands come alive with the rays (WORLD-09, ./magic.ts): it turns the windmills' sails too
+  const magic = createSkyMagic(g, scope, { sky, scenery, characters: FRIENDS });
   const stage = createStage(g, () => g.speech.caption(null));
   // The tasks of the chains: the panel ones by the shared conversation; `part` here. The tasks in the world of a later
   // step (LATER_IN_WORLD) join this record under their own ids, with the world's `worldTasks`.
@@ -233,7 +243,9 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   const before = [...declared(g), tourItem, ...rayItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
-  const own: readonly WorldItem[] = [tourItem, ...rayItems, finaleItem];
+  // the secrets are found on the way, the finale does not wait for them
+  const secretItems = SKY_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
+  const own: readonly WorldItem[] = [tourItem, ...rayItems, ...secretItems, finaleItem];
   const restore = () => playScene(stage, 'sky finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(shrine, 8);
@@ -252,6 +264,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   return {
     frame: {
       spots: [
+        ...secrets.spots,
         ...npcs.map((n): Spot => ({ pos: n.pos, r: n.def.id === 'gromykhalo' ? 4.2 : 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         ...raySpots,
         ...clock.spots,
@@ -259,7 +272,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
       ],
-      tap: (screenDist) => winds.tap() || player.tap(screenDist),
+      tap: (screenDist) => winds.tap() || player.tap(screenDist) || creatures.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         bridge.update(dt, time, canMove);
@@ -294,7 +307,10 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         star.visible = ws.final;
         star.rotation.y = time;
         if (ws.final) scenery.hands.rotation.z -= dt * HANDS_TURN;
-        scenery.turn(dt, ws.final ? SAILS_TURN : 0);
+        secrets.update(dt, time, canMove);
+        creatures.update(dt);
+        // the magic: the sky, the light, the clouds' drift, the sails, the glow (WORLD-09)
+        magic.update(dt);
       },
       goal: () => {
         const b = bridge.goal() ?? clock.goal() ?? winds.goal();
@@ -319,6 +335,14 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         // the airship's stand-in by the debug door: to the far islet (true) or back to the pier (false)
         // the airship (WORLD-05): its flight by the debug door - made flying, then there (true) or back; it settles with
         // the game seconds it took (tools/sky-grey.mjs times it, the walkthrough reaches the far islet so)
+        // the magic (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
+        magic, setMagic: (v: number | null) => magic.set(v),
+        // the creatures (PLAY-11): each, the number of its body, held still (or let go) for a picture
+        creatures: creatures.herd.all,
+        creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
+        holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
+        // the secrets (./secrets.ts): where each is found and its things
+        skySecrets: { at: secrets.at, ...secrets.debug },
         skyShip: { flySeconds: flightSeconds(), far: () => winds.far, flying: () => winds.flying, fly: (out: boolean) => { winds.opened(true); return winds.fly(out); } },
         // the cloud bridge (WORLD-25): its gap, whether it is built, and the deck over it laid by the debug door (the
         // measurements walk every bridge, the one to the dragon island too, before Lazur's chain has built it)
@@ -327,6 +351,8 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
       // a task in the world open: its right move (the walkthrough's door); else a ray waiting in the world is taken
       cheatWorld: () => {
         if (worldTaskDoor(g).solve()) return 'world task';
+        const s = secrets.cheat();
+        if (s) return s;
         if (bridge.cheat()) return 'bridge';
         if (clock.cheat()) return 'clock';
         if (winds.cheat()) return 'winds';
@@ -344,6 +370,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
     hud: () => `${npcs.filter(finished).length}/${npcs.length}`,
     gear,
     items: () => own,
+    glimmer: () => secrets.glimmer(),
   };
 }
 
@@ -365,4 +392,7 @@ export const sky: WorldDef<Record<string, never>, WorldSky> = {
   worldTasks: WORLD_TASKS,
   // the route of the winds is written to no skill (the customer's decision 2026-11-18): the walkthrough checks it moves none
   noSkill: [WINDS_STEP],
+  // PLAY-07: the four secrets (./secrets.ts); the chest on the nook behind the dragon island is the world's chest (PLAY-08)
+  secrets: SKY_SECRETS,
+  chest: CHEST_FLAG,
 };
