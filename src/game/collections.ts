@@ -29,6 +29,12 @@ export const COLLECT_KINDS = {
   /** the sea's (the customer's word of 2026-11-23): spiral shells and coral twigs, lying on the sand by its ways */
   shell: { icon: '🐚', color: '#ff9fc4', world: 'sea' },
   coral: { icon: '🪸', color: '#ff6f61', world: 'sea' },
+  /**
+   * the Sweet Land's (the lead's word of 2026-11-25): swirl lollipops and jelly sweets, lying on the pink ground by its
+   * ways. There is no emoji of a jelly sweet: its picture is drawn (`svg`, src/ui/finds.ts)
+   */
+  lollipop: { icon: '🍭', color: '#ff5fa2', world: 'sweet' },
+  marmalade: { icon: '', svg: 'marmalade', color: '#7bd36a', world: 'sweet' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
    * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
   treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },

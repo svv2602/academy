@@ -116,6 +116,10 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
     const sea = WORLDS.find((w) => w.id === 'sea')?.collect;
     if (sea) expect(kindsOf(sea).sort()).toEqual(own('sea').sort());
     expect(own('sea').sort()).toEqual(['coral', 'shell']);
+    // the Sweet Land its lollipops and jelly sweets (src/worlds/sweet/collect.ts)
+    const sweet = WORLDS.find((w) => w.id === 'sweet')?.collect;
+    if (sweet) expect(kindsOf(sweet).sort()).toEqual(own('sweet').sort());
+    expect(own('sweet').sort()).toEqual(['lollipop', 'marmalade']);
     // every way, the catching ones one or two in a world (the decision of 2026-11-20)
     for (const way of COLLECT_WAYS) expect(fairy.items.some((i) => i.way === way), way).toBe(true);
     const chase = fairy.items.filter((i) => i.way === 'chase').length;

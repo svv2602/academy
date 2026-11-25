@@ -8,7 +8,8 @@ import './finds.css';
 
 /**
  * The drawn pictures of the kinds that have no emoji (COLLECT_KINDS `svg`): an em high, as an emoji beside them.
- * A spruce cone: its scales in rows, darker at their edges, a short stalk.
+ * A spruce cone: its scales in rows, darker at their edges, a short stalk. A jelly sweet: a green dome sugared with
+ * white grains, a yellow one peeping from behind it.
  */
 const DRAWN: Record<string, string> = {
   cone: '<svg viewBox="0 0 20 28" width="0.72em" height="1em" aria-hidden="true">'
@@ -16,6 +17,12 @@ const DRAWN: Record<string, string> = {
     + '<ellipse cx="10" cy="15" rx="7.5" ry="12" fill="#a8683a"/>'
     + [6, 10, 14, 18, 22].map((y, i) => `<path d="M${3.5 + (i % 2)} ${y} Q10 ${y + 4} ${16.5 - (i % 2)} ${y}" fill="none" stroke="#6b4122" stroke-width="1.4"/>`).join('')
     + '<path d="M10 4 V26" stroke="#6b4122" stroke-width="0.8" opacity="0.5"/></svg>',
+  marmalade: '<svg viewBox="0 0 28 24" width="1.15em" height="1em" aria-hidden="true">'
+    + '<path d="M13 20 Q13 6 20.5 6 Q28 6 28 20 Z" fill="#ffd84a"/>'
+    + '<path d="M1 22 Q1 4 11 4 Q21 4 21 22 Z" fill="#7bd36a"/>'
+    + '<path d="M4 20 Q4.5 8 10 7" fill="none" stroke="#c8f2bd" stroke-width="1.6" stroke-linecap="round"/>'
+    + [[8, 12], [13, 9], [15, 15], [9, 18], [17, 19]].map(([x, y]) => `<rect x="${x}" y="${y}" width="1.4" height="1.4" fill="#ffffff" opacity="0.9"/>`).join('')
+    + '</svg>',
 };
 
 /** The markup of the picture of `kind`. */

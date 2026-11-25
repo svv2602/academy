@@ -35,7 +35,7 @@ export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2, shell: 3.0, coral: 2.8 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2, shell: 3.0, coral: 2.8, lollipop: 2.6, marmalade: 2.6 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -112,8 +112,22 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
   }
   twig.push(paint(new THREE.SphereGeometry(0.032, 6, 4).translate(0, 0.23, 0), '#ff9a8a'));
   const coral = mergeGeometries(twig)!.translate(0, -0.12, 0);
+  // the Sweet Land's (the lead's word of 2026-11-25): a swirl lollipop standing on its stick - a flat round candy of
+  // pink and white rings in turn, its face to the side; two jelly sweets - a green dome sugared with white grains and
+  // a yellow one beside it
+  const swirl = [paint(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 5).translate(0, -0.1, 0), '#fffaf2')];
+  for (let k = 0; k < 4; k++) swirl.push(paint(new THREE.TorusGeometry(0.115 - k * 0.03, 0.017, 4, 14).translate(0, 0.08, 0.004 * k), k % 2 ? '#fff1f6' : COLLECT_KINDS.lollipop.color));
+  swirl.push(paint(new THREE.CircleGeometry(0.02, 8).translate(0, 0.08, 0.016), COLLECT_KINDS.lollipop.color));
+  const lollipop = mergeGeometries(swirl)!.translate(0, 0.02, 0);
+  const jelly = [paint(new THREE.SphereGeometry(0.09, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.1, 1).translate(-0.04, -0.06, 0), COLLECT_KINDS.marmalade.color),
+    paint(new THREE.SphereGeometry(0.075, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.1, 1).translate(0.09, -0.06, -0.04), '#ffd84a')];
+  for (const [a, h] of [[0.4, 0.5], [1.9, 0.8], [3.3, 0.35], [4.6, 0.95], [5.6, 0.6]] as const) {
+    const t = h * Math.PI / 2 * 0.8;
+    jelly.push(paint(new THREE.BoxGeometry(0.014, 0.014, 0.014).translate(-0.04 + Math.cos(a) * Math.sin(t) * 0.092, -0.06 + Math.cos(t) * 0.1, Math.sin(a) * Math.sin(t) * 0.092), '#ffffff'));
+  }
+  const marmalade = mergeGeometries(jelly)!;
   return {
-    shell, coral,
+    shell, coral, lollipop, marmalade,
     mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
     piece: mergeGeometries([tile, knob, knob2])!, cone, berry: mergeGeometries([...berries, ...leaves])!,
   };
