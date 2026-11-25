@@ -3,24 +3,34 @@
  * The creatures of the Sky Islands that belong to no task (./creatures.ts; PLAY-11): three kinds, each does both of its
  * actions, a tap starts its own reaction and it goes back to what it did after its reaction's time, they live where their
  * kind may - the walkers on an island inside its rail, the fliers in the air over the islands -, the same seed makes the
- * same herd, a held one keeps still; a few light instanced meshes.
+ * same herd, a held one keeps still; a few light instanced meshes and the little dragons of the CC0 Dragon (step 6b),
+ * read from the world's packed file as the game loads it.
  */
+import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createWorldScope } from '../../game/scope';
 import {
-  COUNTS, FLY_MAX, LAMB_ROAM, REACTION_TIME, SKY_ACTIONS, SKY_CALM, SKY_REACTION, VANE_H,
-  birdGeometry, createSkyCreatures, createSkyHerd, drakeyGeometry, freeSpot, lambGeometry, roofTips, skyHabitat, vaneGeometry,
+  COUNTS, DRAKEY_CLIP, DRAKEY_LONG, FLY_MAX, LAMB_ROAM, REACTION_TIME, SKY_ACTIONS, SKY_CALM, SKY_REACTION, VANE_H,
+  birdGeometry, createSkyCreatures, createSkyHerd, drakeyModel, freeSpot, lambGeometry, roofTips, skyHabitat, vaneGeometry,
   type SkyHabitat, type SkyKind,
 } from './creatures';
 import { FRIENDS } from './index';
 import { ISLANDS, RAIL } from './layout';
+import { PROP_PATHS } from './props';
 import { buildScenery } from './scenery';
 import { colliders, islandAt, type Collider } from './terrain';
 
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
 
 const KINDS: SkyKind[] = ['bird', 'drakey', 'lamb'];
+/** The Dragon's model as the game has it: the world's packed file (worlds-data/sky/, npm run assets). */
+const dragon = () => {
+  const b = readFileSync(`worlds-data/sky/models/${PROP_PATHS.drakey}.glb`);
+  return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.length) as ArrayBuffer, '');
+};
 const run = (herd: ReturnType<typeof createSkyHerd>, s: number, each?: () => void) => { for (let t = 0; t < s; t += 0.05) { herd.update(0.05); each?.(); } };
 /** m from (x, z) to the middle of the island it is on, and how far it may be from it inside the rail; null - over no island. */
 const inside = (x: number, z: number) => { const id = islandAt(x, z); if (!id) return null; const i = ISLANDS[id]; return { id, d: Math.hypot(x - i.x, z - i.z), max: i.r - RAIL }; };
@@ -176,36 +186,65 @@ describe('the creatures of the Sky Islands (PLAY-11)', () => {
   });
 
   it('each shape is light and carries what its shader moves', () => {
-    const limits: [THREE.BufferGeometry, number][] = [[birdGeometry(), 110], [drakeyGeometry(), 280], [lambGeometry(), 280], [vaneGeometry(), 80]];
+    const limits: [THREE.BufferGeometry, number][] = [[birdGeometry(), 110], [lambGeometry(), 280], [vaneGeometry(), 80]];
     for (const [g, max] of limits) {
       expect(g.getAttribute('position').count / 3).toBeLessThanOrEqual(max);
       for (const a of ['color', 'part', 'normal']) expect(g.getAttribute(a), a).toBeTruthy();
     }
-    // the moving parts are marked: the bird's and the little dragon's wings, the lamb's fleece
+    // the moving parts are marked: the bird's wings, the lamb's fleece
     const parts = (g: THREE.BufferGeometry) => new Set(Array.from(g.getAttribute('part').array as Float32Array));
-    for (const g of [birdGeometry(), drakeyGeometry(), lambGeometry()]) expect([...parts(g)].sort()).toEqual([0, 1]);
+    for (const g of [birdGeometry(), lambGeometry()]) expect([...parts(g)].sort()).toEqual([0, 1]);
   });
 
-  it('the world draws them in at most six draw calls and ten thousand triangles, casting no shadow; a tap reacts; the scope takes them out', () => {
-    const scene = new THREE.Scene(), scope = createWorldScope(scene);
+  it('a little dragon is the Dragon in two meshes, its body skinned: DRAKEY_LONG m nose to tail, its feet on its point, its front +z, its clip there', async () => {
+    const src = await dragon(), d = drakeyModel(src), meshes: THREE.Mesh[] = [];
+    d.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+    expect(meshes.map((m) => m.name).sort()).toEqual(['drakey-body', 'drakey-eyes']);
+    expect((meshes.find((m) => m.name === 'drakey-body') as THREE.SkinnedMesh).isSkinnedMesh).toBe(true);
+    for (const m of meshes) expect(m.geometry.getAttribute('color'), m.name).toBeTruthy();
+    d.updateMatrixWorld(true);
+    d.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton.update(); });
+    const bb = new THREE.Box3().setFromObject(d);
+    expect(bb.max.z - bb.min.z).toBeCloseTo(DRAKEY_LONG, 5);
+    expect(bb.min.y).toBeCloseTo(0, 5);
+    // its nose ahead of its tail along +z, as the herd's heading turns it
+    const at = (name: string) => new THREE.Vector3().setFromMatrixPosition(d.getObjectByName(name)!.matrixWorld);
+    expect(at('Head').z).toBeGreaterThan(at('Tail4').z + DRAKEY_LONG / 2);
+    expect(src.animations.map((a) => a.name.split('|').pop())).toContain(DRAKEY_CLIP);
+  });
+
+  it('the world draws them in at most twelve draw calls and ten thousand triangles, casting no shadow; a tap reacts; the scope takes them out', async () => {
+    const scene = new THREE.Scene(), scope = createWorldScope(scene), src = await dragon();
     const g = { scene, sparks: { burst: () => {} }, busy: false, started: () => true, touch: true } as unknown as Parameters<typeof createSkyCreatures>[0];
-    const cr = createSkyCreatures(g, scope, hab);
-    expect(cr.meshes.map((m) => m.name).sort()).toEqual(['sky-bird', 'sky-drakey', 'sky-lamb', 'sky-vanes']);
-    expect(cr.meshes.length).toBeLessThanOrEqual(6);
-    const triangles = cr.meshes.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3 * m.count, 0);
+    const cr = createSkyCreatures(g, scope, src, hab);
+    expect(cr.meshes.map((m) => m.name).sort()).toEqual(['sky-bird', 'sky-lamb', 'sky-vanes']);
+    expect(cr.drakeys).toHaveLength(2 * COUNTS.pairs);
+    const drawn: THREE.Mesh[] = [...cr.meshes];
+    for (const d of cr.drakeys) { expect(d.name).toBe('sky-drakey'); d.traverse((o) => { if ((o as THREE.Mesh).isMesh) drawn.push(o as THREE.Mesh); }); }
+    expect(drawn.length).toBeLessThanOrEqual(12);
+    const triangles = drawn.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.getAttribute('position').count) / 3 * ((m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1), 0);
     expect(triangles).toBeLessThanOrEqual(10000);
-    for (const m of cr.meshes) { expect(m.castShadow).toBe(false); expect(m.parent).toBe(scene); }
+    for (const m of drawn) expect(m.castShadow, m.name).toBe(false);
+    for (const m of [...cr.meshes, ...cr.drakeys]) expect(m.parent).toBe(scene);
+    // the little dragons of a pair in their own colours, each where the herd has it, turned by its heading
+    expect(new Set(cr.drakeys.map((d) => ((d.getObjectByName('drakey-body') as THREE.Mesh).material as THREE.MeshStandardMaterial).color.getHexString())).size).toBe(cr.drakeys.length);
     for (let i = 0; i < 40; i++) cr.update(0.05);
+    const herdDrakeys = cr.herd.all.filter((c) => c.kind === 'drakey');
+    cr.drakeys.forEach((d, i) => {
+      const c = herdDrakeys[i], q = new THREE.Quaternion().setFromEuler(new THREE.Euler(c.pitch, c.heading, c.roll, 'YXZ'));
+      expect(d.position.distanceTo(c.pos)).toBeLessThan(1e-9);
+      expect(d.quaternion.angleTo(q)).toBeLessThan(1e-6);
+    });
     // a tap on a lamb: the middle of its body is what is measured
     const lamb = cr.herd.all.find((c) => c.kind === 'lamb')!;
     expect(cr.tap((p) => p.distanceTo(lamb.pos.clone().setY(lamb.pos.y + cr.bodyOf(lamb))))).toBe(true);
     expect(lamb.state).toBe('fluff');
     // busy (a conversation): a tap is not the creatures'
-    const busy = createSkyCreatures({ ...g, busy: true } as typeof g, scope, hab);
+    const busy = createSkyCreatures({ ...g, busy: true } as typeof g, scope, src, hab);
     expect(busy.tap(() => 0)).toBe(false);
     busy.dispose();
-    expect(busy.meshes.every((m) => m.parent === null)).toBe(true);
+    expect([...busy.meshes, ...busy.drakeys].every((m) => m.parent === null)).toBe(true);
     scope.dispose();
-    expect(cr.meshes.every((m) => m.parent === null)).toBe(true);
+    expect([...cr.meshes, ...cr.drakeys].every((m) => m.parent === null)).toBe(true);
   });
 });

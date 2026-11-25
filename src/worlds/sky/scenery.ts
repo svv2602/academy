@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
 import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, HALF, ISLANDS, LANDMARKS, MILL, MILLS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
+import { SAIL_COLOURS, WINDMILL_COLOURS, bake, isBlades, type SkyProps } from './props';
 import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist } from './terrain';
 
 /**
@@ -10,7 +11,9 @@ import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist
  * closed: the customer's decision 1 a), white cloud bridges between them, the sea of clouds far below. The castle white
  * and blue, the dragon island's rock green and gold, the windmills orange-sailed, the far islet's violet flowers; the
  * observatory and the airship are ./landmarks.ts. Every kind of scattered thing is one instanced mesh. Models replace
- * them once the customer has accepted the grey build.
+ * them once the customer has accepted the grey build: since step 6b the windmills are the CC0 Tower Windmill
+ * (./props.ts), its blades their turning sails; without the models (the unit tests build the islands so, for their
+ * colliders) the grey build's shapes stand in.
  */
 
 /**
@@ -120,8 +123,23 @@ export interface Scenery extends Landmarks {
   turn(dt: number, speed: number): void;
 }
 
-/** The Sky Islands in the scene, and their colliders. */
-export function buildScenery(scene: THREE.Scene): Scenery {
+/**
+ * The Tower Windmill as a windmill of the islands: its tower MILL.towerH + MILL.roofH tall standing on y 0 round its
+ * axis, its front (the blades' side) +z; its blades round their hub, and where the hub is on the tower.
+ */
+export function windmill(model: THREE.Object3D): { tower: THREE.BufferGeometry; blades: THREE.BufferGeometry; hub: THREE.Vector3 } {
+  const tower = bake(model, WINDMILL_COLOURS, (m) => !isBlades(m)), blades = bake(model, SAIL_COLOURS, isBlades);
+  const tb = tower.boundingBox!, s = (MILL.towerH + MILL.roofH) / (tb.max.y - tb.min.y);
+  const hub = blades.boundingBox!.getCenter(new THREE.Vector3());
+  tower.translate(0, -tb.min.y, 0).scale(s, s, s);
+  blades.translate(-hub.x, -hub.y, -hub.z).scale(s, s, s);
+  hub.y -= tb.min.y; hub.multiplyScalar(s);
+  for (const g of [tower, blades]) { g.computeBoundingBox(); g.computeBoundingSphere(); }
+  return { tower, blades, hub };
+}
+
+/** The Sky Islands in the scene, and their colliders; `props` - the models of ./props.ts (the grey build's shapes without). */
+export function buildScenery(scene: THREE.Scene, props?: Pick<SkyProps, 'airship' | 'windmill'>): Scenery {
   const rails = placeRails(), { trees, bushes } = placeTrees();
   for (const t of trees) colliders.push({ x: t.x, z: t.z, r: 0.5 * t.s });
 
@@ -194,18 +212,33 @@ export function buildScenery(scene: THREE.Scene): Scenery {
 
   // ----- the windmills: white towers, orange sails (still at the magic 0) -----
   const sails: THREE.Mesh[] = [];
+  const model = props && windmill(props.windmill);
   for (const [k, m] of MILLS.entries()) {
-    paintedAt(scene, k === 0 ? 'landmark-mills' : `windmill-${k}`, m.x, m.z, [
-      [new THREE.CylinderGeometry(MILL.towerR * 0.75, MILL.towerR, MILL.towerH, 10).translate(0, MILL.towerH / 2, 0), '#fff8ee'],
-      [new THREE.ConeGeometry(MILL.towerR * 1.1, MILL.roofH, 10).translate(0, MILL.towerH + MILL.roofH / 2, 0), '#ff9a3c'],
-    ], m.yaw);
+    const name = k === 0 ? 'landmark-mills' : `windmill-${k}`;
+    let sail: THREE.Mesh;
+    if (model) {
+      const tower = new THREE.Mesh(model.tower, paintMaterial());
+      tower.name = name; tower.castShadow = true; tower.receiveShadow = true;
+      tower.position.set(m.x, height(m.x, m.z), m.z); tower.rotation.y = m.yaw;
+      scene.add(tower);
+      // the blades on their hub, turning round the axis the tower faces along (its +z)
+      sail = new THREE.Mesh(model.blades, paintMaterial());
+      sail.position.copy(model.hub).applyAxisAngle(new THREE.Vector3(0, 1, 0), m.yaw).add(tower.position);
+      sail.rotation.y = m.yaw;
+    } else {
+      paintedAt(scene, name, m.x, m.z, [
+        [new THREE.CylinderGeometry(MILL.towerR * 0.75, MILL.towerR, MILL.towerH, 10).translate(0, MILL.towerH / 2, 0), '#fff8ee'],
+        [new THREE.ConeGeometry(MILL.towerR * 1.1, MILL.roofH, 10).translate(0, MILL.towerH + MILL.roofH / 2, 0), '#ff9a3c'],
+      ], m.yaw);
+      const wing: Part[] = [];
+      // the four wings in the plane across the tower's front, so they turn round its +z as the model's blades do
+      for (let s = 0; s < 4; s++) wing.push([new THREE.BoxGeometry(1, MILL.wingR, 0.14).translate(0, MILL.wingR / 2 + 0.4, 0).rotateZ((s / 4) * Math.PI * 2), '#ff8a2a']);
+      sail = new THREE.Mesh(paint(wing), paintMaterial());
+      sail.position.set(m.x + Math.sin(m.yaw) * (MILL.towerR + 0.3), height(m.x, m.z) + MILL.towerH - 0.6, m.z + Math.cos(m.yaw) * (MILL.towerR + 0.3));
+      sail.rotation.y = m.yaw;
+    }
     colliders.push({ x: m.x, z: m.z, r: MILL.towerR + 0.3 });
-    const wing: Part[] = [];
-    for (let s = 0; s < 4; s++) wing.push([new THREE.BoxGeometry(0.14, MILL.wingR, 1).translate(0, MILL.wingR / 2 + 0.4, 0).rotateX((s / 4) * Math.PI * 2), '#ff8a2a']);
-    const sail = new THREE.Mesh(paint(wing), paintMaterial());
     sail.name = 'mill-sails'; sail.castShadow = true;
-    sail.position.set(m.x + Math.sin(m.yaw) * (MILL.towerR + 0.3), height(m.x, m.z) + MILL.towerH - 0.6, m.z + Math.cos(m.yaw) * (MILL.towerR + 0.3));
-    sail.rotation.y = m.yaw + Math.PI / 2;
     scene.add(sail);
     sails.push(sail);
   }
@@ -226,10 +259,10 @@ export function buildScenery(scene: THREE.Scene): Scenery {
     [new THREE.CylinderGeometry(0.2, 0.2, 2, 6).translate(2.5, 1, 0), '#8a5a3a'],
   ]);
 
-  const landmarks = buildLandmarks(scene);
+  const landmarks = buildLandmarks(scene, props?.airship);
   return {
     ...landmarks,
     gapDeck,
-    turn: (dt, speed) => { for (const s of sails) s.rotateX(dt * speed); },
+    turn: (dt, speed) => { for (const s of sails) s.rotateZ(-dt * speed); },
   };
 }

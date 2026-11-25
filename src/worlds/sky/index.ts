@@ -20,6 +20,7 @@ import { CLOCK_STEP, createClock } from './clock';
 import { WINDS_STEP, createWinds, flightSeconds } from './ship';
 import { createSkyCreatures } from './creatures';
 import { createSkyMagic } from './magic';
+import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
@@ -134,14 +135,20 @@ export const MODELS: Readonly<Record<string, { path: string; h: number }>> = {
   veterok: { path: 'sky/veterok', h: 1.35 }, chirika: { path: 'creatures/bird', h: 0.85 },
 };
 
-/** The files of the islands: the characters' models (the heroine and the cat are the game's). Null = failed (TECH-08). */
-async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig> } | null> {
-  const rigs = await Promise.all(Object.entries(MODELS).map(async ([id, m]) => [id, await rig(m.path, m.h)] as const))
-    .then((e) => Object.fromEntries(e) as Record<string, Rig>)
-    .catch((e: unknown) => { loadFailed(e); return null; });
+/**
+ * The files of the islands: the characters' models (the heroine and the cat are the game's) and the models of its
+ * things (step 6b, ./props.ts: the airship's Sail Ship, the windmills, the little dragons). Null = failed (TECH-08).
+ */
+async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig>; props: SkyProps } | null> {
+  const loads = await Promise.all([
+    Promise.all(Object.entries(MODELS).map(async ([id, m]) => [id, await rig(m.path, m.h)] as const)).then((e) => Object.fromEntries(e) as Record<string, Rig>),
+    loadSkyProps(),
+  ]).catch((e: unknown) => { loadFailed(e); return null; });
+  if (!loads) return null;
+  const [rigs, props] = loads;
   // the good dragon green and gold (docs/worlds/world-5.md), not the CC0 model's own brown and orange
-  if (rigs) { tint(rigs.gromykhalo.model, GROMYKHALO_COLOURS); tint(rigs.chirika.model, CHIRIKA_COLOURS); }
-  return rigs ? { rigs } : null;
+  tint(rigs.gromykhalo.model, GROMYKHALO_COLOURS); tint(rigs.chirika.model, CHIRIKA_COLOURS);
+  return { rigs, props };
 }
 /** Gromykhalo's colours by the materials of Dragon Evolved: its body green, its belly and wings' skin gold. */
 export const GROMYKHALO_COLOURS: Readonly<Record<string, string>> = { Dragon_Main: '#5fae4a', Dragon_Secondary: '#e8c35a' };
@@ -174,7 +181,7 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
   scene.add(buildGround());
-  const scenery = buildScenery(scene);
+  const scenery = buildScenery(scene, L.props);
   // the arch back to the Great Tree on the castle island (./hub-way.ts): she comes out of it from the hub
   const hubWay = createHubWay(g);
   const gear = createGear(g.heroRig, g.heroRig.gear, [], g.sparks);
@@ -220,7 +227,7 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
 
 
   // the creatures busy with their own things (PLAY-11, ./creatures.ts): birds, little dragons, cloud lambs
-  const creatures = createSkyCreatures(g, scope);
+  const creatures = createSkyCreatures(g, scope, L.props.drakey);
   // the secrets (PLAY-07, ./secrets.ts): the chest on the nook behind the dragon island, the rainbow slide, the clouds
   // that turn into animals, the little dragons' nest
   const secrets = createSkySecrets(g, scope);

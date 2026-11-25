@@ -2,12 +2,15 @@
  * The two landmarks of the Sky Islands seen from far (WORLD-10, docs/worlds/world-5.md «Карта»), the grey build: the
  * observatory's tower with its clock and dome on the stargazer's island, seen from everywhere, and the airship at the
  * pier with its balloon raised. Simple shapes at their real sizes; each landmark is one mesh of baked vertex colours (one
- * draw call however many parts), the clock's hands a mesh of their own, as they move. The names are the ones
- * tools/sky-grey.mjs looks for: `landmark-observatory`, `clock-hands`, `landmark-pier`.
+ * draw call however many parts), the clock's hands a mesh of their own, as they move. Since step 6b the airship's hull
+ * is the CC0 Sail Ship (./props.ts) baked into the same mesh under our own red balloon; without the model (the unit
+ * tests build the islands so) the grey build's hull stands in. The names are the ones tools/sky-grey.mjs looks for:
+ * `landmark-observatory`, `clock-hands`, `landmark-pier`.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CLOCK, OBSERVATORY, SHIP } from './layout';
+import { AIRSHIP_COLOURS, bake } from './props';
 import { colliders, height } from './terrain';
 
 /** A part of a painted shape: a geometry in the shape's own metres, and its colour. */
@@ -48,12 +51,35 @@ export interface Landmarks {
   starTop: THREE.Vector3;
   /** The clock's hands: still until the finale starts the clock (./index.ts). */
   hands: THREE.Mesh;
-  /** The airship moored at the pier (it flies in WORLD-23 later). */
+  /** The airship moored at the pier: ./ship.ts moves and turns it in its flight, its bow (+z) along the way. */
   ship: THREE.Mesh;
 }
 
-/** The observatory and the airship in the scene, and their colliders. */
-export function buildLandmarks(scene: THREE.Scene): Landmarks {
+/** m over the airship's point where its deck is: she and the cat stand there in the flight (./ship.ts). */
+export const DECK = 1.4;
+/**
+ * Where she and the cat stand in the flight (./ship.ts), in the airship's own metres: on the Sail Ship's poop deck at its
+ * stern, she behind the helm, the cat beside it - the sails stand between the camera behind the ship and its middle.
+ * The deck's height there is the model's at SHIP.len (measured; ./landmarks.test.ts checks it).
+ */
+export const HELM = { x: 0, y: 1.92, z: -3.9 } as const;
+export const CAT_DECK = { x: -0.4, y: 1.92, z: -3.5 } as const;
+/** m of the Sail Ship's own (./props.ts, measured on the model): its deck amidships over the model's origin. */
+export const SAIL_SHIP = { deck: 0.74 } as const;
+
+/**
+ * The Sail Ship as the airship's hull: its length SHIP.len, centred on the airship's point, its deck at DECK, its bow
+ * +z (the model's own: its rudder is at -z) - the way the grey build's hull lay and ./ship.ts turns the airship.
+ */
+export function shipHull(model: THREE.Object3D): THREE.BufferGeometry {
+  const geo = bake(model, AIRSHIP_COLOURS), bb = geo.boundingBox!;
+  const s = SHIP.len / (bb.max.z - bb.min.z);
+  geo.translate(-(bb.min.x + bb.max.x) / 2, -SAIL_SHIP.deck, -(bb.min.z + bb.max.z) / 2).scale(s, s, s).translate(0, DECK, 0);
+  return geo;
+}
+
+/** The observatory and the airship in the scene, and their colliders; `airship` - the Sail Ship's model (./props.ts). */
+export function buildLandmarks(scene: THREE.Scene, airship?: THREE.Object3D): Landmarks {
   // ----- the observatory: a round tower, a gallery, the dome with a slit; the clock's face on its south side -----
   const { r, towerH, domeR } = OBSERVATORY;
   const faceY = towerH * 0.62;
@@ -82,20 +108,28 @@ export function buildLandmarks(scene: THREE.Scene): Landmarks {
   ]);
   colliders.push({ x: CLOCK.x, z: CLOCK.z, r: 0.8 });
 
-  // ----- the airship at the pier: a hull, a mast and a sail, its red balloon raised over it -----
+  // ----- the airship at the pier: a hull (the Sail Ship, or the grey build's), its red balloon raised over it -----
   const { len, balloonR, top } = SHIP;
   // it hangs in the air by the pier's edge, its deck a little under the pier's top (the gangway leads down to it)
   const deckY = SHIP.deck;
-  const balloonY = top - balloonR;
-  const ship = paintedAt(scene, 'landmark-pier', SHIP.x, SHIP.z, [
+  const balloonY = top - balloonR, rope = balloonY - balloonR * 0.8 - DECK;
+  // the balloon and its four ropes down to the deck's rails (the Sail Ship is 2.4 m across; the grey hull 3.2)
+  const balloon: Part[] = [[new THREE.SphereGeometry(balloonR, 14, 10).scale(1, 1, 1.35).translate(0, balloonY, 0), BALLOON]];
+  for (const [x, z] of [[0.7, 2], [-0.7, 2], [0.7, -2], [-0.7, -2]] as const) {
+    balloon.push([new THREE.CylinderGeometry(0.05, 0.05, rope, 4).translate(x, DECK + rope / 2, z), '#6a4a2a']);
+  }
+  const grey: Part[] = [
     [new THREE.CylinderGeometry(1.6, 1, len, 10, 1).rotateX(Math.PI / 2).scale(1, 0.7, 1).translate(0, 0.6, 0), HULL],
-    [new THREE.BoxGeometry(2.6, 0.2, len * 0.8).translate(0, 1.4, 0), '#c89060'],
+    [new THREE.BoxGeometry(2.6, 0.2, len * 0.8).translate(0, DECK, 0), '#c89060'],
     [new THREE.CylinderGeometry(0.12, 0.12, 4, 6).translate(0, 3.4, 0), '#6a4a2a'],
     [new THREE.BoxGeometry(0.1, 2.4, 2.4).translate(0, 3.6, 0.9), SAIL],
-    [new THREE.SphereGeometry(balloonR, 14, 10).scale(1, 1, 1.35).translate(0, balloonY, 0), BALLOON],
-    [new THREE.CylinderGeometry(0.05, 0.05, balloonY - balloonR - 1.4, 4).translate(1, 1.4 + (balloonY - balloonR - 1.4) / 2, 0), '#6a4a2a'],
-    [new THREE.CylinderGeometry(0.05, 0.05, balloonY - balloonR - 1.4, 4).translate(-1, 1.4 + (balloonY - balloonR - 1.4) / 2, 0), '#6a4a2a'],
-  ], SHIP.yaw, deckY);
+  ];
+  const ship = airship
+    ? new THREE.Mesh(mergeGeometries([shipHull(airship), paint(balloon)], false)!, paintMaterial())
+    : new THREE.Mesh(paint([...grey, ...balloon]), paintMaterial());
+  ship.name = 'landmark-pier'; ship.castShadow = true; ship.receiveShadow = true;
+  ship.position.set(SHIP.x, deckY, SHIP.z); ship.rotation.y = SHIP.yaw;
+  scene.add(ship);
   return {
     starTop: new THREE.Vector3(OBSERVATORY.x, height(OBSERVATORY.x, OBSERVATORY.z) + towerH + domeR + 2.5, OBSERVATORY.z),
     hands,

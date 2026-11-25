@@ -57,6 +57,13 @@ recoloured in code by the parts of her figure (skin, hair, dress, wings, star). 
 Gromykhalo, the good dragon, is "Dragon Evolved" by Quaternius (https://poly.pizza/m/LlwD0QNUPj) — "Public Domain (CC0)"
 on its page (read 2026-11-25); its clips renamed for the game (Flying_Idle as Idle, Yes as Talk, Fast_Flying as Cheer).
 
+The things of the Sky Islands (world 5, step 6b; `models-src/sky/airship.glb`, `windmill.glb`, `drakey.glb`, shipped
+with the world from `worlds-data/sky/`), three models by Quaternius, each "Public Domain (CC0)" on its page (read
+2026-11-25): "Sail Ship" (https://poly.pizza/m/cIzO4MBPqI), the airship's hull under our own red balloon; "Tower
+Windmill" (https://poly.pizza/m/52yaPyaAAG), the three windmills, its blades their turning sails; "Dragon"
+(https://poly.pizza/m/VBvzjFIYws), the little dragons, in its own flying clip. Their materials' colours put into their
+vertices in code, in the islands' colours.
+
 The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
 `worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page
 (read 2026-11-22); its materials' colours put into its vertices in code. The sea's other landmarks — the castle of

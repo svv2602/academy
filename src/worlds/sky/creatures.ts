@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { sfx } from '../../core/audio';
 import { uTime } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
@@ -9,6 +10,7 @@ import {
   CASTLE, CLOCK, CLOCK_AT, GANGWAY, GEARS, ISLANDS, ISLET_GANGWAY, LANDING, MILL, MILLS, RAIL, RAY_ISLET, SHRINE, SPAWN, TREE_ARCH, WINDS_AT,
   type Place, type ZoneId,
 } from './layout';
+import type { SkyProps } from './props';
 import { colliders, height, islandAt, pathDist, type Collider } from './terrain';
 
 /**
@@ -21,8 +23,10 @@ import { colliders, height, islandAt, pathDist, type Collider } from './terrain'
  * recorded and nothing is given. The star fireflies of the document come with the magic later: they are not here.
  *
  * The behaviour (`createSkyHerd`) is plain data stepped in time, so the unit test runs it without a screen; the world's
- * part (`createSkyCreatures`) draws the birds, the little dragons and the lambs each as one instanced mesh of our own
- * faceted shape and the weathervanes the birds sit on as one more, casting no shadow: four draw calls.
+ * part (`createSkyCreatures`) draws the birds and the lambs each as one instanced mesh of our own faceted shape and the
+ * weathervanes the birds sit on as one more; the little dragons (step 6b) are the CC0 Dragon by Quaternius
+ * (./props.ts), four skinned clones beating their wings in its flying clip, two draw calls each (its body, its eyes).
+ * Nothing casts a shadow: eleven draw calls.
  *
  * Every reaction freezes the action it interrupts and plays round the point it was tapped at; it ends there and the
  * action goes on from the moment it stopped. The actions that follow a circle of the clock (a bird's, a pair's) blend
@@ -412,28 +416,6 @@ export function birdGeometry(): THREE.BufferGeometry {
   return shape(bits);
 }
 
-/**
- * A little dragon, 0.66 m long, its belly on y 0, its front +z: a body, a head and a snout (white: its colour), a golden
- * belly and horns, dark eyes, a tail, four stubby legs and two wings (part 1) hinged on its back.
- */
-export function drakeyGeometry(): THREE.BufferGeometry {
-  const w = '#ffffff', bits: Bit[] = [
-    { geo: new THREE.IcosahedronGeometry(0.12, 1).scale(0.9, 0.8, 1.5).translate(0, 0.13, 0), colour: w },
-    { geo: new THREE.IcosahedronGeometry(0.09, 0).scale(0.8, 0.6, 1.4).translate(0, 0.09, 0.03), colour: '#ffe9a0' },
-    { geo: new THREE.IcosahedronGeometry(0.08, 1).translate(0, 0.22, 0.21), colour: w },
-    { geo: new THREE.OctahedronGeometry(0.05, 0).scale(0.8, 0.6, 1.2).translate(0, 0.2, 0.29), colour: w },
-    { geo: new THREE.ConeGeometry(0.05, 0.3, 5).rotateX(-Math.PI / 2).translate(0, 0.12, -0.3), colour: w },
-  ];
-  for (const s of [1, -1]) {
-    bits.push({ geo: new THREE.OctahedronGeometry(0.016, 0).translate(0.04 * s, 0.25, 0.27), colour: DARK });
-    bits.push({ geo: new THREE.ConeGeometry(0.016, 0.08, 4).rotateX(-0.5).translate(0.035 * s, 0.31, 0.17), colour: GOLD });
-    for (const z of [0.09, -0.09]) bits.push({ geo: new THREE.OctahedronGeometry(0.035, 0).translate(0.07 * s, 0.03, z), colour: w });
-    // a wing of two leaves from the back out: hinged at x = 0.06, y = 0.2 (the shader turns it there)
-    bits.push({ geo: tri(0.06 * s, 0.2, 0.08, 0.06 * s, 0.2, -0.1, 0.38 * s, 0.22, -0.04, 0.06 * s, 0.2, -0.1, 0.27 * s, 0.2, -0.16, 0.38 * s, 0.22, -0.04), colour: '#fff2c8', part: 1 });
-  }
-  return shape(bits);
-}
-
 /** A cloud lamb, 0.5 m tall, standing on y 0, its front +z: a fleece of white puffs (part 1, it fluffs up), a soft grey face, ears, eyes and legs. */
 export function lambGeometry(): THREE.BufferGeometry {
   const w = '#ffffff', face = '#9a90b0', bits: Bit[] = [
@@ -489,15 +471,13 @@ const wing = (hx: number, hy: number, ang: string) => `float side = sign(positio
 const MOVE = {
   // the wings: folded down along the body at rest, beating with aAct (flying, fluttering)
   bird: wing(0.05, 0.15, '-0.9 * (1.0 - aAct) + sin(uTime * 22.0 + ph) * 0.9 * aAct'),
-  // the wings: spread flat in the sun at rest, a slow beat with aAct (flying, the somersault)
-  drakey: wing(0.06, 0.2, '0.1 * (1.0 - aAct) + sin(uTime * 9.0 + ph) * 0.8 * aAct'),
   // the fleece breathes a little all the time and puffs up round its middle with aAct (the fluff)
   lamb: `vec3 mid = vec3(0.0, 0.32, 0.0);
       float puff = 1.0 + 0.04 * sin(uTime * 2.0 + ph) + 0.5 * aAct;
       transformed = mix(transformed, mid + (transformed - mid) * puff, p1);`,
 } as const;
 
-/** Colours per instance: the birds pale; the little dragons green, gold, sky blue; the cloud lambs white. */
+/** Colours per instance: the birds pale; the little dragons green, gold, sky blue (each its model's material); the cloud lambs white. */
 const BIRD = ['#ffffff', '#dfe9ff', '#ffe6d2'];
 const DRAKEY = ['#7fd06a', '#ffc94a', '#6fc4d8', '#b8e06a'];
 const LAMB = ['#ffffff', '#f2f4ff', '#fff3f8'];
@@ -506,11 +486,63 @@ const SPARK = { bird: '#ffffff', drakey: '#ffe27a', lamb: '#f4f8ff' } as const;
 const SOUND = { bird: 'pop', drakey: 'jump', lamb: 'soft' } as const;
 /**
  * How much larger than its shape each kind is drawn, by the heroine's 1.53 m and the Sweet Land's sizes (2026-11-24): a
- * bird 0.86 m long (it flies high), a little dragon 1.7 m long, a lamb 0.9 m tall; the weathervanes as they are.
+ * bird 0.86 m long (it flies high), a lamb 0.9 m tall; the weathervanes as they are. A little dragon is its model made
+ * DRAKEY_LONG m long.
  */
-export const SIZE = { bird: 2.4, drakey: 2.6, lamb: 1.8 } as const;
-/** m above a creature's point where its drawn body's middle is (what a tap is measured to). */
-const BODY = { bird: 0.14 * SIZE.bird, drakey: 0.15 * SIZE.drakey, lamb: 0.3 * SIZE.lamb } as const;
+export const SIZE = { bird: 2.4, lamb: 1.8 } as const;
+/** m: a little dragon nose to tail (the grey build's shape was 1.7 m long), its feet on its point. */
+export const DRAKEY_LONG = 1.8;
+/** The Dragon's clip the little dragons fly in, all the time (the model has no clip of rest). */
+export const DRAKEY_CLIP = 'Dragon_Flying';
+/** The shades of the Dragon's materials, each times a little dragon's own colour (DRAKEY): its body (Main) white, so the colour itself. */
+export const DRAKEY_SHADES: Readonly<Record<string, string>> = { Main: '#ffffff', Belly: '#ffe9a0', Wings: '#fff2c8', Claws: '#5d5866', Eyes: '#2a1a1a' };
+/** m above a creature's point where its drawn body's middle is (what a tap is measured to); the dragon's by its model. */
+const BODY = { bird: 0.14 * SIZE.bird, drakey: 0.38 * DRAKEY_LONG, lamb: 0.3 * SIZE.lamb } as const;
+
+/**
+ * The Dragon with each of its meshes made one: the four materials of its skinned body one skinned geometry, the two of
+ * its eyes (a mesh on the bone of its face) one more, with the shades of DRAKEY_SHADES per vertex - two draw calls a
+ * little dragon instead of six. Scaled to DRAKEY_LONG, its feet on y 0, its front +z (the model's own). `src` is not
+ * changed; the clones of the result share its geometries.
+ */
+export function drakeyModel(src: SkyProps['drakey']): THREE.Group {
+  const model = cloneSkinned(src.scene);
+  model.updateMatrixWorld(true);
+  const groups = new Map<THREE.Object3D, THREE.Mesh[]>();
+  model.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh && m.parent) groups.set(m.parent, [...(groups.get(m.parent) ?? []), m]);
+  });
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, flatShading: true });
+  for (const [parent, meshes] of groups) {
+    const geo = mergeGeometries(meshes.map((m) => {
+      const g = new THREE.BufferGeometry(), at = m.geometry;
+      for (const k of ['position', 'normal', 'skinIndex', 'skinWeight']) if (at.getAttribute(k)) g.setAttribute(k, at.getAttribute(k));
+      g.setIndex(at.index);
+      const c = new THREE.Color(DRAKEY_SHADES[(m.material as THREE.Material).name] ?? '#ffffff'), n = at.getAttribute('position').count;
+      g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).map((_, i) => [c.r, c.g, c.b][i % 3]), 3));
+      return g;
+    }), false);
+    if (!geo) throw new Error('sky creatures: the dragon\'s meshes did not merge');
+    const first = meshes[0], skin = (first as THREE.SkinnedMesh).isSkinnedMesh ? (first as THREE.SkinnedMesh) : null;
+    let one: THREE.Mesh;
+    if (skin) { const body = new THREE.SkinnedMesh(geo, material); body.bind(skin.skeleton, skin.bindMatrix); one = body; } else one = new THREE.Mesh(geo, material);
+    one.name = skin ? 'drakey-body' : 'drakey-eyes';
+    one.position.copy(first.position); one.quaternion.copy(first.quaternion); one.scale.copy(first.scale);
+    one.frustumCulled = false;      // skinned bounds are the bind pose's
+    parent.add(one);
+    for (const m of meshes) m.removeFromParent();
+  }
+  // measured in its rest pose: the bones' matrices are made only as it is drawn
+  model.updateMatrixWorld(true);
+  model.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton.update(); });
+  const bb = new THREE.Box3().setFromObject(model), s = DRAKEY_LONG / (bb.max.z - bb.min.z);
+  model.scale.multiplyScalar(s);
+  model.position.y -= bb.min.y * s;
+  const root = new THREE.Group();
+  root.add(model);
+  return root;
+}
 
 /** The world's part of the creatures: stepped by the frame; a tap passed to them last. */
 export interface SkyCreatures {
@@ -518,16 +550,20 @@ export interface SkyCreatures {
   update(dt: number): void;
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
   bodyOf(c: SkyCreature): number;
+  /** The instanced meshes of the birds, the lambs and the weathervanes. */
   readonly meshes: readonly THREE.InstancedMesh[];
+  /** The little dragons, one model each (DRAKEY_CLIP playing), in the order of the herd's. */
+  readonly drakeys: readonly THREE.Object3D[];
   /** Takes the meshes out of the scene and frees them (the world's scope does so too, as the world is left). */
   dispose(): void;
 }
 
-export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | 'started' | 'touch'>, _scope: WorldScope, habitat: SkyHabitat = skyHabitat()): SkyCreatures {
+/** `drakey` - the Dragon's model (./props.ts) the little dragons are made of. */
+export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | 'started' | 'touch'>, _scope: WorldScope, drakey: SkyProps['drakey'], habitat: SkyHabitat = skyHabitat()): SkyCreatures {
   const { scene } = g;
   const herd = createSkyHerd(habitat);
-  const kinds: { kind: SkyKind; list: SkyCreature[]; mesh: THREE.InstancedMesh; act: THREE.InstancedBufferAttribute }[] = [];
-  const add = (kind: SkyKind, geo: THREE.BufferGeometry, mat: THREE.MeshStandardMaterial, colours: readonly string[]) => {
+  const kinds: { kind: Exclude<SkyKind, 'drakey'>; list: SkyCreature[]; mesh: THREE.InstancedMesh; act: THREE.InstancedBufferAttribute }[] = [];
+  const add = (kind: Exclude<SkyKind, 'drakey'>, geo: THREE.BufferGeometry, mat: THREE.MeshStandardMaterial, colours: readonly string[]) => {
     const list = herd.all.filter((c) => c.kind === kind), n = Math.max(1, list.length);
     const act = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
     geo.setAttribute('aAct', act);
@@ -539,7 +575,6 @@ export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | '
     kinds.push({ kind, list, mesh, act });
   };
   add('bird', birdGeometry(), creatureMaterial('bird', MOVE.bird, { side: THREE.DoubleSide, roughness: 0.8 }), BIRD);
-  add('drakey', drakeyGeometry(), creatureMaterial('drakey', MOVE.drakey, { side: THREE.DoubleSide, roughness: 0.45 }), DRAKEY);
   add('lamb', lambGeometry(), creatureMaterial('lamb', MOVE.lamb, { roughness: 1 }), LAMB);
   // the weathervanes on the roofs' tips: one instanced mesh, swinging a little in the wind
   const vanes = new THREE.InstancedMesh(vaneGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.2, flatShading: true }), Math.max(1, habitat.vanes.length));
@@ -547,12 +582,26 @@ export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | '
   scene.add(vanes);
 
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), size = new THREE.Vector3(), body = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  // the little dragons: a clone of the model each, its own colour, its wings beating out of step with the others'
+  const template = drakeyModel(drakey), flying = drakey.animations.find((a) => a.name.split('|').pop() === DRAKEY_CLIP);
+  if (!flying) throw new Error(`sky creatures: the dragon has no clip ${DRAKEY_CLIP}`);
+  const drakeys = herd.all.filter((c) => c.kind === 'drakey').map((c, i) => {
+    const root = cloneSkinned(template) as THREE.Group, material = (template.getObjectByName('drakey-body') as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const mine = material.clone();
+    mine.color.set(DRAKEY[i % DRAKEY.length]);
+    root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.material = mine; m.castShadow = false; m.receiveShadow = false; } });
+    root.name = 'sky-drakey';
+    const mixer = new THREE.AnimationMixer(root), action = mixer.clipAction(flying).play();
+    action.time = (i * 0.37) % flying.duration;
+    scene.add(root);
+    return { c, root, mixer, material: mine };
+  });
   const meshes = [...kinds.map((k) => k.mesh), vanes];
   let clock = 0;
   const bodyOf = (c: SkyCreature) => BODY[c.kind];
   const sparks = g.sparks;
   return {
-    herd, bodyOf, meshes,
+    herd, bodyOf, meshes, drakeys: drakeys.map((d) => d.root),
     update(dt) {
       clock += dt;
       herd.update(dt, (c, ev) => { if (ev === 'sparkle') sparks.burst(c.pos, SPARK[c.kind], 14, 1.6); });
@@ -563,6 +612,11 @@ export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | '
           k.act.setX(i, c.act);
         });
         k.mesh.instanceMatrix.needsUpdate = true; k.act.needsUpdate = true;
+      }
+      // the somersault turns the whole little dragon (its pitch); basking, its wings beat slowly in the sun
+      for (const d of drakeys) {
+        d.root.position.copy(d.c.pos); d.root.quaternion.setFromEuler(e.set(d.c.pitch, d.c.heading, d.c.roll, 'YXZ'));
+        d.mixer.update(dt * (0.25 + 0.75 * d.c.act));
       }
       habitat.vanes.forEach((v, i) => vanes.setMatrixAt(i, m.compose(v.tip, q.setFromAxisAngle(up, i * 1.3 + Math.sin(clock * 0.4 + i) * 0.5), size.setScalar(1))));
       vanes.instanceMatrix.needsUpdate = true;
@@ -581,6 +635,8 @@ export function createSkyCreatures(g: Pick<Game, 'scene' | 'sparks' | 'busy' | '
         mesh.removeFromParent(); mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
       }
+      for (const d of drakeys) { d.mixer.stopAllAction(); d.root.removeFromParent(); d.material.dispose(); }
+      template.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
     },
   };
 }

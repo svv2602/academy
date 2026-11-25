@@ -10,6 +10,7 @@ import { forget, keep, keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { generateWinds, showWindsInWorld, windsLevel, type WindsSpec } from '../../game/worldtasks/winds';
 import { tf } from '../../ui/strings';
+import { CAT_DECK, HELM } from './landmarks';
 import { FLIGHT, GANGWAY, ISLANDS, ISLET_GANGWAY, SHIP, SHIP_FAR, WINDS_AT } from './layout';
 import { height } from './terrain';
 
@@ -87,6 +88,9 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     ship.position.set(m.x, (far ? ISLANDS.far.top : ISLANDS.pier.top) - 1.4, m.z);
     ship.rotation.set(0, SHIP.yaw, 0);
   };
+  // a point of the airship's own metres in the world, the airship at `p` turned as it is now
+  const deck = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const onDeck = (at: { x: number; y: number; z: number }, p: THREE.Vector3) => deck.set(at.x, at.y, at.z).applyAxisAngle(up, ship.rotation.y).add(p);
   const stand = (p: { x: number; z: number }) => { hero.root.position.set(p.x, height(p.x, p.z), p.z); g.cat.root.position.set(p.x + 1, height(p.x + 1, p.z - 0.6), p.z - 0.6); };
   moor();
   // a flight left in the middle: she is on the island it flew to, the ship moored there
@@ -176,9 +180,9 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
         // its heading along the way, turned smoothly; never a bank
         const want = Math.atan2(tan.x, tan.z);
         ship.rotation.set(0, ship.rotation.y + Math.atan2(Math.sin(want - ship.rotation.y), Math.cos(want - ship.rotation.y)) * Math.min(1, dt * 3), 0);
-        // she and the cat stand on its deck
-        hero.root.position.set(p.x, p.y + 1.4, p.z); hero.heading = ship.rotation.y; hero.root.rotation.y = ship.rotation.y;
-        g.cat.root.position.set(p.x - Math.cos(ship.rotation.y) * 0.8, p.y + 1.4, p.z + Math.sin(ship.rotation.y) * 0.8);
+        // she and the cat stand on its poop deck, at the helm (./landmarks.ts HELM), facing the way it flies
+        hero.root.position.copy(onDeck(HELM, p)); hero.heading = ship.rotation.y; hero.root.rotation.y = ship.rotation.y;
+        g.cat.root.position.copy(onDeck(CAT_DECK, p));
         // the camera behind it and a little above, gliding (src/game/camera.ts eases to it)
         g.camTask = { target: p.clone().setY(p.y + 2), yaw: ship.rotation.y + Math.PI, pitch: 0.3, dist: 11, catAt: g.cat.root.position.clone() };
         if (f.s >= f.len) f.end(time - f.t0);
