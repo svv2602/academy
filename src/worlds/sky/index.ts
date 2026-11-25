@@ -77,7 +77,7 @@ const FIGURE: Record<string, { h: number; r: number; color: string; top: string 
   gromykhalo: { h: 3.2, r: 1.1, color: '#5fae4a', top: '#ffd166' },     // the big good dragon, green and gold
   mertsal: { h: 1.75, r: 0.32, color: '#4a3f8a', top: '#ffe27a' },      // the old stargazer: a starry mantle, a golden cap
   veterok: { h: 1.35, r: 0.26, color: '#3c7fd0', top: '#e8483c' },      // the ship's boy: blue jacket, red cap
-  chirika: { h: 0.6, r: 0.22, color: '#2f3f6a', top: '#ff9a3c' },       // the swallow-postwoman, bigger than the birds
+  chirika: { h: 0.85, r: 0.22, color: '#2f3f6a', top: '#ff9a3c' },       // the swallow-postwoman, bigger than the birds
 };
 
 /**
@@ -126,12 +126,12 @@ function buildSky(scene: THREE.Scene): WorldSky {
  * The characters' models (step 6, the customer's decisions of 2026-11-18 and 2026-11-25; CREDITS.md): Lazur, Mertsal
  * and Veterok from Meshy with our own skeletons and clips (Veterok keeps his hands on his hips: his arms have no bones),
  * Gromykhalo the CC0 Dragon Evolved (Quaternius) with its own clips named for the game, Chirika the first world's
- * bird, bigger. The world's own files (models/sky/, TECH-09) by their height in metres - their figures' (FIGURE); the
+ * bird, bigger (0.85 m: at 0.6 she did not read in the game, the lead's decision of 2026-11-25) and in her colours. The world's own files (models/sky/, TECH-09) by their height in metres - their figures' (FIGURE); the
  * bird is the core's (models/creatures/). Idle, Talk, and Cheer for the finale where a model has them.
  */
 export const MODELS: Readonly<Record<string, { path: string; h: number }>> = {
   lazur: { path: 'sky/lazur', h: 1.7 }, gromykhalo: { path: 'sky/gromykhalo', h: 3.2 }, mertsal: { path: 'sky/mertsal', h: 1.75 },
-  veterok: { path: 'sky/veterok', h: 1.35 }, chirika: { path: 'creatures/bird', h: 0.6 },
+  veterok: { path: 'sky/veterok', h: 1.35 }, chirika: { path: 'creatures/bird', h: 0.85 },
 };
 
 /** The files of the islands: the characters' models (the heroine and the cat are the game's). Null = failed (TECH-08). */
@@ -140,11 +140,13 @@ async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean): Promi
     .then((e) => Object.fromEntries(e) as Record<string, Rig>)
     .catch((e: unknown) => { loadFailed(e); return null; });
   // the good dragon green and gold (docs/worlds/world-5.md), not the CC0 model's own brown and orange
-  if (rigs) tint(rigs.gromykhalo.model, GROMYKHALO_COLOURS);
+  if (rigs) { tint(rigs.gromykhalo.model, GROMYKHALO_COLOURS); tint(rigs.chirika.model, CHIRIKA_COLOURS); }
   return rigs ? { rigs } : null;
 }
 /** Gromykhalo's colours by the materials of Dragon Evolved: its body green, its belly and wings' skin gold. */
 export const GROMYKHALO_COLOURS: Readonly<Record<string, string>> = { Dragon_Main: '#5fae4a', Dragon_Secondary: '#e8c35a' };
+/** Chirika's colours by the bird's materials: a swallow's dark blue back, her orange crest (her grey figure's). */
+export const CHIRIKA_COLOURS: Readonly<Record<string, string>> = { C_4488aa: '#2f3f6a', C_55aa00: '#ff9a3c' };
 type SkyLoads = NonNullable<Awaited<ReturnType<typeof loadSky>>>;
 
 /** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */

@@ -20,9 +20,9 @@ function clips(file: string): string[] {
 }
 
 describe('the characters\' models of the Sky Islands', () => {
-  it('one for each of the five, as tall as its figure was', () => {
+  it('one for each of the five, as tall as its figure (Chirika 0.85 m: the lead\'s decision of 2026-11-25)', () => {
     expect(Object.keys(MODELS).sort()).toEqual(FRIENDS.map((f) => f.id).sort());
-    expect(Object.fromEntries(Object.entries(MODELS).map(([id, m]) => [id, m.h]))).toEqual({ lazur: 1.7, gromykhalo: 3.2, mertsal: 1.75, veterok: 1.35, chirika: 0.6 });
+    expect(Object.fromEntries(Object.entries(MODELS).map(([id, m]) => [id, m.h]))).toEqual({ lazur: 1.7, gromykhalo: 3.2, mertsal: 1.75, veterok: 1.35, chirika: 0.85 });
   });
 
   it('the world\'s own are its files under 1 MB, not the core\'s, each with Idle, Talk and Cheer', () => {
