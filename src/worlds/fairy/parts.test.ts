@@ -3,7 +3,8 @@
  * said waits for its shard in the world; one with the shard taken is left as it is. The save's format does not change.
  */
 import { describe, expect, it } from 'vitest';
-import { HIDDEN_PARTS, settleOldParts } from './parts';
+import { HIDDEN_PARTS, inRoomArea, settleOldParts, throughTheDoor } from './parts';
+import { GLADE, HOUSE, ROOM } from './layout';
 import { QUESTS, chainDone } from './quests';
 
 const ws = (quests: Record<string, number>, flags: Record<string, boolean> = {}) => ({ quests: { ...quests }, flags: { ...flags } });
@@ -35,5 +36,35 @@ describe('the parts of the fox and the mushroom king, hidden in the world', () =
       expect(settleOldParts(w)).toBe(false);
       expect(JSON.stringify(w)).toBe(before);
     }
+  });
+});
+
+describe('the cat\'s sparkles to a shard on the other side of the fairy house\'s door', () => {
+  // the doors as ./secrets.ts places them: outside by the house in the valley, inside by the room's door
+  const doors = { doorOut: { x: HOUSE.x + 1.5, z: HOUSE.z + 1 }, doorIn: { x: ROOM.x, z: ROOM.z + ROOM.half - 1.1 } };
+  const king = HIDDEN_PARTS.find((p) => p.owner === 'mushking')!, fox = HIDDEN_PARTS.find((p) => p.owner === 'fox')!;
+
+  it('the king\'s shard lies in the room, far off the map; the fox\'s on the glade, in the valley', () => {
+    expect(inRoomArea(king.at)).toBe(true);
+    expect(Math.hypot(king.at.x - HOUSE.x, king.at.z - HOUSE.z)).toBeGreaterThan(150);
+    expect(inRoomArea(fox.at)).toBe(false);
+    expect(inRoomArea(GLADE)).toBe(false);
+    expect(inRoomArea(doors.doorOut)).toBe(false);
+    expect(inRoomArea(doors.doorIn)).toBe(true);
+  });
+
+  it('from the valley they lead to the house\'s door, not past the horizon (the customer\'s game, 2026-11-25); in the room, to the shelf', () => {
+    expect(throughTheDoor(king.at, false, doors)).toBe(doors.doorOut);
+    expect(throughTheDoor(king.at, true, doors)).toBe(king.at);
+  });
+
+  it('from the room a goal in the valley leads to the door out; a goal on her own side, straight to it', () => {
+    expect(throughTheDoor(fox.at, true, doors)).toBe(doors.doorIn);
+    expect(throughTheDoor(fox.at, false, doors)).toBe(fox.at);
+  });
+
+  it('the world leads every goal of its sparkles through the door', () => {
+    const raw = Object.values(import.meta.glob('./index.ts', { query: '?raw', import: 'default', eager: true }))[0] as string;
+    expect(raw).toMatch(/return at && throughTheDoor\(at, secrets\.inRoom\(\), secrets\);/);
   });
 });

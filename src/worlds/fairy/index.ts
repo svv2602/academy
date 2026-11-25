@@ -43,7 +43,7 @@ import { travel } from '../../game/travel';
 import { SIGN_H } from './scenery';
 import { SKY_RADIUS, VALLEY_FAR, buildSky } from './sky';
 import { GLADE_FLAG, HOUSE_FLAG, createSecrets } from './secrets';
-import { HIDDEN_PARTS, createParts, settleOldParts } from './parts';
+import { HIDDEN_PARTS, createParts, settleOldParts, throughTheDoor } from './parts';
 import { createStarSearch } from './star-search';
 import { FAIRY_STORIES } from './story';
 import { strings } from './strings';
@@ -228,8 +228,15 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     ...secrets.spots,
   ];
 
-  /** Where the cat's sparkles lead: the next unfinished friend, then the shrine. */
+  /**
+   * Where the cat's sparkles lead: the next unfinished friend, then the shrine. A goal on the other side of the fairy
+   * house's door (the king's shard in the room, a friend in the valley while she is in the room) leads to the door first.
+   */
   function goal(): THREE.Vector3 | null {
+    const at = target();
+    return at && throughTheDoor(at, secrets.inRoom(), secrets);
+  }
+  function target(): THREE.Vector3 | null {
     if (search.active) return starSearch.goal();
     const shard = parts.goal();
     if (shard) return shard;

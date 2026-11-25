@@ -18,6 +18,20 @@ import { QUESTS, type QuestDef } from './quests';
  * world description). A save from before the parts were hidden, its chain finished at three steps, keeps its shard:
  * `settleOldParts`.
  */
+/** The room of the fairy house lies far off the map (./layout.ts ROOM): a point in it, or near it, as ./secrets.ts `inRoom` reads her place. */
+export const inRoomArea = (p: { x: number; z: number }) => Math.abs(p.x - ROOM.x) < ROOM.half + 2 && Math.abs(p.z - ROOM.z) < ROOM.half + 2;
+
+/**
+ * Where the cat's sparkles lead to reach `target` from where she is: the target itself when it is on her side of the
+ * house's door, else that door - outside the door into the house (`doorOut`), in the room the door out (`doorIn`). The
+ * room lies far off the map: the king's shard on its shelf, led to straight from the valley, sent the sparkles past
+ * the horizon (the customer's game, 2026-11-25).
+ */
+export function throughTheDoor<T extends { x: number; z: number }>(target: T, heroInRoom: boolean, doors: { doorOut: T; doorIn: T }): T {
+  if (inRoomArea(target) === heroInRoom) return target;
+  return heroInRoom ? doors.doorIn : doors.doorOut;
+}
+
 export interface HiddenPart {
   readonly owner: QuestDef['id'];
   /** The flag of the shard taken, and the id of its item of the description. */
