@@ -75,7 +75,7 @@ export function shelfState(save: Save, world: Pick<WorldEntry, 'id' | 'character
 }
 
 /** The pictures of the pets (PETS, src/game/pets.ts) and of "no pet". */
-const PET_ICON: Record<string, string> = { fawn: '🦌', owlet: '🦉', bulchik: '🐲', zheleyka: '🧸', none: '🚫' };
+export const PET_ICON: Record<string, string> = { fawn: '🦌', owlet: '🦉', bulchik: '🐲', zheleyka: '🧸', pushok: '🐑', none: '🚫' };
 /** The pictures of a world's secrets: the chest has its own. */
 const SECRET_ICON = '✨', CHEST_ICON = '🎁';
 

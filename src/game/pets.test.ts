@@ -13,6 +13,8 @@ import {
 } from './pets';
 import { loadWorlds } from '../worlds';
 import { COLLECT_KINDS } from './collections';
+import { PET_ICON } from '../ui/book';
+import { STRINGS } from '../ui/strings';
 
 /** Every world of the registry with its code (a next world's is loaded on demand, src/worlds/index.ts). */
 const WORLDS = await loadWorlds();
@@ -48,6 +50,14 @@ describe('the catalog of pets (PLAY-09, R18, R57)', () => {
     expect(FAWN).toMatchObject({ id: 'fawn', world: 'fairy', model: 'animals_pack/Deer' });
     // Smaller than the grown-up of the first world (1.55 m in src/worlds/fairy/load.ts) and than the heroine.
     expect(FAWN.height).toBeLessThan(1);
+  });
+
+  it('every pet has its name in both languages and its icon in the book (src/ui/book.ts: a missing name broke it)', () => {
+    const missing = PETS.flatMap((p) => [
+      ...(['uk', 'ru'] as const).filter((l) => !(STRINGS[l] as Record<string, string>)[`pet_${p.id}`]).map((l) => `pet_${p.id} (${l})`),
+      ...(PET_ICON[p.id] ? [] : [`icon of ${p.id}`]),
+    ]);
+    expect(missing).toEqual([]);
   });
 
   it('every world that declares a pet: its species is in the catalog, of that world, and its `after` is one of its characters', () => {
