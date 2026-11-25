@@ -72,6 +72,10 @@ export const PETS: readonly PetSpecies[] = [
   // its "flying": it swims after her at her swimming height (0.6 m, src/worlds/sea/index.ts SWIM_HEIGHT) and stays
   // there when it stops (`rest`), as Bulk floats over the corals.
   { id: 'bulchik', world: 'sea', model: 'sea/bulk', height: 0.7, own: true, walk: 1, fly: { clip: 'Swim', height: 0.6, rest: 0.6 }, lighter: 0.3, treats: ['feather', 'butterfly'] },
+  // Pushok of the Sky Islands (world-5.md, PLAY-09): the smallest cloud lamb, a file of that world (`own`), made whole in
+  // Blender by code (CREDITS.md), 0.5 m. He trots and gallops: the ground speeds of his Walk and Run at a pace of 1 are
+  // his clips' own (a standing leg sweeps 2 x 0.17 m x sin 22 deg in half of the 0.8 s trot; the gallop's about 1 m/s).
+  { id: 'pushok', world: 'sky', model: 'sky/pushok', height: 0.5, own: true, walk: 0.34, run: { clip: 'Run', ground: 1.05 }, treats: ['berry', 'feather'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
