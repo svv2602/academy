@@ -24,6 +24,7 @@ describe('the way between the hub and the forest: what the arches show by the wo
   it.each([
     ['the published build before the sea (the forest)', ['fairy', 'hub', 'forest'], ['forest']],
     ['the published build (the forest, the sea)', ['fairy', 'hub', 'forest', 'sea'], ['forest', 'sea']],
+    ['the published build with the Sweet Land (the forest, the sea, the Sweet Land)', ['fairy', 'hub', 'forest', 'sea', 'sweet'], ['forest', 'sea', 'sweet']],
     ['the grey build (the forest, the sea, the Sweet Land, the Sky Islands)', ['fairy', 'hub', 'forest', 'sea', 'sweet', 'sky'], ['forest', 'sea', 'sweet', 'sky']],
   ])('%s: hubExpect is what the hub\'s rules give', (_, ids, next) => {
     const want = hubExpect(next);
@@ -38,6 +39,13 @@ describe('the way between the hub and the forest: what the arches show by the wo
       expect(wakingArches(open, { woke1: true })).toEqual(want.older.woke);
       expect(want.older.flags).toContain(woke(2));
     } else expect(next).not.toContain('sea');
+    // the sea done too, the arches of the forest and the sea awake from before: the Sweet Land's alone wakes
+    if (want.sweet) {
+      const open = openArches(portalWorlds(registry(ids)), (id) => ['fairy', 'forest', 'sea'].includes(id));
+      expect(open).toEqual(want.sweet.arches);
+      expect(wakingArches(open, { woke1: true, woke2: true })).toEqual(want.sweet.woke);
+      expect(want.sweet.flags).toContain(woke(3));
+    } else expect(next).not.toContain('sweet');
   });
 
   it('the Sky Islands\' arch (shelf 4) sleeps in the saves of the way and wakes once the Sweet Land is done (the hub\'s rules)', () => {
