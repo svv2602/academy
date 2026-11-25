@@ -142,8 +142,10 @@ const uk = {
   sweet_magic_1: 'Дивись, цукерки знову кольорові! Країна прокидається.',
   sweet_magic_3: 'Льодяники світяться, а метелики-карамельки кружляють!',
   sweet_magic_5: 'Як усе блищить! Країна от-от засміється.',
-  // the captions, not spoken: the world's title, the artifact, the card of a part, the full names of the characters and the pet
+  // the captions, not spoken: the world's title, the artifact, the card of a part, the full names of the characters and the pet,
+  // the book's buttons of the cut-scenes (./story.ts)
   sweet_world_title: 'Солодка країна',
+  sweet_story_title_intro: 'Початок історії Солодкої країни', sweet_story_title_ruby: 'Рубін радості повернувся',
   sweet_artifact: 'Рубін радості',
   sweet_part_card: 'Рубінчик',
   sweet_fullname_pastila: 'Фея-кондитерка Пастила',
@@ -261,6 +263,7 @@ const ru: Record<keyof typeof uk, string> = {
   sweet_magic_3: 'Леденцы светятся, а бабочки-карамельки кружатся!',
   sweet_magic_5: 'Как всё блестит! Страна вот-вот засмеётся.',
   sweet_world_title: 'Сладкая страна',
+  sweet_story_title_intro: 'Начало истории Сладкой страны', sweet_story_title_ruby: 'Рубин радости вернулся',
   sweet_artifact: 'Рубин радости',
   sweet_part_card: 'Рубинчик',
   sweet_fullname_pastila: 'Фея-кондитер Пастила',

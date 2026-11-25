@@ -117,6 +117,17 @@ Their depth maps `w3_intro_1_depth.webp`, `w3_intro_2_depth.webp`, `w3_intro_3_d
 (Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
 Dedicated to the public domain under CC0 1.0.
 
+Cut-scene frames of the fourth world, the Sweet Land (WORLD-13; `worlds-data/sweet/story/sweet/`, in the build
+`story/sweet/`), each file: `w4_intro_1.webp`, `w4_intro_2.webp`, `w4_intro_3.webp`, `w4_back_1.webp`, `w4_back_2.webp`,
+`w4_back_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter service on 2026-11-25
+(the second try of `w4_intro_3`, `w4_back_1` and `w4_back_2`), dedicated to the public domain under CC0 1.0; viewed and
+accepted by the customer on 2026-11-25. `w4_intro_3` is moved down by 7 % of its height, the sky above drawn on by us. The five lights over `w4_intro_3` and `w4_back_1` are not in the files: the game
+draws them (`src/worlds/sweet/story.ts`).
+Their depth maps `w4_intro_1_depth.webp`, `w4_intro_2_depth.webp`, `w4_intro_3_depth.webp`, `w4_back_1_depth.webp`,
+`w4_back_2_depth.webp`, `w4_back_3_depth.webp` — computed from those frames on 2026-11-25 with Depth Anything V2 Small
+(Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
+Dedicated to the public domain under CC0 1.0.
+
 Voice (`public/voice/`, `public/bank/`, and of the forest, published 2026-11-24, `worlds-data/forest/voice/` - in the
 build `voice/forest/`; every clip has its record in `voice/qa.json`: text, intonation, model, voice):
 synthesized speech of the Gemini API (Google), model `gemini-2.5-flash-preview-tts`, its prebuilt voices (the

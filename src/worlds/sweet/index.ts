@@ -13,6 +13,7 @@ import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
+import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
@@ -24,6 +25,7 @@ import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
+import { SWEET_STORIES } from './story';
 import { voices } from './voices';
 import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
@@ -246,7 +248,9 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
-  // ----- the tour, the finale -----
+  // ----- the cut-scenes, the tour, the finale -----
+  // the cut-scenes (WORLD-13, ./story.ts): the way in at the first entry (src/game/start.ts enterWorld), the Ruby after the finale
+  const story = setStories(g, SWEET_STORIES, scope);
   const flyover = setTour(g, { path: SWEET_FLYOVER, visited: () => ws.flags[TOUR] === true, mark: () => { ws.flags[TOUR] = true; g.persist(); } });
   const shrine = point(SHRINE);
   // the five rubies of the finale: they fly from the shrine up to the top of the candle and come together there
@@ -264,7 +268,11 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
   const secretItems = SWEET_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
-  const own: readonly WorldItem[] = [tourItem, ...rubyItems, ...secretItems, finaleItem];
+  // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
+  const sceneOn = (id: string) => () => story.active && story.id === id;
+  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
+  const rubyStoryItem = marked(ws, { kind: 'scene', id: 'story_ruby', how: 'tap', after: [FINALE], active: sceneOn('story_ruby') });
+  const own: readonly WorldItem[] = [introItem, tourItem, ...rubyItems, ...secretItems, finaleItem, rubyStoryItem];
   const CONFETTI = ['#ff8fb1', '#ffd84a', '#7bd36a', '#a8e4ff', '#ffffff'];
   const restore = () => playScene(stage, 'sweet finale', async () => {
     finaleOn = true;
@@ -280,7 +288,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     // the five are glad of a land that laughs again (each its clip of the finale), then stand as before
     for (const n of npcs) if (n.actor.has('Cheer') && n.actor.has('Idle')) n.actor.once('Cheer', 'Idle');
     finaleOn = false; g.cam.focus = null;
-  });
+  }).then(() => playStory(g, 'story_ruby'));
   const rubySpots = rubies.map((r): Spot => ({ pos: point(r.spot), r: RUBY_R, label: r.label, on: () => waiting(r), run: () => take(r) }));
 
   return {
@@ -347,7 +355,8 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     debug: {
       npcs,
       // the tour as the first world's: played without a mark, its points with the moment each is passed, its player
-      more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SWEET_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
+      // the cut-scenes' player (./story.ts): the tools skip a scene on the way (tools/sweet-grey.mjs)
+      more: { story, flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SWEET_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // the map as the measurements of the grey build read it (tools/sweet-grey.mjs): its stretch, zones, ways,
         // landmarks, the route, the river and its bridge
         sweetMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, river: RIVER, bridge: BRIDGE, ground: (x: number, z: number) => groundY(x, z) },
