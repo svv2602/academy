@@ -40,6 +40,13 @@ export interface Shot {
   seconds: number;
   /** The subtitle at the top of the screen: the bottom of the frame holds what it is about (else at the bottom). */
   subtitleTop?: boolean;
+  /**
+   * Soft lights the player draws over the frame, as shares of its width and height from the top left (at most
+   * GLOWS_MAX): they belong to the picture and move with it (the zoom, the move, the parallax). A generated frame that
+   * cannot count (six gems where the story has five) gets its count from them: each is brighter than the gems it lies
+   * on, so the extra one reads as background. They pulse slowly, and stand still for prefers-reduced-motion.
+   */
+  glows?: readonly (readonly [number, number])[];
 }
 
 export interface StoryDef {
@@ -61,6 +68,12 @@ export const LINE_DELAY = 0.3;
 export const AFTER_LINE = 1;
 /** Seconds of the cross-fade from one frame to the next. */
 export const FADE = 0.6;
+/** The most lights over one frame (Shot.glows). */
+export const GLOWS_MAX = 5;
+/** How much a light grows and shrinks as it pulses (a share of its halo); 0 for prefers-reduced-motion. */
+export const GLOW_PULSE = 0.18;
+/** The pulse of the lights now: none when the player asked the system for less motion. */
+export const glowPulse = () => (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : GLOW_PULSE);
 /** The aim of a frame lies in the middle 80 % of its height: a phone held sideways cuts about 10 % off the top and the bottom. */
 export const SAFE = { top: 0.1, bottom: 0.9 } as const;
 
@@ -112,6 +125,13 @@ export function storyProblems(stories: readonly StoryDef[]): string[] {
       if (Math.abs(f.pan[0]) > PAN_MAX || Math.abs(f.pan[1]) > PAN_MAX) out.push(`${name}: a move of ${f.pan.join(', ')}, more than ${PAN_MAX}`);
       if (!(f.depth >= 0 && f.depth <= PARALLAX_MAX)) out.push(`${name}: a parallax of ${f.depth}, not 0-${PARALLAX_MAX}`);
       if (!(f.seconds >= LINE_DELAY + AFTER_LINE + 2)) out.push(`${name}: a pass of ${f.seconds} s is too short for a line`);
+      const gl = f.glows ?? [];
+      if (gl.length > GLOWS_MAX) out.push(`${name}: ${gl.length} lights, more than ${GLOWS_MAX}`);
+      // a light stays in the middle 80 % of the height even at the nearest end of the zoom (it grows away from the aim)
+      for (const [x, y] of gl) {
+        const far = f.aim[1] + (y - f.aim[1]) * ZOOM.to;
+        if (!(x > 0 && x < 1 && far >= SAFE.top && far <= SAFE.bottom)) out.push(`${name}: a light at ${x}, ${y} outside the middle 80 % of the frame (at the zoom ${ZOOM.to})`);
+      }
       if (i > 0 && moveKind(f) === moveKind(s.shots[i - 1])) out.push(`${name}: the same move as the frame before it (${moveKind(f)})`);
     });
     const last = s.shots[s.shots.length - 1];
@@ -192,6 +212,7 @@ const FRAG = `
   uniform sampler2D imgA, depA, imgB, depB;
   uniform vec2 fit; uniform float mixB, hasA;
   uniform vec2 aimA, panA, aimB, panB; uniform float kA, zA, fA, kB, zB, fB;
+  uniform vec2 glA[${GLOWS_MAX}], glB[${GLOWS_MAX}]; uniform float nA, nB, tA, tB, pulse;
   vec2 src(sampler2D D, vec2 uv, vec2 c, vec2 pan, float k, float z, float f) {
     vec2 s = uv;
     for (int i = 0; i < 6; i++) {
@@ -200,11 +221,31 @@ const FRAG = `
     }
     return clamp(s, 0.001, 0.999);
   }
+  // the lights of a frame (Shot.glows) at the point s of the picture, round in the frame (its 960:536): a wide soft
+  // red glow, a deep red body that covers a painted gem under it, a pale core; only for a frame that has lights, so a
+  // frame without them is drawn as before
+  vec3 lights(vec3 c, vec2 s, vec2 g[${GLOWS_MAX}], float n, float t) {
+    for (int i = 0; i < ${GLOWS_MAX}; i++) {
+      if (float(i) >= n) break;
+      float r = length((s - g[i]) * vec2(1.791, 1.0));
+      c += exp(-pow(r / 0.07, 2.0)) * vec3(0.9, 0.15, 0.2) * 0.35;
+      c = mix(c, vec3(0.85, 0.03, 0.08), 0.9 * exp(-pow(r / (0.022 * (1.0 + pulse * sin(t * 2.4 + float(i) * 1.7))), 2.0)));
+      c = mix(c, vec3(1.0, 0.8, 0.75), exp(-pow(r / 0.008, 2.0)));
+    }
+    return min(c, vec3(1.0));
+  }
   void main() {
     vec2 uv = (vUv - 0.5) * fit + 0.5;
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
-    vec3 a = hasA > 0.5 ? texture2D(imgA, src(depA, uv, aimA, panA, kA, zA, fA)).rgb : vec3(0.0);
-    vec3 b = texture2D(imgB, src(depB, uv, aimB, panB, kB, zB, fB)).rgb;
+    vec3 a = vec3(0.0);
+    if (hasA > 0.5) {
+      vec2 sa = src(depA, uv, aimA, panA, kA, zA, fA);
+      a = texture2D(imgA, sa).rgb;
+      if (nA > 0.5) a = lights(a, sa, glA, nA, tA);
+    }
+    vec2 sb = src(depB, uv, aimB, panB, kB, zB, fB);
+    vec3 b = texture2D(imgB, sb).rgb;
+    if (nB > 0.5) b = lights(b, sb, glB, nB, tB);
     gl_FragColor = vec4(mix(a, b, mixB), 1.0);
   }`;
 
@@ -245,6 +286,9 @@ export function createStoryPlayer(g: Game, stories: readonly StoryDef[], scope: 
         fit: { value: new THREE.Vector2(1, 1) }, mixB: { value: 1 }, hasA: { value: 0 },
         aimA: { value: new THREE.Vector2() }, panA: { value: new THREE.Vector2() }, kA: { value: 0 }, zA: { value: 1 }, fA: { value: 0.5 },
         aimB: { value: new THREE.Vector2() }, panB: { value: new THREE.Vector2() }, kB: { value: 0 }, zB: { value: 1 }, fB: { value: 0.5 },
+        glA: { value: Array.from({ length: GLOWS_MAX }, () => new THREE.Vector2()) }, nA: { value: 0 }, tA: { value: 0 },
+        glB: { value: Array.from({ length: GLOWS_MAX }, () => new THREE.Vector2()) }, nB: { value: 0 }, tB: { value: 0 },
+        pulse: { value: glowPulse() },
       };
       mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG });
       scene = new THREE.Scene();
@@ -321,6 +365,10 @@ export function createStoryPlayer(g: Game, stories: readonly StoryDef[], scope: 
     (u['aim' + slot].value as THREE.Vector2).set(p.aim[0], p.aim[1]);
     (u['pan' + slot].value as THREE.Vector2).set(p.pan[0], p.pan[1]);
     u['k' + slot].value = p.k; u['z' + slot].value = p.zoom; u['f' + slot].value = fl ? 0.5 : c.frame.focus;
+    // the lights in the shader's coordinates (from the bottom left)
+    const gl = (c.shot.glows ?? []).slice(0, GLOWS_MAX), at = u['gl' + slot].value as THREE.Vector2[];
+    gl.forEach(([x, y], i) => at[i].set(x, 1 - y));
+    u['n' + slot].value = gl.length; u['t' + slot].value = c.elapsed;
   }
   /** The flat pass on a 2D canvas: the frame zoomed round its aim, covering or fitting the window like the shader. */
   function draw2d(c: Cur, alpha: number) {
@@ -334,6 +382,14 @@ export function createStoryPlayer(g: Game, stories: readonly StoryDef[], scope: 
     x.translate(W / 2 + (ax - 0.5) * sw, H / 2 + (ay - 0.5) * sh);
     x.scale(p.zoom, p.zoom);
     x.drawImage(img, -ax * sw, -ay * sh, sw, sh);
+    // the lights, as the shader draws them (no parallax here, as for the frame)
+    (c.shot.glows ?? []).slice(0, GLOWS_MAX).forEach(([gx, gy], i) => {
+      const cx = (gx - ax) * sw, cy = (gy - ay) * sh, r = 0.14 * sh * (1 + glowPulse() * Math.sin(c.elapsed * 2.4 + i * 1.7));
+      const grad = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+      grad.addColorStop(0, 'rgba(255,225,215,1)'); grad.addColorStop(0.08, 'rgba(225,20,45,0.95)'); grad.addColorStop(0.25, 'rgba(225,40,60,0.5)');
+      grad.addColorStop(0.5, 'rgba(235,70,90,0.15)'); grad.addColorStop(1, 'rgba(235,70,90,0)');
+      x.fillStyle = grad; x.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+    });
     x.restore();
     x.globalAlpha = 1;
   }

@@ -9,7 +9,7 @@ import { FAIRY_STORIES } from '../worlds/fairy/story';
 import { strings } from '../worlds/fairy/strings';
 import type { Game } from './context';
 import {
-  AFTER_LINE, LINE_DELAY, PAN_MAX, PARALLAX_MAX, SAFE, ZOOM, fitOf, moveKind, passSeconds, playStory, poseAt, seenStories,
+  AFTER_LINE, GLOW_PULSE, GLOWS_MAX, LINE_DELAY, PAN_MAX, PARALLAX_MAX, SAFE, ZOOM, fitOf, glowPulse, moveKind, passSeconds, playStory, poseAt, seenStories,
   setStories, storyOf, storyProblems, type Shot, type StoryDef,
 } from './story';
 
@@ -211,6 +211,29 @@ describe('what is wrong with a scene', () => {
     expect(storyProblems(scene(ok, { ...ok }, out))[0]).toMatch(/same move/);
     expect(storyProblems(scene(ok, { ...ok, zoom: 'in', pan: [0, 0.01] }))[0]).toMatch(/does not pull out/);
     expect(storyProblems(scene({ ...ok, seconds: 2 }, out))[0]).toMatch(/too short/);
+  });
+
+  it('is reported: more lights over a frame than GLOWS_MAX, a light outside the frame or its middle 80 %', () => {
+    const five = [[0.2, 0.3], [0.35, 0.3], [0.5, 0.2], [0.65, 0.3], [0.8, 0.3]] as const;
+    expect(storyProblems(scene({ ...ok, glows: five }, out))).toEqual([]);
+    expect(storyProblems(scene({ ...ok, glows: [...five, [0.5, 0.5]] }, out))[0]).toMatch(/6 lights, more than 5/);
+    expect(storyProblems(scene({ ...ok, glows: [[0.5, 0.05]] }, out))[0]).toMatch(/light at 0.5, 0.05/);
+    // inside the middle 80 % of the frame, but zoomed by 1.1 away from the aim it is not
+    expect(storyProblems(scene({ ...ok, aim: [0.5, 0.45], glows: [[0.5, 0.12]] }, out))[0]).toMatch(/light at 0.5, 0.12 outside .* \(at the zoom 1.1\)/);
+    expect(storyProblems(scene({ ...ok, aim: [0.5, 0.45], glows: [[0.5, 0.15]] }, out))).toEqual([]);
+    expect(storyProblems(scene({ ...ok, glows: [[1.2, 0.5]] }, out))[0]).toMatch(/light at 1.2, 0.5/);
+    expect(GLOWS_MAX).toBe(5);
+  });
+
+  it('the lights pulse, and stand still when the player asked for less motion (prefers-reduced-motion)', () => {
+    const was = window.matchMedia;
+    try {
+      window.matchMedia = ((q: string) => ({ matches: q === '(prefers-reduced-motion: reduce)' })) as unknown as typeof window.matchMedia;
+      expect(glowPulse()).toBe(0);
+      window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+      expect(glowPulse()).toBe(GLOW_PULSE);
+      expect(GLOW_PULSE).toBeGreaterThan(0);
+    } finally { window.matchMedia = was; }
   });
 
   it('tells the moves apart by zoom and direction', () => {
