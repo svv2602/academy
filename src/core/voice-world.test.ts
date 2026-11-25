@@ -165,7 +165,8 @@ describe('the address of a clip (R64, R68)', () => {
     FakeAudio.made[1].fail();
     await vi.advanceTimersByTimeAsync(0);
     expect(FakeAudio.made).toHaveLength(2);
-    expect(voiceLog).toEqual({ clips: 0, synth: [OWN] });
+    expect(voiceLog).toEqual({ clips: 0, synth: [OWN], trouble: [
+      { clip: `${WORLD}/${OWN}`, why: 'error 4', then: 'retry' }, { clip: `${WORLD}/${OWN}`, why: 'error 4', then: 'synth' }] });
     expect(synth.spoken.map((u) => u.text)).toEqual(['Привіт!']);
   });
 });

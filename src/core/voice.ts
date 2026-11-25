@@ -33,8 +33,23 @@ let level = () => 1;
 /** src/core/audio.ts hands in its voice volume. */
 export function voiceVolume(get: () => number) { level = get; }
 
-/** What the voice did in this session, for the walkthrough: clips that started to sound, and the ids of the lines left to the synthesizer. */
-export const voiceLog = { clips: 0, synth: [] as string[] };
+/** A clip that did not start as asked: its name (`voice/<name>.mp3`), why, and what took the line then. */
+export interface ClipTrouble { clip: string; why: string; then: 'retry' | 'synth' }
+/**
+ * What the voice did in this session, for the walkthrough and the debug counter: clips that started to sound, the ids
+ * of the lines left to the synthesizer, and every clip that did not start as asked (`trouble`).
+ */
+export const voiceLog = { clips: 0, synth: [] as string[], trouble: [] as ClipTrouble[] };
+/**
+ * How long a clip may take to start to sound (its `playing`) before it is asked for again, and the second time before
+ * the synthesizer takes the line. A first download of a next world's clip goes over the network: 3 s, not less.
+ */
+export const CLIP_START_MS = 3000;
+/** The voice in the debug counter (`?debug`): clips that sounded and, when it had trouble, the clips that did not start and the lines left to the synthesizer. */
+export function voiceText(log: { clips: number; synth: readonly string[]; trouble: readonly unknown[] } = voiceLog): string {
+  const trouble = log.trouble.length || log.synth.length ? ` (${log.trouble.length} not started, ${log.synth.length} synth)` : '';
+  return `voice ${log.clips}${trouble}`;
+}
 /** Ids of the lines the planner turned away, in order; for the walkthrough. Such a line is in neither list of `voiceLog`. */
 export const dropped: string[] = [];
 
@@ -242,16 +257,34 @@ function sound(id: SpokenKey, text: string, finish: () => void, live: () => bool
   lineTimer(finish, 15000);
 }
 
-/** Plays the clip at `src`; one that fails to load is asked for `retries` more times, then `failed` takes the line. */
+/**
+ * Plays the clip at `src`. A clip that does not start - it fails to load, the browser refuses to play it, or it has not
+ * started to sound within CLIP_START_MS - is asked for `retries` more times, then `failed` takes the line (the
+ * synthesizer, or the general question for a clip of the bank). Each such clip is written to `voiceLog.trouble`.
+ */
 function playClip(src: string, retries: number, finish: () => void, live: () => boolean, failed: () => void) {
   const a = new Audio(src);
   a.volume = level();
   current = a;
-  a.onplaying = () => { voiceLog.clips++; };
+  let started = false, handed = false;
+  const again = (why: string) => {
+    // once per clip, and only for the line that still sounds: a clip cut off meanwhile is no trouble
+    if (handed || started || !live()) return;
+    handed = true;
+    a.onplaying = null; a.onended = null; a.onerror = null; a.pause();
+    voiceLog.trouble.push({ clip: decodeURIComponent((src.match(/(?:voice|bank)\/(.+)\.mp3/) ?? [])[1] ?? src), why, then: retries > 0 ? 'retry' : 'synth' });
+    if (retries > 0) playClip(src, retries - 1, finish, live, failed); else failed();
+  };
+  a.onplaying = () => { started = true; voiceLog.clips++; };
   a.onended = finish;
-  a.onerror = () => { if (retries > 0) playClip(src, retries - 1, finish, live, failed); else failed(); };
-  // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown.
-  a.play().catch(() => { if (live() && (a.error || hidden)) return; finish(); });
+  a.onerror = () => again(`error ${a.error?.code ?? ''}`.trim());
+  // A start refused because the page was hidden at that moment is not the end: the clip plays when it is shown. One
+  // cut off by the next line (its pause) is not either. Any other refusal is a clip that did not start.
+  a.play().catch((e: unknown) => {
+    if (!live() || hidden || a.error) return;
+    again(`refused ${(e as { name?: string } | null)?.name ?? 'play'}`);
+  });
+  lineTimer(() => again('late'), CLIP_START_MS);
 }
 
 /** Device speech synthesis; without a Ukrainian voice (or with the voice muted) the line is a silent pause long enough to read the subtitle. */
