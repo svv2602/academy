@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 /**
  * A step of a chain done in the background (src/game/dialogue.ts `stepDone`): the chain moves on and gives its stars;
  * a step that ended in a task played in the world (the sea's shell lock) hands its result, which goes to the step's
@@ -6,6 +7,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultSave, defaultWorld } from '../core/save';
+import { beginTask, endTask } from '../core/voice';
 import type { Game } from './context';
 import { createDialogue } from './dialogue';
 import type { CharacterDef, Npc, WorldTask } from './world';
@@ -125,6 +127,42 @@ describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
       await tick();
       expect(said).toEqual(['crab_done 🦀', 'go_next']);
     }
+  });
+
+  it('its own word due while a task is open is owed, not lost: said at the first free moment, or by it when met again', async () => {
+    // a child closes the card and runs on to the next character, whose task opens before the word is due (the walkthrough
+    // of the Sweet Land, 2026-11-25: Tyanuchka's ask for Zheleyka was turned away by Kakao's bridge and never heard)
+    const ASKS = { ...CRAB, after: 'crab_ask_more' } as unknown as CharacterDef, OTHER = { ...CRAB, id: 'shrimp' } as CharacterDef;
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    const frames = async (n: number) => { for (let i = 0; i < n; i++) await new Promise((r) => requestAnimationFrame(r)); };
+    try {
+      const { ws, said, d, npc } = crab(ASKS, [OTHER]);
+      ws.quests.crab = 1;
+      beginTask();                              // the next character's task is open as the crab's word comes due
+      d.stepDone(npc, 1);
+      await tick(); await frames(3);
+      expect(said).toEqual(['crab_done 🦀']);   // owed while the task is open, frame after frame
+      endTask();
+      await frames(3);
+      expect(said).toEqual(['crab_done 🦀', 'crab_ask_more 🦀']);   // the task over: said once
+      await frames(3);
+      expect(said.filter((x) => x === 'crab_ask_more 🦀')).toHaveLength(1);
+    } finally { endTask(); }
+    try {
+      // or the crab itself, met again while it is still owed: its word in place of its words of a meeting again
+      const { ws, said, d, npc } = crab(ASKS, [OTHER]);
+      ws.quests.crab = 1;
+      beginTask();
+      d.stepDone(npc, 1);
+      await tick();
+      await d.talk(npc);
+      endTask();
+      await frames(3);
+      expect(said).toEqual(['crab_done 🦀', 'crab_ask_more 🦀']);
+      // said once: met again after that, its words of a meeting again
+      await d.talk(npc);
+      expect(said.at(-1)).toBe('crab_again_1 🦀');
+    } finally { endTask(); }
   });
 
   it('met again after its chain: its own words in turn, not the shared "again"', async () => {
