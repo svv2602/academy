@@ -603,6 +603,9 @@ function standIn(o = {}) {
     },
     voice: { clips: 6, synth: fault.synth ?? [] },
     dropped: fault.dropped ?? ['go_next'],
+    // a character with its own request after its chain (CharacterDef.after), its chain finished; `unheard`: never started
+    world: WORLD,
+    npcs: [{ def: { id: 'owl', after: 'owl_ask', steps: { length: 0 } } }],
   });
   /** A page load: the game reads the stored save and shows its start screen. */
   const boot = () => {
@@ -610,7 +613,7 @@ function standIn(o = {}) {
     save = { stars: 0, played: false, fixed: { add: 0, sub: 0 }, vol: { voice: 1 }, worlds: {}, skills: { compare: { tasks: 0 }, add: { tasks: 0 } }, ...st };
     ws = save.worlds[WORLD] ??= { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
     time = 0; started = false; busy = false; hero = { x: 0, z: 6 }; timers = []; raf = []; input = { act: false, walk: false }; line = null; inTask = false; searchLeft = 0; tapsLeft = 0; wt = null;
-    globalThis.__starts = {};
+    globalThis.__starts = fault.unheard ? { other_ask: 1 } : { 'meadow/owl_ask': 1 };   // a world's clip, under its folder
     on.clear();
     for (const id of ['bubble', 'task', 'fanfare', 'btnAct', 'book', 'restart']) el(id, true);
     for (const id of ['play', 'taskStage', 'fanfareTitle', 'fanfareOk', 'crystals', 'colStats', 'bubbleText', 'fps']) el(id, false);
@@ -1030,6 +1033,11 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     expect(r.log.achievements).toEqual(['the item "owl" (chain, done by "act" at 0,-2)']);
     expect(r.log.shots).toContain('card-owl');
     expect((await pass({ fault: { cardStays: true } })).thrown).toBe('world "meadow": the item "owl" (chain, done by "act" at 0,-2): the card of the fanfare does not close');
+  });
+
+  it('a character\'s own request after its chain is heard by the end, though the walkthrough runs on at once', async () => {
+    expect((await pass()).errors).not.toContain('the request of a character after its chain was never heard: owl_ask');
+    expect((await pass({ fault: { unheard: true } })).errors).toContain('the request of a character after its chain was never heard: owl_ask');
   });
 
   it('"play" is pressed once the service worker has taken the page: a clip of the bank asked for before that is not kept', async () => {

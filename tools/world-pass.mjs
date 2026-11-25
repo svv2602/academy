@@ -946,6 +946,16 @@ export async function playWorld(h, o = {}) {
     await checkBank();
     console.log(`lines turned away by the planner: ${voice.dropped.join(' ') || 'none'}`);
     errors.push(...voiceProblems(voice));
+    // a character's own request after its chain (CharacterDef.after: Tyanuchka's ask for Zheleyka) is heard, even though
+    // the walkthrough runs on at once as a quick child does: the game keeps it owed (src/game/dialogue.ts), never lost
+    if (voice.clips > 0) {
+      const unheard = await g(() => (window.__game.npcs ?? [])
+        .filter((n) => n.def.after && (window.__game.save.worlds[window.__game.world]?.quests?.[n.def.id] ?? 0) >= n.def.steps.length)
+        .map((n) => n.def.after)
+        // a world's own clip is counted under its folder (voice/<world>/<line>: "sweet/tyanuchka_pet_ask")
+        .filter((k) => !Object.entries(window.__starts ?? {}).some(([c, n]) => n > 0 && (c === k || c.endsWith(`/${k}`)))));
+      if (unheard.length) errors.push(`the request of a character after its chain was never heard: ${unheard.join(' ')}`);
+    }
     const counter = await page.textContent('#fps').catch(() => null);
     if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls · voice \d+( \(\d+ not started, \d+ synth\))?$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     console.log('task types seen:', [...seenTypes].join(' '));
