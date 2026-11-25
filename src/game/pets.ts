@@ -72,6 +72,10 @@ export const PETS: readonly PetSpecies[] = [
   // its "flying": it swims after her at her swimming height (0.6 m, src/worlds/sea/index.ts SWIM_HEIGHT) and stays
   // there when it stops (`rest`), as Bulk floats over the corals.
   { id: 'bulchik', world: 'sea', model: 'sea/bulk', height: 0.7, own: true, walk: 1, fly: { clip: 'Swim', height: 0.6, rest: 0.6 }, lighter: 0.3, treats: ['feather', 'butterfly'] },
+  // Zheleyka of the Sweet Land (world-4.md, PLAY-09): the little marmalade bear, Tyanuchka's little one - his model of
+  // the Sweet Land's files (`own`), 0.7 m tall and lighter, as Bulchik is his brother's. It hops after her: its Hop
+  // clip is its "flying", on the ground (height 0), as the owlet flaps and Bulchik swims.
+  { id: 'zheleyka', world: 'sweet', model: 'sweet/tyanuchka', height: 0.7, own: true, walk: 1, fly: { clip: 'Hop', height: 0 }, lighter: 0.3, treats: ['acorn', 'shell'] },
 ];
 
 export const petSpecies = (id: string | null | undefined): PetSpecies | undefined => PETS.find((p) => p.id === id);
