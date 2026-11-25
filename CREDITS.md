@@ -63,6 +63,8 @@ with the world from `worlds-data/sky/`), three models by Quaternius, each "Publi
 Windmill" (https://poly.pizza/m/52yaPyaAAG), the three windmills, its blades their turning sails; "Dragon"
 (https://poly.pizza/m/VBvzjFIYws), the little dragons, in its own flying clip. Their materials' colours put into their
 vertices in code, in the islands' colours.
+Pushok, the Sky Islands' cloud lamb (`models-src/sky/pushok.glb`), is made whole in Blender by code for this game, with
+no generated part: our own, the customer's.
 
 The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
 `worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page

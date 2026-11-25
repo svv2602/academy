@@ -112,7 +112,7 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
     expect([uk.subtitle, ru.subtitle]).toEqual(['Небесні острови', 'Небесные острова']);
     expect(FRIENDS.map((c) => uk[`sky_name_${c.id}` as keyof typeof uk])).toEqual(['Лазур', 'Громихало', 'Мерехтій', 'Вітерець', 'Цвірінька']);
     expect(FRIENDS.map((c) => ru[`sky_name_${c.id}` as keyof typeof ru])).toEqual(['Лазурь', 'Громыхало', 'Мерцал', 'Ветерок', 'Чирика']);
-    // the grey build speaks nothing of its own: no line to record
-    expect(strings.spoken).toEqual({});
+    // the grey build speaks only the cat's two lines about Pushok (the lead, 2026-11-25: not the shared one of the fawn)
+    expect(strings.spoken).toEqual({ sky_pet_found: 'joy', sky_pet_follow: 'warm' });
   });
 });

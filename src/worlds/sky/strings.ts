@@ -22,6 +22,9 @@ const uk = {
   sky_winds_way: 'Проклади кораблику шлях вітрами до островка!',
   // the secrets (PLAY-07, ./secrets.ts): the action button by the windmill on the edge, and by the rainbow on the lower ledge
   sky_secret_mill: 'Вітрячок', sky_secret_up: 'Нагору',
+  // the cat when Pushok is found by the windmills, and after (PLAY-09): to record with the world's voice (the lead, 2026-11-25)
+  sky_pet_found: 'Ось де Пушок, за вітряком! Біжить до тебе.',
+  sky_pet_follow: 'Пушок гулятиме з тобою. Тепер ви друзі!',
   // the characters' names (not spoken: the grey build's figures carry no line of their own yet)
   sky_name_lazur: 'Лазур', sky_name_gromykhalo: 'Громихало', sky_name_mertsal: 'Мерехтій', sky_name_veterok: 'Вітерець', sky_name_chirika: 'Цвірінька',
 };
@@ -34,10 +37,12 @@ const ru: Record<keyof typeof uk, string> = {
   sky_clock_way: 'Шестерёнки для часов: {n} из 3', sky_gear: 'Шестерёнка',
   sky_winds_way: 'Проложи кораблику путь ветрами к островку!',
   sky_secret_mill: 'Ветрячок', sky_secret_up: 'Наверх',
+  sky_pet_found: 'Вот где Пушок, за мельницей! Бежит к тебе.',
+  sky_pet_follow: 'Пушок будет гулять с тобой. Теперь вы друзья!',
   sky_name_lazur: 'Лазурь', sky_name_gromykhalo: 'Громыхало', sky_name_mertsal: 'Мерцал', sky_name_veterok: 'Ветерок', sky_name_chirika: 'Чирика',
 };
 
-export const strings = { id: 'sky', table: { uk, ru }, spoken: {} } satisfies WorldStrings;
+export const strings = { id: 'sky', table: { uk, ru }, spoken: { sky_pet_found: 'joy', sky_pet_follow: 'warm' } } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { sky: typeof strings }

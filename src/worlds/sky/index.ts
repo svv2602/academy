@@ -24,7 +24,8 @@ import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
-import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { buildGround, colliders, ground } from './terrain';
@@ -156,6 +157,28 @@ export const GROMYKHALO_COLOURS: Readonly<Record<string, string>> = { Dragon_Mai
 export const CHIRIKA_COLOURS: Readonly<Record<string, string>> = { C_4488aa: '#2f3f6a', C_55aa00: '#ff9a3c' };
 type SkyLoads = NonNullable<Awaited<ReturnType<typeof loadSky>>>;
 
+/** Where Pushok waits (WorldDef.pet): 3.2 m from the east windmill (MILLS[1]) toward the little one, inside the rail. */
+export const PUSHOK = { x: MILLS[1].x + Math.cos(1) * 3.2, z: MILLS[1].z + Math.sin(1) * 3.2 } as const;
+
+/**
+ * m: who sits up on a perch at her place and how high its top is. Chirika the bird has no clips and lay flat on the
+ * ground; up on the windmills' mailbox she sits as a postwoman, talking down to the heroine (the lead's decision of
+ * 2026-11-25). Her talk's camera and her mark go up with her: both are over her point (src/game/dialogue.ts).
+ */
+export const PERCH: Readonly<Record<string, number>> = { chirika: 1.2 };
+
+/** The mailbox Chirika sits on: a post and a blue box with a red flag, its flat top `h` over `y` (one painted mesh). */
+function mailbox(scene: THREE.Scene, def: CharacterDef, h: number, y: number): THREE.Mesh {
+  const box = 0.42, post = h - box;
+  return paintedAt(scene, `perch-${def.id}`, def.x, def.z, [
+    [new THREE.CylinderGeometry(0.07, 0.09, post, 6).translate(0, post / 2, 0), '#8a5a3a'],
+    [new THREE.BoxGeometry(0.5, box, 0.7).translate(0, post + box / 2, 0), '#4a7fd0'],
+    [new THREE.BoxGeometry(0.52, 0.04, 0.72).translate(0, h - 0.02, 0), '#ff9a3c'],
+    [new THREE.BoxGeometry(0.03, 0.26, 0.04).translate(0.27, h - 0.1, -0.2), '#6a4a2a'],
+    [new THREE.BoxGeometry(0.03, 0.12, 0.18).translate(0.27, h - 0.03, -0.12), '#e8483c'],
+  ], def.heading, y);
+}
+
 /** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */
 function figure(id: string): Rig {
   const f = FIGURE[id], root = new THREE.Group(), model = new THREE.Group();
@@ -192,7 +215,10 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const npcs: Npc[] = FRIENDS.map((def) => {
     const actor = new Actor(L.rigs[def.id] ?? figure(def.id));
     if (actor.has('Idle')) actor.play('Idle');
-    const pos = point(def);
+    // a character on a perch (PERCH) stands on its top: her point, her talk's camera and her mark all up with her
+    const up = PERCH[def.id] ?? 0;
+    if (up) mailbox(scene, def, up, groundY(def.x, def.z));
+    const pos = point(def, up);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
     const mark = new THREE.Mesh(markGeo, starMat);
@@ -418,6 +444,9 @@ export const sky: WorldDef<SkyLoads, WorldSky> = {
   arrive: arriveFrom,
   ground,
   characters: FRIENDS,
+  // PLAY-09: Pushok, the smallest cloud lamb, strayed from the flock: after Chirika's chain he shows himself by the
+  // windmills, beside the east one on the little windmill's side (src/game/pets.ts PETS)
+  pet: { species: 'pushok', at: PUSHOK, after: 'chirika', found: 'sky_pet_found', follow: 'sky_pet_follow' },
   strings,
   music: MUSIC,
   sky: buildSky,

@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { FRIENDS, MODELS } from './index';
+import { FRIENDS, MODELS, PERCH } from './index';
 
 // the world's module draws the glow of the sparks on a canvas as it loads (src/game/fx.ts): not needed here
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
@@ -39,5 +39,9 @@ describe('the characters\' models of the Sky Islands', () => {
   it('Chirika is the core\'s bird (the first world\'s), shared, not a file of the islands', () => {
     expect(MODELS.chirika.path).toBe('creatures/bird');
     expect(existsSync('public/models/creatures/bird.glb')).toBe(true);
+  });
+
+  it('Chirika, with no clips, sits up on the windmills\' mailbox, not flat on the ground (the lead\'s decision of 2026-11-25)', () => {
+    expect(PERCH).toEqual({ chirika: 1.2 });
   });
 });
