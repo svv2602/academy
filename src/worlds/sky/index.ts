@@ -161,8 +161,11 @@ export const GROMYKHALO_COLOURS: Readonly<Record<string, string>> = { Dragon_Mai
 export const CHIRIKA_COLOURS: Readonly<Record<string, string>> = { C_4488aa: '#2f3f6a', C_55aa00: '#ff9a3c' };
 type SkyLoads = NonNullable<Awaited<ReturnType<typeof loadSky>>>;
 
-/** Where Pushok waits (WorldDef.pet): 3.2 m from the east windmill (MILLS[1]) toward the little one, inside the rail. */
-export const PUSHOK = { x: MILLS[1].x + Math.cos(1) * 3.2, z: MILLS[1].z + Math.sin(1) * 3.2 } as const;
+/**
+ * Where Pushok waits (WorldDef.pet): 4.5 m from the east windmill (MILLS[1]) toward the little one, inside the rail -
+ * out from under the CC0 mill's balcony (at 3.2 m he stood half under it).
+ */
+export const PUSHOK = { x: MILLS[1].x + Math.cos(1.5) * 4.5, z: MILLS[1].z + Math.sin(1.5) * 4.5 } as const;
 
 /**
  * m: who sits up on a perch at her place and how high its top is. Chirika the bird has no clips and lay flat on the
