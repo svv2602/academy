@@ -232,15 +232,37 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.first.outputs.page_url || steps.second.outputs.page_url }}
     steps:
       - name: The build that was checked
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
-      - uses: actions/upload-pages-artifact@v3
+      # The site packed as actions/upload-pages-artifact@v3 packs it (artifact.tar), but in an artifact named after the
+      # attempt, as every artifact here but the build: a rerun of this job ("Re-run failed jobs") publishes its own,
+      # never meets the one of the attempt before ("Multiple artifacts named github-pages").
+      - name: Pack the site
+        shell: sh
+        run: tar --dereference --hard-dereference --directory dist -cvf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
+      - name: The site for GitHub Pages
+        uses: actions/upload-artifact@v4
         with:
-          path: dist
-      - id: deployment
+          name: github-pages-a${{ github.run_attempt }}
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
+      # GitHub may not list an artifact just uploaded yet ("No artifacts named github-pages"): one more try after a pause.
+      - id: first
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+        with:
+          artifact_name: github-pages-a${{ github.run_attempt }}
+      - name: A pause before the second try
+        if: ${{ steps.first.outcome == 'failure' }}
+        run: sleep 60
+      - id: second
+        if: ${{ steps.first.outcome == 'failure' }}
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-a${{ github.run_attempt }}

@@ -817,6 +817,29 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(hasKey(pages.jobs.deploy, 'if')).toBe(false);
   });
 
+  it('deploy: a rerun of the job replaces the site\'s artifact, never adds a second one; a publication refused at once is tried again after a pause', () => {
+    const deploy = pages.jobs.deploy;
+    // packed as upload-pages-artifact packs it, named after the attempt: "Re-run failed jobs" works without deleting artifacts
+    expect(deploy).not.toContain('upload-pages-artifact');
+    expect(deploy).toContain('-cvf "$RUNNER_TEMP/artifact.tar"');
+    expect(deploy).toContain('          name: github-pages-a${{ github.run_attempt }}\n          path: ${{ runner.temp }}/artifact.tar\n');
+    // both tries publish that very artifact, not the default "github-pages"
+    expect([...deploy.matchAll(/^ {10}artifact_name: (.*)$/gm)].map((m) => m[1])).toEqual(['github-pages-a${{ github.run_attempt }}', 'github-pages-a${{ github.run_attempt }}']);
+    // the site published is the build that was checked, not a new one
+    expect(deploy).toContain('          name: dist\n          path: dist\n');
+    expect(deploy).not.toContain('npm run build');
+    // the second try only after a failed first one, after a pause; the first one's failure alone does not fail the job
+    const tries = [...deploy.matchAll(/uses: actions\/deploy-pages@v4/g)];
+    expect(tries).toHaveLength(2);
+    const first = deploy.slice(deploy.indexOf('- id: first'), deploy.indexOf('- name: A pause'));
+    expect(first).toContain('continue-on-error: true');
+    const after = deploy.slice(deploy.indexOf('- name: A pause'));
+    expect([...after.matchAll(/if: \$\{\{ steps\.first\.outcome == 'failure' \}\}/g)]).toHaveLength(2);
+    expect(after).toContain('run: sleep 60');
+    expect(after.slice(after.indexOf('- id: second'))).not.toContain('continue-on-error');
+    expect(deploy).toContain('url: ${{ steps.first.outputs.page_url || steps.second.outputs.page_url }}');
+  });
+
   it('the steps of the job "worlds" are the same in both workflows', () => {
     const steps = (job) => job.slice(job.indexOf('    steps:'));
     expect(steps(pages.jobs.worlds)).toBe(steps(workflow('ci.yml').jobs.worlds));
