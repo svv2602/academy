@@ -11,6 +11,7 @@ import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
+import { loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { taskFrame, worldTaskDoor } from '../../game/worldtasks/core';
@@ -138,12 +139,15 @@ export const MODELS: Readonly<Record<string, { path: string; h: number }>> = {
 
 /**
  * The files of the islands: the characters' models (the heroine and the cat are the game's) and the models of its
- * things (step 6b, ./props.ts: the airship's Sail Ship, the windmills, the little dragons). Null = failed (TECH-08).
+ * things (step 6b, ./props.ts: the airship's Sail Ship, the windmills, the little dragons), and Pushok's (the pet).
+ * Null = failed (TECH-08).
  */
-async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig>; props: SkyProps } | null> {
+async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean, scope: WorldScope): Promise<{ rigs: Record<string, Rig>; props: SkyProps } | null> {
   const loads = await Promise.all([
     Promise.all(Object.entries(MODELS).map(async ([id, m]) => [id, await rig(m.path, m.h)] as const)).then((e) => Object.fromEntries(e) as Record<string, Rig>),
     loadSkyProps(),
+    // Pushok, the pet of the islands: a file of the world, loaded as a pet's (src/game/pets.ts); missing, he stays at home
+    loadOwnPets('sky', ['pushok'], scope),
   ]).catch((e: unknown) => { loadFailed(e); return null; });
   if (!loads) return null;
   const [rigs, props] = loads;
