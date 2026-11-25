@@ -49,6 +49,14 @@ joining Pastila's hands to her skirt, Tyanuchka's fists to his belt and Kakao's 
 near-black beard made chocolate. Their textures shrunk in Blender for this game. Polosatik (the candy-cane watchman) is
 made whole in Blender by code for this game, with no generated part: our own, the customer's.
 
+The characters of the Sky Islands (world 5; `models-src/sky/`, shipped with the world from `worlds-data/sky/`): the
+meshes and textures of Lazur (the cloud fairy), Mertsal (the stargazer) and Veterok (the ship's boy) were generated with
+the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-25; under Meshy's terms for paid plans the models
+belong to the customer (not CC0). Skeletons and clips: our own, made in Blender for this game; Lazur's grey-blue texture
+recoloured in code by the parts of her figure (skin, hair, dress, wings, star). Their textures shrunk for this game.
+Gromykhalo, the good dragon, is "Dragon Evolved" by Quaternius (https://poly.pizza/m/LlwD0QNUPj) — "Public Domain (CC0)"
+on its page (read 2026-11-25); its clips renamed for the game (Flying_Idle as Idle, Yes as Talk, Fast_Flying as Cheer).
+
 The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
 `worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page
 (read 2026-11-22); its materials' colours put into its vertices in code. The sea's other landmarks — the castle of

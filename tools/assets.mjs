@@ -92,6 +92,11 @@ export const PROVENANCE = {
   'sweet/imbir.glb': forest('2026-11-24', 'skeleton and clips: our own'),
   'sweet/tyanuchka.glb': forest('2026-11-24', 'skeleton and clips: our own'),
   'sweet/kakao.glb': forest('2026-11-24', 'skeleton, clips and the beard\'s chocolate colour: our own'),
+  // the Sky Islands (2026-11-25, the customer's decision for world 5: the three people in Meshy): Meshy's mesh and texture,
+  // our own skeleton and clips; Lazur's texture recoloured by the parts of her figure
+  'sky/lazur.glb': forest('2026-11-25', 'skeleton, clips and the texture\'s colours by the parts of the figure: our own'),
+  'sky/mertsal.glb': forest('2026-11-25', 'skeleton and clips: our own'),
+  'sky/veterok.glb': forest('2026-11-25', 'skeleton and clips (no arm bones: his hands stay on his hips): our own'),
 };
 
 const quiet = { debug() {}, info() {}, warn(m) { throw new Error(`gltf-transform warning: ${m}`); }, error(m) { throw new Error(m); } };

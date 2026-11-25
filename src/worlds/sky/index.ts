@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import type { Rig } from '../../core/assets';
+import { rig, tint, type Rig } from '../../core/assets';
 import { sfx } from '../../core/audio';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -121,8 +122,30 @@ function buildSky(scene: THREE.Scene): WorldSky {
   return { sun, sunOffset: new THREE.Vector3(-20, 34, 16) };
 }
 
-/** Nothing to load: the grey build is made of shapes (and the heroine and the cat are the game's). */
-const loadSky = (_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<Record<string, never>> => Promise.resolve({});
+/**
+ * The characters' models (step 6, the customer's decisions of 2026-11-18 and 2026-11-25; CREDITS.md): Lazur, Mertsal
+ * and Veterok from Meshy with our own skeletons and clips (Veterok keeps his hands on his hips: his arms have no bones),
+ * Gromykhalo the CC0 Dragon Evolved (Quaternius) with its own clips named for the game, Chirika the first world's
+ * bird, bigger. The world's own files (models/sky/, TECH-09) by their height in metres - their figures' (FIGURE); the
+ * bird is the core's (models/creatures/). Idle, Talk, and Cheer for the finale where a model has them.
+ */
+export const MODELS: Readonly<Record<string, { path: string; h: number }>> = {
+  lazur: { path: 'sky/lazur', h: 1.7 }, gromykhalo: { path: 'sky/gromykhalo', h: 3.2 }, mertsal: { path: 'sky/mertsal', h: 1.75 },
+  veterok: { path: 'sky/veterok', h: 1.35 }, chirika: { path: 'creatures/bird', h: 0.6 },
+};
+
+/** The files of the islands: the characters' models (the heroine and the cat are the game's). Null = failed (TECH-08). */
+async function loadSky(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig> } | null> {
+  const rigs = await Promise.all(Object.entries(MODELS).map(async ([id, m]) => [id, await rig(m.path, m.h)] as const))
+    .then((e) => Object.fromEntries(e) as Record<string, Rig>)
+    .catch((e: unknown) => { loadFailed(e); return null; });
+  // the good dragon green and gold (docs/worlds/world-5.md), not the CC0 model's own brown and orange
+  if (rigs) tint(rigs.gromykhalo.model, GROMYKHALO_COLOURS);
+  return rigs ? { rigs } : null;
+}
+/** Gromykhalo's colours by the materials of Dragon Evolved: its body green, its belly and wings' skin gold. */
+export const GROMYKHALO_COLOURS: Readonly<Record<string, string>> = { Dragon_Main: '#5fae4a', Dragon_Secondary: '#e8c35a' };
+type SkyLoads = NonNullable<Awaited<ReturnType<typeof loadSky>>>;
 
 /** A character of the grey build: a figure of its height and colour on a rig with no clips (Actor plays none). */
 function figure(id: string): Rig {
@@ -144,7 +167,7 @@ function rayMesh(color: string): THREE.Group {
   return g;
 }
 
-function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: WorldScope): BuiltWorld {
+function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): BuiltWorld {
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
@@ -158,7 +181,8 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   const starMat = new THREE.MeshStandardMaterial({ color: '#ffe066', emissive: '#ffb300', emissiveIntensity: 1.1, roughness: 0.3 });
   const markGeo = new THREE.OctahedronGeometry(0.22);
   const npcs: Npc[] = FRIENDS.map((def) => {
-    const actor = new Actor(figure(def.id));
+    const actor = new Actor(L.rigs[def.id] ?? figure(def.id));
+    if (actor.has('Idle')) actor.play('Idle');
     const pos = point(def);
     actor.root.position.copy(pos); actor.heading = def.heading; actor.root.rotation.y = def.heading;
     g.ground.block(def.x, def.z, FIGURE[def.id].r + 0.3);
@@ -255,6 +279,8 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
     // the Star whole over the dome: the clock starts, golden sparks fall over the island
     five.forEach((m) => { m.visible = false; });
     ws.final = true; g.persist();
+    // the five are glad of the Star whole again (each its clip of the finale, where it has one), then stand as before
+    for (const n of npcs) if (n.actor.has('Cheer') && n.actor.has('Idle')) n.actor.once('Cheer', 'Idle');
     for (const [i, c] of ['#ffd54a', '#fff0b0', '#ffffff', '#cfe6ff'].entries()) g.sparks.burst(g.above(shrine, 5 + i * 2), c, 40, 6);
     g.sparks.burst(scenery.starTop.clone(), '#ffe27a', 60, 3);
     finaleOn = false; g.cam.focus = null;
@@ -375,7 +401,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
 }
 
 /** The Sky Islands, the grey build: listed in src/worlds/index.ts for `--mode grey` only. */
-export const sky: WorldDef<Record<string, never>, WorldSky> = {
+export const sky: WorldDef<SkyLoads, WorldSky> = {
   id: 'sky',
   shelf: 4,
   spawn: SPAWN,
