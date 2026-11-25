@@ -22,6 +22,7 @@ class FakeAudio {
   constructor(public src: string) { FakeAudio.made.push(this); }
   play(): Promise<void> { this.paused = false; return Promise.resolve(); }
   pause() { this.paused = true; }
+  addEventListener() { /* the signs of life of a clip (src/core/voice.ts CLIP_SILENT_MS): not needed here */ }
   fail() { this.error = { code: 4 }; this.onerror?.(); }
 }
 

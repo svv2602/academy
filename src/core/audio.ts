@@ -3,9 +3,9 @@ import type { MusicParams } from '../game/world';
 import { pauseVoice, resumeVoice, voiceVolume } from './voice';
 
 export {
-  CLIP_RETRIES, beginTask, borrowed, clipFor, dropped, endTask, inTask, mayStart, say, setCast, speaking, stopVoice, voiceLog,
-  willSay,
-  type Priority, type Spoken,
+  CLIP_RETRIES, CLIP_SILENT_MS, beginTask, borrowed, clipFor, dropped, endTask, inTask, mayStart, say, setCast, speaking, stopVoice, voiceLog,
+  voiceText, willSay,
+  type ClipTrouble, type Priority, type Spoken,
 } from './voice';
 
 let ctx: AudioContext | null = null;

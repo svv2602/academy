@@ -7,8 +7,10 @@ import { autoMayRaise, autoRaise, autoSecond, autoStart, startTier, type Tier } 
 import { storeSave, type Save } from './save';
 import { setDrawRange } from './instancing';
 import { uTier } from './materials';
+import { voiceText } from './voice';
 import { el } from '../ui/ui';
 import { transition } from '../game/transition';
+
 
 /**
  * The renderer, the scene and the camera. A factory, not module code: main.ts imports this before its WebGL2 check
@@ -126,7 +128,7 @@ export function createQuality(o: {
     }
     if (fpsT >= 1) {
       const fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
-      if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls`;
+      if (debug) el.fps.textContent = `${fps.toFixed(0)} fps · q${tier} · ${(renderer.info.render.triangles / 1000).toFixed(0)}k tris · ${renderer.info.render.calls} calls · ${voiceText()}`;
       if (free) {
         auto = autoSecond(auto, fps, { closed: closedInSecond, hidden: document.hidden });
         if (auto.tier !== tier) setTier(auto.tier, persist);

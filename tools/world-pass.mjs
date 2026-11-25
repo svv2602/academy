@@ -940,14 +940,14 @@ export async function playWorld(h, o = {}) {
   {
     const frames = await starsKept(`by the end of the world "${worldId}"`);
     if (!frames) errors.push(`stars: ${mode}: the watch of the stars saw no frame`);
-    const voice = await g(() => ({ clips: window.__game.voice.clips, synth: [...new Set(window.__game.voice.synth)], dropped: [...window.__game.dropped] }));
-    console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
+    const voice = await g(() => ({ clips: window.__game.voice.clips, synth: [...new Set(window.__game.voice.synth)], trouble: (window.__game.voice.trouble ?? []).map((t) => `${t.clip} ${t.why} -> ${t.then}`), dropped: [...window.__game.dropped] }));
+    console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}; clips not started at once: ${voice.trouble.length ? voice.trouble.join(', ') : 'none'}`);
     voiceUsed = await checkVoice('at the end');
     await checkBank();
     console.log(`lines turned away by the planner: ${voice.dropped.join(' ') || 'none'}`);
     errors.push(...voiceProblems(voice));
     const counter = await page.textContent('#fps').catch(() => null);
-    if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
+    if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls · voice \d+( \(\d+ not started, \d+ synth\))?$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     console.log('task types seen:', [...seenTypes].join(' '));
   }
 

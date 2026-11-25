@@ -4157,8 +4157,8 @@ try {
       }
       console.log('skills:', Object.entries(s.skills).map(([k, v]) => `${k} L${v.level} ${v.first}/${v.tasks}`).join(' | '));
       // Every line of the world is recorded: a line left to the device's synthesizer means a missing or broken clip.
-      const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], dropped: [...__game.dropped] }));
-      console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}`);
+      const voice = await g(() => ({ clips: __game.voice.clips, synth: [...new Set(__game.voice.synth)], trouble: (__game.voice.trouble ?? []).map((t) => `${t.clip} ${t.why} -> ${t.then}`), dropped: [...__game.dropped] }));
+      console.log(`voice: ${voice.clips} clips sounded, lines left to the synthesizer: ${voice.synth.length ? voice.synth.join(' ') : 'none'}; clips not started at once: ${voice.trouble.length ? voice.trouble.join(', ') : 'none'}`);
       voiceUsed = await checkVoice('at the end');
       await checkBank();
       console.log(`voice volume: ${mute ? 'off' : 'on'} - ${voiceUsed.clips} clips started, ${voiceUsed.loud} of them with a volume above zero`);
@@ -4185,7 +4185,7 @@ try {
       // With ?debug the counter shows what docs/perf.md tells the parent to read on the phone.
       const counter = await page.textContent('#fps').catch(() => null);
       console.log('fps:', counter);
-      if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
+      if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls · voice \d+( \(\d+ not started, \d+ synth\))?$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
       // ---- the achievements (PLAY-08, R03, R06, R43): the set the piece earned, and a scene at the stop point of the book ----
       // The scenes come at the stop points as in the game; the blocks above closed them on their way (`fanfareUp`,
       // "achievement shown: <id>"). Here: whatever the piece earned has either been shown or waits in the queue - that

@@ -23,7 +23,11 @@ class FakeAudio {
   constructor(public src: string) { FakeAudio.made.push(this); }
   play(): Promise<void> { return Promise.resolve(); }
   pause() {}
-  start() { this.onplaying?.(); }
+  private heard = new Map<string, (() => void)[]>();
+  addEventListener(type: string, fn: () => void) { this.heard.set(type, [...(this.heard.get(type) ?? []), fn]); }
+  /** A media event the clip fires (its listeners, `once` as the voice asks: each fires one time). */
+  emit(type: string) { const fns = this.heard.get(type) ?? []; this.heard.delete(type); fns.forEach((fn) => fn()); }
+  start() { this.emit('playing'); this.onplaying?.(); }
   fail() { this.error = { code: 4 }; this.onerror?.(); }
 }
 class FakeUtterance {
@@ -165,7 +169,8 @@ describe('the address of a clip (R64, R68)', () => {
     FakeAudio.made[1].fail();
     await vi.advanceTimersByTimeAsync(0);
     expect(FakeAudio.made).toHaveLength(2);
-    expect(voiceLog).toEqual({ clips: 0, synth: [OWN] });
+    expect(voiceLog).toEqual({ clips: 0, synth: [OWN], trouble: [
+      { clip: `${WORLD}/${OWN}`, why: 'error 4', then: 'retry' }, { clip: `${WORLD}/${OWN}`, why: 'error 4', then: 'synth' }] });
     expect(synth.spoken.map((u) => u.text)).toEqual(['Привіт!']);
   });
 });

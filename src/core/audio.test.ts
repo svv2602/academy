@@ -34,7 +34,11 @@ class FakeAudio {
     return Promise.resolve();
   }
   pause() { this.paused = true; }
-  start() { this.onplaying?.(); }
+  private heard = new Map<string, (() => void)[]>();
+  addEventListener(type: string, fn: () => void) { this.heard.set(type, [...(this.heard.get(type) ?? []), fn]); }
+  /** A media event the clip fires (its listeners, `once` as the voice asks: each fires one time). */
+  emit(type: string) { const fns = this.heard.get(type) ?? []; this.heard.delete(type); fns.forEach((fn) => fn()); }
+  start() { this.emit('playing'); this.onplaying?.(); }
   end() { this.onended?.(); }
   fail() { this.error = { code: 4 }; this.onerror?.(); }
 }
@@ -436,7 +440,7 @@ describe('say: recorded clips', () => {
     expect(FakeAudio.made[1].src).toBe(FakeAudio.made[0].src);
     expect(synth.spoken).toHaveLength(0);
     FakeAudio.made[1].start();
-    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    expect(voiceLog).toEqual({ clips: 1, synth: [], trouble: [{ clip: CLIP_A, why: 'error 4', then: 'retry' }] });
     FakeAudio.made[1].onended?.();
     await tick(0);
     expect(a.done).toBe(true);
@@ -462,27 +466,123 @@ describe('say: recorded clips', () => {
   it('the voice log counts the clips that sounded and names the lines left to the synthesizer', async () => {
     const { say, stopVoice, voiceLog } = await load(fakeSynth([UK]));
     void say(CLIP_A, 'один', 'task');
-    expect(voiceLog).toEqual({ clips: 0, synth: [] });   // asked for, not sounding yet
+    expect(voiceLog).toEqual({ clips: 0, synth: [], trouble: [] });   // asked for, not sounding yet
     FakeAudio.made[0].start();
-    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    expect(voiceLog).toEqual({ clips: 1, synth: [], trouble: [] });
     void say(NO_CLIP_A, TEXT, 'task');                         // no recording at all
     void say(CLIP_B, 'два', 'task');
     FakeAudio.made[1].fail();                            // the recording did not load,
     FakeAudio.made[2].fail();                            // nor did it the second time
-    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
+    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B], trouble: [{ clip: CLIP_B, why: 'error 4', then: 'retry' }, { clip: CLIP_B, why: 'error 4', then: 'synth' }] });
     void say(CLIP_A, 'один', 'task');
     stopVoice();
     FakeAudio.made[3].start();                           // a stray event of an interrupted clip
     FakeAudio.made[3].fail();
-    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B] });
+    expect(voiceLog).toEqual({ clips: 1, synth: ['no_clip_a', CLIP_B], trouble: [{ clip: CLIP_B, why: 'error 4', then: 'retry' }, { clip: CLIP_B, why: 'error 4', then: 'synth' }] });
   });
 
-  it('settles at once when the browser refuses to play', async () => {
+  it('a clip the browser refuses to play is asked for once more, then the synthesizer takes the line', async () => {
     FakeAudio.blocked = true;
-    const { say } = await load(fakeSynth([UK]));
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog } = await load(synth);
     const a = track(say(CLIP_A, 'один', 'task'));
     await tick(0);
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(synth.spoken.map((u) => u.text)).toEqual(['один']);
+    expect(voiceLog.trouble).toEqual([
+      { clip: CLIP_A, why: 'refused Error', then: 'retry' }, { clip: CLIP_A, why: 'refused Error', then: 'synth' }]);
+    expect(a.done).toBe(false);                               // the synthesizer says it now
+    synth.spoken[0].onend?.();
+    await tick(0);
     expect(a.done).toBe(true);
+  });
+
+  it('a clip with no sign of life within 6 s is asked for once more, then the synthesizer takes the line', async () => {
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog, CLIP_SILENT_MS } = await load(synth);
+    expect(CLIP_SILENT_MS).toBe(6000);
+    void say(CLIP_A, 'один', 'task');
+    await tick(5999);
+    expect(FakeAudio.made).toHaveLength(1);
+    await tick(1);
+    expect(FakeAudio.made).toHaveLength(2);                   // the same clip again, the first one stopped
+    expect(FakeAudio.made[0].paused).toBe(true);
+    expect(FakeAudio.made[1].src).toBe(FakeAudio.made[0].src);
+    expect(synth.spoken).toHaveLength(0);
+    await tick(6000);
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(synth.spoken.map((u) => u.text)).toEqual(['один']);
+    expect(voiceLog.trouble).toEqual([{ clip: CLIP_A, why: 'silent', then: 'retry' }, { clip: CLIP_A, why: 'silent', then: 'synth' }]);
+    // a late event of the clips given up changes nothing
+    FakeAudio.made[0].start(); FakeAudio.made[1].fail();
+    expect(voiceLog.clips).toBe(0);
+    expect(synth.spoken).toHaveLength(1);
+  });
+
+  it.each(['loadedmetadata', 'loadeddata', 'canplay', 'progress'])('a slow machine: a clip that says %s at 5 s and sounds late is not asked for again', async (sign) => {
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog } = await load(synth);
+    const a = track(say(CLIP_A, 'один', 'task'));
+    await tick(5000);
+    FakeAudio.made[0].emit(sign);
+    await tick(5000);                                         // 10 s, no playing yet: it loads, it is not given up
+    expect(FakeAudio.made).toHaveLength(1);
+    FakeAudio.made[0].start();
+    FakeAudio.made[0].end();
+    await tick(0);
+    expect(a.done).toBe(true);
+    expect(voiceLog).toEqual({ clips: 1, synth: [], trouble: [] });
+    expect(synth.spoken).toHaveLength(0);
+  });
+
+  it('a clip that loads but never sounds is not asked for again: the 15 s safety timer ends its line, as before', async () => {
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog } = await load(synth);
+    const a = track(say(CLIP_A, 'один', 'task'));
+    FakeAudio.made[0].emit('canplay');
+    await tick(14999);
+    expect(a.done).toBe(false);
+    await tick(1);
+    expect(a.done).toBe(true);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(voiceLog.trouble).toEqual([]);
+  });
+
+  it('a clip that starts in time is not asked for again; a line cut off before is no trouble', async () => {
+    const synth = fakeSynth([UK]);
+    const { say, voiceLog } = await load(synth);
+    void say(CLIP_A, 'один', 'task');
+    await tick(2900);
+    FakeAudio.made[0].start();
+    await tick(20000);
+    void say(CLIP_B, 'два', 'task');
+    await tick(1000);
+    void say(CLIP_A, 'один', 'task');                        // cuts the second one off before it started
+    FakeAudio.made[2].start();
+    await tick(10000);
+    expect(FakeAudio.made).toHaveLength(3);
+    expect(voiceLog.trouble).toEqual([]);
+    expect(synth.spoken).toHaveLength(0);
+  });
+
+  it('a refusal of a clip cut off meanwhile (its pause) is no trouble', async () => {
+    const { say, voiceLog } = await load(fakeSynth([UK]));
+    let refuse: (e: Error) => void = () => {};
+    vi.spyOn(FakeAudio.prototype, 'play').mockImplementation(() => new Promise<void>((_, no) => { refuse = no; }));
+    void say(CLIP_A, 'один', 'task');
+    const first = refuse;
+    void say(CLIP_B, 'два', 'task');
+    first(Object.assign(new Error('interrupted'), { name: 'AbortError' }));
+    await tick(0);
+    expect(FakeAudio.made).toHaveLength(2);
+    expect(voiceLog.trouble).toEqual([]);
+    vi.restoreAllMocks();
+  });
+
+  it('the debug counter shows the clips and, only when there was trouble, what did not start and went to the synthesizer', async () => {
+    const { voiceText } = await load(fakeSynth([UK]));
+    expect(voiceText({ clips: 60, synth: [], trouble: [] })).toBe('voice 60');
+    expect(voiceText({ clips: 58, synth: ['a'], trouble: [{}, {}] })).toBe('voice 58 (2 not started, 1 synth)');
   });
 
   it('gives up on a clip that never ends after 15 s', async () => {
@@ -538,7 +638,7 @@ describe('the planner of spoken lines (VOICE-03)', () => {
     expect(question.done).toBe(false);
     expect(FakeAudio.made).toHaveLength(1);
     expect(FakeAudio.made[0].paused).toBe(false);
-    expect(voiceLog).toEqual({ clips: 1, synth: [] });
+    expect(voiceLog).toEqual({ clips: 1, synth: [], trouble: [] });
     expect(dropped).toEqual([CLIP_B, 'no_clip_a']);
   });
 
@@ -576,8 +676,10 @@ describe('the planner of spoken lines (VOICE-03)', () => {
   it('say: the late end of an interrupted line does not make its successor look silent', async () => {
     const { say, speaking } = await load(fakeSynth([UK]));
     void say(CLIP_A, 'один', 'task');
+    FakeAudio.made[0].start();
     await tick(10000);
     const b = track(say(CLIP_B, 'два', 'task'));
+    FakeAudio.made[1].start();
     await tick(5000);                                  // the 15 s safety timer of the first line fires now
     expect(speaking()).toBe(true);
     expect(b.done).toBe(false);
@@ -728,6 +830,22 @@ describe('a hidden page pauses the sound and the lines (TECH-05)', () => {
     clip.end();
     await tick(0);
     expect(a.done).toBe(true);
+  });
+
+  it('a clip not started yet when the page is hidden is not given up in the background: its 6 s count again after the return', async () => {
+    const { page, say, voiceLog } = await loadPage(fakeSynth([UK]));
+    void say(CLIP_A, 'один', 'task');
+    await tick(1000);
+    page.set(true);
+    await tick(60000);
+    expect(FakeAudio.made).toHaveLength(1);
+    page.set(false);
+    await tick(5999);
+    expect(FakeAudio.made).toHaveLength(1);
+    FakeAudio.made[0].start();
+    await tick(10000);
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(voiceLog.trouble).toEqual([]);
   });
 
   it('the picture lost (holdSound, src/core/contextloss.ts) holds the sound as a hidden page; either reason keeps it held', async () => {
