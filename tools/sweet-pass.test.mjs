@@ -3,7 +3,9 @@
 import { describe, expect, it } from 'vitest';
 import * as grey from './sweet-grey.mjs';
 import { NEED, PASS_KINDS, PASS_TIMEOUT_MS, SECRETS, SWEET, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs } from './sweet-pass.mjs';
+import { readFileSync } from 'node:fs';
 import { readNeed } from './world-pass.mjs';
+import { GREY_PARTS, NO_PROBE_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
 /** A report of a walkthrough that came to its end: every chain, the tour, the rubies, the secrets, Zheleyka, the finale, both scenes. */
 function report() {
@@ -55,5 +57,15 @@ describe('tools/sweet-pass.mjs', () => {
   it('has the limit of its own the grey walkthrough has, unless a run asks its own', () => {
     expect(passTimeoutMs({})).toBe(PASS_TIMEOUT_MS);
     expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
+    const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    expect(worlds).toContain('(out) => sweetPubPassEnv(process.env, out), sweetPubPassTimeoutMs(process.env), sweetPubPassProblems,');
+  });
+
+  it('is a part of tools/worlds.mjs of the published build since the Sweet Land was published; its grey walkthrough stays for the grey build', () => {
+    expect(PARTS).toContain('sweet');
+    expect(PUBLISH_PARTS).toContain('sweet');
+    expect(NO_PROBE_PARTS).toContain('sweet');
+    expect(GREY_PARTS).not.toContain('sweet');
+    expect(GREY_PARTS).toContain('sweet-grey');
   });
 });

@@ -26,30 +26,31 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     expect(import.meta.env.MODE).toBe('test');
   });
 
-  it.each(['test', 'production', 'development'])('in the mode "%s" the worlds are the Fairy Kingdom, the hub, the forest and the sea', async (mode) => {
+  it.each(['test', 'production', 'development'])('in the mode "%s" the worlds are the Fairy Kingdom, the hub, the forest, the sea and the Sweet Land', async (mode) => {
     const { WORLDS, DEFAULT_WORLD } = await registry(mode);
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea', 'sweet']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
   it('a build made with --mode probe lists the probe world too, and still plays the Fairy Kingdom by default', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('probe');
     // the probe world before the forest: it is the next one downloaded while the fairies are played (tools/worlds.mjs)
-    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'probe', 'forest', 'sea']);
+    expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'probe', 'forest', 'sea', 'sweet']);
     expect(DEFAULT_WORLD).toBe('fairy');
   });
 
-  it('a build or a dev server made with --mode grey lists the Sweet Land of the grey build (WORLD-12) after the forest and the sea, still playing the Fairy Kingdom', async () => {
+  it('a build or a dev server made with --mode grey lists the Sky Islands of the grey build (WORLD-12) after the published worlds, still playing the Fairy Kingdom', async () => {
     const { WORLDS, DEFAULT_WORLD } = await registry('grey');
     expect(WORLDS.map((w) => w.id)).toEqual(['fairy', 'hub', 'forest', 'sea', 'sweet', 'sky']);
     expect(DEFAULT_WORLD).toBe('fairy');
     expect(RAW['./index.ts']).not.toMatch(/^import .*['"]\.\/(forest|sea|sweet|sky)['"]/m);
-    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\{ \.\.\.SWEET_INFO, code: async \(\) => \(await import\('\.\/sweet'\)\)\.sweet \}, \{ \.\.\.SKY_INFO, code: async \(\) => \(await import\('\.\/sky'\)\)\.sky \}\] : \[\]/);
+    expect(RAW['./index.ts']).toMatch(/import\.meta\.env\.MODE === 'grey' \? \[\{ \.\.\.SKY_INFO, code: async \(\) => \(await import\('\.\/sky'\)\)\.sky \}\] : \[\]/);
   });
 
-  it('the forest and the sea are published: a dynamic import each (a chunk of its own), behind no mode, made only when she enters them', () => {
+  it('the forest, the sea and the Sweet Land are published: a dynamic import each (a chunk of its own), behind no mode, made only when she enters them', () => {
     expect(RAW['./index.ts']).toMatch(/^ {2}\{ \.\.\.FOREST_INFO, code: async \(\) => \(await import\('\.\/forest'\)\)\.forest \},$/m);
     expect(RAW['./index.ts']).toMatch(/^ {2}\{ \.\.\.SEA_INFO, code: async \(\) => \(await import\('\.\/sea'\)\)\.sea \},$/m);
+    expect(RAW['./index.ts']).toMatch(/^ {2}\{ \.\.\.SWEET_INFO, code: async \(\) => \(await import\('\.\/sweet'\)\)\.sweet \},$/m);
     // nothing of a next world is imported at the start but its data (./<id>/meta.ts)
     expect(RAW['./index.ts']).not.toMatch(/^import [^\n]*['"]\.\/(forest|sea|sweet|sky|probe)['"]/m);
     expect(RAW['./index.ts']).not.toMatch(/^(?:export )?const [^\n]*= await /m);
@@ -68,8 +69,9 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     ['production', ['fairy'], ['fairy', 'forest', null, null, null]],
     // the forest done (before the sea was published, too): the sea's arch open
     ['production', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
-    // the Sweet Land is not published: its place sleeps with the sea done
-    ['production', ['fairy', 'forest', 'sea'], ['fairy', 'forest', 'sea', null, null]],
+    // the sea done: the Sweet Land's arch open (published 2026-11-25); the Sky Islands' place sleeps with it done
+    ['production', ['fairy', 'forest', 'sea'], ['fairy', 'forest', 'sea', 'sweet', null]],
+    ['production', ['fairy', 'forest', 'sea', 'sweet'], ['fairy', 'forest', 'sea', 'sweet', null]],
     ['grey', [], ['fairy', null, null, null, null]],
     ['grey', ['fairy'], ['fairy', 'forest', null, null, null]],
     ['grey', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
@@ -80,7 +82,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     // the probe build alone puts the probe world on the forest's place (it is listed first): its walkthrough goes
     // "hub -> the second arch -> back" (tools/worlds.mjs); every other build has the forest behind that arch
     ['probe', ['fairy'], ['fairy', 'probe', null, null, null]],
-  ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game: the fairies\', the forest\'s, the sea\'s)', async (mode, done, open) => {
+  ] as const)('the arches of the hub in the mode "%s" with %j done: %j open (the published game: the fairies\', the forest\'s, the sea\'s, the Sweet Land\'s)', async (mode, done, open) => {
     const { WORLDS } = await registry(mode);
     const { openArches, portalWorlds } = await import('./hub/portals');
     expect(openArches(portalWorlds(WORLDS), (id) => (done as readonly string[]).includes(id))).toEqual(open);
@@ -163,20 +165,21 @@ describe('nextWorlds: the worlds to download while one is played (TECH-09)', () 
     expect(nextWorlds('nowhere', ORDER, ['fairy'])).toEqual(['ocean', 'space', 'ice']);
   });
 
-  it('the published game: the hub is in the installation with the first world - the forest the next world, the sea after it', async () => {
+  it('the published game: the hub is in the installation with the first world - the forest the next world, the sea and the Sweet Land after it', async () => {
     const { nextWorlds, INSTALLED, DEFAULT_WORLD } = await registry('production');
     expect(INSTALLED).toEqual([DEFAULT_WORLD, 'hub']);
-    expect(nextWorlds('fairy')).toEqual(['forest', 'sea']);
-    expect(nextWorlds('hub')).toEqual(['forest', 'sea']);
-    // the sea is downloaded while the forest is played: offline it is there once the forest is done
-    expect(nextWorlds('forest')).toEqual(['sea']);
-    expect(nextWorlds('sea')).toEqual(['forest']);
+    expect(nextWorlds('fairy')).toEqual(['forest', 'sea', 'sweet']);
+    expect(nextWorlds('hub')).toEqual(['forest', 'sea', 'sweet']);
+    // the next world is downloaded while the one before it is played: offline it is there once that one is done
+    expect(nextWorlds('forest')).toEqual(['sea', 'sweet']);
+    expect(nextWorlds('sea')).toEqual(['sweet', 'forest']);
+    expect(nextWorlds('sweet')).toEqual(['forest', 'sea']);
   });
 
-  it('the probe build: the probe world is the next one of the first world and of the hub, then the forest and the sea', async () => {
+  it('the probe build: the probe world is the next one of the first world and of the hub, then the published worlds', async () => {
     const { nextWorlds } = await registry('probe');
-    expect(nextWorlds('fairy')).toEqual(['probe', 'forest', 'sea']);
-    expect(nextWorlds('hub')).toEqual(['probe', 'forest', 'sea']);
-    expect(nextWorlds('probe')).toEqual(['forest', 'sea']);
+    expect(nextWorlds('fairy')).toEqual(['probe', 'forest', 'sea', 'sweet']);
+    expect(nextWorlds('hub')).toEqual(['probe', 'forest', 'sea', 'sweet']);
+    expect(nextWorlds('probe')).toEqual(['forest', 'sea', 'sweet']);
   });
 });
