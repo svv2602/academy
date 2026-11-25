@@ -111,6 +111,25 @@ export const SHIP = { x: ISLANDS.pier.x + 3, z: ISLANDS.pier.z + ISLANDS.pier.r 
 export const GANGWAY = { x: ISLANDS.pier.x + 2, z: ISLANDS.pier.z + ISLANDS.pier.r - RAIL - 1.2 };
 /** Where the airship sets her down on the far islet, and where she boards it back. */
 export const LANDING = { x: ISLANDS.far.x - 2, z: ISLANDS.far.z - 2 };
+/**
+ * The airship's flight (WORLD-05, WORLD-23; the customer's decision 2026-11-18 «а»: it flies by itself, the flight a
+ * reward to watch): from its mooring by the pier up and in an arc east, south of the pier, the windmill island and the
+ * Star over the observatory in view, to its mooring south of the far islet; back the same way. A fixed way, whatever
+ * arrows made the route. Its points on the ground plan; the height is the flight's own (./ship.ts).
+ */
+export const SHIP_FAR = { x: ISLANDS.far.x - 2, z: ISLANDS.far.z + ISLANDS.far.r + 5 } as const;
+export const FLIGHT: readonly Place[] = [
+  { x: SHIP.x, z: SHIP.z },
+  { x: SHIP.x + 10, z: SHIP.z + 12 },
+  { x: (SHIP.x + SHIP_FAR.x) / 2, z: SHIP.z + 20 },
+  { x: SHIP_FAR.x - 14, z: SHIP_FAR.z + 12 },
+  { x: SHIP_FAR.x, z: SHIP_FAR.z },
+];
+/** Where she steps off the airship at the far islet's mooring, and onto it there (by its gangway on the islet's south edge). */
+export const ISLET_GANGWAY = { x: ISLANDS.far.x - 1, z: ISLANDS.far.z + ISLANDS.far.r - RAIL - 1.2 } as const;
+/** The table of the map of the winds (WORLD-23) on the pier, by the gangway: the child looks at it toward the ship (south). */
+export const WINDS_AT = { x: ISLANDS.pier.x - 3, z: ISLANDS.pier.z + ISLANDS.pier.r - RAIL - 3.5, facing: 0 } as const;
+
 /** The spot of ray 4 on the far islet (WORLD-08): among its violet flowers. */
 export const RAY_ISLET = { x: ISLANDS.far.x + 2, z: ISLANDS.far.z + 1.5 };
 /**

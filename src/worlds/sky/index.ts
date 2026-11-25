@@ -16,6 +16,7 @@ import { taskFrame, worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { CLOUD_STEP, GAP_AT, createCloudBridge } from './cloud-bridge';
 import { CLOCK_STEP, createClock } from './clock';
+import { WINDS_STEP, createWinds, flightSeconds } from './ship';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
 import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
@@ -47,7 +48,7 @@ export const FRIENDS: readonly CharacterDef[] = [
   { id: 'lazur', emoji: '☁️', x: ZONES.castle.x - 3, z: ZONES.castle.z + 1, heading: 0.4, steps: ['compare', 'add', CLOUD_STEP], shard: '#ffd54a' },
   { id: 'gromykhalo', emoji: '🐉', x: ZONES.dragon.x + 3, z: ZONES.dragon.z + 2.5, heading: 1.3, steps: ['count', 'sub', 'pattern'], shard: '#ffc93c' },
   { id: 'mertsal', emoji: '🔭', x: ZONES.observatory.x - 3, z: ZONES.observatory.z + 3, heading: 0.3, steps: ['simon', 'pattern', CLOCK_STEP, 'part'], shard: '#ffe27a' },
-  { id: 'veterok', emoji: '🧭', x: ZONES.pier.x - 3, z: ZONES.pier.z + 1.5, heading: 2.8, steps: ['order', 'compose', 'house', 'part'], shard: '#ffb84a' },
+  { id: 'veterok', emoji: '🧭', x: ZONES.pier.x - 3, z: ZONES.pier.z + 1.5, heading: 2.8, steps: ['order', 'compose', WINDS_STEP, 'part'], shard: '#ffb84a' },
   { id: 'chirika', emoji: '🐦', x: ZONES.mills.x - 3, z: ZONES.mills.z + 3, heading: 4.4, steps: ['pairs', 'add', 'sort'], shard: '#fff09a' },
 ];
 
@@ -61,12 +62,10 @@ export const FRIENDS: readonly CharacterDef[] = [
 /** rad: how steeply the camera looks at the cloud bridge (a task's frame on the ground looks from FRAME_PITCH, 0.8). */
 export const CLOUDS_PITCH = 0.42;
 
-/** The steps played as tasks in the world (WorldDef.worldTasks): Lazur's cloud bridge, Mertsal's clock. */
-export const WORLD_TASKS: readonly string[] = [CLOUD_STEP, CLOCK_STEP];
+/** The steps played as tasks in the world (WorldDef.worldTasks): Lazur's cloud bridge, Mertsal's clock, Veterok's route of the winds. */
+export const WORLD_TASKS: readonly string[] = [CLOUD_STEP, CLOCK_STEP, WINDS_STEP];
 
-export const LATER_IN_WORLD = [
-  { owner: 'veterok', step: 2, now: 'house', card: 'WORLD-23', skill: null },
-] as const;
+export const LATER_IN_WORLD: readonly { owner: string; step: number; now: string; card: string; skill: string | null }[] = [];
 
 /** The shape of each character in the grey build: its height, its girth, its colour, the mark of its kind on its top. */
 const FIGURE: Record<string, { h: number; r: number; color: string; top: string }> = {
@@ -90,7 +89,7 @@ export const RAYS = [
 export const FINALE = 'final';
 const TOUR = 'toured';
 /** m: the action spot of a ray's place; the shrine's; the gangway's. */
-const RAY_R = 2.6, SHRINE_R = 3, BOARD_R = 2.4;
+const RAY_R = 2.6, SHRINE_R = 3;
 /** rad/s: the windmills' sails, still until the Star is whole (WORLD-09 later turns them by the rays back). */
 export const SAILS_TURN = 0.6;
 /** rad/s: the clock's hands once the Star is whole. */
@@ -190,16 +189,6 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
     owner: () => rays.find(waiting)?.owner ?? null,
   };
 
-  // ----- the airship's stand-in (WORLD-23 later flies it): the gangway's action takes her to the far islet, and back -----
-  const hop = (to: { x: number; z: number }, facing: number) => {
-    g.sparks.burst(hero.root.position.clone().setY(hero.root.position.y + 1), '#ffffff', 30, 3);
-    hero.root.position.set(to.x, groundY(to.x, to.z), to.z); hero.heading = facing; hero.root.rotation.y = facing;
-    g.cat.root.position.set(to.x + 1, groundY(to.x + 1, to.z + 0.6), to.z + 0.6);
-    g.cam.target.copy(hero.root.position);
-    sfx('chime');
-    g.sparks.burst(hero.root.position.clone().setY(hero.root.position.y + 1), '#ffffff', 30, 3);
-  };
-  const toIslet = Math.atan2(ISLANDS.far.x - LANDING.x, ISLANDS.far.z - LANDING.z), toPier = Math.atan2(ISLANDS.pier.x - GANGWAY.x, ISLANDS.pier.z - GANGWAY.z);
 
   const stage = createStage(g, () => g.speech.caption(null));
   // The tasks of the chains: the panel ones by the shared conversation; `part` here. The tasks in the world of a later
@@ -217,7 +206,12 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
   const clock = createClock(g, player, scope, scenery.hands);
   scope.own(() => clock.dispose());
   clock.opened((ws.quests.mertsal ?? 0) > mertsal.steps.indexOf(CLOCK_STEP));
-  const tasks: Record<string, WorldTask> = { part, [CLOUD_STEP]: bridge, [CLOCK_STEP]: clock };
+  // Veterok's route of the winds (WORLD-23) and the airship's flight it starts (WORLD-05): no skill; the gangways fly
+  // her there and back once it is made
+  const veterok = FRIENDS.find((c) => c.id === 'veterok')!;
+  const winds = createWinds(g, player, scope, scenery.ship);
+  winds.opened((ws.quests.veterok ?? 0) > veterok.steps.indexOf(WINDS_STEP));
+  const tasks: Record<string, WorldTask> = { part, [CLOUD_STEP]: bridge, [CLOCK_STEP]: clock, [WINDS_STEP]: winds };
   const wrongTasks = worldTaskProblems(WORLD_TASKS, tasks);
   if (wrongTasks.length) throw new Error(`the Sky Islands: ${wrongTasks.join('; ')}`);
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
@@ -261,16 +255,16 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         ...npcs.map((n): Spot => ({ pos: n.pos, r: n.def.id === 'gromykhalo' ? 4.2 : 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
         ...raySpots,
         ...clock.spots,
-        { pos: point(GANGWAY), r: BOARD_R, label: 'sky_ship', on: () => true, run: () => hop(LANDING, toIslet) },
-        { pos: point(LANDING), r: BOARD_R, label: 'sky_ship_back', on: () => true, run: () => hop(GANGWAY, toPier) },
+        ...winds.spots,
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
       ],
-      tap: (screenDist) => player.tap(screenDist),
+      tap: (screenDist) => winds.tap() || player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         bridge.update(dt, time, canMove);
         clock.update(dt, time, canMove);
+        winds.update(dt, time, canMove);
         // over the gap the camera keeps to the step ahead: the cloud bridge's middle moves with her (clouds.ts `center`);
         // and it looks lower than a task's frame on the ground: from above it would see the white sea of clouds under
         // the gap, and the sunlit tops of everything washed out on it - lower, the clouds and their numbers stand against the sky
@@ -303,7 +297,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         scenery.turn(dt, ws.final ? SAILS_TURN : 0);
       },
       goal: () => {
-        const b = bridge.goal() ?? clock.goal();
+        const b = bridge.goal() ?? clock.goal() ?? winds.goal();
         if (b) return b;
         const r = rays.find(waiting);
         if (r) return r.mesh.position;
@@ -323,7 +317,9 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         // landmarks, the route, the islands and the bridges, the airship's stand-in
         skyMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, islands: ISLANDS, bridges: BRIDGES, gangway: GANGWAY, landing: LANDING, ground: (x: number, z: number) => groundY(x, z) },
         // the airship's stand-in by the debug door: to the far islet (true) or back to the pier (false)
-        skyShip: (out: boolean) => { if (out) hop(LANDING, toIslet); else hop(GANGWAY, toPier); },
+        // the airship (WORLD-05): its flight by the debug door - made flying, then there (true) or back; it settles with
+        // the game seconds it took (tools/sky-grey.mjs times it, the walkthrough reaches the far islet so)
+        skyShip: { flySeconds: flightSeconds(), far: () => winds.far, flying: () => winds.flying, fly: (out: boolean) => { winds.opened(true); return winds.fly(out); } },
         // the cloud bridge (WORLD-25): its gap, whether it is built, and the deck over it laid by the debug door (the
         // measurements walk every bridge, the one to the dragon island too, before Lazur's chain has built it)
         skyBridge: { gap: CLOUD_GAP, at: GAP_AT, built: () => bridge.built, build: () => bridge.opened(true) } },
@@ -333,6 +329,7 @@ function buildIslands(g: Game, _L: Record<string, never>, sky: WorldSky, scope: 
         if (worldTaskDoor(g).solve()) return 'world task';
         if (bridge.cheat()) return 'bridge';
         if (clock.cheat()) return 'clock';
+        if (winds.cheat()) return 'winds';
         const r = rays.find(waiting);
         if (!r) return '';
         take(r);
@@ -366,4 +363,6 @@ export const sky: WorldDef<Record<string, never>, WorldSky> = {
   build: buildIslands,
   // the tasks played in the world (src/game/worldtasks/play.ts): Lazur's cloud bridge
   worldTasks: WORLD_TASKS,
+  // the route of the winds is written to no skill (the customer's decision 2026-11-18): the walkthrough checks it moves none
+  noSkill: [WINDS_STEP],
 };

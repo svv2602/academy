@@ -11,6 +11,7 @@ import { SKILL } from '../../game/taskviews/panel';
 import type { WorldItem } from '../../game/world';
 import { CLOUD_STEP } from './cloud-bridge';
 import { CLOCK_STEP } from './clock';
+import { WINDS_STEP } from './ship';
 import { FINALE, FRIENDS, LATER_IN_WORLD, RAYS, WORLD_TASKS, sky } from './index';
 import { SHRINE, type ZoneId } from './layout';
 import { SKY_INFO } from './meta';
@@ -21,8 +22,8 @@ import { islandAt } from './terrain';
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
 
 /** The skill a step of a chain trains: a skill named by the step, or the skill of its task type. */
-/** (A task played in the world trains the skill it records in: the cloud bridge, addition; the clock its last step's, addition.) */
-const skillOf = (step: string) => (step === CLOUD_STEP || step === CLOCK_STEP ? 'add' : isSkillStep(step) ? step : (SKILL as Record<string, string>)[step]);
+/** (A task played in the world trains the skill it records in: the cloud bridge, addition; the clock its last step's, addition; the route of the winds none.) */
+const skillOf = (step: string) => (step === WINDS_STEP ? null : step === CLOUD_STEP || step === CLOCK_STEP ? 'add' : isSkillStep(step) ? step : (SKILL as Record<string, string>)[step]);
 
 describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
   it('is the fifth place of the shelf: the hub\'s arch of shelf 4 leads to it', () => {
@@ -38,11 +39,11 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
 
   it('five characters, each with three tasks of the table of docs/worlds/world-5.md, all of them panel tasks the game has', () => {
     expect(FRIENDS.map((c) => c.id)).toEqual(['lazur', 'gromykhalo', 'mertsal', 'veterok', 'chirika']);
-    const want: Record<string, string[]> = {
+    const want: Record<string, (string | null)[]> = {
       lazur: ['compare', 'add', 'add'],                  // comparing, addition over ten, the cloud bridge (WORLD-25: addition)
       gromykhalo: ['count', 'sub', 'pattern'],           // counting, subtraction over ten, a complex pattern
       mertsal: ['memory', 'pattern', 'add'],             // memory, the pattern of two features, the clock (WORLD-24: its hands by an addition now)
-      veterok: ['series', 'compose', 'compose'],         // the number line, the composition of a number, the wind route (WORLD-23: no skill, the number house now)
+      veterok: ['series', 'compose', null],              // the number line, the composition of a number, the wind route (WORLD-23: no skill)
       chirika: ['memory', 'add', 'classify'],            // pairs, addition, sorting
     };
     for (const c of FRIENDS) {
@@ -57,19 +58,22 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
       expect(c.steps[l.step], `${l.owner} ${l.card}`).toBe(l.now);
       if (l.skill) expect(skillOf(l.now), l.card).toBe(l.skill);
     }
-    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual(['WORLD-23']);
+    expect(LATER_IN_WORLD.map((l) => l.card).sort()).toEqual([]);
     for (const l of LATER_IN_WORLD) expect(sky.worldTasks ?? [], l.card).not.toContain(l.now);
   });
 
-  it('Lazur\'s last step is the cloud bridge (WORLD-25, step 2), Mertsal\'s third the clock (WORLD-24, step 3), played in the world; no other chain names one', () => {
+  it('Lazur\'s last step is the cloud bridge (WORLD-25, step 2), Mertsal\'s third the clock (WORLD-24, step 3), played in the world, and Veterok\'s third the route of the winds (WORLD-23, step 4); no other chain names one', () => {
     expect(sky.worldTasks).toEqual(WORLD_TASKS);
-    expect(WORLD_TASKS).toEqual([CLOUD_STEP, CLOCK_STEP]);
-    const lazur = FRIENDS.find((c) => c.id === 'lazur')!, mertsal = FRIENDS.find((c) => c.id === 'mertsal')!;
+    expect(WORLD_TASKS).toEqual([CLOUD_STEP, CLOCK_STEP, WINDS_STEP]);
+    const lazur = FRIENDS.find((c) => c.id === 'lazur')!, mertsal = FRIENDS.find((c) => c.id === 'mertsal')!, veterok = FRIENDS.find((c) => c.id === 'veterok')!;
+    expect(inWorldSteps(veterok, sky.worldTasks)).toEqual([2]);
+    expect(sky.noSkill).toEqual([WINDS_STEP]);
+    expect(veterok.steps[3]).toBe('part');
     expect(inWorldSteps(lazur, sky.worldTasks)).toEqual([2]);
     expect(inWorldSteps(mertsal, sky.worldTasks)).toEqual([2]);
     // ray 3 lies in the clock: the step `part` right after it
     expect(mertsal.steps[3]).toBe('part');
-    for (const c of FRIENDS.filter((f) => f.id !== 'lazur' && f.id !== 'mertsal')) expect(inWorldSteps(c, sky.worldTasks), c.id).toEqual([]);
+    for (const c of FRIENDS.filter((f) => !['lazur', 'mertsal', 'veterok'].includes(f.id))) expect(inWorldSteps(c, sky.worldTasks), c.id).toEqual([]);
   });
 
   it('rays 3 and 4 lie in the world, at the end of the chains of Mertsal and Veterok (WORLD-08); the other three are given', () => {

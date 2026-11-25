@@ -18,6 +18,8 @@ const uk = {
   sky_bridge_way: 'До хмаринок на мосту до дракона!',
   // the observatory's clock (WORLD-24): the bubble on the way (the gears found so far), the action button by a gear
   sky_clock_way: 'Шестерні для годинника: {n} з 3', sky_gear: 'Шестерня',
+  // the route of the winds (WORLD-23): the bubble on the way to the map's table and over it
+  sky_winds_way: 'Проклади кораблику шлях вітрами до островка!',
   // the characters' names (not spoken: the grey build's figures carry no line of their own yet)
   sky_name_lazur: 'Лазур', sky_name_gromykhalo: 'Громихало', sky_name_mertsal: 'Мерехтій', sky_name_veterok: 'Вітерець', sky_name_chirika: 'Цвірінька',
 };
@@ -28,6 +30,7 @@ const ru: Record<keyof typeof uk, string> = {
   sky_clock: 'Часы', sky_flowers: 'Цветы', sky_ship: 'На корабль', sky_ship_back: 'К причалу',
   sky_bridge_way: 'К облачкам на мосту к дракону!',
   sky_clock_way: 'Шестерёнки для часов: {n} из 3', sky_gear: 'Шестерёнка',
+  sky_winds_way: 'Проложи кораблику путь ветрами к островку!',
   sky_name_lazur: 'Лазурь', sky_name_gromykhalo: 'Громыхало', sky_name_mertsal: 'Мерцал', sky_name_veterok: 'Ветерок', sky_name_chirika: 'Чирика',
 };
 

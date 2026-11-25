@@ -249,6 +249,18 @@ async function measure(browser, url, scale, out, q = 2) {
     await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
+  // the airship's flight (WORLD-05): timed in game time without a tap (20-40 s, docs/worlds/world-5.md), the frame
+  // measured at a quarter, a half and three quarters of it, a picture at the half; it lands at the far islet
+  const flight = { seconds: 0, plan: 0, draws: [] };
+  flight.plan = await page.evaluate(() => { window.__flight = null; void __game.skyShip.fly(true).then((t) => { window.__flight = t; }); return __game.skyShip.flySeconds; });
+  for (const k of [0.25, 0.5, 0.75]) {
+    await settle(flight.plan * 0.25);
+    flight.draws.push({ at: k, ...(await draw()) });
+    if (k === 0.5) await page.screenshot({ path: join(out, `${tag}-flight.png`) });
+  }
+  await page.waitForFunction(() => window.__flight !== null, null, { timeout: 180000, polling: 200 }); /* clock: ceiling */
+  flight.seconds = +(await page.evaluate(() => window.__flight)).toFixed(1);
+  flight.far = await page.evaluate(() => __game.skyShip.far());
   // the observatory after the finale: the world's part of the save marked final in memory (never stored: the page is
   // closed after it) - the Star over the dome, the clock going; from 22 m before its shrine and from the castle
   const finale = [];
@@ -270,13 +282,16 @@ async function measure(browser, url, scale, out, q = 2) {
     console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s on foot (${l.byLength} s by its length)${inTarget ? '' : ` - outside ${LEG_TARGET[0]}-${LEG_TARGET[1]} s`}${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   }
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s on foot; the ways once: ${total.metres} m, ${total.walked} s`);
+  console.log(`[grey]   the airship's flight: ${flight.seconds} s (planned ${flight.plan.toFixed(1)}, 20-40)${flight.far ? ', landed at the far islet' : ', NOT landed'}; the frame on the way: ${flight.draws.map((d) => `${d.calls}/${Math.round(d.tris / 1000)}k`).join(', ')}`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays, the haze ${Math.round(v.fog * 100)} %), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the most triangles: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k; the most calls: ${mostCalls.at}, ${mostCalls.calls}`);
   console.log(`[grey]   after the finale: ${finale.map((f) => `${f.at} ${f.calls}/${Math.round(f.tris / 1000)}k`).join(', ')}`);
-  const over = q === 2 ? overBudget(views, tour) : [];
+  // the flight's frame counts with the tour's: points of the world seen from above
+  const over = q === 2 ? overBudget(views, [...tour, ...flight.draws.map((d) => ({ ...d, point: `the flight at ${d.at * 100} %` }))]) : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
   const notReached = legs.filter((l) => !l.reached);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, finale, heaviest, mostCalls, over, failed: over.length > 0 || notReached.length > 0 };
+  const flightOff = !flight.far || flight.seconds < 20 || flight.seconds > 40;
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, finale, flight, heaviest, mostCalls, over, failed: over.length > 0 || notReached.length > 0 || flightOff };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
