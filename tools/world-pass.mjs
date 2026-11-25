@@ -947,7 +947,7 @@ export async function playWorld(h, o = {}) {
     console.log(`lines turned away by the planner: ${voice.dropped.join(' ') || 'none'}`);
     errors.push(...voiceProblems(voice));
     const counter = await page.textContent('#fps').catch(() => null);
-    if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
+    if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls · voice \d+( \(\d+ not started, \d+ synth\))?$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     console.log('task types seen:', [...seenTypes].join(' '));
   }
 

@@ -615,7 +615,7 @@ function standIn(o = {}) {
     for (const id of ['bubble', 'task', 'fanfare', 'btnAct', 'book', 'restart']) el(id, true);
     for (const id of ['play', 'taskStage', 'fanfareTitle', 'fanfareOk', 'crystals', 'colStats', 'bubbleText', 'fps']) el(id, false);
     if (st.played) show('restart');
-    els.fps.textContent = fault.fps ?? '60 fps · q2 · 54k tris · 58 calls';
+    els.fps.textContent = fault.fps ?? '60 fps · q2 · 54k tris · 58 calls · voice 12';
     delete globalThis.__stars;
     globalThis.__game = game();
     globalThis.__game.voice.synth = [...globalThis.__game.voice.synth];
@@ -1004,6 +1004,9 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     expect((await pass({ fault: { dropped: ['go_next', 'praise_2'] } })).errors).toEqual(['the planner turned away lines the scenario gives no reason for: praise_2']);
     expect((await pass({ fault: { unplanned: true } })).errors).toEqual(Array(2).fill('world "meadow": a task is open, but the planner of spoken lines does not know it'));
     expect((await pass({ fault: { fps: 'NaN fps' } })).errors).toEqual(['with ?debug the frame counter does not show the frames: "NaN fps"']);
+    // the voice at its end (src/core/voice.ts voiceText): with its trouble too; a counter without it is not the game's
+    expect((await pass({ fault: { fps: '60 fps · q2 · 54k tris · 58 calls · voice 58 (2 not started, 1 synth)' } })).errors).toEqual([]);
+    expect((await pass({ fault: { fps: '60 fps · q2 · 54k tris · 58 calls' } })).errors).toEqual(['with ?debug the frame counter does not show the frames: "60 fps · q2 · 54k tris · 58 calls"']);
   });
 
   it('a task: pictured once its own show has ended and its question is in the bubble; a cheat that does nothing ends the pass', async () => {
