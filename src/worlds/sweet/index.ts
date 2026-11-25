@@ -13,6 +13,7 @@ import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
+import { loadOwnPets } from '../../game/pets';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { worldTaskDoor } from '../../game/worldtasks/core';
@@ -56,7 +57,8 @@ import { CHEST_FLAG, SECRET_HOW, SWEET_SECRETS, createSweetSecrets } from './sec
 export const FRIENDS: readonly CharacterDef[] = [
   { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d' },
   { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f' },
-  { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', SCALES_STEP], shard: '#ff6b8a' },
+  { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', SCALES_STEP], shard: '#ff6b8a',
+    after: 'tyanuchka_pet_ask' },
   { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: [BRIDGE_STEP, 'simon', 'signs', 'part'], shard: '#d62e5c' },
   { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3' },
 ];
@@ -130,11 +132,22 @@ function buildSky(scene: THREE.Scene): WorldSky {
  */
 export const MODELS: Readonly<Record<string, number>> = Object.fromEntries(FRIENDS.map((f) => [f.id, FIGURE[f.id].h]));
 
+/**
+ * Zheleyka, Tyanuchka's little one (world-4.md «Питомец мира», PLAY-09): once Tyanuchka's chain is done and he has asked
+ * for him, he hides between the lollipops of the candy garden, behind its tallest one from the ways - a free spot off
+ * every collider, the trees, the bears and the leaves (./pet.test.ts); walking up to him finds him and he hops after
+ * her. His model is his big brother's, loaded as a pet's (src/game/pets.ts `loadOwnPets`).
+ */
+export const ZHELEYKA = { x: ZONES.garden.x - 5, z: ZONES.garden.z - 6.5 };
+
 /** The files of the grey build: the characters' models (the heroine and the cat are the game's). Null = failed (TECH-08). */
-async function loadSweet(_scene: THREE.Scene, _save: Save, _touch: boolean): Promise<{ rigs: Record<string, Rig> } | null> {
-  const rigs = await Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`sweet/${id}`, h)] as const))
-    .then((e) => Object.fromEntries(e) as Record<string, Rig>)
-    .catch((e: unknown) => { loadFailed(e); return null; });
+async function loadSweet(_scene: THREE.Scene, _save: Save, _touch: boolean, scope: WorldScope): Promise<{ rigs: Record<string, Rig> } | null> {
+  const [rigs] = await Promise.all([
+    Promise.all(Object.entries(MODELS).map(async ([id, h]) => [id, await rig(`sweet/${id}`, h)] as const))
+      .then((e) => Object.fromEntries(e) as Record<string, Rig>),
+    // Zheleyka, the pet of the Sweet Land: his brother's model, loaded as a pet's (src/game/pets.ts); missing, he stays at home
+    loadOwnPets('sweet', ['zheleyka'], scope),
+  ]).catch((e: unknown) => { loadFailed(e); return [null] as const; });
   return rigs ? { rigs } : null;
 }
 type SweetLoads = NonNullable<Awaited<ReturnType<typeof loadSweet>>>;
@@ -263,7 +276,8 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const rubyItems = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: { x: r.at.x, z: r.at.z } }));
-  const before = [...declared(g), tourItem, ...rubyItems];
+  // the finale waits for the chains, the tour and the rubies; the pet (Zheleyka) is the child's own, never needed
+  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...rubyItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
@@ -416,4 +430,6 @@ export const sweet: WorldDef<SweetLoads, WorldSky> = {
   // PLAY-07: the four secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
   secrets: SWEET_SECRETS,
   chest: CHEST_FLAG,
+  // PLAY-09: Zheleyka, between the garden's lollipops once Tyanuchka's chain is done and he has asked for him
+  pet: { species: 'zheleyka', at: ZHELEYKA, after: 'tyanuchka', found: 'sweet_pet_found', follow: 'sweet_pet_follow' },
 };

@@ -2,7 +2,7 @@
 /**
  * The characters' models of the Sweet Land (./index.ts MODELS; the lead's decisions of 2026-11-24: Meshy for four,
  * Polosatik by code; CREDITS.md): each a file of the world (worlds-data/sweet/, TECH-09) with its own clips - Idle, Talk
- * and Cheer for the finale - under the limit of a file.
+ * and Cheer for the finale (Tyanuchka's Hop besides, for Zheleyka) - under the limit of a file.
  */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -28,7 +28,8 @@ describe('the characters\' models of the Sweet Land', () => {
       expect(existsSync(`public/models/sweet/${id}.glb`), 'not in the core').toBe(false);
       expect(statSync(file).size).toBeLessThan(1024 * 1024);
       // standing, speaking, and each its clip of the finale
-      expect(clips(file), id).toEqual(['Cheer', 'Idle', 'Talk']);
+      // Tyanuchka's has the Hop of his little one too: Zheleyka, the pet, is his model made small (src/game/pets.ts)
+      expect(clips(file), id).toEqual(id === 'tyanuchka' ? ['Cheer', 'Hop', 'Idle', 'Talk'] : ['Cheer', 'Idle', 'Talk']);
     }
   });
 

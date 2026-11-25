@@ -1,4 +1,5 @@
 import { sfx } from '../core/audio';
+import { speaking, willSay } from '../core/voice';
 /**
  * How many times the game has decided, after a shard's thanks, whether to say "go on" (go_next): the walkthrough
  * (`__game.shardsSettled`) waits for this instead of a while of game time, which a starved runner may never reach.
@@ -64,6 +65,35 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   bindAchievements(g);
 
   const finished = (c: CharacterDef) => (ws.quests[c.id] ?? 0) >= c.steps.length;
+  /**
+   * A character's own request after its thanks (CharacterDef.after: Tyanuchka's "find my little one") that would start
+   * while a task is open is not turned away and lost - a child who closed the card and ran on to the next character
+   * would never hear the way to the pet. It is owed, by the character: said at the end of the next conversation or scene
+   * once nothing sounds and no task is open, or by the character itself when it is met again.
+   */
+  const owed = new Map<string, () => Promise<void>>();
+  /**
+   * Free for a request: nothing sounds (it would cut another's words off), no task is open (it would be turned away)
+   * and no scene holds the heroine (another character's conversation).
+   */
+  const free = () => !speaking() && willSay('story') && !g.busy;
+  const offer = (id: string, ask: () => Promise<void>) => { if (free()) void ask(); else { owed.set(id, ask); sayOwed(); } };
+  // A request owed waits, frame by frame, for the first free moment of this entry into the world; a world left forgets it.
+  const visit = g.visit;
+  let waiting = false;
+  function sayOwed() {
+    if (waiting || !owed.size) return;
+    waiting = true;
+    const look = () => {
+      if (g.visit !== visit) { owed.clear(); waiting = false; return; }
+      const [id, ask] = owed.entries().next().value ?? [];
+      if (!id || !ask) { waiting = false; return; }
+      if (!free()) { requestAnimationFrame(look); return; }
+      owed.delete(id); waiting = false;
+      void ask().then(sayOwed);
+    };
+    look();
+  }
   // A panel step names a task type, or a skill whose type follows the level (R34: "compose", the composition of a number).
   type PanelStep = TaskType | SkillStep;
   const isPanel = (s: string): s is PanelStep => s in SKILL || isSkillStep(s);
@@ -86,6 +116,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       const own = background.find((t) => t.active?.() && t.owner?.() === q.id);
       if (own) { await own.reask?.(n); return; }
       if (done >= q.steps.length) {           // the chain is finished: replay its game of the weakest skill for stars (LEARN-16)
+        // its own request owed (turned away by a task open when it was due): said now, in place of its words of a meeting again
+        const mine = owed.get(q.id);
+        if (mine) { owed.delete(q.id); await mine(); return; }
         // a trade asked today (PLAY-28): the choice first - play, trade or goodbye; without an ask, as it always was
         const offer = trades?.[q.id] && !tradeHold.held ? todayOffer(save, ws, q.id, trades[q.id], dailyDay()) : null;
         if (offer) {
@@ -131,6 +164,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
       onward = await givePart(n);
     });
     onward();
+    sayOwed();
   }
 
   /**
@@ -165,15 +199,15 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     refreshHud(); persist();
     const thanks = line(n.def.thanks ?? lines.partGiven, 'story', 0, n.def.emoji);
     // its own word after the thanks (CharacterDef.after: a request that opens what comes next), in place of "go on"
-    const after = n.def.after, ask = after ? () => line(after, 'story', 0, n.def.emoji) : null;
+    const after = n.def.after, ask = after ? () => line(after, 'story', 0, n.def.emoji) as Promise<void> : null;
     await fanfare(lines.partTitle, tf(lines.partText, { n: count }), n.def.shard);
     cat.play('Idle');
     // The last part: "every shard is back" belongs to its moment, before an achievement's scene (the stop point after it).
-    if (count === characters.length) { await line(lines.allParts, 'story'); await stopPoint('part'); return () => { if (ask) void ask(); shardsSettled.n++; }; }
+    if (count === characters.length) { await line(lines.allParts, 'story'); await stopPoint('part'); return () => { if (ask) offer(n.def.id, ask); shardsSettled.n++; }; }
     await stopPoint('part');
     return () => {
       void thanks.then(() => {
-        if (ask) void ask();
+        if (ask) offer(n.def.id, ask);
         else if (!background.some((t) => t.active?.())) void line('go_next', 'hint', 5000);
         shardsSettled.n++;
       });
@@ -191,7 +225,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     // scene of its own, and the cat's "go on" after it - as at the end of a conversation
     if (finished(q)) {
       let onward = () => {};
-      void playScene(stage, `part ${q.id}`, async () => { onward = await givePart(n); }).then(() => onward());
+      void playScene(stage, `part ${q.id}`, async () => { onward = await givePart(n); }).then(() => { onward(); sayOwed(); });
     }
   }
 
