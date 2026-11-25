@@ -123,7 +123,7 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     const items: WorldItem[] = [...before, ...secrets, marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: SHRINE, after: before.map((i) => i.id), active: () => false })];
     expect(problems(sweet, items)).toEqual([]);
     // the template's three secrets at least (PLAY-07), the tin box the world's chest (PLAY-08)
-    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 3, pet: 0, scene: 0 })).toEqual([]);
+    expect(missing(items, { chain: 5, part: 2, flyover: 1, finale: 1, secret: 3, pet: 1, scene: 0 })).toEqual([]);
     expect(sweet.secrets).toEqual(SWEET_SECRETS);
     expect(sweet.chest).toBe(CHEST_FLAG);
     // a secret the world declares but its description has not is a problem

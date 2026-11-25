@@ -59,9 +59,9 @@ export const REACHED = 3.5;
  * the secrets (PLAY-07), as the sea's (tools/sea-pass.mjs). The rubies that lie in the world are done on the way, inside
  * their chains (the pass takes them as the chain's step `part`), so they are not in the report's `order`: the report
  * must list PARTS_IN_WORLD of them, and a pass that came to its end has done every item it lists. The cut-scenes too
- * (WORLD-13, src/worlds/sweet/story.ts), played frame by frame with taps, as the sea's.
+ * (WORLD-13, src/worlds/sweet/story.ts), played frame by frame with taps, and the pet (PLAY-09, Zheleyka), as the sea's.
  */
-export const PASS_KINDS = ['chain', 'scene', 'flyover', 'secret', 'finale'];
+export const PASS_KINDS = ['chain', 'scene', 'flyover', 'secret', 'pet', 'finale'];
 /** The Sweet Land's secrets (src/worlds/sweet/secrets.ts SWEET_SECRETS): the pass must have found each. */
 export const SECRETS = ['candy_box', 'cotton_cloud', 'lemonade', 'bubble_gum'];
 /** How many parts of the artifact lie in the world (src/worlds/sweet/index.ts RUBIES; GREY_BUILD.part). */
