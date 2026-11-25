@@ -32,6 +32,23 @@ describe('a next world as the registry knows it before its code (./<id>/meta.ts)
     expect(known(info)).toEqual(known(def));
   });
 
+  it('every world of the published game has its finds (PLAY-25) and the places of the find of the day (PLAY-26)', async () => {
+    // The forest went out once with finds and no daily places (the lavka's find of the day never came to it); a world
+    // with no finds at all has no find of the day either (src/game/daily-find.ts takes its kinds from `collect`). A world
+    // listed in the published registry (this test's mode lists no grey and no test world) must have both.
+    const { WORLDS } = await import('.');
+    const lacking: string[] = [];
+    for (const w of WORLDS) {
+      // the hub has a find of the day of its own, the feather of the Tree (src/worlds/hub/feathers.ts), not `daily`
+      if (w.test || w.id === 'hub') continue;
+      const def = await w.code();
+      if (!def.collect) lacking.push(`${w.id}: no finds (collect)`);
+      if (!def.daily?.places.length) lacking.push(`${w.id}: no places of the find of the day (daily)`);
+    }
+    expect(lacking, 'a published world without its finds or its find of the day').toEqual([]);
+    expect(WORLDS.map((w) => w.id)).toEqual(expect.arrayContaining(['fairy', 'forest', 'sea']));
+  });
+
   it('every next world of src/worlds/ has one, data only: it imports types alone, never three or the world\'s code', () => {
     const index = import.meta.glob('./*/index.ts');
     const meta = import.meta.glob('./*/meta.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

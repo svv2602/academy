@@ -38,8 +38,9 @@ export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) *
  * on the first entry, the flags of the hub's part of the save after it. The sea's arch (shelf 2) has a world only when
  * the build has the sea (src/worlds/hub/portals.ts portalWorlds, openArches); without it its place sleeps. With the sea,
  * `older`: the forest done and its arch awake already (woke1) - a save from before the sea was published. The Sweet
- * Land's (shelf 3) and the Sky Islands' (shelf 4) arches sleep in every save here, whether the build has them or not:
- * each wakes only once the world before it is done (the sea, the Sweet Land).
+ * Land's (shelf 3) and the Sky Islands' (shelf 4) arches sleep in these saves, whether the build has them or not: each
+ * wakes only once the world before it is done (the sea, the Sweet Land). `sweet`: the sea done too, with the Sweet Land
+ * in the build - its arch alone wakes.
  */
 export function hubExpect(next) {
   const sea = next.includes('sea');
@@ -50,6 +51,9 @@ export function hubExpect(next) {
       : { arches: ['fairy', 'forest', null, null, null], woke: [1], flags: ['woke1'], none: ['woke2', 'sea_wake'] },
     // a save of the forest done whose forest's arch woke before the sea was in the build (an update of the game)
     older: sea ? { woke: [2], flags: ['woke1', 'woke2', 'sea_wake'] } : null,
+    // the sea done too, its arch and the forest's awake from the entries before: the Sweet Land's arch (shelf 3) alone
+    // wakes, when the build has it (WORLD-04: it wakes once the sea is done, docs/worlds/hub.md)
+    sweet: sea && next.includes('sweet') ? { arches: ['fairy', 'forest', 'sea', 'sweet', null], woke: [3], flags: ['woke3'] } : null,
   };
 }
 
@@ -198,6 +202,39 @@ export async function hubWay(browser, url, shots, { slow = false, next = ['fores
       await p.inWorld('sea');
       await p.page.screenshot({ path: join(shots, 'way-sea-from-hub.png') });
       told.push(`the forest done before the sea: the sea's arch alone woke, the cat said hub_sea_wake, through it into the sea`);
+      await p.ctx.close();
+    }
+    // ---- with the Sweet Land in the build: the sea done, the arches of the forest and the sea awake already ----
+    if (want.sweet) {
+      const name = 'the sea done';
+      const save = HUB_SAVES.one();
+      save.worlds.forest = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      save.worlds.sea = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      save.worlds.hub = { ...(save.worlds.hub ?? { quests: {}, final: false, starsTaken: [], pos: null }), flags: { ...(save.worlds.hub?.flags ?? {}), woke1: true, woke2: true, sea_wake: true } };
+      const p = await open(name, save);
+      if (!same(p.woke, want.sweet.woke)) problems.push(`${name}: the arches waking on the entry are ${JSON.stringify(p.woke)}, not ${JSON.stringify(want.sweet.woke)}`);
+      await p.until(() => __game.line === 'hub_sweet_wake', null, 'the cat did not say "hub_sweet_wake" as the Sweet Land\'s arch woke', 30000).catch((e) => problems.push(`${name}: ${e.message}`));
+      const flags = await p.g(() => __game.save.worlds.hub?.flags ?? {});
+      if (want.sweet.flags.some((f) => !flags[f])) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: ${want.sweet.flags.join(', ')} expected`);
+      const open4 = await arches(p);
+      if (!same(open4, want.sweet.arches)) problems.push(`${name}: the arches lead to ${JSON.stringify(open4)}, not ${JSON.stringify(want.sweet.arches)}`);
+      const goal = await p.g(() => __game.hub.goal());
+      if (!goal || Math.hypot(goal.x - HUB_ARCH[3].x, goal.z - HUB_ARCH[3].z) > 2) problems.push(`${name}: the cat's sparkles lead to ${JSON.stringify(goal)}, not to the Sweet Land's arch`);
+      const n = await p.calls();
+      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with four arches open, more than 80`);
+      await p.page.screenshot({ path: join(shots, 'way-hub-sea-done.png') });
+      // through it into the Sweet Land: she comes out of the Tree's arch on the square, facing away from it (src/worlds/sweet/hub-way.ts)
+      await p.act(HUB_ARCH[3].x * 0.9, HUB_ARCH[3].z * 0.9, 'at the Sweet Land\'s arch');
+      await p.inWorld('sweet');
+      const out = await p.at();
+      { const t0 = await p.g(() => __game.time); await p.until((t) => __game.time > t + 1.5, t0, 'the game time stood', 60000); }
+      await p.page.screenshot({ path: join(shots, 'way-sweet-from-hub.png') });
+      // back by that arch: 7 m behind her where she came out (OUT), its spot 2 m round it - from 1.5 m in front of it
+      const OUT = 7;
+      await p.act(out.x - Math.sin(out.heading) * (OUT - 1.5), out.z - Math.cos(out.heading) * (OUT - 1.5), 'at the arch of the Great Tree in the Sweet Land');
+      await p.inWorld('hub');
+      p.near(await p.at(), HUB_ARRIVAL[3], 'back in the hub from the Sweet Land');
+      told.push(`the sea done: the Sweet Land's arch alone woke, the cat said hub_sweet_wake, open ${JSON.stringify(open4)}, the sparkles to it, ${n} draw calls at the arrival; through it into the Sweet Land and back to the hub at its arch`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----

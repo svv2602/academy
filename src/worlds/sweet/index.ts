@@ -23,6 +23,7 @@ import { DOORWAY, HOUSE_STEP, createHouse } from './house';
 import { SCALES_STEP, createScales } from './scales';
 import { BRIDGE_STEP, createBridge } from './bridge';
 import { arriveFrom, createHubWay } from './hub-way';
+import { COLLECT, DAILY_PLACES } from './collect';
 import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
@@ -427,6 +428,8 @@ export const sweet: WorldDef<SweetLoads, WorldSky> = {
   // the house is written to no skill, the scales to `compare`, the bridge to `classify` (the customer's decision 2026-11-18)
   worldTasks: [HOUSE_STEP, SCALES_STEP, BRIDGE_STEP],
   noSkill: [HOUSE_STEP],
+  collect: COLLECT,                  // swirl lollipops and jelly sweets (PLAY-25, ./collect.ts)
+  daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   // PLAY-07: the four secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
   secrets: SWEET_SECRETS,
   chest: CHEST_FLAG,
