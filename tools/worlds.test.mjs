@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { MAX_VOICE, checkDistSize } from './dist-size.mjs';
 import { buildWorlds as sourceNextWorlds, listWorlds } from './vite-worlds.mjs';
 import {
-  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, builtCode, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
+  FIRST_WORLD, OFFLINE_MARK, PARTS, PROBE, PROBE_CHARACTERS, PROBE_DIST, PROBE_FILES, ROUNDS, ROUNDS_MOST, ROUND_GROWTH, ROUND_KEYS, ROUND_KINDS, WALKS, askedOffline, askedOfWorld, askedWithoutNetwork, buildCommit, builtCode, clipCutOff, closedProblems, coreVoiceBytes, irisProblems, layerCallsProblems, layerDifference, listProblems, notAskedByPage, notDownloaded,
   keyDiff, pelvisKey, playRound, probeBuildProblems, programKind, probeFiles, probeLeft, publishedProblems, publishedWithoutPart, readArgs, readList, readRound, ringPixels, roundLine, roundProblems, roundsWanted, watchPrograms, travelFramesProblems, walkEnv, worldVoiceProblems,
 } from './worlds.mjs';
 import { PHONE_CDP, PHONE_PORT, SAVE_KEYS, phoneHelp, phoneProblem, readPhoneArgs } from './worlds-phone.mjs';
@@ -1143,5 +1143,18 @@ describe('the published worlds: each has a part of its own before a publication'
   it('the part "walk" fails a published build that lists a world with no part of its own', () => {
     const src = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
     expect(src).toMatch(/if \(!play\('walk'\)\)[^\n]*\n\s+else try \{\n\s+await publishedBuild\(\);\n(?:(?!\n {2}\}).*\n)*?\s+for \(const id of publishedWithoutPart\(buildWorlds\(dist\)\)\) fail\(/);
+  });
+
+  it('the hub\'s part lets the browser drop a clip of the voice cut off while loading; nothing else that failed', () => {
+    const at = 'http://127.0.0.1:4183/';
+    expect(clipCutOff(`${at}voice/hub/hub_sea_wake.mp3`, 'net::ERR_ABORTED')).toBe(true);
+    expect(clipCutOff(`${at}academy/bank/q_add_8_5.mp3`, 'net::ERR_ABORTED')).toBe(true);
+    expect(clipCutOff(`${at}voice/hub/hub_sea_wake.mp3`, 'net::ERR_FAILED')).toBe(false);
+    expect(clipCutOff(`${at}models/hub/tree.glb`, 'net::ERR_ABORTED')).toBe(false);
+    expect(clipCutOff(`${at}code/sky/index.js`, 'net::ERR_ABORTED')).toBe(false);
+    expect(clipCutOff('not a url', 'net::ERR_ABORTED')).toBe(false);
+    const src = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    const hub = src.slice(src.indexOf('async function hubScenarios'), src.indexOf('\nasync function', src.indexOf('async function hubScenarios') + 1));
+    expect(hub).toContain("page.on('requestfailed', (r) => { if (!clipCutOff(r.url(), r.failure()?.errorText)) fail(");
   });
 });

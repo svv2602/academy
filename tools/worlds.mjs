@@ -205,6 +205,15 @@ export function publishedWithoutPart(next, parts = PUBLISH_PARTS) {
 }
 /** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest and the walkthroughs of the published worlds in the published one. */
 export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet'];
+/**
+ * A request of the hub's part that failed only because the browser dropped a clip it no longer needed: a clip of the
+ * voice (voice/, bank/) cut off by the next line or by a reload while it was still loading is cancelled by the browser
+ * (net::ERR_ABORTED), as tools/shot.mjs tolerates it. Any other failure, and any other file aborted, is a failure.
+ */
+export function clipCutOff(url, why) {
+  if (why !== 'net::ERR_ABORTED') return false;
+  try { return /\/(voice|bank)\/.+\.mp3$/.test(new URL(url).pathname); } catch { return false; }
+}
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -1135,7 +1144,7 @@ async function hubScenarios({ url, shots, fail: report }) {
       const page = await ctx.newPage();
       page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') fail(`${name}: console ${m.type()}: ${m.text()}`); });
       page.on('pageerror', (e) => fail(`${name}: pageerror: ${e.message}`));
-      page.on('requestfailed', (r) => fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`));
+      page.on('requestfailed', (r) => { if (!clipCutOff(r.url(), r.failure()?.errorText)) fail(`${name}: request failed: ${r.url()} (${r.failure()?.errorText})`); });
       page.on('response', (r) => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()} for ${r.url()}`); });
       const g = (fn, arg) => page.evaluate(fn, arg);
       const until = (fn, arg, what, ms = 60000) => page.waitForFunction(fn, arg, { timeout: T(ms) }).catch(() => { throw new Error(`${name}: ${what}`); }); /* clock: helper */
