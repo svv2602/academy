@@ -85,7 +85,7 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   scene.add(standGear);
   let ring = 0;           // s of game time the bell still rings (the stand's gear shakes)
 
-  let on = false, owner: Npc | null = null, finished: () => void = () => {}, armed = true, playing = false, left = false, paused = false;
+  let on = false, owner: Npc | null = null, finished: () => void = () => {}, armed = true, playing = false, left = false, paused = false, opens = 0;
   const WAY = 't_pattern';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🔭', text: tf('sky_clock_way', { n: found.filter(Boolean).length }) }); };
 
@@ -111,7 +111,9 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   function open(say: 'mertsal_clock_resume' | 'mertsal_clock_step_2' | 'mertsal_clock_step_3') {
     const rng = createRng(`clock:${seed}:${stage}`);
     // the puzzle's steps are 1-3, the search the first: this task is its step stage + 1 of three
-    const hooks = wordsFirst(g, g.hooksFor('🔭'), say, '🔭', () => playing), o = { reach: g.touch ? 70 : 46, scope, stage: [stage + 1, CLOCK_STEPS] as const };
+    // this very opening of the clock: a step closed and opened anew is another
+    const mine = ++opens;
+    const hooks = wordsFirst(g, g.hooksFor('🔭'), say, '🔭', () => playing && opens === mine), o = { reach: g.touch ? 70 : 46, scope, stage: [stage + 1, CLOCK_STEPS] as const };
     const gearsStep = stage === 1;
     const skill = gearsStep ? 'pattern' : 'add';
     const show = gearsStep ? showGearsInWorld(scene, generateGears(levelFor(g.save, 'pattern'), rng), at, hooks, o)

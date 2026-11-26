@@ -1,4 +1,4 @@
-import { speaking, willSay, type Priority } from '../../core/audio';
+import { inTask, speaking, willSay, type Priority } from '../../core/audio';
 import type { Game } from '../../game/context';
 import type { WorldScope } from '../../game/scope';
 import type { TaskHooks } from '../../game/taskviews/panel';
@@ -8,7 +8,9 @@ import type { SpokenKey } from '../../ui/strings';
  * The hooks of a task of the world with a character's words before its first question (Lazur's "the clouds become
  * steps", Mertsal's step of the clock): the task opens at once - the child and the walkthrough see it open - and its
  * question waits for the words. The words go with the task's priority: while a task is open only its own lines sound
- * (src/core/voice.ts mayStart), a `story` line would be turned away. A task closed before the words end asks nothing.
+ * (src/core/voice.ts mayStart), a `story` line would be turned away. A task closed before the words end asks nothing:
+ * `open` says this very task is still open, and the voice must still be in a task - the end of a task stops the words
+ * before the world hears of it, and a question asked then would sound over what follows the task.
  */
 export function wordsFirst(g: Game, hooks: TaskHooks, key: SpokenKey, speaker: string, open: () => boolean): TaskHooks {
   let words: Promise<unknown> | null = null;
@@ -17,7 +19,7 @@ export function wordsFirst(g: Game, hooks: TaskHooks, key: SpokenKey, speaker: s
     prompt: (q, ask) => {
       if (words) { hooks.prompt(q, ask); return; }
       words = g.speech.line(key, 'task', 0, speaker);
-      void words.then(() => { if (open()) hooks.prompt(q, ask); });
+      void words.then(() => { if (open() && inTask()) hooks.prompt(q, ask); });
     },
   };
 }

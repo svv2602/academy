@@ -5,7 +5,7 @@ import { QUIET_WAIT, tellWhenQuiet, wordsAfter, wordsFirst } from './task-words'
 
 // the planner of the voice, as the test sets it: a line sounds, a task is open
 const voice = vi.hoisted(() => ({ speaking: false, inTask: false }));
-vi.mock('../../core/audio', () => ({ speaking: () => voice.speaking, willSay: (p: string) => !voice.inTask || p === 'task' }));
+vi.mock('../../core/audio', () => ({ speaking: () => voice.speaking, willSay: (p: string) => !voice.inTask || p === 'task', inTask: () => voice.inTask }));
 
 /** A game whose speech says a line when `end()` is called: the lines said, with their priorities. */
 function game() {
@@ -22,6 +22,7 @@ const hooksOf = () => ({ prompt: vi.fn(), number: vi.fn(), wrong: vi.fn(), hint:
 describe('a character\'s words round a task of the Sky Islands', () => {
   it('before the first question: said as a line of the task (a story line is turned away in a task), the question after them', async () => {
     const { g, said, end } = game(), hooks = hooksOf();
+    voice.inTask = true;
     const h = wordsFirst(g, hooks, 'lazur_bridge_start', '☁️', () => true);
     h.prompt('t_add');
     expect(said).toEqual([['lazur_bridge_start', 'task']]);
@@ -32,11 +33,22 @@ describe('a character\'s words round a task of the Sky Islands', () => {
     h.prompt('t_add');
     expect(hooks.prompt).toHaveBeenCalledTimes(2);
     expect(said).toHaveLength(1);
+    voice.inTask = false;
   });
 
   it('a task closed before the words end asks nothing', async () => {
     const { g, end } = game(), hooks = hooksOf();
     wordsFirst(g, hooks, 'mertsal_clock_step_2', '🔭', () => false).prompt('t_add');
+    await end();
+    expect(hooks.prompt).not.toHaveBeenCalled();
+  });
+
+  it('a task solved before the words end asks nothing either: its end stops the words before the world hears of it', async () => {
+    // the world's flag still says open, the voice has left the task: a question now would sound over what follows
+    const { g, end } = game(), hooks = hooksOf();
+    voice.inTask = true;
+    wordsFirst(g, hooks, 'mertsal_clock_step_3', '🔭', () => true).prompt('t_add');
+    voice.inTask = false;
     await end();
     expect(hooks.prompt).not.toHaveBeenCalled();
   });

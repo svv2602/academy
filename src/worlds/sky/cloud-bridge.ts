@@ -71,7 +71,7 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
   const { scene, hero } = g;
   EDGE.y = height(EDGE.x, EDGE.z);
   let spec: CloudsSpec | null = null, built = false;
-  let on = false, owner: Npc | null = null, finished: (played?: TaskResult) => void = () => {}, armed = true, playing = false;
+  let on = false, owner: Npc | null = null, finished: (played?: TaskResult) => void = () => {}, armed = true, playing = false, opens = 0;
   const WAY = 't_add';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '☁️', text: tf('sky_bridge_way', {}) }); };
   const build = (done: boolean) => { built = done; gapDeck.visible = done; setCloudGap(done); };
@@ -89,7 +89,9 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
     // the cat's hints of the bridge (the draft's f5_bridge_hint_*) in place of the shared ones they say the same as: the
     // way through ten (level 5), counting together, the cloud that glows; the other rungs keep their shared lines
     // Lazur says how the clouds become steps (the draft's f5_bridge_start) before the first question
-    const hooks = wordsFirst(g, g.hooksFor('☁️'), 'lazur_bridge_start', '☁️', () => playing);
+    // this very bridge: one closed and opened anew is another
+    const mine = ++opens;
+    const hooks = wordsFirst(g, g.hooksFor('☁️'), 'lazur_bridge_start', '☁️', () => playing && opens === mine);
     const show = showCloudsInWorld(scene, spec, GAP_AT, { ...hooks, hint: (key) => hooks.hint(BRIDGE_HINTS[key] ?? key) },
       // Lazur between two steps (the draft's f5_bridge_step): the next question waits for her; a line of the task
       { reach: g.touch ? 70 : 46, scope, hero, between: () => g.speech.line('lazur_bridge_step', 'task', 0, '☁️') });
