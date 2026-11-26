@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
-import { reportProblems } from './world-pass.mjs';
+import { worldPassProblems } from './world-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The id of the world (src/worlds/sky/index.ts). */
@@ -38,14 +38,24 @@ export const SKY = 'sky';
 /** m from the end of a way where she has come: the end of a way is the middle of its zone. */
 export const REACHED = 3.5;
 /**
- * The kinds of the items the walkthrough of the grey build must have done itself (tools/world-pass.mjs GREY_BUILD).
- * The rays that lie in the world are done on the way, inside their chains (the pass takes them as the chain's step
- * `part`), so they are not in the report's `order`: the report must list PARTS_IN_WORLD of them, and a pass that came
- * to its end has done every item it lists.
+ * The kinds of the items the walkthrough of the grey build must have done itself (tools/world-pass.mjs GREY_BUILD), and
+ * the secrets (PLAY-07) and the pet (PLAY-09, Pushok), as the Sweet Land's (tools/sweet-grey.mjs). The rays that lie in
+ * the world are done on the way, inside their chains (the pass takes them as the chain's step `part`), so they are not
+ * in the report's `order`: the report must list PARTS_IN_WORLD of them, and a pass that came to its end has done every
+ * item it lists. The cut-scenes (WORLD-13, `scene`) join them once src/worlds/sky/story.ts is in the world.
  */
-export const PASS_KINDS = ['chain', 'flyover', 'finale'];
+export const PASS_KINDS = ['chain', 'flyover', 'secret', 'pet', 'finale'];
+/** The Sky Islands' secrets (src/worlds/sky/secrets.ts SKY_SECRETS): the pass must have found each. */
+export const SECRETS = ['sky_chest', 'rainbow_slide', 'cloud_shapes', 'dragon_nest'];
 /** How many parts of the artifact lie in the world (src/worlds/sky/index.ts RAYS; GREY_BUILD.part). */
 export const PARTS_IN_WORLD = 2;
+/**
+ * The tasks the Sky Islands play in the world ("<chain> <step>", tools/world-pass.mjs `worldTasks`) and the skill each
+ * must have recorded once solved (the report's `worldSkills`; the customer's decisions of 2026-11-18): Lazur's cloud
+ * bridge `add`; Mertsal's clock - each of its steps in its own skill, the report keeping the last: the hands set by an
+ * addition, `add` (the gears' order recorded `pattern` on the way); Veterok's route of the winds none.
+ */
+export const WORLD_SKILLS = { 'lazur 2': 'add', 'mertsal 2': 'add', 'veterok 2': null };
 /** s: the target of the document for the time on foot between neighbouring islands (docs/worlds/world-5.md). */
 export const LEG_TARGET = [15, 25];
 /** The names of the objects that count as the landmark of a target (src/worlds/sky/scenery.ts, landmarks.ts). */
@@ -92,12 +102,14 @@ export function passEnv(base, out) {
   return { ...base, E2E_WORLD: SKY, E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: out, E2E_ONLY: '', E2E_MUTE: '0' };
 }
 
-/** What is wrong with the report of the walkthrough (`report`: the parsed E2E_WORLD_OUT, null - none): [] when it came to its end, online, every kind done. */
+/**
+ * What is wrong with the report of the walkthrough (`report`: the parsed E2E_WORLD_OUT, null - none): [] when it came to
+ * its end, online, every kind done, the two rays in the description, the four secrets found, every task of the world
+ * played there and recorded as it must be.
+ */
 export function passProblems(report, size = 'mobile') {
-  const out = reportProblems(report, { world: SKY, size, offline: false, kinds: PASS_KINDS });
-  const parts = (report?.items ?? []).filter((i) => i.kind === 'part').length;
-  if (report && parts < PARTS_IN_WORLD) out.push(`the description has ${parts} part(s) of the artifact in the world, ${PARTS_IN_WORLD} expected`);
-  return out;
+  // the cloud bridge, the clock and the winds are played in the world (WORLD-25, 24, 23): the pass must have met them there
+  return worldPassProblems(report, { world: SKY, kinds: PASS_KINDS, parts: PARTS_IN_WORLD, secrets: SECRETS, skills: WORLD_SKILLS }, size);
 }
 
 /** The time of the route from the legs walked: the route walks some ways twice, so it sums over the route, not the legs. */
