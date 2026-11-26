@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildWorlds, hubExpect } from './hub-grey.mjs';
+import { buildWorlds, hubExpect, hubSpoken } from './hub-grey.mjs';
 import { GREY_PARTS, NO_PROBE_PARTS, PUBLISH_PARTS } from './worlds.mjs';
 import { openArches, portalWorlds, wakingArches, woke } from '../src/worlds/hub/portals.ts';
 
@@ -46,11 +46,21 @@ describe('the way between the hub and the forest: what the arches show by the wo
       expect(wakingArches(open, { woke1: true, woke2: true })).toEqual(want.sweet.woke);
       expect(want.sweet.flags).toContain(woke(3));
     } else expect(next).not.toContain('sweet');
+    // the Sweet Land done too, the arches of shelves 1-3 awake from before: the Sky Islands' alone wakes
+    if (want.sky) {
+      const open = openArches(portalWorlds(registry(ids)), (id) => ['fairy', 'forest', 'sea', 'sweet'].includes(id));
+      expect(open).toEqual(want.sky.arches);
+      expect(wakingArches(open, { woke1: true, woke2: true, woke3: true })).toEqual(want.sky.woke);
+      expect(want.sky.flags).toContain(woke(4));
+    } else expect(next).not.toContain('sky');
   });
 
   it('the Sky Islands\' arch (shelf 4) sleeps in the saves of the way and wakes once the Sweet Land is done (the hub\'s rules)', () => {
     const grey = ['fairy', 'hub', 'forest', 'sea', 'sweet', 'sky'];
-    expect(hubExpect(['forest', 'sea', 'sweet', 'sky'])).toEqual(hubExpect(['forest', 'sea', 'sweet']));
+    const { sky, ...rest } = hubExpect(['forest', 'sea', 'sweet', 'sky']);
+    expect(rest).toEqual({ ...hubExpect(['forest', 'sea', 'sweet']), sky: undefined });
+    expect(sky).toEqual({ arches: ['fairy', 'forest', 'sea', 'sweet', 'sky'], woke: [4], flags: ['woke4'], line: 'hub_sky_wake' });
+    expect(hubExpect(['forest', 'sea', 'sweet']).sky).toBeNull();
     expect(hubShows(grey, ['fairy', 'forest', 'sea']).arches).toEqual(['fairy', 'forest', 'sea', 'sweet', null]);
     expect(hubShows(grey, ['fairy', 'forest', 'sea', 'sweet'])).toEqual({ arches: ['fairy', 'forest', 'sea', 'sweet', 'sky'], woke: [1, 2, 3, 4] });
   });
@@ -66,6 +76,15 @@ describe('the way between the hub and the forest: what the arches show by the wo
     expect(GREY_PARTS).not.toContain('hub-forest');
     expect(PUBLISH_PARTS).not.toContain('hub-grey');
     expect(NO_PROBE_PARTS).toEqual([...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet']);
+  });
+
+  it('the cat\'s word of the Sky Islands\' arch waking is checked once the hub\'s strings have it (it comes with the world 5\'s voice)', () => {
+    expect(hubSpoken()).toContain('hub_sweet_wake');
+    expect(hubSpoken("export const strings = { id: 'hub', spoken: { hub_tour: 'joy', hub_sky_wake: 'joy' } };")).toEqual(['hub_tour', 'hub_sky_wake']);
+    expect(hubSpoken('no lines')).toEqual([]);
+    // the line spoken is a line of both tables of the hub
+    const source = readFileSync(new URL('../src/worlds/hub/strings.ts', import.meta.url), 'utf8');
+    for (const k of hubSpoken()) expect(source.split(`${k}:`).length - 1).toBeGreaterThanOrEqual(3);
   });
 
   it('buildWorlds reads the next worlds of a build from its worlds.json; none without the file', () => {
