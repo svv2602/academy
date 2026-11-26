@@ -61,6 +61,11 @@ export interface CloudBridgeStep extends WorldTask {
   opened(done: boolean): void;
 }
 
+/** The shared rungs of the hint of addition the bridge says in the cat's words of the islands (the draft 2026-11-18). */
+export const BRIDGE_HINTS: Readonly<Record<string, 'sky_bridge_hint_1' | 'sky_bridge_hint_2' | 'sky_bridge_hint_3'>> = {
+  h1_add_cross: 'sky_bridge_hint_1', h_count: 'sky_bridge_hint_2', h3_show: 'sky_bridge_hint_3',
+};
+
 export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: WorldScope, gapDeck: THREE.Object3D): CloudBridgeStep {
   const { scene, hero } = g;
   EDGE.y = height(EDGE.x, EDGE.z);
@@ -75,9 +80,16 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
   function play() {
     armed = false; playing = true;
     g.speech.caption(null);
+    // Lazur says how the clouds become steps (the draft's f5_bridge_start), then the clouds open
+    void g.speech.line('lazur_bridge_start', 'story', 0, '☁️').then(open);
+  }
+  function open() {
     // a new bridge each time: the level of addition now (the card keeps no middle)
     spec = generateClouds('add', cloudsLevel(levelFor(g.save, 'add')), createRng(`clouds:${Math.floor(g.rng() * 1e6)}`));
-    const show = showCloudsInWorld(scene, spec, GAP_AT, g.hooksFor('☁️'), { reach: g.touch ? 70 : 46, scope, hero });
+    // the cat's hints of the bridge (the draft's f5_bridge_hint_*) in place of the shared ones they say the same as: the
+    // way through ten (level 5), counting together, the cloud that glows; the other rungs keep their shared lines
+    const hooks = g.hooksFor('☁️');
+    const show = showCloudsInWorld(scene, spec, GAP_AT, { ...hooks, hint: (key) => hooks.hint(BRIDGE_HINTS[key] ?? key) }, { reach: g.touch ? 70 : 46, scope, hero });
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
       if (!res.solved) {
@@ -92,8 +104,9 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
       sfx('fanfare');
       g.sparks.burst(new THREE.Vector3(GAP_AT.x + AX * CLOUD_GAP.length / 2, GAP_AT.y + 1, GAP_AT.z + AZ * CLOUD_GAP.length / 2), '#ffffff', 50, 4);
       g.persist();
-      // the result handed on: the conversation records it in `add`, as a panel task
-      finished(res);
+      // Lazur: the bridge is built (the draft's f5_bridge_finish); the result handed on: the conversation records it in
+      // `add`, as a panel task
+      void g.speech.line('lazur_bridge_finish', 'story', 0, '☁️').then(() => finished(res));
     });
   }
 

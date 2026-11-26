@@ -31,7 +31,7 @@ function game(ws = defaultWorld(), save = defaultSave()) {
   const g = {
     scene: new THREE.Scene(), groundY: () => 0, hero: { root: new THREE.Object3D() }, ws, save,
     rng: () => ((seed = (seed * 16807) % 2147483647) / 2147483647), persist: () => {}, busy: false, touch: true,
-    speech: { caption: () => {}, shown: null },
+    speech: { caption: () => {}, shown: null, line: () => Promise.resolve() },
     hooksFor: () => ({ prompt: () => {}, number: () => {}, good: () => {}, wrong: quick, hint: quick }),
     sparks: { burst: () => {} }, task: (open: () => Promise<TaskResult>) => open(),
   };
@@ -61,6 +61,8 @@ describe('the observatory\'s clock as Mertsal\'s step (WORLD-24)', () => {
     let time = 0;
     expect(clock.cheat()).toBe(true); frames(clock, time += 1);
     expect(clock.cheat()).toBe(true); frames(clock, time += 1);
+    // Mertsal names the step first (his line), then the task opens
+    await vi.runAllTimersAsync();
     expect(t.open?.kind).toBe('gears');
     t.open!.solve(); for (let k = 0; k < 40; k++) t.open?.update(time += 0.05);
     await vi.runAllTimersAsync();
@@ -70,6 +72,7 @@ describe('the observatory\'s clock as Mertsal\'s step (WORLD-24)', () => {
     // step 3: the hands - «Сложение» only
     expect(clock.cheat()).toBe(true); frames(clock, time += 1);
     expect(clock.cheat()).toBe(true); frames(clock, time += 1);
+    await vi.runAllTimersAsync();
     expect(t.open?.kind).toBe('hands');
     t.open!.solve(); for (let k = 0; k < 40; k++) t.open?.update(time += 0.05);
     await vi.runAllTimersAsync();
@@ -98,6 +101,7 @@ describe('the observatory\'s clock as Mertsal\'s step (WORLD-24)', () => {
     expect(third.done).toBe(1);
     third.start!(mertsal, () => {});
     third.cheat(); frames(third, 1); third.cheat(); frames(third, 2);
+    await vi.runAllTimersAsync();
     expect(t.open?.kind).toBe('gears');
     // closed in the middle: the step is not done, it opens again at the stand
     t.open!.close();

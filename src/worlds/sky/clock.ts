@@ -84,7 +84,7 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   scene.add(standGear);
   let ring = 0;           // s of game time the bell still rings (the stand's gear shakes)
 
-  let on = false, owner: Npc | null = null, finished: () => void = () => {}, armed = true, playing = false, left = false;
+  let on = false, owner: Npc | null = null, finished: () => void = () => {}, armed = true, playing = false, left = false, paused = false;
   const WAY = 't_pattern';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🔭', text: tf('sky_clock_way', { n: found.filter(Boolean).length }) }); };
 
@@ -92,7 +92,8 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     if (!on || stage !== 0 || found[i]) return;
     found[i] = true; gears[i].visible = false;
     sfx('chime'); g.sparks.burst(gears[i].position, GEAR_PAINT['🟡'], 24, 2);
-    if (found.every(Boolean)) { stage = 1; ring = 1.2; sfx('fanfare'); }
+    // all three found: the stand's gear turns, the cat hears it (the draft's f5_clock_tick)
+    if (found.every(Boolean)) { stage = 1; ring = 1.2; sfx('fanfare'); void g.speech.line('sky_clock_tick', 'story'); }
     store();
     bubble();
   };
@@ -100,6 +101,12 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   function play() {
     armed = false; playing = true;
     g.speech.caption(null);
+    // Mertsal names the step (the gears on the axle, then the hands), or - back after a pause - goes on where they stopped
+    const say = paused ? 'mertsal_clock_resume' : stage === 1 ? 'mertsal_clock_step_2' : 'mertsal_clock_step_3';
+    paused = false;
+    void g.speech.line(say, 'story', 0, '🔭').then(open);
+  }
+  function open() {
     const rng = createRng(`clock:${seed}:${stage}`);
     // the puzzle's steps are 1-3, the search the first: this task is its step stage + 1 of three
     const hooks = g.hooksFor('🔭'), o = { reach: g.touch ? 70 : 46, scope, stage: [stage + 1, CLOCK_STEPS] as const };
@@ -109,12 +116,13 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       : showHandsInWorld(scene, generateHands(levelFor(g.save, 'add'), rng), at, hooks, o);
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
-      if (!res.solved) { if (on) bubble(); return; }
+      // closed in the middle: the clock waits (the draft's f5_clock_exit)
+      if (!res.solved) { paused = true; void g.speech.line('mertsal_clock_exit', 'story', 0, '🔭').then(() => { if (on) bubble(); }); return; }
       // each step recorded in the skill of its kind, as a panel task would be
       recordTask(g.save, skill, res.wrong, res.helped === true);
       stage++;
       ring = 1.2; sfx('chime');
-      if (stage < CLOCK_STEPS) { store(); if (on) bubble(); return; }
+      if (stage < CLOCK_STEPS) { store(); void g.speech.line('sky_clock_tick', 'story').then(() => { if (on) bubble(); }); return; }
       // the hands set: the clock open, ray 3 shows in it (Mertsal's next step, `part`, is taken there); the puzzle
       // itself is recorded in no skill (the conversation is handed no result)
       on = false;
@@ -138,7 +146,9 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     start(n, done) {
       owner = n; finished = () => done(); armed = true; on = true;
       store();
-      bubble();
+      // the first step: the gears rolled over the island (the draft's f5_clock_step_1), then the bubble of the search
+      if (stage === 0) void g.speech.line('mertsal_clock_step_1', 'story', 0, '🔭').then(() => { if (on) bubble(); });
+      else bubble();
     },
     active: () => on,
     owner: () => (on ? owner?.def.id ?? null : null),

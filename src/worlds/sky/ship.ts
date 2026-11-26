@@ -74,6 +74,9 @@ export interface WindsStep extends WorldTask {
   opened(done: boolean): void;
 }
 
+/** The cat's hints of the route of the winds, by rung (the draft 2026-11-18). */
+export const ROUTE_HINTS = ['sky_route_hint_1', 'sky_route_hint_2', 'sky_route_hint_3'] as const;
+
 export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope, ship: THREE.Object3D): WindsStep {
   const { scene, hero } = g;
   const at = { ...WINDS_AT, y: height(WINDS_AT.x, WINDS_AT.z) };
@@ -131,7 +134,17 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     spec = generateWinds(level, createRng(`winds:${seed}`));
     const hooks = g.hooksFor('🧭');
     const sub = tf('sky_winds_way', {});
-    const show = showWindsInWorld(scene, spec, at, { ...hooks, prompt: (key) => { void g.speech.line(key, 'task', 0, '🧭', sub); } },
+    // Veterok's own words over the map (the draft's f5_route_*): his ask in place of the shared question, and his "a storm
+    // cloud! back we go" in place of the shared "try again" when a launch does not get there (the soft sound kept)
+    // the cat's three hints of the route (the draft's f5_route_hint_*), one a rung in their order, in place of the shared
+    // ones: look where the clouds are, trace the way, the arrow that glows
+    let rung = 0;
+    const show = showWindsInWorld(scene, spec, at, {
+      ...hooks,
+      hint: () => hooks.hint(ROUTE_HINTS[Math.min(rung++, ROUTE_HINTS.length - 1)]),
+      prompt: (key) => { void g.speech.line(key === 't_pattern' ? 'veterok_route_start' : key, 'task', 0, '🧭', key === 't_pattern' ? undefined : sub); },
+      wrong: () => { sfx('soft'); return g.speech.line('veterok_route_stop', 'task', 0, '🧭'); },
+    },
       { reach: g.touch ? 70 : 46, scope, kept: kept.slice(2) });
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
@@ -139,7 +152,8 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
         // closed: its arrows kept as its middle (unchanged when none was turned)
         const now = [seed, level, ...show.progress()];
         if (JSON.stringify(now) !== JSON.stringify(keptOf(g.ws, WINDS_STEP))) { keep(g.ws, WINDS_STEP, now); g.persist(); }
-        if (on) bubble();
+        // Veterok keeps the arrows for her (the draft's f5_route_exit)
+        void g.speech.line('veterok_route_exit', 'story', 0, '🧭').then(() => { if (on) bubble(); });
         return;
       }
       on = false;
@@ -147,9 +161,10 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       flies = true; g.ws.flags.ship_flies = true;
       g.speech.caption(null);
       g.persist();
-      // the route made: the step is done (no skill), and the ship takes her to the far islet at once
+      // the route made: the step is done (no skill); the little ship got there (the draft's f5_route_ok), and the ship
+      // takes her to the far islet at once
       finished();
-      void fly(true);
+      void g.speech.line('veterok_route_ok', 'story', 0, '🧭').then(() => fly(true));
     });
   }
   /** A new map for the level of now, stored with no arrow on it. */
