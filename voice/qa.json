@@ -7936,5 +7936,21 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "easel_hi": {
+  "text": "Тут картинка без шматочків. Пошукаємо їх у світі?",
+  "heard": "Тут картинка без шматочків. Пошукаємо їх у світі?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "easel_some": {
+  "text": "Ти знайшла шматочки! Постав їх на місце.",
+  "heard": "Ти знайшла шматочки, постав їх на місце.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
