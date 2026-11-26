@@ -11,7 +11,7 @@ import { forget, keep, keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { tf } from '../../ui/strings';
 import { CLOCK, CLOCK_AT, GEARS } from './layout';
-import { wordsFirst } from './task-words';
+import { tellWhenQuiet, wordsFirst } from './task-words';
 import { height } from './terrain';
 
 /**
@@ -94,7 +94,7 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     found[i] = true; gears[i].visible = false;
     sfx('chime'); g.sparks.burst(gears[i].position, GEAR_PAINT['🟡'], 24, 2);
     // all three found: the stand's gear turns, the cat hears it (the draft's f5_clock_tick)
-    if (found.every(Boolean)) { stage = 1; ring = 1.2; sfx('fanfare'); void g.speech.line('sky_clock_tick', 'story'); }
+    if (found.every(Boolean)) { stage = 1; ring = 1.2; sfx('fanfare'); void tellWhenQuiet(g, scope, 'sky_clock_tick', 'story'); }
     store();
     bubble();
   };
@@ -124,7 +124,7 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       recordTask(g.save, skill, res.wrong, res.helped === true);
       stage++;
       ring = 1.2; sfx('chime');
-      if (stage < CLOCK_STEPS) { store(); void g.speech.line('sky_clock_tick', 'story').then(() => { if (on) bubble(); }); return; }
+      if (stage < CLOCK_STEPS) { store(); bubble(); void tellWhenQuiet(g, scope, 'sky_clock_tick', 'story'); return; }
       // the hands set: the clock open, ray 3 shows in it (Mertsal's next step, `part`, is taken there); the puzzle
       // itself is recorded in no skill (the conversation is handed no result)
       on = false;

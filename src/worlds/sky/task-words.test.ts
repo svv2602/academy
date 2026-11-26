@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Game } from '../../game/context';
 import type { TaskHooks } from '../../game/taskviews/panel';
-import { wordsAfter, wordsFirst } from './task-words';
+import { QUIET_WAIT, tellWhenQuiet, wordsAfter, wordsFirst } from './task-words';
+
+// the planner of the voice, as the test sets it: a line sounds, a task is open
+const voice = vi.hoisted(() => ({ speaking: false, inTask: false }));
+vi.mock('../../core/audio', () => ({ speaking: () => voice.speaking, willSay: (p: string) => !voice.inTask || p === 'task' }));
 
 /** A game whose speech says a line when `end()` is called: the lines said, with their priorities. */
 function game() {
@@ -43,5 +47,31 @@ describe('a character\'s words round a task of the Sky Islands', () => {
     expect([g.busy, said]).toEqual([true, [['lazur_bridge_finish', 'story']]]);
     await end(); await done;
     expect(g.busy).toBe(false);
+  });
+
+  it('the cat\'s word of the world waits for the line that sounds and for the task to close, then is said; let go after QUIET_WAIT s', async () => {
+    vi.useFakeTimers();
+    try {
+      const timers: (() => void)[] = [];
+      const scope = { timeout: (fn: () => void, ms: number) => { const t = setTimeout(fn, ms); timers.push(() => clearTimeout(t)); return () => clearTimeout(t); } } as never;
+      const { g, said } = game();
+      voice.speaking = true; voice.inTask = false;
+      void tellWhenQuiet(g, scope, 'sky_magic_1', 'hint', 5000);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(said).toEqual([]);
+      voice.speaking = false; voice.inTask = true;
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(said).toEqual([]);
+      voice.inTask = false;
+      await vi.advanceTimersByTimeAsync(300);
+      expect(said).toEqual([['sky_magic_1', 'hint']]);
+      // never quiet: let go, nothing said over the others
+      const other = game();
+      voice.speaking = true;
+      let over = false;
+      void tellWhenQuiet(other.g, scope, 'sky_edge', 'hint').then(() => { over = true; });
+      await vi.advanceTimersByTimeAsync(QUIET_WAIT * 1000 + 500);
+      expect([over, other.said]).toEqual([true, []]);
+    } finally { voice.speaking = false; voice.inTask = false; vi.useRealTimers(); }
   });
 });

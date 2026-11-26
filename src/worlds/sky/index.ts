@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { rig, tint, type Rig } from '../../core/assets';
-import { setCast, sfx } from '../../core/audio';
+import { setCast, sfx, speaking, willSay } from '../../core/audio';
 import type { Save } from '../../core/save';
 import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
@@ -27,6 +27,7 @@ import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { SKY_STORIES } from './story';
+import { tellWhenQuiet, wordsAfter } from './task-words';
 import { voices } from './voices';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
@@ -270,9 +271,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const take = (r: Ray) => {
     ws.flags[r.flag] = true; r.mesh.visible = false;
     sfx('chime'); g.sparks.burst(r.mesh.position, '#fff0b0', 36, 3);
-    // the cat: where the ray was (the draft's f5_ray_*_found)
-    void g.speech.line(r.found, 'story');
-    stepDone(npc(r.owner), r.step);
+    // the cat: where the ray was (the draft's f5_ray_*_found), to its end before the character's thanks
+    void wordsAfter(g, r.found, '🐱').then(() => stepDone(npc(r.owner), r.step));
   };
   const part: WorldTask = {
     skill: 'count',     // a step of no skill: the conversation reads the skill of a task it runs, never of this one
@@ -400,10 +400,12 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
         if (given > raysSaid) {
           const key = given >= 5 && raysSaid < 5 ? 'sky_magic_5' : given >= 3 && raysSaid < 3 ? 'sky_magic_3' : given >= 1 && raysSaid < 1 ? 'sky_magic_1' : null;
           raysSaid = given;
-          if (key) void g.speech.line(key, 'hint', 5000);
+          // after the character's thanks, not over them
+          if (key) void tellWhenQuiet(g, scope, key, 'hint', 5000);
         }
         // the edge of an island, once (the draft's f5_edge): she has walked up to the cloud rail
-        if (!ws.flags[EDGE_SAID] && !g.busy && canMove) {
+        // in a quiet moment: a hint over another line would be turned away
+        if (!ws.flags[EDGE_SAID] && !g.busy && canMove && !speaking() && willSay('hint')) {
           const isle = islandAt(hp.x, hp.z);
           // off the ways: every bridge leaves an island over its edge, and the edge there is not the edge she walked up to
           if (isle && pathDist(hp.x, hp.z) > BRIDGE_W && Math.hypot(hp.x - ISLANDS[isle].x, hp.z - ISLANDS[isle].z) > ISLANDS[isle].r - RAIL - EDGE_NEAR) {
