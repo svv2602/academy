@@ -986,6 +986,9 @@ export async function playWorld(h, o = {}) {
     console.log('task types seen:', [...seenTypes].join(' '));
   }
 
+  // what the world itself reports of its pass (`__game.worldCheck`, e.g. the forest's maze), for its own pass tool
+  const worldCheck = await g(() => window.__game.worldCheck?.() ?? null);
+
   // ---- 6. a reload: "done" is read from the save; the progress is the world's own, under worlds.<id> ----
   const before = { stars: await g(() => window.__game.save.stars), part: await partNow() };
   await page.reload(); await page.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
@@ -1019,6 +1022,6 @@ export async function playWorld(h, o = {}) {
   const onTheWay = last.items.filter((i) => !did.includes(i.id)).map((i) => i.id);
   console.log(`world "${worldId}": ${last.items.length} items of its description done in the order ${did.join(', ')}${onTheWay.length ? ` (done on the way: ${onTheWay.join(', ')})` : ''}; `
     + `${chainsDone} of ${chains.length} chains; ${((Date.now() - started) / 1000).toFixed(0)}s`); /* clock: log-time */
-  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did, worldTasks: metWorld, worldSkills: metSkills }) + '\n');
+  if (out) writeFileSync(out, JSON.stringify({ world: worldId, size: mode, online, need: asked.label, items: last.items.map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: did, worldTasks: metWorld, worldSkills: metSkills, check: worldCheck }) + '\n');
   return voiceUsed;
 }

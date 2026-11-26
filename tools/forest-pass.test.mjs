@@ -14,7 +14,7 @@ function report() {
     ...SECRETS.map((id) => ({ id, kind: 'secret', how: 'walk' })), { id: 'final', kind: 'finale', how: 'act' }, { id: 'story_emerald', kind: 'scene', how: 'tap' },
   ];
   return { world: FOREST, size: 'mobile', online: true, need: 'the numbers of the world template', items, order: items.filter((i) => i.kind !== 'part').map((i) => i.id),
-    worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };
+    worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS }, check: { maze: { forks: 6, filled: 6, rings: 0, fills: 6, refusals: 1 } } };
 }
 
 describe('tools/forest-pass.mjs', () => {
@@ -52,6 +52,17 @@ describe('tools/forest-pass.mjs', () => {
     expect(passProblems({ ...report(), order: report().order.filter((id) => !id.startsWith('story_')) })).toEqual(['no item of kind "scene" was done by the pass']);
     // a description checked against a grey build's lesser numbers is not enough for a published world
     expect(passProblems({ ...report(), need: 'what a grey build has (WORLD-12)' })).toEqual(['its description was checked against what a grey build has (WORLD-12), not the numbers of the world template']);
+  });
+
+  it('the maze: every row full by its stone\'s jump, no ring empty, a wrong way\'s stone hopped back (the customer\'s word of 2026-11-26)', () => {
+    const maze = (o) => ({ ...report(), check: { maze: { forks: 6, filled: 6, rings: 0, fills: 6, refusals: 1, ...o } } });
+    expect(passProblems(maze({ refusals: 3 }))).toEqual([]);
+    expect(passProblems(maze({ filled: 5, rings: 1, fills: 5 }))).toEqual([
+      'the maze walked through shows 5 of 6 rows full, 1 ring(s) empty',
+      '5 stone(s) of the right ways jumped into their rings, 6 expected (one a fork)',
+    ]);
+    expect(passProblems(maze({ refusals: 0 }))).toEqual(['no stone of a wrong way hopped back: the pass walked a wrong way and back at its first fork']);
+    expect(passProblems({ ...report(), check: null })).toEqual(['the forest reported nothing of its maze (__game.worldCheck)']);
   });
 
   it('has a limit of its own, unless a run asks its own', () => {

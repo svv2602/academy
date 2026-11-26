@@ -36,6 +36,8 @@ export interface MazeStep extends WorldTask {
   readonly spec: MazeSpec;
   readonly geo: MazeGeo;
   readonly walk: MazeWalk;
+  /** The maze in the scene now (its rings and stones; the tests and the walkthrough). */
+  readonly show: MazeShow | null;
   /** A frame: her walking judged (while the step is on), the glow, coming in again by the way in. */
   update(dt: number, time: number, canMove: boolean): void;
   /** The right way at the fork ahead (or the end) once she has walked a while without passing a fork; else null. */
@@ -49,12 +51,15 @@ export interface MazeStep extends WorldTask {
   dispose(): void;
 }
 
-export function createMaze(g: Game): MazeStep {
+/** `walked`: the maze was walked through before (the step done) - with no middle kept, it stands with every row full. */
+export function createMaze(g: Game, walked: () => boolean = () => false): MazeStep {
   const { scene, groundY, hero, sparks } = g;
   let show: MazeShow | null = null, mine: { x: number; z: number; r: number }[] = [];
   let spec!: MazeSpec, geo!: MazeGeo, walk!: MazeWalk, seed = 0, level = 1;
   let mine2 = false, minePitch = false;            // the camera's distance is the maze's (set by it, given back by it)
   let on = false, owner: Npc | null = null, finished: () => void = () => {}, idle = 0, inside = false, glowTold = -1;
+  // a wrong way taken (its fork, its way): its stone hops toward the ring once she is back at the fork
+  let refused: { k: number; w: number } | null = null;
 
   /** The maze of `seed` on `level` in the scene (the old one taken away, its bushes out of the colliders). */
   function build(s: number, l: number, passed: number) {
@@ -64,7 +69,9 @@ export function createMaze(g: Game): MazeStep {
     spec = generateMaze(level, createRng(`maze:${seed}`));
     geo = layMaze(spec, MAZE_FRAME);
     walk = mazeWalk(geo, passed);
-    show = showMaze(scene, spec, geo, groundY);
+    // the forks passed show their rows full: the right stone in its ring (also after a reload)
+    show = showMaze(scene, spec, geo, groundY, walk.passed);
+    refused = null;
     mine = geo.walls.map((b) => ({ x: b.x, z: b.z, r: BUSH_R }));
     colliders.push(...mine);
   }
@@ -73,7 +80,7 @@ export function createMaze(g: Game): MazeStep {
   // the maze kept from last time stands as it was; else one for the level of now (a new one is laid at the step's start)
   const k0 = kept();
   if (k0.length === 3) build(k0[1], k0[2], k0[0]);
-  else build(Math.floor(g.rng() * 1e6), levelFor(g.save, 'pattern'), 0);
+  else build(Math.floor(g.rng() * 1e6), levelFor(g.save, 'pattern'), walked() ? Infinity : 0);
 
   const bubble = () => {
     g.speech.caption({ key: 't_pattern', pri: 'task', hold: 0, speaker: '🦔', text: tf('forest_maze', { n: walk.passed, of: spec.forks.length }) });
@@ -112,6 +119,7 @@ export function createMaze(g: Game): MazeStep {
     get spec() { return spec; },
     get geo() { return geo; },
     get walk() { return walk; },
+    get show() { return show; },
     start(n, done) {
       owner = n; finished = done; idle = 0;
       const k = kept();
@@ -150,14 +158,22 @@ export function createMaze(g: Game): MazeStep {
         burst(p, '#fff2a8', 30);
         return;
       }
+      // back at the fork from a wrong way: its stone hops toward the ring and goes back - nothing more
+      if (refused && refused.k === walk.passed) {
+        const f = geo.forks[refused.k];
+        if (Math.hypot(hp.x - f.at.x, hp.z - f.at.z) < 1.2) { show?.refuse(refused.k, refused.w); refused = null; }
+      }
       const r = walk.step(hp.x, hp.z);
       if (r === 'right') {
-        idle = 0;
-        sfx('chime'); burst(hp, '#7ff0b0', 24);
+        idle = 0; refused = null;
+        // the right way's stone jumps into the ring of its row, the sound of a right answer as it lands
+        show?.fill(walk.passed - 1, () => sfx('good'));
+        burst(hp, '#7ff0b0', 24);
         stored(); g.persist();
         bubble();
         if (walk.passed === spec.forks.length) return;
       } else if (r === 'wrong') {
+        refused = { k: walk.passed, w: walk.taken };
         void g.hooksFor('🦔').wrong();        // the soft sound and the cat's "try again", the rule of every task (core.ts)
         // the second wrong way at a fork lights the right one (walk.glow): the cat points to it, once a fork
         if (walk.glow && glowTold !== walk.passed) { glowTold = walk.passed; void g.speech.line('forest_maze_glow', 'hint', 4000); }

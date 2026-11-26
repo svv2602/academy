@@ -5,10 +5,10 @@
  * mistake per walk into it, two at a fork light the right way, a kept middle goes on from its fork).
  */
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRng } from '../../core/rng';
 import {
-  CLEAR, LANES, ROW_SIDE, SEAL, LOOKS, MAZE_BY_LEVEL, TAKE, generateMaze, layMaze, lineDist, mazeWalk, showMaze,
+  CLEAR, LANES, ROW_SIDE, SEAL, LOOKS, MAZE_BY_LEVEL, TAKE, STONE_STEP, STONE_JUMP, STONE_HOP, STONE_ROCK, generateMaze, layMaze, lineDist, mazeWalk, showMaze,
   type MazeFrame, type MazeGeo, type MazeSpec, type Place,
 } from './maze';
 
@@ -230,6 +230,15 @@ describe('the judge of her walking', () => {
     expect(w.passed).toBe(1);
     expect(w.glow).toBe(false);
     expect(w.wrongs).toBe(2);
+    expect(w.taken).toBe(f.ways.indexOf(right));
+  });
+
+  it('tells which way it judged last: the wrong one walked into', () => {
+    const w = mazeWalk(geo), f = geo.forks[0], wi = f.ways.findIndex((x) => !x.right);
+    expect(w.taken).toBe(-1);
+    for (const p of walk(geo.trunk.slice(0, geo.trunk.findIndex((q) => q === f.at) + 1))) w.step(p.x, p.z);
+    walk(f.ways[wi].line).forEach((p) => w.step(p.x, p.z));
+    expect(w.taken).toBe(wi);
   });
 
   it('the maze walked back from its way out is no choice at any fork', () => {
@@ -273,5 +282,80 @@ describe('the show', () => {
     show.update(0, 1);
     show.dispose();
     expect(scene.children).toHaveLength(0);
+  });
+});
+
+describe('the ring of the next stone (the customer\'s word of 2026-11-26)', () => {
+  const s = generateMaze(5, createRng('ring')), geo = layMaze(s, FRAME);
+  const flat = (v: THREE.Vector3) => ({ x: +v.x.toFixed(3), z: +v.z.toFixed(3) });
+  const placeOf = (p: Place) => ({ x: +p.x.toFixed(3), z: +p.z.toFixed(3) });
+  const answer = (k: number) => s.forks[k].answer, wrongOf = (k: number) => s.forks[k].ways.findIndex((_, w) => w !== s.forks[k].answer);
+
+  it('lies one step after the last stone of every row, on its line, clear of the hedge', () => {
+    for (const f of geo.forks) {
+      const last = f.row[f.row.length - 1], before = f.row[f.row.length - 2];
+      expect(Math.hypot(f.slot.x - last.x, f.slot.z - last.z)).toBeCloseTo(STONE_STEP, 5);
+      // on the line of the row, going on the way the row goes
+      expect((f.slot.x - last.x) * (last.x - before.x) + (f.slot.z - last.z) * (last.z - before.z)).toBeGreaterThan(0);
+      for (const b of geo.bushes) expect(Math.hypot(b.x - f.slot.x, b.z - f.slot.z), 'a bush over the ring').toBeGreaterThan(0.6);
+    }
+  });
+
+  it('is shown for every row not full; the forks passed (a kept middle) show their rows full at once', () => {
+    const scene = new THREE.Scene(), show = showMaze(scene, s, geo, () => 0, 2);
+    expect(scene.getObjectByName('maze-rings')).toBeDefined();
+    expect(show.filled).toBe(2);
+    expect(geo.forks.map((_, k) => show.ringShown(k))).toEqual(geo.forks.map((_, k) => k >= 2));
+    for (const k of [0, 1]) {
+      const st = show.stoneAt(k, answer(k));
+      expect(flat(st.p)).toEqual(placeOf(geo.forks[k].slot));
+      expect(st.scale).toBeCloseTo(1, 5);
+    }
+    expect(flat(show.stoneAt(2, answer(2)).p)).toEqual(placeOf(geo.forks[2].ways[answer(2)].stone));
+    expect(show.moving).toBe(false);
+    show.dispose();
+  });
+
+  it('the right way taken: its stone jumps over the ground into the ring, lands once, the flash runs along the row and ends', () => {
+    const scene = new THREE.Scene(), show = showMaze(scene, s, geo, () => 0), landed = vi.fn();
+    show.update(10, -1);
+    show.fill(0, landed);
+    expect(show.ringShown(0)).toBe(false);
+    show.update(10 + STONE_JUMP / 2, -1);
+    const mid = show.stoneAt(0, answer(0)).p;
+    expect(mid.y).toBeGreaterThan(0.5);                                           // in the air, half way
+    expect(landed).not.toHaveBeenCalled();
+    show.update(10 + STONE_JUMP + 0.01, -1);
+    expect(landed).toHaveBeenCalledTimes(1);
+    expect(show.moving).toBe(true);                                               // the flash along the row
+    for (let t = 10.6; t < 13; t += 0.05) show.update(t, -1);
+    expect(show.moving).toBe(false);
+    const st = show.stoneAt(0, answer(0));
+    expect(flat(st.p)).toEqual(placeOf(geo.forks[0].slot));
+    expect(st.p.y).toBeCloseTo(0.01, 5);
+    expect(st.scale).toBeCloseTo(1, 5);
+    expect(landed).toHaveBeenCalledTimes(1);
+    show.fill(0, landed);                                                         // a row full stays as it is
+    expect(show.moving).toBe(false);
+    show.dispose();
+  });
+
+  it('a wrong way: its stone hops toward the ring, rocks and is back at its place; the right one never does', () => {
+    const scene = new THREE.Scene(), show = showMaze(scene, s, geo, () => 0), w = wrongOf(0);
+    const home = show.stoneAt(0, w).p.clone();
+    show.update(5, -1);
+    show.refuse(0, w);
+    show.update(5 + STONE_HOP, -1);
+    const there = show.stoneAt(0, w).p;
+    const ring = geo.forks[0].slot;
+    expect(Math.hypot(there.x - ring.x, there.z - ring.z)).toBeLessThan(Math.hypot(home.x - ring.x, home.z - ring.z) - 0.3);
+    for (let t = 5 + STONE_HOP; t < 5 + 2 * STONE_HOP + STONE_ROCK + 0.2; t += 0.05) show.update(t, -1);
+    expect(show.moving).toBe(false);
+    const back = show.stoneAt(0, w).p;
+    expect([back.x, back.y, back.z].map((v) => +v.toFixed(5))).toEqual([home.x, home.y, home.z].map((v) => +v.toFixed(5)));
+    expect(show.ringShown(0)).toBe(true);                                         // nothing is taken for it
+    show.refuse(0, answer(0));
+    expect(show.moving).toBe(false);
+    show.dispose();
   });
 });

@@ -48,5 +48,21 @@ export function passProblems(report, size = 'mobile') {
   const out = worldPassProblems(report, { world: FOREST, kinds: PASS_KINDS, parts: PARTS_IN_WORLD, secrets: SECRETS, skills: WORLD_SKILLS }, size);
   const want = readNeed(NEED).label;
   if (report && report.need !== want) out.push(`its description was checked against ${report.need ?? 'nothing the report shows'}, not ${want}`);
+  if (report) out.push(...mazeProblems(report.check?.maze));
+  return out;
+}
+
+/**
+ * The maze at the end of the pass (`__game.worldCheck().maze`, src/worlds/forest/index.ts; the customer's word of
+ * 2026-11-26): walked through, every row is full and no ring is empty, each row filled by its right stone's jump (none
+ * put there by a reload); the pass takes a wrong way at its first fork and comes back (src/worlds/forest/maze.ts
+ * `cheat`), so a stone of a wrong way has hopped back at least once.
+ */
+export function mazeProblems(m) {
+  if (!m) return ['the forest reported nothing of its maze (__game.worldCheck)'];
+  const out = [];
+  if (m.filled !== m.forks || m.rings !== 0) out.push(`the maze walked through shows ${m.filled} of ${m.forks} rows full, ${m.rings} ring(s) empty`);
+  if (m.fills !== m.forks) out.push(`${m.fills} stone(s) of the right ways jumped into their rings, ${m.forks} expected (one a fork)`);
+  if (m.refusals < 1) out.push('no stone of a wrong way hopped back: the pass walked a wrong way and back at its first fork');
   return out;
 }
