@@ -7,6 +7,7 @@ import { SETTLE, angleOf, generateScales, showScalesInWorld, type ScalesSpec, ty
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { tf } from '../../ui/strings';
 import { SCALES_AT } from './layout';
+import { ownHint } from './lines';
 
 /**
  * Tyanuchka's scales with candies at the marmalade market (WORLD-22, src/game/worldtasks/scales.ts), the third step of
@@ -391,14 +392,24 @@ export function createScales(g: Game, player: WorldTaskPlayer, scope: WorldScope
     get drawing() { return drawing; },
     get spec() { return spec; },
     run(n, level) {
-      spec = generateScales(level, g.rng);
+      // Tyanuchka's own question and the cat's own hint over the shared scales (./lines.ts): the hint of the weights is
+      // the world's whole; the signs keep the panel's way (its first rung) and take the world's two others
+      const shared = generateScales(level, g.rng);
+      spec = shared.body.mode === 'weight'
+        ? { ...shared, prompt: 'tyanuchka_scales_start', hint: ownHint(shared.hint, ['sweet_scales_hint_1', 'sweet_scales_hint_2', 'sweet_scales_hint_3']) }
+        : { ...shared, prompt: 'tyanuchka_scales_start_sign', hint: ownHint(shared.hint, [null, 'sweet_scales_hint_2', 'sweet_scales_hint_3']) };
       drawing.load(spec);
       const hooks = g.hooksFor(n.def.emoji);
-      // the recorded question of the game, under the world's own subtitle (the grey build records nothing of its own)
+      // Tyanuchka's question, under the world's own subtitle
       const sub = tf(spec.body.mode === 'weight' ? 'sweet_scales_ask' : 'sweet_scales_sign', {});
       const show = showScalesInWorld(spec, drawing, { ...hooks, prompt: (key) => { void g.speech.line(key, 'task', 0, n.def.emoji, sub); } },
         { reach: g.touch ? 70 : 46, scope });
-      return player.play(show).finally(() => { spec = null; });
+      // level: Tyanuchka is pleased with the balance before the conversation goes on - a line of the task, as the sea's
+      // half of the shell (pantsyr_half_finish): the task is still open here and lets no line of the story through
+      return player.play(show).then(async (res) => {
+        if (res.solved) await g.speech.line('tyanuchka_scales_finish', 'task', 0, n.def.emoji);
+        return res;
+      }).finally(() => { spec = null; });
     },
     update: (dt, time) => drawing.update(dt, time),
     dispose: () => drawing.dispose(),
