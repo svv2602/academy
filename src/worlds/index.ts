@@ -19,7 +19,7 @@ import { SWEET_INFO } from './sweet/meta';
 // The sea (./sea, WORLD-03) is published too (the customer's word of 2026-11-24: «да, пусть П3 готовит море»): listed
 // in every build, downloaded while the forest is played; its files lie in worlds-data/sea/ (its swimming clips:
 // tools/vite-worlds.mjs WORLD_EXTRA_FILES). The Sweet Land (./sweet, WORLD-04) is published too (the customer's word of
-// 2026-11-25): listed in every build, downloaded while the sea is played; its files lie in worlds-data/sweet/, the hub's
+// 2026-11-26: «Сладкая страна — да»): listed in every build, downloaded while the sea is played; its files lie in worlds-data/sweet/, the hub's
 // arch of its place (shelf 3) wakes once the sea is done. The Sky Islands (./sky, WORLD-05) are in their grey build
 // (WORLD-12): listed only in a build or a dev server made with `--mode grey` (tools/sky-grey.mjs), never in the published
 // game, until the customer has taken the grey build; the arch of shelf 4 wakes once the Sweet Land is done.

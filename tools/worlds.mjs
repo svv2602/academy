@@ -138,7 +138,7 @@
 //      chains with the two tasks in the world (the shell lock, the second half) and the two pearls in it, the
 //      cutscenes, the tour, Bulchik, its four secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
 //  15. The part "sweet" (tools/sweet-pass.mjs `passEnv`, `passProblems`): the same for the published Sweet Land
-//      (2026-11-25): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
+//      (2026-11-26): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
 //      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
 //      (part 10) stays for the grey build. Pictures shots-e2e/worlds-published/sweet/.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
@@ -1286,7 +1286,7 @@ async function hubScenarios({ url, shots, fail: report }) {
     {
       const two = HUB_SAVES.two();
       two.worlds.sea = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
-      // the Sweet Land (published 2026-11-25) behind the arch after the sea's: done as well, its words said, for the same reason
+      // the Sweet Land (published 2026-11-26) behind the arch after the sea's: done as well, its words said, for the same reason
       two.worlds.sweet = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const hubPart = two.worlds.hub ?? { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
       two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true, sweet_home: true, sweet_after: true } };

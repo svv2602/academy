@@ -69,7 +69,7 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
     ['production', ['fairy'], ['fairy', 'forest', null, null, null]],
     // the forest done (before the sea was published, too): the sea's arch open
     ['production', ['fairy', 'forest'], ['fairy', 'forest', 'sea', null, null]],
-    // the sea done: the Sweet Land's arch open (published 2026-11-25); the Sky Islands' place sleeps with it done
+    // the sea done: the Sweet Land's arch open (published 2026-11-26); the Sky Islands' place sleeps with it done
     ['production', ['fairy', 'forest', 'sea'], ['fairy', 'forest', 'sea', 'sweet', null]],
     ['production', ['fairy', 'forest', 'sea', 'sweet'], ['fairy', 'forest', 'sea', 'sweet', null]],
     ['grey', [], ['fairy', null, null, null, null]],
