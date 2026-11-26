@@ -139,6 +139,17 @@ export interface Save {
    */
   helps?: Record<string, Record<string, number>>;
   /**
+   * The last answers of every skill (src/game/answers.ts, the parents' report): per skill at most ANSWERS_KEPT, the
+   * oldest first - the type of the task, whether it was right at the first try with no helper (`ok`), the ms from the
+   * task shown to the right answer (absent for a task in the world) and its day. Absent until the first one.
+   */
+  answers?: Record<string, SkillAnswer[]>;
+  /**
+   * The answers by local date and skill (src/game/answers.ts): how many (`n`), right at the first try (`ok`), the ms of
+   * those timed (`ms`, over `k` of them). The last DAYS_KEPT days only. Absent until the first one.
+   */
+  skillDays?: Record<string, Record<string, SkillDay>>;
+  /**
    * The deal of the day (src/game/deal.ts): `took` - the day its thing was bought at the deal's price (no other deal that
    * day), `said` - the day the cat told of it in the shop (once a day). Dates `YYYY-MM-DD`; absent until first written.
    */
@@ -193,6 +204,37 @@ export interface Gear { head: string | null; wand: string | null; wings: string 
  * `e` the wrong answers in it so far, `c` the clean solves since its last mistake, `at` the number of the task it was
  * last given as (of `Hard.n`).
  */
+/** One answer of a skill (Save.answers): the type of its task, right at the first try (1) or not (0), its ms, its day. */
+export interface SkillAnswer { t: string; ok: 0 | 1; ms?: number; d: string }
+/** The answers of a skill on one day (Save.skillDays): how many, right at the first try, the ms of the `k` timed ones. */
+export interface SkillDay { n: number; ok: number; ms: number; k: number }
+/** Most answers kept per skill; most days kept (src/game/answers.ts). */
+export const ANSWERS_KEPT = 20, SKILL_DAYS_KEPT = 14;
+
+const whole = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+/** The answers of a save mended: per skill an array of answers of the right shape, the last ANSWERS_KEPT. */
+function answersOf(v: unknown): Record<string, SkillAnswer[]> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, list]) => Array.isArray(list)).map(([skill, list]) => [skill,
+    (list as unknown[]).flatMap((a): SkillAnswer[] => {
+      if (!a || typeof a !== 'object') return [];
+      const { t, ok, ms, d } = a as Record<string, unknown>;
+      if (typeof t !== 'string' || (ok !== 0 && ok !== 1) || typeof d !== 'string' || !DAY.test(d)) return [];
+      return [{ t, ok, d, ...(whole(ms) ? { ms } : {}) }];
+    }).slice(-ANSWERS_KEPT)]));
+}
+/** The days of the answers mended: a day keyed by its date, each skill's counts whole; the last SKILL_DAYS_KEPT days. */
+function skillDaysOf(v: unknown): Record<string, Record<string, SkillDay>> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  const days = Object.entries(v as Record<string, unknown>).filter(([day, by]) => DAY.test(day) && by && typeof by === 'object' && !Array.isArray(by))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).slice(-SKILL_DAYS_KEPT);
+  return Object.fromEntries(days.map(([day, by]) => [day, Object.fromEntries(Object.entries(by as Record<string, unknown>).flatMap(([skill, c]) => {
+    if (!c || typeof c !== 'object') return [];
+    const { n, ok, ms, k } = c as Record<string, unknown>;
+    return whole(n) && whole(ok) && whole(ms) && whole(k) && ok <= n && k <= n ? [[skill, { n, ok, ms, k }]] : [];
+  }))]));
+}
+
 export interface HardExample { k: string; l: number; e: number; c: number; at: number }
 export interface Hard { n: number; list: HardExample[] }
 /** The most examples with mistakes a save keeps (LEARN-11: the whole save stays under 20 KB after 500 tasks). */
@@ -460,6 +502,9 @@ function fromStored(s: Stored, d: Save): Save | null {
     const g = isObject(s.petGear) ? s.petGear : {};
     out.petGear = Object.fromEntries(['cat', 'fawn', 'owlet', 'bulchik'].filter((k) => g[k] === null || (typeof g[k] === 'string' && g[k] !== '')).map((k) => [k, g[k]]));
   }
+  // The answers of the skills and their days (src/game/answers.ts): what is not one of theirs is dropped.
+  if (s.answers !== undefined) out.answers = answersOf(s.answers);
+  if (s.skillDays !== undefined) out.skillDays = skillDaysOf(s.skillDays);
   // The helpers taken by day: a day keyed by its date, its counts whole and above zero; anything else is dropped.
   if (s.helps !== undefined) {
     out.helps = Object.fromEntries(Object.entries(isObject(s.helps) ? s.helps : {})

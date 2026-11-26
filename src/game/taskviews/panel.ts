@@ -51,6 +51,14 @@ export const SKILL: Record<TaskType, SkillId> = {
 /** `helped`: a helper was taken in this task (src/game/helpers.ts): the level does not grow for it. */
 export interface TaskResult { solved: boolean; wrong: number; helped?: boolean }
 /**
+ * Of a task solved on the panel: its type and the ms from its showing to the right answer, the time the page was
+ * hidden left out (the parents' report, src/game/answers.ts). Kept by the result object, not in it: a result is what
+ * every task gives back, of the panel or of the world (a task in the world has neither).
+ */
+const answered = new WeakMap<TaskResult, { type: string; ms?: number }>();
+/** The type and the time of the task whose result is `res` (empty for a task closed or played in the world). */
+export const answerOf = (res: TaskResult): { type?: string; ms?: number } => answered.get(res) ?? {};
+/**
  * What the game asks the cat to say. `wrong` and `hint` return the end of their line, so the next step can wait for it.
  * A line that is cut off by a newer one settles at once as well: a settled promise does not mean "heard to the end",
  * and whoever waits must check for itself that its step is still wanted.
@@ -164,12 +172,29 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     /** The rungs the owl has given already: the mistakes go on from the next one. */
     let given = 0;
     const helps = el('div', 't-helps');
-    const finish = (solved: boolean) => { c.alive = false; current = null; helps.remove(); root.classList.add('hidden'); resolve(helped ? { solved, wrong: c.wrongs, helped } : { solved, wrong: c.wrongs }); };
+    // the time of the answer: from now to the right answer, without the time the page was hidden (the child away)
+    const t0 = performance.now();
+    let hiddenMs = 0, hiddenAt = document.hidden ? t0 : -1, answeredMs: number | undefined;
+    const onVis = () => {
+      if (document.hidden && hiddenAt < 0) hiddenAt = performance.now();
+      else if (!document.hidden && hiddenAt >= 0) { hiddenMs += performance.now() - hiddenAt; hiddenAt = -1; }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    const finish = (solved: boolean) => {
+      c.alive = false; current = null; helps.remove(); root.classList.add('hidden');
+      document.removeEventListener('visibilitychange', onVis);
+      const r: TaskResult = helped ? { solved, wrong: c.wrongs, helped } : { solved, wrong: c.wrongs };
+      if (solved) answered.set(r, answeredMs === undefined ? { type: spec.type } : { type: spec.type, ms: answeredMs });
+      resolve(r);
+    };
     const c: PanelCtx = {
       stage, opts, hooks, wrongs: 0, alive: true, own: -1, hint: null, cheat: () => {},
       // The end is set before the sound: whatever the sound does, a right answer always ends the task (a panel left up
       // with its answer taken and no end - the walkthrough's "quest stuck" - was the one way a chain could stand still).
-      right() { if (!c.alive) return; c.alive = false; root.classList.add('won'); setTimeout(() => finish(true), 1100); try { hooks.good(); } catch { /* no sound */ } },
+      right() {
+        if (!c.alive) return;
+        answeredMs = Math.max(0, performance.now() - t0 - hiddenMs - (hiddenAt >= 0 ? performance.now() - hiddenAt : 0));
+        c.alive = false; root.classList.add('won'); setTimeout(() => finish(true), 1100); try { hooks.good(); } catch { /* no sound */ } },
       wrong(e) {
         if (!c.alive) return;
         const round = ++c.wrongs;

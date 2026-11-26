@@ -4,6 +4,7 @@
  * in `save.fixed`); this file is the rule that reads and moves them. The child never sees a "level".
  */
 import type { Save } from '../core/save';
+import { noteAnswer } from './answers';
 
 /** The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory, classify. */
 export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention' | 'assemble';
@@ -57,7 +58,10 @@ export function levelFor(s: Save, skill: SkillId) {
  * tasks in a row that reached the second, step it down; a single wrong answer keeps the level (and ends both runs).
  * `streak` counts the clean solves in a row (above 0) or the tasks in a row that ended at the second step (below 0).
  */
-export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false) {
+export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false, note?: { type?: string; ms?: number }) {
+  // its answer for the parents' report (src/game/answers.ts): right when at the first try with no helper, as `first`;
+  // `note` - the type of its task and its time (TaskResult of the panel; a task in the world names its step)
+  if (note?.type) noteAnswer(s, skill, { type: note.type, ok: wrong === 0 && !helped, ms: note.ms });
   const k = (s.skills[skill] ??= statOf(s, skill));
   const [min, max] = LEVELS[skill];
   k.tasks++; k.errors += wrong;

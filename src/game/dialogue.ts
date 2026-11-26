@@ -13,7 +13,7 @@ import type { Game } from './context';
 import { levelFor, recordTask, type SkillId } from './skills';
 import { playScene, type Stage } from './stage';
 import { weakest } from './planner';
-import { SKILL } from './taskviews/panel';
+import { SKILL, answerOf } from './taskviews/panel';
 import type { TaskType } from './tasks/types';
 import { isSkillStep, typeOf, type SkillStep } from './tasks/index';
 import type { TaskResult } from './taskviews/panel';
@@ -133,7 +133,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         await line(again, 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
-        if (res.solved) { recordTask(save, skill, res.wrong, res.helped === true); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
+        if (res.solved) { recordTask(save, skill, res.wrong, res.helped === true, answerOf(res)); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
         return;
       }
       if (done === 0 && q.hi) await line(q.hi, 'story', 0, q.emoji);
@@ -154,7 +154,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         cam.focus = above(n.pos, 1.1);
         if (!res.solved) return;                    // closed by the child: come back any time
         ws.quests[q.id] = k + 1;
-        recordTask(save, skill, res.wrong, res.helped === true);   // with a helper: no level up (src/game/helpers.ts)
+        recordTask(save, skill, res.wrong, res.helped === true, { type: String(step), ...answerOf(res) });   // with a helper: no level up (src/game/helpers.ts)
         addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
@@ -220,7 +220,7 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     if ((ws.quests[q.id] ?? 0) > k) return;      // done already
     ws.quests[q.id] = k + 1;
     const skill = tasks[q.steps[k]]?.skill, res = played;
-    if (res?.solved && skill) recordTask(save, skill, res.wrong, res.helped === true);
+    if (res?.solved && skill) recordTask(save, skill, res.wrong, res.helped === true, { type: String(q.steps[k]), ...answerOf(res) });
     addStars(3, above(hero.root.position, 1.2));
     // the last step of the chain done in the background (a part hidden in the world, WORLD-08): its part now, in a
     // scene of its own, and the cat's "go on" after it - as at the end of a conversation

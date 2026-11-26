@@ -69,6 +69,13 @@ const S = sameKeys({
     gate_q: 'Розділ для дорослих. Скільки буде {a} × {b}?', p_title: 'Батьківський розділ', p_version: 'Версія',
     // PLAY-22: the controls in the parents' section; read by the grown-ups only, never spoken
     p_ctl: 'Керування', p_ctl_note: 'Діє одразу і зберігається разом із грою.',
+    // the parents' report (src/game/answers.ts): a view of the section of its own
+    p_rep: 'Звіт', p_rep_note: 'Останні 20 відповідей кожної навички: зелена — з першої спроби. Тиждень — проти попереднього.',
+    p_rep_none: 'ще не траплялася', p_rep_of: '{n} з {of}', p_rep_sec: '{n} с', p_rep_hard: 'важко',
+    p_rep_up: '▲ краще', p_rep_same: '● так само', p_rep_down: '▼ важче', p_rep_world: 'завдання у світі',
+    ty_count: 'лічба', ty_add: 'додавання', ty_sub: 'віднімання', ty_compare: 'більше-менше', ty_signs: 'знаки порівняння',
+    ty_order: 'числовий ряд', ty_neighbors: 'сусіди числа', ty_pattern: 'закономірність', ty_pairs: 'пари', ty_simon: 'повтори мелодію',
+    ty_odd: 'що зайве', ty_sort: 'сортування', ty_missing: 'склад числа', ty_house: 'будиночок числа', ty_diff: 'знайди відмінності', ty_puzzle: 'пазл',
     p_ctl_speed: 'Швидкість героїні', p_ctl_speed_less: 'Повільно', p_ctl_speed_normal: 'Звичайно', p_ctl_speed_more: 'Швидко',
     p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближче', p_ctl_cam_normal: 'Звичайно', p_ctl_cam_more: 'Далі',
     p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Менший', p_ctl_joy_normal: 'Звичайний', p_ctl_joy_more: 'Більший',
@@ -258,6 +265,12 @@ const S = sameKeys({
     gate_q: 'Раздел для взрослых. Сколько будет {a} × {b}?', p_title: 'Родительский раздел', p_version: 'Версия',
     // PLAY-22: the controls in the parents' section; read by the grown-ups only, never spoken
     p_ctl: 'Управление', p_ctl_note: 'Действует сразу и сохраняется вместе с игрой.',
+    p_rep: 'Отчёт', p_rep_note: 'Последние 20 ответов каждого навыка: зелёный — с первой попытки. Неделя — против предыдущей.',
+    p_rep_none: 'ещё не встречался', p_rep_of: '{n} из {of}', p_rep_sec: '{n} с', p_rep_hard: 'трудно',
+    p_rep_up: '▲ лучше', p_rep_same: '● так же', p_rep_down: '▼ труднее', p_rep_world: 'задание в мире',
+    ty_count: 'счёт', ty_add: 'сложение', ty_sub: 'вычитание', ty_compare: 'больше-меньше', ty_signs: 'знаки сравнения',
+    ty_order: 'числовой ряд', ty_neighbors: 'соседи числа', ty_pattern: 'закономерность', ty_pairs: 'пары', ty_simon: 'повтори мелодию',
+    ty_odd: 'что лишнее', ty_sort: 'сортировка', ty_missing: 'состав числа', ty_house: 'домик числа', ty_diff: 'найди отличия', ty_puzzle: 'пазл',
     p_ctl_speed: 'Скорость героини', p_ctl_speed_less: 'Медленно', p_ctl_speed_normal: 'Обычно', p_ctl_speed_more: 'Быстро',
     p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближе', p_ctl_cam_normal: 'Обычно', p_ctl_cam_more: 'Дальше',
     p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Меньше', p_ctl_joy_normal: 'Обычный', p_ctl_joy_more: 'Больше',
@@ -415,6 +428,8 @@ type WorldKey = { [W in keyof WorldTables]: keyof WorldTables[W]['table']['uk'] 
 type WorldSpokenKey = { [W in keyof WorldTables]: keyof WorldTables[W]['spoken'] }[keyof WorldTables];
 /** A key of the shared table or of any world's table. */
 export type Key = keyof typeof S.uk | WorldOwnKey | WorldKey;
+/** Whether `k` is a line of the shared table (the parents' report names the types of the tasks it has a line for). */
+export const isSharedKey = (k: string): k is Key => k in S.uk;
 /**
  * Every shared line the game speaks, with the intonation of its recording: joy for praise and the finale, warm for
  * requests and questions, calm for "watch closely". Interface-only strings are not listed; a world lists its own

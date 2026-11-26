@@ -159,8 +159,10 @@ describe('the helper buttons of the panel', () => {
 describe('the wiring: every task a character gives records whether a helper was taken (src/game/dialogue.ts)', () => {
   const DIALOGUE = (import.meta.glob('./dialogue.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)['./dialogue.ts'];
   it('each recordTask of a solved task passes `res.helped`', () => {
-    const calls = DIALOGUE.match(/recordTask\([^)]*\)/g) ?? [];
+    // the fifth argument - the type and time of the answer for the parents' report (src/game/answers.ts)
+    const calls = DIALOGUE.match(/recordTask\(save, skill, res\.wrong, [^,]+,/g) ?? [];
     expect(calls.length).toBeGreaterThanOrEqual(2);
-    for (const c of calls) expect(c).toBe('recordTask(save, skill, res.wrong, res.helped === true)');
+    for (const c of calls) expect(c).toBe('recordTask(save, skill, res.wrong, res.helped === true,');
+    expect(DIALOGUE.match(/recordTask\(/g)).toHaveLength(calls.length);
   });
 });
