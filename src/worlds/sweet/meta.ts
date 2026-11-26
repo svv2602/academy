@@ -8,5 +8,5 @@ import type { WorldInfo } from '../../game/world';
 export const SWEET_INFO: WorldInfo = {
   id: 'sweet', shelf: 3, secrets: ['candy_box', 'cotton_cloud', 'lemonade', 'bubble_gum'],   // ./secrets.ts SWEET_SECRETS
   // ./collect.ts COLLECT: its kinds and how many (src/worlds/meta.test.ts holds them equal)
-  collect: { items: [...Array(6).fill({ kind: 'lollipop' }), ...Array(6).fill({ kind: 'marmalade' })] },
+  collect: { items: [...Array(6).fill({ kind: 'lollipop' }), ...Array(6).fill({ kind: 'marmalade' }), ...Array(9).fill({ kind: 'piece' })] },
 };
