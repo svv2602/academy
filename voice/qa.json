@@ -6481,14 +6481,6 @@
   "voice": "Orus",
   "model": "gemini-2.5-flash-preview-tts"
  },
- "forest/borovik_t2@Orus": {
-  "text": "Номери на хатках переплуталися! Хто сусід цього числа?",
-  "heard": "Номери на хатках переплуталися? Хто сусід цього числа?",
-  "score": 1.0,
-  "style": "warm",
-  "voice": "Orus",
-  "model": "gemini-2.5-flash-preview-tts"
- },
  "forest/borovik_t3@Orus": {
   "text": "А тепер розклади все по місцях. Люблю, коли лад!",
   "heard": "А тепер розклади все по місцях. Люблю, коли лад.",
