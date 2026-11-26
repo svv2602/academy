@@ -142,7 +142,7 @@
 //      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
 //      (part 10) stays for the grey build. Pictures shots-e2e/worlds-published/sweet/.
 //  16. The part "sky" (tools/sky-pass.mjs `passEnv`, `passProblems`): the same for the published Sky Islands
-//      (RELEASE-DAY): their chains with the three tasks in the world (the cloud bridge, the clock, the route of the winds)
+//      (2026-11-27): their chains with the three tasks in the world (the cloud bridge, the clock, the route of the winds)
 //      and the two rays in it, the tour, Pushok, their four secrets, the finale. Their grey walkthrough (part 11)
 //      stays for the grey build. Pictures shots-e2e/worlds-published/sky/.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).

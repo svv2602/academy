@@ -21,7 +21,7 @@ import { SWEET_INFO } from './sweet/meta';
 // tools/vite-worlds.mjs WORLD_EXTRA_FILES). The Sweet Land (./sweet, WORLD-04) is published too (the customer's word of
 // 2026-11-26: «Сладкая страна — да»): listed in every build, downloaded while the sea is played; its files lie in worlds-data/sweet/, the hub's
 // arch of its place (shelf 3) wakes once the sea is done. The Sky Islands (./sky, WORLD-05) are published too (the
-// customer's word of RELEASE-DAY): listed in every build, downloaded while the Sweet Land is played; their files lie in
+// customer's word of 2026-11-27): listed in every build, downloaded while the Sweet Land is played; their files lie in
 // worlds-data/sky/, the hub's arch of their place (shelf 4) wakes once the Sweet Land is done.
 //
 // A next world is listed by what the game knows of it before she enters it (./<id>/meta.ts: data only) and its code is

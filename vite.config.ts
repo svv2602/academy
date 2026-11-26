@@ -42,7 +42,7 @@ function probeFiles(): Plugin {
 // file of worlds-data/<id>/ of a next world of the build, put in under the path the world asks for (the forest's
 // characters, models/forest/…, written there by tools/assets.mjs; the voice, voice/<id>/…, written there by
 // tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest and the
-// sea (published 2026-11-24), the Sweet Land (2026-11-26) and the Sky Islands (RELEASE-DAY) and gets their files; a grey
+// sea (published 2026-11-24), the Sweet Land (2026-11-26) and the Sky Islands (2026-11-27) and gets their files; a grey
 // build (WORLD-12, `--mode grey`) has the same worlds now (a next world in its grey build is listed as `<id>: 'grey'`). A
 // world's files from elsewhere (tools/vite-worlds.mjs WORLD_EXTRA_FILES: the sea's swimming clips, the probe world's
 // copy) too, under its folder - models/sea/ counts them in the sea's own budget.
