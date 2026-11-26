@@ -7936,5 +7936,429 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_ship_board@Leda": {
+  "text": "Усі на палубу! Тримайтеся, зараз злетимо!",
+  "heard": "Усі на палубу! Тримайтеся, зараз злетимо!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_ship_land@Leda": {
+  "text": "Прилетіли! Твій маршрут привів нас точно сюди.",
+  "heard": "Прилетіли! Твій маршрут привів нас точно сюди.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_ship_back@Leda": {
+  "text": "Летимо назад! Корабель уже знає дорогу.",
+  "heard": "Летимо назад, корабель уже знає дорогу.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_hi@Sulafat": {
+  "text": "Вітаю, мила! Я Лазур. Я ліплю хмаринки, як сніжки.",
+  "heard": "Вітаю, мыла. Я Лазур. Я ляплю хмарынкі як снежкі.",
+  "score": 0.867,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_t1@Sulafat": {
+  "text": "Де більше хмаринок — тут чи там? Подивись уважно.",
+  "heard": "Де більше хмаринок: тут чи там? Подивись уважно.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_t2@Sulafat": {
+  "text": "Я зліпила купки хмаринок. Скільки буде разом?",
+  "heard": "Я зліпила кубки хмаринок. Скільки буде разом?",
+  "score": 0.977,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_t3@Sulafat": {
+  "text": "Між островами бракує мосту. Складімо його з хмаринок!",
+  "heard": "Між островами бракує мосту. Складімо його з хмаринок!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_done@Sulafat": {
+  "text": "Який гарний міст! Дякую, мила. Тримай промінчик.",
+  "heard": "Який гарний міст! Дякую, мила. Тримай промінчик.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_again_1@Sulafat": {
+  "text": "Хочеш, зліплю тобі хмаринку-котика? Ось, тримай!",
+  "heard": "Хочеш, зліплю тобі хмаринку-котика? Ось, тримай.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_again_2@Sulafat": {
+  "text": "Тут, угорі, так тихо. Посидь зі мною на хмаринці.",
+  "heard": "Тут угорі так тихо. Посидь зі мною на хмаринці.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_hi@Orus": {
+  "text": "Гр-р-р… Привіт! Я Громихало. Тільки не дивися вниз, гаразд?",
+  "heard": "Хр-р-р, привіт! Я Громихало. Тільки не дивися вниз, гаразд?",
+  "score": 0.981,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_t1@Orus": {
+  "text": "Скільки драконят у гнізді? Я рахую — і голова паморочиться!",
+  "heard": "Скільки драконят у гнізді? Я рахую, і голова паморочиться.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_t2@Orus": {
+  "text": "Я зʼїв кілька груш. Скільки лишилося? Тільки чесно!",
+  "heard": "Я з'їв кілька груш. Скільки лишилося? Кільки чесно.",
+  "score": 0.979,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_t3@Orus": {
+  "text": "Мої лусочки ростуть візерунком. Що буде далі?",
+  "heard": "Мої лусочки растуть візерунком: що буде далі?",
+  "score": 0.977,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_done@Orus": {
+  "text": "Ох і розумниця! Тримай промінчик. А я… посиджу подалі від краю.",
+  "heard": "Ох і розумниця! Тримай промінчик, а я посиджу подалі від краю.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_again_1@Orus": {
+  "text": "Дракон, який боїться висоти! Смішно, правда? Хе-хе.",
+  "heard": "Дракон, який боїться висоти! Смішно, правда?",
+  "score": 0.93,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/gromykhalo_again_2@Orus": {
+  "text": "Сьогодні я злетів трішечки вище! Ну, на одну лапку.",
+  "heard": "Сьогодні я злетів трішечки вище, ну, на одну лапку.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_hi@Charon": {
+  "text": "А, гостя! Я Мерехтій, звіздар. Колись я памʼятав усі зорі.",
+  "heard": "А-а-а, гостя. Я — Мерехтій, Звіздар; колись я пам'ятав усі зорі.",
+  "score": 0.964,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_t1@Charon": {
+  "text": "Зорі спалахують по черзі. Запамʼятай, у якому порядку.",
+  "heard": "Зорі спалахують по черзі. Запам'ятай, у якому порядку.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_t2@Charon": {
+  "text": "На небі візерунок із двох ознак. Що буде наступним?",
+  "heard": "На небі візерунок із двох ознак. Що буде наступним?",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_t3@Charon": {
+  "text": "Мій годинник зупинився. Допоможи його полагодити — крок за кроком.",
+  "heard": "Мій годинник зупинився. Допоможи його полагодити, крок за кроком.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_done@Charon": {
+  "text": "Тік-так… Годинник іде! А в ньому щось засвітилося.",
+  "heard": "Тік-так, годинник іде, а в ньому щось засвітилося?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_again_1@Charon": {
+  "text": "Подивись у мою трубу. Бачиш, як мерехтить твоя зірочка?",
+  "heard": "Подивись у мою трубу, бачиш, як мерехтить твоя зірочка?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_again_2@Charon": {
+  "text": "Я знову щось забув… А, згадав: ти — мій друг!",
+  "heard": "Я знову щось забув. А, згадав: ти мій друг.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_hi@Leda": {
+  "text": "Агов! Я Вітерець, юнга повітряного корабля. Полетиш зі мною?",
+  "heard": "Агов! Я відерич, юнга повітряного корабля. Полетиш зі мною?",
+  "score": 0.937,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_t1@Leda": {
+  "text": "Острівці стоять рядком, а одного номера бракує. Якого?",
+  "heard": "Острівці стоять рядком, а одного номера бракує. Якого?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_t2@Leda": {
+  "text": "У скрині бракує мішечків із вітром. Скільки докласти?",
+  "heard": "У скрині бракує мішечків із вітром. Скільки докласти?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_t3@Leda": {
+  "text": "Проклади маршрут вітрів — і полетимо на далекий острівець!",
+  "heard": "Проклади маршрут вітрів, і полетимо на далекий острівець.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_done@Leda": {
+  "text": "Ти справжня штурманка! Дивись, на острівці щось сяє!",
+  "heard": "Ти справжня штурманка! Дивись, на острові ті, що сяє!",
+  "score": 0.918,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_again_1@Leda": {
+  "text": "Капітан каже, що з тебе вийде чудова пілотка!",
+  "heard": "Капітан каже, що з тебе вийде чудова пілотка.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_again_2@Leda": {
+  "text": "Колись я облечу всі світи! А ти вже облетіла.",
+  "heard": "Колись я облечу всі світи, а ти вже облетіла.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_hi@Leda": {
+  "text": "Цвірінь! Я Цвірінька, листоноша! Я все-все-все знаю!",
+  "heard": "Тваринь, я тваринка, листоноша, я все-все-все знаю!",
+  "score": 0.863,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_t1@Leda": {
+  "text": "Листи розлетілися парами. Знайдеш, який до якого?",
+  "heard": "Листи розлетілися парами. Знайдеш, який до якого?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_t2@Leda": {
+  "text": "Принесла кілька листів, а ще кілька чекають. Скільки разом?",
+  "heard": "Принесла кілька листів, а ще кілька чекають. Скільки разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_t3@Leda": {
+  "text": "Розклади листи по скриньках — кожен у свою!",
+  "heard": "Розклали листи по скриньках, кожен у свою.",
+  "score": 0.975,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_done@Leda": {
+  "text": "Усі листи на місці! Тримай промінчик — це тобі посилка!",
+  "heard": "Усміхнись ти на місці! Тримай промінчик, це тобі посилка!",
+  "score": 0.933,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_pet_ask@Leda": {
+  "text": "Ой, хмарний баранчик Пушок відбився від отари. Знайдеш його?",
+  "heard": "Ой, хмарний баранчик Пушок відбився від отари! Знайдеш його?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_again_1@Leda": {
+  "text": "Новина! Громихало сьогодні глянув униз. Цілу секундочку!",
+  "heard": "Новина! Гримихали сьогодні глянув униз цілу секундочку!",
+  "score": 0.962,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/chirika_again_2@Leda": {
+  "text": "Лечу, лечу! Ой, а листа для тебе сьогодні немає. Бувай!",
+  "heard": "Лечу, лечу! Ой, але став для тебе сьогодні немає. Бувай!",
+  "score": 0.95,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_route_start@Leda": {
+  "text": "Клади стрілки вітру, щоб кораблик облетів грозові хмарки.",
+  "heard": "Клади стрілки вітру, щоб кораблик облетів грозові хмарки.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_route_go@Leda": {
+  "text": "Готово? Тоді — у путь!",
+  "heard": "Готово? Тоді у путь!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_route_stop@Leda": {
+  "text": "Ой, грозова хмарка! Повертаємося. Стрілки лишилися на місцях.",
+  "heard": "Ой, рожева хмарка, повертаємося, стрілки лишилися на місцях.",
+  "score": 0.956,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_route_ok@Leda": {
+  "text": "Кораблик долетів! Тепер — на справжній корабель!",
+  "heard": "Кораблик долетів, тепер на справжній корабель!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/veterok_route_exit@Leda": {
+  "text": "Відпочинь! Я посторожу твої стрілки.",
+  "heard": "Відпочинь, я посторожу твої стрілки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_step_1@Charon": {
+  "text": "Шестерні розкотилися по острову. Знайди їх, будь ласка.",
+  "heard": "Шестирні розкотилися по острову, знайди їх, будь ласка.",
+  "score": 0.981,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_step_2@Charon": {
+  "text": "Тепер постав шестерні на вісь — за візерунком.",
+  "heard": "Тепер постав шестірні на вісь, за візерунком.",
+  "score": 0.977,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_step_3@Charon": {
+  "text": "Лишилися стрілки. Розвʼяжи приклад — і вони стануть на місце.",
+  "heard": "Лишилися стрілки? Розв'яжи приклад і вони стануть на місце.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_exit@Charon": {
+  "text": "Відпочинь. Годинник почекає — він уміє чекати.",
+  "heard": "Відпочинь, годинник почекає. Він уміє чекати.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_resume@Charon": {
+  "text": "Повернулася? Продовжимо з того місця, де зупинилися.",
+  "heard": "Повернулася? Продовжимо з того місця, де зупинилися.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_bridge_start@Sulafat": {
+  "text": "Ступай на хмаринку з правильною відповіддю — вона стане сходинкою.",
+  "heard": "Ступай на хмаринку з правильною відповіддю, вона стане сходинкою.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_bridge_step@Sulafat": {
+  "text": "Хмаринка ущільнилася! Далі, мила.",
+  "heard": "Хмаринка ущільнилася. Далі мила?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/lazur_bridge_finish@Sulafat": {
+  "text": "Міст готовий! Тепер можна гуляти з острова на острів.",
+  "heard": "Міст готовий. Тепер можна гуляти з острова на острів.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/mertsal_clock_chime@Charon": {
+  "text": "Дякую, Хранителько! Час знову йде — у всіх світах!",
+  "heard": "Дякую, Хранителько. Час знову йде у всіх світах.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

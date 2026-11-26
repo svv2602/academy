@@ -4264,6 +4264,196 @@
   "tp": -2.52,
   "sha256": "9ac5bc43a26365bc56dc6b1836089384355626f4ff09e7fd249a64bf6f2896a7"
  },
+ "worlds-data/sky/voice/sky/chirika_again_1@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -3.24,
+  "sha256": "7d033928e1130ef223c25053f49d11ec5e254ff73222e3e0a7acc0fd1a35b940"
+ },
+ "worlds-data/sky/voice/sky/chirika_again_2@Leda.mp3": {
+  "lufs": -18.01,
+  "tp": -5.92,
+  "sha256": "9f1e2c902360d7a8719071e575f5b5f97aebaccc77e035635825fa26921e5b37"
+ },
+ "worlds-data/sky/voice/sky/chirika_done@Leda.mp3": {
+  "lufs": -17.95,
+  "tp": -2.51,
+  "sha256": "7fee7ffd016ef0b67cecb7bcaa9309b41fd22cc8250f5bbde2ef20969fc3ddce"
+ },
+ "worlds-data/sky/voice/sky/chirika_hi@Leda.mp3": {
+  "lufs": -17.97,
+  "tp": -5.04,
+  "sha256": "ca4ba4c46a1e27ad8093400e9b305a9b955c77e614ec5d2d4813cf2ff9270050"
+ },
+ "worlds-data/sky/voice/sky/chirika_pet_ask@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -3.93,
+  "sha256": "dcc3f8001d9d4754fb3b2c5ecf0c39b9ffdc57637ca6ef305f13348d1e65e3da"
+ },
+ "worlds-data/sky/voice/sky/chirika_t1@Leda.mp3": {
+  "lufs": -18.09,
+  "tp": -4.84,
+  "sha256": "4546152233e213de678d9acbfdd22ee1d4056d0994d3f5f25a08b1e4f2ad93f6"
+ },
+ "worlds-data/sky/voice/sky/chirika_t2@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -2.59,
+  "sha256": "479cde222d0b4e6a24a4a8230cd4db894cf80d33da122947e7a32e0705944217"
+ },
+ "worlds-data/sky/voice/sky/chirika_t3@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -4.88,
+  "sha256": "dfcf528f33c57f180fcfdb9c4a36d353022ef4b0c991fe4ed6379b2ad220a683"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_again_1@Orus.mp3": {
+  "lufs": -18.11,
+  "tp": -2.86,
+  "sha256": "2e4dff49acfb362520d51a83fb5a316a692c3d0736740fce45a709c195200762"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_again_2@Orus.mp3": {
+  "lufs": -17.93,
+  "tp": -5.27,
+  "sha256": "be9e0ddc66b64380a1ee0aff5d1eec92856795b7abe06312bec6d7102fcb1d91"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_done@Orus.mp3": {
+  "lufs": -17.99,
+  "tp": -2.19,
+  "sha256": "e27d54929e11f8cce08c16a1b6f74a497c92d3ba8268c51f6d490a00aedac18d"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_hi@Orus.mp3": {
+  "lufs": -17.93,
+  "tp": -1.67,
+  "sha256": "f8cd0dd6c085ff5a7dee645fc55d17da53ef198d8aa1d8fe332fed29365ccd01"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_t1@Orus.mp3": {
+  "lufs": -18.02,
+  "tp": -2.41,
+  "sha256": "a083059f5043d1d91624818a5aa2a5bb34d4e08f11ed9e6d2097b1740ad7476c"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_t2@Orus.mp3": {
+  "lufs": -18.29,
+  "tp": -2.71,
+  "sha256": "4a5e4a20d5e1962c3c279afe73bebcf35601f397f300f82313c7591be35050ff"
+ },
+ "worlds-data/sky/voice/sky/gromykhalo_t3@Orus.mp3": {
+  "lufs": -18.04,
+  "tp": -2.31,
+  "sha256": "3b992579abcba828622489d565f157526be8391dc2a98eda7f90d5e99cf74208"
+ },
+ "worlds-data/sky/voice/sky/lazur_again_1@Sulafat.mp3": {
+  "lufs": -18.02,
+  "tp": -2.24,
+  "sha256": "c12dfb75b6f498d0a6743711700a20126ad95662234e0e206bdb4e04ec01810f"
+ },
+ "worlds-data/sky/voice/sky/lazur_again_2@Sulafat.mp3": {
+  "lufs": -17.98,
+  "tp": -2.75,
+  "sha256": "8b622af4058d0b3a915692462864f19f5c3b0ccbe7e657e0af17964f7f01922e"
+ },
+ "worlds-data/sky/voice/sky/lazur_bridge_finish@Sulafat.mp3": {
+  "lufs": -18.01,
+  "tp": -4.99,
+  "sha256": "79f4c7b69e454aa119bc95026d55246a7f566d75a83de9d3366e9ef5d33f7d30"
+ },
+ "worlds-data/sky/voice/sky/lazur_bridge_start@Sulafat.mp3": {
+  "lufs": -18.0,
+  "tp": -2.91,
+  "sha256": "121200bcb9f20a469ae80451275575e534e2628978ec2194a86faf72775566b9"
+ },
+ "worlds-data/sky/voice/sky/lazur_bridge_step@Sulafat.mp3": {
+  "lufs": -18.01,
+  "tp": -4.39,
+  "sha256": "d1e7426683cca69805c69fef8c57ea3a88e5098e5c61aaac694f9da9ac097434"
+ },
+ "worlds-data/sky/voice/sky/lazur_done@Sulafat.mp3": {
+  "lufs": -18.02,
+  "tp": -6.13,
+  "sha256": "8eee9901bafd9449f8f452663f67f41b5dcf6f221d2f99aff4896a712ee0578c"
+ },
+ "worlds-data/sky/voice/sky/lazur_hi@Sulafat.mp3": {
+  "lufs": -17.99,
+  "tp": -3.2,
+  "sha256": "385a29a2900c91c17256c36a56ff24b54a4935d677026510c39482b2ef8595cd"
+ },
+ "worlds-data/sky/voice/sky/lazur_t1@Sulafat.mp3": {
+  "lufs": -17.99,
+  "tp": -4.8,
+  "sha256": "ae5ff9d579b56d199cbd029aae3b27b79c05ae84ef68c6a6b1503cf4fa50b9a7"
+ },
+ "worlds-data/sky/voice/sky/lazur_t2@Sulafat.mp3": {
+  "lufs": -18.04,
+  "tp": -3.5,
+  "sha256": "f1fd643ea6450063200242fc4047fae27250a55df7c6ef0347265a953e55f26a"
+ },
+ "worlds-data/sky/voice/sky/lazur_t3@Sulafat.mp3": {
+  "lufs": -18.0,
+  "tp": -2.77,
+  "sha256": "a363a9480dbb11e3aa44596cee0502648d30a3c1c13f97ce496168535a36c2c6"
+ },
+ "worlds-data/sky/voice/sky/mertsal_again_1@Charon.mp3": {
+  "lufs": -18.02,
+  "tp": -2.31,
+  "sha256": "30ef8054b649758800dfd241d8f59b4fa686666ac714a738e9b7ec4863a7fc68"
+ },
+ "worlds-data/sky/voice/sky/mertsal_again_2@Charon.mp3": {
+  "lufs": -18.1,
+  "tp": -2.15,
+  "sha256": "04e8db94c4e61d1cd050947f404659058ae132c7477f57daf7430d756ce85fe1"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_chime@Charon.mp3": {
+  "lufs": -17.98,
+  "tp": -2.14,
+  "sha256": "2d5b715347c0cacb77f0b012175b763ee88f2664266cd75eb2aeaac77b40d746"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_exit@Charon.mp3": {
+  "lufs": -18.05,
+  "tp": -2.16,
+  "sha256": "8659b01b33eb969b00777b3660ed0c3ccd7ed6058c2bf9ed2c22e52cd12e96a4"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_resume@Charon.mp3": {
+  "lufs": -18.24,
+  "tp": -2.53,
+  "sha256": "0a691c252266406b49db29648a28aab8748254d2f56c588c0a0a1ef831c99408"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_step_1@Charon.mp3": {
+  "lufs": -18.05,
+  "tp": -2.7,
+  "sha256": "aab8c96c8e89b22f808432111d13601d12aa036d5b142baca8837898e26e02ac"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_step_2@Charon.mp3": {
+  "lufs": -17.99,
+  "tp": -2.14,
+  "sha256": "a1a15c61d31807e5f003eaee62e11e085b50ec8537185015c8545489dceee0b3"
+ },
+ "worlds-data/sky/voice/sky/mertsal_clock_step_3@Charon.mp3": {
+  "lufs": -17.97,
+  "tp": -2.12,
+  "sha256": "456a57ca410b2775a2f27c1e090e8a4873eab4968e5b2711b7419dae13f2264d"
+ },
+ "worlds-data/sky/voice/sky/mertsal_done@Charon.mp3": {
+  "lufs": -18.29,
+  "tp": -3.38,
+  "sha256": "935426fe396a59be5d014a67175d0d60055394e5f8e10f7b3cebc62df28518ec"
+ },
+ "worlds-data/sky/voice/sky/mertsal_hi@Charon.mp3": {
+  "lufs": -18.03,
+  "tp": -2.53,
+  "sha256": "1541ea252077402a438b6b757e1b8f138c242d529f47673d6b4790b50a268f44"
+ },
+ "worlds-data/sky/voice/sky/mertsal_t1@Charon.mp3": {
+  "lufs": -17.96,
+  "tp": -1.94,
+  "sha256": "6a0778eb691c517bf16003c57514583a0a7fc181322327f9b4a8351502f940d3"
+ },
+ "worlds-data/sky/voice/sky/mertsal_t2@Charon.mp3": {
+  "lufs": -17.98,
+  "tp": -2.59,
+  "sha256": "556535535743beea727bd1a4cbae9fbbe3c1c4d98392b32b6ca5c136d2095eb5"
+ },
+ "worlds-data/sky/voice/sky/mertsal_t3@Charon.mp3": {
+  "lufs": -18.02,
+  "tp": -3.2,
+  "sha256": "160cfd23641744440a6974e3ab2d62c96bbca8710aa25ccf160f4658da8306c3"
+ },
  "worlds-data/sky/voice/sky/sky_pet_follow.mp3": {
   "lufs": -18.07,
   "tp": -2.52,
@@ -4273,6 +4463,81 @@
   "lufs": -18.03,
   "tp": -2.54,
   "sha256": "7dcb04cb61588c8c0b76ae47253fd4c5fbee85ceb554d7459ac814de0187e7fb"
+ },
+ "worlds-data/sky/voice/sky/veterok_again_1@Leda.mp3": {
+  "lufs": -17.93,
+  "tp": -4.97,
+  "sha256": "0a00918eba894529f2f0cba25a51bbade4c296624e42ec7fd51b5f46c11dbf4f"
+ },
+ "worlds-data/sky/voice/sky/veterok_again_2@Leda.mp3": {
+  "lufs": -18.06,
+  "tp": -4.36,
+  "sha256": "c970af169c09fd47c90797ca8e5811d8598e1f51e1b4dac8b46400443b3c98ef"
+ },
+ "worlds-data/sky/voice/sky/veterok_done@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -4.75,
+  "sha256": "d762c3865dbdbfc91ecb7d65ea4c5ce402d58d90eb02b1aab2fda1e24cfbeb9f"
+ },
+ "worlds-data/sky/voice/sky/veterok_hi@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -5.3,
+  "sha256": "4e2c1e902bea6ee9945ab6184a943c11d3d4a67aa93c9d0926c973dee4ed92c1"
+ },
+ "worlds-data/sky/voice/sky/veterok_route_exit@Leda.mp3": {
+  "lufs": -17.97,
+  "tp": -2.32,
+  "sha256": "0e3755668a42ba6975daaff867461f34350e0022894b010be52ba7a4d26f870e"
+ },
+ "worlds-data/sky/voice/sky/veterok_route_go@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -5.38,
+  "sha256": "986b68b3bf7e044d9f4e2a3004a615da2df5cc3450b5ed52cdac76a4ba464e8c"
+ },
+ "worlds-data/sky/voice/sky/veterok_route_ok@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -5.59,
+  "sha256": "37fd499e29f6d34b1b1a14797673d75c341b11f9e38bf30cc64c54aba12ca5a0"
+ },
+ "worlds-data/sky/voice/sky/veterok_route_start@Leda.mp3": {
+  "lufs": -17.99,
+  "tp": -4.82,
+  "sha256": "4ec2f003dc17e68266b5c142631404e219b954eb9bef5a52ba9a8fed56b9f63a"
+ },
+ "worlds-data/sky/voice/sky/veterok_route_stop@Leda.mp3": {
+  "lufs": -18.01,
+  "tp": -2.87,
+  "sha256": "816fd3db8713e68a528bbe27b451e7c50a4bf4436873393066759b4539355825"
+ },
+ "worlds-data/sky/voice/sky/veterok_ship_back@Leda.mp3": {
+  "lufs": -18.0,
+  "tp": -4.69,
+  "sha256": "6ada00ec4fbf8b53f31f289331519fdca06f119effd47e0c871cf6a24d741b22"
+ },
+ "worlds-data/sky/voice/sky/veterok_ship_board@Leda.mp3": {
+  "lufs": -18.04,
+  "tp": -6.92,
+  "sha256": "cf8ad8bbed7e269b42a42c481df09cbf40c98db0ba206e7d26aa2704e9714f30"
+ },
+ "worlds-data/sky/voice/sky/veterok_ship_land@Leda.mp3": {
+  "lufs": -17.98,
+  "tp": -5.35,
+  "sha256": "506703fe9b8b46b3ca6193b24809a91b7092196014c5ac6bc8794020471f416c"
+ },
+ "worlds-data/sky/voice/sky/veterok_t1@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -2.59,
+  "sha256": "1c0aeaa6726092b6d7c40876958a8d09cb6c8b45b75d2fe7dc327ed49396e63d"
+ },
+ "worlds-data/sky/voice/sky/veterok_t2@Leda.mp3": {
+  "lufs": -17.86,
+  "tp": -3.72,
+  "sha256": "a10091d925c768b32e110079c66bd040b73790dacc5304f17023da0d12fcadcb"
+ },
+ "worlds-data/sky/voice/sky/veterok_t3@Leda.mp3": {
+  "lufs": -17.97,
+  "tp": -5.33,
+  "sha256": "d48fa0936e4e6de1bb65a28382c2213bc6e85b25065315861f28eca3a3d0d95d"
  },
  "worlds-data/sweet/voice/sweet/imbir_again_1@Leda.mp3": {
   "lufs": -17.96,
