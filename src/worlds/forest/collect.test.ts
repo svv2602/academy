@@ -2,10 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import { collectProblems } from '../../game/collections';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { ALTAR, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, SECRET_CLEARINGS, STREAM_HALF, ZONES, inMaze } from './layout';
+import { ALTAR, EASEL, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, OWL_TREE, PATHS, SECRET_CLEARINGS, STREAM_HALF, ZONES, inMaze } from './layout';
 import { lineDist, pathDist, streamDist } from './terrain';
 import { placeTrees, villageHouses } from './scenery';
 import { FIND_CLEAR, placePlants } from './undergrowth';
+import { easelStand } from '../../game/easel-place';
 
 /** The squirrel's tracks (the last path of the map): Shustrik's nuts lie along them (./tracks.ts). */
 const TRACKS = PATHS[PATHS.length - 1];
@@ -47,5 +48,19 @@ describe('the collections of the forest (PLAY-25, the customer\'s word of 2026-1
     for (const p of DAILY_PLACES) for (const f of COLLECT.items) expect(near(p, f)).toBeGreaterThanOrEqual(6);
     DAILY_PLACES.forEach((a, i) => DAILY_PLACES.forEach((b, j) => { if (j > i) expect(near(a, b)).toBeGreaterThanOrEqual(12); }));
     expect(DAILY_PLACES.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('the picture (PLAY-29): nine pieces of a 3 x 3 frame of the forest\'s own story; the easel off the paths, clear of the houses, the trees and the finds', () => {
+    expect(COLLECT.items.filter((i) => i.kind === 'piece')).toHaveLength(9);
+    expect(COLLECT.picture).toEqual({ image: 'story/forest/w2_intro_3', cols: 3, rows: 3 });
+    const { trees } = placeTrees();
+    for (const p of [EASEL, easelStand(EASEL)]) {
+      expect(pathDist(p.x, p.z), 'off the paths').toBeGreaterThan(2.5);
+      expect(streamDist(p.x, p.z)).toBeGreaterThan(STREAM_HALF + 2);
+      for (const h of villageHouses()) expect(Math.hypot(h.x - p.x, h.z - p.z)).toBeGreaterThan(3.5);
+      for (const t of trees) expect(Math.hypot(t.x - p.x, t.z - p.z)).toBeGreaterThan(2);
+      for (const f of places) expect(Math.hypot(f.x - p.x, f.z - p.z)).toBeGreaterThan(4);
+    }
+    expect(placePlants().filter((q) => Math.hypot(q.x - EASEL.x, q.z - EASEL.z) <= FIND_CLEAR)).toEqual([]);
   });
 });

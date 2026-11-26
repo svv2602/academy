@@ -23,7 +23,7 @@ import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, CAVE, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
@@ -457,7 +457,8 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   load: loadForest,
   build: buildForest,
   // PLAY-10: the four secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
-  collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts)
+  collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
+  easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   secrets: FOREST_SECRETS,
   chest: CAVE_FLAG,

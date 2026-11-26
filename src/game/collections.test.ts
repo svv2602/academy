@@ -110,11 +110,11 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
     expect(kindsOf(fairy).sort()).toEqual([...own('fairy'), 'piece'].sort());
     expect(kindsOf(HUB_COLLECT)).toEqual(['treefeather']);
     const forest = WORLDS.find((w) => w.id === 'forest')?.collect;
-    if (forest) expect(kindsOf(forest).sort()).toEqual(own('forest').sort());
+    if (forest) expect(kindsOf(forest).sort()).toEqual([...own('forest'), 'piece'].sort());
     expect(own('forest').sort()).toEqual(['berry', 'cone']);
     // the sea its shells and coral twigs (src/worlds/sea/collect.ts)
     const sea = WORLDS.find((w) => w.id === 'sea')?.collect;
-    if (sea) expect(kindsOf(sea).sort()).toEqual(own('sea').sort());
+    if (sea) expect(kindsOf(sea).sort()).toEqual([...own('sea'), 'piece'].sort());
     expect(own('sea').sort()).toEqual(['coral', 'shell']);
     // the Sweet Land its lollipops and jelly sweets (src/worlds/sweet/collect.ts)
     const sweet = WORLDS.find((w) => w.id === 'sweet')?.collect;
