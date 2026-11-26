@@ -1994,6 +1994,16 @@
   "tp": -2.5,
   "sha256": "2b5425993072e291f182b725a3c78cab29c4ee1531fe384e6bd5b29568544691"
  },
+ "public/voice/easel_hi.mp3": {
+  "lufs": -18.16,
+  "tp": -2.45,
+  "sha256": "2cbbd5ebf6e3d21bc5e4371d6bce6562ee4b225037ae6ce19bcb32ad1b63a9e4"
+ },
+ "public/voice/easel_some.mp3": {
+  "lufs": -17.99,
+  "tp": -3.81,
+  "sha256": "09176acf64ca84427c25d95b93291ac9d6daaa55e02de451ec1c3440d8dca642"
+ },
  "public/voice/final_text.mp3": {
   "lufs": -17.93,
   "tp": -4.24,

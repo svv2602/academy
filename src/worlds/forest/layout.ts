@@ -46,6 +46,14 @@ export const ZONES = {
   ash: at(22, 32),          // the talking tree, Old Ash
 } as const;
 export type ZoneId = keyof typeof ZONES;
+/**
+ * The easel (PLAY-29, src/game/easel.ts): on the north-west edge of the mushroom village, 6 m from Borovik, off its
+ * paths and clear of the houses and the finds (./collect.test.ts); its picture turned to the village's middle.
+ */
+export const EASEL = (() => {
+  const x = ZONES.village.x - 3.5 * (SCALE / DEFAULT_SCALE), z = ZONES.village.z + 4.5 * (SCALE / DEFAULT_SCALE);
+  return { x, z, facing: Math.atan2(ZONES.village.x - x, ZONES.village.z - z) };
+})();
 
 /** Where she appears: on the central glade, facing the Oak. */
 export const SPAWN = at(20, 2);

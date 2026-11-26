@@ -4,6 +4,11 @@
  */
 export const WORLD_R = 74;
 export const SPAWN = { x: 0, z: 14 };
+/**
+ * The easel (PLAY-29, src/game/easel.ts): on the meadow west of the gazebo (22.5, -8), 6 m from it, clear of the trees
+ * and the finds (./collect.test.ts); its picture turned to the way in from the spawn.
+ */
+export const EASEL = { x: 17, z: -10, facing: Math.atan2(SPAWN.x - 17, SPAWN.z + 10) };
 export const POND = { x: 15, z: -19, r: 9.5 };
 export const CASTLE = { x: -8, z: -60 };
 export const UNICORN = { x: 5.2, z: -11.5 };

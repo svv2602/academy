@@ -3,7 +3,7 @@ import { DEFAULT_SCALE, SCALE } from './layout';
 
 /**
  * The collections of the Enchanted Forest (PLAY-25, the customer's word of 2026-11-22, «А»): spruce cones and
- * bilberries, six of each, lying on the moss 3-7 m off the paths - seen from the path, a few steps aside to take. Their
+ * bilberries, six of each, and the nine pieces of its picture (PLAY-29), lying on the moss 3-7 m off the paths - seen from the path, a few steps aside to take. Their
  * places are checked by ./collect.test.ts: off the paths, the stream, the zones, the secrets, the maze and the trees.
  * The trades of the forest's characters (PLAY-28) ask for them.
  */
@@ -22,7 +22,13 @@ export const COLLECT: CollectDef = {
     // bilberries: by the ways from the central glade to the village and to the stream, and on the way to the Oak
     lies('berry', 9.7, -5.7), lies('berry', -9.8, -15.6), lies('berry', 38.6, 2.9), lies('berry', 40.3, 30.3),
     lies('berry', 28.8, -16.7), lies('berry', -42.4, -25.8),
+    // the pieces of the picture (PLAY-29, the customer's word of 2026-11-26): nine over the whole forest, by its ways, set
+    // on the easel in the village (./layout.ts EASEL); their order is their cell of the frame, row by row
+    ...[[-0.5, -4.4], [-27.8, 58], [26.8, 45], [41.1, -40.8], [-34.3, -25.2], [30.7, 9.9], [-30.4, 6], [2.1, 60.6], [21.6, -14.8]]
+      .map(([x, z]): CollectItem => ({ kind: 'piece', way: 'run', x: x * S, z: z * S, y: 0.35 })),
   ],
+  // the heroine at the arch into the sleeping forest: the beginning of its story, nothing told away
+  picture: { image: 'story/forest/w2_intro_3', cols: 3, rows: 3 },
 };
 
 /**

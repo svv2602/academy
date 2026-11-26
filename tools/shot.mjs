@@ -3863,10 +3863,15 @@ try {
         await g((h) => { __game.teleport(h.x, h.z); __game.cam.yaw = h.yaw; __game.hero.heading = h.heading; }, home);
         await gameSeconds(0.5);
         console.log(`collect: ${log.join(', ')}; the page of the book: ${page2.rows.map((r) => `${r.kind} ${r.got}/6`).join(', ')}`);
-        // ---- the picture of the pieces (PLAY-29): each piece taken as a player would (walked into, a jump), no star of a
-        // set and nothing to spend; half of them - half of the frame in the book; the last - the picture comes alive
+        // ---- the picture of the pieces and the easel (PLAY-29, the customer's word of 2026-11-26): each piece taken as a
+        // player would (walked into, a jump), a star each, no star of a set and nothing to spend; found, a piece lies by the
+        // easel until she sets it there. 3 found - the easel shows them, all three set, closed by its cross: half of the
+        // frame in the book. The last found - the cat sends her to the easel, nothing comes alive by itself; the last three
+        // set - the card closes, the picture comes alive, one star.
         const pieces = items.filter((i) => i.kind === 'piece');
         if (pieces.length !== 6) fail(`${pieces.length} pieces of the picture, not 6`);
+        const easelItem = (await g(() => __game.items)).find((i) => i.kind === 'easel');
+        if (!easelItem) fail('the fairies\' world describes no easel');
         const bookPicture = async () => {
           await tapOn('#btnBook').catch((e) => fail(`the book cannot be opened: ${why(e)}`));
           await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open', 5);
@@ -3874,6 +3879,15 @@ try {
           await until(() => !document.querySelector('#bookPicture').classList.contains('hidden'), null, 'the tab of the picture did not open', 5);
           return g(() => ({ cells: [...document.querySelectorAll('#picture .pcell')].map((c) => ({ item: +c.dataset.item, cell: +c.dataset.cell, got: c.classList.contains('got') })),
             whole: document.querySelector('#picture').classList.contains('whole'), found: __game.save.worlds.fairy.found ?? [] }));
+        };
+        /** At the easel by its action button: its card open, what it shows. */
+        const atEasel = async (what) => {
+          await g((q) => { __game.teleport(q.x, q.z); }, easelItem.at); await gameSeconds(0.6);
+          if (!(await visible('#btnAct'))) fail(`${what}: no action button in front of the easel`);
+          await page.locator('#btnAct').dispatchEvent('pointerdown');
+          await until(() => __game.easel.card.open, null, `${what}: the card of the easel did not open`, 5);
+          await gameSeconds(0.4);
+          return g(() => __game.easel.card);
         };
         const stash0 = await g(() => JSON.stringify(__game.save.stash ?? {}));
         await holdAchDuring(async () => {
@@ -3890,21 +3904,43 @@ try {
             }
             if ((await stars()) !== s0 + 1) fail(`the piece ${n} gave ${(await stars()) - s0} stars, not 1 (no stars of a set)`);
             if (n === 2) {
-              // half of the frame: the three found in their cells, the others silhouettes
+              // found is not set: the frame of the book still empty; the easel shows the three lying by it
+              const none = await bookPicture();
+              if (none.cells.some((c) => c.got) || none.whole) fail(`the frame with 3 pieces found and none set: ${JSON.stringify(none)}`);
+              await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+              const card = await atEasel('3 pieces found');
+              if (JSON.stringify(card.loose) !== '[0,1,2]' || card.set.length) fail(`the easel with 3 pieces found: ${JSON.stringify(card)}`);
+              await shot('easel-three');
+              await g(() => __game.easel.setAll());
+              await gameSeconds(0.3);
+              if (JSON.stringify((await g(() => __game.easel.card)).set) !== '[0,1,2]') fail('the three pieces were not set on the easel');
+              await tapOn('#easelClose').catch((e) => fail(`the card of the easel cannot be closed: ${why(e)}`));
+              await until(() => !__game.easel.card.open && !__game.paused, null, 'the card of the easel did not close by its cross', 5);
               const half = await bookPicture();
               const want = pieces.map((q, i) => ({ item: q.id, cell: i, got: i <= 2 }));
-              if (JSON.stringify(half.cells) !== JSON.stringify(want) || half.whole) fail(`the frame with 3 pieces: ${JSON.stringify(half)}`);
+              if (JSON.stringify(half.cells) !== JSON.stringify(want) || half.whole) fail(`the frame with 3 pieces set: ${JSON.stringify(half)}`);
               await shot('picture-half');
               await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
             }
           }
-          await until(() => !!document.querySelector('#pictureAlive:not(.hidden) .pa-img'), null, 'the whole picture did not come alive', 5);
+          // every piece found: nothing comes alive by itself, the cat sends her to the easel
+          // said, or turned away by the planner while another line sounded (as every line of the collections may be)
+          await until(() => __game.line === 'easel_some' || __game.dropped.includes('easel_some'), null, 'the last piece found: the cat did not send her to the easel (easel_some)', 5);
+          if (await visible('#pictureAlive')) fail('the picture came alive by itself, not set on the easel');
+          const card = await atEasel('every piece found');
+          if (JSON.stringify(card.loose) !== '[3,4,5]' || JSON.stringify(card.set) !== '[0,1,2]') fail(`the easel with every piece found: ${JSON.stringify(card)}`);
+          const s1 = await stars();
+          await g(() => __game.easel.setAll());
+          await until(() => !!document.querySelector('#pictureAlive:not(.hidden) .pa-img'), null, 'the picture set whole on the easel did not come alive', 5);
+          if (await g(() => __game.easel.card.open)) fail('the card of the easel stayed open with the picture whole');
+          if ((await stars()) !== s1 + 1) fail(`the picture set whole gave ${(await stars()) - s1} stars, not 1`);
           await gameSeconds(1.5);
           await shot('picture-alive');
           await tapOn('#pictureAlive').catch((e) => fail(`the picture come alive cannot be closed by a tap: ${why(e)}`));
           if (await visible('#pictureAlive')) fail('a tap did not close the picture');
         });
         if ((await g(() => JSON.stringify(__game.save.stash ?? {}))) !== stash0) fail('a piece of the picture went to the stash');
+        if (!(await g(() => __game.items.find((i) => i.kind === 'easel')?.done === true))) fail('the easel is not done with its picture whole');
         const whole = await bookPicture();
         if (!whole.whole || whole.cells.some((c) => !c.got)) fail(`the frame with every piece: ${JSON.stringify(whole)}`);
         await tapOn('#picture').catch((e) => fail(`the whole frame cannot be tapped: ${why(e)}`));
@@ -3915,7 +3951,7 @@ try {
         if (bookOpen) await tapOn('#btnBook').catch(() => {});
         await g((h) => { __game.teleport(h.x, h.z); __game.cam.yaw = h.yaw; __game.hero.heading = h.heading; }, home);
         await gameSeconds(0.5);
-        console.log('collect: the picture - 6 pieces walked into or jumped for, a star each, none to the stash; 3 - half of the frame in the book; the last - it came alive, a tap closed it; the whole frame in the book comes alive again');
+        console.log('collect: the picture - 6 pieces walked into or jumped for, a star each, none to the stash; 3 found - none in the book, the easel showed them, set and closed by its cross - half of the frame in the book; every one found - the cat sent her to the easel, the last three set - it came alive, one star, a tap closed it; the whole frame in the book comes alive again');
       }
       // ---- the picture lost (src/core/contextloss.ts, decision of 2026-11-21): the WebGL context taken away by the
       // browser's own extension. Meanwhile the game stands (its clock, the heroine); given back, it goes on by itself and
@@ -4182,7 +4218,7 @@ try {
       const finds = await g(() => (__game.save.worlds.fairy?.found ?? []).length);
       // the pieces of the picture (PLAY-29) say theirs the same way (src/game/collect-items.ts): on a GPU the walk is quick
       // enough to take one while another line sounds (2026-11-22, the piece collect on 6f136de, twice)
-      const COLLECT_LINES = ['collect_first', 'collect_set', 'collect_all', 'piece_first', 'picture_done'];
+      const COLLECT_LINES = ['collect_first', 'collect_set', 'collect_all', 'piece_first', 'picture_done', 'easel_hi', 'easel_some'];
       const lost = Object.keys(turned).filter((id) => id !== 'go_next' && id !== 't_stars_back' && !(finds > 0 && COLLECT_LINES.includes(id)));
       if (finds && Object.keys(turned).some((id) => COLLECT_LINES.includes(id))) console.log(`lines of the collections turned away: ${finds} find(s) taken in this run, their hint said over another line`);
       if (lost.length) errors.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);

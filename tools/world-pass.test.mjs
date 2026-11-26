@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   PART_MAGIC,
-  HOWS, ITEM_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
+  ALL_KINDS, HOWS, ITEM_KINDS, OPTIONAL_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
   GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
   unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
@@ -34,7 +34,9 @@ describe('the description of a world as the pass reads it (ARCH-16)', () => {
   it('the kinds and the ways are the ones of src/game/world.ts, and a test world needs one of each kind', () => {
     const src = readFileSync(join(root, 'src/game/world.ts'), 'utf8');
     const union = (re) => re.exec(src)[1].split('|').map((k) => k.trim().replace(/'/g, ''));
-    expect([...ITEM_KINDS].sort()).toEqual(union(/export type WorldItemKind = ([^;]+);/).sort());
+    expect([...ALL_KINDS].sort()).toEqual(union(/export type WorldItemKind = ([^;]+);/).sort());
+    expect(ALL_KINDS).toEqual([...ITEM_KINDS, ...OPTIONAL_KINDS]);
+    expect(OPTIONAL_KINDS).toEqual(['easel']);
     expect([...HOWS].sort()).toEqual(union(/\n {2}how: ([^;]+);/).sort());
     expect(ONE_OF_EACH).toEqual({ chain: 1, secret: 1, part: 1, scene: 1, flyover: 1, pet: 1, finale: 1 });
   });

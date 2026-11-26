@@ -5,6 +5,7 @@
  * no button of another there - and the finale never waits for him.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { finaleWaits } from '../../game/describe';
 import { PET_SPOT_R, petProblems, petSpecies } from '../../game/pets';
 import CLIPS from './clips.json';
 import { seaHabitat } from './creatures';
@@ -76,7 +77,11 @@ describe('Bulchik, the pet of the sea (PLAY-09)', () => {
 
   it('the finale waits for the chains, the tour and the pearls, never for him; the sea loads his model as a pet\'s', () => {
     const raw = Object.values(import.meta.glob('./index.ts', { query: '?raw', import: 'default', eager: true }))[0] as string;
-    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(\(i\) => i\.kind !== 'pet'\), tourItem, \.\.\.pearlItems\];/);
+    // finaleWaits (src/game/describe.ts): never the pet, nor the easel
+    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(finaleWaits\), tourItem, \.\.\.pearlItems\];/);
+    expect(finaleWaits({ kind: 'pet' })).toBe(false);
+    expect(finaleWaits({ kind: 'easel' })).toBe(false);
+    expect(finaleWaits({ kind: 'chain' })).toBe(true);
     expect(raw).toMatch(/loadOwnPets\('sea', \['bulchik'\], scope\)/);
   });
 });

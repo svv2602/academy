@@ -50,6 +50,14 @@ export type ZoneId = keyof typeof ZONES;
 
 /** Where she appears: on the square, facing the castle. */
 export const SPAWN = at(17, 0);
+/**
+ * The easel (PLAY-29, src/game/easel.ts): on the sand by the way in, 6.5 m from where she appears, off the ways and clear
+ * of the corals and the finds (./collect.test.ts); its picture turned to the way in.
+ */
+export const EASEL = (() => {
+  const x = SPAWN.x + 0.5 * (SCALE / DEFAULT_SCALE), z = SPAWN.z + 6.5 * (SCALE / DEFAULT_SCALE);
+  return { x, z, facing: Math.atan2(SPAWN.x - x, SPAWN.z - z) };
+})();
 
 /** The ways of the map, each a line of points from one zone to another (the drawing's lines). */
 export const PATHS: readonly (readonly Place[])[] = [
