@@ -118,7 +118,7 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
     expect(own('sea').sort()).toEqual(['coral', 'shell']);
     // the Sweet Land its lollipops and jelly sweets (src/worlds/sweet/collect.ts)
     const sweet = WORLDS.find((w) => w.id === 'sweet')?.collect;
-    if (sweet) expect(kindsOf(sweet).sort()).toEqual(own('sweet').sort());
+    if (sweet) expect(kindsOf(sweet).sort()).toEqual([...own('sweet'), 'piece'].sort());
     expect(own('sweet').sort()).toEqual(['lollipop', 'marmalade']);
     // the Sky Islands their little clouds and balloons (src/worlds/sky/collect.ts)
     const sky = WORLDS.find((w) => w.id === 'sky')?.collect;

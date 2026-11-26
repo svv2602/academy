@@ -6,7 +6,7 @@ import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
-import { declared, marked, ready } from '../../game/describe';
+import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
@@ -24,7 +24,7 @@ import { SCALES_STEP, createScales } from './scales';
 import { BRIDGE_STEP, createBridge } from './bridge';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGE, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGE, EASEL, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { SWEET_STORIES } from './story';
@@ -296,7 +296,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const rubyItems = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: { x: r.at.x, z: r.at.z } }));
   // the finale waits for the chains, the tour and the rubies; the pet (Zheleyka) is the child's own, never needed
-  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...rubyItems];
+  const before = [...declared(g).filter(finaleWaits), tourItem, ...rubyItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
@@ -457,7 +457,8 @@ export const sweet: WorldDef<SweetLoads, WorldSky> = {
   // the house is written to no skill, the scales to `compare`, the bridge to `classify` (the customer's decision 2026-11-18)
   worldTasks: [HOUSE_STEP, SCALES_STEP, BRIDGE_STEP],
   noSkill: [HOUSE_STEP],
-  collect: COLLECT,                  // swirl lollipops and jelly sweets (PLAY-25, ./collect.ts)
+  collect: COLLECT,                  // swirl lollipops and jelly sweets (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
+  easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   // PLAY-07: the four secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
   secrets: SWEET_SECRETS,

@@ -24,7 +24,13 @@ export const COLLECT: CollectDef = {
     // jelly sweets: by the ways town - market (two), market - bridge, bridge - mill (two) and square - mill
     lies('marmalade', -40.8, 23.9), lies('marmalade', -32.8, 8.4), lies('marmalade', -15, 48.9),
     lies('marmalade', 29.8, 42.5), lies('marmalade', 6, 40.2), lies('marmalade', 41.4, 16.4),
+    // the pieces of the picture (PLAY-29, the customer's word of 2026-11-26): nine over the whole land, by its ways, set
+    // on the easel by the carousel (./layout.ts EASEL); their order is their cell of the frame, row by row
+    ...[[33.3, 7.3], [-33, -53.8], [-43.4, 16.4], [-5.7, 41.1], [42.4, -35.6], [-12.2, -12.2], [37.2, 41.1], [-43.4, -21.3], [13.8, -10.9]]
+      .map(([x, z]): CollectItem => ({ kind: 'piece', way: 'run', x: x * S, z: z * S, y: 0.35 })),
   ],
+  // the land from above with the cake palace, the carousel and the town: the beginning of its story, nothing told away
+  picture: { image: 'story/sweet/w4_intro_1', cols: 3, rows: 3 },
 };
 
 /**
