@@ -8235,8 +8235,8 @@
  },
  "sky/chirika_again_1@Leda": {
   "text": "Новина! Громихало сьогодні глянув униз. Цілу секундочку!",
-  "heard": "Новина! Гримихали сьогодні глянув униз цілу секундочку!",
-  "score": 0.962,
+  "heard": "Новина! Гримихало сьогодні глянув униз! Цілу секундочку!",
+  "score": 0.981,
   "style": "joy",
   "voice": "Leda",
   "model": "gemini-2.5-flash-preview-tts"
@@ -8359,6 +8359,254 @@
   "score": 1.0,
   "style": "joy",
   "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sky_wake": {
+  "text": "Дивись угору! Прокинувся портал до Небесних островів!",
+  "heard": "Дивись угору, прокинувся портал до небесних островів!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_sky_home": {
+  "text": "Зірка часу вдома! Усі гнізда Дерева сяють.",
+  "heard": "Зірка часу вдома, усі гнізда дерева сяють.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_intro_1": {
+  "text": "Високо над усіма світами ширяють Небесні острови.",
+  "heard": "Високо над усіма світами ширяють небесні острови.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_intro_2": {
+  "text": "Зірка часу розкололася, і час на островах застиг.",
+  "heard": "Зірка часу розкололася, і час на островах застиг.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_intro_3": {
+  "text": "Знайдімо промінчики — і годинник знову піде!",
+  "heard": "Знайдімо промінчики, і годинник знову піде!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_back_1": {
+  "text": "Промінчики злетілися до купола. Зірка часу знову ціла!",
+  "heard": "Промінчики злетілися до купола, зірка часу знову ціла!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_back_2": {
+  "text": "Годинник іде, а хмарки складаються у звірят!",
+  "heard": "Годинник іде, а хмарки складаються у звірят.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_story_back_3": {
+  "text": "Віднесімо світло Зірки додому, до Великого Дерева.",
+  "heard": "Віднесімо світло зірки додому, до великого дерева.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_flyover": {
+  "text": "Ось і Небесні острови! Бачиш вежу з годинником? Її видно звідусіль.",
+  "heard": "Ось і Небесні острови. Бачиш вежу з годинником? Її видно звідусіль.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_edge": {
+  "text": "Тут край острова. Далі — лише хмаринки, тож тримаймося стежки.",
+  "heard": "Тут край острова, далі лише хмаринки, тож тримаймося стежки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_ship_fly": {
+  "text": "Ух, як високо! А мені зовсім не страшно. Ну… майже.",
+  "heard": "Ух, як високо! А мені зовсім не страшно. Ну, майже.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_route_hint_1": {
+  "text": "Подивись, де хмарки, і обійди їх стороною.",
+  "heard": "Подивись, де хмарки, і обійди їх стороною.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_route_hint_2": {
+  "text": "Простеж шлях від причалу до острівця пальчиком.",
+  "heard": "Простяж шлях від причалу до острівця пальчиком.",
+  "score": 0.978,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_route_hint_3": {
+  "text": "Ось ця стрілка світиться. Постав її!",
+  "heard": "Ось ця стрілка світиться. Постав її.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_clock_tick": {
+  "text": "Чуєш? Шестерня закрутилася! Ще трішки.",
+  "heard": "Чуєш, шестерня закрутилася, ще трішки.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_bridge_hint_1": {
+  "text": "Спершу дорахуй до десяти, а тоді — далі.",
+  "heard": "Спершу дорахуй до десяти, а тоді далі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_bridge_hint_2": {
+  "text": "Порахуймо разом, по одному.",
+  "heard": "Порахуймо разом по одному.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_bridge_hint_3": {
+  "text": "Ось ця хмаринка світиться. Ступай на неї!",
+  "heard": "Ось ця хмаринка світиться, ступай на неї!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_secret_chest": {
+  "text": "Ого, на крихітному острівці скриня! А в ній зірочки!",
+  "heard": "Ага, на крихітному острівці скриня, а в ній зірочки.",
+  "score": 0.959,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_secret_slide": {
+  "text": "Веселкова гірка! Їдь униз — що там, на уступі?",
+  "heard": "Веселкова гірка! Їдь униз, що там, на уступі?",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_secret_shapes": {
+  "text": "Дивись, хмарки складаються у звірят! Ось зайчик, а ось рибка!",
+  "heard": "Дивись, хмарки складаються у звірят: ось зайчик, а ось рибка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_secret_nest": {
+  "text": "Драконята прокинулися! Кружляють довкола тебе.",
+  "heard": "Драконята прокинулися, кружляють довкола тебе!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_ray_clock_found": {
+  "text": "Промінчик у годиннику! Мерехтій і забув, що сховав його там.",
+  "heard": "Промінчику годиннику, мерехтій і забув, що сховав його там!",
+  "score": 0.991,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_ray_island_found": {
+  "text": "Ось він, промінчик на далекому острівці! Твій маршрут не підвів.",
+  "heard": "Ось він, промінчик на далекому острівці, твій маршрут не підвів.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_all_rays": {
+  "text": "Усі промінчики в нас! Ходімо до обсерваторії.",
+  "heard": "Усі промінчики в нас, ходімо до обсерваторії!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_star_whole": {
+  "text": "Промінчики склалися докупи — Зірка часу знову ціла!",
+  "heard": "Ромінчики склалися докупи, зірка часу знову ціла!",
+  "score": 0.989,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_final_text": {
+  "text": "Ти повернула час Небесним островам!",
+  "heard": "Ти повернула час небесним островам!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_tree_calls": {
+  "text": "Усі скарби повернулися! Велике Дерево кличе нас.",
+  "heard": "Усі скарби повернулися. Велике дерево кличе нас.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_magic_1": {
+  "text": "Дивись, хмарки попливли! Острови прокидаються.",
+  "heard": "Дивись, хмарки попливли, острови прокидаються!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_magic_3": {
+  "text": "Вітряки крутяться, а драконята літають!",
+  "heard": "Вітряки крутяться, а драконята літають.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_magic_5": {
+  "text": "Яке золоте небо! Уже видно перші зорі.",
+  "heard": "Яке золоте небо! Уже видно перші зорі.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  }
 }

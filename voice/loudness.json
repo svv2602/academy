@@ -2359,6 +2359,16 @@
   "tp": -3.09,
   "sha256": "28936b18be02994625388dfa9cd779fa291ef6a58ca31c685a6ae6443296ff46"
  },
+ "public/voice/hub/hub_sky_home.mp3": {
+  "lufs": -18.23,
+  "tp": -2.53,
+  "sha256": "999c3f2613754b654144d4950e1c842d13515159826a38e5e9195137435eb61c"
+ },
+ "public/voice/hub/hub_sky_wake.mp3": {
+  "lufs": -17.96,
+  "tp": -2.07,
+  "sha256": "f1c48ad9649203072a0aacda655f48415341050f7a198ceca8f3ce6a34243c2b"
+ },
  "public/voice/hub/hub_sleeping.mp3": {
   "lufs": -17.96,
   "tp": -1.66,
@@ -4265,9 +4275,9 @@
   "sha256": "9ac5bc43a26365bc56dc6b1836089384355626f4ff09e7fd249a64bf6f2896a7"
  },
  "worlds-data/sky/voice/sky/chirika_again_1@Leda.mp3": {
-  "lufs": -17.96,
-  "tp": -3.24,
-  "sha256": "7d033928e1130ef223c25053f49d11ec5e254ff73222e3e0a7acc0fd1a35b940"
+  "lufs": -18.05,
+  "tp": -3.52,
+  "sha256": "ebb1cdbdce86ca1eb5d6208e617fcc0123a0b16bee40dda413c8b277838a2043"
  },
  "worlds-data/sky/voice/sky/chirika_again_2@Leda.mp3": {
   "lufs": -18.01,
@@ -4454,6 +4464,61 @@
   "tp": -3.2,
   "sha256": "160cfd23641744440a6974e3ab2d62c96bbca8710aa25ccf160f4658da8306c3"
  },
+ "worlds-data/sky/voice/sky/sky_all_rays.mp3": {
+  "lufs": -18.05,
+  "tp": -5.21,
+  "sha256": "a1ba080e5f6a1c35d1f3fc72f4698c7aa544a56de04c399e9954fe898116547b"
+ },
+ "worlds-data/sky/voice/sky/sky_bridge_hint_1.mp3": {
+  "lufs": -18.15,
+  "tp": -2.89,
+  "sha256": "f018e0c6f65519dc8d97228cc3b7424473b1222cc9e72f26ec63eb2da3a1247d"
+ },
+ "worlds-data/sky/voice/sky/sky_bridge_hint_2.mp3": {
+  "lufs": -17.99,
+  "tp": -3.46,
+  "sha256": "22709aab30c63050e47527f7d1cae56e1cb0586bf49419e6890d91749087a90e"
+ },
+ "worlds-data/sky/voice/sky/sky_bridge_hint_3.mp3": {
+  "lufs": -17.99,
+  "tp": -2.62,
+  "sha256": "a2ef3ed4b490db494d7fae075a71b2265c9af7dff63cf4cb14a905d304f8ea77"
+ },
+ "worlds-data/sky/voice/sky/sky_clock_tick.mp3": {
+  "lufs": -18.02,
+  "tp": -1.65,
+  "sha256": "d6ba3c65125e90bad386f7773fdb27d95555fe4f26fe34c48e430d6c3f518d05"
+ },
+ "worlds-data/sky/voice/sky/sky_edge.mp3": {
+  "lufs": -18.11,
+  "tp": -1.8,
+  "sha256": "fada710b42d67780f995261b7c4a1ecaf9459e3ea01d7d33eb2658ea6d116faa"
+ },
+ "worlds-data/sky/voice/sky/sky_final_text.mp3": {
+  "lufs": -18.02,
+  "tp": -3.18,
+  "sha256": "6edf3b33097157f13d6208e48164f9337bf51c4682290fb2a5209d9c7a911984"
+ },
+ "worlds-data/sky/voice/sky/sky_flyover.mp3": {
+  "lufs": -17.96,
+  "tp": -4.13,
+  "sha256": "091930e691643645542844ec29000068288352973a728f189fab6e946a7a56da"
+ },
+ "worlds-data/sky/voice/sky/sky_magic_1.mp3": {
+  "lufs": -17.97,
+  "tp": -2.14,
+  "sha256": "6176d4e7e1b06e998d5ae46283d99ba490d1e6409f3917d290ecd8b6a762181b"
+ },
+ "worlds-data/sky/voice/sky/sky_magic_3.mp3": {
+  "lufs": -18.09,
+  "tp": -2.6,
+  "sha256": "7187a7cd2ecb3aff3612aa3004b3d263484220945ffcc49dfd5a783d4c04c149"
+ },
+ "worlds-data/sky/voice/sky/sky_magic_5.mp3": {
+  "lufs": -18.0,
+  "tp": -2.19,
+  "sha256": "63cbf38b39d5351dbbb74ad644c9e3b3bb871ba582afe8db22f0c670e60376aa"
+ },
  "worlds-data/sky/voice/sky/sky_pet_follow.mp3": {
   "lufs": -18.07,
   "tp": -2.52,
@@ -4463,6 +4528,96 @@
   "lufs": -18.03,
   "tp": -2.54,
   "sha256": "7dcb04cb61588c8c0b76ae47253fd4c5fbee85ceb554d7459ac814de0187e7fb"
+ },
+ "worlds-data/sky/voice/sky/sky_ray_clock_found.mp3": {
+  "lufs": -18.02,
+  "tp": -4.56,
+  "sha256": "b14d40a09774bbf3fe800d238f32dcc8380299927217f9d46c0acee70b4519c6"
+ },
+ "worlds-data/sky/voice/sky/sky_ray_island_found.mp3": {
+  "lufs": -18.06,
+  "tp": -2.76,
+  "sha256": "ab2f45bd5bc6ab67bb789c0b302f175944ba088c4e8ded6ddc671c35b41ce1b7"
+ },
+ "worlds-data/sky/voice/sky/sky_route_hint_1.mp3": {
+  "lufs": -18.0,
+  "tp": -2.03,
+  "sha256": "ddf5fcd6426bf33e52f1bf826819bc5683deb26abd5acb0e04faff4166875333"
+ },
+ "worlds-data/sky/voice/sky/sky_route_hint_2.mp3": {
+  "lufs": -17.97,
+  "tp": -1.62,
+  "sha256": "95d1b6958528db898170858e3a03785aaab8463d0dde7580ecd2a0e2b7855497"
+ },
+ "worlds-data/sky/voice/sky/sky_route_hint_3.mp3": {
+  "lufs": -18.05,
+  "tp": -2.09,
+  "sha256": "ce5c831823799126e75a7d5dfd8470751b391cc243047759f5d1aeb34efe823f"
+ },
+ "worlds-data/sky/voice/sky/sky_secret_chest.mp3": {
+  "lufs": -17.98,
+  "tp": -2.04,
+  "sha256": "f3a5208603167ff4e468b21d46e9fa6f5ab1aa0d5621549592d1f6604e6141c6"
+ },
+ "worlds-data/sky/voice/sky/sky_secret_nest.mp3": {
+  "lufs": -18.02,
+  "tp": -3.66,
+  "sha256": "09eedd1ffb2bd918b90562afc2bd0d6fde92ca22e7f8a80a8611a1e97bab1a6d"
+ },
+ "worlds-data/sky/voice/sky/sky_secret_shapes.mp3": {
+  "lufs": -17.96,
+  "tp": -2.59,
+  "sha256": "2e22562bf404d48702a905c740fea1b08d030972da11d1adf2137a3b0beef3bb"
+ },
+ "worlds-data/sky/voice/sky/sky_secret_slide.mp3": {
+  "lufs": -18.0,
+  "tp": -2.5,
+  "sha256": "c11d606c181d7ae5a0286185f92b0163a0a39cf0614d8009dc991404d7396e48"
+ },
+ "worlds-data/sky/voice/sky/sky_ship_fly.mp3": {
+  "lufs": -18.05,
+  "tp": -2.2,
+  "sha256": "271fce65478a0dd9615946f99189cf786da5d78c626063225b7c77b8b4f3cce7"
+ },
+ "worlds-data/sky/voice/sky/sky_star_whole.mp3": {
+  "lufs": -17.98,
+  "tp": -3.89,
+  "sha256": "3168aa10c8eeccba5dff65ae15b36ed68122463da18fc12ccaa019ce7ce6b213"
+ },
+ "worlds-data/sky/voice/sky/sky_story_back_1.mp3": {
+  "lufs": -18.06,
+  "tp": -3.3,
+  "sha256": "49334ecc5051919cc81a7a9b4d33fdfefd2d5faa8f2a2b95ae41b0e47246f22f"
+ },
+ "worlds-data/sky/voice/sky/sky_story_back_2.mp3": {
+  "lufs": -18.03,
+  "tp": -2.49,
+  "sha256": "1dcfab4878b149de5a98e9958b6fc81afe99244e5737483830a68db05468ce3f"
+ },
+ "worlds-data/sky/voice/sky/sky_story_back_3.mp3": {
+  "lufs": -18.2,
+  "tp": -2.34,
+  "sha256": "cc8add548f499453316058e3b426ceb41aaec27ac1ef7fa71444c67fdbc094b1"
+ },
+ "worlds-data/sky/voice/sky/sky_story_intro_1.mp3": {
+  "lufs": -18.21,
+  "tp": -2.0,
+  "sha256": "56daf9151415753dba78976aec0a8fcdcca78afd254cc09a9dfc1a1060758238"
+ },
+ "worlds-data/sky/voice/sky/sky_story_intro_2.mp3": {
+  "lufs": -17.97,
+  "tp": -2.97,
+  "sha256": "27da0f4f1f9c6fe32706dd30b909448ae5fa28754184c02afb8fdd6e220a6c02"
+ },
+ "worlds-data/sky/voice/sky/sky_story_intro_3.mp3": {
+  "lufs": -18.01,
+  "tp": -6.32,
+  "sha256": "9b2ab95e0074ddf08aa5316a6ceca28a57600117d17fc63ba2f58f4c579976c8"
+ },
+ "worlds-data/sky/voice/sky/sky_tree_calls.mp3": {
+  "lufs": -18.03,
+  "tp": -3.05,
+  "sha256": "70c00e0ff8c29a801ef8b62400bb2a7437086c0f2da5ddfc3edb26795768d918"
  },
  "worlds-data/sky/voice/sky/veterok_again_1@Leda.mp3": {
   "lufs": -17.93,
