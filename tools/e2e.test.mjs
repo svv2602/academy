@@ -3,7 +3,7 @@
 // So --combine must fail whenever one size is missing, is of another commit or did not pass, when no size was played
 // without the voice, and when the requested models differ from tools/models-used.json - checked here on prepared files.
 // Plain .mjs on purpose: the project has no @types/node and tsconfig.json type-checks everything under src/.
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -47,6 +47,22 @@ function combine(dir, ...extra) {
   const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine', dir, ...extra], { cwd: root, encoding: 'utf8', env, timeout: 30000 });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 }
+// Each start of tools/e2e.mjs is a Node process of its own, ~0.2 s on an idle machine but seconds under a full `npm test`
+// (one worker per file). A test that asks several of them plays them at once, and is given the limit of one of them:
+// played one after another they outgrew vitest's 5 s and the test failed now and then, though every answer was right.
+const CHILD_MS = 30000;
+/** tools/e2e.mjs with `args` and `env`, not waiting in between: resolves to { code, out } as combine() gives. */
+function e2e(args, env) {
+  return new Promise((done, fail) => {
+    const p = spawn(process.execPath, [join(root, 'tools/e2e.mjs'), ...args], { cwd: root, env, timeout: CHILD_MS });
+    let out = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    p.on('error', fail);
+    p.on('close', (code) => done({ code, out }));
+  });
+}
+const combineEnv = () => { const env = { ...process.env }; delete env.E2E_MUTE; delete env.E2E_NET; return env; };
 
 describe('tools/e2e.mjs E2E_NET: the network of a walkthrough chosen by hand (a trial of one piece, try.yml)', () => {
   const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
@@ -218,14 +234,18 @@ describe('tools/e2e.mjs --combine with groups: the world played in pieces', () =
     expect(r.out).toContain(lost[0]);
   });
 
-  it('refuses an unknown group, a bad list, --jobs without --combine and --jobs with --only', () => {
-    expect(combine(pieces(), '--only', 'world1,nosuch').code).toBe(2);
-    expect(combine(pieces(), '--jobs', 'mobile:nosuch').code).toBe(2);
-    expect(combine(pieces(), '--jobs', 'tablet:world1').code).toBe(2);
-    expect(combine(pieces(), '--jobs', jobList(), '--only', 'shop').code).toBe(2);
-    expect(spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--jobs', 'mobile'], { cwd: root, encoding: 'utf8' }).status).toBe(2);
-    expect(spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--only', 'nosuch'], { cwd: root, encoding: 'utf8' }).status).toBe(2);
-  });
+  it('refuses an unknown group, a bad list, --jobs without --combine and --jobs with --only', async () => {
+    const env = combineEnv();
+    const runs = await Promise.all([
+      ['--combine', pieces(), '--only', 'world1,nosuch'],
+      ['--combine', pieces(), '--jobs', 'mobile:nosuch'],
+      ['--combine', pieces(), '--jobs', 'tablet:world1'],
+      ['--combine', pieces(), '--jobs', jobList(), '--only', 'shop'],
+      ['--jobs', 'mobile'],
+      ['--only', 'nosuch'],
+    ].map(async (args) => ({ args: args.filter((a) => !a.startsWith('/')).join(' '), code: (await e2e(args, args[0] === '--combine' ? env : process.env)).code })));
+    for (const r of runs) expect(r).toEqual({ args: r.args, code: 2 });
+  }, CHILD_MS + 5000);   // a child that hangs is killed first, and the test then names it
 });
 
 // ci.yml takes the list of walkthroughs from its job "plan" (tools/ci-pieces.mjs) and hands the same list to
@@ -245,20 +265,20 @@ describe('tools/e2e.mjs and the plan of CI', () => {
     expect(r.out).toContain('mobile-portrait world2: no summary of its walkthrough');
   });
 
-  it('E2E_WORLDS takes 0 or 1; anything else is refused at once, not read as "off"', () => {
+  it('E2E_WORLDS takes 0 or 1; anything else is refused at once, not read as "off"', async () => {
     const run = (value) => {
       const env = { ...process.env, E2E_WORLDS: value };
       delete env.E2E_MUTE;
-      const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine', pieces(), '--jobs', jobList()], { cwd: root, encoding: 'utf8', env, timeout: 30000 });
-      return { code: r.status, out: `${r.stdout}${r.stderr}` };
+      return e2e(['--combine', pieces(), '--jobs', jobList()], env);
     };
-    for (const bad of ['off', 'false', '2', '00']) {
-      const r = run(bad);
-      expect(r.code, r.out).toBe(2);
-      expect(r.out).toContain(`[e2e] bad E2E_WORLDS "${bad}": expected 0 or 1`);
-    }
-    for (const good of ['0', '1', '']) expect(run(good).code, good).toBe(0);
-  });
+    const bad = ['off', 'false', '2', '00'], good = ['0', '1', ''];
+    const [badRuns, goodRuns] = await Promise.all([Promise.all(bad.map(run)), Promise.all(good.map(run))]);
+    bad.forEach((value, i) => {
+      expect(badRuns[i].code, badRuns[i].out).toBe(2);
+      expect(badRuns[i].out).toContain(`[e2e] bad E2E_WORLDS "${value}": expected 0 or 1`);
+    });
+    good.forEach((value, i) => expect(goodRuns[i].code, `${value}: ${goodRuns[i].out}`).toBe(0));
+  }, CHILD_MS + 5000);   // a child that hangs is killed first, and the test then names it
 
   // The step itself cannot be played in a unit test (it needs a build and Chrome), so its switch is pinned as text:
   // off only with E2E_WORLDS=0, and then the summary names the step as skipped with the reason.
