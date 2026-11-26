@@ -169,6 +169,26 @@ export const pictureDone = (def: CollectDef, found: readonly number[]) => {
 };
 
 /**
+ * The easel of a world (PLAY-29, the customer's word of 2026-11-26): the pieces found are not laid in the picture by
+ * themselves - she sets each on its cell of the easel's frame. A cell set is the world's flag `pic_<cell>` (no new
+ * version of the save); the picture is whole when every cell is set, and then the world's flag EASEL_ITEM is set too
+ * (the done mark of the easel in the world's description, src/game/describe.ts).
+ */
+export const cellFlag = (cell: number) => `pic_${cell}`;
+export const EASEL_ITEM = 'easel';
+/** The cells of the picture she has set (in the order of the cells). */
+export const setCells = (def: CollectDef, flags: Readonly<Record<string, boolean>>): number[] =>
+  piecesOf(def).flatMap((_, cell) => (flags[cellFlag(cell)] === true ? [cell] : []));
+/** The cells whose piece is found but not set yet: the pieces lying by the easel. */
+export const looseCells = (def: CollectDef, found: readonly number[], flags: Readonly<Record<string, boolean>>): number[] =>
+  piecesOf(def).flatMap((id, cell) => (found.includes(id) && flags[cellFlag(cell)] !== true ? [cell] : []));
+/** Whether the picture is set whole on the easel: every cell (false for a world without one). */
+export const pictureSet = (def: CollectDef, flags: Readonly<Record<string, boolean>>) => {
+  const n = piecesOf(def).length;
+  return n > 0 && setCells(def, flags).length === n;
+};
+
+/**
  * What is wrong with a world's finds: each kind of a set has SET_SIZE of them, the pieces as many as the cells of its
  * picture; every find of a known kind and way.
  */

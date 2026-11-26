@@ -9,5 +9,5 @@ import type { WorldInfo } from '../../game/world';
 export const FOREST_INFO: WorldInfo = {
   id: 'forest', shelf: 1, secrets: ['cave', 'bounce', 'fireflies', 'ring'],   // ./secrets.ts FOREST_SECRETS (src/worlds/meta.test.ts holds them equal)
   // the kinds of the finds of ./collect.ts COLLECT, in its order (src/worlds/meta.test.ts holds them equal)
-  collect: { items: [...Array(6).fill({ kind: 'cone' }), ...Array(6).fill({ kind: 'berry' })] },
+  collect: { items: [...Array(6).fill({ kind: 'cone' }), ...Array(6).fill({ kind: 'berry' }), ...Array(9).fill({ kind: 'piece' })] },
 };

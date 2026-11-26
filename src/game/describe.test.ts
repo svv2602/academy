@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  KINDS, ONE_EACH, PET_ITEM, TALK_AT, TEMPLATE, TEMPLATE_ROWS, declared, describeWorld, inWorldSteps, look, marked, missing, problems, ready,
+  KINDS, OPTIONAL_KINDS, ONE_EACH, PET_ITEM, TALK_AT, TEMPLATE, TEMPLATE_ROWS, declared, describeWorld, inWorldSteps, look, marked, missing, problems, ready,
   type Declared, type Marks,
 } from './describe';
 import type { CharacterDef, WorldItem, WorldItemKind } from './world';
@@ -292,9 +292,11 @@ describe('the description against the world template (docs/13-worlds.md)', () =>
   });
 
   it('every kind answers a row of the table, once; the numbers are the template\'s', () => {
-    const kinds: Record<WorldItemKind, true> = { chain: true, secret: true, part: true, scene: true, flyover: true, pet: true, finale: true };
+    const kinds: Record<WorldItemKind, true> = { chain: true, secret: true, part: true, scene: true, flyover: true, pet: true, finale: true, easel: true };
     expect([...KINDS].sort()).toEqual(Object.keys(kinds).sort());
-    expect(TEMPLATE.map((t) => t.kind)).toEqual(KINDS);
+    // every kind but the optional ones (the easel) is a point of the template
+    expect(TEMPLATE.map((t) => t.kind)).toEqual(KINDS.filter((k) => !OPTIONAL_KINDS.includes(k)));
+    expect(OPTIONAL_KINDS).toEqual(['easel']);
     for (const t of TEMPLATE) for (const n of t.rows) expect(TEMPLATE_ROWS[n], `${t.kind}: row ${n}`).toBeTruthy();
     const point = (kind: WorldItemKind) => TEMPLATE.find((t) => t.kind === kind)!;
     expect(TABLE.get(2)!.measure).toBe(String(point('chain').need));
@@ -311,7 +313,7 @@ describe('the description against the world template (docs/13-worlds.md)', () =>
     expect(missing(list(ONE_EACH), ONE_EACH)).toEqual([]);
   });
 
-  it.each(KINDS.map((kind) => [kind]))('a kind left out is named by the number and the name of its row: %s', (kind) => {
+  it.each(KINDS.filter((k) => !OPTIONAL_KINDS.includes(k)).map((kind) => [kind]))('a kind left out is named by the number and the name of its row: %s', (kind) => {
     const t = TEMPLATE.find((x) => x.kind === kind)!;
     for (const [need, items] of [[undefined, list(FULL, kind)], [ONE_EACH, list(ONE_EACH, kind)]] as const) {
       const lines = missing(items, need);
@@ -335,10 +337,10 @@ describe('the description against the world template (docs/13-worlds.md)', () =>
   });
 
   it('an empty description lacks every kind, in the order of the table; `need` replaces only the numbers it names', () => {
-    expect(missing([]).map((l) => /of kind "(\w+)"/.exec(l)![1])).toEqual(KINDS);
+    expect(missing([]).map((l) => /of kind "(\w+)"/.exec(l)![1])).toEqual(KINDS.filter((k) => !OPTIONAL_KINDS.includes(k)));
     expect(missing([], { chain: 1 })[0]).toContain('1 needed');
     expect(missing([], { chain: 1 })[4]).toContain('at least 3 needed');
-    expect(missing([], { secret: 0 })).toHaveLength(KINDS.length - 1);
+    expect(missing([], { secret: 0 })).toHaveLength(KINDS.length - OPTIONAL_KINDS.length - 1);
   });
 });
 

@@ -223,9 +223,12 @@ export function createCollections(g: CollectHost): CollectInWorld {
     // the others of its flock fly up for a moment
     if (it.flock !== undefined) for (const o of items) if (o !== it && o.flock === it.flock && !o.taken) o.fly = 2;
     if (!isSet(it.kind)) {
-      // a piece of the picture (PLAY-29): no set, no stars of one; the whole picture comes alive (src/ui/picture.ts)
-      if (pictureDone(def, found) && def.picture) { showPicture(def.picture); void g.speech.line('picture_done', 'hint', 4000); }
-      else if (first) void g.speech.line('piece_first', 'hint', 4000);
+      // a piece of the picture (PLAY-29): no set, no stars of one. With an easel in the world (src/game/easel.ts) she sets
+      // the pieces on it herself: the last one found, the cat sends her there; without one the picture comes alive at once
+      if (pictureDone(def, found) && def.picture) {
+        if (g.world.easel) void g.speech.line('easel_some', 'hint', 4000);
+        else { showPicture(def.picture); void g.speech.line('picture_done', 'hint', 4000); }
+      } else if (first) void g.speech.line('piece_first', 'hint', 4000);
     } else if (setDone(def, it.kind, found)) {
       g.addStars(5, g.above(g.hero.root.position, 1.6));   // SET_REWARD
       const all = setKindsOf(def).every((k) => setDone(def, k, found));

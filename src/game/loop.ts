@@ -67,8 +67,10 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
   // a pet's spot the world's list is used as it is.
   const spots: Spot[] = [];
   const allSpots = (): readonly Spot[] => {
-    if (g.pets.spots.length === 0 && g.mystery.spots.length === 0) return world.spots;
-    return spotOrder(world.spots, g.pets.spots, g.mystery.spots, spots);
+    if (g.pets.spots.length === 0 && g.mystery.spots.length === 0 && g.easel.spots.length === 0) return world.spots;
+    const out = spotOrder(world.spots, g.pets.spots, g.mystery.spots, spots);
+    out.push(...g.easel.spots);
+    return out;
   };
   const waiting: (() => void)[] = [];
 

@@ -32,7 +32,7 @@ import { TRADES } from './trade';
 import { createChestStars } from './chest-stars';
 import { createCreatures } from './creatures';
 import { FAIRY_FLYOVER } from './flyover-path';
-import { HOUSE, MYSTERY_SPOTS, ROOM, SHOP_SIGN } from './layout';
+import { HOUSE, MYSTERY_SPOTS, ROOM, SHOP_SIGN, EASEL } from './layout';
 import { loadFairy, type FairyLoads, type FairyOwnLoads } from './load';
 import { createMagic } from './magic';
 import { uSway } from '../../core/materials';
@@ -447,6 +447,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   groundStars: 4,
   mystery: { spots: MYSTERY_SPOTS },
   collect: COLLECT,
+  easel: EASEL,
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.

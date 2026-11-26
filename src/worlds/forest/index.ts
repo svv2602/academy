@@ -8,7 +8,7 @@ import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
-import { declared, marked, ready } from '../../game/describe';
+import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
@@ -23,7 +23,7 @@ import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, CAVE, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
@@ -317,7 +317,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
   // the finale waits for the chains, the tour and the leaves; the pet and the secrets are the child's own, never needed
   const secretItems = FOREST_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: id === CAVE_FLAG || id === SONG_FLAG ? 'act' : 'walk', at: secrets.at[id] }));
-  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
+  const before = [...declared(g).filter(finaleWaits), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
@@ -459,7 +459,8 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   load: loadForest,
   build: buildForest,
   // PLAY-10: the four secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
-  collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts)
+  collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
+  easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   secrets: FOREST_SECRETS,
   chest: CAVE_FLAG,

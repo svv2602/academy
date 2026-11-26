@@ -9,5 +9,5 @@ import type { WorldInfo } from '../../game/world';
 export const SEA_INFO: WorldInfo = {
   id: 'sea', shelf: 2, secrets: ['ship_chest', 'bubble_lift', 'echo_shells', 'whale'],   // ./secrets.ts SEA_SECRETS (src/worlds/meta.test.ts holds them equal)
   // the kinds of the finds of ./collect.ts COLLECT, in its order (src/worlds/meta.test.ts holds them equal)
-  collect: { items: [...Array(6).fill({ kind: 'shell' }), ...Array(6).fill({ kind: 'coral' })] },
+  collect: { items: [...Array(6).fill({ kind: 'shell' }), ...Array(6).fill({ kind: 'coral' }), ...Array(9).fill({ kind: 'piece' })] },
 };

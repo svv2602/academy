@@ -8,6 +8,7 @@ import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { MysteryDef } from './mystery';
+import type { EaselDef } from './easel-place';
 import type { ArtifactWorld } from './artifacts';
 import type { CollectDef } from './collections';
 import type { DailyDef } from './daily-find';
@@ -116,7 +117,7 @@ export type { WorldStrings } from '../ui/strings';
  * artifact that lie in it, its cutscenes, its tour, its finale). An item describes what is in the game anyway: a world
  * does nothing "for the walkthrough". A world that hands in no `items` has no description: a scenario of its own plays it.
  */
-export type WorldItemKind = 'chain' | 'secret' | 'part' | 'scene' | 'flyover' | 'pet' | 'finale';
+export type WorldItemKind = 'chain' | 'secret' | 'part' | 'scene' | 'flyover' | 'pet' | 'finale' | 'easel';
 
 export interface WorldItem {
   kind: WorldItemKind;
@@ -232,6 +233,11 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * at least MYSTERY_MIN_SPOTS of them, MYSTERY_COUNT a day. Absent - the world has none.
    */
   readonly mystery?: MysteryDef;
+  /**
+   * PLAY-29: where its easel stands (src/game/easel.ts) - she sets on it the pieces of its picture found in the world
+   * (CollectDef.picture). Absent, or no picture - none.
+   */
+  readonly easel?: EaselDef;
   /** PLAY-25: the finds of its collections (src/game/collections.ts), SET_SIZE of each kind. Absent - none. */
   readonly collect?: CollectDef;
   /** PLAY-26: the places of its find of the day (src/game/daily-find.ts); absent - none. */

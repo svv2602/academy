@@ -3,6 +3,7 @@ import { DEFAULT_SCALE, SCALE } from './layout';
 
 /**
  * The collections of the sea (PLAY-25, the customer's word of 2026-11-23): spiral shells and coral twigs, six of each,
+ * and the nine pieces of its picture (PLAY-29),
  * lying on the sand 3-7 m off the ways - seen from a way, a few strokes aside to take; she swims over them and takes them
  * (src/game/collections.ts floorOf). Their places are checked by ./collect.test.ts: off the ways, the zones, the
  * landmarks, the secrets and the corals, kelp and rocks of the floor.
@@ -22,7 +23,13 @@ export const COLLECT: CollectDef = {
     // coral twigs: by the ways reef - trench and square - ship, and by the current
     lies('coral', -33.9, -20.3), lies('coral', -40.8, -40.7), lies('coral', 26.7, -27.1), lies('coral', 40.4, -45.9),
     lies('coral', -7.7, -17.8), lies('coral', 10.4, -16.3),
+    // the pieces of the picture (PLAY-29, the customer's word of 2026-11-26): nine over the whole sea, by its ways, set on
+    // the easel by the way in (./layout.ts EASEL); their order is their cell of the frame, row by row
+    ...[[22.9, -4.4], [-42.1, -49.9], [-42.1, 22.9], [6, 46.3], [29.4, -48.6], [-17.4, -16.1], [29.4, 32], [-43.4, -18.7], [39.8, -23.9]]
+      .map(([x, z]): CollectItem => ({ kind: 'piece', way: 'run', x: x * S, z: z * S, y: 0.35 })),
   ],
+  // the heroine and the cat swimming to the mermaids' castle: the beginning of the sea's story, nothing told away
+  picture: { image: 'story/sea/w3_intro_3', cols: 3, rows: 3 },
 };
 
 /**
