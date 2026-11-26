@@ -116,12 +116,13 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
     expect([uk.subtitle, ru.subtitle]).toEqual(['Небесні острови', 'Небесные острова']);
     expect(FRIENDS.map((c) => uk[`sky_name_${c.id}` as keyof typeof uk])).toEqual(['Лазур', 'Громихало', 'Мерехтій', 'Вітерець', 'Цвірінька']);
     expect(FRIENDS.map((c) => ru[`sky_name_${c.id}` as keyof typeof ru])).toEqual(['Лазурь', 'Громыхало', 'Мерцал', 'Ветерок', 'Чирика']);
-    // the grey build speaks only the cat's two lines about Pushok (the lead, 2026-11-25: not the shared one of the fawn)
-    // and the cat's six lines of the cut-scenes (./story.ts, the lead 2026-11-26: recorded with the world's voice)
-    expect(strings.spoken).toEqual({
-      sky_pet_found: 'joy', sky_pet_follow: 'warm',
-      sky_story_intro_1: 'calm', sky_story_intro_2: 'calm', sky_story_intro_3: 'joy',
-      sky_story_back_1: 'joy', sky_story_back_2: 'joy', sky_story_back_3: 'warm',
-    });
+    // the world's own lines of the draft taken on 2026-11-18: 84 to record (docs/worlds/world-5.md); each is the cat's
+    // (`sky_*`) or a character's (`<id>_*`, its own voice in ./voices.ts), and every one has its Russian subtitle
+    const spoken = Object.keys(strings.spoken);
+    expect(spoken).toHaveLength(84);
+    for (const k of spoken) {
+      expect(k.startsWith('sky_') || FRIENDS.some((c) => k.startsWith(`${c.id}_`)), k).toBe(true);
+      expect(Object.hasOwn(ru, k), k).toBe(true);
+    }
   });
 });
