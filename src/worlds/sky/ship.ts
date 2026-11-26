@@ -12,6 +12,7 @@ import { generateWinds, showWindsInWorld, windsLevel, type WindsSpec } from '../
 import { tf } from '../../ui/strings';
 import { CAT_DECK, HELM } from './landmarks';
 import { FLIGHT, GANGWAY, ISLANDS, ISLET_GANGWAY, SHIP, SHIP_FAR, WINDS_AT } from './layout';
+import { wordsAfter } from './task-words';
 import { height } from './terrain';
 
 /**
@@ -165,7 +166,7 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       // the route made: the step is done (no skill); the little ship got there (the draft's f5_route_ok), and the ship
       // takes her to the far islet at once
       finished();
-      void g.speech.line('veterok_route_ok', 'story', 0, '🧭').then(() => fly(true));
+      void wordsAfter(g, 'veterok_route_ok', '🧭').then(() => fly(true));
     });
   }
   /** A new map for the level of now, stored with no arrow on it. */

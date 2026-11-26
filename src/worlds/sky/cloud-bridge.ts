@@ -10,6 +10,7 @@ import { cloudsLevel, generateClouds, showCloudsInWorld, type CloudsPlace, type 
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { tf } from '../../ui/strings';
 import { CLOUD_GAP, ISLANDS } from './layout';
+import { wordsAfter, wordsFirst } from './task-words';
 import { height, setCloudGap } from './terrain';
 
 /**
@@ -80,18 +81,18 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
   function play() {
     armed = false; playing = true;
     g.speech.caption(null);
-    // Lazur says how the clouds become steps (the draft's f5_bridge_start), then the clouds open
-    void g.speech.line('lazur_bridge_start', 'story', 0, '☁️').then(open);
+    open();
   }
   function open() {
     // a new bridge each time: the level of addition now (the card keeps no middle)
     spec = generateClouds('add', cloudsLevel(levelFor(g.save, 'add')), createRng(`clouds:${Math.floor(g.rng() * 1e6)}`));
     // the cat's hints of the bridge (the draft's f5_bridge_hint_*) in place of the shared ones they say the same as: the
     // way through ten (level 5), counting together, the cloud that glows; the other rungs keep their shared lines
-    const hooks = g.hooksFor('☁️');
+    // Lazur says how the clouds become steps (the draft's f5_bridge_start) before the first question
+    const hooks = wordsFirst(g, g.hooksFor('☁️'), 'lazur_bridge_start', '☁️', () => playing);
     const show = showCloudsInWorld(scene, spec, GAP_AT, { ...hooks, hint: (key) => hooks.hint(BRIDGE_HINTS[key] ?? key) },
-      // Lazur between two steps (the draft's f5_bridge_step): the next question waits for her
-      { reach: g.touch ? 70 : 46, scope, hero, between: () => g.speech.line('lazur_bridge_step', 'story', 0, '☁️') });
+      // Lazur between two steps (the draft's f5_bridge_step): the next question waits for her; a line of the task
+      { reach: g.touch ? 70 : 46, scope, hero, between: () => g.speech.line('lazur_bridge_step', 'task', 0, '☁️') });
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
       if (!res.solved) {
@@ -108,7 +109,7 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
       g.persist();
       // Lazur: the bridge is built (the draft's f5_bridge_finish); the result handed on: the conversation records it in
       // `add`, as a panel task
-      void g.speech.line('lazur_bridge_finish', 'story', 0, '☁️').then(() => finished(res));
+      void wordsAfter(g, 'lazur_bridge_finish', '☁️').then(() => finished(res));
     });
   }
 

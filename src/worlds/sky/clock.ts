@@ -11,6 +11,7 @@ import { forget, keep, keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { tf } from '../../ui/strings';
 import { CLOCK, CLOCK_AT, GEARS } from './layout';
+import { wordsFirst } from './task-words';
 import { height } from './terrain';
 
 /**
@@ -101,15 +102,16 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   function play() {
     armed = false; playing = true;
     g.speech.caption(null);
-    // Mertsal names the step (the gears on the axle, then the hands), or - back after a pause - goes on where they stopped
+    // Mertsal names the step (the gears on the axle, then the hands), or - back after a pause - goes on where they
+    // stopped: before the step's first question
     const say = paused ? 'mertsal_clock_resume' : stage === 1 ? 'mertsal_clock_step_2' : 'mertsal_clock_step_3';
     paused = false;
-    void g.speech.line(say, 'story', 0, '🔭').then(open);
+    open(say);
   }
-  function open() {
+  function open(say: 'mertsal_clock_resume' | 'mertsal_clock_step_2' | 'mertsal_clock_step_3') {
     const rng = createRng(`clock:${seed}:${stage}`);
     // the puzzle's steps are 1-3, the search the first: this task is its step stage + 1 of three
-    const hooks = g.hooksFor('🔭'), o = { reach: g.touch ? 70 : 46, scope, stage: [stage + 1, CLOCK_STEPS] as const };
+    const hooks = wordsFirst(g, g.hooksFor('🔭'), say, '🔭', () => playing), o = { reach: g.touch ? 70 : 46, scope, stage: [stage + 1, CLOCK_STEPS] as const };
     const gearsStep = stage === 1;
     const skill = gearsStep ? 'pattern' : 'add';
     const show = gearsStep ? showGearsInWorld(scene, generateGears(levelFor(g.save, 'pattern'), rng), at, hooks, o)
