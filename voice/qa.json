@@ -7920,5 +7920,21 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_pet_found": {
+  "text": "Ось де Пушок, за вітряком! Біжить до тебе.",
+  "heard": "Ось де пушок, за вітряком, біжить до тебе.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sky/sky_pet_follow": {
+  "text": "Пушок гулятиме з тобою. Тепер ви друзі!",
+  "heard": "Пушок гулятиме з тобою. Тепер ви друзі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -4264,6 +4264,16 @@
   "tp": -2.52,
   "sha256": "9ac5bc43a26365bc56dc6b1836089384355626f4ff09e7fd249a64bf6f2896a7"
  },
+ "worlds-data/sky/voice/sky/sky_pet_follow.mp3": {
+  "lufs": -18.07,
+  "tp": -2.52,
+  "sha256": "2346389c0bd42ab25a024d9f2b2be81421bade47535b60ad171862a52aaca560"
+ },
+ "worlds-data/sky/voice/sky/sky_pet_found.mp3": {
+  "lufs": -18.03,
+  "tp": -2.54,
+  "sha256": "7dcb04cb61588c8c0b76ae47253fd4c5fbee85ceb554d7459ac814de0187e7fb"
+ },
  "worlds-data/sweet/voice/sweet/imbir_again_1@Leda.mp3": {
   "lufs": -17.96,
   "tp": -3.57,
