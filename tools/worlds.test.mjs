@@ -1054,7 +1054,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -1070,7 +1070,7 @@ describe('node tools/worlds.mjs', () => {
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sky-grey, hub-forest, forest, sea, sweet');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sky-grey, hub-forest, forest, sea, sweet, sky');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -1128,8 +1128,8 @@ describe('the published worlds: each has a part of its own before a publication'
     return sourceNextWorlds(mode, only);
   };
 
-  it('the published build of today lists the forest, the sea and the Sweet Land; the probe and the grey builds more', () => {
-    expect(nextOf('production')).toEqual(['forest', 'sea', 'sweet']);
+  it('the published build of today lists the forest, the sea, the Sweet Land and the Sky Islands; the probe build more', () => {
+    expect(nextOf('production')).toEqual(['forest', 'sea', 'sky', 'sweet']);   // the folders of src/worlds/, by name
     expect(nextOf('probe')).toContain('probe');
     expect(nextOf('grey')).toEqual(expect.arrayContaining(['forest', 'sea', 'sweet', 'sky']));
   });

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import * as grey from './sky-grey.mjs';
 import { NEED, PASS_KINDS, PASS_TIMEOUT_MS, SECRETS, SKY, WORLD_SKILLS, passEnv, passProblems, passTimeoutMs } from './sky-pass.mjs';
 import { readNeed } from './world-pass.mjs';
-import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
+import { readFileSync } from 'node:fs';
+import { GREY_PARTS, NO_PROBE_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
 /** A report of a walkthrough that came to its end: every chain, the tour, the rays, the secrets, Pushok, the finale, both scenes. */
 function report() {
@@ -57,9 +58,13 @@ describe('tools/sky-pass.mjs', () => {
     expect(passTimeoutMs({ E2E_RUN_TIMEOUT_MS: '90000' })).toBe(90000);
   });
 
-  it('is not a part of tools/worlds.mjs yet: the islands are grey until the customer\'s word, their grey walkthrough plays them', () => {
-    expect(PARTS).not.toContain('sky');
-    expect(PUBLISH_PARTS).not.toContain('sky');
+  it('is a part of tools/worlds.mjs of the published build since the Sky Islands were published; their grey walkthrough stays for the grey build', () => {
+    expect(PARTS).toContain('sky');
+    expect(PUBLISH_PARTS).toContain('sky');
+    expect(NO_PROBE_PARTS).toContain('sky');
+    expect(GREY_PARTS).not.toContain('sky');
     expect(GREY_PARTS).toContain('sky-grey');
+    const worlds = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
+    expect(worlds).toContain('(out) => skyPubPassEnv(process.env, out), skyPubPassTimeoutMs(process.env), skyPubPassProblems,');
   });
 });
