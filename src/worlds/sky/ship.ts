@@ -104,6 +104,9 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     g.busy = true;
     (hero as { play?: (name: string, fade: number) => void }).play?.('Idle', 0.25);
     sfx('chime');
+    // Veterok calls her aboard (out) or says it knows the way back; on the first flight out the cat, up in the air
+    void g.speech.line(out ? 'veterok_ship_board' : 'veterok_ship_back', 'story', 0, '🧭')
+      .then(() => { if (out && flight && !g.ws.flags.ship_flown) { g.ws.flags.ship_flown = true; g.persist(); return g.speech.line('sky_ship_fly', 'story'); } });
     const curve = flightCurve(out);
     return new Promise((resolve) => {
       flight = { curve, s: 0, len: curve.getLength(), t0: -1, fast: false, out, end: (t) => {
@@ -112,6 +115,8 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
         g.camTask = null; g.busy = false;
         sfx('chime');
         g.persist();
+        // landed on the far islet: Veterok (the draft's f5_ship_land)
+        if (out) void g.speech.line('veterok_ship_land', 'story', 0, '🧭');
         resolve(t);
       } };
     });

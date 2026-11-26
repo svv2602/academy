@@ -20,7 +20,7 @@ import { colliders, height, islandAt, lineDist, nookAt, nookWayAt, onGround, pat
 /** A game of what the secrets read: the scene, the save, the heroine, the cat, the stars given. */
 function game() {
   const scene = new THREE.Scene(), hero = { root: new THREE.Object3D(), heading: 0 };
-  const stars: number[] = [], cat: string[] = [];
+  const stars: number[] = [], cat: string[] = [], said: string[] = [];
   const g = {
     scene, hero,
     cat: { once: (c: string) => { cat.push(c); } },
@@ -29,10 +29,11 @@ function game() {
     above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy),
     persist: () => {},
     sparks: { burst: () => {} },
+    speech: { line: (key: string) => { said.push(key); return Promise.resolve(); } },
   };
   const scope = createWorldScope(scene);
   const s = createSkySecrets(g as unknown as Parameters<typeof createSkySecrets>[0], scope);
-  return { g, s, stars, cat, scope, hp: hero.root.position, vy: 0, lowest: Infinity, off: 0 };
+  return { g, s, stars, cat, said, scope, hp: hero.root.position, vy: 0, lowest: Infinity, off: 0 };
 }
 type T = ReturnType<typeof game>;
 /** A frame of the game as src/game/player.ts walks her: resolve, the ground under her feet, gravity; then the secrets. */
@@ -134,6 +135,7 @@ describe('the secrets of the Sky Islands (PLAY-07)', () => {
     spot.run();
     expect(t.g.ws.flags[CHEST_FLAG]).toBe(true);
     expect(t.stars).toEqual([5]);
+    expect(t.said).toEqual(['sky_secret_chest']);
     run(t, 1);
     expect(t.g.scene.getObjectByName('secret-lid')!.rotation.x).toBeLessThan(-1.5);
     expect(spot.on()).toBe(false);

@@ -35,6 +35,8 @@ export const SKY_SECRETS = [CHEST_FLAG, SLIDE_FLAG, SHAPES_FLAG, NEST_FLAG] as c
 export type SkySecret = (typeof SKY_SECRETS)[number];
 /** How each is done (WorldItem.how): the chest and the windmill by the action button, the slide and the nest by walking. */
 export const SECRET_HOW: Record<SkySecret, 'act' | 'walk'> = { sky_chest: 'act', rainbow_slide: 'walk', cloud_shapes: 'act', dragon_nest: 'walk' };
+/** The cat's word when a secret is found (the draft's f5_secret_*). */
+export const SECRET_LINE = { sky_chest: 'sky_secret_chest', rainbow_slide: 'sky_secret_slide', cloud_shapes: 'sky_secret_shapes', dragon_nest: 'sky_secret_nest' } as const satisfies Record<SkySecret, string>;
 
 /** The direction (x, z) of `b` from `a`, of length 1. */
 const dirOf = (a: Place, b: Place) => { const d = Math.hypot(b.x - a.x, b.z - a.z) || 1; return { x: (b.x - a.x) / d, z: (b.z - a.z) / d }; };
@@ -276,7 +278,7 @@ export interface SkySecrets {
   };
 }
 
-export function createSkySecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat' | 'sparks' | 'addStars' | 'above' | 'persist'>, scope: WorldScope): SkySecrets {
+export function createSkySecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat' | 'sparks' | 'addStars' | 'above' | 'persist' | 'speech'>, scope: WorldScope): SkySecrets {
   const { scene, ws, hero } = g;
   const found = (flag: SkySecret) => ws.flags[flag] === true;
   // the stars of the chest and of every other secret, as the other worlds'; literal numbers, so that
@@ -286,6 +288,7 @@ export function createSkySecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat' |
     g.addStars(chest ? 5 : 3, g.above(at, 1.2));
     g.persist();
     g.cat.once('Yes', 'Idle');
+    void g.speech.line(SECRET_LINE[flag], 'story');
   };
   const hp = hero.root.position;
   const here = (p: Place, r: number) => Math.hypot(hp.x - p.x, hp.z - p.z) < r;

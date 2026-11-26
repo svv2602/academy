@@ -3,13 +3,13 @@ import { ISLANDS, OBSERVATORY, SCALE, SPAWN, ZONES } from './layout';
 
 /**
  * The tour of the Sky Islands' grey build (WORLD-11): from over the castle up to the observatory, across to the dragon
- * island, round over the windmills to the pier and its airship with the far islet beyond, back to the heroine. Silent:
- * the grey build has no line of its own. Its heights grow with the map (SCALE).
+ * island, round over the windmills to the pier and its airship with the far islet beyond, back to the heroine. The cat
+ * says the world's line of the tour (the draft's f5_flyover). Its heights grow with the map (SCALE).
  */
 const h = (m: number) => m * Math.max(1, SCALE * 0.8);
 export const SKY_FLYOVER: FlyoverPath = {
   seconds: 14,
-  line: null,
+  line: 'sky_flyover',
   points: [
     { pos: [SPAWN.x + 6, h(10), SPAWN.z + 12], look: [OBSERVATORY.x, 12, OBSERVATORY.z] },
     { pos: [ZONES.observatory.x + 20, h(18), ZONES.observatory.z + 18], look: [OBSERVATORY.x, 10, OBSERVATORY.z] },

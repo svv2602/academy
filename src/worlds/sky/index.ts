@@ -27,12 +27,12 @@ import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import CLIPS from './clips.json';
-import { buildGround, colliders, ground } from './terrain';
+import { buildGround, colliders, ground, islandAt, pathDist } from './terrain';
 
 /**
  * The Sky Islands (WORLD-05), the grey build (WORLD-12), step 1: the six islands of docs/worlds/world-5.md in simple
@@ -55,11 +55,17 @@ import { buildGround, colliders, ground } from './terrain';
  * action button (RAYS). The colours of the rays: the Star's gold, each a little its own.
  */
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'lazur', emoji: '☁️', x: ZONES.castle.x - 3, z: ZONES.castle.z + 1, heading: 0.4, steps: ['compare', 'add', CLOUD_STEP], shard: '#ffd54a' },
-  { id: 'gromykhalo', emoji: '🐉', x: ZONES.dragon.x + 3, z: ZONES.dragon.z + 2.5, heading: 1.3, steps: ['count', 'sub', 'pattern'], shard: '#ffc93c' },
-  { id: 'mertsal', emoji: '🔭', x: ZONES.observatory.x - 3, z: ZONES.observatory.z + 3, heading: 0.3, steps: ['simon', 'pattern', CLOCK_STEP, 'part'], shard: '#ffe27a' },
-  { id: 'veterok', emoji: '🧭', x: ZONES.pier.x - 3, z: ZONES.pier.z + 1.5, heading: 2.8, steps: ['order', 'compose', WINDS_STEP, 'part'], shard: '#ffb84a' },
-  { id: 'chirika', emoji: '🐦', x: ZONES.mills.x - 3, z: ZONES.mills.z + 3, heading: 4.4, steps: ['pairs', 'add', 'sort'], shard: '#fff09a' },
+  { id: 'lazur', emoji: '☁️', x: ZONES.castle.x - 3, z: ZONES.castle.z + 1, heading: 0.4, steps: ['compare', 'add', CLOUD_STEP], shard: '#ffd54a',
+    hi: 'lazur_hi', asks: ['lazur_t1', 'lazur_t2', 'lazur_t3'], thanks: 'lazur_done', again: ['lazur_again_1', 'lazur_again_2'] },
+  { id: 'gromykhalo', emoji: '🐉', x: ZONES.dragon.x + 3, z: ZONES.dragon.z + 2.5, heading: 1.3, steps: ['count', 'sub', 'pattern'], shard: '#ffc93c',
+    hi: 'gromykhalo_hi', asks: ['gromykhalo_t1', 'gromykhalo_t2', 'gromykhalo_t3'], thanks: 'gromykhalo_done', again: ['gromykhalo_again_1', 'gromykhalo_again_2'] },
+  { id: 'mertsal', emoji: '🔭', x: ZONES.observatory.x - 3, z: ZONES.observatory.z + 3, heading: 0.3, steps: ['simon', 'pattern', CLOCK_STEP, 'part'], shard: '#ffe27a',
+    hi: 'mertsal_hi', asks: ['mertsal_t1', 'mertsal_t2', 'mertsal_t3', null], thanks: 'mertsal_done', again: ['mertsal_again_1', 'mertsal_again_2'] },
+  { id: 'veterok', emoji: '🧭', x: ZONES.pier.x - 3, z: ZONES.pier.z + 1.5, heading: 2.8, steps: ['order', 'compose', WINDS_STEP, 'part'], shard: '#ffb84a',
+    hi: 'veterok_hi', asks: ['veterok_t1', 'veterok_t2', 'veterok_t3', null], thanks: 'veterok_done', again: ['veterok_again_1', 'veterok_again_2'] },
+  { id: 'chirika', emoji: '🐦', x: ZONES.mills.x - 3, z: ZONES.mills.z + 3, heading: 4.4, steps: ['pairs', 'add', 'sort'], shard: '#fff09a',
+    hi: 'chirika_hi', asks: ['chirika_t1', 'chirika_t2', 'chirika_t3'], thanks: 'chirika_done', again: ['chirika_again_1', 'chirika_again_2'],
+    after: 'chirika_pet_ask' },
 ];
 
 /**
@@ -93,10 +99,12 @@ const FIGURE: Record<string, { h: number; r: number; color: string; top: string 
  * (the airship takes her there: WORLD-23 later, the gangway's action now).
  */
 export const RAYS = [
-  { owner: 'mertsal', flag: 'ray_clock', hint: 'mertsal_hint', spot: CLOCK, at: CLOCK, label: 'sky_clock' },
-  { owner: 'veterok', flag: 'ray_island', hint: 'veterok_hint', spot: RAY_ISLET, at: RAY_ISLET, label: 'sky_flowers' },
+  { owner: 'mertsal', flag: 'ray_clock', hint: 'mertsal_hint', spot: CLOCK, at: CLOCK, label: 'sky_clock', found: 'sky_ray_clock_found' },
+  { owner: 'veterok', flag: 'ray_island', hint: 'veterok_hint', spot: RAY_ISLET, at: RAY_ISLET, label: 'sky_flowers', found: 'sky_ray_island_found' },
 ] as const;
 export const FINALE = 'final';
+/** The flag of the cat's word at the edge of an island, said once (the draft's f5_edge); m from the rail it is said. */
+const EDGE_SAID = 'edge_said', EDGE_NEAR = 1.2;
 const TOUR = 'toured';
 /** m: the action spot of a ray's place; the shrine's; the gangway's. */
 const RAY_R = 2.6, SHRINE_R = 3;
@@ -107,7 +115,7 @@ export const HANDS_TURN = 0.8;
 /** s of game time the five rays fly up over the dome in the finale. */
 const GATHER_S = 2;
 
-const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'sky_part', partText: 'sky_count' };
+const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'sky_all_rays', partTitle: 'sky_part', partText: 'sky_count' };
 /** A wide Lydian mode of D, airy (the grey build's own; VOICE-12 later gives the world its own: «свой лад, широкий»). */
 const MUSIC: MusicParams = {
   scale: [293.7, 329.6, 370, 415.3, 440, 493.9, 554.4],
@@ -239,6 +247,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
+  // the rays given back when she came in: the cat's words of the magic are for the ones given now (WORLD-09)
+  let raysSaid = npcs.filter(finished).length;
 
   // ----- the rays that lie in the world (WORLD-08): the step `part` of Mertsal's and Veterok's chains -----
   const rays = RAYS.map((r) => {
@@ -254,6 +264,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const take = (r: Ray) => {
     ws.flags[r.flag] = true; r.mesh.visible = false;
     sfx('chime'); g.sparks.burst(r.mesh.position, '#fff0b0', 36, 3);
+    // the cat: where the ray was (the draft's f5_ray_*_found)
+    void g.speech.line(r.found, 'story');
     stepDone(npc(r.owner), r.step);
   };
   const part: WorldTask = {
@@ -322,6 +334,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
     g.cam.focus = g.above(shrine, 8);
     sfx('fanfare');
     five.forEach((m) => { m.visible = true; });
+    // the cat as the five rays fly together over the dome (the draft's f5_star_whole)
+    const whole = g.speech.line('sky_star_whole', 'story');
     await new Promise<void>((done) => { finaleLeft = GATHER_S; finaleEnd = done; });
     // the Star whole over the dome: the clock starts, golden sparks fall over the island
     five.forEach((m) => { m.visible = false; });
@@ -330,8 +344,12 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
     for (const n of npcs) if (n.actor.has('Cheer') && n.actor.has('Idle')) n.actor.once('Cheer', 'Idle');
     for (const [i, c] of ['#ffd54a', '#fff0b0', '#ffffff', '#cfe6ff'].entries()) g.sparks.burst(g.above(shrine, 5 + i * 2), c, 40, 6);
     g.sparks.burst(scenery.starTop.clone(), '#ffe27a', 60, 3);
+    await whole;
+    // the clock's chime: Mertsal thanks her for the time going again; then the cat's last words of the world
+    await g.speech.line('mertsal_clock_chime', 'story', 0, '🔭');
+    await g.speech.line('sky_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  });
+  }).then(() => g.speech.line('sky_tree_calls', 'hint', 6000));
   const raySpots = rays.map((r): Spot => ({ pos: point(r.spot), r: RAY_R, label: r.label, on: () => waiting(r), run: () => take(r) }));
 
   return {
@@ -362,6 +380,23 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
           n.mark.rotation.y = time * 2;
           n.mark.position.set(n.pos.x, n.pos.y + Math.max(1.4, FIGURE[n.def.id].h + 0.7) + Math.sin(time * 2.5) * 0.15, n.pos.z);
           n.actor.update(dt);
+        }
+        // the world comes alive (WORLD-09): the cat at the 1st, the 3rd and the 5th ray given back while she plays
+        // (the draft's f5_magic_*); a ray given before this visit says nothing
+        const given = npcs.filter(finished).length;
+        if (given > raysSaid) {
+          const key = given >= 5 && raysSaid < 5 ? 'sky_magic_5' : given >= 3 && raysSaid < 3 ? 'sky_magic_3' : given >= 1 && raysSaid < 1 ? 'sky_magic_1' : null;
+          raysSaid = given;
+          if (key) void g.speech.line(key, 'hint', 5000);
+        }
+        // the edge of an island, once (the draft's f5_edge): she has walked up to the cloud rail
+        if (!ws.flags[EDGE_SAID] && !g.busy && canMove) {
+          const isle = islandAt(hp.x, hp.z);
+          // off the ways: every bridge leaves an island over its edge, and the edge there is not the edge she walked up to
+          if (isle && pathDist(hp.x, hp.z) > BRIDGE_W && Math.hypot(hp.x - ISLANDS[isle].x, hp.z - ISLANDS[isle].z) > ISLANDS[isle].r - RAIL - EDGE_NEAR) {
+            ws.flags[EDGE_SAID] = true; g.persist();
+            void g.speech.line('sky_edge', 'hint', 5000);
+          }
         }
         for (const r of rays) {
           r.mesh.visible = waiting(r);
