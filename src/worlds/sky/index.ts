@@ -26,6 +26,7 @@ import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { arriveFrom, createHubWay } from './hub-way';
+import { COLLECT, DAILY_PLACES } from './collect';
 import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
@@ -470,4 +471,6 @@ export const sky: WorldDef<SkyLoads, WorldSky> = {
   // PLAY-07: the four secrets (./secrets.ts); the chest on the nook behind the dragon island is the world's chest (PLAY-08)
   secrets: SKY_SECRETS,
   chest: CHEST_FLAG,
+  collect: COLLECT,                  // little clouds and balloons (PLAY-25, ./collect.ts)
+  daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
 };

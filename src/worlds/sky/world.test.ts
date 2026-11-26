@@ -34,8 +34,12 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
     expect(sky.arrive?.('hub')).not.toBeNull();
   });
 
-  it('what the registry knows without the code (./meta.ts) agrees with the world: its id, its place, its secrets', () => {
-    expect(SKY_INFO).toEqual({ id: sky.id, shelf: sky.shelf, secrets: sky.secrets ?? [] });
+  it('what the registry knows without the code (./meta.ts) agrees with the world: its id, its place, its secrets, its finds', () => {
+    const { collect, ...rest } = SKY_INFO;
+    expect(rest).toEqual({ id: sky.id, shelf: sky.shelf, secrets: sky.secrets ?? [] });
+    // its finds by kind and number (src/worlds/meta.test.ts compares them too)
+    const count = (items: readonly { kind: string }[] = []) => items.reduce<Record<string, number>>((n, i) => ({ ...n, [i.kind]: (n[i.kind] ?? 0) + 1 }), {});
+    expect(count(collect?.items)).toEqual(count(sky.collect?.items));
   });
 
   it('five characters, each with three tasks of the table of docs/worlds/world-5.md, all of them panel tasks the game has', () => {
