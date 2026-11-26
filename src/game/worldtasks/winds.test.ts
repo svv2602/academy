@@ -79,6 +79,13 @@ describe('the route of the winds in the world', () => {
     expect(heard.good).toBe(1);
   });
 
+  it('each launch of the little ship says its words, once a launch (the Sky Islands: Veterok\'s "off we go!")', () => {
+    let launched = 0;
+    const w = showWindsInWorld(new THREE.Scene(), generateWinds(1, createRng('winds-launch')), AT, listen().hooks, { reach: 60, scope: createWorldScope(new THREE.Scene()), launch: () => { launched++; } });
+    w.go();
+    expect(launched).toBe(1);
+  });
+
   it('opened with a middle kept, its arrows are on the map', () => {
     const spec = generateWinds(4, createRng('winds-kept')), s = spec.solution[0];
     const w = showWindsInWorld(new THREE.Scene(), spec, AT, listen().hooks, { reach: 60, scope: createWorldScope(new THREE.Scene()), kept: [s.cell[0], s.cell[1], s.dir] });

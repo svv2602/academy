@@ -118,6 +118,8 @@ export interface WorldWindsOptions {
   scope: WorldScope;
   /** The arrows of a middle kept (`progress` of an earlier opening). */
   kept?: readonly number[];
+  /** Said as the little ship is sent (the Sky Islands: Veterok's "off we go!"). Unset: nothing. */
+  launch?: () => void;
 }
 export interface WorldWinds extends WorldTaskShow {
   /** The arrows on the map now ("x,z" -> heading). */
@@ -196,6 +198,7 @@ export function showWindsInWorld(scene: THREE.Scene, spec: WindsSpec, at: WindsP
     if (!core.alive || busy()) return;
     const s = sail(spec, arrows);
     voyage = { ...s, t: time, back: -1 };
+    o.launch?.();
     if (s.end === 'goal') { pulse = null; hooks.good(); core.solve((s.cells.length * PER_CELL + 0.4) * 1000); }
   }
   const targetsNow = () => {

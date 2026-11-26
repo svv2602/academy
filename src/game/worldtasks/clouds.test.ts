@@ -66,9 +66,9 @@ function listen() {
   return { hooks, heard };
 }
 const DECK = 1.5;
-function open(spec: CloudsSpec, hooks: TaskHooks, scene = new THREE.Scene(), scope = createWorldScope(new THREE.Scene())) {
+function open(spec: CloudsSpec, hooks: TaskHooks, scene = new THREE.Scene(), scope = createWorldScope(new THREE.Scene()), between?: () => Promise<unknown>) {
   const hero = { root: new THREE.Object3D(), heading: 0 };
-  const w = showCloudsInWorld(scene, spec, { x: 2, z: 4, y: DECK, facing: 0.4, length: 12 }, hooks, { reach: 60, scope, hero });
+  const w = showCloudsInWorld(scene, spec, { x: 2, z: 4, y: DECK, facing: 0.4, length: 12 }, hooks, { reach: 60, scope, hero, between });
   return { w, hero };
 }
 /** Plays the world's time from `t0` for `s` seconds, the lowest she stood meanwhile. */
@@ -110,6 +110,22 @@ describe('the cloud bridge in the world', () => {
     await vi.runAllTimersAsync();
     await expect(w.done).resolves.toEqual({ solved: true, wrong: 0 });
     expect(heard.good).toBe(spec.steps.length);
+  });
+
+  it('words between two steps: the next clouds laid at once, their question asked only once the words are said', async () => {
+    const spec = generateClouds('add', 3, createRng('clouds-between')), { hooks, heard } = listen();
+    let said = 0, end: () => void = () => {};
+    const between = () => { said++; return new Promise<void>((done) => { end = done; }); };
+    const { w, hero } = open(spec, hooks, undefined, undefined, between);
+    w.update(0);
+    noteRow(w, spec);
+    tapOn(w, spec.steps[0].body.answer); play(w, hero, 0, 1.2);
+    expect([w.built, said]).toEqual([1, 1]);
+    // the clouds of step 2 are there, their question waits
+    expect(w.targets()).toHaveLength(spec.steps[1].body.options.length);
+    expect(heard.prompts).toEqual([spec.steps[0].prompt]);
+    end(); await vi.runAllTimersAsync();
+    expect(heard.prompts).toEqual([spec.steps[0].prompt, spec.steps[1].prompt]);
   });
 
   it('a wrong cloud springs under her and puts her back where she stood: counted, never lower than the deck, the step not built', async () => {

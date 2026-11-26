@@ -145,7 +145,8 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       prompt: (key) => { void g.speech.line(key === 't_pattern' ? 'veterok_route_start' : key, 'task', 0, '🧭', key === 't_pattern' ? undefined : sub); },
       wrong: () => { sfx('soft'); return g.speech.line('veterok_route_stop', 'task', 0, '🧭'); },
     },
-      { reach: g.touch ? 70 : 46, scope, kept: kept.slice(2) });
+      // Veterok sends the little ship off (the draft's f5_route_go)
+      { reach: g.touch ? 70 : 46, scope, kept: kept.slice(2), launch: () => { void g.speech.line('veterok_route_go', 'task', 0, '🧭'); } });
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
       if (!res.solved) {

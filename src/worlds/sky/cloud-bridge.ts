@@ -89,7 +89,9 @@ export function createCloudBridge(g: Game, player: WorldTaskPlayer, scope: World
     // the cat's hints of the bridge (the draft's f5_bridge_hint_*) in place of the shared ones they say the same as: the
     // way through ten (level 5), counting together, the cloud that glows; the other rungs keep their shared lines
     const hooks = g.hooksFor('☁️');
-    const show = showCloudsInWorld(scene, spec, GAP_AT, { ...hooks, hint: (key) => hooks.hint(BRIDGE_HINTS[key] ?? key) }, { reach: g.touch ? 70 : 46, scope, hero });
+    const show = showCloudsInWorld(scene, spec, GAP_AT, { ...hooks, hint: (key) => hooks.hint(BRIDGE_HINTS[key] ?? key) },
+      // Lazur between two steps (the draft's f5_bridge_step): the next question waits for her
+      { reach: g.touch ? 70 : 46, scope, hero, between: () => g.speech.line('lazur_bridge_step', 'story', 0, '☁️') });
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
       if (!res.solved) {

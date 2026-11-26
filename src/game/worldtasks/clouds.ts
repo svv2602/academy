@@ -73,6 +73,11 @@ export interface WorldCloudsOptions {
   scope: WorldScope;
   /** The heroine: she stands where the bridge is, hops from step to step (never lower than the deck). */
   hero: { root: THREE.Object3D; heading: number };
+  /**
+   * Said between two steps, once a cloud has firmed up and before the next example is asked (the Sky Islands: Lazur's
+   * "the cloud firmed up!"): the next clouds are laid at once, the question waits for it. Unset: asked at once.
+   */
+  between?: () => Promise<unknown>;
 }
 
 export interface WorldClouds extends WorldTaskShow {
@@ -135,7 +140,7 @@ export function showCloudsInWorld(scene: THREE.Scene, spec: CloudsSpec, at: Clou
   const stand = on(0);
   let base = 0;            // the wrong moves made before the step ahead: its hint starts from its first rung
   const cur = () => spec.steps[Math.min(k, n - 1)];
-  function layRow() {
+  function layRow(ask = true) {
     for (const m of row) group.remove(m);
     if (example) group.remove(example);
     row = []; example = null;
@@ -152,7 +157,7 @@ export function showCloudsInWorld(scene: THREE.Scene, spec: CloudsSpec, at: Clou
     example = sprite(textTexture(exampleText(s)), 2.2, 0.97, 0);
     if (example) { example.position.copy(on(step * (k + 1))).setY(at.y + EXAMPLE_Y); group.add(example); }
     base = core.wrongs;
-    hooks.prompt(s.prompt, s.ask);
+    if (ask) hooks.prompt(s.prompt, s.ask);
   }
   scene.add(group);
 
@@ -200,7 +205,10 @@ export function showCloudsInWorld(scene: THREE.Scene, spec: CloudsSpec, at: Clou
       stand.copy(place);
       k++;
       if (k >= n) { for (const c of row) group.remove(c); if (example) group.remove(example); row = []; example = null; core.solve(400); return; }
-      layRow();
+      // the next clouds at once; their question after the words said between two steps, if any
+      if (!o.between) { layRow(); return; }
+      layRow(false);
+      void o.between().then(() => { if (core.alive) { const c = cur(); hooks.prompt(c.prompt, c.ask); } });
     });
     // she settles on the middle of the new step as the cloud becomes it
     hops.push({ from: m.position.clone(), to: place, t: -2, then: () => {} });
