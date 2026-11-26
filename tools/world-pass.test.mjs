@@ -12,7 +12,7 @@ import {
   PART_MAGIC,
   ALL_KINDS, HOWS, ITEM_KINDS, OPTIONAL_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
   GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
-  unmetWorldSteps, voiceProblems, worldStepOf, wrongProblems, halfProblems, recordedSkill,
+  unmetWorldSteps, voiceProblems, travelProblems, TRAVEL_ROUNDS, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
 import { gameWaits } from './game-wait.mjs';
@@ -238,6 +238,21 @@ describe('the checks of the save, the book, the voice and the report (ARCH-06, A
     expect(voiceProblems({ synth: [], dropped: ['go_next', 'praise_1', 'praise_1'] })).toEqual(['the planner turned away lines the scenario gives no reason for: praise_1']);
   });
 
+  it('the rounds to the hub and back: a number that grows with every round after the first fails; one that swings, or grows in the first only, does not', () => {
+    const rows = (g, t) => g.map((x, i) => ({ geometries: x, textures: t[i] }));
+    expect(TRAVEL_ROUNDS).toBeGreaterThanOrEqual(3);
+    // S22 2026-11-26, the Sweet Land with Zheleyka after her: one geometry and one texture more every round
+    expect(travelProblems(rows([55, 56, 57, 58], [43, 44, 45, 46]))).toEqual([
+      '"geometries" in the world grew with every round to the hub and back after the first: 55 -> 56 -> 57 -> 58 - something of a world left is not freed',
+      '"textures" in the world grew with every round to the hub and back after the first: 43 -> 44 -> 45 -> 46 - something of a world left is not freed',
+    ]);
+    expect(travelProblems(rows([58, 50, 50, 50], [36, 36, 36, 36]))).toEqual([]);     // the forest: the first round keeps more
+    expect(travelProblems(rows([46, 46, 50, 43], [34, 34, 35, 33]))).toEqual([]);     // the hub's own swing
+    expect(travelProblems(rows([55, 55, 56, 56], [43, 43, 43, 44]))).toEqual([]);     // one step up, not every round
+    expect(travelProblems(rows([55, 55], [43, 43]))).toEqual(['2 round(s) to the hub and back were read, at least 3 are needed']);
+    expect(travelProblems(rows([55, 0, 55], [43, 43, 43]))[0]).toMatch(/"geometries" was not read after every round/);
+  });
+
   it('the report of a pass: it came to its end, in the size and with the network asked for, and did an item of every kind', () => {
     const report = (o = {}) => ({ world: 'meadow', size: 'desktop', online: false, items: items().map((i) => ({ kind: i.kind, id: i.id, how: i.how })), order: items().map((i) => i.id), ...o });
     const want = { world: 'meadow', size: 'desktop', offline: true, kinds: ITEM_KINDS };
@@ -441,7 +456,7 @@ function standIn(o = {}) {
   const shown = (id) => !els[id].classList.contains('hidden');
 
   // ---- the game ----
-  let save, ws, time, started, busy, hero, timers, raf, input, line, inTask, searchLeft, tapsLeft, forgot = false;
+  let save, ws, time, started, busy, hero, timers, raf, input, line, inTask, searchLeft, tapsLeft, forgot = false, here, entries = 0;
   /** The task in the world open now (a chain's step in `opens`), else null: { d, kind, phase, wrongs, rung, progress }. */
   let wt = null;
   const starts = (key) => { globalThis.__starts[key] = (globalThis.__starts[key] ?? 0) + 1; };
@@ -606,7 +621,11 @@ function standIn(o = {}) {
     voice: { clips: 6, synth: fault.synth ?? [] },
     dropped: fault.dropped ?? ['go_next'],
     // a character with its own request after its chain (CharacterDef.after), its chain finished; `unheard`: never started
-    world: WORLD,
+    get world() { return here; },
+    /** The change of world (src/game/debug.ts): settles in the world asked for; `leaks`: each entry holds one more of each. */
+    travel(w) { here = w; entries++; return Promise.resolve(true); },
+    renderer: { info: { memory: { get geometries() { return 40 + (fault.leaks ? entries : 0); }, get textures() { return 30 + (fault.leaks ? entries : 0); } } } },
+    scene: { children: [] },
     npcs: [{ def: { id: 'owl', after: 'owl_ask', steps: { length: 0 } } }],
   });
   /** A page load: the game reads the stored save and shows its start screen. */
@@ -614,6 +633,7 @@ function standIn(o = {}) {
     const st = JSON.parse(storage.get('amw-save') ?? '{}');
     save = { stars: 0, played: false, fixed: { add: 0, sub: 0 }, vol: { voice: 1 }, worlds: {}, skills: { compare: { tasks: 0 }, add: { tasks: 0 } }, ...st };
     ws = save.worlds[WORLD] ??= { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
+    here = WORLD; entries = 0;
     time = 0; started = false; busy = false; hero = { x: 0, z: 6 }; timers = []; raf = []; input = { act: false, walk: false }; line = null; inTask = false; searchLeft = 0; tapsLeft = 0; wt = null;
     globalThis.__starts = fault.unheard ? { other_ask: 1 } : { 'meadow/owl_ask': 1 };   // a world's clip, under its folder
     on.clear();
@@ -1012,6 +1032,18 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     // the voice at its end (src/core/voice.ts voiceText): with its trouble too; a counter without it is not the game's
     expect((await pass({ fault: { fps: '60 fps · q2 · 54k tris · 58 calls · voice 58 (2 not started, 1 synth)' } })).errors).toEqual([]);
     expect((await pass({ fault: { fps: '60 fps · q2 · 54k tris · 58 calls' } })).errors).toEqual(['with ?debug the frame counter does not show the frames: "60 fps · q2 · 54k tris · 58 calls"']);
+  });
+
+  it('the rounds to the hub and back (5b): a world whose every entry holds one geometry and one texture more fails; one that frees passes', async () => {
+    const r = await pass({ fault: { leaks: true } });
+    const n = TRAVEL_ROUNDS, g = Array.from({ length: n }, (_, i) => 40 + 2 * (i + 1)), t = g.map((x) => x - 10);
+    expect(r.errors).toEqual([
+      `rounds: mobile meadow: "geometries" in the world grew with every round to the hub and back after the first: ${g.join(' -> ')} - something of a world left is not freed`,
+      `rounds: mobile meadow: "textures" in the world grew with every round to the hub and back after the first: ${t.join(' -> ')} - something of a world left is not freed`,
+    ]);
+    const ok = await pass();
+    expect(ok.errors).toEqual([]);
+    expect(ok.printed.some((l) => l.startsWith(`rounds: ${n} times to the hub and back, in the world after each: 40g/30t`))).toBe(true);
   });
 
   it('a task: pictured once its own show has ended and its question is in the bubble; a cheat that does nothing ends the pass', async () => {

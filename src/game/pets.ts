@@ -1,6 +1,7 @@
 import { hangOwnGear } from './petgear';
 import * as THREE from 'three';
 import { rig, type Rig } from '../core/assets';
+import { disposeTree } from '../core/dispose';
 import { sfx } from '../core/audio';
 import type { Save } from '../core/save';
 import type { SpokenKey } from '../ui/strings';
@@ -106,7 +107,14 @@ export async function loadOwnPets(world: string, ids: readonly string[], scope: 
   // its things (the owlet's scarf, a trade's gift) hung on it while it stands in its rest pose (src/game/petgear.ts)
   const unhang = await Promise.all(rigs.map(([id, r]) => hang(id, r)));
   ownRigs.set(world, Object.fromEntries(rigs));
-  scope.own(() => { ownRigs.delete(world); for (const u of unhang) u(); });
+  // The models are this world's (`rig` with `smooth` welds its own geometries, clones the materials, and the skeleton
+  // has a bone texture): its end takes each out of the scene and frees it - forgotten only, each entry of the world
+  // left one geometry and one texture more on the video card (S22, 2026-11-26: hub <-> sea or the Sweet Land)
+  scope.own(() => {
+    ownRigs.delete(world);
+    for (const u of unhang) u();
+    for (const [, r] of rigs) { r.root.removeFromParent(); disposeTree(r.root); }
+  });
 }
 
 /** A model's colours lighter by the share `by` (PetSpecies.lighter): its own materials (src/core/assets.ts rig clones them). */

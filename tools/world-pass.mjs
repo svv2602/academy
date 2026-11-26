@@ -40,6 +40,8 @@
 //      `inWorld` met and played as a task in the world, the book (a part for every
 //      chain, lit for the chains done), the voice (no line left to the synthesizer, the planner turned away only what
 //      it may), the frame counter;
+//   5b. rounds: TRAVEL_ROUNDS times to the hub and back, the pet of the world walking after her; the geometries and the
+//      textures the renderer holds in the world may not grow with every round after the first (`travelProblems`);
 //   6. a reload: every item still done, the progress under worlds.<id>, the part of the world the save started with
 //      exactly as it was; "start again" clears every world.
 // Every picture is taken with `shot` of tools/shot.mjs: it is the layout check of the screen it shows.
@@ -271,6 +273,32 @@ export function voiceProblems(voice, mayDrop = MAY_DROP) {
   if (voice.synth.length) out.push(`no recorded clip for: ${voice.synth.join(' ')} (python3 tools/gen_voice.py)`);
   const lost = [...new Set(voice.dropped)].filter((id) => !mayDrop.includes(id));
   if (lost.length) out.push(`the planner turned away lines the scenario gives no reason for: ${lost.join(' ')}`);
+  return out;
+}
+
+/**
+ * How many times the pass goes to the hub and back once the world is done (5b). The first round builds what is kept
+ * for good (the hub's own load, the caches of the shared models); the later ones must leave the world as they found it.
+ */
+export const TRAVEL_ROUNDS = 4;
+/** What the renderer holds after a round (`rows`: [{ geometries, textures }], read in the world played), checked by `travelProblems`. */
+export const TRAVEL_KEYS = ['geometries', 'textures'];
+/**
+ * The rounds hub <-> world (`rows`, the numbers read in the world after each round, the first one first): a number that
+ * grows with EVERY round after the first is a thing the world or the hub never frees (S22, 2026-11-26: the pet walking
+ * after her, one geometry and one texture more every round). Not "the same every round": the hub loads some things
+ * later and lets others go (the feather of the day, the stars), and its numbers swing by a few without a leak.
+ * Returns the problems, [] when nothing grows.
+ */
+export function travelProblems(rows) {
+  if (rows.length < 3) return [`${rows.length} round(s) to the hub and back were read, at least 3 are needed`];
+  const out = [];
+  for (const k of TRAVEL_KEYS) {
+    const v = rows.map((r) => r[k]);
+    if (!v.every((x) => Number.isFinite(x) && x > 0)) { out.push(`"${k}" was not read after every round: ${v.join(', ')}`); continue; }
+    const later = v.slice(1);
+    if (later.every((x, i) => i === 0 || x > later[i - 1])) out.push(`"${k}" in the world grew with every round to the hub and back after the first: ${v.join(' -> ')} - something of a world left is not freed`);
+  }
   return out;
 }
 
@@ -984,6 +1012,26 @@ export async function playWorld(h, o = {}) {
     const counter = await page.textContent('#fps').catch(() => null);
     if (!/^\d+ fps · q[0-2] · \d+k tris · \d+ calls · voice \d+( \(\d+ not started, \d+ synth\))?$/.test(counter ?? '')) errors.push(`with ?debug the frame counter does not show the frames: "${counter}"`);
     console.log('task types seen:', [...seenTypes].join(' '));
+  }
+
+  // ---- 5b. rounds to the hub and back: what the world and the hub take up is freed as they are left (TECH-15) ----
+  {
+    const rows = [];
+    const go = async (w) => {
+      // travel settles once the frame is open again (true: in the world asked for)
+      if ((await g((w) => window.__game.travel(w), w)) !== true) fail(`rounds: the change of world to "${w}" was refused`);
+      // the hub's tour on its first entry, a scene: skipped - only what stays is counted here
+      const free = await gameUntil(() => { const x = window.__game; if (x.story?.active) x.story.skip?.(); if (x.flyoverPlayer?.active) x.flyoverPlayer.skip(); return !x.busy && !x.story?.active && !x.flyoverPlayer?.active; }, null, 60);
+      if (!free) fail(`rounds: in "${w}" the game holds the controls for 60 s of game time after the change of world`);
+      await gameSeconds(1);
+    };
+    for (let r = 1; r <= TRAVEL_ROUNDS; r++) {
+      await go('hub'); await go(worldId);
+      rows.push(await g(() => ({ geometries: window.__game.renderer.info.memory.geometries, textures: window.__game.renderer.info.memory.textures, pet: window.__game.scene.children.some((o) => o.name?.startsWith('pet:')) })));
+    }
+    const left = travelProblems(rows);
+    if (left.length) errors.push(...left.map((x) => `rounds: ${mode} ${worldId}: ${x}`));
+    console.log(`rounds: ${TRAVEL_ROUNDS} times to the hub and back, in the world after each: ${rows.map((r) => `${r.geometries}g/${r.textures}t`).join(', ')}; a pet after her: ${rows.at(-1).pet ? 'yes' : 'no'}`);
   }
 
   // ---- 6. a reload: "done" is read from the save; the progress is the world's own, under worlds.<id> ----
