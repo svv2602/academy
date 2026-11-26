@@ -122,7 +122,7 @@ describe('the rule of the collections (src/game/collections.ts)', () => {
     expect(own('sweet').sort()).toEqual(['lollipop', 'marmalade']);
     // the Sky Islands their little clouds and balloons (src/worlds/sky/collect.ts)
     const sky = WORLDS.find((w) => w.id === 'sky')?.collect;
-    if (sky) expect(kindsOf(sky).sort()).toEqual(own('sky').sort());
+    if (sky) expect(kindsOf(sky).sort()).toEqual([...own('sky'), 'piece'].sort());
     expect(own('sky').sort()).toEqual(['balloon', 'cloudlet']);
     // every way, the catching ones one or two in a world (the decision of 2026-11-20)
     for (const way of COLLECT_WAYS) expect(fairy.items.some((i) => i.way === way), way).toBe(true);
