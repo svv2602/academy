@@ -137,6 +137,10 @@
 //  14. The part "sea" (tools/sea-pass.mjs `passEnv`, `passProblems`): the same for the published sea (2026-11-24): its
 //      chains with the two tasks in the world (the shell lock, the second half) and the two pearls in it, the
 //      cutscenes, the tour, Bulchik, its four secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
+//  15. The part "sweet" (tools/sweet-pass.mjs `passEnv`, `passProblems`): the same for the published Sweet Land
+//      (2026-11-26): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
+//      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
+//      (part 10) stays for the grey build. Pictures shots-e2e/worlds-published/sweet/.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
@@ -158,6 +162,7 @@ import { HUB_SAVES } from './e2e-saves.mjs';
 import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, buildWorlds, hubWay, serveDir } from './hub-grey.mjs';
 import { passEnv as forestPassEnv, passProblems as forestPassProblems, passTimeoutMs as forestPassTimeoutMs } from './forest-pass.mjs';
 import { passEnv as seaPassEnv, passProblems as seaPassProblems, passTimeoutMs as seaPassTimeoutMs } from './sea-pass.mjs';
+import { passEnv as sweetPubPassEnv, passProblems as sweetPubPassProblems, passTimeoutMs as sweetPubPassTimeoutMs } from './sweet-pass.mjs';
 import { passEnv as skyPassEnv, passProblems as skyPassProblems, passTimeoutMs as skyPassTimeoutMs } from './sky-grey.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems, passTimeoutMs as sweetPassTimeoutMs } from './sweet-grey.mjs';
 
@@ -181,7 +186,7 @@ export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
  * whose `timeout-minutes` is this (tools/ci-pieces.test.mjs). tools/e2e.mjs plays the parts so, one run each.
  */
 export const PART_TIMEOUT_MS = 30 * 60000;
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
 export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sky-grey'];
 /**
@@ -199,7 +204,7 @@ export function publishedWithoutPart(next, parts = PUBLISH_PARTS) {
   return next.filter((id) => !parts.includes(id));
 }
 /** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest and the walkthroughs of the published worlds in the published one. */
-export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea'];
+export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet'];
 /** Where she arrives in the hub and where its arches stand: tools/hub-grey.mjs (the way to the forest uses them too). */
 export { HUB_ARCH, HUB_ARRIVAL };
 /** The short template of the hub (decision Q4): its tour alone - no chains, parts, scenes, finale, secrets or pet. */
@@ -956,6 +961,15 @@ async function main() {
     await worldPass('the sea', dist, join('shots-e2e', 'worlds-published', 'sea'), (out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,
       'the sea of the published build: played by its description from its entry to its finale, its four secrets found');
   } catch (e) { fail(e.message); }
+  // ---- the part "sweet": the walkthrough of the published Sweet Land in the published build (tools/sweet-pass.mjs) ----
+  // as the sea's, held to the numbers of the template; its own limit, the grey walkthrough's (tools/sweet-grey.mjs)
+  if (play('sweet')) try {
+    await publishedBuild();
+    const next = buildWorlds(dist);
+    if (!next.includes('sweet')) throw new Error(`the published build ${dist} has no Sweet Land among its next worlds (worlds.json: ${JSON.stringify(next)})`);
+    await worldPass('the Sweet Land', dist, join('shots-e2e', 'worlds-published', 'sweet'), (out) => sweetPubPassEnv(process.env, out), sweetPubPassTimeoutMs(process.env), sweetPubPassProblems,
+      'the Sweet Land of the published build: played by its description from its entry to its finale, its four secrets found');
+  } catch (e) { fail(e.message); }
   if (read.parts.every((x) => NO_PROBE_PARTS.includes(x))) end();
 
   // ---- 2. the probe build, made anew ----
@@ -1272,20 +1286,22 @@ async function hubScenarios({ url, shots, fail: report }) {
     {
       const two = HUB_SAVES.two();
       two.worlds.sea = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      // the Sweet Land (published 2026-11-26) behind the arch after the sea's: done as well, its words said, for the same reason
+      two.worlds.sweet = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const hubPart = two.worlds.hub ?? { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
-      two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true } };
+      two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true, sweet_home: true, sweet_after: true } };
       const p = await open('two artifacts', two);
       await p.page.goto(`${url}?debug&world=hub${q}`);
       await p.play(true);
       const nests = await p.g(() => __game.hub.nests());
-      if (JSON.stringify(nests) !== JSON.stringify([true, true, true, false, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's, the forest's and the sea's should glow`);
+      if (JSON.stringify(nests) !== JSON.stringify([true, true, true, true, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's, the forest's, the sea's and the Sweet Land's should glow`);
       if (await p.g(() => __game.flyoverPlayer?.active === true)) {
         await p.g(() => __game.flyoverPlayer.hold(2));   // the tree over the glade: both nests on its side
         await p.gameSeconds(0.8);
         await p.shot('hub-tree-2.png');
         await p.g(() => __game.flyoverPlayer.skip());
       } else fail('two artifacts: no tour of the hub on its first entry');
-      told.push('with the probe world and the sea done too the crystal\'s, the forest\'s and the sea\'s nests glow');
+      told.push('with the probe world, the sea and the Sweet Land done too the crystal\'s, the forest\'s, the sea\'s and the Sweet Land\'s nests glow');
       // nothing new (every open world done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
       // "the other worlds still sleep" (not the shared "new friends live here"), its clip in voice/hub/
       await p.inWorld('hub');

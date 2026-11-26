@@ -230,8 +230,8 @@ describe('worldList: the plugin that writes worlds.json into the build', () => {
 describe('vite.config.ts uses all of it', () => {
   const config = readFileSync(join(root, 'vite.config.ts'), 'utf8');
 
-  it('the next worlds are the ones of the sources, the probe world by the mode of the build, the forest and the sea in every build', () => {
-    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, sweet: GREY_MODE, sky: GREY_MODE \}\);/);
+  it('the next worlds are the ones of the sources, the probe world by the mode of the build, the forest, the sea and the Sweet Land in every build', () => {
+    expect(config).toMatch(/const next = buildWorlds\(mode, \{ \[PROBE_MODE\]: PROBE_MODE, sky: GREY_MODE \}\);/);
     expect(config).toMatch(/^const GREY_MODE = 'grey';$/m);
   });
 
