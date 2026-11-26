@@ -3454,11 +3454,6 @@
   "tp": -1.92,
   "sha256": "6651cbb3d22c6be16f7c0b9854f0319f1d15f77a39c60265bbdd3a299d70475c"
  },
- "worlds-data/forest/voice/forest/borovik_t2@Orus.mp3": {
-  "lufs": -18.12,
-  "tp": -1.67,
-  "sha256": "1386e7533ca21696c2531ac0cc1866978eb8caddbe8d86a50b109e0f382686b9"
- },
  "worlds-data/forest/voice/forest/borovik_t3@Orus.mp3": {
   "lufs": -18.03,
   "tp": -2.95,
