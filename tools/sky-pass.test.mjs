@@ -6,12 +6,13 @@ import { NEED, PASS_KINDS, PASS_TIMEOUT_MS, SECRETS, SKY, WORLD_SKILLS, passEnv,
 import { readNeed } from './world-pass.mjs';
 import { GREY_PARTS, PARTS, PUBLISH_PARTS } from './worlds.mjs';
 
-/** A report of a walkthrough that came to its end: every chain, the tour, the rays, the secrets, Pushok, the finale. */
+/** A report of a walkthrough that came to its end: every chain, the tour, the rays, the secrets, Pushok, the finale, both scenes. */
 function report() {
   const items = [
     ...['lazur', 'gromykhalo', 'mertsal', 'veterok', 'chirika'].map((id) => ({ id, kind: 'chain', how: 'act' })),
     { id: 'toured', kind: 'flyover', how: 'auto' }, { id: 'ray_clock', kind: 'part', how: 'act' }, { id: 'ray_island', kind: 'part', how: 'act' },
     ...SECRETS.map((id) => ({ id, kind: 'secret', how: 'act' })), { id: 'pet', kind: 'pet', how: 'act' }, { id: 'final', kind: 'finale', how: 'act' },
+    { id: 'story_intro', kind: 'scene', how: 'tap' }, { id: 'story_star', kind: 'scene', how: 'tap' },
   ];
   return { world: SKY, size: 'mobile', online: true, need: readNeed(NEED).label, items, order: items.filter((i) => i.kind !== 'part').map((i) => i.id),
     worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };

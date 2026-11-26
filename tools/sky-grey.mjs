@@ -42,9 +42,9 @@ export const REACHED = 3.5;
  * the secrets (PLAY-07) and the pet (PLAY-09, Pushok), as the Sweet Land's (tools/sweet-grey.mjs). The rays that lie in
  * the world are done on the way, inside their chains (the pass takes them as the chain's step `part`), so they are not
  * in the report's `order`: the report must list PARTS_IN_WORLD of them, and a pass that came to its end has done every
- * item it lists. The cut-scenes (WORLD-13, `scene`) join them once src/worlds/sky/story.ts is in the world.
+ * item it lists. The cut-scenes too (WORLD-13, src/worlds/sky/story.ts), played frame by frame with taps.
  */
-export const PASS_KINDS = ['chain', 'flyover', 'secret', 'pet', 'finale'];
+export const PASS_KINDS = ['chain', 'scene', 'flyover', 'secret', 'pet', 'finale'];
 /** The Sky Islands' secrets (src/worlds/sky/secrets.ts SKY_SECRETS): the pass must have found each. */
 export const SECRETS = ['sky_chest', 'rainbow_slide', 'cloud_shapes', 'dragon_nest'];
 /** How many parts of the artifact lie in the world (src/worlds/sky/index.ts RAYS; GREY_BUILD.part). */

@@ -9,6 +9,7 @@ import { createStage, type Game } from '../../game/context';
 import { declared, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
+import { playStory, setStories } from '../../game/story';
 import { createGear } from '../../game/gear';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
@@ -25,6 +26,7 @@ import { createSkyMagic } from './magic';
 import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
+import { SKY_STORIES } from './story';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
 import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
@@ -310,7 +312,9 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const dialogue = createDialogue(g, stage, { characters: FRIENDS, lines: LINES, tasks });
   stepDone = dialogue.stepDone;
 
-  // ----- the tour, the finale -----
+  // ----- the cut-scenes, the tour, the finale -----
+  // the cut-scenes (WORLD-13, ./story.ts): the way in at the first entry (src/game/start.ts enterWorld), the Star after the finale
+  const story = setStories(g, SKY_STORIES, scope);
   const flyover = setTour(g, { path: SKY_FLYOVER, visited: () => ws.flags[TOUR] === true, mark: () => { ws.flags[TOUR] = true; g.persist(); } });
   const shrine = point(SHRINE);
   // the five rays of the finale: they fly from the shrine up over the dome and come together there into the Star
@@ -328,7 +332,11 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const all = [...before, finaleItem];
   // the secrets are found on the way, the finale does not wait for them
   const secretItems = SKY_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
-  const own: readonly WorldItem[] = [tourItem, ...rayItems, ...secretItems, finaleItem];
+  // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
+  const sceneOn = (id: string) => () => story.active && story.id === id;
+  const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
+  const starStoryItem = marked(ws, { kind: 'scene', id: 'story_star', how: 'tap', after: [FINALE], active: sceneOn('story_star') });
+  const own: readonly WorldItem[] = [introItem, tourItem, ...rayItems, ...secretItems, finaleItem, starStoryItem];
   const restore = () => playScene(stage, 'sky finale', async () => {
     finaleOn = true;
     g.cam.focus = g.above(shrine, 8);
@@ -349,7 +357,7 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
     await g.speech.line('mertsal_clock_chime', 'story', 0, '🔭');
     await g.speech.line('sky_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  }).then(() => g.speech.line('sky_tree_calls', 'hint', 6000));
+  }).then(() => playStory(g, 'story_star')).then(() => g.speech.line('sky_tree_calls', 'hint', 6000));
   const raySpots = rays.map((r): Spot => ({ pos: point(r.spot), r: RAY_R, label: r.label, on: () => waiting(r), run: () => take(r) }));
 
   return {
@@ -436,7 +444,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
     debug: {
       npcs,
       // the tour as the first world's: played without a mark, its points with the moment each is passed, its player
-      more: { flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SKY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
+      // the cut-scenes' player (./story.ts): the tools skip a scene on the way (tools/sky-grey.mjs)
+      more: { story, flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: SKY_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // the map as the measurements of the grey build read it (tools/sky-grey.mjs): its stretch, zones, ways,
         // landmarks, the route, the islands and the bridges, the airship's stand-in
         skyMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, islands: ISLANDS, bridges: BRIDGES, gangway: GANGWAY, landing: LANDING, ground: (x: number, z: number) => groundY(x, z) },

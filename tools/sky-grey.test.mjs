@@ -30,8 +30,8 @@ describe('tools/sky-grey.mjs', () => {
     expect(passEnv({ KEEP: '1' }, '/r.json')).toEqual({ KEEP: '1', E2E_WORLD: 'sky', E2E_WORLD_NEED: 'grey', E2E_WORLD_OUT: '/r.json', E2E_ONLY: '', E2E_MUTE: '0' });
     // every kind a grey build must have is one the pass must have done itself, but the parts it takes inside the chains;
     // and the secrets and the pet the islands have (PLAY-07, PLAY-09), as the Sweet Land's
-    expect([...PASS_KINDS.filter((k) => !['secret', 'pet'].includes(k)), 'part'].sort()).toEqual(Object.entries(GREY_BUILD).filter(([, n]) => n > 0).map(([k]) => k).sort());
-    expect(PASS_KINDS).toEqual(expect.arrayContaining(['secret', 'pet']));
+    expect([...PASS_KINDS.filter((k) => !['secret', 'scene', 'pet'].includes(k)), 'part'].sort()).toEqual(Object.entries(GREY_BUILD).filter(([, n]) => n > 0).map(([k]) => k).sort());
+    expect(PASS_KINDS).toEqual(expect.arrayContaining(['secret', 'scene', 'pet']));
     expect(SECRETS).toEqual(['sky_chest', 'rainbow_slide', 'cloud_shapes', 'dragon_nest']);
     expect(PARTS_IN_WORLD).toBe(GREY_BUILD.part);
     expect(LEG_TARGET).toEqual([15, 25]);
@@ -39,14 +39,17 @@ describe('tools/sky-grey.mjs', () => {
 
   it('a report is right only when the pass came to the finale on the islands, every kind done, the two rays, the four secrets, the three tasks in the world', () => {
     const items = [{ id: 'lazur', kind: 'chain' }, { id: 'toured', kind: 'flyover' }, { id: 'ray_clock', kind: 'part' }, { id: 'ray_island', kind: 'part' },
-      ...SECRETS.map((id) => ({ id, kind: 'secret' })), { id: 'pet', kind: 'pet' }, { id: 'final', kind: 'finale' }];
+      ...SECRETS.map((id) => ({ id, kind: 'secret' })), { id: 'pet', kind: 'pet' }, { id: 'final', kind: 'finale' },
+      { id: 'story_intro', kind: 'scene' }, { id: 'story_star', kind: 'scene' }];
     // the rays are taken inside the chains: not in the order of the items done by the pass itself
-    const report = { world: SKY, size: 'mobile', online: true, items, order: ['toured', 'lazur', 'pet', ...SECRETS, 'final'], worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };
+    const report = { world: SKY, size: 'mobile', online: true, items, order: ['story_intro', 'toured', 'lazur', 'pet', ...SECRETS, 'final', 'story_star'], worldTasks: Object.keys(WORLD_SKILLS), worldSkills: { ...WORLD_SKILLS } };
     expect(passProblems(report)).toEqual([]);
     expect(passProblems(null)).toHaveLength(1);
-    expect(passProblems({ ...report, order: ['lazur', 'toured', 'pet', ...SECRETS] })).toEqual(['no item of kind "finale" was done by the pass']);
+    expect(passProblems({ ...report, order: ['story_intro', 'lazur', 'toured', 'pet', ...SECRETS] })).toEqual(['no item of kind "finale" was done by the pass']);
     // Pushok (PLAY-09): a pass that never found him is wrong
     expect(passProblems({ ...report, order: report.order.filter((x) => x !== 'pet') })).toEqual(['no item of kind "pet" was done by the pass']);
+    // the cut-scenes (WORLD-13): a pass that skipped them is wrong
+    expect(passProblems({ ...report, order: report.order.filter((x) => !x.startsWith('story_')) })).toEqual(['no item of kind "scene" was done by the pass']);
     expect(passProblems({ ...report, items: items.filter((i) => i.id !== 'ray_island') })).toEqual(['the description has 1 part(s) of the artifact in the world, 2 expected']);
     // every secret found by the pass, and in the description
     expect(passProblems({ ...report, order: report.order.filter((x) => x !== 'cloud_shapes') })).toEqual(['the secret "cloud_shapes" was not found by the pass']);
