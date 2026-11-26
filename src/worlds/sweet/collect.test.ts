@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { COLLECT_KINDS, collectProblems } from '../../game/collections';
 import { COLLECT, DAILY_PLACES } from './collect';
 import {
-  BRIDGE, CAKE, CANDY_BOX, CAROUSEL, COTTON_CLOUD, EDGE, FOUNTAIN, GUM_MACHINE, HALF, HOUSE, HOUSE_DOOR, LANDMARKS, MILL,
+  BRIDGE, CAKE, EASEL, CANDY_BOX, CAROUSEL, COTTON_CLOUD, EDGE, FOUNTAIN, GUM_MACHINE, HALF, HOUSE, HOUSE_DOOR, LANDMARKS, MILL,
   MILLSTONE, RIVER_HALF, SCALES_AT, SHRINE, TREE_ARCH, ZONES,
 } from './layout';
 import { gardenTrees, placeSweets, townHouses } from './scenery';
 import { pathDist, riverDist } from './terrain';
+import { easelStand } from '../../game/easel-place';
 
 const places = [...COLLECT.items, ...DAILY_PLACES.map((p) => ({ ...p, kind: 'daily', way: 'run' }))];
 const near = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -16,7 +17,8 @@ describe('the collections of the Sweet Land (PLAY-25, the lead\'s word of 2026-1
     expect(collectProblems(COLLECT)).toEqual([]);
     expect(COLLECT.items.filter((i) => i.kind === 'lollipop')).toHaveLength(6);
     expect(COLLECT.items.filter((i) => i.kind === 'marmalade')).toHaveLength(6);
-    for (const i of COLLECT.items) expect([COLLECT_KINDS[i.kind].world, i.way]).toEqual(['sweet', 'run']);
+    // the sets are the land's; the pieces of the picture are of every world (`any`); all lie on the ground
+    for (const i of COLLECT.items) expect([COLLECT_KINDS[i.kind].world, i.way]).toEqual([i.kind === 'piece' ? 'any' : 'sweet', 'run']);
   });
 
   it('seen from a way and a few steps aside; clear of the river, the zones, the landmarks, the secrets and the pet', () => {
@@ -53,5 +55,18 @@ describe('the collections of the Sweet Land (PLAY-25, the lead\'s word of 2026-1
     for (const p of DAILY_PLACES) for (const f of COLLECT.items) expect(near(p, f)).toBeGreaterThanOrEqual(6);
     DAILY_PLACES.forEach((a, i) => DAILY_PLACES.forEach((b, j) => { if (j > i) expect(near(a, b)).toBeGreaterThanOrEqual(12); }));
     expect(DAILY_PLACES.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('the picture (PLAY-29): nine pieces of a 3 x 3 frame of the land\'s own story; the easel by the carousel, clear of the sweets, the houses and the finds', () => {
+    expect(COLLECT.items.filter((i) => i.kind === 'piece')).toHaveLength(9);
+    expect(COLLECT.picture).toEqual({ image: 'story/sweet/w4_intro_1', cols: 3, rows: 3 });
+    const { lollipops, candies } = placeSweets();
+    for (const p of [EASEL, easelStand(EASEL)]) {
+      expect(pathDist(p.x, p.z), 'off the ways').toBeGreaterThan(2.5);
+      expect(near(CAROUSEL, p)).toBeGreaterThan(CAROUSEL.r + 2);
+      expect([...lollipops, ...candies].filter((t) => near(t, p) < 1.5 + 1.2 * t.s)).toEqual([]);
+      expect(townHouses().filter((h) => near(h, p) < 4.5)).toEqual([]);
+      for (const f of places) expect(near(f, p)).toBeGreaterThan(4);
+    }
   });
 });
