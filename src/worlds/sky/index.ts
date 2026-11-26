@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { rig, tint, type Rig } from '../../core/assets';
-import { sfx } from '../../core/audio';
+import { setCast, sfx } from '../../core/audio';
 import type { Save } from '../../core/save';
 import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
@@ -27,6 +27,7 @@ import { loadSkyProps, type SkyProps } from './props';
 import { CHEST_FLAG, SECRET_HOW, SKY_SECRETS, createSkySecrets } from './secrets';
 import { SKY_FLYOVER } from './flyover-path';
 import { SKY_STORIES } from './story';
+import { voices } from './voices';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
 import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
@@ -223,7 +224,10 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
-  // the world's recorded lines (./clips.json, in worlds-data/sky/voice/sky/): the cat's two about Pushok so far
+  // its own voice (TECH-09): each character with its voice (./voices.ts), the clips of voice/sky/ (./clips.json) while
+  // the world is played; the next world starts with the narrator's only
+  setCast(voices);
+  scope.own(() => setCast({ narrator: '', cast: {} }));
   scope.own(worldClips('sky', CLIPS));
   scene.add(buildGround());
   const scenery = buildScenery(scene, L.props);
