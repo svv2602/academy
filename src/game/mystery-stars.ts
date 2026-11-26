@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { recordTask, levelFor } from './skills';
 import { typeOf } from './tasks';
-import { SKILL } from './taskviews/panel';
+import { SKILL, answerOf } from './taskviews/panel';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
@@ -107,7 +107,7 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
         const type0 = typeOf(s.step, 1), skill = SKILL[type0], level = levelFor(g.save, skill), type = typeOf(s.step, level);
         const res = await g.task(() => g.plan.runTask(type, level, g.hooksFor('🐱'), g.rng));
         if (!res.solved) { void g.speech.line('mystery_wait', 'story'); return; }      // closed: it waits, nothing is taken
-        recordTask(g.save, skill, res.wrong);
+        recordTask(g.save, skill, res.wrong, false, answerOf(res));
         const state = mysteryOf(g.ws, shownDay);
         if (!state.solved.includes(s.id)) state.solved.push(s.id);
         s.solved = true;

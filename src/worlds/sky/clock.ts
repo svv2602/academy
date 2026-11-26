@@ -123,7 +123,7 @@ export function createClock(g: Game, player: WorldTaskPlayer, scope: WorldScope,
       // closed in the middle: the clock waits (the draft's f5_clock_exit)
       if (!res.solved) { paused = true; void g.speech.line('mertsal_clock_exit', 'story', 0, '🔭').then(() => { if (on) bubble(); }); return; }
       // each step recorded in the skill of its kind, as a panel task would be
-      recordTask(g.save, skill, res.wrong, res.helped === true);
+      recordTask(g.save, skill, res.wrong, res.helped === true, { type: gearsStep ? 'gears' : 'hands' });
       stage++;
       ring = 1.2; sfx('chime');
       if (stage < CLOCK_STEPS) { store(); bubble(); void tellWhenQuiet(g, scope, 'sky_clock_tick', 'story'); return; }
