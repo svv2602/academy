@@ -9,7 +9,7 @@ import { FAIRY_STORIES } from '../worlds/fairy/story';
 import { strings } from '../worlds/fairy/strings';
 import type { Game } from './context';
 import {
-  AFTER_LINE, GLOW_PULSE, GLOWS_MAX, LINE_DELAY, PAN_MAX, PARALLAX_MAX, SAFE, ZOOM, fitOf, glowPulse, moveKind, passSeconds, playStory, poseAt, seenStories,
+  AFTER_LINE, GLOW_PULSE, GLOW_TINTS, GLOWS_MAX, LINE_DELAY, PAN_MAX, PARALLAX_MAX, SAFE, ZOOM, fitOf, glowPulse, moveKind, passSeconds, playStory, poseAt, seenStories,
   setStories, storyOf, storyProblems, type Shot, type StoryDef,
 } from './story';
 
@@ -222,6 +222,14 @@ describe('what is wrong with a scene', () => {
     expect(storyProblems(scene({ ...ok, aim: [0.5, 0.45], glows: [[0.5, 0.12]] }, out))[0]).toMatch(/light at 0.5, 0.12 outside .* \(at the zoom 1.1\)/);
     expect(storyProblems(scene({ ...ok, aim: [0.5, 0.45], glows: [[0.5, 0.15]] }, out))).toEqual([]);
     expect(storyProblems(scene({ ...ok, glows: [[1.2, 0.5]] }, out))[0]).toMatch(/light at 1.2, 0.5/);
+    // a colour of the lights only with lights (GLOW_TINTS): the Sky Islands' golden rays
+    expect(storyProblems(scene({ ...ok, glows: five, glowTint: 'gold' }, out))).toEqual([]);
+    expect(storyProblems(scene({ ...ok, glowTint: 'gold' }, out))[0]).toMatch(/a colour of lights \(gold\) with no light/);
+    // the rubies of the Sweet Land keep the colours they were accepted in; the gold is warm, its core near white
+    expect(GLOW_TINTS.ruby).toMatchObject({ halo: [0.9, 0.15, 0.2], body: [0.85, 0.03, 0.08], core: [1.0, 0.8, 0.75] });
+    const [r, g, b] = GLOW_TINTS.gold.body;
+    expect(r >= g && g > b).toBe(true);
+    expect(Math.min(...GLOW_TINTS.gold.core)).toBeGreaterThan(0.85);
     expect(GLOWS_MAX).toBe(5);
   });
 
