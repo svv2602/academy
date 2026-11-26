@@ -145,6 +145,18 @@ Their depth maps `w4_intro_1_depth.webp`, `w4_intro_2_depth.webp`, `w4_intro_3_d
 (Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
 Dedicated to the public domain under CC0 1.0.
 
+Cut-scene frames of the fifth world, the Sky Islands (WORLD-13; `worlds-data/sky/story/sky/`, in the build
+`story/sky/`), each file: `w5_intro_1.webp`, `w5_intro_2.webp`, `w5_intro_3.webp`, `w5_back_1.webp`, `w5_back_2.webp`,
+`w5_back_3.webp` — generated with the model `google/gemini-3-pro-image` through the OpenRouter service on 2026-11-26
+(the first try of each), dedicated to the public domain under CC0 1.0; viewed and accepted by the lead on 2026-11-26 on
+the customer's word to generate them. The five golden lights over `w5_intro_3` and `w5_back_1` are not in the files:
+the game draws them
+(`Shot.glows`, `src/game/story.ts`).
+Their depth maps `w5_intro_1_depth.webp`, `w5_intro_2_depth.webp`, `w5_intro_3_depth.webp`, `w5_back_1_depth.webp`,
+`w5_back_2_depth.webp`, `w5_back_3_depth.webp` — computed from those frames on 2026-11-26 with Depth Anything V2 Small
+(Apache-2.0, the ONNX export of onnx-community) by `tools/depth.py`, locally; the model is not part of the game.
+Dedicated to the public domain under CC0 1.0.
+
 Voice (`public/voice/`, `public/bank/`, and of the forest, published 2026-11-24, `worlds-data/forest/voice/` - in the
 build `voice/forest/`; every clip has its record in `voice/qa.json`: text, intonation, model, voice):
 synthesized speech of the Gemini API (Google), model `gemini-2.5-flash-preview-tts`, its prebuilt voices (the
