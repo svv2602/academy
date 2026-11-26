@@ -12,6 +12,8 @@
 //     Sweet Land, is done;
 //   - with the sea in the build, a save of the forest done whose forest's arch woke already (from before the sea was
 //     published): the sea's arch alone wakes, the cat says hub_sea_wake, through it into the sea;
+//   - with the Sweet Land in the build, the sea done: the Sweet Land's arch alone wakes, through it and back; with the
+//     Sky Islands too, the Sweet Land done: theirs alone wakes (woke4), through it and back;
 //   - in both, the hub's draw calls at the arrival at the fairies' arch, q2: 80 at most (TECH-06);
 //   - without network, the forest's files never cached (refused to the page from the start): the forest's arch
 //     refuses - the game stays in the hub, the frame never closes, the cat says "need_net" (src/main.ts `refuse`).
@@ -40,7 +42,7 @@ export const HUB_ARCH = [0, 1, 2, 3, 4].map((shelf) => { const a = (shelf / 5) *
  * `older`: the forest done and its arch awake already (woke1) - a save from before the sea was published. The Sweet
  * Land's (shelf 3) and the Sky Islands' (shelf 4) arches sleep in these saves, whether the build has them or not: each
  * wakes only once the world before it is done (the sea, the Sweet Land). `sweet`: the sea done too, with the Sweet Land
- * in the build - its arch alone wakes.
+ * in the build - its arch alone wakes. `sky`: the Sweet Land done too, with the Sky Islands in the build - theirs alone wakes.
  */
 export function hubExpect(next) {
   const sea = next.includes('sea');
@@ -54,7 +56,21 @@ export function hubExpect(next) {
     // the sea done too, its arch and the forest's awake from the entries before: the Sweet Land's arch (shelf 3) alone
     // wakes, when the build has it (WORLD-04: it wakes once the sea is done, docs/worlds/hub.md)
     sweet: sea && next.includes('sweet') ? { arches: ['fairy', 'forest', 'sea', 'sweet', null], woke: [3], flags: ['woke3'] } : null,
+    // the Sweet Land done too, the arches of shelves 1-3 awake from the entries before: the Sky Islands' arch (shelf 4)
+    // alone wakes, when the build has them (WORLD-05: it wakes once the Sweet Land is done, docs/worlds/hub.md). The
+    // cat's word of it (hub_sky_wake) is said only once the hub's strings have the line (`hubSpoken`): it comes with
+    // the voice of the world 5; until then the arch wakes without a word.
+    sky: sea && next.includes('sweet') && next.includes('sky')
+      ? { arches: ['fairy', 'forest', 'sea', 'sweet', 'sky'], woke: [4], flags: ['woke4'], line: 'hub_sky_wake' } : null,
   };
+}
+
+/** The lines the cat says in the hub (src/worlds/hub/strings.ts `spoken`): their keys. */
+export function hubSpoken(source = readFileSync(new URL('../src/worlds/hub/strings.ts', import.meta.url), 'utf8')) {
+  const at = source.indexOf('spoken:');
+  if (at < 0) return [];
+  const body = source.slice(at, source.indexOf('}', at));
+  return [...body.matchAll(/(\w+):\s*'/g)].map((m) => m[1]);
 }
 
 /** The next worlds of the build in `dir`: the ids of its worlds.json (tools/vite-worlds.mjs); [] without one. */
@@ -235,6 +251,39 @@ export async function hubWay(browser, url, shots, { slow = false, next = ['fores
       await p.inWorld('hub');
       p.near(await p.at(), HUB_ARRIVAL[3], 'back in the hub from the Sweet Land');
       told.push(`the sea done: the Sweet Land's arch alone woke, the cat said hub_sweet_wake, open ${JSON.stringify(open4)}, the sparkles to it, ${n} draw calls at the arrival; through it into the Sweet Land and back to the hub at its arch`);
+      await p.ctx.close();
+    }
+    // ---- with the Sky Islands in the build: the Sweet Land done, the arches of shelves 1-3 awake already ----
+    if (want.sky) {
+      const name = 'the Sweet Land done';
+      const save = HUB_SAVES.one();
+      for (const id of ['forest', 'sea', 'sweet']) save.worlds[id] = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      save.worlds.hub = { ...(save.worlds.hub ?? { quests: {}, final: false, starsTaken: [], pos: null }), flags: { ...(save.worlds.hub?.flags ?? {}), woke1: true, woke2: true, woke3: true, sea_wake: true } };
+      const p = await open(name, save);
+      if (!same(p.woke, want.sky.woke)) problems.push(`${name}: the arches waking on the entry are ${JSON.stringify(p.woke)}, not ${JSON.stringify(want.sky.woke)}`);
+      const said = hubSpoken().includes(want.sky.line);
+      if (said) await p.until((k) => __game.line === k, want.sky.line, `the cat did not say "${want.sky.line}" as the Sky Islands' arch woke`, 30000).catch((e) => problems.push(`${name}: ${e.message}`));
+      const flags = await p.g(() => __game.save.worlds.hub?.flags ?? {});
+      if (want.sky.flags.some((f) => !flags[f])) problems.push(`${name}: after waking the hub's flags are ${JSON.stringify(flags)}: ${want.sky.flags.join(', ')} expected`);
+      const open5 = await arches(p);
+      if (!same(open5, want.sky.arches)) problems.push(`${name}: the arches lead to ${JSON.stringify(open5)}, not ${JSON.stringify(want.sky.arches)}`);
+      const goal = await p.g(() => __game.hub.goal());
+      if (!goal || Math.hypot(goal.x - HUB_ARCH[4].x, goal.z - HUB_ARCH[4].z) > 2) problems.push(`${name}: the cat's sparkles lead to ${JSON.stringify(goal)}, not to the Sky Islands' arch`);
+      const n = await p.calls();
+      if (n > 80) problems.push(`${name}: the hub draws ${n} calls at the arrival with five arches open, more than 80`);
+      await p.page.screenshot({ path: join(shots, 'way-hub-sweet-done.png') });
+      // through it into the Sky Islands: she comes out of the Tree's arch on the castle island, facing its middle (src/worlds/sky/hub-way.ts)
+      await p.act(HUB_ARCH[4].x * 0.9, HUB_ARCH[4].z * 0.9, 'at the Sky Islands\' arch');
+      await p.inWorld('sky');
+      const out = await p.at();
+      { const t0 = await p.g(() => __game.time); await p.until((t) => __game.time > t + 1.5, t0, 'the game time stood', 60000); }
+      await p.page.screenshot({ path: join(shots, 'way-sky-from-hub.png') });
+      // back by that arch: 7 m behind her where she came out (OUT), its spot 2 m round it - from 1.5 m in front of it
+      const OUT = 7;
+      await p.act(out.x - Math.sin(out.heading) * (OUT - 1.5), out.z - Math.cos(out.heading) * (OUT - 1.5), 'at the arch of the Great Tree in the Sky Islands');
+      await p.inWorld('hub');
+      p.near(await p.at(), HUB_ARRIVAL[4], 'back in the hub from the Sky Islands');
+      told.push(`the Sweet Land done: the Sky Islands' arch alone woke, ${said ? `the cat said ${want.sky.line}` : `no word yet (no ${want.sky.line} in the hub's strings)`}, open ${JSON.stringify(open5)}, the sparkles to it, ${n} draw calls at the arrival; through it into the Sky Islands and back to the hub at its arch`);
       await p.ctx.close();
     }
     // ---- without network, the forest never downloaded: refused at its arch ----
