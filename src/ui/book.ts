@@ -16,7 +16,7 @@ import { ACHIEVEMENTS } from '../game/achievements';
 import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
-import { foundOf, itemsOf, piecesOf, pictureDone, setDone, setKindsOf } from '../game/collections';
+import { foundOf, itemsOf, piecesOf, pictureDone, pictureSet, setCells, setDone, setKindsOf } from '../game/collections';
 import { achGame } from './achieve';
 import { showPicture } from './picture';
 import { heroCloseup } from './shop';
@@ -191,12 +191,16 @@ function renderPicture(world: WorldEntry | null, ws: WorldState | null) {
   if (!box) return;
   box.innerHTML = '';
   if (!def || !pic) { $('pictureSay').textContent = t('book_pic_none'); return; }
-  const found = ws ? foundOf(ws) : [], ids = piecesOf(def), whole = pictureDone(def, found);
+  // with an easel (PLAY-29, src/game/easel.ts) a piece is in the frame once she has set it there; without one, once found
+  const easel = !!world?.easel, flags = ws?.flags ?? {};
+  const found = ws ? foundOf(ws) : [], ids = piecesOf(def);
+  const shown = (id: number, cell: number) => (easel ? setCells(def, flags).includes(cell) : found.includes(id));
+  const whole = easel ? pictureSet(def, flags) : pictureDone(def, found);
   const url = `${import.meta.env.BASE_URL}${pic.image}.webp`;
   box.style.setProperty('--cols', String(pic.cols)); box.style.setProperty('--rows', String(pic.rows));
   box.classList.toggle('whole', whole);
   ids.forEach((id, i) => {
-    const c = document.createElement('span'), got = found.includes(id), col = i % pic.cols, row = Math.floor(i / pic.cols);
+    const c = document.createElement('span'), got = shown(id, i), col = i % pic.cols, row = Math.floor(i / pic.cols);
     c.className = 'pcell' + (got ? ' got' : ' sil');
     c.dataset.item = String(id); c.dataset.cell = String(i);
     if (got) {
@@ -207,7 +211,7 @@ function renderPicture(world: WorldEntry | null, ws: WorldState | null) {
     box.appendChild(c);
   });
   box.onclick = whole ? () => showPicture(pic) : null;
-  const got = ids.filter((i) => found.includes(i)).length;
+  const got = ids.filter((id, i) => shown(id, i)).length;
   $('pictureSay').textContent = whole ? t('book_pic_done') : tf('book_pic', { n: got, of: ids.length });
 }
 

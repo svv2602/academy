@@ -1,4 +1,6 @@
 import { mysteryProblems } from './mystery';
+import { EASEL_ITEM } from './collections';
+import { easelStand } from './easel-place';
 import type { CharacterDef, WorldDef, WorldItem, WorldItemKind } from './world';
 
 /**
@@ -15,12 +17,20 @@ import type { CharacterDef, WorldDef, WorldItem, WorldItemKind } from './world';
  */
 
 /** Every kind of item, in the order of the template table. */
-export const KINDS: readonly WorldItemKind[] = ['chain', 'part', 'scene', 'finale', 'secret', 'pet', 'flyover'];
+export const KINDS: readonly WorldItemKind[] = ['chain', 'part', 'scene', 'finale', 'secret', 'pet', 'flyover', 'easel'];
+/** The kinds no row of the template asks for: a world may have one or none (the easel, PLAY-29). */
+export const OPTIONAL_KINDS: readonly WorldItemKind[] = ['easel'];
+/**
+ * Whether a world's finale waits for the item: not for the pet (the child's own) nor an optional one (the easel: its
+ * pieces are looked for over the world, before or after the finale as she likes).
+ */
+export const finaleWaits = (i: { kind: WorldItemKind }) => i.kind !== 'pet' && !OPTIONAL_KINDS.includes(i.kind);
 
 /** What the description reads of a world: WorldDef fits, and so does what the game holds of the world played (`g.world`). */
 export interface Declared {
   readonly characters?: readonly CharacterDef[]; readonly pet?: WorldDef['pet']; readonly secrets?: readonly string[];
   readonly worldTasks?: readonly string[]; readonly noSkill?: readonly string[]; readonly mystery?: WorldDef['mystery'];
+  readonly easel?: WorldDef['easel']; readonly collect?: WorldDef['collect'];
 }
 /** The marks of a world: its part of the save (WorldState, src/core/save.ts). */
 export interface Marks { quests: Record<string, number>; flags: Record<string, boolean>; final: boolean }
@@ -73,6 +83,9 @@ export function declared(g: Described): WorldItem[] {
       ...(pet.after === undefined ? {} : { after: [pet.after] }),
     }));
   }
+  // the easel (PLAY-29, src/game/easel.ts): she stands in front of it and sets the pieces found; done when the picture is whole
+  const { easel, collect } = world;
+  if (easel && collect?.picture) out.push(marked(ws, { kind: 'easel', id: EASEL_ITEM, how: 'act', at: easelStand(easel) }));
   return out;
 }
 
@@ -169,7 +182,8 @@ export const TEMPLATE: readonly TemplatePoint[] = [
 /** How many items of each kind a world must have; a kind left out keeps the number of the template. */
 export type Need = Partial<Record<WorldItemKind, number>>;
 /** One item of every kind: enough for a test world. */
-export const ONE_EACH: Readonly<Record<WorldItemKind, number>> = { chain: 1, part: 1, scene: 1, finale: 1, secret: 1, pet: 1, flyover: 1 };
+// the easel (PLAY-29) is no point of the template: a world may have none, so a test world needs none either
+export const ONE_EACH: Readonly<Record<WorldItemKind, number>> = { chain: 1, part: 1, scene: 1, finale: 1, secret: 1, pet: 1, flyover: 1, easel: 0 };
 
 /**
  * What a description lacks of the world template, one line a kind, in the words of the template: the number and the

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultSave, worldState, type WorldState } from '../../core/save';
 import type { Game } from '../../game/context';
-import { KINDS, ONE_EACH, PET_ITEM, describeWorld, missing, problems } from '../../game/describe';
+import { KINDS, OPTIONAL_KINDS, ONE_EACH, PET_ITEM, describeWorld, missing, problems } from '../../game/describe';
 import { flyoverOf, pathProblems, tour } from '../../game/flyover';
 import { PETS, PET_SPOT_R, petProblems, petSpecies } from '../../game/pets';
 import type { Spot } from '../../game/player';
@@ -84,7 +84,8 @@ describe('the probe world describes itself (ARCH-16, R28)', () => {
     expect(all().map((i) => `${i.kind} ${i.id} ${i.how}`)).toEqual([
       `chain ${FRIEND.id} act`, `chain ${KIT.id} act`, 'pet pet act', 'flyover toured auto', 'secret hollow act', 'part gem walk', 'scene story act', 'finale final act',
     ]);
-    for (const kind of KINDS) expect(all().filter((i) => i.kind === kind), kind).toHaveLength(kind === 'chain' ? 2 : 1);
+    // every kind of the template; the probe world has no easel (an optional kind, PLAY-29)
+    for (const kind of KINDS) expect(all().filter((i) => i.kind === kind), kind).toHaveLength(OPTIONAL_KINDS.includes(kind) ? 0 : kind === 'chain' ? 2 : 1);
     expect(missing(all(), ONE_EACH)).toEqual([]);
     // a test world is not a whole world: the template's own numbers name what a real one still needs
     expect(missing(all()).map((l) => /of kind "(\w+)"/.exec(l)![1])).toEqual(['chain', 'part', 'scene', 'secret']);

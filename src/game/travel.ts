@@ -200,6 +200,7 @@ export function createTravel(host: TravelHost): Travel {
     // the scene outside shared(), and the scope would free the model every world shares.
     g.pets.dispose();
     g.mystery.dispose();
+    g.easel.dispose();
     g.collect.dispose();
     try { opening.scope.dispose(); } catch (e) { console.error(`the world "${opening.world.id}" did not undo everything of its own:`, e); }
     release(opening.world.id);

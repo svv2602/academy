@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { staticGeo } from '../../core/assets';
 import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
-import { HALF, OWL_TREE, ZONES, inMaze } from './layout';
+import { EASEL, HALF, OWL_TREE, ZONES, inMaze } from './layout';
 import { colliders, height, pathDist, streamDist } from './terrain';
 
 /**
@@ -59,7 +59,7 @@ export function placePlants(seed = 11, clear: readonly { x: number; z: number; r
   }
   // the finds of the collections and the places of the find of the day (./collect.ts): their plants taken out after the
   // rest are placed - a bush there hid a cone or the bilberries - so that every other plant stays where it grew
-  const finds = [...COLLECT.items, ...DAILY_PLACES];
+  const finds = [...COLLECT.items, ...DAILY_PLACES, EASEL];
   return out.filter((p) => finds.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > FIND_CLEAR) && clear.every((c) => Math.hypot(c.x - p.x, c.z - p.z) > c.r));
 }
 
