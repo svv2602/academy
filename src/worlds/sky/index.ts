@@ -6,7 +6,7 @@ import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
-import { declared, marked, ready } from '../../game/describe';
+import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { playStory, setStories } from '../../game/story';
@@ -31,7 +31,7 @@ import { tellWhenQuiet, wordsAfter } from './task-words';
 import { voices } from './voices';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGES, CLOUD_GAP, CLOCK, EASEL, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
@@ -331,8 +331,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const rayItems = RAYS.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: { x: r.at.x, z: r.at.z } }));
-  // the finale waits for the chains, the tour and the rays; the pet (Pushok) is the child's own, never needed
-  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...rayItems];
+  // the finale waits for the chains, the tour and the rays; the pet (Pushok) and the easel are the child's own, never needed
+  const before = [...declared(g).filter(finaleWaits), tourItem, ...rayItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are found on the way, the finale does not wait for them
@@ -522,6 +522,7 @@ export const sky: WorldDef<SkyLoads, WorldSky> = {
   // PLAY-07: the four secrets (./secrets.ts); the chest on the nook behind the dragon island is the world's chest (PLAY-08)
   secrets: SKY_SECRETS,
   chest: CHEST_FLAG,
-  collect: COLLECT,                  // little clouds and balloons (PLAY-25, ./collect.ts)
+  collect: COLLECT,                  // little clouds and balloons (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
+  easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
 };

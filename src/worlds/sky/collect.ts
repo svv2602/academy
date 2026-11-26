@@ -8,6 +8,7 @@ import { DEFAULT_SCALE, ISLANDS, SCALE, type ZoneId } from './layout';
  * bridge starts; the rest on the dragon island, the windmills', the pier and the stargazer's - none on the far islet
  * (the airship's) or the nooks of the secrets. Their places are checked by ./collect.test.ts: off the ways and the
  * edges, the zones, the landmarks, the secrets, the characters, Pushok's spot, the windmills and the trees.
+ * And the six pieces of its picture (PLAY-29), one on every island she walks and two on the castle's.
  */
 
 /** The places below are metres from an island's middle at the map's chosen stretch (./layout.ts DEFAULT_SCALE): at another they stretch with it. */
@@ -29,7 +30,14 @@ export const COLLECT: CollectDef = {
     // the pier and the stargazer's
     balloon('castle', -4, 11), balloon('castle', 12, 3), balloon('castle', 7, 3),
     balloon('mills', -9, 3), balloon('pier', 4, -7), balloon('observatory', 5, 5),
+    // the pieces of the picture (PLAY-29, the lead's word of 2026-11-26): six of a 3 x 2 frame, as the fairies' - the
+    // islands are small and full, nine would not keep off the finds; one on every island she walks, two on the castle's,
+    // set on the easel by the way in (./layout.ts EASEL); their order is their cell of the frame, row by row
+    ...([['castle', -11, 3], ['castle', 6, -3], ['dragon', 8, -7], ['mills', -6, -3], ['pier', 7, -4], ['observatory', 3, 9]] as const)
+      .map(([isle, dx, dz]): CollectItem => ({ kind: 'piece', way: 'run', ...on(isle, dx, dz), y: 0.35 })),
   ],
+  // the heroine and the cat from behind on the bridge to the observatory: the beginning of the islands' story, nothing told away
+  picture: { image: 'story/sky/w5_intro_3', cols: 3, rows: 2 },
 };
 
 /**

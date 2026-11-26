@@ -126,8 +126,8 @@ describe('the Sky Islands, the grey build (WORLD-12, step 1)', () => {
     }
   });
 
-  it('the finale waits for the chains, the tour and the rays, never for Pushok: the pet is the child\'s own, as in every world', () => {
+  it('the finale waits for the chains, the tour and the rays, never for Pushok nor the easel: they are the child\'s own, as in every world', () => {
     const raw = Object.values(import.meta.glob('./index.ts', { query: '?raw', import: 'default', eager: true }))[0] as string;
-    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(\(i\) => i\.kind !== 'pet'\), tourItem, \.\.\.rayItems\];/);
+    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(finaleWaits\), tourItem, \.\.\.rayItems\];/);
   });
 });
