@@ -73,7 +73,8 @@ describe('Zheleyka, the pet of the Sweet Land (PLAY-09)', () => {
 
   it('the finale waits for the chains, the tour and the rubies, never for him; the Sweet Land loads his model as a pet\'s', () => {
     const raw = Object.values(import.meta.glob('./index.ts', { query: '?raw', import: 'default', eager: true }))[0] as string;
-    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(\(i\) => i\.kind !== 'pet'\), tourItem, \.\.\.rubyItems\];/);
+    // finaleWaits (src/game/describe.ts): never the pet, nor the easel
+    expect(raw).toMatch(/const before = \[\.\.\.declared\(g\)\.filter\(finaleWaits\), tourItem, \.\.\.rubyItems\];/);
     expect(raw).toMatch(/loadOwnPets\('sweet', \['zheleyka'\], scope\)/);
   });
 });

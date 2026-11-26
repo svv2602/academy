@@ -251,6 +251,20 @@ button.it { min-width: 44px; min-height: 44px; }
 .prow .pctlbtn { background: #e9f7ee; color: #3f9a64; } .preset .pctlbtn { display: none; }
 .pctl { display: grid; gap: 4px; grid-column: 1 / -1; } .pctl .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .pctl .prow { margin: 2px 0; flex-wrap: nowrap; }
 .pctl .prow > span { flex: 0 0 34%; text-align: right; } .pctl .prow button { flex: 1 1 0; max-width: 170px; padding: 6px 8px; }
+/* The report (src/game/answers.ts): a view in place of the section, a row a skill - the name, the last answers as dots
+   (green at the first try), how many right, the mean time, the week's trend, the kinds hard now; two columns of rows on a
+   phone held sideways and wider, one upright. Its button beside "move the game". */
+.prow .prepbtn { background: #fff3d6; color: #b07a12; } .preset .prepbtn { display: none; }
+.prep { display: grid; gap: 6px; grid-column: 1 / -1; }
+.prep-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 18px; }
+.prep-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: 14px; padding: 2px 0; border-bottom: 1px solid #f1e6fa; }
+.prep-row > b { flex: 0 0 9.5em; }
+.prep-dots { display: inline-flex; gap: 2px; } .prep-dots i { width: 6px; height: 6px; border-radius: 50%; background: #d9d2e3; } .prep-dots i.ok { background: #5cc06f; }
+.prep-n { font-weight: 700; color: #4a2f7a; } .prep-ms { color: #7a6a90; }
+.prep-trend.up { color: #3f9a64; } .prep-trend.same { color: #7a6a90; } .prep-trend.down { color: #c0743a; }
+.prep-hard { flex: 1 0 100%; font-size: 12px; color: #c0743a; } .prep-none { color: #9a8fae; font-size: 13px; }
+.prep .pcfoot { display: flex; align-items: center; gap: 12px; justify-content: center; }
+.prep .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; }
 /* The save as a code (PLAY-16): a view in place of the section; each field beside its button, the message and "back" under them.
    Its button stands under the second table of skills (four rows to the first one's five): no line more for the section. */
 .prow .pcodebtn { background: #e6f3ff; color: #4f86c0; } .preset .pcodebtn { display: none; }
@@ -303,6 +317,7 @@ button.it { min-width: 44px; min-height: 44px; }
   .pset .pbreak { grid-row: 1; grid-column: 2; } .pset .pbreak button { white-space: nowrap; } .pset .pvol { grid-row: 2; }
   /* "reset", "move the game" and "controls" (PLAY-22) share the third line, a third each, their texts wrapping inside */
   .preset .pctlbtn { display: inline-block; }
+  .preset .prepbtn { display: inline-block; } .prep-list { grid-template-columns: minmax(0, 1fr); } .prep-row > b { flex-basis: 100%; }
   .pctl .prow { flex-wrap: wrap; justify-content: center; } .pctl .prow > span { flex: 1 0 100%; text-align: center; }
   /* the version: small, in the free bottom right corner of the card, beside "close" (a line of its own did not fit) */
   #pVersion { position: absolute; right: 12px; bottom: 18px; max-width: 24%; font-size: 10px; line-height: 1.25; text-align: right; }

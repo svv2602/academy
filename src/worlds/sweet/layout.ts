@@ -83,6 +83,15 @@ export const MILLSTONE = { x: MILL.x, z: MILL.z + MILL.towerR + 2 };
 /** The carousel: east of the square's middle, out of the ways that meet there. */
 export const CAROUSEL = { x: ZONES.square.x + 9, z: ZONES.square.z - 1, r: 3.6, top: 6.5 } as const;
 /**
+ * The easel (PLAY-29, src/game/easel.ts; the place P4 chose, 2026-11-26): north-east of the carousel, between it and the
+ * way to the palace, seen from the spawn; its picture turned to the middle of the square. Clear of the finds, the sweets
+ * and the things of the land (./collect.test.ts).
+ */
+export const EASEL = (() => {
+  const { x, z } = at(30, -9);
+  return { x, z, facing: Math.atan2(ZONES.square.x - x, ZONES.square.z - z) };
+})();
+/**
  * Imbir's gingerbread house, the one that fell apart: its body (`h` - as high as its walls) stands, its front is
  * assembled in the world (WORLD-21, ./house.ts); ruby 2 lies inside, seen in the doorway once the door opens.
  */
