@@ -9,11 +9,12 @@ import { breakMinutes } from '../game/session';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
 import { LEVELS, levelFor, shownSkills, withinLevels, type SkillId } from '../game/skills';
+import { skillReport } from '../game/answers';
 import type { BookInfo } from '../game/world';
 import { bookView, setBookStories, type BookStory } from './book';
 import { SUPPLY_LOOK } from './supplies';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
-import { lang, setChildName, setLang, t, tf, type Key } from './strings';
+import { isSharedKey, lang, setChildName, setLang, t, tf, type Key } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -260,13 +261,13 @@ export function initBook(save: Save, book: BookInfo, on: {
   // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
   const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
-    $('pBody').innerHTML = `<div class="pskills">${skillTable(shownSkills(save).slice(0, 5))}<div class="pcol">${skillTable(shownSkills(save).slice(5))}<div class="prow pcoderow"><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
+    $('pBody').innerHTML = `<div class="pskills">${skillTable(shownSkills(save).slice(0, 5))}<div class="pcol">${skillTable(shownSkills(save).slice(5))}<div class="prow pcoderow"><button id="pRep" class="prepbtn">${t('p_rep')}</button><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
-      <div class="prow preset"><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pReset">${t('p_reset')}</button></div>
+      <div class="prow preset"><button id="pRepUp" class="prepbtn">${t('p_rep')}</button><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pReset">${t('p_reset')}</button></div>
       <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}${helpsLine()}</div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
@@ -283,6 +284,26 @@ export function initBook(save: Save, book: BookInfo, on: {
     // One "move the game" button is shown: under the second table, or beside "reset" on a phone held upright (style.css).
     $('pBody').querySelectorAll('.pcodebtn').forEach((b) => b.addEventListener('click', renderCode));
     $('pBody').querySelectorAll('.pctlbtn').forEach((b) => b.addEventListener('click', renderControls));
+    $('pBody').querySelectorAll('.prepbtn').forEach((b) => b.addEventListener('click', renderReport));
+  };
+  // The report (the customer's word of 2026-11-26, src/game/answers.ts): a view of its own in place of the section, like
+  // the controls' - a row a skill: its last answers as dots (green at the first try), how many of them right, the mean
+  // time, this week against the one before, the kinds hard now. A skill with no answer yet says so in one line.
+  const typeName = (type: string) => { const k = `ty_${type}`; return isSharedKey(k) ? t(k) : t('p_rep_world'); };
+  const reportRow = (k: SkillId) => {
+    const r = skillReport(save, k), name = t(('sk_' + k) as Key);
+    if (!r.last.length) return `<div class="prep-row" data-skill="${k}"><b>${name}</b><span class="prep-none">${t('p_rep_none')}</span></div>`;
+    const dots = r.last.map((ok) => `<i class="${ok ? 'ok' : ''}"></i>`).join('');
+    const trend = r.week.trend ? `<span class="prep-trend ${r.week.trend}">${t(`p_rep_${r.week.trend}` as Key)}</span>` : '';
+    const hard = r.hard.length ? `<span class="prep-hard">${t('p_rep_hard')}: ${r.hard.map(typeName).join(', ')}</span>` : '';
+    return `<div class="prep-row" data-skill="${k}"><b>${name}</b><span class="prep-dots">${dots}</span>`
+      + `<span class="prep-n">${tf('p_rep_of', { n: r.right, of: r.last.length })}</span>`
+      + `<span class="prep-ms">${r.meanMs === null ? '' : tf('p_rep_sec', { n: Math.max(1, Math.round(r.meanMs / 1000)) })}</span>${trend}${hard}</div>`;
+  };
+  const renderReport = () => {
+    $('pBody').innerHTML = `<div class="prep"><div class="prep-list">${shownSkills(save).map(reportRow).join('')}</div>
+      <div class="pcfoot"><p class="pnote">${t('p_rep_note')}</p><button id="pRepBack">${t('p_code_back')}</button></div></div>`;
+    $('pRepBack').addEventListener('click', renderParents);
   };
   // The save as a code (PLAY-16): a view of its own in place of the section - the section has no room for two fields.
   // The code is made and copied at the adult's tap only; a pasted one is checked at the first tap of "load", written
