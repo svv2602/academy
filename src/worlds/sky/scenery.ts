@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, HALF, ISLANDS, LANDMARKS, MILL, MILLS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
+import { COLLECT, DAILY_PLACES } from './collect';
+import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, EASEL, HALF, ISLANDS, LANDMARKS, MILL, MILLS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
 import { SAIL_COLOURS, WINDMILL_COLOURS, bake, isBlades, type SkyProps } from './props';
 import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist } from './terrain';
@@ -69,7 +70,7 @@ export function placeRails(seed = 31): Put[] {
   return out;
 }
 
-/** m: what scattered trees keep clear of: the middles of the islands, the castle, the observatory, the mills, the arch. */
+/** m: what scattered trees keep clear of: the middles of the islands, the castle, the observatory, the mills, the arch, the easel, the finds. */
 const KEEP_OFF = 6;
 
 /** The trees and bushes of the islands, deterministic: away from the bridges, the edges, the lines of sight and each other. */
@@ -78,6 +79,8 @@ export function placeTrees(seed = 17): { trees: Put[]; bushes: Put[] } {
   const things: (Place & { r: number })[] = [
     { x: CASTLE.x, z: CASTLE.z, r: CASTLE.r + 3 }, { x: OBSERVATORY.x, z: OBSERVATORY.z, r: OBSERVATORY.r + 4 }, { x: SHRINE.x, z: SHRINE.z, r: 4 },
     ...MILLS.map((m) => ({ x: m.x, z: m.z, r: MILL.wingR + 1 })), { x: TREE_ARCH.x, z: TREE_ARCH.z, r: 5 }, { x: LANDMARKS.dragon.x, z: LANDMARKS.dragon.z, r: 5 },
+    // the easel and where she stands to look at it (PLAY-29); the finds and the places of the find of the day (none hidden)
+    { x: EASEL.x, z: EASEL.z, r: 4 }, ...[...COLLECT.items, ...DAILY_PLACES].map((f) => ({ x: f.x, z: f.z, r: 2.5 })),
   ];
   const clear = (x: number, z: number, i: Island) => pathDist(x, z) > 3.5 && Math.hypot(x - i.x, z - i.z) < i.r - RAIL - 1.5
     && Math.hypot(x - i.x, z - i.z) > KEEP_OFF && sights.every((l) => lineDist(l, x, z) > SIGHT) && things.every((t) => Math.hypot(t.x - x, t.z - z) > t.r);

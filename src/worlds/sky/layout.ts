@@ -139,6 +139,15 @@ export const RAY_ISLET = { x: ISLANDS.far.x + 2, z: ISLANDS.far.z + 1.5 };
 export const TREE_ARCH = at(5.6, 5);
 
 /**
+ * The easel (PLAY-29, src/game/easel.ts): on the castle island between where she appears and the arch, off the ways,
+ * clear of the finds (./collect.test.ts); the trees and bushes keep off it (./scenery.ts); its picture turned to the spawn.
+ */
+export const EASEL = (() => {
+  const { x, z } = at(3.75, 6.9);
+  return { x, z, facing: Math.atan2(SPAWN.x - x, SPAWN.z - z) };
+})();
+
+/**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m,
  * over the ground there - or over `base` for one that hangs in the air (the airship beside the pier: under it the sea of
  * clouds lies far below).

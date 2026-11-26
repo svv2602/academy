@@ -8,5 +8,5 @@ import type { WorldInfo } from '../../game/world';
 export const SKY_INFO: WorldInfo = {
   id: 'sky', shelf: 4, secrets: ['sky_chest', 'rainbow_slide', 'cloud_shapes', 'dragon_nest'],   // ./secrets.ts SKY_SECRETS
   // ./collect.ts COLLECT: its kinds and how many (src/worlds/meta.test.ts holds them equal)
-  collect: { items: [...Array(6).fill({ kind: 'cloudlet' }), ...Array(6).fill({ kind: 'balloon' })] },
+  collect: { items: [...Array(6).fill({ kind: 'cloudlet' }), ...Array(6).fill({ kind: 'balloon' }), ...Array(6).fill({ kind: 'piece' })] },
 };
