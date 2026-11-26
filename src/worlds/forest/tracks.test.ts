@@ -12,7 +12,7 @@ import type { TaskResult } from '../../game/taskviews/panel';
 
 let answer: TaskResult = { solved: true, wrong: 1 };
 const asked: { thing: string; n: number }[] = [];
-vi.mock('../../game/taskviews/panel', () => ({ showTask: async (spec: { body: { thing: string; n: number } }) => { asked.push({ thing: spec.body.thing, n: spec.body.n }); return answer; } }));
+vi.mock('../../game/taskviews/panel', () => ({ showTask: async (spec: { body: { thing: string; n: number } }) => { asked.push({ thing: spec.body.thing, n: spec.body.n }); return answer; }, answerOf: () => ({}) }));
 vi.mock('../../core/audio', async (orig) => ({ ...(await orig<object>()), sfx: vi.fn() }));
 
 // the forest's texts, as the game adds them before its start screen (src/main.ts)

@@ -4118,6 +4118,23 @@ try {
             if (steps.map((x) => x.split(' ')[0]).join(' ') !== 'q2 q1 q0 auto') errors.push(`quality: the button steps through ${steps.join(' -> ')}, not q2 -> q1 -> q0 -> auto`);
             console.log(`quality button: ${steps.join(' -> ')}`);
           }
+          // ---- the report (src/game/answers.ts): a row a skill shown; the dots and "n of m" are the save's last answers ----
+          {
+            await page.locator('.prepbtn:visible').first().click(); await calm();
+            await shot('31-report');
+            const rep = await g(() => {
+              const rows = [...document.querySelectorAll('.prep-row')].map((r) => ({ skill: r.dataset.skill, dots: r.querySelectorAll('.prep-dots i').length,
+                ok: r.querySelectorAll('.prep-dots i.ok').length, none: !!r.querySelector('.prep-none') }));
+              const ans = __game.save.answers ?? {};
+              return { rows, want: Object.fromEntries(Object.entries(ans).map(([k, l]) => [k, { n: l.length, ok: l.filter((a) => a.ok === 1).length }])) };
+            });
+            const bad = rep.rows.filter((r) => { const w = rep.want[r.skill]; return w ? r.none || r.dots !== w.n || r.ok !== w.ok : !r.none; });
+            if (!rep.rows.length) errors.push('report: no row of a skill');
+            if (bad.length) errors.push(`report: rows that are not the save's last answers: ${JSON.stringify(bad)} (the save: ${JSON.stringify(rep.want)})`);
+            if (!Object.keys(rep.want).length) errors.push('report: no answer was kept by the tasks of the walkthrough');
+            console.log(`report: ${rep.rows.length} skills, ${rep.rows.filter((r) => !r.none).map((r) => `${r.skill} ${r.ok}/${r.dots}`).join(', ')}`);
+            await page.click('#pRepBack'); await calm();
+          }
           // ---- the controls (PLAY-22): "fast" and "further" apply at once, are written, and a page opened anew has them ----
           {
             const near = (a, b) => Math.abs(a - b) < 1e-9;

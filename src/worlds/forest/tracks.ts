@@ -6,7 +6,7 @@ import { levelFor, recordTask } from '../../game/skills';
 import type { CountSpec } from '../../game/tasks/count';
 import { OPTIONS } from '../../game/tasks/count';
 import { ladder } from '../../game/tasks/types';
-import { showTask } from '../../game/taskviews/panel';
+import { answerOf, showTask } from '../../game/taskviews/panel';
 import type { Npc, WorldTask } from '../../game/world';
 import { tf } from '../../ui/strings';
 import { PATHS, type Place } from './layout';
@@ -103,7 +103,7 @@ export function createNutsSearch(g: Game): NutsSearch {
     };
     const res = await g.task(() => showTask(spec, g.hooksFor('🐿️')));
     if (!res.solved) return;               // closed: the question waits, Shustrik asks it again
-    recordTask(g.save, 'count', res.wrong);
+    recordTask(g.save, 'count', res.wrong, false, answerOf(res));
     state.asking = false; state.active = false;
     g.persist();
     finished();
