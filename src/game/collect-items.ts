@@ -35,7 +35,7 @@ export type CollectHost = Pick<Game, 'scene' | 'save' | 'ws' | 'world' | 'ground
 /** px: how near on the screen a touch has to land to touch a find. */
 const TAP_PX = 70;
 /** The size of the finds over their shapes below: on the grass of the valley, from the camera's 6 m, they must be seen. */
-const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2, shell: 3.0, coral: 2.8, lollipop: 2.6, marmalade: 2.6 };
+const SIZE: Record<CollectKind, number> = { mushroom: 1.6, acorn: 1.8, feather: 1.8, treefeather: 3.2, butterfly: 2.2, piece: 1.8, cone: 2.0, berry: 2.2, shell: 3.0, coral: 2.8, lollipop: 2.6, marmalade: 2.6, cloudlet: 2.8, balloon: 3.0 };
 /** A find not found yet within this many metres of her twinkles every TWINKLE seconds: the eye is led to it. */
 const NEAR = 16, TWINKLE = 1.6;
 /** m: nearer than this to her a find moves (bobs, flaps, flies off); farther it stands still at rest. */
@@ -126,8 +126,28 @@ function shapes(): Record<CollectKind, THREE.BufferGeometry> {
     jelly.push(paint(new THREE.BoxGeometry(0.014, 0.014, 0.014).translate(-0.04 + Math.cos(a) * Math.sin(t) * 0.092, -0.06 + Math.cos(t) * 0.1, Math.sin(a) * Math.sin(t) * 0.092), '#ffffff'));
   }
   const marmalade = mergeGeometries(jelly)!;
+  // the Sky Islands' (the lead's word of 2026-11-26): a little cloud of five faceted white puffs (as the islands' cloud
+  // rails), a touch of sky-blue under it;
+  // a bunch of three balloons - red, yellow, blue - their strings meeting in one string down to the ground
+  const cloudlet = mergeGeometries([
+    ...([[0, 0.01, 0, 0.085], [-0.09, -0.02, 0.01, 0.065], [0.09, -0.02, -0.01, 0.07], [-0.04, 0.05, -0.02, 0.06], [0.05, 0.045, 0.02, 0.055]] as const)
+      .map(([x, y, z, r]) => paint(new THREE.IcosahedronGeometry(r, 0).translate(x, y, z), '#ffffff')),
+    paint(new THREE.IcosahedronGeometry(0.07, 0).scale(1.8, 0.45, 1).translate(0, -0.05, 0), COLLECT_KINDS.cloudlet.color),
+  ])!;
+  const bunch: THREE.BufferGeometry[] = [];
+  for (const [x, y, z, r, c] of [[0, 0.06, 0, 0.075, COLLECT_KINDS.balloon.color], [-0.07, 0.01, 0.03, 0.06, '#ffd23f'], [0.07, 0.02, -0.03, 0.06, '#4fa8ff']] as const) {
+    bunch.push(paint(new THREE.SphereGeometry(r, 8, 6).scale(1, 1.18, 1).translate(x, y, z), c));
+    bunch.push(paint(new THREE.ConeGeometry(0.012, 0.02, 5).rotateX(Math.PI).translate(x, y - r * 1.18 - 0.008, z), c));
+    // its string from under its knot to where the three meet
+    const top = new THREE.Vector3(x, y - r * 1.18 - 0.016, z), knot = new THREE.Vector3(0, -0.1, 0), dir = top.clone().sub(knot);
+    const tie = new THREE.CylinderGeometry(0.0025, 0.0025, dir.length(), 3)
+      .applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize()));
+    bunch.push(paint(tie.translate((top.x + knot.x) / 2, (top.y + knot.y) / 2, (top.z + knot.z) / 2), '#ffffff'));
+  }
+  bunch.push(paint(new THREE.CylinderGeometry(0.0025, 0.0025, 0.24, 3).translate(0, -0.22, 0), '#ffffff'));
+  const balloon = mergeGeometries(bunch)!;
   return {
-    shell, coral, lollipop, marmalade,
+    shell, coral, lollipop, marmalade, cloudlet, balloon,
     mushroom: mergeGeometries([stem, cap])!, acorn: mergeGeometries([acorn, cup, stalk])!, feather, treefeather, butterfly,
     piece: mergeGeometries([tile, knob, knob2])!, cone, berry: mergeGeometries([...berries, ...leaves])!,
   };

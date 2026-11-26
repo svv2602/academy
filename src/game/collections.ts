@@ -35,6 +35,12 @@ export const COLLECT_KINDS = {
    */
   lollipop: { icon: '🍭', color: '#ff5fa2', world: 'sweet' },
   marmalade: { icon: '', svg: 'marmalade', color: '#7bd36a', world: 'sweet' },
+  /**
+   * the Sky Islands' (the lead's word of 2026-11-26): little clouds hanging low and bunches of balloons on their strings,
+   * by the islands' ways ("stars" are not taken - a child mixes them up with the stars of the rewards)
+   */
+  cloudlet: { icon: '☁️', color: '#8ec5ff', world: 'sky' },
+  balloon: { icon: '🎈', color: '#ff4d5e', world: 'sky' },
   /** the feathers of the Great Tree's bird, the hub's find of the day (src/worlds/hub/feathers.ts): the feather, golden
    * (`gold`: drawn gilded wherever its picture is shown, src/ui/finds.ts) - a child knows it for a feather */
   treefeather: { icon: '🪶', color: '#ffa31a', world: 'hub', gold: true },

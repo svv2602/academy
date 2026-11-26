@@ -182,7 +182,7 @@ const S = sameKeys({
     // --- the picture of a world from its pieces (PLAY-29, src/ui/picture.ts)
     book_pic_t: 'Картинки', book_pic: 'Шматочки картинки: {n} з {of}', book_pic_done: 'Картинку складено! Торкнись, щоб вона ожила.',
     book_pic_none: 'У цьому світі картинки немає.', piece_first: 'Ой, шматочок картинки! Знайдемо решту?', picture_done: 'Картинку складено! Дивись, вона ожила!',
-    collect_butterfly: 'Метелики', collect_acorn: 'Жолуді', collect_mushroom: 'Грибочки', collect_feather: 'Пірʼїнки', collect_cone: 'Шишки', collect_berry: 'Чорниці', collect_shell: 'Мушлі', collect_coral: 'Коралі', collect_lollipop: 'Льодяники', collect_marmalade: 'Мармеладки',
+    collect_butterfly: 'Метелики', collect_acorn: 'Жолуді', collect_mushroom: 'Грибочки', collect_feather: 'Пірʼїнки', collect_cone: 'Шишки', collect_berry: 'Чорниці', collect_shell: 'Мушлі', collect_coral: 'Коралі', collect_lollipop: 'Льодяники', collect_marmalade: 'Мармеладки', collect_cloudlet: 'Хмаринки', collect_balloon: 'Повітряні кульки',
     mystery_wait: 'Зірка почекає тебе тут.', mystery_day: 'Сьогодні у світі зʼявилися нові загадкові зірки!', mystery_open: 'Зірка',
     left_new_world: 'Тут живуть нові друзі. Ходімо познайомимося!',
     left_mid_chain: 'Наш друг чекає на тебе. Біжімо за іскорками!',
@@ -358,7 +358,7 @@ const S = sameKeys({
     book_collect_t: 'Коллекции', book_collect: 'Коллекции этого мира: {n} из {of}', book_collect_none: 'В этом мире коллекций нет.',
     book_pic_t: 'Картинки', book_pic: 'Кусочки картинки: {n} из {of}', book_pic_done: 'Картинка собрана! Коснись, чтобы она ожила.',
     book_pic_none: 'В этом мире картинки нет.', piece_first: 'Ой, кусочек картинки! Найдём остальные?', picture_done: 'Картинка собрана! Смотри, она ожила!',
-    collect_butterfly: 'Бабочки', collect_acorn: 'Жёлуди', collect_mushroom: 'Грибочки', collect_feather: 'Пёрышки', collect_cone: 'Шишки', collect_berry: 'Черника', collect_shell: 'Ракушки', collect_coral: 'Кораллы', collect_lollipop: 'Леденцы', collect_marmalade: 'Мармеладки',
+    collect_butterfly: 'Бабочки', collect_acorn: 'Жёлуди', collect_mushroom: 'Грибочки', collect_feather: 'Пёрышки', collect_cone: 'Шишки', collect_berry: 'Черника', collect_shell: 'Ракушки', collect_coral: 'Кораллы', collect_lollipop: 'Леденцы', collect_marmalade: 'Мармеладки', collect_cloudlet: 'Облачка', collect_balloon: 'Воздушные шарики',
     mystery_wait: 'Звезда подождёт тебя здесь.', mystery_day: 'Сегодня в мире появились новые загадочные звёзды!', mystery_open: 'Звезда',
     left_new_world: 'Здесь живут новые друзья. Пойдём познакомимся!',
     left_mid_chain: 'Наш друг ждёт тебя. Бежим за искорками!',
