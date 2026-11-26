@@ -134,7 +134,7 @@ function fakeWorld(id: string, o: { height?: number; music?: number; tour?: bool
  * The gate and the cache of worlds as the change of world sees them: `answer` - what the gate answers (asked worlds in
  * `asked`); `download` - how a download ends (its files come one a frame, `total` of them); each call is logged.
  */
-function fakeDoor(o: { answer?: (id: string) => GateAnswer | Promise<GateAnswer>; download?: (id: string) => WorldDownload['status'] | Promise<never>; total?: number } = {}) {
+function fakeDoor(o: { answer?: (id: string) => GateAnswer | Promise<GateAnswer>; download?: (id: string) => WorldDownload['status'] | Promise<never>; total?: number; error?: WorldDownload['error']; renew?: boolean } = {}) {
   const asked: string[] = [], downloads: string[] = [];
   let state: WorldDownload | null = null;
   const refused: number[] = [];
@@ -148,11 +148,13 @@ function fakeDoor(o: { answer?: (id: string) => GateAnswer | Promise<GateAnswer>
       for (let i = 0; i < total; i++) { await new Promise((r) => setTimeout(r, 0)); s.done++; }
       const end = await (o.download ?? (() => 'ready' as const))(id);
       log.push(`downloaded ${id}: ${end}`);
-      s.status = end; s.running = false; s.error = end === 'ready' ? null : 'network';
+      s.status = end; s.running = false; s.error = end === 'ready' ? null : o.error ?? 'network';
       return s;
     },
   };
-  return { gate, cache, asked, downloads, refused, refuse: () => { refused.push(1); log.push('refuse'); } };
+  const renewed: string[] = [];
+  const renew = () => { renewed.push(localStorage.getItem('amw-save') ?? ''); log.push('renew'); return o.renew ?? true; };
+  return { gate, cache, asked, downloads, refused, refuse: () => { refused.push(1); log.push('refuse'); }, renew, renewed };
 }
 
 /** A game on the stand-in worlds, started in the first of them the way src/main.ts starts it. */
@@ -205,7 +207,7 @@ async function setup(worlds: FakeWorld[], o: { started?: boolean; door?: ReturnT
     drawn: () => new Promise<void>((done) => { log.push('a frame behind the closed frame'); waiting.push(done); }),
     welcome: (first) => { welcomed.push(first); return Promise.resolve(); },
     arrived: (id) => { arrivedIn.push(id); log.push(`arrived ${id}`); },
-    gate: door.gate, cache: door.cache, refuse: door.refuse,
+    gate: door.gate, cache: door.cache, refuse: door.refuse, renew: door.renew,
   });
   travel.begin(opened, L);
   // A part of the loop, made inside shared() like the guide and the tap ring.
@@ -962,6 +964,39 @@ describe('travel: the gate of a world (TECH-09, R07, R12)', () => {
     expect(travel.world).toBe('b');
   });
 
+  it('a download that ends "changed" (the site was updated under the page): saved with the world asked for, the page renews; no world is built again, no refusal', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'network' }), download: () => 'partial', error: 'changed' });
+    const { travel, play, save } = await setup([a, b], { door });
+    save.lastWorld = 'a';
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(log.filter((l) => l === 'renew')).toHaveLength(1);
+    // saved before the page goes: the world where she stopped is the one asked for
+    expect(JSON.parse(door.renewed[0]).lastWorld).toBe('b');
+    expect(save.lastWorld).toBe('b');
+    expect(log).not.toContain('code b');
+    expect(a.builds).toHaveLength(1);
+    expect(b.builds).toHaveLength(0);
+    expect(door.refused).toEqual([]);
+    expect(travel.active).toBe(true);           // the frame stays closed till the page reloads
+    expect(await travel.go('a')).toBe(false);
+  });
+
+  it('"changed" a second time for this build (the page renewed once already): refused as without network, the world where she stopped kept', async () => {
+    const a = fakeWorld('a'), b = fakeWorld('b');
+    const door = fakeDoor({ answer: () => ({ enter: true, from: 'network' }), download: () => 'partial', error: 'changed', renew: false });
+    const { travel, play, save } = await setup([a, b], { door });
+    save.lastWorld = 'a';
+    expect(await play(travel.go('b'))).toBe(false);
+    expect(log).toContain('renew');
+    expect(save.lastWorld).toBe('a');
+    expect(JSON.parse(localStorage.getItem('amw-save')!).lastWorld).toBe('a');
+    expect(travel.world).toBe('a');
+    expect(a.builds).toHaveLength(2);
+    expect(door.refused).toEqual([1]);
+    expect(travel.active).toBe(false);
+  });
+
   it('the world played is asked about by nobody: a change to it and a change during a change never reach the gate', async () => {
     const a = fakeWorld('a'), b = fakeWorld('b');
     const door = fakeDoor();
@@ -981,7 +1016,14 @@ describe('src/main.ts hands the change of world its gate', () => {
     expect(MAIN.indexOf('createWorldCache()')).toBeLessThan(MAIN.indexOf('createTravel({'));
     expect(MAIN.indexOf('createGate({')).toBeLessThan(MAIN.indexOf('createTravel({'));
     const args = MAIN.slice(MAIN.indexOf('createTravel({'), MAIN.indexOf('\n  });', MAIN.indexOf('createTravel({')));
-    expect(args).toContain('gate, cache: worlds, refuse,');
+    expect(args).toContain('gate, cache: worlds, refuse, renew,');
+  });
+
+  it('the page renews into the new version once per build: the tab keeps the build it renewed from', () => {
+    const renew = MAIN.slice(MAIN.indexOf('const renew = () => {'), MAIN.indexOf('\n  };', MAIN.indexOf('const renew = () => {')));
+    expect(renew).toContain('if (sessionStorage.getItem(RENEWED) === __BUILD_COMMIT__) return false;');
+    expect(renew).toContain('sessionStorage.setItem(RENEWED, __BUILD_COMMIT__);');
+    expect(renew).toContain('updater.renew();');
   });
 
   it('the gate asks the cache of worlds, the page and the network; a refusal is the cat\'s recorded line "need_net"', () => {

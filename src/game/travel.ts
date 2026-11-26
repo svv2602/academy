@@ -45,7 +45,10 @@ import type { BookInfo, BuiltWorld, WorldDef, WorldMeta, WorldSky } from './worl
  *  6. the built world is handed to whoever shows it, one frame of it is drawn behind the closed frame (its shaders
  *     compile there), the frame opens, the controls come back, and the entry into the world goes on as after "play"
  *     (src/game/start.ts `enterWorld`: the tour of a world not visited yet, then the cat's line) - or, when the
- *     download did not make the world ready, the cat says that the network is needed (`refuse`).
+ *     download did not make the world ready, the cat says that the network is needed (`refuse`). A download that
+ *     ended 'changed' (the site was updated under the page: a file of its list is gone) does not come back at all:
+ *     the world asked for is saved as the one where she stopped and the page reloads into the new version
+ *     (`renew`), once per build - a second time it is refused as without network.
  *
  * The first world of a session is opened and built through the same two functions (`openWorld`, `begin`) by src/main.ts.
  */
@@ -151,6 +154,12 @@ export interface TravelHost {
   cache: Pick<WorldCache, 'download' | 'state'>;
   /** What a world that could not be had after all does - the same as a refusal of the gate: the cat's line. */
   refuse(): void;
+  /**
+   * The site holds another version than this page (the download ended 'changed': a file of this page's list is gone
+   * or other): the page takes the new version and reloads (src/core/update.ts `renew`). True - it does, the change of
+   * world goes no further; false - it already did once for this build, the world is refused as without network.
+   */
+  renew(): boolean;
 }
 
 export interface Travel {
@@ -321,6 +330,17 @@ export function createTravel(host: TravelHost): Travel {
     // be had or opened, the world left again ----
     const first = save.worlds[id]?.pos == null;
     const fetched = gate.from === 'network' ? await download(id) : true;
+    if (!fetched && host.cache.state()?.world === id && host.cache.state()?.error === 'changed') {
+      // The site was updated under this page: its world is not to be had by this version. The game is saved with the
+      // world asked for as the one where she stopped, and the page reloads into the new version, which opens it -
+      // the frame stays closed till then. Refused instead when the page already did that once for this build.
+      const before = save.lastWorld;
+      save.lastWorld = id;
+      g.persist();
+      if (host.renew()) return false;
+      save.lastWorld = before;
+      g.persist();
+    }
     const base = gate.from === 'network' ? DOWNLOAD_SHARE : 0;
     setProgressHandler((f) => transition.setProgress(base + (1 - base) * f));
     // The world's code (a next world's chunk, from the cache of worlds or the network), and its texts with it: not had,

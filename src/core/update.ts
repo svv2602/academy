@@ -72,6 +72,8 @@ export const TAKE_MS = 5000;
 /** A page hidden at least this long asks for a new version when it comes back (it may have been open for days). */
 export const CHECK_AFTER_HIDDEN_MS = 60_000;
 const TRIED = 'amw-update-tried';
+/** How long `renew` waits for the new worker to install before it reloads without it. */
+export const RENEW_MS = 15_000;
 
 export interface Updater {
   state(): UpdateState;
@@ -79,6 +81,14 @@ export interface Updater {
   onState(f: (s: UpdateState) => void): void;
   /** Look again whether the waiting worker can take over (the start screen, a page of the game gone). */
   consider(): void;
+  /**
+   * The site already holds another version than this page and this page can no longer have a world of it (a file of
+   * its list is gone: src/core/worldcache.ts 'changed'): the new version is taken now, in the middle of a game, and
+   * the page reloads into it. The new worker is looked for first (`update`, at most RENEW_MS for it to install), asked
+   * to take over and the page reloads when it has; without a new worker (none came, or there are no service workers)
+   * the page reloads all the same - the files the old worker does not hold come from the site.
+   */
+  renew(): void;
 }
 
 export function createUpdater(d: UpdateDeps): Updater {
@@ -87,6 +97,10 @@ export function createUpdater(d: UpdateDeps): Updater {
   let why: UpdateHeld = null;
   let asking = false;
   let taking = false;
+  let renewing = false;
+  let reloaded = false;
+  /** The one reload of `renew`, whichever comes first: the new worker took the page, or the wait for it is over. */
+  const renewReload = () => { if (!reloaded) { reloaded = true; d.reload(); } };
   const listeners: ((s: UpdateState) => void)[] = [];
   const set = (s: UpdateState) => { if (s === st) return; st = s; for (const f of listeners) f(s); };
   const channel = d.channel();
@@ -143,6 +157,7 @@ export function createUpdater(d: UpdateDeps): Updater {
   if (d.sw) {
     // Only the change asked for here reloads: the very first worker takes the page too (clientsClaim), and that is no update.
     d.sw.addEventListener('controllerchange', () => {
+      if (renewing) { renewReload(); return; }
       if (!taking) return;
       taking = false;
       if (d.playing()) { d.hold(false); return; }
@@ -161,11 +176,38 @@ export function createUpdater(d: UpdateDeps): Updater {
     });
   }
 
+  function renew() {
+    if (renewing) return;
+    renewing = true;
+    const reload = renewReload;
+    if (!d.sw) { reload(); return; }
+    d.setTimeout(reload, RENEW_MS + TAKE_MS);
+    void d.sw.ready.then(async (r) => {
+      reg = r;
+      if (!r.waiting) {
+        await r.update().catch(() => {});
+        // The new worker installs: it is waited for (its state changes), at most RENEW_MS from now.
+        await new Promise<void>((settle) => {
+          const end = () => settle();
+          d.setTimeout(end, RENEW_MS);
+          const w = r.installing;
+          if (!w) { end(); return; }
+          w.addEventListener('statechange', () => { if (r.waiting || w.state === 'redundant') end(); });
+        });
+      }
+      const w = r.waiting;
+      if (!w) { reload(); return; }
+      d.setTimeout(reload, TAKE_MS);
+      w.postMessage({ type: 'SKIP_WAITING' });
+    }, reload);
+  }
+
   return {
     state: () => st,
     held: () => why,
     onState: (f) => { listeners.push(f); f(st); },
     consider,
+    renew,
   };
 }
 
