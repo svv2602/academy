@@ -92,6 +92,18 @@ describe('a character\'s own lines (CharacterDef asks, thanks, again)', () => {
     expect(said).toEqual(['crab_hi 🦀', 'crab_t1 🦀', 'npc_next 🦀', 'crab_t2 🦀']);
   });
 
+  it('its own word of a step solved (`solved`) in place of the shared "next"; none for a step it has no word for', async () => {
+    const { ws, said, d, npc } = crab({ ...CRAB, solved: ['crab_found'] } as unknown as CharacterDef);
+    await d.talk(npc);
+    expect(ws.quests.crab).toBe(1);
+    expect(said).toEqual(['crab_hi 🦀', 'crab_t1 🦀', 'crab_found 🦀', 'crab_t2 🦀']);
+    // its last step solved: its word, then the part as before
+    const last = crab({ ...CRAB, steps: ['compare'], asks: ['crab_t1'], solved: ['crab_found'] } as unknown as CharacterDef);
+    await last.d.talk(last.npc);
+    expect(last.said.slice(0, 3)).toEqual(['crab_hi 🦀', 'crab_t1 🦀', 'crab_found 🦀']);
+    expect(last.said).toContain('crab_done 🦀');
+  });
+
   it('thanks with its own words when its part is given, not with the world\'s', async () => {
     const { ws, said, d, npc } = crab();
     ws.quests.crab = 1;

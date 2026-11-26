@@ -29,24 +29,12 @@ const said = (key: string) => literal(key) || templates.some((t) => t.test(key))
 /** Each world's lines to record (its strings.ts `spoken`). */
 const worlds = import.meta.glob<{ strings: { id: string; spoken?: Record<string, string> } }>('./*/strings.ts', { eager: true });
 
-/**
- * Lines recorded but not said yet, found on 2026-11-26 and told to the lead: their worlds' streams wire them. The list
- * only shrinks - a line wired is taken out of it (the test below says so).
- */
-const KNOWN: Readonly<Record<string, readonly string[]>> = {
-  // the maze's glowing way, its leaving and coming back, the tracks found, the steps' end, a difference found
-  forest: ['forest_maze_glow', 'kolyuchka_maze_exit', 'kolyuchka_maze_resume', 'shustrik_tracks_found_1', 'shustrik_tracks_found_2',
-    'shustrik_tracks_all', 'mudrena_steps_finish', 'yasen_diff_found'],
-  // the cat's words of the sea waking, at the 1st, 3rd and 5th pearl
-  sea: ['sea_magic_1', 'sea_magic_3', 'sea_magic_5'],
-};
-
 describe('every recorded line of a world is said by the code', () => {
   for (const [path, mod] of Object.entries(worlds)) {
     const { id, spoken = {} } = mod.strings;
     it(`${id} (${path})`, () => {
       const unsaid = Object.keys(spoken).filter((k) => !said(k));
-      expect(unsaid, `recorded, never said: ${unsaid.join(', ')}`).toEqual([...(KNOWN[id] ?? [])]);
+      expect(unsaid, `recorded, never said: ${unsaid.join(', ')}`).toEqual([]);
     });
   }
 
@@ -54,7 +42,9 @@ describe('every recorded line of a world is said by the code', () => {
     expect(said('sweet_magic_1')).toBe(true);        // MAGIC_LINES, src/worlds/sweet/index.ts
     expect(said('bulk_trade_thanks')).toBe(true);    // `${q.id}_trade_thanks`, src/game/dialogue.ts
     expect(said('unicorn_hi')).toBe(true);           // `${q.id}_hi`, src/worlds/fairy/characters.ts
-    expect(said('sea_magic_1')).toBe(false);
+    // the hub's word of a world (worldWord, `hub_${w}_${which}`): a world to come is said with no line of code of its own
+    expect(said('hub_sky_home')).toBe(true);
+    expect(said('hub_sweet_after')).toBe(true);
     expect(said('no_such_line_at_all')).toBe(false);
   });
 });
