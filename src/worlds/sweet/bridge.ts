@@ -12,8 +12,9 @@ import {
 } from '../../game/worldtasks/bridge';
 import { forget, keep, keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
-import { tf, type Key } from '../../ui/strings';
+import { tf, type Key, type SpokenKey } from '../../ui/strings';
 import { BRIDGE } from './layout';
+import { ownHint } from './lines';
 
 /**
  * Kakao's shape bridge over the chocolate river (WORLD-20, src/game/worldtasks/bridge.ts) as the first step of his
@@ -293,6 +294,16 @@ export function drawBridge(scene: THREE.Scene, spec: BridgeSpec, placed: readonl
   return drawing;
 }
 
+/**
+ * Kakao's recorded word that names a rule (docs/worlds/world-4.md, f4_bridge_ask_*): «only circles!» and so on; the
+ * three-cornered tiles are the triangles.
+ */
+export const RULE_ASK: Readonly<Record<BridgeRule, SpokenKey>> = {
+  circle: 'kakao_bridge_ask_circle', square: 'kakao_bridge_ask_square', triangle: 'kakao_bridge_ask_triangle',
+  rect: 'kakao_bridge_ask_rectangle', oval: 'kakao_bridge_ask_oval', rhombus: 'kakao_bridge_ask_rhombus',
+  corners3: 'kakao_bridge_ask_triangle', roundNotRed: 'kakao_bridge_ask_round_not_red', cornersNotBlue: 'kakao_bridge_ask_corner_not_blue',
+};
+
 /** The world's subtitle that names a rule (./strings.ts). */
 export const RULE_TEXT: Readonly<Record<BridgeRule, Key>> = {
   circle: 'sweet_bridge_circle', square: 'sweet_bridge_square', triangle: 'sweet_bridge_triangle', rect: 'sweet_bridge_rect',
@@ -325,7 +336,9 @@ export function createBridge(g: Game, player: WorldTaskPlayer, scope: WorldScope
   const kept = () => keptOf(g.ws, BRIDGE_STEP);
   const build = (s: number, l: number, placed: readonly number[]) => {
     seed = s; level = bridgeLevel(l);
-    spec = generateBridge(level, createRng(`bridge:${seed}`));
+    // the cat's own hint over the shared bridge (./lines.ts); Kakao's question is said in play() below
+    const shared = generateBridge(level, createRng(`bridge:${seed}`));
+    spec = { ...shared, prompt: RULE_ASK[shared.body.rule], hint: ownHint(shared.hint, ['sweet_bridge_hint_1', 'sweet_bridge_hint_2', 'sweet_bridge_hint_3']) };
     drawing?.dispose();
     drawing = drawBridge(scene, spec, placed, groundY);
   };
@@ -338,7 +351,8 @@ export function createBridge(g: Game, player: WorldTaskPlayer, scope: WorldScope
   })();
 
   let on = false, owner: Npc | null = null, finished: (played?: TaskResult) => void = () => {}, armed = true, playing = false;
-  const WAY = 'h2_odd';
+  // On the way: Kakao's ask (`kakao_t1`) under the world's subtitle: a tap on the bubble says it again.
+  const WAY = 'kakao_t1';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🍫', text: tf('sweet_bridge_way', {}) }); };
   const wrongsNow = () => kept()[2] ?? 0;
   const store = (placed: readonly number[], wrongs: number) => { keep(g.ws, BRIDGE_STEP, [seed, level, wrongs, ...placed]); g.persist(); };
@@ -347,16 +361,23 @@ export function createBridge(g: Game, player: WorldTaskPlayer, scope: WorldScope
     armed = false; playing = true;
     g.speech.caption(null);
     const hooks = g.hooksFor('🍫');
-    // the recorded question of the game, under the world's own subtitle that names the rule
+    // Kakao: «look for the tiles of the shape I name», then the shape itself (RULE_ASK), under the subtitle that names it
     const sub = tf(RULE_TEXT[spec.body.rule], {});
-    const show = showBridgeInWorld(spec, drawing, { ...hooks, prompt: (key) => { void g.speech.line(key, 'task', 0, '🍫', sub); } },
+    // the shape only while the task is open: a bridge built before it was named (the start cut off by the task's end)
+    // would have the shape said after it, over Kakao's word of the bridge done (`open` falls before the task ends)
+    let open = true;
+    const prompt = (key: SpokenKey) => {
+      void g.speech.line('kakao_bridge_start', 'task', 0, '🍫', sub).then(() => { if (open) void g.speech.line(key, 'task', 0, '🍫', sub); });
+    };
+    const show = showBridgeInWorld(spec, drawing, { ...hooks, prompt },
       { reach: g.touch ? 70 : 46, scope, kept: drawing.inDeck, before: wrongsNow(), keep: store });
-    void g.task(() => player.play(show)).then((res) => {
+    void g.task(() => player.play(show).finally(() => { open = false; })).then((res) => {
       playing = false;
       if (!res.solved) { if (on) bubble(); return; }
       on = false;
       forget(g.ws, BRIDGE_STEP);
       g.speech.caption(null);
+      void g.speech.line('kakao_bridge_finish', 'story', 0, '🍫');
       drawing.finish();
       sfx('fanfare');
       g.sparks.burst(new THREE.Vector3(BRIDGE.x, groundY(BRIDGE.x, BRIDGE.z) + 1, BRIDGE.z), '#ffd0dc', 50, 4);

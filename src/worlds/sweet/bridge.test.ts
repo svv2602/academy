@@ -24,7 +24,7 @@ import { keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { addStrings } from '../../ui/strings';
 import { BRIDGE, RIVER_HALF } from './layout';
-import { AGAIN_R, BRIDGE_STEP, RULE_TEXT, createBridge, drawBridge } from './bridge';
+import { AGAIN_R, BRIDGE_STEP, RULE_ASK, RULE_TEXT, createBridge, drawBridge } from './bridge';
 import { height } from './terrain';
 import { strings } from './strings';
 
@@ -140,7 +140,8 @@ describe('the shape bridge as Kakao\'s step (WORLD-20)', () => {
     step.start!(kakao, () => {});
     expect(step.owner!()).toBe('kakao');
     expect(keptOf(ws, BRIDGE_STEP)).toHaveLength(3);
-    expect(captions.at(-1)).toMatchObject({ key: 'h2_odd', text: strings.table.uk.sweet_bridge_way });
+    // on the way: Kakao's ask under the world's subtitle (a tap on the bubble says it again)
+    expect(captions.at(-1)).toMatchObject({ key: 'kakao_t1', text: strings.table.uk.sweet_bridge_way });
     const goal = step.goal()!;
     // on the bank, out of the chocolate, on the miller's (east) side, level with the tiles
     expect(goal.x - BRIDGE.x).toBeGreaterThan(RIVER_HALF + 0.8);
@@ -252,10 +253,16 @@ describe('the bridge recorded in `classify` as a panel task (the customer\'s dec
     expect(save.skills.classify.tasks).toBe(5);
     expect(save.skills.classify.errors).toBe(5);
     expect(keptOf(t.ws, BRIDGE_STEP)).toEqual([]);
-    // its question: the recorded line of the game under the world's own subtitle that names the rule
-    const asked = t.lines.filter((l) => l.key === 'h2_odd');
-    expect(asked).toHaveLength(2);
-    for (const l of asked) expect(l.text).toBe(strings.table.uk[RULE_TEXT[t.bridge.spec.body.rule] as keyof typeof strings.table.uk]);
+    // its question, at each of the two openings: Kakao's «look for the tiles of the shape I name», then the shape
+    // (RULE_ASK), under the world's own subtitle that names the rule; the cat's own hint; Kakao's word at the end
+    const rule = t.bridge.spec.body.rule, sub = strings.table.uk[RULE_TEXT[rule] as keyof typeof strings.table.uk];
+    for (const key of ['kakao_bridge_start', RULE_ASK[rule]]) {
+      const asked = t.lines.filter((l) => l.key === key);
+      expect(asked, key).toHaveLength(2);
+      for (const l of asked) expect(l.text).toBe(sub);
+    }
+    expect(t.bridge.spec.hint.rungs.map((r) => r.key)).toEqual(['sweet_bridge_hint_1', 'sweet_bridge_hint_2', 'sweet_bridge_hint_3']);
+    expect(t.lines.filter((l) => l.key === 'kakao_bridge_finish')).toHaveLength(1);
   });
 
   it('closed with nothing in the deck: nothing recorded in any skill, the chain stays at the bridge', async () => {

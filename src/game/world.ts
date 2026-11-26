@@ -58,9 +58,12 @@ export interface CharacterDef {
    * Its own lines, in its voice (VOICE-10; the next worlds, unset in the first): `asks` - before each step of the chain,
    * by the step's index (none or null: no line); `thanks` - with its part, in place of the world's `partGiven`;
    * `again` - one of them in turn when it is met after its chain, in place of `npc_again`; `after` - once its part is
-   * given, after its thanks, in place of the cat's `go_next` (a request that opens what comes next: the owlet to find).
+   * given, after its thanks, in place of the cat's `go_next` (a request that opens what comes next: the owlet to find);
+   * `solved` - once the task of a step is solved, after the praise, by the step's index, in place of `npc_next` (none or
+   * null: as before - the forest's ash remembering when the differences are found).
    */
   asks?: readonly (SpokenKey | null)[]; thanks?: SpokenKey; again?: readonly SpokenKey[]; after?: SpokenKey;
+  solved?: readonly (SpokenKey | null)[];
 }
 
 export interface Npc { def: CharacterDef; actor: Actor; pos: THREE.Vector3; mark: THREE.Mesh; idle: string; timer: number }

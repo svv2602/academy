@@ -28,7 +28,7 @@ function host(level: number) {
   const g = {
     scene: new THREE.Scene(), save, ws: worldState(save, 'forest'), groundY: () => 0, rng: createRng('nuts'),
     ground: { resolve: () => {} }, hero: { root: new THREE.Object3D() }, sparks: { burst: vi.fn() },
-    speech: { caption: vi.fn() }, task: (open: () => Promise<TaskResult>) => open(), hooksFor: () => ({}), persist: vi.fn(),
+    speech: { caption: vi.fn(), line: vi.fn(() => Promise.resolve()) }, task: (open: () => Promise<TaskResult>) => open(), hooksFor: () => ({}), persist: vi.fn(),
   };
   g.hero.root.position.set(999, 0, 999);
   return g;
@@ -59,9 +59,13 @@ describe('the tracks on the ground (WORLD-15)', () => {
       s.update(0.016, i, true);
       if (i < s.state.nuts.length - 1) expect(JSON.stringify(g.save.skills.count)).toBe(before);      // LEARN-02
     }
+    // the question at once with the last nut: no line before it (the walkthrough of the forest, 2026-11-26)
+    expect(s.state.asking).toBe(true);
     await vi.waitFor(() => expect(done).toHaveBeenCalledTimes(1));
     expect(asked).toEqual([{ thing: '🌰', n: 3 }]);
     expect(g.save.skills.count.tasks).toBe(JSON.parse(before).tasks + 1);
+    // Shustrik glad of the first two nuts; the tracks' end is her word of the step solved (CharacterDef.solved)
+    expect(g.speech.line.mock.calls.map((c: unknown[]) => c[0])).toEqual(['shustrik_tracks_found_1', 'shustrik_tracks_found_2']);
     expect(s.active!()).toBe(false);
   });
 

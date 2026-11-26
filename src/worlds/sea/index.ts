@@ -109,6 +109,12 @@ export const ONCE = { bubble: 'told_bubble', swim: 'told_swim', wet: 'told_wet' 
 const SWIM_SAID_AT = 1.5;
 /** s of game time she must be free and the voice silent before the cat says one of them. */
 const QUIET = 2;
+/**
+ * The cat's words of the sea waking (docs/worlds/world-3.md «Мир оживает»): at the 1st, 3rd and 5th pearl back, each
+ * once (the flag `told_magic_<n>`), in the quiet moment of the first visit's words; pearls already back when the world
+ * is built are not told again.
+ */
+const MAGIC_LINES = { 1: 'sea_magic_1', 3: 'sea_magic_3', 5: 'sea_magic_5' } as const;
 /** m: swimming this near a pearl of `walk` takes it; the spot of the cabin's door; the throne's spot. */
 const TAKE_R = 1.2, CABIN_R = 2.6, THRONE_R = 3;
 
@@ -249,6 +255,10 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
+  const back = () => FRIENDS.filter((c) => (ws.quests[c.id] ?? 0) >= c.steps.length).length;
+  const toldFlag = (n: number) => `told_magic_${n}`;
+  // the pearls back at the entry are told already (an old save hears nothing of what happened before)
+  for (const n of Object.keys(MAGIC_LINES).map(Number)) if (n <= back()) ws.flags[toldFlag(n)] = true;
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the pearls that lie in the world (WORLD-08): the step `part` of the dragon's and the turtle's chains -----
@@ -394,6 +404,11 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
           if (!ws.flags[ONCE.bubble]) { once(ONCE.bubble, 'sea_cat_bubble'); swum = 0; }
           else if (!ws.flags[ONCE.swim] && swum > SWIM_SAID_AT) once(ONCE.swim, 'sea_swim_first');
           else if (!ws.flags[ONCE.wet] && npcs.some(finished)) once(ONCE.wet, 'sea_cat_wet');
+          else {
+            // the sea waking, told by the cat at the 1st, 3rd and 5th pearl back (MAGIC_LINES), each once
+            const k = Object.keys(MAGIC_LINES).map(Number).find((m) => m <= back() && !ws.flags[toldFlag(m)]);
+            if (k !== undefined) { ws.flags[toldFlag(k)] = true; g.persist(); quiet = 0; void g.speech.line(MAGIC_LINES[k as keyof typeof MAGIC_LINES], 'story'); }
+          }
         }
         if (finaleEnd && (finaleLeft -= dt) <= 0) { const done = finaleEnd; finaleEnd = null; done(); }
         pearlOfDeep.visible = ws.final;

@@ -54,7 +54,7 @@ export function createMaze(g: Game): MazeStep {
   let show: MazeShow | null = null, mine: { x: number; z: number; r: number }[] = [];
   let spec!: MazeSpec, geo!: MazeGeo, walk!: MazeWalk, seed = 0, level = 1;
   let mine2 = false, minePitch = false;            // the camera's distance is the maze's (set by it, given back by it)
-  let on = false, owner: Npc | null = null, finished: () => void = () => {}, idle = 0, inside = false;
+  let on = false, owner: Npc | null = null, finished: () => void = () => {}, idle = 0, inside = false, glowTold = -1;
 
   /** The maze of `seed` on `level` in the scene (the old one taken away, its bushes out of the colliders). */
   function build(s: number, l: number, passed: number) {
@@ -140,8 +140,11 @@ export function createMaze(g: Game): MazeStep {
       inside = inMaze(hp.x, hp.z);
       if (!canMove) return;
       // walked in by the way in with forks passed: on from the last of them
+      // walked out with forks passed: Kolyuchka keeps the place, and says so (once a way out)
+      if (was && !inside && walk.passed > 0) void g.speech.line('kolyuchka_maze_exit', 'story', 0, '🦔');
       if (!was && inside && walk.passed > 0 && Math.hypot(hp.x - geo.trunk[1].x, hp.z - geo.trunk[1].z) < 3) {
         const p = walk.resumeAt();
+        void g.speech.line('kolyuchka_maze_resume', 'story', 0, '🦔');
         burst(hp, '#fff2a8');
         at(p);
         burst(p, '#fff2a8', 30);
@@ -156,6 +159,8 @@ export function createMaze(g: Game): MazeStep {
         if (walk.passed === spec.forks.length) return;
       } else if (r === 'wrong') {
         void g.hooksFor('🦔').wrong();        // the soft sound and the cat's "try again", the rule of every task (core.ts)
+        // the second wrong way at a fork lights the right one (walk.glow): the cat points to it, once a fork
+        if (walk.glow && glowTold !== walk.passed) { glowTold = walk.passed; void g.speech.line('forest_maze_glow', 'hint', 4000); }
       } else if (r === 'end') {
         burst(hp, '#7ff0b0', 40);
         end();

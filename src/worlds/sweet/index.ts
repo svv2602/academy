@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { rig, type Rig } from '../../core/assets';
-import { setCast, sfx } from '../../core/audio';
+import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
@@ -56,12 +56,17 @@ import { CHEST_FLAG, SECRET_HOW, SWEET_SECRETS, createSweetSecrets } from './sec
  * house is assembled and its door opens.
  */
 export const FRIENDS: readonly CharacterDef[] = [
-  { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d' },
-  { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f' },
+  { id: 'pastila', emoji: '🧁', x: ZONES.square.x + 2.5, z: ZONES.square.z - 3, heading: 0.06, steps: ['add', 'compose', 'compare'], shard: '#ff4d6d',
+    hi: 'pastila_hi', asks: ['pastila_t1', 'pastila_t2', 'pastila_t3'], thanks: 'pastila_done', again: ['pastila_again_1', 'pastila_again_2'] },
+  { id: 'imbir', emoji: '🍪', x: ZONES.town.x - 2.5, z: ZONES.town.z - 1, heading: 1.3, steps: ['count', 'pattern', HOUSE_STEP, 'part'], shard: '#e8364f',
+    hi: 'imbir_hi', asks: ['imbir_t1', 'imbir_t2', 'imbir_t3', null], thanks: 'imbir_done', again: ['imbir_again_1', 'imbir_again_2'] },
   { id: 'tyanuchka', emoji: '🍬', x: ZONES.market.x - 1.5, z: ZONES.market.z + 2.5, heading: 2.6, steps: ['sub', 'sort', SCALES_STEP], shard: '#ff6b8a',
+    hi: 'tyanuchka_hi', asks: ['tyanuchka_t1', 'tyanuchka_t2', 'tyanuchka_t3'], thanks: 'tyanuchka_done', again: ['tyanuchka_again_1', 'tyanuchka_again_2'],
     after: 'tyanuchka_pet_ask' },
-  { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: [BRIDGE_STEP, 'simon', 'signs', 'part'], shard: '#d62e5c' },
-  { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3' },
+  { id: 'kakao', emoji: '🍫', x: ZONES.mill.x - 3, z: ZONES.mill.z - 3, heading: 0.785, steps: [BRIDGE_STEP, 'simon', 'signs', 'part'], shard: '#d62e5c',
+    hi: 'kakao_hi', asks: ['kakao_t1', 'kakao_t2', 'kakao_t3', null], thanks: 'kakao_done', again: ['kakao_again_1', 'kakao_again_2'] },
+  { id: 'polosatik', emoji: '🍭', x: ZONES.garden.x - 2, z: ZONES.garden.z - 1.5, heading: 0.5, steps: ['pairs', 'neighbors', 'add'], shard: '#ff8fa3',
+    hi: 'polosatik_hi', asks: ['polosatik_t1', 'polosatik_t2', 'polosatik_t3'], thanks: 'polosatik_done', again: ['polosatik_again_1', 'polosatik_again_2'] },
 ];
 
 /**
@@ -88,11 +93,11 @@ const FIGURE: Record<string, { h: number; r: number; color: string; top: string 
  * where it is seen (`spot`, `lift` m over the ground), where it is taken and the label of its action. Ruby 2 is seen in
  * the doorway of Imbir's house once the house is assembled and its door has opened (WORLD-21, ./house.ts), and taken
  * by the action before the door; ruby 4 is taken by the action at the millstone (in the step of WORLD-08 the action
- * there turns the millstone open).
+ * there turns the millstone open). `found`: the cat names it, then its character thanks (as the sea's pearls).
  */
 export const RUBIES = [
-  { owner: 'imbir', flag: 'ruby_house', hint: 'imbir_hint', spot: DOORWAY, lift: 0.75, at: HOUSE_DOOR, label: 'sweet_house' },
-  { owner: 'kakao', flag: 'ruby_mill', hint: 'kakao_hint', spot: MILLSTONE, lift: 1.4, at: { x: MILLSTONE.x, z: MILLSTONE.z + 1.6 }, label: 'sweet_millstone' },
+  { owner: 'imbir', flag: 'ruby_house', hint: 'imbir_hint', spot: DOORWAY, lift: 0.75, at: HOUSE_DOOR, label: 'sweet_house', found: 'sweet_ruby_house_found' },
+  { owner: 'kakao', flag: 'ruby_mill', hint: 'kakao_hint', spot: MILLSTONE, lift: 1.4, at: { x: MILLSTONE.x, z: MILLSTONE.z + 1.6 }, label: 'sweet_millstone', found: 'sweet_ruby_mill_found' },
 ] as const;
 export const FINALE = 'final';
 const TOUR = 'toured';
@@ -100,10 +105,17 @@ const TOUR = 'toured';
 const RUBY_R = 2.6, SHRINE_R = 3;
 /** rad/s: the mill's wings turn all the time (by code, docs/worlds/world-4.md); the carousel turns with the magic (./magic.ts). */
 export const WINGS_TURN = 0.35;
+/**
+ * The cat's words of the land waking (docs/worlds/world-4.md «Мир оживает»): at the 1st, 3rd and 5th ruby back, each
+ * once (the flag `told_magic_<n>`), said only when she is free and nobody speaks for QUIET s of game time - never over a
+ * character's thanks; rubies already back when the world is built are not told again.
+ */
+const MAGIC_LINES = { 1: 'sweet_magic_1', 3: 'sweet_magic_3', 5: 'sweet_magic_5' } as const;
+const QUIET = 2;
 /** s of game time the five rubies fly up to the candle in the finale. */
 const GATHER_S = 2;
 
-const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'go_next', partTitle: 'sweet_part', partText: 'sweet_count' };
+const LINES: WorldLines = { partGiven: 'npc_next', allParts: 'sweet_all_rubies', partTitle: 'sweet_part', partText: 'sweet_count' };
 /** A bright major mode of G, quick (the grey build's own; VOICE-12 later gives the world its own). */
 const MUSIC: MusicParams = {
   scale: [392, 440, 493.9, 523.3, 587.3, 659.3, 740],
@@ -201,6 +213,11 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     return { def, actor, pos, mark, idle: 'Idle', timer: 0 };
   });
   const finished = (n: Npc) => (ws.quests[n.def.id] ?? 0) >= n.def.steps.length;
+  const back = () => FRIENDS.filter((c) => (ws.quests[c.id] ?? 0) >= c.steps.length).length;
+  const toldFlag = (n: number) => `told_magic_${n}`;
+  // the rubies back at the entry are told already (an old save hears nothing of what happened before)
+  for (const n of Object.keys(MAGIC_LINES).map(Number)) if (n <= back()) ws.flags[toldFlag(n)] = true;
+  let quiet = 0;
   // the creatures of no task (PLAY-11, PLAY-12): gummy bears, caramel butterflies, gingerbread birds, dragee ladybugs;
   // after the scenery and the characters, whose colliders they keep clear of
   const creatures = createSweetCreatures(g, scope);
@@ -225,7 +242,8 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   const take = (r: Ruby) => {
     ws.flags[r.flag] = true; r.mesh.visible = false;
     sfx('chime'); g.sparks.burst(r.mesh.position, '#ffd0dc', 36, 3);
-    stepDone(npc(r.owner), r.step);
+    // the cat names the ruby found, then the chain moves on and its character thanks
+    void g.speech.line(r.found, 'story').then(() => stepDone(npc(r.owner), r.step));
   };
   const part: WorldTask = {
     skill: 'count',     // a step of no skill: the conversation reads the skill of a task it runs, never of this one
@@ -294,6 +312,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     g.cam.focus = g.above(shrine, 6);
     sfx('fanfare');
     five.forEach((m) => { m.visible = true; });
+    const whole = g.speech.line('sweet_ruby_whole', 'story');
     await new Promise<void>((done) => { finaleLeft = GATHER_S; finaleEnd = done; });
     // the Ruby whole on the candle: the candle lights, the magic comes to 1 (the carousel at its fastest), confetti of sugar powder from the sky
     five.forEach((m) => { m.visible = false; });
@@ -301,9 +320,13 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     for (const [i, c] of CONFETTI.entries()) g.sparks.burst(g.above(shrine, 5 + i), c, 40, 6);
     g.sparks.burst(scenery.candleTop.clone(), '#ffd27a', 50, 3);
     // the five are glad of a land that laughs again (each its clip of the finale), then stand as before
+    await whole;
     for (const n of npcs) if (n.actor.has('Cheer') && n.actor.has('Idle')) n.actor.once('Cheer', 'Idle');
+    // Pastila thanks the Keeper for all of them, then the cat's last words
+    await g.speech.line('pastila_cheer', 'story', 0, '🧁');
+    await g.speech.line('sweet_final_text', 'story');
     finaleOn = false; g.cam.focus = null;
-  }).then(() => playStory(g, 'story_ruby'));
+  }).then(() => playStory(g, 'story_ruby')).then(() => g.speech.line('sweet_free', 'hint', 6000));
   const rubySpots = rubies.map((r): Spot => ({ pos: point(r.spot), r: RUBY_R, label: r.label, on: () => waiting(r), run: () => take(r) }));
 
   return {
@@ -335,6 +358,12 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
         scales.update(dt, time);
         bridge.update(dt, time, canMove);
         secrets.update(dt, time, canMove);
+        // the land waking, told by the cat at the 1st, 3rd and 5th ruby (MAGIC_LINES), in a quiet moment
+        quiet = canMove && !g.busy && !player.open && !speaking() ? quiet + dt : 0;
+        if (quiet > QUIET) {
+          const n = Object.keys(MAGIC_LINES).map(Number).find((k) => k <= back() && !ws.flags[toldFlag(k)]);
+          if (n !== undefined) { ws.flags[toldFlag(n)] = true; g.persist(); quiet = 0; void g.speech.line(MAGIC_LINES[n as keyof typeof MAGIC_LINES], 'story'); }
+        }
         // the finale: the five fly up from round the shrine to the candle's top over GATHER_S s of game time
         if (finaleEnd) {
           const k = 1 - Math.max(0, finaleLeft) / GATHER_S, top = scenery.candleTop;

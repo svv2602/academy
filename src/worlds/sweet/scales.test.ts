@@ -169,8 +169,10 @@ describe('the scales as Tyanuchka\'s step, recorded in `compare` as a panel task
     expect(save.skills).toEqual(want.skills);
     expect(save.skills.compare.tasks).toBe(5);
     expect(save.skills.compare.errors).toBe(5);
-    // its question: the recorded line of the game under the world's own subtitle
-    expect(t.lines.find((l) => l.key === 't_missing')?.text).toBe(strings.table.uk.sweet_scales_ask);
+    // its question: Tyanuchka's, under the world's own subtitle; the cat's own hint; her word when it is level
+    expect(t.lines.find((l) => l.key === 'tyanuchka_scales_start')?.text).toBe(strings.table.uk.sweet_scales_ask);
+    expect(t.show.spec.hint.rungs.map((r) => r.key)).toEqual(['sweet_scales_hint_1', 'sweet_scales_hint_2', 'sweet_scales_hint_3']);
+    expect(t.lines.filter((l) => l.key === 'tyanuchka_scales_finish')).toHaveLength(1);
   });
 
   it('level 5 plays the signs, and is recorded in `compare` the same way', async () => {
@@ -179,7 +181,9 @@ describe('the scales as Tyanuchka\'s step, recorded in `compare` as a panel task
     recordTask(want, 'compare', 1, false);
     const t = await play(5, 1, save);
     expect(t.show.spec.body.mode).toBe('sign');
-    expect(t.lines.find((l) => l.key === 't_signs')?.text).toBe(strings.table.uk.sweet_scales_sign);
+    expect(t.lines.find((l) => l.key === 'tyanuchka_scales_start_sign')?.text).toBe(strings.table.uk.sweet_scales_sign);
+    // the signs keep the panel's way, the world's two other rungs
+    expect(t.show.spec.hint.rungs.map((r) => r.key).slice(1)).toEqual(['sweet_scales_hint_2', 'sweet_scales_hint_3']);
     expect(save.skills).toEqual(want.skills);
   });
 

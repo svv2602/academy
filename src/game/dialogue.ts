@@ -158,8 +158,9 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
-        // A stop point after the praise; after the last step the card of the part comes first, and its own point.
-        if (k < q.steps.length - 1) { await stopPoint('task'); await line('npc_next', 'story', 0, q.emoji); }
+        // A stop point after the praise; after the last step the card of the part comes first (CharacterDef.solved: own word)
+        if (k < q.steps.length - 1) { await stopPoint('task'); await line(q.solved?.[k] ?? 'npc_next', 'story', 0, q.emoji); }
+        else { const own = q.solved?.[k]; if (own) await line(own, 'story', 0, q.emoji); }
       }
       onward = await givePart(n);
     });

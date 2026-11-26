@@ -40,11 +40,11 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 function game(ws = defaultWorld(), save = defaultSave()) {
   const quick = () => Promise.resolve() as Spoken;
   let seed = 11;
-  const captions: { key: string }[] = [], stars: number[] = [];
+  const captions: { key: string }[] = [], stars: number[] = [], lines: string[] = [];
   const g = {
     scene: new THREE.Scene(), groundY: () => 0, hero: { root: new THREE.Object3D(), play: () => {} }, cat: { play: () => {} }, cam: {}, ws, save,
     rng: () => ((seed = (seed * 16807) % 2147483647) / 2147483647), persist: () => {}, busy: false, touch: true, plan: {},
-    speech: { caption: (c: { key: string } | null) => { if (c) captions.push(c); }, shown: null, line: () => Promise.resolve() },
+    speech: { caption: (c: { key: string } | null) => { if (c) captions.push(c); }, shown: null, line: (key: string) => { lines.push(key); return Promise.resolve(); } },
     hooksFor: () => ({ prompt: () => {}, number: () => {}, good: () => {}, wrong: quick, hint: quick }),
     sparks: { burst: () => {} }, task: (open: () => Promise<TaskResult>) => open(),
     refreshHud: () => {}, addStars: (n: number) => { stars.push(n); }, above: () => new THREE.Vector3(), fault: () => {}, praise: () => Promise.resolve(),
@@ -56,7 +56,7 @@ function game(ws = defaultWorld(), save = defaultSave()) {
     get open() { return open; }, tap: () => false, update: (t: number) => open?.update(t),
   } as WorldTaskPlayer;
   const scope = createWorldScope(new THREE.Scene());
-  return { g: g as unknown as Game, captions, opened, player, scope, ws, save, stars };
+  return { g: g as unknown as Game, captions, opened, player, scope, ws, save, stars, lines };
 }
 const imbir = { def: { id: 'imbir' } } as Npc;
 const walkTo = (g: Game, x: number, z: number) => { g.hero.root.position.set(x, 0, z); };
@@ -109,7 +109,10 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
     step.start!(imbir, () => {});
     expect(step.owner!()).toBe('imbir');
     expect(keptOf(ws, HOUSE_STEP)).toHaveLength(2);
-    expect(captions.at(-1)).toMatchObject({ key: 't_puzzle' });
+    // on the way: Imbir's ask (a tap on the bubble says it again); his question and the cat's hint are the world's own
+    expect(captions.at(-1)).toMatchObject({ key: 'imbir_t3' });
+    expect(step.spec.prompt).toBe('imbir_house_start');
+    expect(step.spec.hint.rungs.map((r) => r.key)).toEqual(['sweet_house_hint_1', 'sweet_house_hint_2', 'sweet_house_hint_3']);
     const goal = step.goal()!;
     expect(Math.hypot(goal.x - HOUSE_FACADE.x, goal.z - HOUSE_FACADE.z)).toBeLessThan(5);
     walkTo(g, 0, 0); frames(step, 0.1);
@@ -123,7 +126,7 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
   });
 
   it('closed in the middle: what is assembled stays, in the save at once; it opens again only once she has walked off and back, in that middle', async () => {
-    const { g, opened, player, scope, ws } = game(), step = createHouse(g, player, scope, { inside: () => {} });
+    const { g, opened, player, scope, ws, lines } = game(), step = createHouse(g, player, scope, { inside: () => {} });
     step.start!(imbir, () => {});
     step.cheat(); frames(step, 0.1);
     const first = opened[0];
@@ -133,6 +136,8 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
     first.close();
     await vi.runAllTimersAsync();
     expect(step.active!()).toBe(true);
+    // Imbir keeps what is put, and says so
+    expect(lines.filter((k) => k === 'imbir_house_exit')).toHaveLength(1);
     frames(step, 1, 1);
     expect(opened).toHaveLength(1);
     // the pieces put in stay in their places in the world
@@ -146,6 +151,8 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
     step.cheat(); frames(step, 0.1, 4);
     expect(opened).toHaveLength(2);
     expect(opened[1].state()).toMatchObject({ phase: 'input', wrongs: 0, progress: middle });
+    // back to a house begun: Imbir welcomes her back instead of asking again
+    expect(lines.filter((k) => k === 'imbir_house_resume')).toHaveLength(1);
   });
 
   it('after a reload the same house stands there with the same pieces in their places', () => {
@@ -162,7 +169,7 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
   });
 
   it('assembled: the door opens, what is inside is shown, the step ends with no result and its middle goes', async () => {
-    const { g, opened, player, scope, ws } = game(), results: unknown[][] = [];
+    const { g, opened, player, scope, ws, lines } = game(), results: unknown[][] = [];
     let inside = 0;
     const step = createHouse(g, player, scope, { inside: () => { inside++; } });
     step.start!(imbir, (...r: unknown[]) => { results.push(r); });
@@ -172,6 +179,9 @@ describe('the gingerbread house as Imbir\'s step (WORLD-21)', () => {
     opened[0].solve();
     await vi.runAllTimersAsync();
     expect(results).toEqual([[]]);             // done() alone: no result, so the conversation records no skill
+    expect(lines).toContain('imbir_house_finish');
+    expect(lines).toContain('imbir_house_fit');
+    expect(lines).not.toContain('imbir_house_exit');
     expect(inside).toBe(1);
     expect(step.active!()).toBe(false);
     expect(keptOf(ws, HOUSE_STEP)).toEqual([]);

@@ -7,8 +7,9 @@
  *
  * The world's own lines (docs/worlds/world-4.md, the draft taken on 2026-11-18, "Принять всё") are listed in `spoken`
  * and recorded (./clips.json): the cat's under `sweet_*`, each character's under `<id>_*` (./voices.ts says who speaks
- * with which voice), as the sea's. The grey build's conversations still say the shared recorded lines; the secrets say
- * their own (./secrets.ts). The draft's ids `f4_*` become `sweet_*` (the cat's) and `<id>_*` (a character's, the ids of
+ * with which voice), as the sea's. Every one is said by the code (src/worlds/lines-used.test.ts): the characters' in
+ * their conversations (./index.ts FRIENDS), the tasks' in the world (./house.ts, ./bridge.ts, ./scales.ts), the tour's,
+ * the rubies', the land waking and the finale's (./index.ts), the secrets' (./secrets.ts). The draft's ids `f4_*` become `sweet_*` (the cat's) and `<id>_*` (a character's, the ids of
  * ./index.ts FRIENDS: f4_pastyla_* -> pastila_*, f4_house_start -> imbir_house_start, f4_cheer -> pastila_cheer); its
  * captions f4_name_* are `sweet_fullname_*`, beside the short `sweet_name_*` the grey build shows. The cat's three lines
  * of the hub after this world are in the hub's strings (hub_sweet_*).

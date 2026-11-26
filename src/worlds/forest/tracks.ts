@@ -152,7 +152,11 @@ export function createNutsSearch(g: Game): NutsSearch {
           nut.found = true; idle = 0;
           sfx('chime'); sparks.burst(nut.at.clone().setY(nut.at.y + 0.3), '#e8a94a', 20, 3);
           bubble();
+          // Shustrik glad of the first two nuts; at the last her question at once (the tracks' end is her word of the
+          // step solved: CharacterDef.solved, ./index.ts)
+          const n = state.nuts.filter((x) => x.found).length;
           if (state.nuts.every((x) => x.found)) void ask();
+          else if (n <= 2) void g.speech.line(n === 1 ? 'shustrik_tracks_found_1' : 'shustrik_tracks_found_2', 'story', 0, '🐿️');
         }
       }
     },

@@ -10,6 +10,7 @@ import { forget, keep, keptOf } from '../../game/worldtasks/kept';
 import type { WorldTaskPlayer } from '../../game/worldtasks/play';
 import { tf } from '../../ui/strings';
 import { HOUSE_FACADE } from './layout';
+import { ownHint } from './lines';
 
 /**
  * Imbir's gingerbread house assembled in the world (WORLD-21, src/game/worldtasks/house.ts) as the third step of his
@@ -320,7 +321,9 @@ export function createHouse(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   const kept = () => keptOf(g.ws, HOUSE_STEP);
   const build = (s: number, l: number, placed: readonly number[]) => {
     seed = s; level = houseLevel(l);
-    spec = generateHouse(level, createRng(`house:${seed}`));
+    // Imbir's own question and the cat's own hint over the shared assembly (./lines.ts)
+    const shared = generateHouse(level, createRng(`house:${seed}`));
+    spec = { ...shared, prompt: 'imbir_house_start', hint: ownHint(shared.hint, ['sweet_house_hint_1', 'sweet_house_hint_2', 'sweet_house_hint_3']) };
     drawing?.dispose();
     drawing = drawHouse(scene, spec, placed.filter((i) => Number.isInteger(i) && i >= 0 && i < spec.body.pieces.length), groundY);
   };
@@ -329,22 +332,31 @@ export function createHouse(g: Game, player: WorldTaskPlayer, scope: WorldScope,
   if (k0.length >= 2) build(k0[0], k0[1], k0.slice(2)); else build(Math.floor(g.rng() * 1e6), levelFor(g.save, 'classify'), []);
 
   let on = false, owner: Npc | null = null, finished: () => void = () => {}, armed = true, playing = false;
-  // On the way: a subtitle (`sweet_house_way`, no voice) under the recorded "let's put it together" (`t_puzzle`): a tap on
-  // the bubble says that again.
-  const WAY = 't_puzzle';
+  // On the way: a subtitle (`sweet_house_way`, no voice) under Imbir's ask (`imbir_t3`): a tap on the bubble says it again.
+  const WAY = 'imbir_t3';
   const bubble = () => { g.speech.caption({ key: WAY, pri: 'story', hold: 0, speaker: '🍪', text: tf('sweet_house_way', {}) }); };
-  const store = (placed: readonly number[]) => { keep(g.ws, HOUSE_STEP, [seed, level, ...placed]); g.persist(); };
+  const store = (placed: readonly number[]) => {
+    // one piece left to put: Imbir is glad it fits, the house is nearly done
+    if (playing && placed.length === spec.body.pieces.length - 1 && placedNow().length < placed.length) void g.speech.line('imbir_house_fit', 'task', 0, '🍪');
+    keep(g.ws, HOUSE_STEP, [seed, level, ...placed]); g.persist();
+  };
 
   function play() {
     armed = false; playing = true;
     g.speech.caption(null);
-    const show = showHouseInWorld(spec, drawing, g.hooksFor('🍪'), { reach: g.touch ? 70 : 46, scope, kept: placedNow(), keep: store });
+    // a house begun before: Imbir welcomes her back instead of asking again
+    const resumed = placedNow().length > 0;
+    const hooks = g.hooksFor('🍪');
+    const show = showHouseInWorld(spec, drawing, resumed ? { ...hooks, prompt: () => { void g.speech.line('imbir_house_resume', 'task', 0, '🍪'); } } : hooks,
+      { reach: g.touch ? 70 : 46, scope, kept: placedNow(), keep: store });
     // a task as any other (g.task): only its lines sound while it is open
     void g.task(() => player.play(show)).then((res) => {
       playing = false;
-      if (!res.solved) { if (on) bubble(); return; }
+      // closed half built: Imbir keeps what is put (the kept middle), and says so
+      if (!res.solved) { if (placedNow().length > 0) void g.speech.line('imbir_house_exit', 'story', 0, '🍪'); if (on) bubble(); return; }
       on = false;
       forget(g.ws, HOUSE_STEP);
+      void g.speech.line('imbir_house_finish', 'story', 0, '🍪');
       // the house's question leaves the bubble with it: what follows is the door and the ruby
       g.speech.caption(null);
       drawing.open(true);

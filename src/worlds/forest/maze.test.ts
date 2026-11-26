@@ -27,7 +27,7 @@ function host(level: number) {
   const g = {
     scene: new THREE.Scene(), save, ws: worldState(save, 'forest'), groundY: () => 0, rng: createRng('maze'),
     hero: { root: new THREE.Object3D() }, sparks: { burst: vi.fn() }, busy: false,
-    speech: { caption: vi.fn(), shown: null }, hooksFor: () => ({ wrong }), persist: vi.fn(),
+    speech: { caption: vi.fn(), shown: null, line: vi.fn(() => Promise.resolve()) }, hooksFor: () => ({ wrong }), persist: vi.fn(),
   };
   g.hero.root.position.set(MAZE_IN.x + 3, 0, MAZE_IN.z);
   return { g, wrong };
@@ -61,6 +61,10 @@ describe("the hedgehog's maze (WORLD-14)", () => {
     expect(passed).toEqual([1, 2, 3, 4, 5, 6]);
     expect(resumed).toBe(true);
     expect(m.walk.wrongs).toBe(1);
+    // the way out in the middle and back in: Kolyuchka keeps the place and says so, then welcomes her back
+    const said = (g.speech.line as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) => c[0]);
+    expect(said.filter((k) => k === 'kolyuchka_maze_exit')).toHaveLength(1);
+    expect(said.filter((k) => k === 'kolyuchka_maze_resume')).toHaveLength(1);
     expect(wrong).toHaveBeenCalledTimes(1);
     expect(done).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(g.save.skills)).toBe(skills);              // the maze goes to no skill
