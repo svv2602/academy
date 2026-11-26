@@ -509,6 +509,24 @@ describe('the owlet of the forest (PLAY-09): a pet whose model is a file of its 
     expect(ownPetRigs('forest')).toEqual({});
   });
 
+  it('the end of the world takes its models out of the scene and frees them: geometry, materials, bone texture (S22, 2026-11-26)', async () => {
+    const geo = new THREE.BufferGeometry(), mat = new THREE.MeshStandardMaterial(), bone = new THREE.Bone();
+    const skinned = new THREE.SkinnedMesh(geo, mat); skinned.add(bone); skinned.bind(new THREE.Skeleton([bone]));
+    const model = new THREE.Group().add(skinned), r: Rig = { root: new THREE.Group().add(model), model, clips: new Map() };
+    const freed: string[] = [];
+    geo.addEventListener('dispose', () => freed.push('geometry'));
+    mat.addEventListener('dispose', () => freed.push('material'));
+    const skeleton = vi.spyOn(skinned.skeleton, 'dispose');
+    const scene = new THREE.Scene(), scope = scopeOf();
+    await loadOwnPets('sweet', ['zheleyka'], scope, async () => r);
+    scene.add(r.root);                                 // walking after her (src/game/pets.ts createPets)
+    expect(freed).toEqual([]);
+    scope.end();
+    expect(r.root.parent).toBeNull();
+    expect(freed.sort()).toEqual(['geometry', 'material']);
+    expect(skeleton).toHaveBeenCalled();
+  });
+
   it('no file (not in the cache, no network): no error, the owlet stays at home and the world plays on', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const scope = scopeOf();
