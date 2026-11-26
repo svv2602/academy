@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { rig, tint, type Rig } from '../../core/assets';
 import { sfx } from '../../core/audio';
 import type { Save } from '../../core/save';
+import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
@@ -29,6 +30,7 @@ import { BRIDGES, CLOUD_GAP, CLOCK, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, 
 import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
+import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
 
 /**
@@ -210,6 +212,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
+  // the world's recorded lines (./clips.json, in worlds-data/sky/voice/sky/): the cat's two about Pushok so far
+  scope.own(worldClips('sky', CLIPS));
   scene.add(buildGround());
   const scenery = buildScenery(scene, L.props);
   // the arch back to the Great Tree on the castle island (./hub-way.ts): she comes out of it from the hub
