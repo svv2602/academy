@@ -6,7 +6,7 @@ import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
-import { declared, marked, ready } from '../../game/describe';
+import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
@@ -319,7 +319,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const pearlItems = PEARLS.map((p) => marked(ws, { kind: 'part', id: p.flag, how: p.how, at: { x: p.at.x, z: p.at.z } }));
   // the finale waits for the chains, the tour and the pearls; the pet (Bulchik) is the child's own, never needed
-  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...pearlItems];
+  const before = [...declared(g).filter(finaleWaits), tourItem, ...pearlItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...THRONE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale

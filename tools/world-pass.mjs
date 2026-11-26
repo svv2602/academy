@@ -995,7 +995,8 @@ export async function playWorld(h, o = {}) {
     const left = reloadProblems(s1, worldId, before.part, kept, before.stars);
     for (const p of descriptionProblems(again)) left.push(p);
     if (Array.isArray(again.items)) {
-      const lost = again.items.filter((i) => !i.done).map((i) => i.id);
+      // the optional ones (the easel) were never done by this pass: not lost by the reload
+      const lost = again.items.filter((i) => !i.done && !OPTIONAL_KINDS.includes(i.kind)).map((i) => i.id);
       if (lost.length) left.push(`these items are not done any more: ${lost.join(', ')} - their marks are not in the save`);
       const on = again.items.filter((i) => i.active).map((i) => i.id);
       if (on.length) left.push(`these items are on before "play": ${on.join(', ')}`);

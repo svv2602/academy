@@ -8,7 +8,7 @@ import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { createStage, type Game } from '../../game/context';
-import { declared, marked, ready } from '../../game/describe';
+import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
@@ -315,7 +315,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
   // the finale waits for the chains, the tour and the leaves; the pet and the secrets are the child's own, never needed
   const secretItems = FOREST_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: id === CAVE_FLAG || id === SONG_FLAG ? 'act' : 'walk', at: secrets.at[id] }));
-  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...leafItems];
+  const before = [...declared(g).filter(finaleWaits), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too

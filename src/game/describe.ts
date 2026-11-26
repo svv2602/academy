@@ -20,6 +20,11 @@ import type { CharacterDef, WorldDef, WorldItem, WorldItemKind } from './world';
 export const KINDS: readonly WorldItemKind[] = ['chain', 'part', 'scene', 'finale', 'secret', 'pet', 'flyover', 'easel'];
 /** The kinds no row of the template asks for: a world may have one or none (the easel, PLAY-29). */
 export const OPTIONAL_KINDS: readonly WorldItemKind[] = ['easel'];
+/**
+ * Whether a world's finale waits for the item: not for the pet (the child's own) nor an optional one (the easel: its
+ * pieces are looked for over the world, before or after the finale as she likes).
+ */
+export const finaleWaits = (i: { kind: WorldItemKind }) => i.kind !== 'pet' && !OPTIONAL_KINDS.includes(i.kind);
 
 /** What the description reads of a world: WorldDef fits, and so does what the game holds of the world played (`g.world`). */
 export interface Declared {
