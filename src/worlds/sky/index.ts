@@ -331,7 +331,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
   let finaleOn = false, finaleLeft = 0, finaleEnd: (() => void) | null = null;
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const rayItems = RAYS.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: { x: r.at.x, z: r.at.z } }));
-  const before = [...declared(g), tourItem, ...rayItems];
+  // the finale waits for the chains, the tour and the rays; the pet (Pushok) is the child's own, never needed
+  const before = [...declared(g).filter((i) => i.kind !== 'pet'), tourItem, ...rayItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are found on the way, the finale does not wait for them
