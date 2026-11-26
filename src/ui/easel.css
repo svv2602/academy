@@ -1,0 +1,23 @@
+/* The easel of a world (PLAY-29): a card over the game, the frame of the picture on top, the pieces found under it
+   (side by side when the screen is wide). A piece is as big as a cell; the cross is 48 px. */
+#easel { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: #0003; }
+#easel.hidden { display: none; }
+.es-card { position: relative; box-sizing: border-box; width: min(96vw, 860px); max-height: calc(100vh - 16px);
+  background: #fffdf8; border-radius: 26px; padding: 12px 64px 12px 14px; display: grid; grid-template-columns: 3fr 2fr; gap: 12px;
+  align-items: center; box-shadow: 0 16px 50px #0004; }
+.es-close { position: absolute; top: 6px; right: 6px; width: 48px; height: 48px; border-radius: 50%; font-size: 26px; background: #f3ecfa; }
+/* the frame: the picture's shape (16:9), its wooden border; a cell not set shows the outline of a piece */
+.es-frame { display: grid; grid-template-columns: repeat(var(--cols), 1fr); grid-template-rows: repeat(var(--rows), 1fr);
+  aspect-ratio: 16 / 9; max-height: calc(100vh - 48px); width: 100%; box-sizing: border-box; border: 6px solid #b98a4e; border-radius: 10px;
+  background: #f1e8d8; }
+.es-cell { border: 1px dashed #c9b28f; background-repeat: no-repeat; min-width: 44px; min-height: 44px; }
+.es-cell.set { border-color: transparent; }
+.es-frame.whole { box-shadow: 0 0 22px #ffe58a; }
+/* the pieces found and not set: each the shape of a cell */
+.es-tray { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: center; min-height: 60px; }
+.es-tray.empty { min-height: 0; }
+.es-piece { aspect-ratio: calc(16 * var(--rows)) / calc(9 * var(--cols)); min-width: 56px; min-height: 44px; border-radius: 6px; background-repeat: no-repeat;
+  box-shadow: 0 3px 8px #0003; touch-action: none; cursor: grab; transition: transform .25s ease-out; }
+.es-piece.drag { transition: none; z-index: 2; box-shadow: 0 8px 18px #0005; cursor: grabbing; }
+.es-piece.back { transition: transform .3s ease-out; }
+@media (orientation: portrait) { .es-card { grid-template-columns: 1fr; padding: 60px 12px 12px; } }

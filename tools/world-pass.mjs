@@ -62,6 +62,14 @@ import { writeFileSync } from 'node:fs';
 
 /** The kinds of the items of a description (src/game/world.ts `WorldItemKind`). */
 export const ITEM_KINDS = ['chain', 'secret', 'part', 'scene', 'flyover', 'pet', 'finale'];
+/**
+ * The kinds no point of the template asks for (src/game/describe.ts OPTIONAL_KINDS): the easel (PLAY-29). Its picture
+ * is whole only once the pieces found in the world are set on it, and this pass looks for no find: it comes to the
+ * easel once every other item is done, sees its card open and closes it.
+ */
+export const OPTIONAL_KINDS = ['easel'];
+/** Every kind a description may hold (src/game/world.ts `WorldItemKind`): the template's and the optional ones. */
+export const ALL_KINDS = [...ITEM_KINDS, ...OPTIONAL_KINDS];
 /** What moves an item on (src/game/world.ts `WorldItem.how`). */
 export const HOWS = ['act', 'walk', 'tap', 'auto'];
 /** What a test world needs of the world template: one item of every kind (the argument of window.__game.missing). */
@@ -126,7 +134,7 @@ export function descriptionProblems(seen) {
   for (const [n, i] of items.entries()) {
     const wrong = [];
     if (!i || typeof i !== 'object') { out.push(`the item ${n} is ${JSON.stringify(i)}, not an item`); continue; }
-    if (!ITEM_KINDS.includes(i.kind)) wrong.push(`kind ${JSON.stringify(i.kind)}`);
+    if (!ALL_KINDS.includes(i.kind)) wrong.push(`kind ${JSON.stringify(i.kind)}`);
     if (typeof i.id !== 'string' || !i.id) wrong.push(`id ${JSON.stringify(i.id)}`);
     if (!point(i.at)) wrong.push(`at ${JSON.stringify(i.at)}`);
     if (!HOWS.includes(i.how)) wrong.push(`how ${JSON.stringify(i.how)}`);
@@ -897,7 +905,7 @@ export async function playWorld(h, o = {}) {
   const did = [];           // the ids of the items in the order the pass did them
   for (let spawned = false; ;) {
     await drive(null, did.length ? `after the item "${did[did.length - 1]}"` : 'after "play"', null, async () => {});
-    const items = await itemsNow();
+    const items = (await itemsNow()).filter((i) => !OPTIONAL_KINDS.includes(i.kind));
     const step = nextStep(items, did);
     if (step.end) break;
     if (step.stuck) fail(`no item can be done next: ${step.stuck.join(', ')} are not done, and each comes after an item that is not`);
@@ -907,6 +915,23 @@ export async function playWorld(h, o = {}) {
     if (!spawned && !step.item.active) { spawned = true; await shot('01-spawn'); await orderKept(items); }
     await doItem(step.item, step.steps);
     did.push(step.item.id);
+  }
+
+  // ---- 4b. the easel (PLAY-29): she comes to it, its action button opens its card; no piece is found yet ----
+  {
+    const easel = (await itemsNow()).find((i) => i.kind === 'easel');
+    if (easel) {
+      const where = itemName(easel);
+      await stand(easel.at);
+      if (!(await button())) fail(`${where}: no action button at its place`);
+      await act();
+      if (!(await gameUntil(() => window.__game.easel.card.open, null, REACTS))) fail(`${where}: its card did not open`);
+      const card = await g(() => window.__game.easel.card);
+      await shot('item-easel'); await checkLinks('the easel');
+      await g(() => document.getElementById('easelClose').click());
+      if (!(await gameUntil(() => !window.__game.easel.card.open && !window.__game.paused, null, REACTS))) fail(`${where}: its card did not close by its cross`);
+      console.log(`easel: its card opened at its place (${card.set.length} cells set, ${card.loose.length} pieces lying by it) and closed by its cross`);
+    }
   }
 
   // ---- 5. the end: everything is done, each mark is in the stored save under the id of its item ----

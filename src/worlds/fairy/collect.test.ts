@@ -3,9 +3,10 @@ import { mulberry32 } from '../../core/util';
 import { GRAVITY, tuning } from '../../core/tuning';
 import { TAKE_R, TAP_R, collectProblems, reaches } from '../../game/collections';
 import { COLLECT, DAILY_PLACES, OAKS, STEP_UP, SUPPORTS, clearOfFinds, support } from './collect';
-import { CASTLE, CHEST, CRYSTAL, GLADE, HOUSE, MYSTERY_SPOTS, PATCH, POND, SHOP_SIGN, SPAWN, UNICORN, WORLD_R } from './layout';
+import { EASEL, CASTLE, CHEST, CRYSTAL, GLADE, HOUSE, MYSTERY_SPOTS, PATCH, POND, SHOP_SIGN, SPAWN, UNICORN, WORLD_R } from './layout';
 import { QUESTS, SHRINE } from './quests';
 import { ACORN_SWAP, placeTrees } from './scenery';
+import { easelStand } from '../../game/easel-place';
 import { height, pathDist } from './terrain';
 import { BOULDERS } from './hiding';
 
@@ -137,6 +138,18 @@ describe('the collections of the fairy world (PLAY-25)', () => {
         const x = s.x + Math.cos(k / 16 * 6.28) * s.r, z = s.z + Math.sin(k / 16 * 6.28) * s.r;
         expect(height(x, z), `support ${i}`).toBeLessThan(top - STEP_UP - 0.1);
       }
+    }
+  });
+
+  it('the easel (PLAY-29) stands clear of the trees, the finds, the gazebo and the characters, and she can stand in front of it', () => {
+    const at = [EASEL, easelStand(EASEL)];
+    for (const density of [0.75, 1]) {
+      const { placed, grove } = placeTrees(mulberry32(2024), density);
+      for (const p of at) for (const t of [...placed, ...grove].filter((x) => x.collide)) expect(Math.hypot(t.x - p.x, t.z - p.z)).toBeGreaterThan(2.5);
+    }
+    for (const p of at) {
+      for (const o of [...COLLECT.items, ...OAKS, ...SUPPORTS, ...DAILY_PLACES, ...QUESTS]) expect(Math.hypot(o.x - p.x, o.z - p.z)).toBeGreaterThan(3);
+      expect(Math.hypot(p.x - 22.5, p.z + 8)).toBeGreaterThan(4.5);     // the gazebo (./scenery.ts)
     }
   });
 });

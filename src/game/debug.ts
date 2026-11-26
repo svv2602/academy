@@ -16,6 +16,7 @@ import { achState, queue } from '../ui/achieve';
 import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
+import { easelState } from '../ui/easel';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -167,6 +168,16 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       get today() { return g.mystery.today; },
       unsolved: () => g.mystery.unsolved(),
       open(id: number) { const s = g.mystery.today.find((x) => x.id === id); const spot = s && g.mystery.spots.find((p) => p.pos === s.pos); if (spot?.on()) spot.run(); return !!spot; },
+    },
+    /**
+     * The easel of the world played (src/game/easel.ts, PLAY-29): `open()` - what its action button does (false: none
+     * here, or open already); `card` - the open card (src/ui/easel.ts): whether open, the cells set, the pieces lying by
+     * it; `setAll()` - every piece lying by it dropped on its cell, as a finger would.
+     */
+    easel: {
+      open: () => g.easel.open(),
+      get card() { return { open: easelState.open, set: [...easelState.set], loose: [...easelState.loose] }; },
+      setAll: () => { easelState.setAll?.(); },
     },
     /**
      * The finds of the collections in the world played (src/game/collect-items.ts, PLAY-25), read only: each with its id,

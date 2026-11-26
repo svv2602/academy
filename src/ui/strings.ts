@@ -185,7 +185,7 @@ const S = sameKeys({
     // the easel of a world (PLAY-29, src/game/easel.ts): the pieces of its picture are found in the world, set on it by her
     easel_hi: 'Тут картинка без шматочків. Пошукаємо їх у світі?', easel_some: 'Ти знайшла шматочки! Постав їх на місце.',
     collect_butterfly: 'Метелики', collect_acorn: 'Жолуді', collect_mushroom: 'Грибочки', collect_feather: 'Пірʼїнки', collect_cone: 'Шишки', collect_berry: 'Чорниці', collect_shell: 'Мушлі', collect_coral: 'Коралі', collect_lollipop: 'Льодяники', collect_marmalade: 'Мармеладки', collect_cloudlet: 'Хмаринки', collect_balloon: 'Повітряні кульки',
-    mystery_wait: 'Зірка почекає тебе тут.', mystery_day: 'Сьогодні у світі зʼявилися нові загадкові зірки!', mystery_open: 'Зірка',
+    mystery_wait: 'Зірка почекає тебе тут.', mystery_day: 'Сьогодні у світі зʼявилися нові загадкові зірки!', mystery_open: 'Зірка', easel_open: 'Картина',
     left_new_world: 'Тут живуть нові друзі. Ходімо познайомимося!',
     left_mid_chain: 'Наш друг чекає на тебе. Біжімо за іскорками!',
     left_between: 'Одному другові ми вже допомогли. Хто наступний?',
@@ -362,7 +362,7 @@ const S = sameKeys({
     book_pic_none: 'В этом мире картинки нет.', piece_first: 'Ой, кусочек картинки! Найдём остальные?', picture_done: 'Картинка собрана! Смотри, она ожила!',
     easel_hi: 'Тут картинка без кусочков. Поищем их в мире?', easel_some: 'Ты нашла кусочки! Поставь их на место.',
     collect_butterfly: 'Бабочки', collect_acorn: 'Жёлуди', collect_mushroom: 'Грибочки', collect_feather: 'Пёрышки', collect_cone: 'Шишки', collect_berry: 'Черника', collect_shell: 'Ракушки', collect_coral: 'Кораллы', collect_lollipop: 'Леденцы', collect_marmalade: 'Мармеладки', collect_cloudlet: 'Облачка', collect_balloon: 'Воздушные шарики',
-    mystery_wait: 'Звезда подождёт тебя здесь.', mystery_day: 'Сегодня в мире появились новые загадочные звёзды!', mystery_open: 'Звезда',
+    mystery_wait: 'Звезда подождёт тебя здесь.', mystery_day: 'Сегодня в мире появились новые загадочные звёзды!', mystery_open: 'Звезда', easel_open: 'Картина',
     left_new_world: 'Здесь живут новые друзья. Пойдём познакомимся!',
     left_mid_chain: 'Наш друг ждёт тебя. Бежим за искорками!',
     left_between: 'Одному другу мы уже помогли. Кто следующий?',

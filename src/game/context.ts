@@ -18,6 +18,7 @@ import { Butterflies } from './butterflies';
 import { createPets, ownPetRigs, type PetsInWorld } from './pets';
 import { createPlanner, type Planner } from './planner';
 import { createMystery, type MysteryInWorld } from './mystery-stars';
+import { createEasel, type EaselInWorld } from './easel';
 import { createCollections, type CollectInWorld } from './collect-items';
 import type { CharacterDef, WorldDef, WorldGround } from './world';
 import { el, setAct, setCounter, setCounterIcon } from '../ui/ui';
@@ -128,6 +129,8 @@ export interface Game extends GameWorld {
   readonly plan: Planner;
   /** The mysterious stars of the world played (src/game/mystery-stars.ts), made anew on every entry like the pets. */
   readonly mystery: MysteryInWorld;
+  /** The easel of the world played (src/game/easel.ts), made anew on every entry like the mysterious stars. */
+  readonly easel: EaselInWorld;
   /** The finds of the collections of the world played (src/game/collect-items.ts), made anew on every entry like the stars. */
   readonly collect: CollectInWorld;
   /**
@@ -174,6 +177,8 @@ export interface WorldEntry {
   left?: WorldDef['left'];
   /** The places of its mysterious stars (WorldDef.mystery); absent: none. */
   mystery?: WorldDef['mystery'];
+  /** Where its easel stands (WorldDef.easel, src/game/easel.ts); absent: none. */
+  easel?: WorldDef['easel'];
   /** The finds of its collections (WorldDef.collect); absent: none. */
   collect?: WorldDef['collect'];
   /** The places of its find of the day (WorldDef.daily, src/game/daily-find.ts); absent: none. */
@@ -265,12 +270,14 @@ export function createGame(o: {
   // The pets read the game live (`busy`, the heroine): they are made of it right after it.
   let pets: PetsInWorld | null = null;
   let mystery: MysteryInWorld | null = null;
+  let easel: EaselInWorld | null = null;
   let collect: CollectInWorld | null = null;
   const g: Game = {
     scene, camera: o.camera, renderer: o.renderer, save, touch: o.touch, debug: o.debug, speech,
     hero, cat, sparks, flies, cam, heroRig: o.shared.heroRig, petGear: o.shared.petGear ?? {}, rng: o.rng,
     get pets() { return pets!; },
     get mystery() { return mystery!; },
+    get easel() { return easel!; },
     get collect() { return collect!; },
     plan: createPlanner(save),
     busy: false, paused: false, still: false, dark: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
@@ -295,6 +302,7 @@ export function createGame(o: {
       // left were taken out with it, src/game/travel.ts).
       pets?.dispose(); pets = petsOf();
       mystery?.dispose(); mystery = mysteryOf();
+      easel?.dispose(); easel = createEasel(g);
       collect?.dispose(); collect = createCollections(g);
       for (const fn of watchers) fn('enter');
     },
@@ -311,6 +319,7 @@ export function createGame(o: {
   // The mysterious stars of the world entered, with a stage of that entry (src/game/mystery-stars.ts).
   const mysteryOf = (): MysteryInWorld => createMystery(g, o.shared.starGeo, () => createStage(g, () => {}));
   mystery = mysteryOf();
+  easel = createEasel(g);
   collect = createCollections(g);
   return g;
 }
