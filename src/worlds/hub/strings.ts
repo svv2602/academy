@@ -32,6 +32,10 @@ const uk = { subtitle: 'Велике Дерево', hub_title: 'Велике Д�
   hub_sweet_wake: 'Чуєш, як пахне ваніллю? Прокинувся портал до Солодкої країни!',
   hub_sweet_home: 'Рубін радості вдома! Ще одне гніздо сяє.',
   hub_sweet_after: 'На гілках засвітилися плоди-ліхтарики, а пташки співають!',
+  // the cat after the Sky Islands (docs/worlds/world-5.md, the draft of 2026-11-18): their portal awake, the Star of Time
+  // home (the world's last line before the final chapter of the Tree, WORLD-06; no "after" line of its own)
+  hub_sky_wake: 'Дивись угору! Прокинувся портал до Небесних островів!',
+  hub_sky_home: 'Зірка часу вдома! Усі гнізда Дерева сяють.',
 };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
@@ -49,9 +53,11 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Великое Древ
   hub_sweet_wake: 'Чувствуешь, как пахнет ванилью? Проснулся портал в Сладкую страну!',
   hub_sweet_home: 'Рубин радости дома! Ещё одно гнездо сияет.',
   hub_sweet_after: 'На ветках засветились плоды-фонарики, а птицы поют!',
+  hub_sky_wake: 'Смотри вверх! Проснулся портал к Небесным островам!',
+  hub_sky_home: 'Звезда времени дома! Все гнёзда Древа сияют.',
 };
 
-export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm', hub_sweet_wake: 'joy', hub_sweet_home: 'joy', hub_sweet_after: 'warm' } } satisfies WorldStrings;
+export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm', hub_sweet_wake: 'joy', hub_sweet_home: 'joy', hub_sweet_after: 'warm', hub_sky_wake: 'joy', hub_sky_home: 'joy' } } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { hub: typeof strings }
