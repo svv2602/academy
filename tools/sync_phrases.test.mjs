@@ -175,3 +175,84 @@ describe('the speaker and the voice of every line (VOICE-10)', () => {
     expect(Object.keys(file).filter((k) => k.endsWith('@Puck') || k.startsWith('t_stars_back@'))).toEqual([]);
   });
 });
+
+// The English lines (Season 2, part B): src/s2/strings-en.ts, voice/phrases-en.json, the clips of public/en/ and their
+// list src/core/clips-en.json. A line without its clip, or a clip without its line, fails here (R27).
+describe('the English lines (src/s2/strings-en.ts, voice/phrases-en.json)', { timeout: 60_000 }, () => {
+  const file = () => JSON.parse(readFileSync(join(root, 'voice/phrases-en.json'), 'utf8'));
+  const clips = JSON.parse(readFileSync(join(root, 'src/core/clips-en.json'), 'utf8'));
+  const here = readdirSync(join(root, 'public/en')).sort();
+
+  it('--check finds voice/phrases-en.json up to date; a stale one is named line by line, and nothing is written', () => {
+    const run = sync('--check');
+    expect(run.stdout).toMatch(/voice\/phrases-en\.json is up to date \(\d+ lines\)/);
+    const stale = join(tmp, 'stale-en.json');
+    const old = file();
+    delete old.wb_w_owl;
+    old.wb_w_fox = ['Fox!', 'en', 'Isabella', 'forest'];
+    old.wb_w_whale = ['Whale.', 'en', 'Isabella', 'sea'];
+    const text = JSON.stringify(old);
+    writeFileSync(stale, text);
+    const bad = sync('--check', `--out-en=${stale}`);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain('is out of date');
+    for (const d of ['missing: wb_w_owl', 'changed: wb_w_fox', 'not spoken by the game: wb_w_whale']) expect(bad.stderr).toContain(d);
+    expect(readFileSync(stale, 'utf8')).toBe(text);
+    // --out-en without a file, or twice: refused
+    for (const args of [['--out-en='], [`--out-en=${stale}`, `--out-en=${stale}`]]) expect(sync('--check', ...args).status).toBe(2);
+  });
+
+  it('every row is [text, "en", Isabella or Zephyr, world] - a world of src/worlds or the book; the game\'s five voices stay Ukrainian', () => {
+    const { first, worlds } = sourceWorlds();
+    for (const [k, row] of Object.entries(file())) {
+      expect(row, k).toHaveLength(4);
+      expect(row[1], k).toBe('en');
+      expect(['Isabella', 'Zephyr'], k).toContain(row[2]);
+      expect(['book', first, ...worlds], k).toContain(row[3]);
+    }
+    const uk = JSON.parse(readFileSync(join(root, 'voice/phrases.json'), 'utf8'));
+    expect(Object.values(uk).filter((r) => ['Isabella', 'Zephyr'].includes(r[2]))).toEqual([]);
+    expect(Object.keys(uk).filter((k) => Object.hasOwn(file(), k)), 'one key, one clip: no key in both lists').toEqual([]);
+  });
+
+  it('every English line has its clip in public/en, and src/core/clips-en.json lists exactly those files', () => {
+    expect(here.filter((f) => !f.endsWith('.mp3') || f.endsWith('.tmp.mp3')), 'stray files in public/en').toEqual([]);
+    const files = here.map((f) => f.slice(0, -4));
+    expect(clips, 'clips-en.json and the .mp3 files of public/en differ (python3 tools/gen_voice.py --en rewrites the list)').toEqual(files);
+    const lines = Object.keys(file());
+    expect(lines.filter((k) => !files.includes(k)), 'English lines without a clip: record them (Isabella - record.py of the wordbook, Zephyr - gen_voice.py --en)').toEqual([]);
+    expect(files.filter((k) => !lines.includes(k)), 'clips of public/en that are no line of src/s2/strings-en.ts').toEqual([]);
+  });
+
+  it('the 40 words of the book (R22): each its word and its phrase (or a set of phrases), in the world of its page', async () => {
+    const { WORDS } = await import('../src/s2/types.ts');
+    const { VARIANTS } = await import('../src/s2/strings-en.ts');
+    const rows = file();
+    const page = ['hub', 'fairy', 'forest', 'sea', 'sweet', 'sky'];
+    const sizes = [5, 10, 9, 6, 5, 5];
+    const worldOf = (i) => { let n = i; for (const [j, s] of sizes.entries()) { if (n < s) return page[j]; n -= s; } return null; };
+    for (const [i, w] of WORDS.entries()) {
+      expect(rows[`wb_w_${w}`]?.[3], w).toBe(worldOf(i));
+      const phrase = rows[`wb_p_${w}`] ?? rows[VARIANTS.get(`wb_p_${w}`)?.[0]];
+      expect(phrase?.[3], w).toBe(worldOf(i));
+    }
+    expect(VARIANTS.get('wb_p_hello')).toHaveLength(4);
+  });
+
+  it('a list that cannot be recorded is refused (englishRows)', async () => {
+    const { englishRows } = await import('../src/s2/strings-en.ts');
+    const ok = { id: 'wb_w_cat', text: 'Cat.', uk: 'кіт', ru: 'кот', voice: 'Isabella', world: 'hub' };
+    expect(englishRows([ok])).toEqual({ wb_w_cat: ['Cat.', 'en', 'Isabella', 'hub'] });
+    const bad = [
+      [[ok, ok], /listed twice/],
+      [[{ ...ok, text: ' ' }], /has no text/],
+      [[{ ...ok, ru: '' }], /has no ru/],
+      [[{ ...ok, text: 'Hello{, name}!' }], /placeholder/],
+      [[{ ...ok, voice: 'Puck' }], /neither Isabella nor Zephyr/],
+      [[{ ...ok, id: 'Cat' }], /lower case/],
+      [[{ ...ok, variant_of: 'wb_w_cat' }], /is the id of a line/],
+      [[{ ...ok, variant_of: 'wb_p_cat' }], /a set of 1 is no choice/],
+    ];
+    for (const [lines, why] of bad) expect(() => englishRows(lines)).toThrow(why);
+  });
+});

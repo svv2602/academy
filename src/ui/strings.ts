@@ -520,7 +520,9 @@ export function recordable(key: string, text: string): string {
  * The speaker is a character of a world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). Every
  * line is the narrator's under its own key, the name of its clip, which never changes. A line the table's `voiced`
  * gives to the characters is listed once more for every voice of a character that says it, as `<key>@<voice>`, with
- * the first such character of the table as its speaker. The whole game has at most five voices.
+ * the first such character of the table as its speaker. The whole game has at most five voices - Ukrainian ones: the
+ * English lines (Season 2: the book's Isabella, Pip's Zephyr, the sixth voice) are a list of their own,
+ * src/s2/strings-en.ts `englishRows` -> voice/phrases-en.json, never a row of this one.
  *
  * The world of a line (TECH-09, R67): a line of the `spoken` of a world other than `first` - the world the installation
  * brings, DEFAULT_WORLD of src/worlds/index.ts - is that world's voice and carries the id of its world as a fourth
@@ -547,6 +549,7 @@ export function recordingList(
     }
     for (const ch of Object.values(c.cast)) voices.add(ch.voice);
   }
+  // the five Ukrainian voices; the English ones (src/s2/strings-en.ts) are never in a world's table
   if (voices.size > 5) throw new Error(`the game has ${voices.size} voices, at most 5 with the narrator's: ${[...voices].join(', ')}`);
   /** `world`: the id of the next world the lines are the voice of; none for the lines whose clips are the core's. */
   const add = (owner: string, uk: Record<string, string>, spoken: Record<string, VoiceStyle>, world?: string) => {

@@ -48,10 +48,12 @@ export type WordId = (typeof WORDS)[number];
 export const isWord = (x: unknown): x is WordId => (WORDS as readonly unknown[]).includes(x);
 
 /**
- * The voice of English (part B: Zephyr for Pip, the book's Isabella; lazily loaded clips). `say` plays the clip of `id`
- * and resolves when it ends (at once when there is none); `has` - whether that clip exists.
+ * The voice of English (part B, src/core/voice-en.ts: Zephyr for Pip, the book's Isabella; lazily loaded clips). `say`
+ * plays the clip of `id` - or of each id of a list, one after the other with a short pause (the frame, then the word
+ * apart: `say(['wb_find', 'wb_w_owl'])`) - and resolves when it ends (at once when there is none); `has` - whether that
+ * clip exists. An id may name a set of variants (`variant_of` of src/s2/strings-en.ts): one of them is said.
  */
-export interface EnVoice { say(id: string): Promise<void>; has(id: string): boolean }
+export interface EnVoice { say(id: string | readonly string[]): Promise<void>; has(id: string): boolean }
 
 /** The voice before part B sets one: silent, it has no clip. */
 const SILENT: EnVoice = { say: () => Promise.resolve(), has: () => false };
