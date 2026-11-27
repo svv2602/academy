@@ -100,9 +100,10 @@ export function tapSizeProblems(seen) {
  */
 /**
  * The worlds whose tasks in the world must be seen whole (blockerProblems): the others only log what stands in the way
- * until each is looked into (2026-11-27, the lead: one world at a time).
+ * until each is looked into (2026-11-27, the lead: one world at a time). All the published worlds are seen whole (their
+ * walkthroughs of 2026-11-27); the first world is checked by its own scenario (tools/shot.mjs).
  */
-export const SEEN_WHOLE = ['sea'];
+export const SEEN_WHOLE = ['forest', 'sea', 'sweet', 'sky'];
 export function blockerProblems(list) {
   return (list ?? []).map((b) => `"${b.name}" stands between the camera and the task (${b.lines} of its lines to the things to tap)`);
 }

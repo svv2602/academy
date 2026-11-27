@@ -222,7 +222,7 @@ export function drawHouse(scene: THREE.Scene, spec: HouseSpec, placed: readonly 
   paintFills();
 
   const drawing: HouseDrawing = {
-    group, pieces: meshes,
+    group, pieces: meshes, own: [group],
     center: new THREE.Vector3(HOUSE_FACADE.x - FX * LOOK_OUT, floor + LOOK_Y, HOUSE_FACADE.z - FZ * LOOK_OUT),
     facing: FACING,
     extent: {
