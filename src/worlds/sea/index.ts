@@ -24,7 +24,7 @@ import { CABIN, CORAL_NEST, EASEL, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, 
 import { buildScenery, buildShafts } from './scenery';
 import { LOCK, createLock } from './lock';
 import { CORALS, createCoralsSearch } from './corals';
-import { generateHalf, showHalfInWorld } from '../../game/worldtasks/half-show';
+import { generateHalf, showHalfInWorld, type HalfPlace } from '../../game/worldtasks/half-show';
 import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
@@ -99,6 +99,16 @@ export const BULCHIK = { x: ZONES.garden.x - 6.1, z: ZONES.garden.z + 4.6 };
 export const FINALE = 'final';
 /** m from the turtle to the hinge of the shell before him. */
 const HALF_AT = 2.6;
+/**
+ * The turn of the shell's frame from facing the turtle straight (rad): the camera of a task's frame stands behind the
+ * child, and straight it stood over the hull of the sunken ship, which hid half of the shell (2026-11-27). Turned so, the
+ * camera looks from open water, the turtle stays beyond the shell (to its right), clear of the valves and the heroine;
+ * the hinge stays where it was. Checked by `__game.worldTask.blockers()` (tools/sea-pass.mjs).
+ */
+export const HALF_TURN = -Math.PI / 4;
+/** Where the shell lies before the turtle standing at (x, z) and looking along `heading`: the hinge, the frame turned by `turn`. */
+export const halfPlace = (x: number, z: number, heading: number, turn = HALF_TURN): HalfPlace =>
+  ({ x: x + Math.sin(heading) * HALF_AT, z: z + Math.cos(heading) * HALF_AT, facing: heading + Math.PI + turn });
 const TOUR = 'toured';
 /**
  * The cat's words of the first visit, each said once (the flag of the save): after the tour, his bubble (he does not
@@ -302,8 +312,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const halfStep: WorldTask = {
     skill: 'pattern', inWorld: () => true,
     run: async (n, level) => {
-      const h = n.def.heading;
-      const at = { x: n.pos.x + Math.sin(h) * HALF_AT, z: n.pos.z + Math.cos(h) * HALF_AT, facing: h + Math.PI };
+      const at = halfPlace(n.pos.x, n.pos.z, n.def.heading);
       const spec = generateHalf(level, g.rng, { prompt: 'pantsyr_half_start', way: 'sea_half_hint_1', together: 'sea_half_hint_2' });
       const res = await player.play(showHalfInWorld(scene, spec, at, g.hooksFor(n.def.emoji), { groundY, reach: g.touch ? 80 : 56, scope }));
       // still inside the task's frame (g.task): only its own lines sound there, so the turtle's last word is the task's

@@ -9,7 +9,8 @@ import { dealState } from './deal';
 import { PET_GEAR, wearPetGear, type PetGearId, type PetWearer } from './petgear';
 import { dealOf } from './shop';
 import type { TaskType } from './tasks/types';
-import { worldTaskDoor } from './worldtasks/core';
+import { worldTaskDoor, worldTaskOf } from './worldtasks/core';
+import { blockersOf } from './worldtasks/blockers';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
@@ -245,9 +246,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /**
      * The task played in the world now (src/game/worldtasks/core.ts), whatever its kind: `solve()`, `wrong()` (one wrong
      * move), `close()` (the close button), and `state` - its kind, phase (input / mistake / solved / closed), wrong moves,
-     * the rung of the hint on screen, its middle; null when none is open.
+     * the rung of the hint on screen, its middle; null when none is open. `blockers()` - what stands between the camera
+     * and the task now (./worldtasks/blockers.ts), the heroine and the cat aside; empty - it is seen whole; null - none open.
      */
-    worldTask: worldTaskDoor(g),
+    worldTask: Object.assign(worldTaskDoor(g), {
+      blockers: () => { const s = worldTaskOf(g); return s ? blockersOf(scene, camera.position, s, [hero.root, cat.root]) : null; },
+    }),
     /**
      * A panel task of `type` and `level` opened now, as a character would (the cat's hooks, the helpers of her stock):
      * the walkthrough's way to the helpers of a task (src/game/helpers.ts). The game stands while it is open; the

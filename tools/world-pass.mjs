@@ -93,6 +93,14 @@ export function tapSizeProblems(seen) {
   return seen.filter((t) => t.px !== null && t.px < MIN_TAP_PX).map((t) => `a ${t.right ? 'right' : 'wrong'} thing ${Math.round(t.px)} px across, under ${MIN_TAP_PX}`);
 }
 
+/**
+ * What stands between the camera and a task in the world once the camera is in its frame (`__game.worldTask.blockers()`,
+ * src/game/worldtasks/blockers.ts): each is a problem, named. The hull of the sunken ship once hid half of Pantsyr's
+ * shell (2026-11-27). null (no task open, or a game without the door) - nothing to say.
+ */
+export function blockerProblems(list) {
+  return (list ?? []).map((b) => `"${b.name}" stands between the camera and the task (${b.lines} of its lines to the things to tap)`);
+}
 /** Seconds of game time: after a teleport the action button on the screen is the one of the new place. */
 export const SETTLES = 0.2;
 /** Seconds of game time in which the game answers an action (a press, a tap, standing at a place). */
@@ -714,6 +722,7 @@ export async function playWorld(h, o = {}) {
         bad('a) open, the size of its things on the screen', tapSizeProblems(sizes));
         const measured = sizes.filter((t) => t.px !== null);
         if (measured.length) console.log(`world task: ${first.kind}: the things to tap ${measured.map((t) => Math.round(t.px)).join(', ')} px across (at least ${MIN_TAP_PX})`);
+        bad('a) open, seen whole', blockerProblems(await g(() => window.__game.worldTask.blockers?.() ?? null)));
         await shot(`world-task-${first.kind}`);
       } else if (st === 'wrong') {
         // as many wrong moves as the kind asks for (the scales of WORLD-22: three), each after the course of the one before
