@@ -49,7 +49,7 @@ import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { greyWorldFiles } from './vite-worlds.mjs';
 import { GREY_DIST, hubWay, serveDir } from './hub-grey.mjs';
-import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 
 // The pure helpers of the routes live in ./grey-route.mjs (no browser in it); the forest's test and tools import them
 // from here too.
@@ -62,12 +62,15 @@ const SECRET_LOOK = 7;
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1.6], q: 2, pass: true, way: true, measure: true, out: join(root, 'shots-e2e', 'forest-grey') };
+  const o = { scales: [1.6], q: 2, pass: true, way: true, measure: true, budget: false, built: false, out: join(root, 'shots-e2e', 'forest-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--no-way') o.way = false;
+    else if (a === '--budget') { o.budget = true; o.pass = false; o.way = false; }
+    // the grey build made already (the part "budget" of tools/worlds.mjs builds it once for the four worlds)
+    else if (a === '--built') o.built = true;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
       if (!v.length || v.some((x) => !(x >= 0.5 && x <= 3))) return { error: '--scales takes numbers 0.5-3, e.g. 1,1.6' };
@@ -97,12 +100,15 @@ export const MAGIC_NEAR_POINT = 2;
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-way] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/forest-grey.mjs [--scales 1,1.6] [--q 2] [--no-pass] [--no-way] [--no-measure] [--budget] [--built] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
-  rmSync(dist, { recursive: true, force: true });
-  execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', DIST], { cwd: root, stdio: 'inherit' });
+  if (args.built && existsSync(join(dist, 'index.html'))) console.log(`[grey] the grey build made already: ${dist}`);
+  else {
+    rmSync(dist, { recursive: true, force: true });
+    execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', DIST], { cwd: root, stdio: 'inherit' });
+  }
   let failed = false;
   const size = checkDistSize(dist);
   console.log(`[grey] the size of the build: ${sizeSummary(size)}`);
@@ -144,7 +150,7 @@ async function main() {
   const browser = await launch();
   const all = [];
   try {
-    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
+    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q, args.budget));
   } finally { await browser.close(); server.close(); }
   writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
   if (all.some((m) => m.failed)) failed = true;
@@ -153,7 +159,7 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out, q = 2) {
+async function measure(browser, url, scale, out, q = 2, budget = false) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
@@ -169,7 +175,11 @@ async function measure(browser, url, scale, out, q = 2) {
   if (Math.abs(map.scale - scale) > 1e-9) throw new Error(`the page plays the scale ${map.scale}, not ${scale}`);
   const tag = `x${String(scale).replace('.', '_')}`;
   /** Seconds of game time, waited for frame by frame. */
-  const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
+  const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
   const draw = () => page.evaluate(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
@@ -177,7 +187,7 @@ async function measure(browser, url, scale, out, q = 2) {
 
   // the paths on foot
   const legs = [];
-  for (const [a, b] of routeLegs(map.route)) {
+  for (const [a, b] of budget ? [] : routeLegs(map.route)) {
     const line = pathBetween(map.paths, map.zones, a, b);
     if (!line) throw new Error(`no path of the map from "${a}" to "${b}"`);
     const len = lengthOf(line);
@@ -235,7 +245,7 @@ async function measure(browser, url, scale, out, q = 2) {
       return { hits, of: tops.length, metres: +from.distanceTo(tops[0]).toFixed(0), met };
     }, [b, map.landmarks[b]]);
     const d = await draw();
-    await page.screenshot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
+    await shot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
     views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, met: seen.met, ...d });
   }
   // the tour
@@ -247,34 +257,37 @@ async function measure(browser, url, scale, out, q = 2) {
     await page.evaluate((i) => __game.flyoverPlayer.hold(i), i);
     await settle(0.4);
     tour.push({ point: i + 1, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
+    await shot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
-  // the magic: the camera on its point, the world still (no game time: the fireflies and the butterflies stand), so two
-  // pictures of the same magic differ by nothing that lives in the frame
-  await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
-  await settle(0.6);
-  const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
-  const pics = [];
-  await page.evaluate(() => __game.still(true));
-  try {
-    for (const [m, name] of MAGIC_PICTURES) {
-      await page.evaluate((m) => __game.setMagic(m), m);
-      await frames();
-      pics.push((await page.screenshot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
-    }
-    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
-    await page.evaluate(() => __game.still(false));
+  let magic = { skipped: true, ok: true };
+  if (!budget) {
+    // the magic: the camera on its point, the world still (no game time: the fireflies and the butterflies stand), so two
+    // pictures of the same magic differ by nothing that lives in the frame
+    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
     await settle(0.6);
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const pics = [];
     await page.evaluate(() => __game.still(true));
-    for (const m of [0, 0.48, 1]) {
-      await page.evaluate((m) => __game.setMagic(m), m);
-      await frames();
-      await page.screenshot({ path: join(out, `${tag}-magic-near-${String(m).replace('.', '_')}.png`) });
-    }
-  } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(null); }); }
-  const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 3, 1], [0, 3, 0.2], [0, 1, 1], [0, 2, 1]]);
-  const magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
-  magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
+    try {
+      for (const [m, name] of MAGIC_PICTURES) {
+        await page.evaluate((m) => __game.setMagic(m), m);
+        await frames();
+        pics.push((await shot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
+      }
+      await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
+      await page.evaluate(() => __game.still(false));
+      await settle(0.6);
+      await page.evaluate(() => __game.still(true));
+      for (const m of [0, 0.48, 1]) {
+        await page.evaluate((m) => __game.setMagic(m), m);
+        await frames();
+        await shot({ path: join(out, `${tag}-magic-near-${String(m).replace('.', '_')}.png`) });
+      }
+    } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(null); }); }
+    const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 3, 1], [0, 3, 0.2], [0, 1, 1], [0, 2, 1]]);
+    magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
+    magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
+  }
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   // after the tour and the magic (they are measured in the save as it was): the secrets and the owlet at the magic of 1,
   // the heaviest, as the route
@@ -299,7 +312,7 @@ async function measure(browser, url, scale, out, q = 2) {
     for (const [where, a, b] of [['near', from, m], ['at', f, sec.look[id] ?? m]]) {
       await stand(a, b); await settle(1.2);
       const dr = await draw();
-      await page.screenshot({ path: join(out, `${tag}-secret-${id}-${where}.png`) });
+      await shot({ path: join(out, `${tag}-secret-${id}-${where}.png`) });
       secrets.push({ id, where, ...dr });
     }
   }
@@ -314,29 +327,31 @@ async function measure(browser, url, scale, out, q = 2) {
   await page.evaluate(() => { const q = __game.save.worlds.forest.quests; q.mudrena = __game.npcs.find((n) => n.def.id === 'mudrena').def.steps.length; });
   await stand({ x: heap.x + 3.2, z: heap.z + 1.5 }, heap); await settle(1.2);
   secrets.push({ id: 'owlet', where: 'heap', ...(await draw()) });
-  await page.screenshot({ path: join(out, `${tag}-owlet-heap.png`) });
+  await shot({ path: join(out, `${tag}-owlet-heap.png`) });
   await page.evaluate(() => { const s = __game.save; s.worlds.forest.flags.pet = true; s.pets = [...new Set([...(s.pets ?? []), 'owlet'])]; s.pet = 'owlet'; });
   await settle(0.6);
   await page.keyboard.down('KeyW'); await settle(0.9); await page.keyboard.up('KeyW');
   secrets.push({ id: 'owlet', where: 'flying', ...(await draw()) });
-  await page.screenshot({ path: join(out, `${tag}-owlet-flying.png`) });
+  await shot({ path: join(out, `${tag}-owlet-flying.png`) });
   await settle(1.5);
-  await page.screenshot({ path: join(out, `${tag}-owlet-standing.png`) });
-  // and as a child sees it best: on the light path of the grove, flying beside her, the camera at her side and close
-  const grove = map.zones.grove, along = map.zones.ash;
-  // the camera turned a quarter and close; she runs sideways to it (the stick to the side): it is seen from the side
-  await stand(grove, along); await settle(0.6);
-  await page.evaluate(() => { __game.cam.yaw += Math.PI / 2; __game.closeup(3.2); });
-  await page.keyboard.down('KeyD'); await settle(1.4);
-  await page.screenshot({ path: join(out, `${tag}-owlet-side.png`) });
-  await page.keyboard.up('KeyD');
-  await page.evaluate(() => { __game.closeup(null); });
+  await shot({ path: join(out, `${tag}-owlet-standing.png`) });
+  if (!budget) {
+    // and as a child sees it best: on the light path of the grove, flying beside her, the camera at her side and close
+    const grove = map.zones.grove, along = map.zones.ash;
+    // the camera turned a quarter and close; she runs sideways to it (the stick to the side): it is seen from the side
+    await stand(grove, along); await settle(0.6);
+    await page.evaluate(() => { __game.cam.yaw += Math.PI / 2; __game.closeup(3.2); });
+    await page.keyboard.down('KeyD'); await settle(1.4);
+    await shot({ path: join(out, `${tag}-owlet-side.png`) });
+    await page.keyboard.up('KeyD');
+    await page.evaluate(() => { __game.closeup(null); });
+  }
   console.log(`[grey]   the secrets: ${secrets.map((x) => `${x.id} ${x.where} ${x.calls}/${Math.round(x.tris / 1000)}k`).join(', ')}`);
   await page.evaluate(() => __game.setMagic(null));
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
   // the route walks some paths twice (there and back): its time is the sum over the route, not over the legs
-  const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + l.walked; }, 0);
+  const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + (l?.walked ?? 0); }, 0);
   const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris })), ...secrets.map((x) => ({ at: `secret ${x.id} ${x.where}`, calls: x.calls, tris: x.tris }))].sort((x, y) => y.tris - x.tris)[0];
   console.log(`[grey] scale ${scale}: top speed ${speed} m/s`);
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s run (${l.byLength} s by its length)${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
@@ -346,7 +361,8 @@ async function measure(browser, url, scale, out, q = 2) {
   // the budget holds on q2 only: q0 draws less, and is measured for what it saves
   const over = q === 2 ? [...overBudget(views, tour), ...secrets.filter((x) => x.tris > BUDGET.tris || x.calls > BUDGET.calls).map((x) => ({ at: `secret ${x.id} ${x.where}`, calls: x.calls, tris: x.tris }))] : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
-  console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.48 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-0.png, ${tag}-magic-0_48.png, ${tag}-magic-1.png)`);
+  if (magic.skipped) console.log('[grey]   the magic: not measured (--budget)');
+  else console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.48 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-0.png, ${tag}-magic-0_48.png, ${tag}-magic-1.png)`);
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, secrets, heaviest, over, magic, failed: over.length > 0 || !magic.ok };
 }
 

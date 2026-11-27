@@ -20,3 +20,10 @@ describe('the budget of the sea grey walkthrough', () => {
     expect(budgetFails({ scale: 1, over })).toBe(false);
   });
 });
+
+describe('--budget (the CI job "budget"): the draw at the scale of the game only', () => {
+  it('leaves out the walkthrough, the water and the scale turned down', () => {
+    expect(readArgs(['--budget'])).toMatchObject({ budget: true, pass: false, water: false, measure: true, scales: [SHIPPED_SCALE] });
+    expect(readArgs([])).toMatchObject({ budget: false, pass: true, water: true, scales: [1, SHIPPED_SCALE] });
+  });
+});

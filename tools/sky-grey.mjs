@@ -28,7 +28,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
-import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
 import { worldPassProblems } from './world-pass.mjs';
 
@@ -66,10 +66,14 @@ export const LANDMARK_NAMES = {
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1.6], q: 2, pass: true, measure: true, out: join(root, 'shots-e2e', 'sky-grey') };
+  const o = { scales: [1.6], q: 2, pass: true, measure: true, budget: false, built: false, out: join(root, 'shots-e2e', 'sky-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
+    // the CI job "budget" (tools/grey-route.mjs budgetSettle): the draw of the points, nothing else
+    else if (a === '--budget') { o.budget = true; o.pass = false; }
+    // the grey build made already (the part "budget" of tools/worlds.mjs builds it once for the four worlds)
+    else if (a === '--built') o.built = true;
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
@@ -122,12 +126,15 @@ export function routeSeconds(route, legs) {
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sky-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sky-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--budget] [--built] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, GREY_DIST);
   // ---- 1. the grey build ----
-  rmSync(dist, { recursive: true, force: true });
-  execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', GREY_DIST], { cwd: root, stdio: 'inherit' });
+  if (args.built && existsSync(join(dist, 'index.html'))) console.log(`[grey] the grey build made already: ${dist}`);
+  else {
+    rmSync(dist, { recursive: true, force: true });
+    execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', GREY_DIST], { cwd: root, stdio: 'inherit' });
+  }
   let failed = false;
   const size = checkDistSize(dist);
   console.log(`[grey] the size of the build: ${sizeSummary(size)}`);
@@ -155,7 +162,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [];
   try {
-    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
+    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q, args.budget));
   } finally { await browser.close(); server.close(); }
   writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
   if (all.some((m) => m.failed)) failed = true;
@@ -164,7 +171,7 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out, q = 2) {
+async function measure(browser, url, scale, out, q = 2, budget = false) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
@@ -181,7 +188,11 @@ async function measure(browser, url, scale, out, q = 2) {
   // chain has built it (before that the way to the dragon island ends at the gap: src/worlds/sky/layout.test.ts)
   if (!(await page.evaluate(() => { __game.skyBridge.build(); return __game.skyBridge.built(); }))) throw new Error('the cloud bridge could not be built by the debug door');
   /** Seconds of game time, waited for frame by frame. */
-  const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
+  const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
   const draw = () => page.evaluate(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
@@ -189,7 +200,7 @@ async function measure(browser, url, scale, out, q = 2) {
 
   // the ways on foot
   const legs = [];
-  for (const [a, b] of routeLegs(map.route)) {
+  for (const [a, b] of budget ? [] : routeLegs(map.route)) {
     const line = pathBetween(map.paths, map.zones, a, b);
     if (!line) throw new Error(`no path of the map from "${a}" to "${b}"`);
     const len = lengthOf(line);
@@ -246,7 +257,7 @@ async function measure(browser, url, scale, out, q = 2) {
       return { hits, of: tops.length, metres: +d.toFixed(0), met, fog };
     }, [LANDMARK_NAMES[b], map.landmarks[b], map.zones[b]]);
     const d = await draw();
-    await page.screenshot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
+    await shot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
     views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, met: seen.met, fog: seen.fog, ...d });
   }
   // the tour
@@ -258,7 +269,7 @@ async function measure(browser, url, scale, out, q = 2) {
     await page.evaluate((i) => __game.flyoverPlayer.hold(i), i);
     await settle(0.4);
     tour.push({ point: i + 1, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
+    await shot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   // the airship's flight (WORLD-05): timed in game time without a tap (20-40 s, docs/worlds/world-5.md), the frame
@@ -266,10 +277,12 @@ async function measure(browser, url, scale, out, q = 2) {
   const flight = { seconds: 0, plan: 0, draws: [] };
   flight.plan = await page.evaluate(() => { window.__flight = null; void __game.skyShip.fly(true).then((t) => { window.__flight = t; }); return __game.skyShip.flySeconds; });
   for (const k of [0.25, 0.5, 0.75]) {
-    await settle(flight.plan * 0.25);
+    // --budget: the ship put at the point of its way (src/worlds/sky/ship.ts seek), not flown there in game time
+    if (budget) { await page.evaluate((k) => __game.skyShip.seek(k), k); await settle(1.2); } else await settle(flight.plan * 0.25);
     flight.draws.push({ at: k, ...(await draw()) });
-    if (k === 0.5) await page.screenshot({ path: join(out, `${tag}-flight.png`) });
+    if (k === 0.5) await shot({ path: join(out, `${tag}-flight.png`) });
   }
+  if (budget) await page.evaluate(() => __game.skyShip.seek(1));
   await page.waitForFunction(() => window.__flight !== null, null, { timeout: 180000, polling: 200 }); /* clock: ceiling */
   flight.seconds = +(await page.evaluate(() => window.__flight)).toFixed(1);
   flight.far = await page.evaluate(() => __game.skyShip.far());
@@ -281,7 +294,7 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const [name, from, to] of [['observatory', before, map.landmarks.observatory], ['castle', map.zones.castle, map.landmarks.observatory]]) {
     await stand(from, to); await settle(1.5);
     finale.push({ at: name, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-finale-${name}.png`) });
+    await shot({ path: join(out, `${tag}-finale-${name}.png`) });
   }
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
@@ -302,7 +315,8 @@ async function measure(browser, url, scale, out, q = 2) {
   const over = q === 2 ? overBudget(views, [...tour, ...flight.draws.map((d) => ({ ...d, point: `the flight at ${d.at * 100} %` }))]) : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
   const notReached = legs.filter((l) => !l.reached);
-  const flightOff = !flight.far || flight.seconds < 20 || flight.seconds > 40;
+  // its time is not measured in --budget (the ship is put along its way)
+  const flightOff = !flight.far || (!budget && (flight.seconds < 20 || flight.seconds > 40));
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, finale, flight, heaviest, mostCalls, over, failed: over.length > 0 || notReached.length > 0 || flightOff };
 }
 
