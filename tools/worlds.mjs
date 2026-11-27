@@ -1470,6 +1470,39 @@ async function hubScenarios({ url, shots, fail: report }) {
         if (await p.g(() => __game.paused === true || !document.getElementById('cauldron').classList.contains('hidden'))) fail('keepsakes: the cauldron closed, the game still stands');
         told.push(`the cauldron by the roots: ${shown.length} recipes of the open worlds, a mushroom not asked refused, the jumping potion brewed by touches (the stash ${JSON.stringify(before.stash)} -> ${JSON.stringify(after.stash)})`);
       }
+      // the magic board by the roots (src/game/trainer.ts): reached by walking up to it, its button "board"; the card
+      // lists the skills the parents' section shows; addition picked - six tasks on the panel, each recorded in the
+      // skill, one star at the end; a run of two days shows on the card
+      {
+        const b = await p.g(() => __game.hub.board());
+        await p.g(([x, z]) => { const g = __game; g.teleport(x, z + 1.6); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; }, [b.x, b.z]);
+        await p.gameSeconds(1);
+        await p.shot('hub-board-look.png');
+        await p.page.locator('#btnAct').waitFor({ state: 'visible', timeout: 10000 }).catch(() => fail('keepsakes: no action button by the board'));
+        await p.page.locator('#btnAct').click({ force: true });
+        await p.page.locator('#board .bd-skill').first().waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the board did not open'));
+        const card = await p.g(() => ({ skills: [...document.querySelectorAll('#board .bd-skill')].map((e) => e.dataset.skill), shown: __game.hub.board().card.skills }));
+        if (JSON.stringify(card.skills) !== JSON.stringify(card.shown) || !card.skills.includes('add')) fail(`keepsakes: the board's card ${JSON.stringify(card)}`);
+        await p.shot('hub-board.png');
+        const before = await p.g(() => ({ stars: __game.save.stars, tasks: __game.save.skills.add?.tasks ?? 0, answers: __game.save.answers?.add?.length ?? 0 }));
+        await p.page.locator('#board [data-skill=add]').click({ force: true });
+        await p.until(() => {
+          const shown = (i) => !document.getElementById(i).classList.contains('hidden');
+          if (shown('fanfare')) document.getElementById('fanfareOk').click();
+          else if (shown('task') && !document.getElementById('task').classList.contains('won')) __game.cheat();
+          return __game.hub.board().end === 'done' && !__game.busy && !shown('task');
+        }, null, 'keepsakes: the session of addition on the board did not end', 180000);
+        const after = await p.g(() => ({ stars: __game.save.stars, tasks: __game.save.skills.add.tasks, answers: __game.save.answers?.add?.length ?? 0, train: __game.hub.board().train }));
+        if (after.tasks !== before.tasks + 6 || after.answers !== Math.min(20, before.answers + 6) || after.stars !== before.stars + 1 || after.train?.paid !== 1 || after.train?.days !== 1)
+          fail(`keepsakes: the session on the board: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        // two days in a row: yesterday's run goes on, the card says so
+        await p.g(() => { const t = __game.save.train; t.days = 2; __game.hub.board().open(); });
+        await p.page.locator('#board .bd-days').waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the board does not show two days in a row'));
+        await p.shot('hub-board-days.png');
+        await p.page.locator('#boardClose').click({ force: true });
+        if (await p.g(() => __game.busy || !document.getElementById('board').classList.contains('hidden'))) fail('keepsakes: the board closed, the game still stands');
+        told.push(`the magic board: ${card.skills.length} skills, addition - six tasks recorded (${before.tasks} -> ${after.tasks}), a star (${before.stars} -> ${after.stars}), two days in a row shown`);
+      }
       await p.close();
     }
 

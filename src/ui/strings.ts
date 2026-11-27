@@ -15,7 +15,7 @@ const sameKeys = <const T extends Record<Lang, Record<string, string>>>(
 const S = sameKeys({
   uk: {
     title: 'Академія чарівних світів', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
-    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', treat: 'Пригостити',
+    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', board: 'Дошка', board_title: 'Чарівна дошка', board_days: 'Днів поспіль: {n}', treat: 'Пригостити',
     welcome_back: 'З поверненням{, name}! Продовжимо нашу пригоду?',
     found: 'Знайдено!', ok: 'Далі',
     // --- the shared conversation (a world's own lines are in src/worlds/<id>/strings.ts)
@@ -177,7 +177,7 @@ const S = sameKeys({
     mystery_found: 'Загадкова зірка! Розвʼяжи — і вона твоя.', mystery_won: 'Зірка твоя! Аж три зірочки!',
     collect_first: 'Ой, знахідка для колекції! Шукай таких ще.', collect_set: 'Колекцію зібрано! Ще пʼять зірочок!',
     // PLAY-26: the cauldron by the Great Tree and the find of the day of a world
-    cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
+    cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', board_hi: 'Це чарівна дошка! Обери, що потренуємо.', board_done: 'Чудове тренування! Так тримати!', board_again: 'Ти знову тут! Тренуємося щодня — це сила!', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
     cauldron_done: 'Зілля готове! Воно вже серед твоїх зілль унизу.', daily_find: 'Ой, нова знахідка дня!',
     // --- the trades of the characters (PLAY-28, src/ui/trade.ts)
     trade_hi: 'Можна обміняти знахідки на подарунок!', trade_done: 'Обмін вдався! Подарунок твій.',
@@ -220,7 +220,7 @@ const S = sameKeys({
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
-    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', treat: 'Угостить',
+    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', board: 'Доска', board_title: 'Волшебная доска', board_days: 'Дней подряд: {n}', treat: 'Угостить',
     welcome_back: 'С возвращением{, name}! Продолжим наше приключение?',
     found: 'Найдено!', ok: 'Дальше',
     npc_next: 'Отлично! А вот ещё одно задание.',
@@ -365,7 +365,7 @@ const S = sameKeys({
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадочная звезда! Реши — и она твоя.', mystery_won: 'Звезда твоя! Целых три звёздочки!',
     collect_first: 'Ой, находка для коллекции! Ищи такие ещё.', collect_set: 'Коллекция собрана! Ещё пять звёздочек!',
-    cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', cauldron_more: 'Ещё немного находок — и получится зелье.',
+    cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', board_hi: 'Это волшебная доска! Выбери, что потренируем.', board_done: 'Отличная тренировка! Так держать!', board_again: 'Ты снова здесь! Тренируемся каждый день — это сила!', cauldron_more: 'Ещё немного находок — и получится зелье.',
     cauldron_done: 'Зелье готово! Оно уже среди твоих зелий внизу.', daily_find: 'Ой, новая находка дня!',
     trade_hi: 'Можно обменять находки на подарок!', trade_done: 'Обмен удался! Подарок твой.',
     talk_play: 'Играть', talk_trade: 'Обмен', talk_bye: 'Пока', trade_go: 'Обменять', trade_later: 'Не сейчас',
@@ -455,7 +455,7 @@ const SPOKEN = {
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
-  collect_first: 'joy', cauldron_hi: 'warm', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
+  collect_first: 'joy', cauldron_hi: 'warm', board_hi: 'warm', board_done: 'joy', board_again: 'joy', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',

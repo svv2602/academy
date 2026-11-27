@@ -1259,6 +1259,14 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
     expect(load({ days: { n: '5', last: 20261116 } }).days).toEqual({ n: 0, last: '' });
   });
 
+  it('the trainer\'s days (src/game/trainer.ts): a bad date is none and no day in a row, a bad count 1, a bad paid 0', () => {
+    for (const bad of [null, 3, 'x', []]) expect(load({ train: bad }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: 4, last: '2026-11-26', paid: 2 } }).train).toEqual({ days: 4, last: '2026-11-26', paid: 2 });
+    expect(load({ train: { days: 4, last: 'yesterday', paid: 2 } }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: -1, last: '2026-11-26', paid: 'x' } }).train).toEqual({ days: 1, last: '2026-11-26', paid: 0 });
+    expect(load({}).train).toBeUndefined();
+  });
+
   it('a damaged list of shown scenes keeps only its ids', () => {
     expect(load({ achShown: 'first_task' }).achShown).toEqual([]);
     expect(load({ achShown: ['first_task', 4, null, 'days_3'] }).achShown).toEqual(['first_task', 'days_3']);
