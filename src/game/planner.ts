@@ -13,13 +13,16 @@ import { HARD_MAX, type HardExample, type Save } from '../core/save';
 import type { SkillId } from './skills';
 import { generate, type TaskSpec } from './tasks/index';
 import { enTapExample, kindOf } from './tasks/en_tap';
+import { noteExample } from './tasks/note';
+import { NOTE_IDS, type NoteId } from '../s2/strings-book';
+import { noteAnswer } from './answers';
 import { isWord } from '../s2/types';
 import { meetWord } from '../ui/wordbook';
 import type { TaskType } from './tasks/types';
 import { example as addExample } from './tasks/add';
 import { example as subExample } from './tasks/sub';
 import { example as missingExample } from './tasks/missing';
-import { showTask, type TaskHooks, type TaskResult } from './taskviews/panel';
+import { answerOf, showTask, type TaskHooks, type TaskResult } from './taskviews/panel';
 
 /** How many other tasks come between an example with a mistake and its return (LEARN-11). */
 export const GAP = 2;
@@ -29,9 +32,9 @@ export const CLEAN = 2;
 const REDRAWS = 50;
 /**
  * The types whose examples with mistakes are kept: addition, take away, the missing addend (the composition of a number),
- * and the English word of "listen and touch" (a hard word comes back, as LEARN-11).
+ * the English word of "listen and touch" (a hard word comes back, as LEARN-11), and the note read with mistakes.
  */
-const KEPT: readonly TaskType[] = ['add', 'sub', 'missing', 'en_tap'];
+const KEPT: readonly TaskType[] = ['add', 'sub', 'missing', 'en_tap', 'note'];
 
 /**
  * What makes a task the same task (LEARN-13: the same numbers or the same things), and for the kept types the key of
@@ -59,6 +62,7 @@ export function sameness(s: TaskSpec): string {
     case 'puzzle': return `puzzle:${s.body.cols}x${s.body.rows}:${s.body.picture}`;
     case 'en_tap': return `en_tap:${s.body.word}`;
     case 'en_count': return `en_count:${s.body.n}`;
+    case 'note': return `note:${s.body.id}`;
   }
 }
 
@@ -76,6 +80,8 @@ function rebuild(h: HardExample, rng: Rng): TaskSpec | null {
   if (m) { const [a, sum] = [+m[1], +m[2]]; return inRange(a, sum) && a < sum ? missingExample(level, a, sum, rng) : null; }
   m = /^en_tap:([a-z_]+)$/.exec(h.k);
   if (m) { const w = m[1]; return isWord(w) && kindOf(w) ? enTapExample(level, w, rng) : null; }
+  m = /^note:(note_\d+)$/.exec(h.k);
+  if (m) { const id = m[1] as NoteId; return NOTE_IDS.includes(id) ? noteExample(level, id, rng) : null; }
   return null;
 }
 
@@ -151,6 +157,12 @@ export function createPlanner(save: Save): Planner {
     // a word found in "listen and touch" lies in the book from now on, its button marked (part H); quiet: the cat praises
     // the answer at that moment, Isabella's "A new word!" would talk over it
     if (spec.type === 'en_tap' && res.solved) meetWord(save, spec.body.word, true);
+    // the nuts of note №8 are read and added (layout §4.2): its answer is noted for adding as well, the parents see it
+    // there; only reading moves its level (the caller records the task's skill, `read`)
+    if (spec.type === 'note' && spec.body.also && res.solved) {
+      const { ms } = answerOf(res);
+      noteAnswer(save, spec.body.also, { type: 'note', ok: res.wrong === 0 && res.helped !== true, ms });
+    }
     if (!KEPT.includes(spec.type)) return;
     const list = save.hard.list, k = sameness(spec), at = given.get(spec) ?? save.hard.n - 1;
     const h = list.find((x) => x.k === k);

@@ -13,7 +13,7 @@ import type { BankKey } from '../../core/voice';
 import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house'
-  | 'neighbors' | 'signs' | 'diff' | 'puzzle' | 'en_tap' | 'en_count';
+  | 'neighbors' | 'signs' | 'diff' | 'puzzle' | 'en_tap' | 'en_count' | 'note';
 
 /**
  * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.
@@ -29,10 +29,11 @@ export type HintStep =
   | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
   | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
   | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' } | { do: 'countUp' }
-  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'outline' };
+  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'outline' } | { do: 'readAlong' } | { do: 'slowly' };
 /**
  * One rung of the hint: the line the cat says, and what is shown on screen once it has ended. `outline` (the English
- * words, Season 2): the right picture is outlined. A rung of no line (null: the English tasks, whose cat's lines are not
+ * words, Season 2): the right picture is outlined. `readAlong` (a note, Season 2): the words of the text light up one
+ * by one; `slowly`: "read slowly" in the bubble, never said, and the key words of the text lit. A rung of no line (null: the English tasks, whose cat's lines are not
  * recorded yet - R25) carries out its steps right after the shake.
  */
 export interface HintRung { key: SpokenKey | null; steps: readonly HintStep[] }

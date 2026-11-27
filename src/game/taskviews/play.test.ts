@@ -11,6 +11,9 @@ import type { Key } from '../../ui/strings';
 import type { Spoken } from '../../core/audio';
 import type { ScreenAsk, TaskType } from '../tasks/types';
 import { kindOf, picturesAt } from '../tasks/en_tap';
+import { choicesAt } from '../tasks/note';
+import { NOTES, PINK } from '../../s2/notes';
+import { NOTE_TEXTS, type NoteId } from '../../s2/strings-book';
 import type { WordId } from '../../s2/types';
 import { PAIRS_PEEK_MS } from '../tasks/pairs';
 import { cheatTask, runTask, type TaskHooks } from './panel';
@@ -339,6 +342,25 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     once(values, n, 'the right answer');
     must(heard.prompts[0] === 't_count', 'the question is the recorded one of "count"');
     must(Number(text(accepted(buttons))) === n, 'the accepted answer is not the number of things');
+  },
+  note(level, heard) {
+    const paper = stage().querySelector<HTMLElement>('.note-paper')!, id = paper.dataset.note as NoteId, def = NOTES[id];
+    seen = `${id}; ${text(paper)}; asked ${JSON.stringify(heard.screens)}`;
+    must(def.level <= Math.max(2, level), `${id} is for level ${def.level}, asked on ${level}`);
+    must(text(stage().querySelector<HTMLElement>('.note-read')!) === NOTE_TEXTS[id].uk, 'the note is not its Ukrainian text');
+    must(heard.prompts.length === 0 && heard.screens.length === 1 && heard.screens[0].key === 'q_note'
+      && heard.screens[0].en.length === 0, 'the note is asked on the screen only, nothing said');
+    const q = def.q;
+    if (q.ask === 'picture') {
+      const pics = all(stage(), '.note-pic');
+      must(pics.length === Math.min(choicesAt(level), 1 + q.wrong.length), `${pics.length} pictures on level ${level}`);
+      must(text(accepted(pics)) === q.right, 'the accepted picture is not the one of the note');
+    } else {
+      const buttons = all(opts(), '.opt');
+      const right = q.ask === 'number' ? q.right : all(stage(), '.note-pebble').filter((p) => p.style.background === PINK).length;
+      if (q.ask === 'pebbles') between(right, 3, 5, 'the pink pebbles');
+      must(Number(text(accepted(buttons))) === right, 'the accepted answer is not the one the note asks');
+    }
   },
 };
 

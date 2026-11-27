@@ -95,13 +95,13 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
       count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
       neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
-      en_tap: 'en_words', en_count: 'en_words',
+      en_tap: 'en_words', en_count: 'en_words', note: 'read',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house), but
-    // three of the four of Season 2: their kinds come with the next parts of step 2 (D2, E); the English words have
-    // theirs (D1: "listen and touch", "how many" in English)
-    expect(SKILLS.filter((k) => !Object.values(SKILL).includes(k))).toEqual(SEASON2_SKILLS.filter((k) => k !== 'en_words'));
+    // two of the four of Season 2: their kinds come with the next parts of step 2 (E) and later; the English words have
+    // theirs (D1: "listen and touch", "how many" in English), reading the note (D2)
+    expect(SKILLS.filter((k) => !Object.values(SKILL).includes(k))).toEqual(SEASON2_SKILLS.filter((k) => k !== 'en_words' && k !== 'read'));
   });
 });
 
