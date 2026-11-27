@@ -10,10 +10,21 @@
  * - A wrong place is one of another kind she STANDS at (EN_GO_DWELL s without moving on): passing the little house on
  *   the way to the flowers is no mistake. A wrong place takes nothing away (R26); it counts once, until she leaves it.
  * - The residents' chains are not touched (R10): no place stands at a resident, and the task is no step of a chain.
+ *
+ * And the show that plays a command in a world (`enGo`): it draws nothing and holds nobody - the world tells it where
+ * she is every frame and asks it where the sparkles lead. Its course is the course of every task in the world
+ * (./core.ts `taskCore`): a wrong place is a mistake with its three rungs - Pip says the command again; the cat's frame,
+ * then the word apart; the sparkles to the nearest place of the kind. What is said and by whom is the caller's (Pip's
+ * part): the show knows the clips of the command and the keys it is given.
  */
+import type { Spoken } from '../../core/audio';
 import type { Rng } from '../../core/rng';
 import { pick } from '../../core/util';
 import type { WordId } from '../../s2/types';
+import type { SpokenKey } from '../../ui/strings';
+import type { WorldScope } from '../scope';
+import type { TaskResult } from '../taskviews/panel';
+import { taskCore, type WorldTaskState } from './core';
 
 /**
  * The kinds of place a command can name: each is a whole phrase of Pip, `en_go_<kind>` (lines §2.2). Step 2 has the
@@ -116,6 +127,8 @@ export function walker(places: readonly EnPlace[], kind: EnPlaceKind) {
       told = wrong;
       return { is: 'wrong', place: wrong };
     },
+    /** She does not walk by herself now (a conversation, a scene): what she stood at is forgotten, the time starts anew. */
+    rest(): void { stood = null; },
   };
 }
 
@@ -147,4 +160,89 @@ export function enPlacesProblems(places: readonly EnPlace[], from: At, busy: rea
     });
   });
   return out;
+}
+
+/** What the show says through: the voice of English, and the cat's two voices of every task (`TaskHooks`). */
+export interface EnGoHooks {
+  /** The voice of English says these clips, one after the other (Pip's command, or a word of it apart). */
+  say(clips: readonly string[]): void;
+  /** The gentle "try again". */
+  wrong(): Spoken;
+  /** The cat says a line of a rung aloud, with its subtitle. */
+  hint(key: SpokenKey): Spoken;
+}
+
+export interface EnGoOptions {
+  /** The places of the world (`WorldDef.enPlaces`), the kind the command names, where it is given (Pip's place). */
+  readonly places: readonly EnPlace[]; readonly kind: EnPlaceKind; readonly from: At;
+  /** The game's randomness: which of the places in the ring the command is about. */
+  readonly rng: Rng;
+  /** Whether the voice of English has a clip (`enVoice().has`): Pip's whole phrase is said once it is recorded. */
+  has(id: string): boolean;
+  /**
+   * The cat's line of the second rung ("Pip asks you to go to…", Pip's part gives its key once its clip is recorded;
+   * null - the rung says the word alone) and of the third (absent - the shared "look at what glows").
+   */
+  readonly lines?: { readonly frame?: SpokenKey | null; readonly glow?: SpokenKey | null };
+}
+
+/** The shared line of a last rung: "look at what glows" - here the sparkles on the ground. */
+export const EN_GO_GLOW: SpokenKey = 'h3_show';
+
+export interface EnGoShow {
+  readonly kind: 'en_go';
+  /** Settles once she has come (solved) or the command is taken back (closed). */
+  readonly done: Promise<TaskResult>;
+  /** The place the command is about, and the clips that say it. */
+  readonly target: EnPlace;
+  readonly clips: readonly string[];
+  /**
+   * A frame of the world: where she is, the world's time (s), and whether she walks by herself - in a conversation or a
+   * scene nothing is counted, and what she stood at before it is forgotten.
+   */
+  update(at: At, time: number, canMove: boolean): void;
+  /** Where the sparkles lead with her at `at`: nowhere until the last rung, then to the nearest place of the kind. */
+  goal(at: At): EnPlace | null;
+  /** The command is taken back: the task ends unsolved, nothing is lost. */
+  close(): void;
+  /** For the walkthrough: she comes to the place; she stands at a wrong one (false when the world has none). */
+  solve(): void;
+  wrong(): boolean;
+  state(): WorldTaskState;
+}
+
+/**
+ * A command of `o.kind` given at `o.from`: null when no place of the kind lies in the ring there - the command is not
+ * given (and nothing is drawn from the rng). The command itself is said by the caller (`show.clips`), as the question of
+ * any task is; the show says it again at the first rung.
+ */
+export function enGo(scope: WorldScope, hooks: EnGoHooks, o: EnGoOptions): EnGoShow | null {
+  const target = pickTarget(o.places, o.kind, o.from, o.rng);
+  if (!target) return null;
+  const clips = enGoClips(target, o.has), walk = walker(o.places, o.kind);
+  const frame = o.lines?.frame ?? null, glow = o.lines?.glow === undefined ? EN_GO_GLOW : o.lines.glow;
+  // The rung of a mistake is its number; the third and every one after it are the last rung.
+  const core = taskCore(scope, hooks, {
+    key: (round) => (round === 1 ? null : round === 2 ? frame : glow),
+    show: (round) => {
+      // 1: Pip says the command again; 2: after the cat's frame, the word apart; 3: the sparkles (`goal`), nothing said
+      if (round === 1) hooks.say(clips);
+      else if (round === 2) hooks.say([`wb_w_${target.word}`]);
+    },
+  }, () => {});
+  return {
+    kind: 'en_go', done: core.done, target, clips,
+    update(at, time, canMove) {
+      // once it is over the course takes nothing more (./core.ts): no guard of its own is needed here
+      if (!canMove) { walk.rest(); return; }
+      const ev = walk.step(at, time);
+      if (ev.is === 'come') core.solve();
+      else if (ev.is === 'wrong') void core.mistake();
+    },
+    goal: (at) => (core.alive && core.rung >= 3 ? nearestOf(o.places, o.kind, at) : null),
+    close: () => core.close(),
+    solve: () => core.solve(),
+    wrong: () => { if (!core.alive || !o.places.some((p) => p.kind !== o.kind)) return false; void core.mistake(); return true; },
+    state: () => ({ kind: 'en_go', phase: core.phase, wrongs: core.wrongs, moves: 0, rung: core.rung, progress: [] }),
+  };
 }

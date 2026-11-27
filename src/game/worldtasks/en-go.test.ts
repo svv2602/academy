@@ -1,12 +1,17 @@
 /**
  * The rule of "Find a red flower!" (LEARN-23, ./en-go.ts): which place a command is about, when she has come, when
- * she has stopped at a wrong place, the clips that say it, and the guard of a world's list of places.
+ * she has stopped at a wrong place, the clips that say it, the guard of a world's list of places - and the show that
+ * plays a command in a world: its mistakes and their three rungs, its end, where the sparkles lead.
  */
-import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Spoken } from '../../core/audio';
 import { mulberry32 } from '../../core/util';
+import type { SpokenKey } from '../../ui/strings';
+import { createWorldScope } from '../scope';
 import {
   EN_GO_APART, EN_GO_CLEAR, EN_GO_DWELL, EN_GO_FAR, EN_GO_NEAR, EN_GO_REACH, EN_GO_REACH_MAX, EN_GO_STILL, EN_PLACE_KINDS,
-  enGoClips, enPlacesProblems, inRing, kindsAt, nearestOf, pickTarget, placeAt, reachOf, walker, type EnPlace,
+  EN_GO_GLOW, enGo, enGoClips, enPlacesProblems, inRing, kindsAt, nearestOf, pickTarget, placeAt, reachOf, walker, type EnGoOptions, type EnPlace,
 } from './en-go';
 
 const FROM = { x: 0, z: 0 };
@@ -191,5 +196,177 @@ describe('the guard of a world\'s places', () => {
     expect(enPlacesProblems([...PLACES, flower(0, -18)], FROM)).toEqual(['the flower at (0, -18) is listed twice']);
     expect(enPlacesProblems([...PLACES, { x: 0, z: 20, kind: 'bridge', word: 'tree' } as unknown as EnPlace], FROM)).toEqual(['the bridge at (0, 20) is of no kind a command names']);
     expect(enPlacesProblems([...PLACES, { x: 12, z: 16, kind: 'flower', word: 'red' }], FROM)).toEqual(['the places of the kind flower carry different words: flower, red']);
+  });
+});
+
+describe('a command played in a world (the show)', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
+
+  /** The show of a command for a flower given at FROM, and everything said in it, in order. */
+  function play(o: Partial<EnGoOptions> = {}) {
+    const said: string[] = [];
+    const quick = () => Promise.resolve() as Spoken;
+    const hooks = {
+      say: (clips: readonly string[]) => { said.push(`en ${clips.join('+')}`); },
+      wrong: () => { said.push('try again'); return quick(); },
+      hint: (k: SpokenKey) => { said.push(`cat ${k}`); return quick(); },
+    };
+    const show = enGo(createWorldScope(new THREE.Scene()), hooks, { places: PLACES, kind: 'flower', from: FROM, rng: mulberry32(3), has: () => false, ...o });
+    let time = 0;
+    /** She stands at `at` for `s` seconds of the world, a frame every 0.1 s; then the course of what happened plays out. */
+    const stand = async (at: { x: number; z: number }, s: number, canMove = true) => {
+      for (let t = 0; t <= s + 1e-9; t += 0.1) show!.update(at, time + t, canMove);
+      time += s + 0.1;
+      await vi.runAllTimersAsync();
+    };
+    return { show: show as NonNullable<typeof show>, said, stand, away: () => stand({ x: 0, z: 0 }, 0.2) };
+  }
+  const AT_HOUSE = { x: -20, z: 1 }, AT_FLOWER = { x: 1, z: -17 };
+
+  it('is not given when no place of the kind lies in the ring: no show, nothing drawn from the rng', () => {
+    let draws = 0;
+    const rng = () => { draws++; return 0.5; };
+    expect(enGo(createWorldScope(new THREE.Scene()), { say: () => {}, wrong: () => Promise.resolve() as Spoken, hint: () => Promise.resolve() as Spoken },
+      { places: PLACES, kind: 'mushroom', from: FROM, rng, has: () => false })).toBeNull();
+    expect(draws).toBe(0);
+  });
+
+  it('is about a place of the kind in the ring; its clips are the frame and the word, or Pip\'s phrase once recorded', () => {
+    const { show } = play();
+    expect(inRing(PLACES, 'flower', FROM)).toContain(show.target);
+    expect(show.clips).toEqual(['wb_find', 'wb_w_flower']);
+    expect(play({ has: (id) => id === 'en_go_flower' }).show.clips).toEqual(['en_go_flower']);
+    expect(show.state()).toEqual({ kind: 'en_go', phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [] });
+    // never a place of the kind outside the ring, whatever the seed - though coming to that one counts as well
+    const near = flower(4, 3), places = [near, ...PLACES];
+    for (let seed = 1; seed <= 30; seed++) expect(play({ places, rng: mulberry32(seed) }).show.target).not.toBe(near);
+    expect(play({ places: [near, house(-20, 0)] }).show).toBeNull();
+  });
+
+  it('she comes to a place of the kind - any of them: solved at once, with no mistake; nothing is said by the show', async () => {
+    for (const p of [PLACES[0], PLACES[1]]) {
+      const { show, said, stand } = play();
+      await stand({ x: 0, z: 0 }, 0.5);
+      expect(show.state().phase).toBe('input');
+      await stand(p, 0);
+      expect(await show.done).toEqual({ solved: true, wrong: 0 });
+      expect(show.state().phase).toBe('solved');
+      expect(said).toEqual([]);
+    }
+  });
+
+  it('a wrong place stood at is a mistake; the first rung: "try again", then Pip says the command again - no line of the cat, no sparkles', async () => {
+    const { show, said, stand } = play();
+    await stand(AT_HOUSE, 2);
+    expect(show.state()).toMatchObject({ phase: 'input', wrongs: 1, rung: 1 });
+    expect(said).toEqual(['try again', 'en wb_find+wb_w_flower']);
+    expect(show.goal(AT_HOUSE)).toBeNull();
+    // standing on at it says nothing more
+    await stand(AT_HOUSE, 5);
+    expect(said).toHaveLength(2);
+  });
+
+  it('the second rung: the cat\'s frame when Pip\'s part gives its line, then the word apart; without the line - the word alone; still no sparkles', async () => {
+    const withLine = play({ lines: { frame: 'npc_again' as SpokenKey } });
+    await withLine.stand(AT_HOUSE, 2); await withLine.away(); await withLine.stand(AT_HOUSE, 2);
+    expect(withLine.said.slice(2)).toEqual(['try again', 'cat npc_again', 'en wb_w_flower']);
+    expect(withLine.show.state()).toMatchObject({ wrongs: 2, rung: 2 });
+    expect(withLine.show.goal(AT_HOUSE)).toBeNull();
+    const bare = play();
+    await bare.stand(AT_HOUSE, 2); await bare.away(); await bare.stand(AT_HOUSE, 2);
+    expect(bare.said.slice(2)).toEqual(['try again', 'en wb_w_flower']);
+  });
+
+  it('the third rung and every one after it: the cat\'s "look at what glows", and the sparkles lead to the nearest place of the kind from where she is', async () => {
+    const { show, said, stand, away } = play();
+    for (let i = 0; i < 2; i++) { await stand(AT_HOUSE, 2); await away(); }
+    expect(show.goal(AT_HOUSE)).toBeNull();
+    await stand(AT_HOUSE, 2);
+    expect(said.slice(-2)).toEqual(['try again', `cat ${EN_GO_GLOW}`]);
+    expect(EN_GO_GLOW).toBe('h3_show');
+    expect(show.state()).toMatchObject({ wrongs: 3, rung: 3 });
+    expect(show.goal({ x: 10, z: 10 })).toBe(PLACES[1]);
+    expect(show.goal({ x: 0, z: -10 })).toBe(PLACES[0]);
+    await away(); await stand(AT_HOUSE, 2);
+    expect(said.slice(-2)).toEqual(['try again', `cat ${EN_GO_GLOW}`]);
+    expect(show.state()).toMatchObject({ wrongs: 4 });
+    expect(show.goal(AT_HOUSE)).toBe(PLACES[0]);
+    // a line of her own for the last rung, or none
+    const own = play({ lines: { glow: 'go_next' as SpokenKey } });
+    for (let i = 0; i < 3; i++) { await own.stand(AT_HOUSE, 2); await own.away(); }
+    expect(own.said.slice(-2)).toEqual(['try again', 'cat go_next']);
+    const none = play({ lines: { glow: null } });
+    for (let i = 0; i < 3; i++) { await none.stand(AT_HOUSE, 2); await none.away(); }
+    expect(none.said.slice(-1)).toEqual(['try again']);
+    expect(none.show.goal(AT_HOUSE)).toBe(PLACES[0]);
+  });
+
+  it('wrong places take nothing away: she comes after them and the task is solved, its mistakes counted (R26)', async () => {
+    const { show, stand, away } = play();
+    await stand(AT_HOUSE, 2); await away(); await stand(AT_HOUSE, 2);
+    await stand(AT_FLOWER, 0);
+    expect(await show.done).toEqual({ solved: true, wrong: 2 });
+    // nothing more after the end: no mistake, no sparkles
+    await stand(AT_HOUSE, 3);
+    expect(show.state()).toMatchObject({ phase: 'solved', wrongs: 2 });
+    expect(show.goal(AT_HOUSE)).toBeNull();
+    // also when the sparkles were leading her: they go out as she comes
+    const led = play();
+    for (let i = 0; i < 3; i++) { await led.stand(AT_HOUSE, 2); await led.away(); }
+    expect(led.show.goal(AT_HOUSE)).toBe(PLACES[0]);
+    await led.stand(AT_FLOWER, 0);
+    expect(await led.show.done).toEqual({ solved: true, wrong: 3 });
+    expect(led.show.goal(AT_HOUSE)).toBeNull();
+    // and when the command is taken back
+    const back = play();
+    for (let i = 0; i < 3; i++) { await back.stand(AT_HOUSE, 2); await back.away(); }
+    back.show.close();
+    expect(back.show.goal(AT_HOUSE)).toBeNull();
+  });
+
+  it('passing a wrong place is nothing; standing at it in a conversation is nothing, and the standing starts anew after it', async () => {
+    const { show, said, stand } = play();
+    for (let i = 0; i <= 12; i++) show.update({ x: -20 + (i - 6) * 0.8, z: 1 }, i * 0.4, true);
+    await vi.runAllTimersAsync();
+    expect(show.state().wrongs).toBe(0);
+    await stand(AT_HOUSE, EN_GO_DWELL - 0.4);             // she has stopped there, not long enough yet
+    await stand(AT_HOUSE, 6, false);                      // and talks to somebody there
+    expect(show.state().wrongs).toBe(0);
+    await stand(AT_HOUSE, EN_GO_DWELL - 0.4);             // then walks by herself again: the standing started anew
+    expect(show.state().wrongs).toBe(0);
+    await stand(AT_HOUSE, 2);
+    expect(show.state().wrongs).toBe(1);
+    expect(said[0]).toBe('try again');
+    // told once for this visit, a conversation in between or not
+    await stand(AT_HOUSE, 3, false);
+    await stand(AT_HOUSE, 4);
+    expect(show.state().wrongs).toBe(1);
+  });
+
+  it('taken back: the task ends unsolved, nothing is said, nothing counts any more', async () => {
+    const { show, said, stand } = play();
+    await stand(AT_HOUSE, 2);
+    show.close();
+    expect(await show.done).toEqual({ solved: false, wrong: 1 });
+    expect(show.state().phase).toBe('closed');
+    const before = said.length;
+    await stand(AT_HOUSE, 3); await stand(AT_FLOWER, 1);
+    expect(said).toHaveLength(before);
+    expect(show.state()).toMatchObject({ phase: 'closed', wrongs: 1 });
+  });
+
+  it('the walkthrough\'s door: a wrong move through the same course, then solved; no wrong move in a world of one kind', async () => {
+    const { show, said } = play();
+    expect(show.wrong()).toBe(true);
+    await vi.runAllTimersAsync();
+    expect(show.state()).toMatchObject({ wrongs: 1, rung: 1 });
+    expect(said).toEqual(['try again', 'en wb_find+wb_w_flower']);
+    show.solve();
+    expect(await show.done).toEqual({ solved: true, wrong: 1 });
+    expect(show.wrong()).toBe(false);                      // it is over
+    const only = play({ places: [PLACES[0], PLACES[1]] });
+    expect(only.show.wrong()).toBe(false);
+    expect(only.show.state().wrongs).toBe(0);
   });
 });
