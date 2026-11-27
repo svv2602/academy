@@ -18,8 +18,9 @@ import type { WordId } from '../../s2/types';
 /**
  * The kinds of place a command can name: each is a whole phrase of Pip, `en_go_<kind>` (lines §2.2). Step 2 has the
  * three its worlds really have a thing for - the red flowers and the little house of the fairies, the big mushrooms of
- * the forest. The owl, the hedgehog, the fox and the bridge wait for step 3 (the lead, 2026-11-27): the first two are
- * residents with chains of their own (R10), the forest has no fox, the fairies no bridge.
+ * the forest. The four other phrases of the draft - three animals and the bridge - wait for step 3 (the lead,
+ * 2026-11-27): two of the animals are residents with chains of their own (R10), the third lives in neither world, and
+ * no bridge stands where its phrase was written for.
  */
 export const EN_PLACE_KINDS = ['flower', 'house', 'mushroom'] as const;
 export type EnPlaceKind = (typeof EN_PLACE_KINDS)[number];
