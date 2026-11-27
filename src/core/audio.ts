@@ -1,6 +1,7 @@
 /** Synthesized SFX and a soft generative music bed; the queue of spoken lines is in src/core/voice.ts (re-exported here). */
 import type { MusicParams } from '../game/world';
 import { pauseVoice, resumeVoice, voiceVolume } from './voice';
+import { installEnVoice, pauseEn, resumeEn } from './voice-en';
 
 export {
   CLIP_RETRIES, CLIP_SILENT_MS, beginTask, borrowed, clipFor, dropped, endTask, inTask, mayStart, say, setCast, speaking, stopVoice, voiceLog,
@@ -15,16 +16,19 @@ let hidden = false;
 
 export const volume = { music: 0.5, sfx: 0.8, voice: 1 };
 voiceVolume(() => volume.voice);
+// The voice of English (Season 2, src/core/voice-en.ts) speaks at the voice's volume too.
+installEnVoice({ volume: () => volume.voice });
 
 /**
  * The page is hidden (another app, a locked screen): the music and the effects stop with the audio context, the clip
- * pauses where it is and the synthesizer pauses. The line is not ended: whoever awaits it keeps waiting (TECH-05).
+ * pauses where it is (an English one too, src/core/voice-en.ts) and the synthesizer pauses. The line is not ended: whoever awaits it keeps waiting (TECH-05).
  */
 function hide() {
   if (hidden) return;
   hidden = true;
   void ctx?.suspend();
   pauseVoice();
+  pauseEn();
 }
 
 /** The page is shown again: everything goes on from where it stopped. */
@@ -33,6 +37,7 @@ function show() {
   hidden = false;
   void ctx?.resume();
   resumeVoice();
+  resumeEn();
 }
 
 /** The two reasons for the silence: the page is hidden, or its picture is lost (`holdSound`); either one holds it. */
