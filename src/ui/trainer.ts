@@ -10,7 +10,7 @@ import { t, tf, type Key } from './strings';
 import './trainer.css';
 
 /** The picture of each skill on its button. */
-export const SKILL_ICON: Record<SkillId, string> = {
+export const SKILL_ICON: Partial<Record<SkillId, string>> = {
   count: '🍎', add: '➕', sub: '➖', compare: '⚖️', series: '🔢', pattern: '🔁', memory: '🧠', classify: '🧺',
   compose: '🏠', attention: '🔍', assemble: '🧩',
 };
@@ -38,7 +38,7 @@ export function openBoard(h: BoardHooks): void {
   for (const k of skills) {
     const b = make('button', 'bd-skill');
     b.dataset.skill = k;
-    b.append(make('span', 'ic', SKILL_ICON[k]), make('span', 'nm', t(('sk_' + k) as Key)));
+    b.append(make('span', 'ic', SKILL_ICON[k] ?? '⭐'), make('span', 'nm', t(('sk_' + k) as Key)));
     b.addEventListener('click', () => { shut(); h.pick(k); });
     list.appendChild(b);
   }

@@ -25,19 +25,21 @@ export const TRAIN_PAID = 3;
 
 /**
  * The task types of each skill the board can give: a skill whose type follows its level (compare, series, compose) is
- * played by that rule (src/game/tasks BY_LEVEL); a skill with two types of its own alternates them.
+ * played by that rule (src/game/tasks BY_LEVEL); a skill with two types of its own alternates them. A skill not here
+ * (the second season's, until its tasks are on the panel) is not offered: its line here is all the board needs.
  */
-const TYPES: Record<SkillId, readonly TaskType[] | keyof typeof BY_LEVEL> = {
+const TYPES: Partial<Record<SkillId, readonly TaskType[] | keyof typeof BY_LEVEL>> = {
   count: ['count'], add: ['add'], sub: ['sub'], compare: 'compare', series: 'series', pattern: ['pattern'],
   memory: ['pairs', 'simon'], classify: ['odd', 'sort'], compose: 'compose', attention: ['diff'], assemble: ['puzzle'],
 };
 
-/** The skills the board offers: the ones the parents' section shows (a late skill once its first task is played). */
-export const trainSkills = (s: Save): SkillId[] => shownSkills(s);
+/** The skills the board offers: the ones the parents' section shows (a late skill once its first task is played) that it has tasks of. */
+export const trainSkills = (s: Save): SkillId[] => shownSkills(s).filter((k) => TYPES[k] !== undefined);
 
 /** The type of the `i`-th task of a session of `skill` on `level`. */
 export function trainType(skill: SkillId, level: number, i: number, rng: Rng): TaskType {
   const t = TYPES[skill];
+  if (!t) throw new Error(`the board has no tasks of the skill "${skill}"`);
   if (typeof t === 'string') return BY_LEVEL[t](level);
   return t.length === 1 ? t[0] : t[(i + Math.floor(rng() * 2)) % t.length];
 }

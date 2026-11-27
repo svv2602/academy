@@ -70,6 +70,10 @@ describe('the tasks of a skill', () => {
     expect(trainSkills(s)).not.toContain('attention');
     s.skills.attention = { level: 1, streak: 0, tasks: 1, first: 1, errors: 0 };
     expect(trainSkills(s)).toContain('attention');
+    // a skill of the second season, shown once played, is not offered while the board has no tasks of it
+    s.skills.en_words = { level: 2, streak: 0, tasks: 3, first: 1, errors: 0 };
+    expect(trainSkills(s)).not.toContain('en_words');
+    expect(() => trainType('en_words', 2, 0, () => 0.5)).toThrow();
   });
 });
 
