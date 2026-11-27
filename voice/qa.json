@@ -8624,5 +8624,13 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_hold_in": {
+  "text": "Це трюм старого корабля! Роздивися все — тут щось сховано.",
+  "heard": "Це трюм старого корабля. Роздивися все, тут щось сховано.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
