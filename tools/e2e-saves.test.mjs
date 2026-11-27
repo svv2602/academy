@@ -54,6 +54,20 @@ describe('tools/e2e-saves.mjs: the saves the groups of the walkthrough start fro
     }
   });
 
+  it.each(withSave)('the save of "%s" as version 4 wrote it (before Season 2) opens whole in version 5, its text kept in amw-save-v4', (group) => {
+    const now = JSON.parse(startSave(group));
+    const v4 = structuredClone(now);
+    v4.v = 4;
+    for (const k of ['recent', 'pip', 'notes', 'words', 'shares', 'english']) delete v4[k];
+    for (const k of ['en_words', 'en_phrases', 'read']) { delete v4.skills[k]; delete v4.fixed[k]; }
+    storage.setItem('amw-save', JSON.stringify(v4));
+    const s = loadSave();
+    expect(storage.getItem('amw-save-damaged')).toBeNull();
+    expect(storage.getItem('amw-save-v4')).toBe(JSON.stringify(v4));
+    // the stars, the skills, the worlds of version 4 as they were, and what version 5 adds as a new player has it
+    expect(s).toEqual(now);
+  });
+
   it.each(withSave)('the save of "%s" has done every friend the group does not play before it, and none it plays', (group) => {
     const { friends } = GROUPS[group];
     const s = JSON.parse(startSave(group));

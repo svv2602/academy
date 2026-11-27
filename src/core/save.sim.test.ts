@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SKILLS, levelFor, recordTask } from '../game/skills';
+import { SEASON2_SKILLS, SKILLS, levelFor, recordTask } from '../game/skills';
 import type { SkillId } from '../game/skills';
 import { defaultSave } from './save';
 import { mulberry32 } from './util';
@@ -36,9 +36,10 @@ const TASKS = 200;
 const SETTLED_FROM = TASKS / 2;
 /**
  * The skills some kind of task trains take turns, 25 tasks each (the composition of a number has no task yet; attention,
- * "find the differences", is played from the second world on - the runs were measured on the first world's skills).
+ * "find the differences", is played from the second world on - the runs were measured on the first world's skills; the
+ * skills of Season 2 have no task yet).
  */
-const ROUND: readonly SkillId[] = SKILLS.filter((k) => k !== 'compose' && k !== 'attention' && k !== 'assemble');
+const ROUND: readonly SkillId[] = SKILLS.filter((k) => k !== 'compose' && k !== 'attention' && k !== 'assemble' && !SEASON2_SKILLS.includes(k));
 
 /**
  * Levels 4 and 5 (numbers to 20, two features at once) were written down on 2026-11-16 before the first run on five
