@@ -20,6 +20,10 @@ import { buildKeepsakes } from './keepsakes';
 import { CAULDRON, cauldronGeometry } from './cauldron-look';
 import { openCauldron } from '../../ui/cauldron';
 import { shownRecipes } from '../../game/cauldron';
+import { BOARD, boardGeometry } from './board-look';
+import { boardState, openBoard } from '../../ui/trainer';
+import { runTraining, trainDays } from '../../game/trainer';
+import { playScene } from '../../game/stage';
 import { ringNote, ringTapped } from './ring-notes';
 import { HUB_COLLECT, birdAsleep, featherDay, featherOfDay, featherState, featherTaken } from './feathers';
 import { foundOf } from '../../game/collections';
@@ -221,6 +225,21 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   ground.block(CAULDRON.x, CAULDRON.z, CAULDRON.r);
   const cauldronAt = new THREE.Vector3(CAULDRON.x, 0, CAULDRON.z);
   const openPot = () => openCauldron({ save, persist: () => g.persist(), pause: (v) => { g.paused = v; if (v) g.speech.caption(null); }, say: (k) => { void g.speech.line(k, 'hint', 5000); } });
+  // the magic board by the roots (src/game/trainer.ts, ./board-look.ts): drawn in the nests' call too; its card picks a
+  // skill, the session plays as a scene of the hub (the controls held, the task panel over it)
+  ground.block(BOARD.x, BOARD.z, BOARD.r);
+  const boardAt = new THREE.Vector3(BOARD.x, 0, BOARD.z);
+  const training = { skill: null as string | null, end: null as 'done' | 'closed' | null };
+  const openTrainer = () => openBoard({ save, pause: (v) => { g.paused = v; if (v) g.speech.caption(null); }, say: () => { void g.speech.line('board_hi', 'hint', 5000); },
+    pick: (skill) => {
+      training.skill = skill; training.end = null;
+      // the stage of src/game/context.ts taken when wanted: the hub's tests read this file without the game's canvas
+      void import('../../game/context').then(({ createStage }) => playScene(createStage(g, () => {}), `board ${skill}`, async () => {
+        g.cam.focus = g.above(boardAt, 0.6);
+        // the cat's word at the end: of a day going on from yesterday, or of any other
+        training.end = await runTraining(g, skill, (again) => g.speech.line(again ? 'board_again' : 'board_done', 'story'));
+      })).finally(() => { g.cam.focus = null; training.skill = null; });
+    } });
   // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
   scope.own(steerPet(ringPlay(stumpAt(), () => g.hero.root.position, () => g.busy)));
   // the pet's shadow: none on the fourth stage (the budget of 80 draw calls), a spot under it instead (./pet-shadow.ts)
@@ -272,7 +291,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       if (key) void g.speech.line(key as SpokenKey, 'hint', 6000);
     };
   };
-  const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
+  const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), boardGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
   const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);
   buildRing(scene);
@@ -296,7 +315,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   return {
     frame: {
       spots: [...open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
-        { pos: cauldronAt, r: 2.2, label: 'brew', on: () => shownRecipes(save).length > 0, run: openPot }],
+        { pos: cauldronAt, r: 2.2, label: 'brew', on: () => shownRecipes(save).length > 0, run: openPot },
+        { pos: boardAt, r: 2.2, label: 'board', on: () => training.skill === null, run: openTrainer }],
       // a tap on a mushroom of the ring round the stump: its note and its flash (./ring-notes.ts); only while she is free
       tap: (screenDist) => {
         if (g.busy || !g.started()) return false;
@@ -331,7 +351,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), board: () => ({ x: BOARD.x, z: BOARD.z, open: () => openTrainer(), card: { ...boardState }, skill: training.skill, end: training.end, days: trainDays(save), train: save.train ? { ...save.train } : null }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
         // the arches waking (or woken) in this entry: how far, whether it plays; `hold(t)` keeps it at t, null lets it go
         wake: (hold?: number | null) => { if (hold !== undefined) waking.hold = hold; return { shelves: wake?.shelves ?? [], t: waking.t, on: waking.on }; } } },
       talk: () => {},

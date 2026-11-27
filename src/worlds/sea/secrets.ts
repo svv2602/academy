@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { note, sfx, speaking } from '../../core/audio';
+import { camDistance } from '../../core/tuning';
 import type { Actor } from '../../game/actor';
 import type { Game } from '../../game/context';
 import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { starGeometry } from './creatures';
-import { LANDMARKS, LIFT_ROCK, LOOKOUT, ZONES } from './layout';
+import { GROTTO, LANDMARKS, LIFT_ROCK, LOOKOUT, ZONES } from './layout';
 import { Paint, paintMaterial } from './paint';
 import { colliders, height, tops } from './terrain';
 
@@ -24,15 +25,19 @@ import { colliders, height, tops } from './terrain';
  *   in any order, they sing the tune together. No mistake and no score.
  * - whale: the lookout at the east edge, a mound she swims up onto: standing on its top, she sees a whale pass far off in
  *   the open water and wave its tail - every time she comes up (the lead, 2026-11-23), the stars the first time.
+ * - sea_grotto: the grotto behind the seaweed (the customer's word of 2026-11-27: a secret place to explore, as the first
+ *   world's waterfall cave and the forest's): a mound of rocks off the way from the reef to the trench, its opening
+ *   behind a curtain of seaweed that parts round her; inside glowing corals and an open shell with its pearl - swimming
+ *   up to the shell finds it.
  *
  * The rocks are seen from everywhere (one mesh); the starfish, the shells and the whale are drawn only near her
  * (SHOW_R) - the sea's frame is close to its budget of draw calls (TECH-06).
  */
-export const CHEST_FLAG = 'ship_chest', LIFT_FLAG = 'bubble_lift', SHELLS_FLAG = 'echo_shells', WHALE_FLAG = 'whale';
-export const SEA_SECRETS = [CHEST_FLAG, LIFT_FLAG, SHELLS_FLAG, WHALE_FLAG] as const;
+export const CHEST_FLAG = 'ship_chest', LIFT_FLAG = 'bubble_lift', SHELLS_FLAG = 'echo_shells', WHALE_FLAG = 'whale', GROTTO_FLAG = 'sea_grotto';
+export const SEA_SECRETS = [CHEST_FLAG, LIFT_FLAG, SHELLS_FLAG, WHALE_FLAG, GROTTO_FLAG] as const;
 export type SeaSecret = (typeof SEA_SECRETS)[number];
-/** How each is done (WorldItem.how): the chest and the shells by the action button, the lift and the whale by swimming. */
-export const SECRET_HOW: Record<SeaSecret, 'act' | 'walk'> = { ship_chest: 'act', bubble_lift: 'walk', echo_shells: 'act', whale: 'walk' };
+/** How each is done (WorldItem.how): the chest and the shells by the action button, the lift, the whale and the grotto by swimming. */
+export const SECRET_HOW: Record<SeaSecret, 'act' | 'walk'> = { ship_chest: 'act', bubble_lift: 'walk', echo_shells: 'act', whale: 'walk', sea_grotto: 'walk' };
 /** m: a secret's things are drawn while she is this near. */
 export const SHOW_R = 26;
 /** s: the cat's word of a find waits this long at most for the line that sounds to end (else it is not said). */
@@ -154,6 +159,78 @@ export function whaleAt(t: number): { pos: THREE.Vector3; yaw: number; tail: num
   return { pos, yaw: Math.atan2(ax, az), tail: Math.sin(t * 2.6) * 0.45 };
 }
 
+// ---------- the grotto behind the seaweed ----------
+
+/** m from the grotto's middle: its rocks' ring; rad: the half of its opening to `face`; the rocks' count. */
+export const GROTTO_R = 3.3, GROTTO_OPEN = 0.66, GROTTO_ROCKS = 11;
+/** m: the shell with the pearl stands this far behind the middle (from the opening); she finds it this near it. */
+export const PEARL_BACK = 1.3, FIND_R = 1.3;
+/** The seaweed of the curtain: blades across the opening, m apart; m: how near her a blade leans aside. */
+export const WEEDS = 9, WEED_GAP = 0.34, WEED_PART = 1.7;
+/**
+ * The camera in the grotto, m from her, by where she stands (as the forest's cave): GROTTO_CAM inside GROTTO_CAM_IN of
+ * the middle, the usual distance from GROTTO_CAM_OUT on, a smooth step between; past the curtain it looks down steeply.
+ */
+export const GROTTO_CAM = 2.4, GROTTO_CAM_IN = 2.0, GROTTO_CAM_OUT = 5.6, GROTTO_PITCH = 0.9;
+/** m: the grotto's rocks are drawn while she is this near (the weeds and the glow inside: SHOW_R). */
+export const GROTTO_SEEN = 60;
+export function grottoCamDist(d: number, far: number): number {
+  const k = Math.min(1, Math.max(0, (d - GROTTO_CAM_IN) / (GROTTO_CAM_OUT - GROTTO_CAM_IN)));
+  return GROTTO_CAM + (far - GROTTO_CAM) * k * k * (3 - 2 * k);
+}
+/** The rocks in a horseshoe round the middle, open to `face`; their x, z, size and height. */
+export function grottoRocks(): { x: number; z: number; r: number; h: number; spin: number }[] {
+  const out: { x: number; z: number; r: number; h: number; spin: number }[] = [];
+  for (let i = 0; i < GROTTO_ROCKS; i++) {
+    const a = GROTTO.face + GROTTO_OPEN + (i / (GROTTO_ROCKS - 1)) * (Math.PI * 2 - 2 * GROTTO_OPEN);
+    out.push({ x: GROTTO.x + Math.sin(a) * GROTTO_R, z: GROTTO.z + Math.cos(a) * GROTTO_R, r: 1.2 + (i % 3) * 0.2, h: 2.8 + (i % 2) * 0.6, spin: i * 1.7 });
+  }
+  return out;
+}
+/** Its places: the opening (the curtain's middle), the shell with the pearl at the back, the blades' feet across the opening. */
+export function grottoOf() {
+  const fx = Math.sin(GROTTO.face), fz = Math.cos(GROTTO.face);
+  const opening = { x: GROTTO.x + fx * GROTTO_R, z: GROTTO.z + fz * GROTTO_R };
+  const pearl = { x: GROTTO.x - fx * PEARL_BACK, z: GROTTO.z - fz * PEARL_BACK };
+  const weeds = Array.from({ length: WEEDS }, (_, i) => { const k = (i - (WEEDS - 1) / 2) * WEED_GAP; return { x: opening.x + fz * k, z: opening.z - fx * k }; });
+  return { opening, pearl, weeds };
+}
+/** The grotto in one painted geometry: the rocks and the lintel, the glowing corals inside, the open shell and its pearl. */
+export function grottoGeometry(): THREE.BufferGeometry {
+  const p = new Paint(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3();
+  const rock = new THREE.DodecahedronGeometry(1, 0);
+  for (const k of grottoRocks()) {
+    q.setFromEuler(new THREE.Euler(0, k.spin, 0.2 * Math.sin(k.spin * 3)));
+    p.add(rock, k.spin % 2 > 1 ? '#76848d' : '#83919a', 0, m4.compose(pv.set(k.x, height(k.x, k.z) + k.h * 0.45, k.z), q, sv.set(k.r, k.h, k.r)));
+  }
+  const { opening, pearl } = grottoOf();
+  q.setFromEuler(new THREE.Euler(0, GROTTO.face, 0));
+  p.add(rock, '#7a8891', 0, m4.compose(pv.set(opening.x, height(opening.x, opening.z) + 3.4, opening.z), q, sv.set(2.4, 0.8, 1.2)));
+  // the corals along its back wall: branches that glow, pink, turquoise, violet
+  const side = { x: Math.cos(GROTTO.face), z: -Math.sin(GROTTO.face) };
+  const corals: [number, number, string][] = [[-1.5, -0.2, '#ff7fb8'], [-0.8, -1.2, '#5fe0e6'], [0.9, -1.1, '#b48cff'], [1.6, -0.1, '#ff9f6b'], [0, -1.9, '#7fffd0']];
+  corals.forEach(([s, b, c], i) => {
+    const x = GROTTO.x + side.x * s - Math.sin(GROTTO.face) * -b, z = GROTTO.z + side.z * s - Math.cos(GROTTO.face) * -b, y = height(x, z);
+    for (let j = 0; j < 3; j++) {
+      const lean = (j - 1) * 0.35 + i * 0.2;
+      p.add(new THREE.ConeGeometry(0.12, 1.1 + j * 0.25, 5).translate(0, 0.55 + j * 0.12, 0).rotateZ(lean).rotateY(i + j), c, 0.75, m4.makeTranslation(x, y, z));
+    }
+  });
+  // the open shell on its back, its pearl
+  const py = height(pearl.x, pearl.z);
+  p.add(echoShellGeometry().scale(0.7, 0.7, 0.7).rotateX(-1.25), '#f3e6f0', 0.3, m4.makeRotationY(GROTTO.face).setPosition(pearl.x, py + 0.05, pearl.z), true);
+  p.add(new THREE.SphereGeometry(0.2, 10, 8), '#fff8fd', 1, m4.makeTranslation(pearl.x, py + 0.32, pearl.z));
+  return p.geometry();
+}
+/** A blade of the curtain: a narrow ribbon 2.8 m high, its foot at the origin, a little curved; seen from both sides. */
+export function weedGeometry(): THREE.BufferGeometry {
+  const g = new THREE.PlaneGeometry(0.3, 2.8, 1, 6).translate(0, 1.4, 0);
+  const a = g.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < a.count; i++) { const y = a.getY(i); a.setZ(i, Math.sin((y / 2.8) * Math.PI) * 0.18); a.setX(i, a.getX(i) * (1 - (y / 2.8) * 0.5)); }
+  g.computeVertexNormals();
+  return g;
+}
+
 // ---------- the shapes ----------
 
 /** A rock turned on a lathe: its flat top `r` at `h`, its side by `side(f)` (0 at the top's rim, 1 at its foot). */
@@ -209,14 +286,14 @@ export interface SeaSecrets {
   active(id: SeaSecret): boolean;
   update(dt: number, time: number, canMove: boolean): void;
   /** What the pictures and the measurements read. */
-  readonly debug: { lift: ReturnType<typeof liftOf>; shells: ReturnType<typeof shellsOf>; lookout: { x: number; z: number; top: number }; chestFront: { x: number; z: number }; chest: { x: number; z: number }; whale: () => THREE.Vector3 | null; showWhale: () => void };
+  readonly debug: { grotto: ReturnType<typeof grottoOf>; lift: ReturnType<typeof liftOf>; shells: ReturnType<typeof shellsOf>; lookout: { x: number; z: number; top: number }; chestFront: { x: number; z: number }; chest: { x: number; z: number }; whale: () => THREE.Vector3 | null; showWhale: () => void };
 }
 
 export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }): SeaSecrets {
   const { scene, ws, hero } = g;
   const found = (flag: SeaSecret) => ws.flags[flag] === true;
   /** The cat's word of a find: after the line that sounds now, not over it (a hint over another line is turned away). */
-  const tell = (key: 'sea_secret_chest' | 'sea_secret_lift' | 'sea_secret_shells' | 'sea_secret_whale') => {
+  const tell = (key: 'sea_secret_chest' | 'sea_secret_lift' | 'sea_secret_shells' | 'sea_secret_whale' | 'sea_secret_grotto') => {
     let waited = 0;
     const tryNow = () => {
       if (!speaking()) { void g.speech.line(key, 'hint', 5000); return; }
@@ -304,6 +381,28 @@ export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }
   const lookTop = v3(LOOKOUT, wh.top);
   const onLookout = () => here(LOOKOUT, LOOKOUT.r + 0.3) && hp.y > wh.top - 0.2;
 
+  // ---------- the grotto behind the seaweed ----------
+  const gr = grottoOf();
+  grottoRocks().forEach((k) => colliders.push({ x: k.x, z: k.z, r: k.r * 0.9 }));
+  const grotto = new THREE.Mesh(grottoGeometry(), paintMaterial());
+  grotto.name = 'secret-grotto'; grotto.castShadow = false; grotto.receiveShadow = true;
+  scene.add(grotto);
+  const weeds = new THREE.InstancedMesh(weedGeometry(), new THREE.MeshStandardMaterial({ color: '#3f9c5c', roughness: 0.8, side: THREE.DoubleSide, emissive: '#1d4d2c', emissiveIntensity: 0.25 }), WEEDS);
+  weeds.name = 'secret-weeds'; weeds.castShadow = false; weeds.frustumCulled = false;
+  scene.add(weeds);
+  const weedFeet = gr.weeds.map((w) => v3(w));
+  const pearlAt = v3(gr.pearl);
+  let grottoCam = false;      // the camera's distance is the grotto's now
+  scope.own(() => { if (grottoCam) { g.camOverride = null; g.camPitchMin = null; } });
+  /** The grotto's camera, by where she stands; never over a distance another rule has set. */
+  function grottoCamera(d: number) {
+    if (!grottoCam && g.camOverride !== null) return;
+    if (d >= GROTTO_CAM_OUT) { if (grottoCam) { g.camOverride = null; g.camPitchMin = null; grottoCam = false; } return; }
+    g.camOverride = grottoCamDist(d, camDistance(g.camera.aspect)); grottoCam = true;
+    g.camPitchMin = d < GROTTO_R ? GROTTO_PITCH : null;
+  }
+  const wm4 = new THREE.Matrix4(), wq = new THREE.Quaternion(), wone = new THREE.Vector3(1, 1, 1), weul = new THREE.Euler(0, 0, 0, 'YXZ');
+
   const spots: Spot[] = [
     { pos: chestFront, r: 2, label: 'open', on: () => !found(CHEST_FLAG), run: openChest },
     // the shells' action: they sing their notes one after another - the child hears them, then touches them herself
@@ -312,12 +411,13 @@ export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }
 
   return {
     spots,
-    at: { ship_chest: { x: chestFront.x, z: chestFront.z }, bubble_lift: { ...lift.column }, echo_shells: { ...sh.front }, whale: { x: LOOKOUT.x, z: LOOKOUT.z } },
+    at: { ship_chest: { x: chestFront.x, z: chestFront.z }, bubble_lift: { ...lift.column }, echo_shells: { ...sh.front }, whale: { x: LOOKOUT.x, z: LOOKOUT.z }, sea_grotto: { ...gr.pearl } },
     glimmer: () => [
       ...(found(CHEST_FLAG) ? [] : [chestFront]),
       ...(found(LIFT_FLAG) ? [] : [star.position]),
       ...(found(SHELLS_FLAG) ? [] : [shellsFront]),
       ...(found(WHALE_FLAG) ? [] : [lookTop]),
+      ...(found(GROTTO_FLAG) ? [] : [pearlAt]),
     ],
     tap(screenDist) {
       if (g.busy || !here(sh.front, 10) || song.tune >= 0) return false;
@@ -339,6 +439,30 @@ export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }
     },
     active: (id) => (id === LIFT_FLAG ? lifting >= 0 : id === SHELLS_FLAG ? song.tune >= 0 : id === WHALE_FLAG ? whale.visible : false),
     update(dt, time, canMove) {
+      // ----- the grotto: its camera, the curtain swaying and parting round her, the shell found
+      const dg = Math.hypot(hp.x - GROTTO.x, hp.z - GROTTO.z);
+      grotto.visible = dg < GROTTO_SEEN;
+      grottoCamera(dg);
+      weeds.visible = dg < SHOW_R;
+      if (weeds.visible) {
+        weedFeet.forEach((f, i) => {
+          const dx = f.x - hp.x, dz = f.z - hp.z, d = Math.hypot(dx, dz);
+          // leant away from her while she is near it, else swaying with the water
+          const part = d < WEED_PART ? (1 - d / WEED_PART) * 1.1 : 0;
+          const sway = Math.sin(time * 1.3 + i * 0.7) * 0.12;
+          weul.set(sway + part, d > 1e-3 ? Math.atan2(dx, dz) : GROTTO.face, 0);
+          wm4.compose(f, wq.setFromEuler(weul), wone);
+          weeds.setMatrixAt(i, wm4);
+        });
+        weeds.instanceMatrix.needsUpdate = true;
+      }
+      if (!found(GROTTO_FLAG) && canMove && here(gr.pearl, FIND_R)) {
+        sfx('chime');
+        g.sparks.burst(pearlAt.clone().setY(pearlAt.y + 0.6), '#fff0fa', 30, 3);
+        give(GROTTO_FLAG, false, pearlAt);
+        tell('sea_secret_grotto');
+      }
+
       // ----- the lift: the column takes her, carries her up; off a top she sinks back (the frame put her on the floor)
       // taken away from the column while it carries her (a teleport, a scene): the lift lets her go
       if (lifting >= 0 && Math.hypot(hp.x - wasAt.x, hp.z - wasAt.z) > 1) lifting = -1;
@@ -416,7 +540,7 @@ export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }
       }
     },
     debug: {
-      lift, shells: sh, lookout: { x: LOOKOUT.x, z: LOOKOUT.z, top: wh.top }, chestFront: { x: chestFront.x, z: chestFront.z }, chest: { x: cp.x, z: cp.z },
+      grotto: gr, lift, shells: sh, lookout: { x: LOOKOUT.x, z: LOOKOUT.z, top: wh.top }, chestFront: { x: chestFront.x, z: chestFront.z }, chest: { x: cp.x, z: cp.z },
       whale: () => (whale.visible ? whale.position : null),
       showWhale: () => { whaleT = 0; },
     },

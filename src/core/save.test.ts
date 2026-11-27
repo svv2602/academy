@@ -1259,6 +1259,14 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
     expect(load({ days: { n: '5', last: 20261116 } }).days).toEqual({ n: 0, last: '' });
   });
 
+  it('the trainer\'s days (src/game/trainer.ts): a bad date is none and no day in a row, a bad count 1, a bad paid 0', () => {
+    for (const bad of [null, 3, 'x', []]) expect(load({ train: bad }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: 4, last: '2026-11-26', paid: 2 } }).train).toEqual({ days: 4, last: '2026-11-26', paid: 2 });
+    expect(load({ train: { days: 4, last: 'yesterday', paid: 2 } }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: -1, last: '2026-11-26', paid: 'x' } }).train).toEqual({ days: 1, last: '2026-11-26', paid: 0 });
+    expect(load({}).train).toBeUndefined();
+  });
+
   it('a damaged list of shown scenes keeps only its ids', () => {
     expect(load({ achShown: 'first_task' }).achShown).toEqual([]);
     expect(load({ achShown: ['first_task', 4, null, 'days_3'] }).achShown).toEqual(['first_task', 'days_3']);
@@ -1398,6 +1406,11 @@ describe('the controls the parent chose (PLAY-22): `controls`, a field of versio
     expect(s).toMatchObject(fields);
     expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
     expect(s.v).toBe(SAVE_VERSION);
+  });
+
+  it('the cat\'s hints (Save.hints): a known choice kept, anything else is "as in the world" (no field)', () => {
+    for (const k of ['always', 'asked', 'world']) expect(load({ hints: k }).hints).toBe(k);
+    for (const bad of ['often', 3, null, ['always']]) expect(load({ hints: bad }).hints, JSON.stringify(bad)).toBeUndefined();
   });
 
   it('a damaged step is dropped (it is "normal"), the others kept; a damaged field is no choice at all', () => {
