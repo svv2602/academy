@@ -1,5 +1,5 @@
-/* The tasks in breadth on the panel (LEARN-27; sum3.ts, gap.ts). As in hints.css, only `scale` and `opacity` move, and
-   nothing grows past its own box. */
+/* The tasks in breadth on the panel (LEARN-27; sum3.ts, gap.ts, chain.ts, exprs.ts, story.ts). As in hints.css, only
+   `scale` and `opacity` move, and nothing grows past its own box. */
 
 /* Three addends: each group is its number over its things in a small ten frame. The things are pictures, not buttons,
    so a cell need not be 44 px: its side `--p` follows the screen, and three groups with their signs stand in one row on
@@ -8,10 +8,11 @@
 /* `.group.framed`, as the view names it: the rules of hints.css for a framed group come later in the style sheet. */
 .t-sum3 .group.framed { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 2px; max-width: none; padding: 4px 6px 6px; }
 .t-sum3 .group > .n { font: 800 clamp(26px, 6vh, 44px)/1 system-ui, sans-serif; color: #7a4fd0; font-variant-numeric: tabular-nums; }
-.t-sum3 .tf { --p: clamp(26px, min(4vw, 7.4vh), 40px); grid-template-columns: repeat(5, var(--p)); grid-auto-rows: var(--p); gap: 4px; padding: 4px;
+/* The pictures of a story (below) are such small frames too. */
+.t-sum3 .tf, .t-story .tf { --p: clamp(26px, min(4vw, 7.4vh), 40px); grid-template-columns: repeat(5, var(--p)); grid-auto-rows: var(--p); gap: 4px; padding: 4px;
   border-width: 2px; border-radius: 10px; }
-.t-sum3 .tf > .it, .t-sum3 .tf > .tf-e { width: var(--p); height: var(--p); border-radius: 7px; }
-.t-sum3 .tf > .it { font-size: calc(var(--p) * .68); line-height: var(--p); text-align: center; }
+.t-sum3 .tf > .it, .t-sum3 .tf > .tf-e, .t-story .tf > .it, .t-story .tf > .tf-e { width: var(--p); height: var(--p); border-radius: 7px; }
+.t-sum3 .tf > .it, .t-story .tf > .it { font-size: calc(var(--p) * .68); line-height: var(--p); text-align: center; }
 /* The number of a counted thing (rung 2), sized to the small cell. */
 .t-sum3 .tf > .it i { right: -5px; top: -5px; min-width: calc(var(--p) * .62); height: calc(var(--p) * .62); border-radius: var(--p);
   font-size: calc(var(--p) * .42); line-height: calc(var(--p) * .62); box-shadow: 0 1px 0 #d4508f; }
@@ -24,3 +25,33 @@
 .t-gap .sign.n { color: #7a4fd0; font-variant-numeric: tabular-nums; }
 /* A thing taken away that the hint has counted shows in full again and glows as any counted thing; its cross is kept. */
 .t-gap .it.gone.hit { opacity: 1; filter: drop-shadow(0 0 8px #ffc94d); }
+
+/* A chain of two actions: the things on a row of their own - their group shrinks to its frames, so the number of rung
+   2 stands at its corner - and the example in numbers under them. */
+.t-chain .things { flex: 0 0 100%; display: flex; justify-content: center; }
+.t-chain .sign.n { color: #7a4fd0; font-variant-numeric: tabular-nums; }
+/* The things the first action added, and the ones the second action adds at rung 2 (those are no buttons). */
+.t-chain .tf > .it.more { background: #fff3c4; box-shadow: inset 0 0 0 2px #ffa62b; }
+.t-chain .tf > span.it { text-align: center; }
+/* The first action of the example, once rung 2 has worked it out. */
+.t-chain .sign.done { opacity: .45; }
+/* The number that goes on with the second action (rung 2): at the corner of the group, off its things. */
+.t-chain .group em, .t-story .group em { right: -14px; top: -14px; }
+
+/* Comparing two examples: the show of the signs (signs.css) with an example where it has a number - smaller, and on
+   one line; under it, at rung 2, what the example comes to. */
+.t-exprs .side > .n { font-size: clamp(26px, min(6.4vw, 11vh), 56px); }
+.t-exprs .side > .val { font: 800 clamp(22px, min(5vw, 8vh), 40px)/1 system-ui, sans-serif; color: #2f86c9; font-variant-numeric: tabular-nums; }
+
+/* A story in pictures: three pictures in a row with an arrow between them. The ones that came are lit, with a
+   sparkle; the ones that went away are greyed out and crossed, as in take away. */
+.t-story .scene { position: relative; padding: 4px; border-radius: 16px; background: #f6eefc; }
+.t-story .scene.came { background: #e8f9e4; box-shadow: inset 0 0 0 3px #7fd08c; }
+.t-story .scene.came::before { content: "✨"; position: absolute; left: -8px; top: -12px; font-size: 22px; line-height: 1; }
+.t-story .scene.went { background: #f3f0f6; }
+.t-story .scene.done { opacity: .55; }
+.t-story .then { font: 800 clamp(22px, 5vh, 36px)/1 system-ui, sans-serif; color: #b9a3cc; }
+/* Rung 2: the story as an example in numbers, on a row of its own under the pictures. */
+.t-story .brk { flex: 0 0 100%; height: 0; }
+.t-story .example { flex-wrap: nowrap; align-items: center; gap: 8px; max-width: none; padding: 2px 16px; }
+.t-story .sign.n { color: #7a4fd0; font-variant-numeric: tabular-nums; }

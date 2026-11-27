@@ -96,7 +96,7 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
       neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
       // the tasks in breadth (LEARN-27): recorded to the skill that asked for them, these are their own
-      sum3: 'add', gap: 'sub',
+      sum3: 'add', gap: 'sub', chain: 'add', exprs: 'add', story: 'sub',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house), but
@@ -376,10 +376,11 @@ describe('recordTask: a task in breadth is counted and moves nothing (LEARN-27, 
     return s;
   };
 
-  it('the kinds in breadth: three addends for addition, the missing number of a take away for take away; each belongs to its skill', () => {
-    expect(WIDE).toEqual({ add: ['sum3'], sub: ['gap'] });
+  it('the kinds in breadth: three for addition, three for take away; a chain of two actions belongs to both', () => {
+    expect(WIDE).toEqual({ add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] });
     for (const [skill, kinds] of Object.entries(WIDE)) for (const kind of kinds) {
-      expect(SKILL[kind], kind).toBe(skill);
+      // its own skill is the one that gives it, or - for the chain, which both give - addition
+      expect(SKILL[kind], kind).toBe(kind === 'chain' ? 'add' : skill);
       expect(isWide(kind), kind).toBe(true);
     }
     for (const usual of ['add', 'sub', 'count', 'missing', 'signs', 'world', '', undefined]) expect(isWide(usual), String(usual)).toBe(false);
@@ -404,7 +405,7 @@ describe('recordTask: a task in breadth is counted and moves nothing (LEARN-27, 
     { why: 'a run towards a step down is not touched: neither ended nor moved on', level: 4, streak: -1, wrongs: [2, 2], want: { level: 4, streak: -1 } },
   ];
   it.each(rows)('level $level, run $streak, tasks in breadth with $wrongs wrong answers: $why', ({ level, streak, settled, wrongs, want, climbing: stillClimbs }) => {
-    for (const [skill, type] of [['add', 'sum3'], ['sub', 'gap']] as const) {
+    for (const [skill, type] of [['add', 'sum3'], ['sub', 'gap'], ['add', 'chain'], ['sub', 'chain'], ['add', 'exprs'], ['sub', 'story']] as const) {
       const s = from(skill, level, streak, settled !== false);
       wide(s, skill, type, ...wrongs);
       const k = s.skills[skill];

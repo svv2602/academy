@@ -27,7 +27,9 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); document.body.innerHT
 
 const spoken = () => Promise.resolve() as Spoken;
 const hooks: TaskHooks = { prompt: () => {}, number: () => {}, good: () => {}, wrong: spoken, hint: spoken };
-const shown = () => (document.getElementById('task')!.classList.contains('hidden') ? '' : document.getElementById('taskStage')!.className.replace('t-stage t-', ''));
+const shown = () => (document.getElementById('task')!.classList.contains('hidden') ? '' : document.getElementById('taskStage')!.className.split(' ')[1].slice(2));
+/** The kinds in breadth of the two skills. */
+const KINDS = { add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] } as const;
 
 /** A world with places for the stars of DAY; `levels`: the skills put on a level with a run of clean solves. */
 function world(levels: Partial<Record<SkillId, [level: number, streak: number]>>) {
@@ -67,18 +69,22 @@ describe('an example in breadth at a mysterious star (LEARN-27)', () => {
     expect(m.today.some((s) => s.step === 'pattern' || s.step === 'compare')).toBe(true);
   });
 
-  it('a blue star with addition on its top level and a run of clean solves: three addends, then the usual example; each star solved for 3 stars, the level unmoved', async () => {
+  it('a blue star with addition on its top level and a run of clean solves: an example in breadth, then the usual one; each star solved for 3 stars, the level unmoved', async () => {
     const { save, stars, m, open } = world({ add: [5, 2] });
-    expect([await open('add'), await open('add')]).toEqual(['sum3', 'add']);
+    const given = [await open('add'), await open('add')];
+    expect(KINDS.add as readonly string[]).toContain(given[0]);
+    expect(given[1]).toBe('add');
     expect(stars).toEqual([3, 3]);
     expect(m.today.filter((s) => s.solved)).toHaveLength(2);
     expect(save.skills.add).toMatchObject({ level: 5, streak: 3, tasks: 2, first: 2 });
-    expect(save.answers?.add.map((a) => a.t)).toEqual(['sum3', 'add']);
+    expect(save.answers?.add.map((a) => a.t)).toEqual(given);
   });
 
-  it('a red star with take away on its top level: the missing number of a take away, then the usual example', async () => {
+  it('a red star with take away on its top level: one of its kinds in breadth, then the usual example', async () => {
     const { save, open } = world({ sub: [5, 4] });
-    expect([await open('sub'), await open('sub')]).toEqual(['gap', 'sub']);
+    const given = [await open('sub'), await open('sub')];
+    expect(KINDS.sub as readonly string[]).toContain(given[0]);
+    expect(given[1]).toBe('sub');
     expect(save.skills.sub).toMatchObject({ level: 5, streak: 5, tasks: 2 });
   });
 

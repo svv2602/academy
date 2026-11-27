@@ -52,12 +52,14 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
     count: 'h1_count', add: 'h1_add', sub: 'h1_sub', compare: 'h_compare', pattern: 'h_pattern',
     odd: 'h_odd', order: 'h_order', sort: 'h_sort', simon: 'h1_simon', missing: 'h1_missing', house: 'h1_house',
     neighbors: 'h1_neighbors', signs: 'h1_signs', sum3: 'h1_sum3', gap: 'h1_gap',
+    chain: 'h1_chain', exprs: 'h1_exprs', story: 'h1_chain',
   };
   /** The line of rung 2 (solved together on screen). Rung 3 is the same line for every type. */
   const HINT2: Record<Hinted, Key> = {
     count: 'h_count', add: 'h_count', sub: 'h_left', compare: 'h2_compare', pattern: 'h2_pattern',
     odd: 'h2_odd', order: 'h2_order', sort: 'h2_sort', simon: 'h_simon', missing: 'h2_missing', house: 'h2_house',
     neighbors: 'h2_neighbors', signs: 'h2_signs', sum3: 'h2_add_cross', gap: 'h2_gap',
+    chain: 'h2_chain', exprs: 'h2_exprs', story: 'h2_chain',
   };
   const H3: Key = 'h3_show';
   /** The line said after mistake `k`. */
@@ -68,6 +70,7 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
     compare: '#taskStage .group.pickable', odd: '#taskStage .it.big', order: '#taskStage .opt.num',
     sort: '#taskOpts .basket', simon: '#taskStage .pad', missing: '#taskOpts .opt', house: '#taskOpts .opt',
     neighbors: '#taskOpts .opt', signs: '#taskOpts .opt', sum3: '#taskOpts .opt', gap: '#taskOpts .opt',
+    chain: '#taskOpts .opt', exprs: '#taskOpts .opt', story: '#taskOpts .opt',
   };
   /**
    * The task a type must have on screen for its lines above: of three addends the one with two numbers that make ten

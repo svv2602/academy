@@ -109,6 +109,9 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   // the level (src/game/tasks/sum3.ts, gap.ts), so the three levels are one row.
   sum3: ['efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2', 'efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2', 'efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2'],
   gap: ['ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0', 'ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0', 'ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0'],
+  chain: ['3d40c30c cfd3c034 a6dcb15e 5021584a ae16d684 3a93675a 2c073b40 da760a33 724944ff 84ea57e9', '3d40c30c cfd3c034 a6dcb15e 5021584a ae16d684 3a93675a 2c073b40 da760a33 724944ff 84ea57e9', '3d40c30c cfd3c034 a6dcb15e 5021584a ae16d684 3a93675a 2c073b40 da760a33 724944ff 84ea57e9'],
+  exprs: ['ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c', 'ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c', 'ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c'],
+  story: ['36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29', '36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29', '36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29'],
   puzzle: ['9cf7312d 829f6a59 f9b1a967 7bfd990d 27b869fd 44db2f59 383850c9 d9ad0361 e1efe62f bfc920b9', '59cb0c6c a3f41d19 362ffb79 663deea6 33ce96e1 ce9dd92f 0b6e6a3b ce530c44 4b5b20a0 cc2259f0', 'd0697bf6 519e030b e3c0ef1d 92b9bf30 901c3dc9 743cec5b 39a05fd1 5b975010 517ebf86 532739b4'],
 };
 

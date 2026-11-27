@@ -82,7 +82,7 @@ export function levelFor(s: Save, skill: SkillId) {
  * child solves the usual ones of its top level cleanly - other examples within the same numbers, not larger numbers.
  * When they are given, and which of them: src/game/wide.ts. How they are counted: `recordTask`.
  */
-export const WIDE = { add: ['sum3'], sub: ['gap'] } as const satisfies Partial<Record<SkillId, readonly TaskType[]>>;
+export const WIDE = { add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] } as const satisfies Partial<Record<SkillId, readonly TaskType[]>>;
 /** Whether a task of this type is one in breadth, whatever skill gave it. */
 export const isWide = (type: string | undefined): boolean => Object.values(WIDE).some((kinds: readonly string[]) => type !== undefined && kinds.includes(type));
 /** How many tasks in breadth in a row with two wrong answers or more send the skill back to its usual tasks. */

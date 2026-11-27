@@ -146,11 +146,11 @@ const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
   missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'], diff: ['t_diff'],
-  sum3: ['t_sum3'], gap: ['t_gap'],
+  sum3: ['t_sum3'], gap: ['t_gap'], chain: ['t_chain'], exprs: ['t_exprs'], story: ['t_story'],
 };
 // The tasks in breadth (LEARN-27, src/game/skills.ts WIDE): the kinds a step of addition or of take away may show in
 // the place of its usual example, once the skill is on its top level with a run of clean solves.
-const WIDE_OF = { add: ['sum3'], sub: ['gap'] };
+const WIDE_OF = { add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] };
 // Addition, take away, counting and the neighbours of a number ask the very example with its clip of the bank of the old game's clips (R37,
 // src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
 // way to the general question above: there the bank's key is an error, and so is any request for a clip of the bank.
@@ -176,11 +176,11 @@ const SHOWS = {
   count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
   missing: '#taskStage .up', house: '#taskStage .up', neighbors: '#taskStage .road .cell.said', signs: '#taskStage .side .tf > .pt',
-  sum3: '#taskStage .it i', gap: '#taskStage .it.gone i',
+  sum3: '#taskStage .it i', gap: '#taskStage .it.gone i', chain: '#taskStage .group em', exprs: '#taskStage .side .tf > .pt', story: '#taskStage .group em',
 };
 // The kinds of task no chain of the first world asks (they belong to later worlds): each is closed with its button -
 // PLAY-02, nothing recorded - in the block that opens it, not in a chain; the block names itself here.
-const OWN_CLOSE = { diff: 'diff', sum3: 'wide', gap: 'wide' };
+const OWN_CLOSE = { diff: 'diff', sum3: 'wide', gap: 'wide', chain: 'wide', exprs: 'wide', story: 'wide' };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
   '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
@@ -3670,13 +3670,14 @@ try {
         console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}), ${twins ? `a piece taken by its twin's cell ${twins}` : 'the twins of level 4 left to the piece tasks2'}; the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
       }
       // ---- the tasks in breadth (LEARN-27; src/game/wide.ts, src/game/taskviews/sum3.ts and gap.ts) ----
-      // Each kind opened by __game.task: closed with its button first (PLAY-02, OWN_CLOSE) - unsolved, nothing recorded;
-      // opened again - its question in the bubble, its numbers within their bounds and as many things as they say, three
-      // deliberate mistakes (rung 1 gives nothing away; rung 2 counts the solution to its end, which is the answer, and
-      // lights nothing; rung 3 lights the right answer alone), then solved.
+      // Each of the five kinds opened by __game.task: closed with its button first (PLAY-02, OWN_CLOSE) - unsolved,
+      // nothing recorded; opened again - its question in the bubble, its numbers within their bounds and as many things
+      // as they say, three deliberate mistakes (rung 1 gives nothing away; rung 2 works the solution out to its end,
+      // which is the answer, and lights nothing; rung 3 lights the right answer alone), then solved.
       // Then with a character: addition on its top level with a run of clean solves - the unicorn's game played again
-      // shows three addends, and three wrong answers in it leave the level and the run where they were; the next time it
-      // is the usual example; then three addends again. The skills and the level fixed for addition are put back as they were.
+      // shows one of its kinds in breadth, and three wrong answers in it leave the level and the run where they were; the
+      // next time it is the usual example; then another kind in breadth. The skills and the level fixed for addition are
+      // put back as they were.
       if (has('wide')) {
         const fail = (what) => { throw new Error(`wide: ${what}`); };
         const typeNow = () => g(() => [...document.querySelector('#taskStage').classList].find((c) => c.startsWith('t-') && c !== 't-stage')?.slice(2) ?? '');
@@ -3714,7 +3715,7 @@ try {
             if (document.querySelector('#taskStage button')) out.push('a thing of a group is a button');
             // held sideways the three groups stand in one row
             if (innerWidth > innerHeight && new Set(tops).size !== 1) out.push(`the groups stand on ${new Set(tops).size} rows of a wide screen (tops ${tops.join(', ')})`);
-            return { out, answer: sum, text: parts.join(' + ') };
+            return { out, answer: String(sum), text: parts.join(' + ') };
           },
           gap: () => {
             const row = [...document.querySelectorAll('#taskStage .sign')].map((x) => x.textContent), total = Number(row[0]), left = Number(row[4]);
@@ -3724,14 +3725,66 @@ try {
             if (!(total >= 11 && total <= 20) || !(total - left >= 2 && total - left <= 9)) out.push(`the numbers are ${total} and ${left}: 11..20 things and 2..9 taken away expected`);
             if (things.length !== total || gone.length !== total - left) out.push(`${things.length} things, ${gone.length} of them greyed out, for "${row.join(' ')}"`);
             if (!things.slice(left).every((x) => x.classList.contains('gone'))) out.push('the things taken away are not the last ones');
-            return { out, answer: total - left, text: row.join(' ') };
+            return { out, answer: String(total - left), text: row.join(' ') };
+          },
+          chain: () => {
+            const row = [...document.querySelectorAll('#taskStage .sign')].map((x) => x.textContent), [first, , second, , third] = row.map(Number), adds = row[1] === '+';
+            const things = document.querySelectorAll('#taskStage .things .it').length;
+            const out = [];
+            if (row.length !== 7 || row[5] !== '=' || row[6] !== '?' || !((row[1] === '+' && row[3] === '−') || (row[1] === '−' && row[3] === '+'))) out.push(`the example reads "${row.join(' ')}"`);
+            const mid = adds ? first + second : first - second, answer = adds ? mid - third : mid + third;
+            if (!(first >= 5 && first <= 15) || !(second >= 2 && second <= 9) || !(third >= 2 && third <= 9) || second === third) out.push(`the numbers of "${row.join(' ')}" are out of bounds`);
+            if (!(mid >= 1 && mid <= 20) || !(answer >= 1 && answer <= 20)) out.push(`"${row.join(' ')}" goes through ${mid} to ${answer}: out of 1..20`);
+            if (things !== (adds ? mid : first)) out.push(`${things} things for "${row.join(' ')}": the first number and what the first action adds expected`);
+            if (document.querySelector('#taskStage .group em')) out.push('a number stands over the things before any hint');
+            return { out, answer: String(answer), text: row.join(' ') };
+          },
+          exprs: () => {
+            const sides = [...document.querySelectorAll('#taskStage .side > .n')].map((x) => x.textContent);
+            const worth = (side) => { const m = /^(\d+)(?: ([+−]) (\d+))?$/.exec(side); return !m ? NaN : m[2] === '+' ? Number(m[1]) + Number(m[3]) : m[2] === '−' ? Number(m[1]) - Number(m[3]) : Number(m[1]); };
+            const [a, b] = sides.map(worth), out = [];
+            if (sides.length !== 2 || !(a >= 2 && a <= 20) || !(b >= 2 && b <= 20)) out.push(`the sides read "${sides.join('" and "')}"`);
+            if (Math.abs(a - b) > 3) out.push(`the values ${a} and ${b} are more than 3 apart`);
+            if (document.querySelector('#taskStage .slot')?.textContent !== '?') out.push('the place of the sign is not empty');
+            if (document.querySelector('#taskStage .val, #taskStage .tens')) out.push('a value is on screen before any hint');
+            // each example stands on one line
+            const tall = [...document.querySelectorAll('#taskStage .side > .n')].filter((x) => x.getClientRects().length > 1).length;
+            if (tall) out.push(`${tall} example(s) broken over two lines`);
+            return { out, answer: a > b ? '>' : a < b ? '<' : '=', text: sides.join(' ? ') };
+          },
+          story: () => {
+            const scenes = [...document.querySelectorAll('#taskStage .scene')], n = scenes.map((x) => x.querySelectorAll('.it').length);
+            const kinds = scenes.map((x) => [...x.classList].find((k) => k !== 'scene')), tops = scenes.map((x) => Math.round(x.getBoundingClientRect().top + x.getBoundingClientRect().height / 2));
+            const out = [], sign = (k) => (k === 'came' ? 1 : -1);
+            if (kinds.join() !== 'was,came,went' && kinds.join() !== 'was,went,came') out.push(`the pictures are "${kinds.join(', ')}"`);
+            const mid = n[0] + sign(kinds[1]) * n[1], answer = mid + sign(kinds[2]) * n[2];
+            if (!(n[0] >= 5 && n[0] <= 15) || !(n[1] >= 2 && n[1] <= 9) || !(n[2] >= 2 && n[2] <= 9) || n[1] === n[2]) out.push(`the pictures hold ${n.join(', ')} things: out of bounds`);
+            if (!(mid >= 1 && mid <= 20) || !(answer >= 1 && answer <= 20)) out.push(`the story goes through ${mid} to ${answer}: out of 1..20`);
+            scenes.forEach((x, i) => { if (x.querySelectorAll('.it.gone').length !== (kinds[i] === 'went' ? n[i] : 0)) out.push(`the picture "${kinds[i]}" greys out the wrong things`); });
+            if (document.querySelector('#taskStage .sign') || /\d/.test(document.querySelector('#taskStage').textContent)) out.push('the story is written in numbers before any hint');
+            if (document.querySelector('#taskStage button')) out.push('a thing of a picture is a button');
+            // held sideways the three pictures stand in one row
+            if (innerWidth > innerHeight && Math.max(...tops) - Math.min(...tops) > 60) out.push(`the pictures stand on several rows of a wide screen (middles ${tops.join(', ')})`);
+            return { out, answer: String(answer), text: `${n[0]} ${kinds[1] === 'came' ? '+' : '−'} ${n[1]} ${kinds[2] === 'came' ? '+' : '−'} ${n[2]} in pictures` };
           },
         };
-        // The count of rung 2 at its end: the largest number on a counted thing (the answer of both kinds).
-        const counted = () => g(() => Math.max(0, ...[...document.querySelectorAll('#taskStage .it i')].map((b) => Number(b.textContent))));
+        // Rung 2 worked out to its end, told by the page: the last number counted on a thing (three addends, the
+        // missing number), the number that went on with the second action (a chain, a story), every thing of the
+        // smaller value in a pair (comparing two examples).
+        const WORKED = {
+          sum3: (want) => Math.max(0, ...[...document.querySelectorAll('#taskStage .it i')].map((b) => Number(b.textContent))) === Number(want),
+          gap: (want) => Math.max(0, ...[...document.querySelectorAll('#taskStage .it i')].map((b) => Number(b.textContent))) === Number(want),
+          chain: (want) => document.querySelector('#taskStage .group em')?.textContent === want,
+          story: (want) => document.querySelector('#taskStage .group em')?.textContent === want,
+          exprs: () => {
+            const [a, b] = [...document.querySelectorAll('#taskStage .side')].map((x) => ({ val: Number(x.querySelector('.val')?.textContent), pair: x.querySelectorAll('.pt.pair').length, extra: x.querySelectorAll('.pt.extra').length, all: x.querySelectorAll('.pt').length }));
+            const both = Math.min(a.val, b.val);
+            return a.all === a.val && b.all === b.val && a.pair === both && b.pair === both && a.extra === a.val - both && b.extra === b.val - both;
+          },
+        };
         const told = [];
         const skillsBefore = await g(() => JSON.stringify(__game.save.skills));
-        for (const type of ['sum3', 'gap']) {
+        for (const type of ['sum3', 'gap', 'chain', 'exprs', 'story']) {
           await open(type);
           await tapOn('#taskClose').catch((e) => fail(`${type}: #taskClose cannot be pressed: ${why(e)}`));
           const shut = await ended(type, 'closed with its button');
@@ -3742,8 +3795,8 @@ try {
           await calm(); await shot(`task-${type}`); await checkQuestion(type);
           const read = await g(READ[type]);
           if (read.out.length) fail(`${type}: ${read.out.join('; ')}`);
-          const options = await g(() => [...document.querySelectorAll('#taskOpts .opt')].map((b) => Number(b.textContent)));
-          if (options.length !== 4 || options.filter((v) => v === read.answer).length !== 1) fail(`${type}: the answers ${options.join(', ')} for ${read.text} (the answer is ${read.answer})`);
+          const options = await g(() => [...document.querySelectorAll('#taskOpts .opt')].map((b) => b.textContent));
+          if (options.length !== (type === 'exprs' ? 3 : 4) || options.filter((v) => v === read.answer).length !== 1) fail(`${type}: the answers ${options.join(', ')} for ${read.text} (the answer is ${read.answer})`);
           for (let k = 1; k <= 3; k++) {
             const wrong = await mistake();
             if (wrong) fail(`${type}: no deliberate mistake ${k}: ${wrong}`);
@@ -3757,10 +3810,9 @@ try {
               if (!drawn) errors.push(`hint: ${mode} hint-${type}: the solution was not shown after the second mistake (no ${SHOWS[type]})`);
               if (await g(() => document.querySelectorAll('#task .pulse').length)) errors.push(`hint: ${mode} hint-${type}: the second mistake already lights the answer (.pulse)`);
               await shot(`hint-${type}`); await checkHint(type);
-              // the count goes on to its end, and its last number is the answer (up to 16 numbers, 0.75 s of game time each)
-              await gameFor((want) => Math.max(0, ...[...document.querySelectorAll('#taskStage .it i')].map((b) => Number(b.textContent))) === want, read.answer, 40)
-                .catch(async () => fail(`${type}: the count of the second rung stopped at ${await counted()}, the answer of ${read.text} is ${read.answer}`));
-              if (await g(() => document.querySelectorAll('#task .pulse').length)) errors.push(`hint: ${mode} hint-${type}: the count of the second rung lit the answer (.pulse)`);
+              // the rung works the solution out to its end, which is the answer (up to 16 numbers, 0.75 s of game time each)
+              await gameFor(WORKED[type], read.answer, 40).catch(() => fail(`${type}: the second rung did not come to the answer ${read.answer} of ${read.text}`));
+              if (await g(() => document.querySelectorAll('#task .pulse').length)) errors.push(`hint: ${mode} hint-${type}: the second rung worked out lit the answer (.pulse)`);
               await shot(`hint-${type}-counted`);
             } else {
               const lit = await g(() => {
@@ -3771,7 +3823,7 @@ try {
                 const p = [...document.querySelectorAll('#task .pulse')];
                 return { n: p.length, right: !!right && p.length === 1 && (p[0] === right || p[0].contains(right)), text: p[0]?.textContent };
               });
-              if (!lit.right || Number(lit.text) !== read.answer) errors.push(`hint step 3: ${mode} ${type}: after the third mistake ${lit.n} element(s) pulse ("${lit.text}"), not the right answer ${read.answer} alone`);
+              if (!lit.right || lit.text !== read.answer) errors.push(`hint step 3: ${mode} ${type}: after the third mistake ${lit.n} element(s) pulse ("${lit.text}"), not the right answer ${read.answer} alone`);
               await shot(`hint3-${type}`);
             }
           }
@@ -3803,31 +3855,34 @@ try {
             return typeNow();
           };
           const finish = async (what) => { await g(() => __game.cheat()); await controlsBack(30, `wide: ${what}`); };
-          // 1: three addends; three wrong answers; the level, the run and the end of the climb as they were
+          // 1: a kind in breadth; three wrong answers; the level, the run and the end of the climb as they were
           let type = await meet('the first game');
-          if (type !== 'sum3') fail(`addition on level 5 with a run of two: the unicorn's game showed "${type}", not three addends`);
-          for (let k = 1; k <= 3; k++) { const wrong = await mistake(); if (wrong) fail(`three addends at the unicorn: no mistake ${k}: ${wrong}`); await framesDrawn(2); }
-          await finish('three addends with three mistakes');
+          if (!WIDE_OF.add.includes(type)) fail(`addition on level 5 with a run of two: the unicorn's game showed "${type}", none of ${WIDE_OF.add.join(', ')}`);
+          const firstKind = type;
+          // comparing two examples has two wrong signs only: the third mistake taps one of them again
+          for (let k = 1; k <= 3; k++) { const wrong = await mistake(); if (wrong) fail(`"${type}" at the unicorn: no mistake ${k}: ${wrong}`); await framesDrawn(2); }
+          await finish(`"${type}" with three mistakes`);
           let k = await add();
-          if (k.level !== 5 || k.streak !== 2 || k.tasks !== 5 || k.errors !== 5 || k.first !== 2 || k.wideMiss !== 1) fail(`after three addends with three mistakes: addition is ${JSON.stringify(k)} - level 5, run 2, 5 tasks, 5 wrong answers, one such task counted expected`);
+          if (k.level !== 5 || k.streak !== 2 || k.tasks !== 5 || k.errors !== 5 || k.first !== 2 || k.wideMiss !== 1) fail(`after "${type}" with three mistakes: addition is ${JSON.stringify(k)} - level 5, run 2, 5 tasks, 5 wrong answers, one such task counted expected`);
           const last = await g(() => __game.save.answers?.add?.at(-1) ?? null);
-          if (last?.t !== 'sum3' || last.ok !== 0) fail(`the parents' report holds ${JSON.stringify(last)} as the last answer of addition, not three addends with a mistake`);
+          if (last?.t !== type || last.ok !== 0) fail(`the parents' report holds ${JSON.stringify(last)} as the last answer of addition, not "${type}" with a mistake`);
           // 2: the usual example
           type = await meet('the second game');
           if (type !== 'add') fail(`the game after one in breadth showed "${type}", not the usual example`);
           await finish('the usual example');
           k = await add();
           if (k.level !== 5 || k.streak !== 3 || k.wideMiss !== 1) fail(`after the usual example solved cleanly: addition is ${JSON.stringify(k)} - level 5, run 3 expected`);
-          // 3: three addends again, solved cleanly: the count of the ones that went badly starts again
+          // 3: in breadth again - another kind than the first time - solved cleanly: the count of the ones that went badly starts again
           type = await meet('the third game');
-          if (type !== 'sum3') fail(`the third game showed "${type}", not three addends`);
-          await finish('three addends solved cleanly');
+          if (!WIDE_OF.add.includes(type) || type === firstKind) fail(`the third game showed "${type}" after "${firstKind}": another kind of ${WIDE_OF.add.join(', ')} expected`);
+          await finish(`"${type}" solved cleanly`);
           k = await add();
-          if (k.level !== 5 || k.streak !== 3 || k.tasks !== 7 || k.first !== 4 || 'wideMiss' in k) fail(`after three addends solved cleanly: addition is ${JSON.stringify(k)} - level 5, run 3, 7 tasks, 4 clean expected`);
+          if (k.level !== 5 || k.streak !== 3 || k.tasks !== 7 || k.first !== 4 || 'wideMiss' in k) fail(`after "${type}" solved cleanly: addition is ${JSON.stringify(k)} - level 5, run 3, 7 tasks, 4 clean expected`);
+          told.push(`at the unicorn: ${firstKind}, add, ${type}`);
           // the skills as they were: the blocks after this one read the save of the piece
           await g(([was, fixed]) => { __game.save.skills = JSON.parse(was); __game.save.fixed.add = fixed; }, [skillsBefore, fixedBefore]);
         }
-        console.log(`wide: each kind closed with its button (nothing recorded), then its question, three mistakes (the way said, nothing shown; the solution counted to the answer, nothing lit; the answer lit alone) and solved: ${told.join('; ')}; at the unicorn with addition on level 5 and a run of two: three addends, three wrong answers left the level and the run, then the usual example, then three addends again`);
+        console.log(`wide: each kind closed with its button (nothing recorded), then its question, three mistakes (the way said, nothing shown; the solution counted to the answer, nothing lit; the answer lit alone) and solved: ${told.join('; ')}; at the unicorn with addition on level 5 and a run of two: a kind in breadth, three wrong answers left the level and the run, then the usual example, then another kind in breadth`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the

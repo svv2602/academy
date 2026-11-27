@@ -42,7 +42,7 @@ export const BLOCKS = [
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
   'diff',           // find the differences (LEARN-18): two pictures drawn, a miss counts nothing, every difference found by a real touch, no leak
   'puzzle',         // the puzzle (LEARN-19): the pieces show the picture, a wrong drop goes back, turned by touches, every piece dragged for real onto its cell, no leak
-  'wide',           // the tasks in breadth (LEARN-27): each kind closed, then its question, three mistakes and their rungs, solved; given by a character every other time, the level unmoved
+  'wide',           // the tasks in breadth (LEARN-27): each of the five kinds closed, then its question, three mistakes and their rungs, solved; given by a character every other time, the level unmoved
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
   'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop

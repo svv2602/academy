@@ -2,9 +2,10 @@
  * The tasks in breadth (LEARN-27, decision Q18): when the next task of a skill is one of them, and which.
  *
  * A child who solves the usual examples of the top level of addition or of take away cleanly is not given larger
- * numbers: she is given other kinds of example within the same twenty (`WIDE` of src/game/skills.ts - three addends, the
- * missing number of a take away). They come where a conversation or a mysterious star was to give the usual example of
- * the skill, every other time, so the usual ones keep coming and keep telling the level.
+ * numbers: she is given other kinds of example within the same twenty (`WIDE` of src/game/skills.ts - three addends, a
+ * chain of two actions, comparing two examples, the missing number of a take away, a story in pictures). They come
+ * where a conversation or a mysterious star was to give the usual example of the skill, every other time, so the usual
+ * ones keep coming and keep telling the level.
  *
  * - On: the tasks of the skill are given on its top level (her own, or the one the parent fixed) and its run of clean
  *   solves is `WIDE_FROM` or longer. A level fixed below the top: none.

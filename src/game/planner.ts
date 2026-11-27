@@ -53,6 +53,9 @@ export function sameness(s: TaskSpec): string {
     case 'puzzle': return `puzzle:${s.body.cols}x${s.body.rows}:${s.body.picture}`;
     case 'sum3': return `sum3:${s.body.parts.join('+')}`;
     case 'gap': return `gap:${s.body.total}-?=${s.body.left}`;
+    case 'chain': return `chain:${s.body.first}${s.body.addsFirst ? '+' : '-'}${s.body.second}${s.body.addsFirst ? '-' : '+'}${s.body.third}`;
+    case 'exprs': return `exprs:${s.body.sides.map((x) => `${x.a}${x.sign}${x.b}`).join(',')}`;
+    case 'story': return `story:${s.body.first}${s.body.addsFirst ? '+' : '-'}${s.body.second}${s.body.addsFirst ? '-' : '+'}${s.body.third}`;
   }
 }
 

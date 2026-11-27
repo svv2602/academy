@@ -12,9 +12,10 @@ import './signs.css';
  * Rung 2 of the signs (`h2_signs`, HINTS.md; R13 "the hint shows both numbers as things"): under each number its things
  * in ten frames, then matched in pairs one to one - the same cell of both frames, pair by pair - and the things of the
  * larger number left without a pair glow softly (equal numbers leave none). A newer mistake stops the matching.
+ * Comparing two examples (./exprs.ts) lays out what each of them comes to the same way.
  */
-async function pairUp(c: PanelCtx, spec: SignsSpec, sides: HTMLElement[]) {
-  const round = c.wrongs, { a, b, thing } = spec.body;
+export async function pairThings(c: PanelCtx, [a, b]: readonly [number, number], thing: string, sides: readonly HTMLElement[]) {
+  const round = c.wrongs;
   const groups = [a, b].map((n, i) => {
     sides[i].querySelector('.tens')?.remove();
     const things = Array.from({ length: n }, () => el('span', 'pt', thing));
@@ -41,5 +42,5 @@ export function signsView(spec: SignsSpec, c: PanelCtx) {
   if (c.framed) [a, b].forEach((n, i) => tenFrames(sides[i], Array.from({ length: n }, () => el('span', 'pt', spec.body.thing))));
   // The sign the child put flies in and stands between the numbers (./fly.ts; `.got` is drawn as the placed sign).
   const ok = options(c, spec.body.options, (v) => signs.answer(spec, st, v) === 'right', { at: () => slot, row: () => [sides[0], slot, sides[1]] });
-  c.hint = hintOf(spec.hint, pulseOf(ok), { pairUp: () => { void pairUp(c, spec, sides); } });
+  c.hint = hintOf(spec.hint, pulseOf(ok), { pairUp: () => { void pairThings(c, [a, b], spec.body.thing, sides); } });
 }

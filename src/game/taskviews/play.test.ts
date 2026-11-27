@@ -352,6 +352,63 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     once(values, total - left, 'the number taken away');
     must(Number(text(accepted(buttons))) === total - left, 'the accepted option is not the number taken away');
   },
+  chain() {
+    const row = all(stage(), '.sign').map(text), [first, , second, , third] = row.map(Number), adds = row[1] === '+';
+    const things = all(stage(), '.things .it'), buttons = all(opts(), '.opt'), values = buttons.map((b) => Number(text(b)));
+    seen = `${row.join(' ')}; things ${things.length}; options ${values.join(' ')}`;
+    must(row.length === 7 && row[5] === '=' && row[6] === '?', 'the row is not "a ± b ∓ c = ?"');
+    must((row[1] === '+' && row[3] === '−') || (row[1] === '−' && row[3] === '+'), 'the two actions are not one "+" and one "−"');
+    between(first, 5, 15, 'the first number'); between(second, 2, 9, 'the second number'); between(third, 2, 9, 'the third number');
+    must(second !== third, 'the two actions are of the same number');
+    const mid = adds ? first + second : first - second, answer = adds ? mid - third : mid + third;
+    between(mid, 1, 20, 'the number after the first action'); between(answer, 1, 20, 'the answer');
+    // the things show the first number and the first action, and no more
+    must(things.length === (adds ? mid : first), 'the things are not the first number with what the first action added');
+    must(all(stage(), '.things .it.more').length === (adds ? second : 0), 'the things the first action added are not marked');
+    must(all(stage(), '.things .it.gone').length === (adds ? 0 : second), 'the things the first action took away are not greyed out');
+    must(buttons.length === 4, `${buttons.length} options, declared 4`);
+    values.forEach((v) => between(v, 0, 20, 'an option'));
+    distinct(values, 'options');
+    once(values, answer, 'the answer');
+    must(Number(text(accepted(buttons))) === answer, 'the accepted option is not what the chain comes to');
+  },
+  exprs() {
+    const sides = all(stage(), '.side > .n').map(text), buttons = all(opts(), '.opt');
+    seen = `${sides.join(' ? ')}; options ${buttons.map(text).join(' ')}`;
+    must(sides.length === 2, `${sides.length} sides`);
+    const worth = (side: string) => {
+      const m = /^(\d+)(?: ([+−]) (\d+))?$/.exec(side);
+      must(!!m, `"${side}" is no sum, no difference and no number`);
+      return m[2] === '+' ? Number(m[1]) + Number(m[3]) : m[2] === '−' ? Number(m[1]) - Number(m[3]) : Number(m[1]);
+    };
+    const [a, b] = sides.map(worth);
+    between(a, 2, 20, 'the first value'); between(b, 2, 20, 'the second value');
+    must(Math.abs(a - b) <= 3, `the values ${a} and ${b} are more than 3 apart`);
+    must(sides[0] !== sides[1], 'both sides are one example');
+    must(buttons.map(text).join(' ') === '> < =', 'the sign buttons are not ">", "<", "="');
+    must(text(stage().querySelector<HTMLElement>('.slot')!) === '?', 'the place of the sign is not empty');
+    must(all(stage(), '.val, .tens').length === 0, 'the values are on screen before any hint');
+    must(text(accepted(buttons)) === (a > b ? '>' : a < b ? '<' : '='), 'the accepted sign does not open towards the larger value');
+  },
+  story() {
+    const scenes = all(stage(), '.scene'), n = scenes.map((s) => all(s, '.it').length), kinds = scenes.map((s) => s.className.replace('scene ', ''));
+    const buttons = all(opts(), '.opt'), values = buttons.map((b) => Number(text(b)));
+    seen = `${kinds.map((k, i) => `${k} ${n[i]}`).join(', ')}; options ${values.join(' ')}`;
+    must(kinds.join() === 'was,came,went' || kinds.join() === 'was,went,came', 'the pictures are not: was, then came and went in either order');
+    between(n[0], 5, 15, 'the things there were'); between(n[1], 2, 9, 'the things of the second picture'); between(n[2], 2, 9, 'the things of the third picture');
+    must(n[1] !== n[2], 'the two actions are of the same number');
+    const sign = (k: string) => (k === 'came' ? 1 : -1), mid = n[0] + sign(kinds[1]) * n[1], answer = mid + sign(kinds[2]) * n[2];
+    between(mid, 1, 20, 'the number after the first action'); between(answer, 1, 20, 'the answer');
+    // the ones that went away are greyed out, the others are not; no example and no number is written
+    scenes.forEach((s, i) => must(all(s, '.it.gone').length === (kinds[i] === 'went' ? n[i] : 0), `the picture "${kinds[i]}" greys out the wrong things`));
+    must(all(stage(), '.sign').length === 0 && !/\d/.test(text(stage())), 'the story is written out in numbers before any hint');
+    must(all(stage(), 'button').length === 0, 'a thing of a picture is a button');
+    must(buttons.length === 4, `${buttons.length} options, declared 4`);
+    values.forEach((v) => between(v, 0, 20, 'an option'));
+    distinct(values, 'options');
+    once(values, answer, 'the answer');
+    must(Number(text(accepted(buttons))) === answer, 'the accepted option is not what the story comes to');
+  },
 };
 
 const TYPES = Object.keys(PLAY) as TaskType[];
