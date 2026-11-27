@@ -10,7 +10,9 @@ import { bindAchievements } from '../ui/achieve';
 import { stopPoint } from './stops';
 import { tf } from '../ui/strings';
 import type { Game } from './context';
-import { levelFor, recordTask, type SkillId } from './skills';
+import { levelFor, recordDare, recordTask, type SkillId } from './skills';
+import { dareLevel, mayDare } from './dare';
+import { askHarder } from '../ui/dare';
 import { playScene, type Stage } from './stage';
 import { weakest } from './planner';
 import { mixWide } from './wide';
@@ -109,6 +111,23 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
     return plan.runTask(type, level, hooksFor(emoji), g.rng);
   };
 
+  /**
+   * «А складніше зможеш?» (LEARN-28, src/game/dare.ts): the character asks, the card has «Так!» and «Іншим разом».
+   * Taken - a task of the same step a level higher, through the same planner; its result is recorded by the rule of a
+   * task she asked for (`recordDare`). Tells whether it was solved: the stars and the praise are the caller's, the same
+   * as for the task of that place.
+   */
+  async function dare(n: Npc, step: PanelStep, skill: SkillId, given: number): Promise<boolean> {
+    const q = n.def, level = dareLevel(given);
+    void line('npc_harder', 'story', 0, q.emoji);
+    if (!await askHarder(q.emoji)) return false;
+    const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
+    cam.focus = above(n.pos, 1.1);
+    if (!res.solved) return false;                  // closed by the child: nothing is recorded, as for any task
+    recordDare(save, skill, level, res.wrong, res.helped === true, answerOf(res));
+    return true;
+  }
+
   // ----- conversations -----
   /** How many times each character was met after its chain: its `again` lines in turn. */
   const metAgain = new Map<string, number>();
@@ -143,10 +162,16 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         await line(again, 'story', 0, q.emoji);
         const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => panelTask(step, skill, level, q.emoji));
-        if (res.solved) { recordTask(save, skill, res.wrong, res.helped === true, answerOf(res)); addStars(1, above(hero.root.position, 1.4)); await praise(); await stopPoint('task'); }
+        if (res.solved) {
+          recordTask(save, skill, res.wrong, res.helped === true, answerOf(res)); addStars(1, above(hero.root.position, 1.4)); await praise();
+          // a harder example, if she wishes (LEARN-28): a star and the praise for it as for the game itself
+          if (mayDare(save, skill, level, res) && await dare(n, step, skill, level)) { addStars(1, above(hero.root.position, 1.4)); await praise(); }
+          await stopPoint('task');
+        }
         return;
       }
       if (done === 0 && q.hi) await line(q.hi, 'story', 0, q.emoji);
+      let dared = false;      // «А складніше зможеш?» is asked once in a conversation
       for (let k = done; k < q.steps.length; k++) {
         const step = q.steps[k];
         const wt: WorldTask | undefined = tasks[step];
@@ -168,6 +193,12 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         addStars(3, above(hero.root.position, 1.4));     // the same reward with or without mistakes: trying is what counts
         if (n.actor.has('Yes')) n.actor.once('Yes', 'Idle');
         await praise();
+        // A harder example, if she wishes (LEARN-28): after a panel task that is not the last of the chain - its part
+        // comes next there - and once in a conversation; solved, it gives the stars of a step and the praise.
+        if (!inWorld && !dared && k < q.steps.length - 1 && isPanel(step) && mayDare(save, skill, level, res)) {
+          dared = true;
+          if (await dare(n, step, skill, level)) { addStars(3, above(hero.root.position, 1.4)); await praise(); }
+        }
         // A stop point after the praise; after the last step the card of the part comes first (CharacterDef.solved: own word)
         if (k < q.steps.length - 1) { await stopPoint('task'); await line(q.solved?.[k] ?? 'npc_next', 'story', 0, q.emoji); }
         else { const own = q.solved?.[k]; if (own) await line(own, 'story', 0, q.emoji); }

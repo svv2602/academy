@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, WIDE, WIDE_MISSES, climbs, isOpen, isWide, levelFor, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
+import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, WIDE, WIDE_MISSES, climbs, isOpen, isWide, levelFor, recordDare, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
 import { SKILL } from './taskviews/panel';
 
 /** Feeds a series of finished tasks (number of wrong answers in each, the step of the hint reached) through recordTask. */
@@ -477,5 +477,72 @@ describe('recordTask: a task in breadth is counted and moves nothing (LEARN-27, 
     wide(s, 'sub', 'gap', 2);
     expect([s.skills.add.streak, s.skills.sub.streak]).toEqual([2, 0]);
     expect([s.skills.add.wideMiss, s.skills.sub.wideMiss]).toEqual([1, undefined]);
+  });
+});
+
+describe('recordDare: a harder example taken by her own wish (LEARN-28, decision Q19)', () => {
+  /** A save with `skill` at `level` and a run of `streak`; `settled`: its fast climb is over. */
+  const from = (skill: SkillId, level: number, streak: number, settled = true) => {
+    const s = settled ? at(skill, level) : climbing(skill, level);
+    s.skills[skill].streak = streak;
+    return s;
+  };
+
+  it('solved cleanly and by herself: her level is that level at once, the run starts anew', () => {
+    const s = from('add', 3, 1);
+    recordDare(s, 'add', 4, 0, false, { type: 'add', ms: 3000 });
+    expect(s.skills.add).toMatchObject({ level: 4, streak: 0, tasks: 1, first: 1, errors: 0, settled: true });
+    expect(s.answers?.add.map((a) => [a.t, a.ok, a.ms])).toEqual([['add', 1, 3000]]);
+    expect(s.clean).toEqual({ run: 1, best: 1 });
+  });
+
+  it.each([[1, 'one wrong answer'], [2, 'two wrong answers'], [3, 'three'], [7, 'seven']])('%i wrong: %s - counted, and nothing moves: not the level, not the run, not the end of the climb', (wrong) => {
+    for (const [streak, settled] of [[1, true], [0, true], [-1, true], [0, false]] as const) {
+      const s = from('sub', 3, streak, settled);
+      recordDare(s, 'sub', 4, wrong, false, { type: 'sub' });
+      expect(s.skills.sub, `run ${streak}, climb over: ${settled}`).toMatchObject({ level: 3, streak, tasks: 1, first: 0, errors: wrong });
+      expect(climbs(s.skills.sub), `run ${streak}, climb over: ${settled}`).toBe(!settled);
+      expect(s.answers?.sub.map((a) => a.ok)).toEqual([0]);
+    }
+  });
+
+  it('the same task recorded as a usual one would step the level down: asking for a harder example never does', () => {
+    const usual = from('add', 3, 0), asked = from('add', 3, 0);
+    recordTask(usual, 'add', 3, false, { type: 'add' });
+    recordDare(asked, 'add', 4, 3, false, { type: 'add' });
+    expect([usual.skills.add.level, asked.skills.add.level]).toEqual([2, 3]);
+  });
+
+  it('solved with a helper: no clean solve, no step up; the run of clean solves of the achievement ends', () => {
+    const s = from('count', 2, 1);
+    play(s, 'pattern', 0, 0);
+    recordDare(s, 'count', 3, 0, true, { type: 'count' });
+    expect(s.skills.count).toMatchObject({ level: 2, streak: 1, tasks: 1, first: 0, errors: 0 });
+    expect(s.clean).toEqual({ run: 0, best: 2 });
+  });
+
+  it('never above the top of the skill, never a step down: a level asked past the top is the top, one not above her own changes nothing', () => {
+    const top = from('add', 4, 1);
+    recordDare(top, 'add', 9, 0);
+    expect(top.skills.add).toMatchObject({ level: 5, streak: 0 });
+    const same = from('add', 4, 1);
+    recordDare(same, 'add', 4, 0);
+    expect(same.skills.add).toMatchObject({ level: 4, streak: 1, tasks: 1, first: 1 });
+    const lower = from('add', 4, 1);
+    recordDare(lower, 'add', 2, 0);
+    expect(lower.skills.add).toMatchObject({ level: 4, streak: 1 });
+  });
+
+  it('a late skill is written into the save by it, as by any task', () => {
+    const s = defaultSave();
+    expect(s.skills.attention).toBeUndefined();
+    recordDare(s, 'attention', 2, 0);
+    expect(s.skills.attention).toMatchObject({ level: 2, tasks: 1, first: 1 });
+  });
+
+  it('touches the skill named only', () => {
+    const s = from('add', 3, 1), other = JSON.stringify(s.skills.sub);
+    recordDare(s, 'add', 4, 0);
+    expect(JSON.stringify(s.skills.sub)).toBe(other);
   });
 });

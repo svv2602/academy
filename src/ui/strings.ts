@@ -194,6 +194,7 @@ const S = sameKeys({
     cauldron_done: 'Зілля готове! Воно вже серед твоїх зілль унизу.', daily_find: 'Ой, нова знахідка дня!',
     // --- the trades of the characters (PLAY-28, src/ui/trade.ts)
     trade_hi: 'Можна обміняти знахідки на подарунок!', trade_done: 'Обмін вдався! Подарунок твій.',
+    dare_yes: 'Так!', dare_no: 'Іншим разом',
     talk_play: 'Грати', talk_trade: 'Обмін', talk_bye: 'Бувай', trade_go: 'Обміняти', trade_later: 'Не зараз',
     trade_have: 'у тебе {n}', trade_left: 'залишиться {n}', trade_short: 'ще {n}', shop_trade: 'від жителя', shop_trade_get: 'Подарунок жителя — за обмін знахідками',
     // PLAY-27: the pet's treat and its trick learnt; PLAY-26: the rainbow drunk
@@ -391,6 +392,7 @@ const S = sameKeys({
     cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', board_hi: 'Это волшебная доска! Выбери, что потренируем.', board_done: 'Отличная тренировка! Так держать!', board_again: 'Ты снова здесь! Тренируемся каждый день — это сила!', cauldron_more: 'Ещё немного находок — и получится зелье.',
     cauldron_done: 'Зелье готово! Оно уже среди твоих зелий внизу.', daily_find: 'Ой, новая находка дня!',
     trade_hi: 'Можно обменять находки на подарок!', trade_done: 'Обмен удался! Подарок твой.',
+    dare_yes: 'Да!', dare_no: 'В другой раз',
     talk_play: 'Играть', talk_trade: 'Обмен', talk_bye: 'Пока', trade_go: 'Обменять', trade_later: 'Не сейчас',
     trade_have: 'у тебя {n}', trade_left: 'останется {n}', trade_short: 'ещё {n}', shop_trade: 'от жителя', shop_trade_get: 'Подарок жителя — за обмен находками',
     pet_treat: 'Ням-ням! Как вкусно!', pet_trick: 'Смотри, твой любимец научился новому!', sup_rainbow: 'Ого, за тобой бежит радуга!',

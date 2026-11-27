@@ -3884,6 +3884,114 @@ try {
         }
         console.log(`wide: each kind closed with its button (nothing recorded), then its question, three mistakes (the way said, nothing shown; the solution counted to the answer, nothing lit; the answer lit alone) and solved: ${told.join('; ')}; at the unicorn with addition on level 5 and a run of two: a kind in breadth, three wrong answers left the level and the run, then the usual example, then another kind in breadth`);
       }
+      // ---- «А складніше зможеш?» (LEARN-28; src/game/dare.ts, src/ui/dare.ts, src/game/dialogue.ts) ----
+      // Addition on level 3 with its fast climb over, the unicorn's game played again and solved cleanly: the unicorn
+      // asks, with its line in the bubble, and a card comes with two buttons at least 44 px high. «Іншим разом»: the
+      // card goes, nothing more is given. «Так!»: an example of level 4 (its things in ten frames, which level 3 has
+      // not); solved after a mistake - a star for it, the level stays; taken again and solved cleanly - addition is on
+      // level 4, its run anew. In the fast climb, and with the level fixed by the parent, the card does not come.
+      // The skills and the level fixed for addition are put back as they were.
+      if (has('dare')) {
+        const fail = (what) => { throw new Error(`dare: ${what}`); };
+        const skillsBefore = await g(() => JSON.stringify(__game.save.skills)), fixedBefore = await g(() => __game.save.fixed.add);
+        // addition as the part needs it; comparing made the stronger skill, so the game played again is addition
+        const set = (add, fixed = 0) => g(([add, fixed]) => {
+          const s = __game.save;
+          delete s.skills.add.settled; delete s.skills.add.wideMiss;
+          Object.assign(s.skills.add, { tasks: 4, first: 2, errors: 2 }, add);
+          Object.assign(s.skills.compare, { tasks: 4, first: 4, errors: 0 });
+          s.fixed.add = fixed;
+        }, [add, fixed]);
+        const add = () => g(() => ({ ...__game.save.skills.add }));
+        const stars = () => g(() => __game.save.stars);
+        const cardUp = () => g(() => !!document.querySelector('#trade:not(.hidden) .dare-card'));
+        const framed = () => g(() => !!document.querySelector('#taskStage .tens'));
+        const taskOf = async (what) => {
+          await gameFor(() => !!document.querySelector('#task:not(.hidden)'), null, 30).catch(() => fail(`${what}: no task opened`));
+          const type = await g(() => [...document.querySelector('#taskStage').classList].find((c) => c.startsWith('t-') && c !== 't-stage')?.slice(2) ?? '');
+          if (type !== 'add') fail(`${what}: the task is "${type}", not addition`);
+        };
+        // The unicorn's game solved cleanly; then the card, or the end of the conversation without it.
+        const game = async (what) => {
+          await g(() => __game.talk('unicorn'));
+          await taskOf(what);
+          if (await framed()) fail(`${what}: the game is not of level 3 (its things stand in ten frames)`);
+          await g(() => __game.cheat());
+          // an achievement's scene at the stop point of the game is the end of the conversation too (controlsBack ends it)
+          await gameFor(() => !!document.querySelector('#trade:not(.hidden) .dare-card') || __game.ach.scene !== null || (!__game.busy && document.querySelector('#task').classList.contains('hidden')), null, 60)
+            .catch(() => fail(`${what}: neither the card nor the end of the conversation came`));
+          return cardUp();
+        };
+        const press = (id) => tapOn(`#${id}`).catch((e) => fail(`#${id} cannot be pressed: ${why(e)}`));
+
+        // 1: the card; put off
+        await set({ level: 3, streak: 0, settled: true });
+        let had = await stars();
+        if (!(await game('the first game'))) fail('addition on level 3, the climb over, solved cleanly: the card did not come');
+        await calm();
+        const card = await g(() => {
+          const b = [...document.querySelectorAll('.dare-card button')].map((x) => { const r = x.getBoundingClientRect(); return { id: x.id, text: x.textContent.trim(), w: Math.round(r.width), h: Math.round(r.height), in: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth }; });
+          return { b, who: document.querySelector('.dare-card .tr-who')?.textContent, line: __game.line, bubble: !document.querySelector('#bubble').classList.contains('hidden'), task: !document.querySelector('#task').classList.contains('hidden') };
+        });
+        if (card.b.map((x) => x.id).join() !== 'dare_yes,dare_no') fail(`the buttons of the card are ${JSON.stringify(card.b)}`);
+        if (card.b.some((x) => x.h < 44 || x.w < 44 || !x.in)) fail(`a button of the card is smaller than 44 px or off the screen: ${JSON.stringify(card.b)}`);
+        if (card.line !== 'npc_harder' || !card.bubble) fail(`the bubble shows "${card.line}" (${card.bubble ? 'shown' : 'hidden'}), not the unicorn's question`);
+        if (card.who !== '🦄' || card.task) fail(`the card is of "${card.who}"${card.task ? ', over an open task' : ''}`);
+        await shot('dare-card');
+        await press('dare_no');
+        await controlsBack(30, 'dare: put off');
+        if (await cardUp()) fail('«Іншим разом»: the card is still up');
+        let k = await add();
+        if (k.level !== 3 || k.streak !== 1 || k.tasks !== 5 || (await stars()) !== had + 1) fail(`put off: addition is ${JSON.stringify(k)}, the stars ${had} -> ${await stars()} - level 3, run 1, one task and one star more expected`);
+
+        // 2: taken; a mistake in it
+        await set({ level: 3, streak: 0, settled: true });
+        had = await stars();
+        if (!(await game('the second game'))) fail('the second game: the card did not come');
+        await press('dare_yes');
+        await taskOf('the harder example');
+        if (!(await framed())) fail('the harder example is not of level 4 (its things do not stand in ten frames)');
+        await calm(); await shot('dare-task');
+        const wrong = await g(() => {
+          let right = null;
+          const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+          document.addEventListener('pointerdown', swallow, true);
+          try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+          const other = [...document.querySelectorAll('#taskOpts .opt')].find((b) => b !== right);
+          if (!right || !other) return 'no wrong answer to tap';
+          other.dispatchEvent(new PointerEvent('pointerdown')); return '';
+        });
+        if (wrong) fail(`the harder example: ${wrong}`);
+        await framesDrawn(2);
+        await g(() => __game.cheat());
+        await controlsBack(30, 'dare: taken, a mistake');
+        k = await add();
+        if (k.level !== 3 || k.streak !== 1 || k.tasks !== 6 || k.errors !== 3 || k.settled !== true || (await stars()) !== had + 2) fail(`taken, solved after a mistake: addition is ${JSON.stringify(k)}, the stars ${had} -> ${await stars()} - level 3, run 1, two tasks, one wrong answer and two stars more expected`);
+
+        // 3: taken; solved cleanly - her level
+        await set({ level: 3, streak: 0, settled: true });
+        had = await stars();
+        if (!(await game('the third game'))) fail('the third game: the card did not come');
+        await press('dare_yes');
+        await taskOf('the harder example, again');
+        await g(() => __game.cheat());
+        await controlsBack(30, 'dare: taken, solved');
+        k = await add();
+        if (k.level !== 4 || k.streak !== 0 || k.tasks !== 6 || k.first !== 4 || (await stars()) !== had + 2) fail(`taken and solved cleanly: addition is ${JSON.stringify(k)}, the stars ${had} -> ${await stars()} - level 4, run 0, two clean tasks and two stars more expected`);
+
+        // 4: not in the fast climb (the clean solve is a step up by itself), not with the level fixed
+        await set({ level: 3, streak: 0 });
+        if (await game('the game in the fast climb')) fail('in the fast climb the card came');
+        await controlsBack(30, 'dare: in the climb');
+        k = await add();
+        if (k.level !== 4) fail(`in the fast climb a clean solve left addition on level ${k.level}, not 4`);
+        await set({ level: 3, streak: 0, settled: true }, 3);
+        if (await game('the game with the level fixed')) fail('with the level fixed by the parent the card came');
+        await controlsBack(30, 'dare: the level fixed');
+
+        await g(([was, fixed]) => { __game.save.skills = JSON.parse(was); __game.save.fixed.add = fixed; }, [skillsBefore, fixedBefore]);
+        console.log(`dare: after the unicorn's game of level 3 solved cleanly the unicorn asked and the card came (buttons ${card.b.map((x) => `${x.text} ${x.w}x${x.h}`).join(', ')}); put off - nothing more; taken with a mistake - a star, the level stayed; taken and solved cleanly - addition on level 4; no card in the fast climb nor with the level fixed`);
+      }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
       // cat tells of it (once that day), the tile has the ribbon and the deal's price; bought at that price (the watch

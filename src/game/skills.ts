@@ -151,6 +151,25 @@ export function recordTask(s: Save, skill: SkillId, wrong: number, helped = fals
 }
 
 /**
+ * «А складніше зможеш?» (LEARN-28, decision Q19; src/game/dare.ts): a task of `skill` she took by her own wish on
+ * `target`, a level above her own. It is counted as any task - the task, its wrong answers, a clean solve, its answer
+ * for the parents' report. Solved cleanly and by herself it takes her to that level at once, the run starting anew.
+ * Anything else moves nothing: a harder example she asked for is never a step down, never the end of a run of clean
+ * solves, never the end of the fast climb.
+ */
+export function recordDare(s: Save, skill: SkillId, target: number, wrong: number, helped = false, note?: { type?: string; ms?: number }) {
+  if (note?.type) noteAnswer(s, skill, { type: note.type, ok: wrong === 0 && !helped, ms: note.ms });
+  const k = (s.skills[skill] ??= statOf(s, skill));
+  k.tasks++; k.errors += wrong;
+  const clean = wrong === 0 && !helped;
+  countClean(s, clean ? 0 : 1);
+  if (!clean) return;
+  k.first++;
+  const to = withinLevels(skill, target);
+  if (to > k.level) { k.level = to; k.streak = 0; }
+}
+
+/**
  * The run of clean solves of every skill (PLAY-08, the achievement `clean_ten`): a task solved at the first try adds
  * one, a task solved after a mistake ends the current run; the best run never goes down. A task closed by the child is
  * not recorded at all (src/game/dialogue.ts calls recordTask for solved ones only), so it leaves the run as it is (R44).
