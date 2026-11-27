@@ -11,6 +11,7 @@ import type { Key } from '../../ui/strings';
 import type { Spoken } from '../../core/audio';
 import type { TaskType } from '../tasks/types';
 import { SKILL, cheatTask, runTask, type TaskHooks } from './panel';
+import { FLY_MS } from './fly';
 
 /** A test stands in for the voice: only here a plain promise may pose as a spoken line. */
 const spoken = (end: Promise<void> = Promise.resolve()) => end as Spoken;
@@ -244,6 +245,7 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
       const hints = cat.hints().length, numbers = cat.numbers().length;
       await solve();                                 // the answer is not held back while the cat is talking
       expect(root().classList.contains('won')).toBe(true);
+      await vi.advanceTimersByTimeAsync(FLY_MS);        // the answer lands in its "?" (./fly.ts): that is the win itself
       const won = screen();
       if (cat.talking()) await cat.hearOut();
       await vi.advanceTimersByTimeAsync(1000);
