@@ -20,6 +20,8 @@ as every clip so far was recorded; `--model new` is gemini-3.8-flash-tts, which 
 goes in a field of its own and the text of the request is only the line.
 Each clip is checked by transcribing it back (OpenAI, `transcribe` of the old game's ../tools/gen_audio.py, imported
 only when something is recorded).
+A line may have a text for the model of its own (`SAY_AS`: the same words, other punctuation - a dash makes a pause);
+its clip is still checked against the line as the screen shows it.
 The Gemini key is read from ~/.config/academy/gemini.env (a line `GEMINI_API_KEY=...`; ACADEMY_GEMINI_ENV names
 another file). The service is paid: a line is sent only if it has no clip yet or its text or intonation changed.
 Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new] [--help]
@@ -74,11 +76,6 @@ STYLES = {
     'joy': BASE + 'Дуже радісно і захоплено, як веселий мультяшний котик, що хвалить шестирічну дівчинку. Чітко.',
     'calm': 'Говори чистою літературною українською мовою, без акценту, голосом доброго мультяшного котика. '
             'Спокійно і чітко, рівною інтонацією, як під час рахунку. Скажи лише ці слова.',
-    # A line that ends in a question said after a praise («Оце так! А складніше зможеш?»): recorded as a praise (`joy`)
-    # it did not sound as a question (the customer, 2026-11-27) - the prompt names the question and where the voice goes.
-    'ask': BASE + 'Радісно і з цікавістю, як веселий мультяшний котик, що хвалить шестирічну дівчинку і одразу питає '
-                  'її. Останнє речення — запитання: вимов його з виразною питальною інтонацією, наприкінці голос іде '
-                  'вгору. Чітко.',
 }
 # Who a voice is (the probe of 2026-11-15, idea/proposal/voice-probe-2026-11-15/probe.py), and in English for the
 # prompt of a calm line: one-word Ukrainian prompts give empty audio unless the instruction is in English.
@@ -93,9 +90,14 @@ ROLES = {
     'Orus': (BASE + 'Низьким голосом, кумедно, з добрим бурчанням, як мультяшний гном. Повільно і чітко.',
              'in the voice of a funny cartoon gnome'),
 }
-MOOD = {'warm': ' Тепло і лагідно.', 'joy': ' Радісно і захоплено.', 'calm': ' Спокійно і чітко, рівною інтонацією.',
-        'ask': ' Радісно і з цікавістю. Останнє речення — запитання: вимов його з виразною питальною інтонацією, '
-               'наприкінці голос іде вгору.'}
+MOOD = {'warm': ' Тепло і лагідно.', 'joy': ' Радісно і захоплено.', 'calm': ' Спокійно і чітко, рівною інтонацією.'}
+# What the model reads when that is not the line as the screen shows it: the same words, other punctuation. By the key
+# of the line - its clips in the characters' voices read the same.
+# «Оце так! А складніше зможеш?» (LEARN-28): said in one breath it was an exclamation to the ear, as a praise (`joy`)
+# and with a prompt that named the question and sent the voice up at the end alike (the customer, 2026-11-27). What
+# made it a question: the calm `warm` of every question of the game, and a dash - the last word is said after a
+# pause, from below upwards.
+SAY_AS = {'npc_harder': 'Оце так! А складніше — зможеш?'}
 # A short imperative line («Тепер повтори!») is taken for an instruction: the model reads the style prompt aloud.
 # The second try says where the words to speak begin.
 STRICT = ' Скажи лише ці слова:'
@@ -171,6 +173,26 @@ def voice_of(cid):
     if voice not in VOICES:
         sys.exit(f'gen_voice: nothing was sent. "{cid}" names the voice {voice}, not one of the game: {", ".join(VOICES)}.')
     return voice
+
+
+def key_of(cid):
+    """The key of the line of a clip: without the folder of its world and without its voice."""
+    return cid.split('/', 1)[-1].split('@', 1)[0]
+
+
+def to_say(cid, text):
+    """What the model reads for the clip `cid` of the line `text`: the line, or its text of SAY_AS."""
+    return SAY_AS.get(key_of(cid), text)
+
+
+def check_say_as(phrases):
+    """Stop the whole run, before anything is sent, if a text for the model has other words than its line: the clip
+    is checked against the line on the screen, and it must say exactly its words. (That every text is of a line of
+    the game is held by the test of the recorded clips: a narrowed list of lines may lack the line.)"""
+    bad = [key for key, say in SAY_AS.items() if key in phrases and norm(say) != norm(phrases[key][0])]
+    if bad:
+        sys.exit('gen_voice: nothing was sent. SAY_AS has a text for the model with other words than its line of '
+                 'voice/phrases.json: ' + ', '.join(bad) + '.')
 
 
 def style_prompt(voice, style, strict=False):
@@ -294,7 +316,8 @@ def norm(s):
 
 def stale(cid, text, style, qa, audio, bank=None, model=None):
     """A clip is kept only if it was recorded from exactly this text with this intonation (and, when `model` is
-    given, by this model, in the voice its key names: voice/qa.json keeps both for every clip, VOICE-14).
+    given, by this model, in the voice its key names: voice/qa.json keeps both for every clip, VOICE-14). A line with
+    a text for the model (SAY_AS) is kept while its clip was recorded from that text: the record keeps it as `said`.
 
     A clip of the bank of the old game (public/bank/, tools/import_old_voice.py, VOICE-07) lies in `bank`, not in
     `audio`; it is found there and never sent to the paid service while its text and intonation stay the same.
@@ -305,6 +328,7 @@ def stale(cid, text, style, qa, audio, bank=None, model=None):
     done = qa.get(cid)
     here = clip_file(audio, cid).exists() or (bank is not None and (bank / f'{cid}.mp3').exists())
     fresh = here and done and done.get('text') == text and done.get('style') == style
+    fresh = fresh and done.get('said', text) == to_say(cid, text)
     if fresh and model is not None:
         fresh = done.get('model') == model and done.get('voice') == voice_of(cid)
     return not fresh
@@ -340,7 +364,8 @@ class Recorder:
         tmp = out.with_suffix('.tmp.mp3')
         best = None
         for _ in range(3):
-            encode(synth(text, style, self.voice(cid), self.model, self.key, strict), tmp)
+            # the model reads the line, or its text of SAY_AS; the clip is heard back against the line itself
+            encode(synth(to_say(cid, text), style, self.voice(cid), self.model, self.key, strict), tmp)
             heard = self.transcribe(tmp)
             score = difflib.SequenceMatcher(None, norm(text), norm(heard)).ratio()
             if best is None or score > best[0]:
@@ -363,7 +388,8 @@ class Recorder:
         if before and before[0]['score'] >= res['score']:
             clip.write_bytes(before[1])
             return before[0]
-        return {**res, 'style': style, 'voice': self.voice(cid), 'model': self.model}
+        say = to_say(cid, text)
+        return {**res, **({'said': say} if say != text else {}), 'style': style, 'voice': self.voice(cid), 'model': self.model}
 
 
 FLAGS = ('--dry-run', '--force', '--en')
@@ -480,6 +506,7 @@ def main():
     audio, bank = ROOT / 'public' / 'voice', ROOT / 'public' / 'bank'
     phrases = json.loads((ROOT / 'voice' / 'phrases.json').read_text())
     check_no_placeholders(phrases)
+    check_say_as(phrases)
     model = MODELS.get(arg('model', 'old')) or sys.exit('gen_voice: nothing was sent. --model is old or new.')
     for cid in phrases:
         voice_of(cid)
