@@ -189,7 +189,24 @@ describe('loadSave', () => {
     recordTask(old, 'attention', 0);
     storeSave(old);
     const again = loadSave();
-    expect(again.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(again.skills.attention).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });   // the fast climb: one clean solve, one level
+    expect(again.v).toBe(SAVE_VERSION);
+  });
+
+  it('the end of a skill\'s fast climb (LEARN-15, 2026-11-27) is an optional field of its counters: absent in an old save, kept through a store and a load', () => {
+    const before = defaultSave();
+    storage.setItem(KEY, JSON.stringify(before));
+    const old = loadSave();
+    for (const k of Object.values(old.skills)) expect(k).not.toHaveProperty('settled');
+    recordTask(old, 'add', 0);                     // still climbing: one clean solve is one level
+    expect(old.skills.add).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });
+    recordTask(old, 'add', 2);                     // two wrong answers: the climb is over
+    storeSave(old);
+    const again = loadSave();
+    expect(again.skills.add).toEqual({ level: 2, streak: -1, tasks: 2, first: 1, errors: 2, settled: true });
+    recordTask(again, 'add', 0);
+    expect(again.skills.add.level).toBe(2);        // one clean solve is no longer a level
+    expect(again.skills.sub).not.toHaveProperty('settled');
     expect(again.v).toBe(SAVE_VERSION);
   });
 

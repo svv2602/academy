@@ -61,8 +61,12 @@ export interface Save {
   // as it is: whether she wears wings, and which, is `gear.wings`.
   dress: string; hair: string; wings: boolean;
   stars: number;
-  /** The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts. */
-  skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number }>;
+  /**
+   * The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts.
+   * `settled` (LEARN-15, the amendment of 2026-11-27): the fast climb of the skill is over - a task of it took two wrong
+   * answers or more. An optional field, no new version: a save without it is still climbing.
+   */
+  skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number; settled?: true }>;
   /** The level the parent fixed for each skill, by its id (LEARN-15): 0 = adaptive, else 1 to 5 (levelFor keeps it within the skill's). */
   fixed: Record<string, number>;
   /**
