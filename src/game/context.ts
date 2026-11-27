@@ -177,6 +177,8 @@ export interface WorldEntry {
   left?: WorldDef['left'];
   /** The places of its mysterious stars (WorldDef.mystery); absent: none. */
   mystery?: WorldDef['mystery'];
+  /** The places a command of Pip can send her to (WorldDef.enPlaces, src/game/worldtasks/en-go.ts); absent: none. */
+  enPlaces?: WorldDef['enPlaces'];
   /** Where its easel stands (WorldDef.easel, src/game/easel.ts); absent: none. */
   easel?: WorldDef['easel'];
   /** The finds of its collections (WorldDef.collect); absent: none. */

@@ -5,8 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import {
-  EN_GO_APART, EN_GO_CLEAR, EN_GO_DWELL, EN_GO_FAR, EN_GO_NEAR, EN_GO_REACH, EN_GO_STILL, EN_PLACE_KINDS,
-  enGoClips, enPlacesProblems, inRing, kindsAt, nearestOf, pickTarget, placeAt, walker, type EnPlace,
+  EN_GO_APART, EN_GO_CLEAR, EN_GO_DWELL, EN_GO_FAR, EN_GO_NEAR, EN_GO_REACH, EN_GO_REACH_MAX, EN_GO_STILL, EN_PLACE_KINDS,
+  enGoClips, enPlacesProblems, inRing, kindsAt, nearestOf, pickTarget, placeAt, reachOf, walker, type EnPlace,
 } from './en-go';
 
 const FROM = { x: 0, z: 0 };
@@ -44,7 +44,7 @@ describe('the place a command is about', () => {
 
   it('the kinds a command can name there: those with a place in the ring, in the order of the kinds', () => {
     expect(kindsAt(PLACES, FROM)).toEqual(['flower', 'house']);
-    expect(kindsAt([...PLACES, { x: 0, z: 20, kind: 'butterfly', word: 'butterfly' }], FROM)).toEqual(['flower', 'butterfly', 'house']);
+    expect(kindsAt([{ x: 0, z: 20, kind: 'mushroom', word: 'mushroom' }, ...PLACES], FROM)).toEqual(['flower', 'house', 'mushroom']);
     expect(kindsAt(PLACES, { x: 0, z: 30 })).toEqual(['flower']);        // from there only the second flower is a walk away (24.1 m)
     expect(kindsAt(PLACES, { x: 0, z: -18 })).toEqual([]);               // from the first flower nothing is: 34 m and 26.9 m
     expect(kindsAt([], FROM)).toEqual([]);
@@ -53,7 +53,7 @@ describe('the place a command is about', () => {
   it('the nearest of a kind - where the sparkles of the last rung lead', () => {
     expect(nearestOf(PLACES, 'flower', { x: 10, z: 10 })).toBe(PLACES[1]);
     expect(nearestOf(PLACES, 'flower', { x: 0, z: -10 })).toBe(PLACES[0]);
-    expect(nearestOf(PLACES, 'owl', FROM)).toBeNull();
+    expect(nearestOf(PLACES, 'mushroom', FROM)).toBeNull();
   });
 });
 
@@ -64,7 +64,8 @@ describe('the clips that say a command', () => {
     expect(enGoClips(PLACES[0], (id) => id === 'en_go_flower')).toEqual(['en_go_flower']);
   });
 
-  it('every kind has a phrase of its own name', () => {
+  it('every kind has a phrase of its own name; step 2 has three kinds - the things its two worlds really have', () => {
+    expect(EN_PLACE_KINDS).toEqual(['flower', 'house', 'mushroom']);
     for (const kind of EN_PLACE_KINDS) expect(enGoClips({ kind, word: 'tree' }, () => true)).toEqual([`en_go_${kind}`]);
   });
 });
@@ -79,6 +80,16 @@ describe('where she is against the places', () => {
 
   it('every place of the kind named is right, not only the one the command was about', () => {
     for (const p of [PLACES[0], PLACES[1]]) expect(placeAt(PLACES, 'flower', p).right).toBe(p);
+  });
+
+  it('a place with a reach of its own (a house she cannot stand in the middle of) is come to from that far', () => {
+    const big: EnPlace = { ...house(-20, 0), r: 6 };
+    expect([reachOf(PLACES[2]), reachOf(big)]).toEqual([EN_GO_REACH, 6]);
+    expect(placeAt([big], 'house', { x: -14, z: 0 }).right).toBe(big);
+    expect(placeAt([big], 'house', { x: -13.9, z: 0 }).right).toBeNull();
+    expect(placeAt([PLACES[2]], 'house', { x: -14, z: 0 }).right).toBeNull();
+    // and stood at as a wrong place from that far too
+    expect(placeAt([big], 'flower', { x: -15, z: 0 }).wrong).toBe(big);
   });
 });
 
@@ -128,8 +139,8 @@ describe('her walk', () => {
   });
 
   it('the wrong place told is the place she stands at, by its own time: another wrong place starts its own', () => {
-    const tree: EnPlace = { x: -20, z: 12, kind: 'tree', word: 'tree' };
-    const w = walker([...PLACES, tree], 'flower');
+    const cap: EnPlace = { x: -20, z: 12, kind: 'mushroom', word: 'mushroom' };
+    const w = walker([...PLACES, cap], 'flower');
     expect(frames(w, 0, 1, { x: -20, z: 0 })).not.toContain('wrong');
     const at = frames(w, 1.1, 3.5, { x: -20, z: 12 });
     expect(at.indexOf('wrong')).toBe(Math.round(EN_GO_DWELL / 0.1));
@@ -154,10 +165,21 @@ describe('the guard of a world\'s places', () => {
     expect(enPlacesProblems(PLACES, FROM, [{ x: 0, z: -18 + EN_GO_CLEAR }])).toEqual([]);
   });
 
-  it('two places of different kinds nearer than EN_GO_APART: she would be at both at once; of one kind they may stand together', () => {
-    expect(EN_GO_APART).toBeGreaterThan(2 * EN_GO_REACH);
-    expect(enPlacesProblems([...PLACES, house(0, -18 + EN_GO_APART - 0.1)], FROM)).toEqual([expect.stringMatching(/^the flower at \(0, -18\) and the house at \(0, -11\.1\) stand nearer than 7 m: at both at once$/), expect.stringMatching(/nearer than 15 m$/)]);
+  it('two places of different kinds nearer than their two reaches and EN_GO_APART: she would be at both at once; of one kind they may stand together', () => {
+    const apart = 2 * EN_GO_REACH + EN_GO_APART;
+    expect(EN_GO_APART).toBeGreaterThan(0);
+    expect(enPlacesProblems([...PLACES, house(apart - 0.1, -18)], FROM)).toEqual([expect.stringMatching(/^the flower at \(0, -18\) and the house at \(6\.9, -18\) stand nearer than 7 m: at both at once$/)]);
+    expect(enPlacesProblems([...PLACES, house(apart, -18)], FROM)).toEqual([]);
     expect(enPlacesProblems([...PLACES, flower(1, -19)], FROM)).toEqual([]);
+    // a place with a reach of its own keeps the others that much farther off
+    expect(enPlacesProblems([...PLACES, { ...house(apart + 2, -18), r: 6 }], FROM)).toEqual([expect.stringMatching(/stand nearer than 10 m: at both at once$/)]);
+    expect(enPlacesProblems([...PLACES, { ...house(10, -18), r: 6 }], FROM)).toEqual([]);
+  });
+
+  it('a reach of its own is within 0 and EN_GO_REACH_MAX', () => {
+    expect(enPlacesProblems([{ ...house(-20, 0), r: EN_GO_REACH_MAX }], FROM)).toEqual([]);
+    expect(enPlacesProblems([{ ...house(-20, 0), r: EN_GO_REACH_MAX + 0.5 }], FROM)).toEqual(['the house at (-20, 0) is come to from 8.5 m: not within 0-8 m']);
+    expect(enPlacesProblems([{ ...house(-20, 0), r: 0 }], FROM)).toEqual(['the house at (-20, 0) is come to from 0 m: not within 0-8 m']);
   });
 
   it('a place listed twice, a kind no command names, places of one kind with different words', () => {

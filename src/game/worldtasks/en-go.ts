@@ -15,27 +15,35 @@ import type { Rng } from '../../core/rng';
 import { pick } from '../../core/util';
 import type { WordId } from '../../s2/types';
 
-/** The kinds of place a command can name: each is a whole phrase of Pip, `en_go_<kind>` (lines §2.2). */
-export const EN_PLACE_KINDS = ['flower', 'butterfly', 'house', 'tree', 'mushroom', 'owl', 'fox', 'hedgehog'] as const;
+/**
+ * The kinds of place a command can name: each is a whole phrase of Pip, `en_go_<kind>` (lines §2.2). Step 2 has the
+ * three its worlds really have a thing for - the red flowers and the little house of the fairies, the big mushrooms of
+ * the forest. The owl, the hedgehog, the fox and the bridge wait for step 3 (the lead, 2026-11-27): the first two are
+ * residents with chains of their own (R10), the forest has no fox, the fairies no bridge.
+ */
+export const EN_PLACE_KINDS = ['flower', 'house', 'mushroom'] as const;
 export type EnPlaceKind = (typeof EN_PLACE_KINDS)[number];
 
 /**
  * A place of a world a command can send her to: where it is, what it is, and the word of the book said for it - the
- * frame "Find…" and the word apart (R17) while Pip's whole phrase is not recorded (R32).
+ * frame "Find…" and the word apart (R17) while Pip's whole phrase is not recorded (R32). `r`: how near she has come
+ * to it, for a thing she cannot stand in the middle of (a house); absent - EN_GO_REACH.
  */
-export interface EnPlace { readonly x: number; readonly z: number; readonly kind: EnPlaceKind; readonly word: WordId }
+export interface EnPlace { readonly x: number; readonly z: number; readonly kind: EnPlaceKind; readonly word: WordId; readonly r?: number }
 
 /** How far from where the command is given its place lies, m: no nearer, no farther. */
 export const EN_GO_NEAR = 15, EN_GO_FAR = 25;
-/** She has come to a place: this near, m. */
-export const EN_GO_REACH = 3;
+/** She has come to a place: this near, m - unless the place names its own (`EnPlace.r`, EN_GO_REACH_MAX at most). */
+export const EN_GO_REACH = 3, EN_GO_REACH_MAX = 8;
+/** How near she has come to `p`. */
+export const reachOf = (p: Pick<EnPlace, 'r'>) => p.r ?? EN_GO_REACH;
 /** She stands at a place, not passes it: this long without moving on, s - and "moving on" is more than this, m. */
 export const EN_GO_DWELL = 1.5, EN_GO_STILL = 0.4;
 /**
- * The nearest two places of different kinds may stand, m: at both at once she would be told "wrong" while she stands at
- * the right one. Twice the reach, and a step between.
+ * Two places of different kinds stand apart by their two reaches and this much more, m: at both at once she would be
+ * told "wrong" while she stands at the right one.
  */
-export const EN_GO_APART = 2 * EN_GO_REACH + 1;
+export const EN_GO_APART = 1;
 /** The nearest a place may stand to a resident or a thing of the world that has its own tap, m (R10). */
 export const EN_GO_CLEAR = 5;
 
@@ -78,7 +86,7 @@ export function enGoClips(place: Pick<EnPlace, 'kind' | 'word'>, has: (id: strin
 
 /** Where she is against the places, for a command of `kind`: at one of that kind, at one of another kind, or at none. */
 export function placeAt(places: readonly EnPlace[], kind: EnPlaceKind, at: At): { right: EnPlace | null; wrong: EnPlace | null } {
-  const near = places.filter((p) => dist(p, at) <= EN_GO_REACH).sort((a, b) => dist(a, at) - dist(b, at));
+  const near = places.filter((p) => dist(p, at) <= reachOf(p)).sort((a, b) => dist(a, at) - dist(b, at));
   return { right: near.find((p) => p.kind === kind) ?? null, wrong: near.find((p) => p.kind !== kind) ?? null };
 }
 
@@ -127,8 +135,10 @@ export function enPlacesProblems(places: readonly EnPlace[], from: At, busy: rea
     if (d > EN_GO_FAR) out.push(`${name(a)} stands ${d.toFixed(1)} m from where the command is given (${from.x}, ${from.z}), farther than ${EN_GO_FAR} m`);
     const at = busy.find((b) => dist(a, b) < EN_GO_CLEAR);
     if (at) out.push(`${name(a)} stands nearer than ${EN_GO_CLEAR} m to a resident or a thing of the world at (${at.x}, ${at.z})`);
+    if (!(reachOf(a) > 0 && reachOf(a) <= EN_GO_REACH_MAX)) out.push(`${name(a)} is come to from ${reachOf(a)} m: not within 0-${EN_GO_REACH_MAX} m`);
     places.slice(i + 1).forEach((b) => {
-      if (a.kind !== b.kind && dist(a, b) < EN_GO_APART) out.push(`${name(a)} and ${name(b)} stand nearer than ${EN_GO_APART} m: at both at once`);
+      const apart = reachOf(a) + reachOf(b) + EN_GO_APART;
+      if (a.kind !== b.kind && dist(a, b) < apart) out.push(`${name(a)} and ${name(b)} stand nearer than ${apart} m: at both at once`);
       if (a.kind === b.kind && dist(a, b) < 0.01) out.push(`${name(a)} is listed twice`);
     });
   });
