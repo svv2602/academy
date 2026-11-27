@@ -101,6 +101,22 @@ export const HOUSE_FACADE = { x: HOUSE.x + HOUSE.w / 2 + 0.4, z: HOUSE.z };
 /** Before the door of the house, toward Imbir: the action there takes ruby 2 once the door stands open. */
 export const HOUSE_DOOR = { x: HOUSE.x + HOUSE.w / 2 + 0.9, z: HOUSE.z };
 /**
+ * Imbir's room (./room.ts): far past the map, as the sea's hold and the first world's room - the stretched map
+ * (`?scale`) never reaches it. Its door inside leads back out to HOUSE_DOOR.
+ */
+export const ROOM = { x: 0, z: -(HALF + 150), half: 3.8, y: 0 };
+/**
+ * The cave behind the chocolate waterfall (./cave.ts): a horseshoe of wafer rock just past the end of the chocolate
+ * river by the mill, its mouth toward the river - the chocolate pours from its brow over the mouth into the river's end.
+ * `yaw`: the way its mouth looks (back along the river).
+ */
+export const CAVE = (() => {
+  const end = RIVER[RIVER.length - 1], prev = RIVER[RIVER.length - 2];
+  const dx = end.x - prev.x, dz = end.z - prev.z, d = Math.hypot(dx, dz);
+  const r = 3.2, back = RIVER_HALF + 1.2 + r;
+  return { x: end.x + (dx / d) * back, z: end.z + (dz / d) * back, r, h: 4.2, yaw: Math.atan2(-dx, -dz) };
+})();
+/**
  * Tyanuchka's scales with candies at the marmalade market (WORLD-22, ./scales.ts): the middle of their post, east of the
  * big scales of the landmark and south-east of Tyanuchka, off the way to the bridge. The child looks at them from the
  * east, westward - the big scales of the landmark beyond them.

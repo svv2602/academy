@@ -113,7 +113,7 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     }
   });
 
-  it('its description is the one of a grey build: five chains, two parts, the tour, four secrets and the finale, nothing that disagrees', () => {
+  it('its description is the one of a grey build: five chains, two parts, the tour, six secrets and the finale, nothing that disagrees', () => {
     const ws = { quests: {}, flags: {}, final: false };
     const tour = marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => false });
     const parts = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: r.at }));
@@ -144,9 +144,10 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     expect([uk.subtitle, ru.subtitle]).toEqual(['Солодка країна', 'Сладкая страна']);
     expect(FRIENDS.map((c) => uk[`sweet_name_${c.id}` as keyof typeof uk])).toEqual(['Пастила', 'Імбир', 'Тягучка', 'Какао', 'Смугастик']);
     expect(FRIENDS.map((c) => ru[`sweet_name_${c.id}` as keyof typeof ru])).toEqual(['Пастила', 'Имбирь', 'Тянучка', 'Какао', 'Полосатик']);
-    // the world's own lines of the draft taken on 2026-11-18 are listed for recording (87, the hub's three are the hub's);
+    // the world's own lines of the draft taken on 2026-11-18 are listed for recording (87, the hub's three are the hub's),
+    // and four of the secret places of 2026-11-27 (the cave, the room, the room's jar, Imbir's word);
     // the grey build's subtitles, rules and names stay unspoken
-    expect(Object.keys(strings.spoken)).toHaveLength(87);
+    expect(Object.keys(strings.spoken)).toHaveLength(91);
     const grey = ['subtitle', 'sweet_to_tree', 'sweet_part', 'sweet_count', 'sweet_house', 'sweet_millstone', 'sweet_house_way', 'sweet_scales_ask', 'sweet_scales_sign', 'sweet_world_title', 'sweet_artifact', 'sweet_part_card'];
     for (const k of Object.keys(uk).filter((k) => grey.includes(k) || k.startsWith('sweet_bridge_') && !/_hint_\d$/.test(k) || k.startsWith('sweet_name_') || k.startsWith('sweet_fullname_'))) {
       expect(Object.hasOwn(strings.spoken, k), k).toBe(false);

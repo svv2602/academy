@@ -22,6 +22,8 @@ import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 const uk = {
   subtitle: 'Солодка країна', sweet_to_tree: 'До Дерева', sweet_part: 'Рубін-льодяник!', sweet_count: '{n} з 5',
   sweet_house: 'Будиночок', sweet_millstone: 'Жорно',
+  // the doors of Imbir's room (./room.ts): not spoken
+  sweet_room: 'Зайти', sweet_out: 'Вийти',
   // the button of the lemonade fountain on the square (a secret, ./secrets.ts): not spoken
   sweet_lemonade: 'Лимонад',
   // the subtitle on the way to Imbir's house (WORLD-21, ./house.ts): under the recorded "let's put it together"
@@ -130,6 +132,11 @@ const uk = {
   sweet_secret_cotton: 'Цукрова вата підкидає вгору! Що там, на даху?',
   sweet_secret_lemonade: 'Фонтан лимонаду! Дивись, у бризках веселка!',
   sweet_secret_gum: 'Яка велика бульбашка з жуйки! Ой, луснула — конфеті!',
+  // the secret places (plan sweet-secrets-2026-11-27): the cave behind the chocolate waterfall, Imbir's room
+  sweet_secret_cave: 'За водоспадом печера! Тут золоті цукерки!',
+  sweet_room_in: 'Який затишний будиночок! Пахне пряниками.',
+  sweet_secret_room: 'У банці пряники-зірочки! Ось твої зірочки.',
+  imbir_room: 'Заходь, у мене вдома затишно!',
   sweet_pet_found: 'Ось де Желейка, між льодяниками! Застрибав до тебе.',
   sweet_pet_follow: 'Желейка стрибатиме з тобою. Тепер ви друзі!',
   sweet_ruby_mill_found: 'Ось він, рубінчик у жорнах! Какао знав, де шукати.',
@@ -160,7 +167,7 @@ const uk = {
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
 const ru: Record<keyof typeof uk, string> = {
   subtitle: 'Сладкая страна', sweet_to_tree: 'К Древу', sweet_part: 'Рубин-леденец!', sweet_count: '{n} из 5',
-  sweet_house: 'Домик', sweet_millstone: 'Жернов',
+  sweet_house: 'Домик', sweet_millstone: 'Жернов', sweet_room: 'Войти', sweet_out: 'Выйти',
   sweet_lemonade: 'Лимонад',
   sweet_house_way: 'Собери домик Имбиря: каждую деталь — на её место.',
   sweet_scales_ask: 'Поставь гирю-леденец, чтобы весы уравновесились.',
@@ -252,6 +259,10 @@ const ru: Record<keyof typeof uk, string> = {
   sweet_secret_cotton: 'Сахарная вата подбрасывает вверх! Что там, на крыше?',
   sweet_secret_lemonade: 'Фонтан лимонада! Смотри, в брызгах радуга!',
   sweet_secret_gum: 'Какой большой пузырь из жвачки! Ой, лопнул — конфетти!',
+  sweet_secret_cave: 'За водопадом пещера! Тут золотые конфеты!',
+  sweet_room_in: 'Какой уютный домик! Пахнет пряниками.',
+  sweet_secret_room: 'В банке пряники-звёздочки! Вот твои звёздочки.',
+  imbir_room: 'Заходи, у меня дома уютно!',
   sweet_pet_found: 'Вот где Желейка, среди леденцов! Запрыгал к тебе.',
   sweet_pet_follow: 'Желейка будет прыгать с тобой. Теперь вы друзья!',
   sweet_ruby_mill_found: 'Вот он, рубинчик в жерновах! Какао знал, где искать.',
@@ -353,6 +364,10 @@ const spoken = {
   sweet_secret_cotton: 'joy',
   sweet_secret_lemonade: 'joy',
   sweet_secret_gum: 'joy',
+  sweet_secret_cave: 'joy',
+  sweet_room_in: 'warm',
+  sweet_secret_room: 'joy',
+  imbir_room: 'warm',
   sweet_pet_found: 'joy',
   sweet_pet_follow: 'warm',
   sweet_ruby_mill_found: 'joy',

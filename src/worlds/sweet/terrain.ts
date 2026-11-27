@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
-import { BRIDGE, EDGE, HALF, PATHS, RIVER, RIVER_HALF, type Place } from './layout';
+import { BRIDGE, EDGE, HALF, PATHS, RIVER, RIVER_HALF, ROOM, type Place } from './layout';
 
 /**
  * The ground of the Sweet Land, the grey build (WORLD-12): a gentle sugary relief, the bed of the chocolate river, the
@@ -41,7 +41,14 @@ export const onBridge = (x: number, z: number) => {
 /** m: how deep the river's bed lies under the banks: a shallow stream of chocolate (it stands still at the magic 0). */
 export const RIVER_DEPTH = 0.7;
 
+/** Is (x, z) in Imbir's room (./room.ts), its walls and a margin round them. */
+export const inRoom = (x: number, z: number) => Math.abs(x - ROOM.x) < ROOM.half + 2 && Math.abs(z - ROOM.z) < ROOM.half + 2;
+/** m round the room where the ground is its floor: the camera behind her inside stands on it, not in the rim. */
+export const ROOM_CAMERA_REACH = 6;
+const underRoom = (x: number, z: number) => Math.abs(x - ROOM.x) < ROOM.half + ROOM_CAMERA_REACH && Math.abs(z - ROOM.z) < ROOM.half + ROOM_CAMERA_REACH;
+
 export function height(x: number, z: number): number {
+  if (underRoom(x, z)) return ROOM.y;
   let h = (fbm(x * 0.03 + 6.2, z * 0.03 + 1.7) - 0.5) * 2.2;
   // the ways and the zones lie a little flatter
   h *= 0.5 + 0.5 * smoothstep(1.5, 6, pathDist(x, z));
@@ -113,6 +120,12 @@ export function resolve(p: { x: number; z: number; y?: number }, radius: number)
     if (c.under !== undefined && p.y !== undefined && p.y >= c.under) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius, d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
+  }
+  // in Imbir's room: its walls keep her, not the edge of the map
+  if (inRoom(p.x, p.z)) {
+    const m = ROOM.half - radius;
+    p.x = Math.min(ROOM.x + m, Math.max(ROOM.x - m, p.x)); p.z = Math.min(ROOM.z + m, Math.max(ROOM.z - m, p.z));
+    return;
   }
   const d = Math.hypot(p.x, p.z), max = HALF - EDGE;
   if (d > max) { p.x *= max / d; p.z *= max / d; }
