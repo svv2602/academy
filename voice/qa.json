@@ -8616,5 +8616,13 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sea/sea_secret_grotto": {
+  "text": "Грот за водоростями! Дивись, як світяться корали.",
+  "heard": "Грод за водоростями, дивися, як світяться корали!",
+  "score": 0.957,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

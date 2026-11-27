@@ -4229,6 +4229,11 @@
   "tp": -3.17,
   "sha256": "392b3584f08b9ea36455075666272abbeca9d4b0426d96f3d91668c33599874b"
  },
+ "worlds-data/sea/voice/sea/sea_secret_grotto.mp3": {
+  "lufs": -18.03,
+  "tp": -3.14,
+  "sha256": "d4a0a0655dccc0061b4e626f7d4fee7c71a3b3913d797281b960ce68720cf196"
+ },
  "worlds-data/sea/voice/sea/sea_secret_lift.mp3": {
   "lufs": -18.03,
   "tp": -6.0,
