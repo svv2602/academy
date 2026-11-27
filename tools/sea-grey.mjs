@@ -29,7 +29,7 @@ import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { passEnv, passProblems } from './sea-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -140,7 +140,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   /** Seconds of game time, waited for frame by frame. */
   const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
   // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
-  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
   const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
@@ -249,8 +250,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
     }
     // the lookout: she on its top, faced toward the middle of the map, the whale halfway across high over it
     await page.evaluate((l) => { const h = __game.hero.root.position; h.set(l.x, l.top + __game.seaMap.swim, l.z); const d = Math.hypot(l.x, l.z); const yaw = Math.atan2(l.x / d, l.z / d); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; __game.seaSecrets.showWhale(); }, sec.lookout);
-    // the whale crosses by game time: its wait stays whole in --budget too (the sea's heaviest point)
-    await gameSettle(5);
+    // the whale crosses by game time: the same 5 s in --budget too, in its big steps (the sea's heaviest point)
+    await settle(5);
     secretDraws.push({ secret: 'whale', ...(await draw()), shown: await page.evaluate(() => __game.seaSecrets.whale() !== null) });
     await shot({ path: join(out, `${tag}-secret-whale.png`) });
     // the grotto: from 5 m before its curtain toward its shell, and inside by the shell, faced out through the curtain

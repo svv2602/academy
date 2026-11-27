@@ -49,7 +49,7 @@ import { checkDistSize, sizeSummary } from './dist-size.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { greyWorldFiles } from './vite-worlds.mjs';
 import { GREY_DIST, hubWay, serveDir } from './hub-grey.mjs';
-import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 
 // The pure helpers of the routes live in ./grey-route.mjs (no browser in it); the forest's test and tools import them
 // from here too.
@@ -177,7 +177,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   /** Seconds of game time, waited for frame by frame. */
   const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
   // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
-  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
   const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);

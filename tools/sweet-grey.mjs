@@ -38,7 +38,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
-import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { reportProblems } from './world-pass.mjs';
@@ -222,7 +222,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   /** Seconds of game time, waited for frame by frame. */
   const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
   // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
-  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
   const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
@@ -312,8 +313,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
     // the machine: she before it, faced to it, the bubble halfway blown
     await stand(sec.gum.stand, sec.gum.at);
     await page.evaluate(() => __game.sweetSecrets.blow());
-    // the bubble grows by game time: its wait stays whole in --budget too
-    await gameSettle(0.9);
+    // the bubble grows by game time: the same 0.9 s in --budget too
+    await settle(0.9);
     secretDraws.push({ secret: 'gum', ...(await draw()), shown: await page.evaluate(() => __game.sweetSecrets.bubble() !== null) });
     await shot({ path: join(out, `${tag}-secret-gum.png`) });
   }

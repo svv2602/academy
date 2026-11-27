@@ -35,17 +35,29 @@ export function overBudget(views, tour, budget = BUDGET) {
  * `--budget` of the grey walkthroughs (the CI job "budget", .github/workflows/ci.yml): the draw of every point only - no
  * walk of the paths, no pictures, no checks of the look. Under the runner's software drawing a frame takes about a
  * second and the game's time steps 0.05 s a frame (src/game/loop.ts), so the seconds of game time the full measure waits
- * at a point were minutes there. A point is measured BUDGET_FRAMES frames after she is put on it, the camera put at once
- * where it would come to rest (src/game/debug.ts settleCamera) and the world's things near her shown (their `update`).
+ * at a point were minutes there. A point waits as much game time as the full measure, in BUDGET_FRAMES frames at least
+ * and steps of BUDGET_STEP s at most (src/game/debug.ts stepFrames), the camera put at once on the first where it would
+ * come to rest (settleCamera): what moves by game time - the camera's glides, a size growing, the tour's camera giving
+ * way - stands as in the full measure, on a fast drawing and a slow one alike.
  */
-export const BUDGET_FRAMES = 4;
-/** Waits BUDGET_FRAMES frames of `page`, the camera snapped on the first. */
-export const budgetSettle = (page) => page.evaluate((n) => new Promise((r) => {
+export const BUDGET_FRAMES = 4, BUDGET_STEP = 0.3;
+/** How many frames a wait of `s` s of game time takes in the budget's measure. */
+export const budgetFrames = (s) => Math.max(BUDGET_FRAMES, Math.ceil(s / BUDGET_STEP - 1e-9));
+/**
+ * s of game time waited once, before the first point: the start of the world settles (the camera is still turned by
+ * the game's start for about 1.5 s after the play button, src/game/start.ts; the full measure walks the paths first and
+ * never saw it). Without it the first views stood off by tens of metres and read lower.
+ */
+export const BUDGET_WARM_S = 3;
+/** Waits `s` s of game time (1.2 by default, the full measure's wait at a point) in budgetFrames(s) frames of `page`, the camera snapped on the first. */
+export const budgetSettle = (page, s = 1.2) => page.evaluate(([n, s]) => new Promise((r) => {
   __game.settleCamera();
+  __game.stepFrames(s / n);
   let k = 0;
-  const f = () => (++k >= n ? r() : requestAnimationFrame(f));
+  // the game's frame runs before this one in each frame (it asked for it first): n of these, n frames of the game
+  const f = () => { if (++k >= n) { __game.stepFrames(null); r(); } else requestAnimationFrame(f); };
   requestAnimationFrame(f);
-}), BUDGET_FRAMES);
+}), [budgetFrames(s), s]);
 
 /** m along a line of points. */
 export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - line[i].x, p.z - line[i].z), 0);

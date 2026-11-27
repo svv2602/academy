@@ -28,7 +28,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
-import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, BUDGET_WARM_S, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
 import { worldPassProblems } from './world-pass.mjs';
 
@@ -190,7 +190,8 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   /** Seconds of game time, waited for frame by frame. */
   const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
   // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
-  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const settle = budget ? (s) => budgetSettle(page, s) : gameSettle;
+  if (budget) await settle(BUDGET_WARM_S);
   const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
@@ -277,7 +278,7 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   flight.plan = await page.evaluate(() => { window.__flight = null; void __game.skyShip.fly(true).then((t) => { window.__flight = t; }); return __game.skyShip.flySeconds; });
   for (const k of [0.25, 0.5, 0.75]) {
     // --budget: the ship put at the point of its way (src/worlds/sky/ship.ts seek), not flown there in game time
-    if (budget) { await page.evaluate((k) => __game.skyShip.seek(k), k); await settle(); } else await settle(flight.plan * 0.25);
+    if (budget) { await page.evaluate((k) => __game.skyShip.seek(k), k); await settle(1.2); } else await settle(flight.plan * 0.25);
     flight.draws.push({ at: k, ...(await draw()) });
     if (k === 0.5) await shot({ path: join(out, `${tag}-flight.png`) });
   }
