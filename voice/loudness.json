@@ -1884,6 +1884,21 @@
   "tp": -2.57,
   "sha256": "55b1444e5aa08170bc7ef49e689704b95b079c51bb9bf477b53f4c5e0aabf6d5"
  },
+ "public/voice/board_again.mp3": {
+  "lufs": -17.98,
+  "tp": -1.82,
+  "sha256": "ed0e8cfe110d287a47aa136a379053b561c790c38b1b2c2ce323a310f7583814"
+ },
+ "public/voice/board_done.mp3": {
+  "lufs": -17.97,
+  "tp": -2.7,
+  "sha256": "aebc677f80ea5729c59062332761a7729958780762aec18fe52c86055f0a2f67"
+ },
+ "public/voice/board_hi.mp3": {
+  "lufs": -17.96,
+  "tp": -2.89,
+  "sha256": "837e27fbfd63040b2bb4652551b96d6dd2af5d8883ad1dcc2467c973c21de00d"
+ },
  "public/voice/break_1.mp3": {
   "lufs": -18.08,
   "tp": -3.05,

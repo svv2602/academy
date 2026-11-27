@@ -230,13 +230,14 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   ground.block(BOARD.x, BOARD.z, BOARD.r);
   const boardAt = new THREE.Vector3(BOARD.x, 0, BOARD.z);
   const training = { skill: null as string | null, end: null as 'done' | 'closed' | null };
-  const openTrainer = () => openBoard({ save, pause: (v) => { g.paused = v; if (v) g.speech.caption(null); },
+  const openTrainer = () => openBoard({ save, pause: (v) => { g.paused = v; if (v) g.speech.caption(null); }, say: () => { void g.speech.line('board_hi', 'hint', 5000); },
     pick: (skill) => {
       training.skill = skill; training.end = null;
       // the stage of src/game/context.ts taken when wanted: the hub's tests read this file without the game's canvas
       void import('../../game/context').then(({ createStage }) => playScene(createStage(g, () => {}), `board ${skill}`, async () => {
         g.cam.focus = g.above(boardAt, 0.6);
-        training.end = await runTraining(g, skill);
+        // the cat's word at the end: of a day going on from yesterday, or of any other
+        training.end = await runTraining(g, skill, (again) => g.speech.line(again ? 'board_again' : 'board_done', 'story'));
       })).finally(() => { g.cam.focus = null; training.skill = null; });
     } });
   // the pet that walks after her plays round the ring of mushrooms while she stands by the stump (./ring-play.ts)
