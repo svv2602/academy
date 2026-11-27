@@ -32,7 +32,9 @@ export function boardGeometry(): THREE.BufferGeometry {
   // chalk marks: "1 + 2" in strokes, a line under it; a stick of chalk on the ledge
   const chalk = '#f4f1e6';
   const marks = [
-    [-0.28, 1.3, 0.04, 0.2], [-0.06, 1.3, 0.16, 0.04], [-0.06, 1.3, 0.04, 0.16], [0.2, 1.36, 0.14, 0.04], [0.2, 1.24, 0.14, 0.04], [0.27, 1.3, 0.04, 0.12],
+    // "1", "+", then "2": its top, its right upper side, its middle, its left lower side, its foot
+    [-0.28, 1.3, 0.04, 0.2], [-0.06, 1.3, 0.16, 0.04], [-0.06, 1.3, 0.04, 0.16],
+    [0.21, 1.385, 0.14, 0.035], [0.265, 1.345, 0.035, 0.08], [0.21, 1.3, 0.14, 0.035], [0.155, 1.255, 0.035, 0.08], [0.21, 1.215, 0.14, 0.035],
     [0, 1.05, 0.62, 0.03],
   ].map(([x, y, w, h]) => paint(new THREE.BoxGeometry(w, h, 0.01).rotateX(tilt).translate(x, y, 0.16), chalk));
   const stick = paint(new THREE.BoxGeometry(0.14, 0.04, 0.04).translate(0.25, 0.77, 0.22), chalk);
