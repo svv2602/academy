@@ -8665,6 +8665,38 @@
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
+ "sweet/sweet_secret_cave": {
+  "text": "За водоспадом печера! Тут золоті цукерки!",
+  "heard": "За водоспадом печера, тут золоті цукерки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_room_in": {
+  "text": "Який затишний будиночок! Пахне пряниками.",
+  "heard": "Який затишний будиночок! Пахне пряниками.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/sweet_secret_room": {
+  "text": "У банці пряники-зірочки! Ось твої зірочки.",
+  "heard": "У банці пряники-зірочки. Ось твої зірочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "sweet/imbir_room@Leda": {
+  "text": "Заходь, у мене вдома затишно!",
+  "heard": "Заходь, у мене вдома затишно.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
  "forest/forest_secret_hollow": {
   "text": "Ми всередині дерева Шустрика! Скільки тут горішків!",
   "heard": "Ми всередині дерева Шустрика. Скільки тут горішків!",

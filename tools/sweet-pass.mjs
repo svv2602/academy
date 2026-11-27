@@ -21,7 +21,7 @@ export function passEnv(base, out) {
 
 /**
  * What is wrong with the report of the walkthrough (`report`: the parsed E2E_WORLD_OUT, null - none): [] when it came to
- * its end, online, every kind done, both rubies of the world in its description, the four secrets found, every task of
+ * its end, online, every kind done, both rubies of the world in its description, the six secrets found, every task of
  * the world played and recorded as it must be, its description checked against the numbers of the template.
  */
 export function passProblems(report, size = 'mobile') {

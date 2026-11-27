@@ -984,7 +984,7 @@ async function main() {
     const next = buildWorlds(dist);
     if (!next.includes('sweet')) throw new Error(`the published build ${dist} has no Sweet Land among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the Sweet Land', dist, join('shots-e2e', 'worlds-published', 'sweet'), (out) => sweetPubPassEnv(process.env, out), sweetPubPassTimeoutMs(process.env), sweetPubPassProblems,
-      'the Sweet Land of the published build: played by its description from its entry to its finale, its four secrets found');
+      'the Sweet Land of the published build: played by its description from its entry to its finale, its six secrets found');
   } catch (e) { fail(e.message); }
   // ---- the part "sky": the walkthrough of the published Sky Islands in the published build (tools/sky-pass.mjs) ----
   // as the Sweet Land's, held to the numbers of the template; its own limit, the grey walkthrough's (tools/sky-grey.mjs)
