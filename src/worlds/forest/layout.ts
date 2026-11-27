@@ -105,14 +105,24 @@ export const ALTAR = { x: ZONES.oak.x, z: ZONES.oak.z + 7 };
  * The secrets of the forest (PLAY-10, docs/worlds/world-2.md «Секреты»), off the paths and away from the zones (./secrets.ts):
  * - the cave behind the little waterfall on the stream's north bank, its curtain to the stream (`face`: the heading out);
  * - the hollow of the singing fireflies, an old tree west of the way from the stream to the Ash;
- * - the ring of fairy mushrooms between the central glade's way to the village and the way to the Oak.
+ * - the ring of fairy mushrooms between the central glade's way to the village and the way to the Oak;
+ * - the cave under the roots of an uprooted tree between the maze and the grove.
  * The mushroom trampoline stands in the village by one of its houses (./secrets.ts `trampolineOf`).
  * No tree of the forest grows within `clear` m of one (./scenery.ts placeTrees).
  */
 export const CAVE = { ...at(36, 5), face: 0, clear: 7 };
 export const SONG_TREE = { ...at(12, 26), clear: 5 };
 export const FAIRY_RING = { ...at(4, -20), r: 1.9, clear: 5 };
-export const SECRET_CLEARINGS: readonly { x: number; z: number; clear: number }[] = [CAVE, SONG_TREE, FAIRY_RING];
+/**
+ * The cave under the roots (the customer's word of 2026-11-27: a secret place to explore): a mound under an uprooted
+ * tree between the maze and the grove, east of the way between them, its opening turned to that way (`face`: the
+ * heading out). The one stretch of that side the paths, the zones and the maze leave clear (./secrets.test.ts).
+ */
+export const ROOTS = (() => {
+  const p = at(-11, 20), to = { x: (ZONES.maze.x + ZONES.grove.x) / 2, z: (ZONES.maze.z + ZONES.grove.z) / 2 };
+  return { ...p, face: Math.atan2(to.x - p.x, to.z - p.z), clear: 7 };
+})();
+export const SECRET_CLEARINGS: readonly { x: number; z: number; clear: number }[] = [CAVE, SONG_TREE, FAIRY_RING, ROOTS];
 
 /**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m.

@@ -23,7 +23,7 @@ import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, ROOTS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
@@ -32,6 +32,7 @@ import { FIND_CLEAR, buildUndergrowth, loadUndergrowth, placePlants } from './un
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
 import { CAVE_FLAG, FOREST_SECRETS, SONG_FLAG, createForestSecrets } from './secrets';
+import { ROOTS_R } from './roots';
 import { FOREST_STORIES } from './story';
 import { strings } from './strings';
 import { voices } from './voices';
@@ -202,7 +203,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
   const hubWay = createHubWay(g);
   buildDecor(scene, L.decor, bridges());
-  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, FRIEND_CLEAR()));
+  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, [...FRIEND_CLEAR(), { x: ROOTS.x, z: ROOTS.z, r: ROOTS_R + 1.5 }]));
   const fireflies = buildFireflies(scene);
   // the magic of the forest (WORLD-09): from the leaves in the save; after what it lights, before the frame moves the fireflies
   const magic = createForestMagic(g, scope, { sky, fireflies, characters: FRIENDS });
@@ -243,7 +244,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   let heapGone = ws.flags[PET_FLAG] === true;
   heap.visible = !heapGone;
 
-  // ----- the secrets (PLAY-10, ./secrets.ts): the cave, the trampoline's roof, the singing fireflies, the fairy ring -----
+  // ----- the secrets (PLAY-10, ./secrets.ts): the cave, the trampoline's roof, the singing fireflies, the fairy ring, the roots -----
   const secrets = createForestSecrets(g, scope, L.chest);
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
@@ -418,7 +419,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and where it stands, for their pictures and their draw calls
-        forestSecrets: { at: secrets.at, look: { cave: secrets.debug.chest }, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
+        forestSecrets: { at: secrets.at, look: { cave: secrets.debug.chest }, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING, roots: ROOTS }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
@@ -466,7 +467,7 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   sky: buildSky,
   load: loadForest,
   build: buildForest,
-  // PLAY-10: the four secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
+  // PLAY-10: the five secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
   collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
