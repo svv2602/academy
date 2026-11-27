@@ -107,3 +107,22 @@ export function camDistance(aspect: number) {
 export function tuningText() {
   return TUNING_KEYS.map((k) => `${k} = ${+tuning[k].toFixed(4)}`).join('\n');
 }
+
+/**
+ * The cat's sparkles to the next goal (src/game/guide.ts, the customer's word of 2026-11-27: «да, делаем»): how they
+ * fade world by world. `trail` - shown whenever there is a goal (the fairies, the forest, the hub); `idle` - only after
+ * `idleS` seconds of game time with no progress (a step of a chain, a find, a task); `flash` - after `idleS`, not the
+ * trail but a short flash towards the goal, `flashS` out of every `flashEveryS`, `flashM` metres long. A tap on the cat
+ * shows the whole trail at once for `askedS`. Not sliders of the panel: plain numbers.
+ */
+export const GUIDE = {
+  worlds: {
+    sea: { mode: 'idle', idleS: 30 },
+    sweet: { mode: 'flash', idleS: 60 },
+    sky: { mode: 'flash', idleS: 60 },
+  } as Record<string, { mode: 'idle' | 'flash'; idleS: number }>,
+  askedS: 20,
+  flashS: 1.5,
+  flashEveryS: 8,
+  flashM: 4,
+} as const;

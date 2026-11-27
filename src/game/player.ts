@@ -4,6 +4,7 @@ import { input } from '../core/input';
 import { GRAVITY, tuning } from '../core/tuning';
 import { el, setAct } from '../ui/ui';
 import { catTap } from '../ui/welcome';
+import { guideState } from './guide-rule';
 import { CAT_TAP_Y } from './companion';
 import { SWIM_NAMES } from './hero';
 import { createRipple } from './ripple';
@@ -112,7 +113,8 @@ export function createPlayer(g: Game): Player {
           if (to === 'spot' && spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
           // A tap on the cat asks it to say its line again - or, with the bubble empty, where we stopped (PLAY-21) -,
           // not to walk to it. (In the butterflies task the cat is out of the frame.)
-          else if (to === 'cat') catTap(g);
+          // ...and shows the way at once: the whole trail of sparkles for a while (src/game/guide.ts)
+          else if (to === 'cat') { catTap(g); guideState.ask(); }
           else {
             ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera);
             if (g.ground.raycast(ray.ray.origin, ray.ray.direction, v)) {

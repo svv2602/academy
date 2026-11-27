@@ -17,6 +17,7 @@ import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
 import { easelState } from '../ui/easel';
+import { guideState, type HintsChoice } from './guide-rule';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -174,6 +175,15 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * here, or open already); `card` - the open card (src/ui/easel.ts): whether open, the cells set, the pieces lying by
      * it; `setAll()` - every piece lying by it dropped on its cell, as a finger would.
      */
+    /**
+     * The cat's sparkles (src/game/guide.ts): what they show now, the seconds with no progress, whether a tap on the cat
+     * asked for the way; `choice(c)` sets the parent's choice, `ask()` asks as a tap on the cat does.
+     */
+    guide: {
+      get state() { const { show, quiet, asked, choice } = guideState; return { show, quiet, asked, choice }; },
+      choice: (c: HintsChoice) => { guideState.choice = c; },
+      ask: () => guideState.ask(),
+    },
     easel: {
       open: () => g.easel.open(),
       get card() { return { open: easelState.open, set: [...easelState.set], loose: [...easelState.loose] }; },
