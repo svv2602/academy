@@ -82,7 +82,7 @@ describe('the answers in the save', () => {
     expect(loadSave().answers).toEqual(s.answers);
     expect(loadSave().skillDays).toEqual(s.skillDays);
     const raw = JSON.parse(localStorage.getItem('amw-save')!);
-    expect(raw.v).toBe(4);
+    expect(raw.v).toBe(5);
     raw.answers = { add: [{ t: 'add', ok: 1, d: '2026-11-26' }, { t: 3, ok: 1, d: 'x' }, null, { t: 'sub', ok: 2, d: '2026-11-26' }], sub: 'no' };
     raw.skillDays = { '2026-11-26': { add: { n: 2, ok: 3, ms: 0, k: 0 }, sub: { n: 1, ok: 1, ms: 0, k: 0 } }, nope: {} };
     localStorage.setItem('amw-save', JSON.stringify(raw));

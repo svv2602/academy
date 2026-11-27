@@ -6,17 +6,29 @@
 import type { Save } from '../core/save';
 import { noteAnswer } from './answers';
 
-/** The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory, classify. */
-export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention' | 'assemble';
-/** Every skill, in the order the parents' section lists them. */
-export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble'];
 /**
- * The skills that are not shown to the grown-ups until a task of theirs is played: attention ("find the differences",
- * LEARN-18) and assembling a picture (the puzzle, LEARN-19) are played from the second world on - a row of zeroes for a child who has not been there says nothing.
+ * The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory,
+ * classify. Season 2 (save version 5, PROPOSAL §3): English words by ear, English phrases and commands, an English word
+ * read, reading in Ukrainian.
  */
-export const LATE_SKILLS: readonly SkillId[] = ['attention', 'assemble'];
-/** The skills to show for this save: every one, but a late one with no task played yet. */
-export const shownSkills = (s: Save): SkillId[] => SKILLS.filter((k) => !LATE_SKILLS.includes(k) || (s.skills[k]?.tasks ?? 0) > 0);
+export type SkillId = 'count' | 'add' | 'sub' | 'compare' | 'series' | 'pattern' | 'memory' | 'classify' | 'compose' | 'attention' | 'assemble'
+  | 'en_words' | 'en_phrases' | 'en_read' | 'read';
+/** Every skill, in the order the parents' section lists them. */
+export const SKILLS: readonly SkillId[] = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble',
+  'en_words', 'en_phrases', 'en_read', 'read'];
+/**
+ * The skills that are no field of a fresh save, until their first task is recorded: attention ("find the differences",
+ * LEARN-18) and assembling a picture (the puzzle, LEARN-19) are played from the second world on; an English word read
+ * opens only at level 3 of English words (`isOpen`).
+ */
+export const LATE_SKILLS: readonly SkillId[] = ['attention', 'assemble', 'en_read'];
+/** The skills of Season 2: none of them has a task yet in step 2's first wave (the parents' rows come with part P). */
+export const SEASON2_SKILLS: readonly SkillId[] = ['en_words', 'en_phrases', 'en_read', 'read'];
+/**
+ * The skills to show for this save: every one, but a late one or one of Season 2 with no task played yet - a row of
+ * zeroes for a child who has not played it says nothing.
+ */
+export const shownSkills = (s: Save): SkillId[] => SKILLS.filter((k) => !(LATE_SKILLS.includes(k) || SEASON2_SKILLS.includes(k)) || (s.skills[k]?.tasks ?? 0) > 0);
 /** The counters of one skill, as the save keeps them. */
 export type SkillStat = Save['skills'][string];
 
@@ -27,14 +39,26 @@ export type SkillStat = Save['skills'][string];
 export const LEVELS: Readonly<Record<SkillId, readonly [min: number, max: number]>> = {
   count: [1, 5], add: [1, 5], sub: [1, 5], compare: [1, 5], series: [1, 5],
   pattern: [1, 5], memory: [1, 5], classify: [1, 5], compose: [3, 5], attention: [1, 5], assemble: [1, 5],
+  en_words: [1, 5], en_phrases: [1, 5], en_read: [1, 5], read: [1, 5],
 };
 
 /**
- * The counters of a skill as the save has them, or fresh ones at its first level: a late skill (LATE_SKILLS) is no
+ * The level a skill starts at, when it is not its lowest (PROPOSAL §3): she already learns English, so words and phrases
+ * start at 2, and reading at 3; unlike the composition of a number (whose lowest is 3) each may go down to 1.
+ */
+export const START: Readonly<Partial<Record<SkillId, number>>> = { compose: 3, en_words: 2, en_phrases: 2, read: 3 };
+/** The level skill `k` starts at. */
+export const startLevel = (k: SkillId) => START[k] ?? LEVELS[k][0];
+
+/** Whether the tasks of a skill may be given: an English word read opens at level 3 of English words; the rest always. */
+export const isOpen = (s: Save, k: SkillId) => k !== 'en_read' || levelFor(s, 'en_words') >= 3;
+
+/**
+ * The counters of a skill as the save has them, or fresh ones at its start level: a late skill (LATE_SKILLS) is no
  * field of a save until its first task is recorded (`recordTask` writes it) - an optional key, no new version.
  */
 export function statOf(s: Save, skill: SkillId): SkillStat {
-  return s.skills[skill] ?? { level: LEVELS[skill][0], streak: 0, tasks: 0, first: 0, errors: 0 };
+  return s.skills[skill] ?? { level: startLevel(skill), streak: 0, tasks: 0, first: 0, errors: 0 };
 }
 
 /** A level brought within the skill's own levels. */

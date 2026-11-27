@@ -16,8 +16,14 @@
  * So did the potions and the compass (src/game/supplies.ts): her stock (`supplies`) and the seconds left of what acts
  * (`effects`): absent until the first purchase, a damaged count is none. So did the helpers of a task taken by day
  * (`helps`), for the parents.
+ * Version 5 (Season 2, step 2; idea/proposal/season2-step2-plan-2026-11-27, part A): four skills more (`en_words`,
+ * `en_phrases` and `read` from their start levels, `en_read` a late one), the subjects of the last tasks (`recent`),
+ * Pip (`pip`), the notes found (`notes`), the words of the book (`words`), the parent's shares of the subjects
+ * (`shares`) and English on or off (`english`). The move from version 4 only adds them: nothing of a version 4 save is
+ * changed or dropped.
  * Fields this code does not know (written by a later version) are kept on every level and written back as they are.
  */
+import { RECENT_KEPT, SUBJECTS, isShare, isSubject, type PipState, type Share, type Subject } from '../s2/types';
 import { isTier, type Tier } from './quality';
 import { CONTROL_IDS, CONTROL_STEPS, type Controls } from './tuning';
 /**
@@ -167,6 +173,21 @@ export interface Save {
    * before which no break is offered (after one declined). Not `playMinutes`: those are by day, for the parents.
    */
   session?: SessionTime;
+  /**
+   * The subjects of the last tasks the planner counts (version 5, layout §4.3), the oldest first: at most RECENT_KEPT.
+   * The shares of the subjects are counted over them.
+   */
+  recent: Subject[];
+  /** Pip (version 5): met or not, the pieces of his map found, the colour of his cap. */
+  pip: PipState;
+  /** The notes for reading found (version 5, part D2), by id, in the order found; ids of a later version are kept. */
+  notes: string[];
+  /** The words of the talking book she has met (version 5, part H), by id of WORDS in src/s2/types.ts, in the order met. */
+  words: string[];
+  /** The parent's share of each subject (version 5, layout §4.4): x0.5, x1 or x1.5; a subject of a later version is kept. */
+  shares: Record<Subject, Share>;
+  /** English is on (version 5, layout §4.4): off - no English task, Pip flies away, no golden stars. On by default. */
+  english: boolean;
   vol: { music: number; sfx: number; voice: number };
   // Graphics quality (TECH-04); a save without them gets the defaults.
   tier: Tier;                       // the tier the session runs on now, the next launch starts from it
@@ -240,19 +261,25 @@ export interface Hard { n: number; list: HardExample[] }
 /** The most examples with mistakes a save keeps (LEARN-11: the whole save stays under 20 KB after 500 tasks). */
 export const HARD_MAX = 20;
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 /** The colour the petals always had: a save written before the colour could be chosen gets it. No new version. */
 export const WING_COLOR = '#d8f6ff';
 const KEY = 'amw-save';
 /** The skills a fresh save counts: the ids of src/game/skills.ts (save.test.ts checks that the two lists agree). */
 /** The pets a save may choose: the ids of PETS of src/game/pets.ts (save.test.ts checks that the two lists agree). */
 const PET_IDS = ['fawn', 'owlet', 'bulchik', 'zheleyka', 'pushok'];
-const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
+const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'en_words', 'en_phrases', 'read'];
 /** The lowest level of a skill whose ladder does not start at 1 (LEVELS of src/game/skills.ts; save.test.ts compares). */
 const FIRST_LEVEL: Record<string, number> = { compose: 3 };
+/**
+ * The level a skill starts at when it is not its lowest (START of src/game/skills.ts; save.test.ts compares): she already
+ * learns English, so words and phrases start at 2, and reading at 3 (PROPOSAL §3) - each may still go down to 1.
+ */
+const START_LEVEL: Record<string, number> = { compose: 3, en_words: 2, en_phrases: 2, read: 3 };
 /** The highest level of every skill. */
 const TOP_LEVEL = 5;
 const firstLevel = (id: string) => FIRST_LEVEL[id] ?? 1;
+const startLevel = (id: string) => START_LEVEL[id] ?? firstLevel(id);
 /** The skills version 3 counted together as "logic": a version 3 save gives each of them a copy of its counters (R01). */
 const LOGIC_SPLIT = ['series', 'pattern', 'memory', 'classify'];
 /** Saves of versions 1 and 2 knew one world: their progress belongs to it. */
@@ -271,9 +298,11 @@ export function defaultSave(): Save {
   return {
     v: SAVE_VERSION, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
-    skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: firstLevel(s), streak: 0, tasks: 0, first: 0, errors: 0 }])),
+    skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: startLevel(s), streak: 0, tasks: 0, first: 0, errors: 0 }])),
     fixed: Object.fromEntries(SKILL_IDS.map((s) => [s, 0])), playMinutes: {}, hard: { n: 0, list: [] },
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: WING_COLOR, achievements: {},
+    recent: [], pip: { met: false, pieces: [], cap: 'purple' }, notes: [], words: [],
+    shares: Object.fromEntries(SUBJECTS.map((k) => [k, 1])) as Record<Subject, Share>, english: true,
     vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},
@@ -315,7 +344,7 @@ export function worldState(s: Save, id: string): WorldState {
 const PREV = `${KEY}-prev`;
 const DAMAGED = `${KEY}-damaged`;
 const versionKey = (v: number) => `${KEY}-v${v}`;
-/** Where a save that cannot be read is restored from, in this order: prev, then v3, v2, v1. */
+/** Where a save that cannot be read is restored from, in this order: prev, then v4, v3, v2, v1. */
 const RESTORE_FROM = [PREV, ...Array.from({ length: SAVE_VERSION - 1 }, (_, i) => versionKey(SAVE_VERSION - 1 - i))];
 
 /** Writes a backup; a full or refused storage must not keep the game from loading. */
@@ -438,9 +467,9 @@ function sessionOf(x: unknown): SessionTime {
   return { ...t, min: amount(t.min) ? t.min : 0, last: amount(t.last) ? t.last : 0, quiet: amount(t.quiet) ? t.quiet : 0 };
 }
 
-/** A level within the levels of skill `id`; anything but a number gives its first level. */
+/** A level within the levels of skill `id`; anything but a number gives its start level. */
 function levelOf(id: string, x: unknown) {
-  return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : firstLevel(id);
+  return typeof x === 'number' && Number.isFinite(x) ? Math.min(TOP_LEVEL, Math.max(firstLevel(id), Math.round(x))) : startLevel(id);
 }
 
 /**
@@ -458,16 +487,42 @@ function fromV3(s: Stored): Stored {
     for (const id of LOGIC_SPLIT) if (!isObject(skills[id])) skills[id] = { ...logic, level: levelOf(id, logic.level) };
   }
   const fix = [1, 2, 3].includes(difficulty) ? difficulty as number : 0;
-  return { ...rest, v: SAVE_VERSION, skills, fixed: Object.fromEntries(SKILL_IDS.map((id) => [id, fix && levelOf(id, fix)])) };
+  return { ...rest, v: 4, skills, fixed: Object.fromEntries(LOGIC_ERA.map((id) => [id, fix && levelOf(id, fix)])) };
+}
+/** The skills of version 4: the ones a version 3 difficulty is fixed for (the skills of version 5 come with nothing fixed). */
+const LOGIC_ERA = SKILL_IDS.slice(0, 9);
+
+/**
+ * A version 4 save in the shape of version 5 (its text stays in amw-save-v4): only the version moves. The fields of
+ * version 5 it lacks - the four skills, `recent`, `pip`, `notes`, `words`, `shares`, `english` - come from the
+ * defaults below (fromStored), each read as absent; nothing of it is changed or dropped.
+ */
+function fromV4(s: Stored): Stored {
+  return { ...s, v: 5 };
+}
+
+/** A list of ids as stored: its strings that are not empty, each once, in their order; anything but a list is none. */
+const idsOf = (x: unknown): string[] => (Array.isArray(x) ? [...new Set(x.filter((id): id is string => typeof id === 'string' && id !== ''))] : []);
+/** Pip as stored: met only when true, the pieces whole numbers each once; the cap is purple, the only colour there is. */
+function pipOf(x: unknown): PipState {
+  const p = part(x);
+  const pieces = Array.isArray(p.pieces) ? [...new Set((p.pieces as unknown[]).filter((n): n is number => Number.isInteger(n) && (n as number) >= 0))] : [];
+  return { ...p, met: p.met === true, pieces, cap: 'purple' };
+}
+/** The shares as stored: a known subject with no known step is "as it is" (1); a subject of a later version is kept. */
+function sharesOf(x: unknown): Record<Subject, Share> {
+  const s = part(x);
+  return { ...s, ...Object.fromEntries(SUBJECTS.map((k) => [k, isShare(s[k]) ? s[k] : 1])) } as Record<Subject, Share>;
 }
 
 /** The save of this version a stored save holds; null for a version this code does not read (a save not to be read). */
 function fromStored(s: Stored, d: Save): Save | null {
-  // Each older version is moved one version up, the oldest first: 1 and 2 to 3, then 3 to 4.
+  // Each older version is moved one version up, the oldest first: 1 and 2 to 3, then 3 to 4, then 4 to 5.
   if (s.v === 2 || s.v === 1) s = fromV2(s);
   if (s.v === 3) s = fromV3(s);
+  if (s.v === 4) s = fromV4(s);
   else if (!(s.v >= SAVE_VERSION)) return null;
-  // v4 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
+  // v5 and later: whatever is stored wins over the defaults, a later version keeps its number, and the worlds
   // (the ones of this version and any other) stay as they are; worldState fills a played world's gaps.
   const worlds = isObject(s.worlds) ? s.worlds : {};
   // Version 3 kept the first world's chest as `chestOpen` before it had flags (never published: a test device).
@@ -475,7 +530,10 @@ function fromStored(s: Stored, d: Save): Save | null {
   if (isObject(first) && 'chestOpen' in first) worlds[FIRST_WORLD] = chestToFlag(first);
   const out = { ...d, ...s, skills: { ...d.skills, ...part(s.skills) }, vol: { ...d.vol, ...part(s.vol) },
     gear: { ...d.gear, ...part(s.gear) }, fixed: { ...d.fixed, ...part(s.fixed) }, playMinutes: part(s.playMinutes), hard: hardOf(s.hard), worlds,
-    achievements: achievementsOf(s.achievements) } as Save;
+    achievements: achievementsOf(s.achievements),
+    // version 5: each read as stored, a damaged one mended; absent (a save moved from version 4) - none yet, English on
+    recent: (Array.isArray(s.recent) ? (s.recent as unknown[]).filter(isSubject) : []).slice(-RECENT_KEPT),
+    pip: pipOf(s.pip), notes: idsOf(s.notes), words: idsOf(s.words), shares: sharesOf(s.shares), english: s.english !== false } as Save;
   // The counters of the achievements, when stored (absent: none yet); a damaged one is mended, not dropped.
   if (s.clean !== undefined) out.clean = cleanOf(s.clean);
   if (s.days !== undefined) out.days = daysOf(s.days);
