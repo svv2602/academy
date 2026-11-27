@@ -117,6 +117,11 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
     'f46a37c1 6a921f91 3375d4f3 2711eda4 703745ef d1b94a5d 59cde7d5 37544058 0b0353c1 4795a402',
     '3d7aeb99 ce702c69 e38d3fa8 24553c80 0d0d18f0 d3ea9f6a 2c239d38 f430580f 1b362124 8e468602',
   ],
+  note: [
+    'd36de8d9 4b2be564 7c2877fe 87b178ef e9da07e0 f53b1d37 1a5825bd 418d707d 31a617b3 d36de8d9',
+    'ae93d1b4 89f992ca 8a952ff6 cbfb135b 293ea2fe cbfb135b b60d204d 7d6e010d ba4d607b 9f46914a',
+    '5b902f72 ff51b2a1 4d3f951f 0bf6f1b2 abb56ce6 8c06bc49 f30e8ab4 f48c09b1 d8003c24 5cdf2f30',
+  ],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

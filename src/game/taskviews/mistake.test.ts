@@ -46,8 +46,8 @@ const TYPES = Object.keys(SKILL) as TaskType[];
 
 describe('after a mistake: "try again", then the whole line of its rung, then what the rung shows', () => {
   // a miss in "find the differences" and in the puzzle is no mistake: their hints come with time (taskviews/diff.ts, puzzle.ts)
-  // "listen and touch" has rungs of no line yet (R25): ./en_tap.test.ts checks its course
-  type Hinted = Exclude<TaskType, 'pairs' | 'diff' | 'puzzle' | 'en_tap'>;
+  // "listen and touch" and the note have rungs of no line yet (R25): ./en_tap.test.ts and ./note.test.ts check their course
+  type Hinted = Exclude<TaskType, 'pairs' | 'diff' | 'puzzle' | 'en_tap' | 'note'>;
   /** The line of rung 1 (the way, said only) of each type on level 1, as HINTS.md has it. */
   const HINT: Record<Hinted, Key> = {
     count: 'h1_count', add: 'h1_add', sub: 'h1_sub', compare: 'h_compare', pattern: 'h_pattern',

@@ -1,0 +1,12 @@
+/* "read the note" (./note.ts): the note on a slip of paper, its words lit by the hint, the pictures or the pebbles */
+.t-note { flex-direction: column; gap: 12px; }
+.t-note .note-paper { max-width: min(92%, 34em); padding: 10px 16px; border-radius: 10px; background: #fffaf0; box-shadow: 0 3px 0 #eadcc2; transform: rotate(-1deg); text-align: center; }
+.t-note .note-text { margin: 0; font-size: 22px; line-height: 1.45; color: #4a3a2a; }
+.t-note .note-w { border-radius: 6px; padding: 0 2px; transition: background-color .15s; }
+.t-note .note-w.lit { background: #ffe58a; }
+.t-note .note-w.key { background: #cfe8ff; box-shadow: inset 0 -3px 0 #5cb8ff; }
+.t-note .note-ru { display: block; margin-top: 4px; font-size: 15px; color: #7a6a8a; }
+.t-note .note-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.t-note .note-pic { white-space: nowrap; }
+.t-note .note-pebbles { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 18em; }
+.t-note .note-pebble { width: 30px; height: 24px; border-radius: 50%; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .15); }
