@@ -32,7 +32,7 @@ describe('the contract of Season 2, step 2 (src/s2/types.ts)', () => {
     expect(enVoice().has('hello')).toBe(false);
     await expect(enVoice().say('hello')).resolves.toBeUndefined();
     const said: string[] = [];
-    const real: EnVoice = { say: async (id) => { said.push(id); }, has: (id) => id === 'hello' };
+    const real: EnVoice = { say: async (id) => { said.push(...[id].flat()); }, has: (id) => id === 'hello' };
     setEnVoice(real);
     expect(enVoice()).toBe(real);
     await enVoice().say('hello');
