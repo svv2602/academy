@@ -75,7 +75,9 @@
 //      Every change asks the gate of the world first (src/game/gate.ts, wired by src/main.ts): a world that is not
 //      downloaded is let in "from the network" and downloaded in full behind the closed frame.
 //      "the files are gone": in another browser the server answers 404 for every file of the probe world; the network
-//      answers, the download does not make the world ready: the change answers false, the game is back in the first
+//      answers. The first change reloads the page once (a 404 is a new version on the site: src/game/travel.ts
+//      `renew`), the save naming the probe world; the launch refuses it and starts in the first world. The next
+//      change: the download does not make the world ready: the change answers false, the game is back in the first
 //      world and the cat says that the network is needed by its recorded clip, the heroine walks and a character
 //      gives a task; with the files back the change goes through. The console may hold only the 404s of those files
 //      (and the game's one "could not load"); anywhere else an error or a warning is a failure.
@@ -1945,6 +1947,20 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       const p = await open(name, true);
       await p.page.goto(`${url}?debug${q}`);
       await p.start();
+      // A 404 for a file of the list is the site holding another version (src/core/worldcache.ts 'changed'): the first
+      // time in a build the page saves the world asked for as the one where she stopped and reloads into the version
+      // on the site (src/game/travel.ts `renew`). Here the files are gone in that version too: after the reload the
+      // launch refuses that world and the game starts in the first one; the next change is refused as without network.
+      const reloaded = p.page.waitForEvent('load', { timeout: T(60000) });
+      void p.g((id) => __game.travel(id), PROBE).catch(() => {});      // the page goes away under it
+      if (!(await reloaded.then(() => true, () => false))) fail(`${name}: the first change with the files gone did not reload the page into the version on the site`);
+      await p.page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });
+      const renewed = await p.g(() => ({ last: JSON.parse(localStorage.getItem('amw-save') ?? '{}').lastWorld, key: sessionStorage.getItem('amw-renewed') }));
+      if (renewed.last !== PROBE) fail(`${name}: before the reload the save names "${renewed.last}" as the world where she stopped, expected "${PROBE}"`);
+      if (!renewed.key) fail(`${name}: the page reloaded without marking its build in the session: it could reload round and round`);
+      await p.start();
+      const launched = await p.g(() => __game.world);
+      if (launched !== FIRST) fail(`${name}: after the reload, the files still gone, the game starts in "${launched}", expected "${FIRST}"`);
       const mark = `mark-${Date.now()}`;
       await p.g((m) => { window.__travelMark = m; __game.teleport(1.5, 11); }, mark);
       await p.until(() => Math.abs(__game.hero.root.position.x - 1.5) < 0.01, null, 'the heroine was not moved');
