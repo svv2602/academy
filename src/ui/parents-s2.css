@@ -11,12 +11,13 @@
 .psubj .pcfoot { grid-column: 1 / -1; }
 .psubj .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; }
 @media (max-height: 480px) {
-  .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; } .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 8px; line-height: 1.15; }
+  #pBody .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; } #pBody .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 8px; line-height: 1.15; }
   .psubj .pnote { margin: 2px 0; }
   .psubj .pen { margin-top: 4px; font-size: 14px; }
 }
 @media (max-aspect-ratio: 5/4) {
   .psubj { grid-template-columns: minmax(0, 1fr); }
-  /* five buttons in 390 px do not fit: "reset", "move", "controls" on a line, "report" and "subjects" on the next */
-  .pset .preset { flex-wrap: wrap; } .pset .preset button { flex: 1 1 30%; }
+  /* five buttons in 390 px do not fit: "report", "move", "controls" on a line, "subjects" and "reset" on the next
+     (#pBody: over the line of style.css that keeps them on one) */
+  #pBody .pset .preset { flex-wrap: wrap; } #pBody .pset .preset button { flex: 1 1 30%; }
 }
