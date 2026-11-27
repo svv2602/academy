@@ -87,8 +87,8 @@ describe('the world of a line (the voice of a next world)', { timeout: 60_000 },
   it('a row of the first world or of the core is written as it always was: three values, nothing after the speaker', () => {
     const rows = text.split('\n').filter((line) => line.startsWith(' "'));
     expect(rows).toHaveLength(Object.keys(file).length);
-    expect(rows.filter((line) => !/^ "[^"]+": \["(?:[^"\\]|\\.)*", "(?:warm|joy|calm)", "[a-z]+"(?:, "[a-z0-9_-]+")?\],?$/.test(line))).toEqual([]);
-    expect(rows.filter((line) => /"(?:warm|joy|calm)", "[a-z]+", "[^"]+"\],?$/.test(line)).map((line) => line.split('"')[1])).toEqual(withWorld);
+    expect(rows.filter((line) => !/^ "[^"]+": \["(?:[^"\\]|\\.)*", "(?:warm|joy|calm|ask)", "[a-z]+"(?:, "[a-z0-9_-]+")?\],?$/.test(line))).toEqual([]);
+    expect(rows.filter((line) => /"(?:warm|joy|calm|ask)", "[a-z]+", "[^"]+"\],?$/.test(line)).map((line) => line.split('"')[1])).toEqual(withWorld);
   });
 
   it('--check names the line whose world differs: one that lost it, and one of the first world that got one', () => {

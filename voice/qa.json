@@ -8659,9 +8659,9 @@
  },
  "npc_harder": {
   "text": "Оце так! А складніше зможеш?",
-  "heard": "Хочеш це так, а складніше зможеш?",
-  "score": 0.912,
-  "style": "joy",
+  "heard": "От все так, а складніше зможеш?",
+  "score": 0.909,
+  "style": "ask",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
