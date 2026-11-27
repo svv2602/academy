@@ -66,6 +66,12 @@ vertices in code, in the islands' colours.
 Pushok, the Sky Islands' cloud lamb (`models-src/sky/pushok.glb`), is made whole in Blender by code for this game, with
 no generated part: our own, the customer's.
 
+Pip, the English-speaking guest of season 2 (`models-unused/pip/pip.glb`, not loaded by the game yet): the mesh and its
+texture were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-26; under Meshy's terms
+for paid plans the model belongs to the customer (not CC0). The cap recoloured purple by the parts of the figure, the
+beak orange. Skeleton (8 bones) and clips (Idle, Walk, Hop, Flap, Yes, Talk): our own, made in Blender for this game by
+the scripts of the proposal `season2-pip-meshy-2026-11-26` (`blender/pip.py`, outside the repository).
+
 The sunken ship of the sea (world 3, 2026-11-22; `models-src/sea/kenney/ship_wreck.glb`, shipped with the world from
 `worlds-data/sea/`): Kenney's "Ship Wreck" (https://poly.pizza/m/4qia78IBmZ, https://kenney.nl) — CC0 1.0 on its page
 (read 2026-11-22); its materials' colours put into its vertices in code. The sea's other landmarks — the castle of
