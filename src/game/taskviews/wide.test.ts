@@ -151,6 +151,8 @@ describe('three addends on the panel', () => {
     // one - at the right one stands the close button of the panel
     expect(css).toMatch(/\.t-chain \.group em, \.t-story \.group em \{ right: -14px; top: -14px; \}/);
     expect(css).toMatch(/@media \(max-aspect-ratio: 5\/4\) \{ \.t-chain \.group em \{ right: auto; left: -14px; \} \}/);
+    // the arrows of a story on a phone held upright: a row of its own each, pointing down - the three pictures in one column
+    expect(css).toMatch(/@media \(max-aspect-ratio: 5\/4\) \{ \.t-story \.then \{ margin: 0 calc\(50% - \.5em\); transform: rotate\(90deg\); \} \}/);
   });
 });
 

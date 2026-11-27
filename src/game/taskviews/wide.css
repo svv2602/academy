@@ -54,6 +54,10 @@
 .t-story .scene.went { background: #f3f0f6; }
 .t-story .scene.done { opacity: .55; }
 .t-story .then { font: 800 clamp(22px, 5vh, 36px)/1 system-ui, sans-serif; color: #b9a3cc; }
+/* A phone held upright: the pictures stand one under the other, and an arrow beside the first two pushed them off the
+   middle the third stands on. There each arrow takes a row of its own - its margins fill the row - and points down, to
+   the picture that follows; the box turned is the arrow alone, it lies over nothing. */
+@media (max-aspect-ratio: 5/4) { .t-story .then { margin: 0 calc(50% - .5em); transform: rotate(90deg); } }
 /* Rung 2: the story as an example in numbers, on a row of its own under the pictures. */
 .t-story .brk { flex: 0 0 100%; height: 0; }
 .t-story .example { flex-wrap: nowrap; align-items: center; gap: 8px; max-width: none; padding: 2px 16px; }

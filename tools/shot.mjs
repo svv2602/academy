@@ -3796,6 +3796,13 @@ try {
           await calm();
           await open(type);
           await calm(); await shot(`task-${type}`); await checkQuestion(type);
+          // a story whose pictures stand one under the other (a phone held upright): in one column - an arrow beside a
+          // picture pushed the first two off the middle the third stood on (seen in the pictures, 2026-11-27)
+          if (type === 'story') {
+            const mids = await g(() => [...document.querySelectorAll('#taskStage .scene')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top)]; }));
+            const stacked = mids.length === 3 && mids[0][1] < mids[1][1] && mids[1][1] < mids[2][1];
+            if (stacked && Math.max(...mids.map((m) => m[0])) - Math.min(...mids.map((m) => m[0])) > 2) errors.push(`wide: ${mode} story: its three pictures stand one under the other and not in one column: their middles at x ${mids.map((m) => m[0]).join(', ')}`);
+          }
           const read = await g(READ[type]);
           if (read.out.length) fail(`${type}: ${read.out.join('; ')}`);
           const options = await g(() => [...document.querySelectorAll('#taskOpts .opt')].map((b) => b.textContent));
