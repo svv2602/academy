@@ -108,10 +108,10 @@ describe('examples with mistakes come back (LEARN-11, R17, R18)', () => {
     expect([back.type, sameness(back), back.level]).toEqual(['missing', sameness(s), 3]);
   });
 
-  it('only addition, take away and the composition of a number are kept; the number house is not', () => {
+  it('only addition, take away, the composition of a number and the English word of "listen and touch" are kept; the number house is not', () => {
     const { save, play } = planner(4);
     for (const type of TYPES) play(type, mistakes(2), levelsOf(type)[0]);
-    expect(save.hard.list.map((h) => h.k.split(':')[0]).sort()).toEqual(['add', 'missing', 'sub']);
+    expect(save.hard.list.map((h) => h.k.split(':')[0]).sort()).toEqual(['add', 'en_tap', 'missing', 'sub']);
   });
 
   it('the example comes back with its question of the bank (R37): the same `ask` as the generator gives', () => {
