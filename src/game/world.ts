@@ -8,6 +8,7 @@ import type { Gate } from './gate';
 import type { Gear } from './gear';
 import type { WorldFrame } from './loop';
 import type { MysteryDef } from './mystery';
+import type { EnPlace } from './worldtasks/en-go';
 import type { EaselDef } from './easel-place';
 import type { ArtifactWorld } from './artifacts';
 import type { CollectDef } from './collections';
@@ -233,6 +234,12 @@ export interface WorldDef<L = unknown, S extends WorldSky = WorldSky> {
    * at least MYSTERY_MIN_SPOTS of them, MYSTERY_COUNT a day. Absent - the world has none.
    */
   readonly mystery?: MysteryDef;
+  /**
+   * LEARN-23: the places a command of Pip can send her to (src/game/worldtasks/en-go.ts): the red flowers and the little
+   * house of the fairies, the big mushrooms of the forest - each 15-25 m from where Pip gives his commands in this
+   * world, clear of its residents (the world's own test holds it). Absent - the world has none.
+   */
+  readonly enPlaces?: readonly EnPlace[];
   /**
    * PLAY-29: where its easel stands (src/game/easel.ts) - she sets on it the pieces of its picture found in the world
    * (CollectDef.picture). Absent, or no picture - none.
