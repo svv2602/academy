@@ -5,6 +5,8 @@ import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { CANDY_BOX, COTTON_CLOUD, FOUNTAIN, GUM_MACHINE, HOUSE, ZONES } from './layout';
 import { paint, paintMaterial, type Part } from './landmarks';
+import { caveOf } from './cave';
+import { roomOf } from './room';
 import { colliders, height, tops } from './terrain';
 
 /**
@@ -31,13 +33,18 @@ import { colliders, height, tops } from './terrain';
  * them casting a shadow (TECH-06).
  */
 export const CHEST_FLAG = 'candy_box', CLOUD_FLAG = 'cotton_cloud', LEMONADE_FLAG = 'lemonade', GUM_FLAG = 'bubble_gum';
-export const SWEET_SECRETS = [CHEST_FLAG, CLOUD_FLAG, LEMONADE_FLAG, GUM_FLAG] as const;
+/**
+ * The secret places (plan sweet-secrets-2026-11-27): the cave behind the chocolate waterfall (./cave.ts) found by
+ * walking up to its basket, Imbir's room (./room.ts) by opening its jar; they call `take` of the secrets.
+ */
+export const CAVE_FLAG = 'choco_cave', ROOM_FLAG = 'ginger_room';
+export const SWEET_SECRETS = [CHEST_FLAG, CLOUD_FLAG, LEMONADE_FLAG, GUM_FLAG, CAVE_FLAG, ROOM_FLAG] as const;
 export type SweetSecret = (typeof SWEET_SECRETS)[number];
 /** How each is done (WorldItem.how): the box and the fountain by the action button, the cloud and the machine by walking. */
-export const SECRET_HOW: Record<SweetSecret, 'act' | 'walk'> = { candy_box: 'act', cotton_cloud: 'walk', lemonade: 'act', bubble_gum: 'walk' };
+export const SECRET_HOW: Record<SweetSecret, 'act' | 'walk'> = { candy_box: 'act', cotton_cloud: 'walk', lemonade: 'act', bubble_gum: 'walk', choco_cave: 'walk', ginger_room: 'act' };
 /** The cat's word of each find (./strings.ts). */
-export const SECRET_WORD: Record<SweetSecret, 'sweet_secret_box' | 'sweet_secret_cotton' | 'sweet_secret_lemonade' | 'sweet_secret_gum'> = {
-  candy_box: 'sweet_secret_box', cotton_cloud: 'sweet_secret_cotton', lemonade: 'sweet_secret_lemonade', bubble_gum: 'sweet_secret_gum',
+export const SECRET_WORD: Record<SweetSecret, 'sweet_secret_box' | 'sweet_secret_cotton' | 'sweet_secret_lemonade' | 'sweet_secret_gum' | 'sweet_secret_cave' | 'sweet_secret_room'> = {
+  candy_box: 'sweet_secret_box', cotton_cloud: 'sweet_secret_cotton', lemonade: 'sweet_secret_lemonade', bubble_gum: 'sweet_secret_gum', choco_cave: 'sweet_secret_cave', ginger_room: 'sweet_secret_room',
 };
 /** s: how long the cat's word of a find waits for the line that sounds to end; longer, it is not said. */
 export const WORD_WAIT = 8;
@@ -195,6 +202,8 @@ export interface SweetSecrets {
   glimmer(): THREE.Vector3[];
   /** The walkthrough's right move by a secret she is at: '' - none here. */
   cheat(): string;
+  /** The find of a secret place (the cave, the room): once - its flag, 3 stars, the cat's word. */
+  take(flag: typeof CAVE_FLAG | typeof ROOM_FLAG, at: THREE.Vector3): void;
   /** Whether a secret is going on (the cloud tossing her, the splash, the bubble blown). */
   active(id: SweetSecret): boolean;
   update(dt: number, time: number, canMove: boolean): void;
@@ -292,7 +301,13 @@ export function createSweetSecrets(g: Pick<Game, 'scene' | 'ws' | 'hero' | 'cat'
 
   return {
     spots,
-    at: { candy_box: { ...bx.front }, cotton_cloud: { ...COTTON_CLOUD }, lemonade: { ...fo.front }, bubble_gum: { ...gm.stand } },
+    at: { candy_box: { ...bx.front }, cotton_cloud: { ...COTTON_CLOUD }, lemonade: { ...fo.front }, bubble_gum: { ...gm.stand }, choco_cave: { ...caveOf().find }, ginger_room: { ...roomOf().jarStand } },
+    take(flag, at) {
+      if (found(flag)) return;
+      give(flag, false, at);
+      g.sparks.burst(at.clone().setY(at.y + 1), '#ffd447', 30, 3);
+      tell(flag);
+    },
     glimmer: () => [
       ...(found(CHEST_FLAG) ? [] : [boxFront]),
       ...(found(CLOUD_FLAG) ? [] : [cloudAt]),

@@ -25,7 +25,7 @@ import { SCALES_STEP, createScales } from './scales';
 import { BRIDGE_STEP, createBridge } from './bridge';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGE, EASEL, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGE, CAVE, EASEL, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { SWEET_STORIES } from './story';
@@ -34,7 +34,9 @@ import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
 import { createSweetCreatures } from './creatures';
 import { createSweetMagic } from './magic';
-import { CHEST_FLAG, SECRET_HOW, SWEET_SECRETS, createSweetSecrets } from './secrets';
+import { CAVE_FLAG, CHEST_FLAG, ROOM_FLAG, SECRET_HOW, SWEET_SECRETS, createSweetSecrets } from './secrets';
+import { caveOf, createChocoCave } from './cave';
+import { createSweetRoom, roomOf } from './room';
 
 /**
  * The Sweet Land (WORLD-04), its grey build (WORLD-12), step 1: the map of docs/worlds/world-4.md in simple shapes at
@@ -225,9 +227,19 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   // the secrets (PLAY-07, ./secrets.ts): the candy box, the cotton cloud, the lemonade fountain, the gum machine; after the
   // creatures, whose places they keep as they were, before the magic, whose paint they take
   const secrets = createSweetSecrets(g, scope);
+  // the secret places (plan sweet-secrets-2026-11-27): the cave behind the chocolate waterfall at the river's end, and
+  // Imbir's room behind his house's door once ruby 2 is taken from its doorway (as the sea's hold behind the cabin)
+  const cave = createChocoCave(g, scope, (at) => secrets.take(CAVE_FLAG, at));
+  const room = createSweetRoom(g, scope, {
+    door: new THREE.Vector3(HOUSE_DOOR.x, groundY(HOUSE_DOOR.x, HOUSE_DOOR.z), HOUSE_DOOR.z), facing: Math.PI / 2,
+    open: () => ws.flags.ruby_house === true,
+    jar: { label: 'open', on: () => ws.flags[ROOM_FLAG] !== true, run: () => secrets.take(ROOM_FLAG, room.jarAt) },
+  });
   // the magic of the Sweet Land (WORLD-09): from the rubies in the save; after the scenery, the characters and the creatures it touches
   const magic = createSweetMagic(g, scope, { sky, scenery, characters: FRIENDS, dancers: npcs.map((n) => n.actor.model), creatures });
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
+  /** The flag that Imbir has asked her into his room (once). */
+  const INVITED = 'heard_room';
 
   // ----- the rubies that lie in the world (WORLD-08): the step `part` of Imbir's and Kakao's chains -----
   const rubies = RUBIES.map((r) => {
@@ -301,7 +313,8 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...SHRINE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
-  const secretItems = SWEET_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
+  // Imbir's room opens with ruby 2: its find comes after that ruby
+  const secretItems = SWEET_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], ...(id === ROOM_FLAG ? { after: ['ruby_house'] } : {}), active: () => secrets.active(id) }));
   // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
   const sceneOn = (id: string) => () => story.active && story.id === id;
   const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
@@ -334,6 +347,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
     frame: {
       spots: [
         // the secrets' first: where one's reach meets a character's, the character's is the button (the last in reach)
+        ...room.spots,
         ...secrets.spots,
         ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         ...rubySpots,
@@ -359,6 +373,11 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
         scales.update(dt, time);
         bridge.update(dt, time, canMove);
         secrets.update(dt, time, canMove);
+        cave.update(time);
+        room.update();
+        // Imbir asks her in once his door leads into the room: the first time she comes near it free
+        if (ws.flags.ruby_house === true && ws.flags[INVITED] !== true && canMove && !speaking()
+          && Math.hypot(hp.x - HOUSE_DOOR.x, hp.z - HOUSE_DOOR.z) < 4) { ws.flags[INVITED] = true; g.persist(); void g.speech.line('imbir_room', 'hint', 5000); }
         // the land waking, told by the cat at the 1st, 3rd and 5th ruby (MAGIC_LINES), in a quiet moment
         quiet = canMove && !g.busy && !player.open && !speaking() ? quiet + dt : 0;
         if (quiet > QUIET) {
@@ -413,7 +432,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
         creatureBody: (i: number) => creatures.bodyOf(creatures.herd.all[i]),
         holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
         // the secrets (./secrets.ts): where each is found and its things, for their pictures and their draw calls
-        sweetSecrets: { at: secrets.at, ...secrets.debug } },
+        sweetSecrets: { at: secrets.at, ...secrets.debug, places: { cave: { ...caveOf(), centre: { x: CAVE.x, z: CAVE.z } }, room: { doorIn: { x: room.doorIn.x, z: room.doorIn.z }, jar: { x: room.jarAt.x, z: room.jarAt.z }, cupboard: roomOf().cupboard } } } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a task in the world open: its right move (the walkthrough's door); the house's or the bridge's step on: she is
       // brought before it (./house.ts, ./bridge.ts `cheat`); else a ruby waiting in the world is taken
