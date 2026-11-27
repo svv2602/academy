@@ -271,8 +271,12 @@ describe('vite.config.ts uses all of it', () => {
     expect(config).toMatch(/chunkFileNames: worldChunkFile\(next\)/);
   });
 
-  it('their folders are left out of the service worker\'s list, next to the bank', () => {
-    expect(config).toMatch(/globIgnores: \['bank\/\*\*', \.\.\.worldGlobs\(next\)\]/);
+  it('their folders are left out of the service worker\'s list, next to the bank and the English clips (en/, Season 2)', () => {
+    expect(config).toMatch(/globIgnores: \['bank\/\*\*', 'en\/\*\*', \.\.\.worldGlobs\(next\)\]/);
+  });
+
+  it('the English clips (en/) have a route of their own into the cache "en", kept in full as the bank', () => {
+    expect(config).toMatch(/urlPattern: \/\\\/en\\\/\[\^\/\]\+\\\.mp3\$\/, handler: 'CacheFirst',\s+options: \{ cacheName: 'en', cacheableResponse: \{ statuses: \[200\] \}, rangeRequests: true,/);
   });
 
   it('the list is written after the plugin that emits the probe world\'s files, and joins the service worker\'s list', () => {

@@ -442,7 +442,8 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
         if (r) return r.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
-        return finaleItem.done() ? null : shrine;
+        // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+        return g.easel.goal() ?? (finaleItem.done() ? null : shrine);
       },
       animate: (_dt, time) => { flies.update(time); hubWay.update(time); player.update(time); },
       focusDist: () => 6.5,

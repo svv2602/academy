@@ -105,6 +105,11 @@ export interface Save {
    */
   days?: { n: number; last: string };
   /**
+   * The trainer of the hub (src/game/trainer.ts): `days` the days in a row she played a session to its end, `last` the
+   * local date of the last one, `paid` the sessions of that day that paid their stars. Absent until the first session.
+   */
+  train?: { days: number; last: string; paid: number };
+  /**
    * The pet walking after the heroine (PLAY-09): an id of src/game/pets.ts, null or absent = none. Which pets are found
    * is `pets` below (and, for a save written before it, the flag `pet` of each pet's own world).
    */
@@ -126,6 +131,11 @@ export interface Save {
    * a damaged step is "normal" (dropped), a control of a later version is kept as it is.
    */
   controls?: Controls;
+  /**
+   * The cat's sparkles (src/game/guide-rule.ts, the parents' section, the customer's word of 2026-11-27): as the world
+   * has them, always, or only when asked by a tap on the cat. Absent or damaged = as the world has them.
+   */
+  hints?: HintsChoice;
   /**
    * The world she was in last (WORLD-01, TECH-09; the hub too): "Continue" opens it, through the gate of worlds
    * (src/main.ts). Written at every entry into a world. Absent, or a world this build does not have: the default world.
@@ -221,6 +231,9 @@ function controlsOf(v: unknown): Controls {
 export const BREAK_CHOICES: readonly number[] = [0, 10, 15, 20, 30];
 /** The minutes before a break of a save that has not chosen (Q8: 20). */
 export const BREAK_DEFAULT = 20;
+/** The parent's choices of the cat's sparkles (Save.hints): as the world has them, always, only when asked. */
+export const HINTS = ['world', 'always', 'asked'] as const;
+export type HintsChoice = (typeof HINTS)[number];
 
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
@@ -451,6 +464,13 @@ function cleanOf(x: unknown): NonNullable<Save['clean']> {
   const run = count(c.run) ? c.run : 0;
   return { ...c, run, best: Math.max(run, count(c.best) ? c.best : 0) };
 }
+/** The trainer's days as stored: a damaged date is none (and no day in a row), a damaged count 1 when a date is known. */
+function trainOf(x: unknown): NonNullable<Save['train']> {
+  const t = part(x);
+  const last = typeof t.last === 'string' && DAY.test(t.last) ? t.last : '';
+  if (!last) return { days: 0, last: '', paid: 0 };
+  return { days: count(t.days) && t.days > 0 ? t.days : 1, last, paid: count(t.paid) ? t.paid : 0 };
+}
 /** The days played as stored: a damaged count is 0 (1 when a last day is known), a damaged date is none. */
 function daysOf(x: unknown): NonNullable<Save['days']> {
   const d = part(x);
@@ -541,6 +561,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The counters of the achievements, when stored (absent: none yet); a damaged one is mended, not dropped.
   if (s.clean !== undefined) out.clean = cleanOf(s.clean);
   if (s.days !== undefined) out.days = daysOf(s.days);
+  if (s.train !== undefined) out.train = trainOf(s.train);
   // The pet chosen, when stored: anything but the id of a known pet is none.
   if (s.pet !== undefined) out.pet = typeof s.pet === 'string' && PET_IDS.includes(s.pet) ? s.pet : null;
   // The pets found, when stored: a damaged list keeps only its ids, each once (an unknown one is a later version's).
@@ -573,6 +594,7 @@ function fromStored(s: Stored, d: Save): Save | null {
       .filter(([day]) => DAY.test(day))
       .map(([day, counts]) => [day, countsOf(counts, (n) => Number.isInteger(n) && n > 0)]));
   }
+  if (s.hints !== undefined) { if (HINTS.includes(s.hints)) out.hints = s.hints; else delete out.hints; }
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);
