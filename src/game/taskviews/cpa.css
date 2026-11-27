@@ -7,3 +7,11 @@
 .cpa-line { flex: 1 0 100%; text-align: center; font: 800 30px/1.2 system-ui, sans-serif; color: #4a2f7a; }
 .it.taken { animation: cpa-take .55s ease-in var(--d, 0ms) forwards; }
 @keyframes cpa-take { to { transform: translate(40px, 30px) scale(.2); opacity: 0; } }
+.cpa-asnum > * { display: none !important; }
+.cpa-asnum::before { content: attr(data-n); font: 800 44px/1 system-ui, sans-serif; color: #4a2f7a; padding: 0 6px; }
+.group.cpa-big .it { font-size: 1.45em; }
+.group.cpa-small .it { font-size: .7em; }
+.road .cell.cpa-off { color: transparent; }
+.cpa-scatter .it { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--r, 0deg)); margin: 6px 10px; }
+.cpa-again { flex: 1 0 100%; justify-self: center; margin: 6px auto 0; min-height: 48px; padding: 6px 18px; border-radius: 999px;
+  background: #f1e6fa; color: #7a4fb0; font: 700 18px/1 system-ui, sans-serif; }

@@ -142,3 +142,5 @@ export const GUIDE = {
  */
 export const CPA: Record<string, 1 | 2 | 3> = { fairy: 1, forest: 2, sea: 2, sweet: 3, sky: 3 };
 export const CPA_LOW = 2;
+/** ms: on the step of numbers the things of a count are shown this long, then hidden; «Ще раз» shows them again. */
+export const CPA_PEEK_MS = 2000;

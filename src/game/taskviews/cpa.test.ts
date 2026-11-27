@@ -110,3 +110,105 @@ describe('"sub" by the step', () => {
     }
   });
 });
+
+/** Opens `type` of `level` with `seed` at `step`; the right and a wrong answer button (none for compare). */
+async function openType(type: 'add' | 'count' | 'compare' | 'neighbors' | 'missing', step: 1 | 2 | 3, level = 2, seed = 5) {
+  document.body.innerHTML = MARKUP;
+  cpaHold.step = step;
+  const { generate } = await import('../tasks');
+  const spec = generate(type, level, mulberry32(seed));
+  void runTask(type, level, hooks, mulberry32(seed));
+  const answer = (spec.body as { answer?: number }).answer;
+  const right = [...opts().querySelectorAll<HTMLElement>('.opt')].find((b) => b.textContent === String(answer));
+  return { spec, right };
+}
+const shownItems = () => all('.it').filter((e) => !e.closest('.cpa-asnum, .hid'));
+
+describe('the other number tasks by the step', () => {
+  it('"add": 1 - two groups of things; 2 - the first group its number; 3 - both numbers; the answer opens the things', async () => {
+    const one = await openType('add', 1);
+    expect(all('.cpa-asnum')).toHaveLength(0);
+    expect(shownItems()).toHaveLength(all('.it').length);
+    const two = await openType('add', 2);
+    const a = (two.spec.body as { a: number }).a;
+    expect(all('.cpa-asnum').map((g) => g.dataset.n)).toEqual([String(a)]);
+    expect(shownItems()).toHaveLength(all('.it').length - a);
+    const three = await openType('add', 3);
+    expect(all('.cpa-asnum')).toHaveLength(2);
+    expect(shownItems()).toHaveLength(0);
+    down(three.right!);
+    expect(all('.cpa-asnum')).toHaveLength(0);
+    void one;
+  });
+
+  it('"count": 2 - scattered; 3 - shown for a moment, then hidden; «Ще раз» shows them again; the answer opens them', async () => {
+    await openType('count', 2);
+    expect(stage().classList.contains('cpa-scatter')).toBe(true);
+    const three = await openType('count', 3);
+    const box = () => stage().querySelector('.cpa-things')!;
+    expect(box().classList.contains('hid')).toBe(false);
+    await vi.advanceTimersByTimeAsync(2100);
+    expect(box().classList.contains('hid')).toBe(true);
+    down(stage().querySelector('.cpa-again')!);
+    expect(box().classList.contains('hid')).toBe(false);
+    await vi.advanceTimersByTimeAsync(2100);
+    expect(box().classList.contains('hid')).toBe(true);
+    down(three.right!);
+    await vi.advanceTimersByTimeAsync(2100);
+    expect(box().classList.contains('hid')).toBe(false);
+  });
+
+  it('"count" 3: once the hint has opened the things they stay, «Ще раз» does not hide them while the cat counts', async () => {
+    const { right } = await openType('count', 3);
+    const box = () => stage().querySelector('.cpa-things')!;
+    const wrong = [...opts().querySelectorAll<HTMLElement>('.opt')].find((b) => b !== right)!;
+    down(wrong); for (let i = 0; i < 10; i++) { await vi.advanceTimersByTimeAsync(500); await breathe(); }
+    down(wrong); for (let i = 0; i < 10 && box().classList.contains('hid'); i++) { await vi.advanceTimersByTimeAsync(500); await breathe(); }
+    expect(box().classList.contains('hid')).toBe(false);
+    down(stage().querySelector('.cpa-again')!);
+    await vi.advanceTimersByTimeAsync(2100);
+    expect(box().classList.contains('hid')).toBe(false);
+  });
+
+  it('"compare": 2 - the bigger number in small things, the smaller in big ones; 3 - the numbers', async () => {
+    const two = await openType('compare', 2);
+    const sizes = (two.spec.body as { groups: [number, number] }).groups;
+    if (sizes[0] !== sizes[1]) {
+      const big = sizes[0] > sizes[1] ? 0 : 1;
+      const groups = all('.group');
+      expect(groups[big].classList.contains('cpa-small')).toBe(true);
+      expect(groups[1 - big].classList.contains('cpa-big')).toBe(true);
+    }
+    await openType('compare', 3);
+    expect(all('.group.digits')).toHaveLength(2);
+    expect(all('.it')).toHaveLength(0);
+  });
+
+  it('"neighbors": 2 - the track without its other numbers; 3 - the number and "?" alone; the hint shows the track', async () => {
+    await openType('neighbors', 2, 4);
+    expect(all('.cell.cpa-off')).toHaveLength(3);
+    await openType('neighbors', 3, 4);
+    expect(all('.cell').filter((x) => !x.classList.contains('hidden'))).toHaveLength(2);
+  });
+
+  it('"missing": 2 and 3 - the known addend as its number', async () => {
+    const two = await openType('missing', 2, 3);
+    expect(all('.cpa-asnum').map((g) => g.dataset.n)).toEqual([String((two.spec.body as { a: number }).a)]);
+    await openType('missing', 1, 3);
+    expect(all('.cpa-asnum')).toHaveLength(0);
+  });
+
+  it('no step limits the time of an answer or counts a mistake: an hour open at every step (LEARN-14)', async () => {
+    for (const type of ['sub', 'add', 'count', 'compare', 'neighbors', 'missing'] as const) {
+      for (const step of [1, 2, 3] as const) {
+        document.body.innerHTML = MARKUP;
+        cpaHold.step = step;
+        let done = false;
+        void runTask(type, type === 'neighbors' ? 4 : 3, hooks, mulberry32(7)).then(() => { done = true; });
+        await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+        expect(done, `${type} ${step}`).toBe(false);
+        expect(opts().querySelectorAll('.opt.no').length + stage().querySelectorAll('.no').length, `${type} ${step}`).toBe(0);
+      }
+    }
+  });
+});

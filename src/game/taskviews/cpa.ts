@@ -26,5 +26,15 @@ export function things(parent: HTMLElement, hidden: boolean) {
   return { box, open: () => box.classList.remove('hid'), get hidden() { return box.classList.contains('hid'); } };
 }
 
+/**
+ * A group of things drawn as its number (the steps of the picture and of the numbers): the things stay in it, hidden,
+ * for the hint to show (`open`). Nothing changes on the first step.
+ */
+export function asNumber(group: HTMLElement, n: number) {
+  group.classList.add('cpa-asnum');
+  group.dataset.n = String(n);
+  return () => group.classList.remove('cpa-asnum');
+}
+
 /** A line of the task in numbers and words on the screen ("Було 8, 3 забрали"). */
 export const line = (parent: HTMLElement, text: string) => { const p = el('div', 'cpa-line', text); parent.appendChild(p); return p; };
