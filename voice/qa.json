@@ -8648,5 +8648,189 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_harder": {
+  "text": "Оце так! А складніше зможеш?",
+  "heard": "Хочеш це так, а складніше зможеш?",
+  "score": 0.912,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sum3": {
+  "text": "Скільки буде всього разом?",
+  "heard": "Скільки буде всього разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sum3@Sulafat": {
+  "text": "Скільки буде всього разом?",
+  "heard": "Скільки буде всього разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sum3@Leda": {
+  "text": "Скільки буде всього разом?",
+  "heard": "Скільки буде всього разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sum3@Orus": {
+  "text": "Скільки буде всього разом?",
+  "heard": "Скільки буде всього разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_sum3@Charon": {
+  "text": "Скільки буде всього разом?",
+  "heard": "Скільки буде всього разом?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_gap": {
+  "text": "Скільки забрали?",
+  "heard": "Скільки забрали?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_gap@Sulafat": {
+  "text": "Скільки забрали?",
+  "heard": "Скільки забрали?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_gap@Leda": {
+  "text": "Скільки забрали?",
+  "heard": "Скільки забрали?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_gap@Orus": {
+  "text": "Скільки забрали?",
+  "heard": "Скільки забрали?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_gap@Charon": {
+  "text": "Скільки забрали?",
+  "heard": "Скільки забрали.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_chain": {
+  "text": "Порахуй по черзі. Скільки вийде?",
+  "heard": "Порахуй по черзі, скільки вийде.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_chain@Sulafat": {
+  "text": "Порахуй по черзі. Скільки вийде?",
+  "heard": "Порахуй по черзі, скільки вийде.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_chain@Leda": {
+  "text": "Порахуй по черзі. Скільки вийде?",
+  "heard": "Порахуй по черзі, скільки вийде?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_chain@Orus": {
+  "text": "Порахуй по черзі. Скільки вийде?",
+  "heard": "Порахуй по черзі, скільки вийде.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_chain@Charon": {
+  "text": "Порахуй по черзі. Скільки вийде?",
+  "heard": "Порахуй по черзі, скільки вийде.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_sum3": {
+  "text": "Знайди два числа, які разом дають десять. Почни з них.",
+  "heard": "Знайди два числа, які разом дають десять. Почни з них.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_chain": {
+  "text": "Спочатку зроби першу дію, а потім другу.",
+  "heard": "Спочатку зроби першу дію, а потім другу.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h2_chain": {
+  "text": "Рахуймо разом, дія за дією.",
+  "heard": "Рахуймо разом, дія за дією.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_exprs": {
+  "text": "Спочатку порахуй, скільки ліворуч, а потім — скільки праворуч.",
+  "heard": "Спочатку порахуй, скільки ліворуч, а потім скільки праворуч.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h2_exprs": {
+  "text": "Порахуймо разом кожен бік і порівняємо.",
+  "heard": "Порахуймо разом кожен бік, і порівняємо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h1_gap": {
+  "text": "Рахуй від меншого числа до більшого. Стільки й забрали.",
+  "heard": "Рахуй від меншого числа до більшого. Стілький забрали.",
+  "score": 0.99,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h2_gap": {
+  "text": "Рахуймо разом тих, кого забрали.",
+  "heard": "Рахуймо разом тих, кого забрали.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
