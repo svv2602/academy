@@ -3574,6 +3574,11 @@
   "tp": -2.59,
   "sha256": "4bcfb963a65ee21d3cf1499a13c8b5f806f643ac77dd2ae078b1fb630eade41b"
  },
+ "worlds-data/forest/voice/forest/forest_secret_roots.mp3": {
+  "lufs": -18.0,
+  "tp": -2.84,
+  "sha256": "61625a8e7691055a53c5d67a69c83861be15471f1d83cf2a033944b3eaf39d5c"
+ },
  "worlds-data/forest/voice/forest/forest_story_back_1.mp3": {
   "lufs": -18.05,
   "tp": -1.94,
@@ -4769,6 +4774,11 @@
   "tp": -5.61,
   "sha256": "424966e63cee011f74a506773e6a1374bfbb54054edde88da3eb3bedf706e7c1"
  },
+ "worlds-data/sweet/voice/sweet/imbir_room@Leda.mp3": {
+  "lufs": -17.96,
+  "tp": -5.78,
+  "sha256": "f8fc91b1549449120082595f0ed693cdc9e199b6f30be717d442fdb6086c3eed"
+ },
  "worlds-data/sweet/voice/sweet/imbir_t1@Leda.mp3": {
   "lufs": -18.0,
   "tp": -4.4,
@@ -5024,6 +5034,11 @@
   "tp": -2.66,
   "sha256": "d86b5596a94f0a2439c8f31d4e756e3f24e90bd40117e93db7b62fe4af821ea6"
  },
+ "worlds-data/sweet/voice/sweet/sweet_room_in.mp3": {
+  "lufs": -18.03,
+  "tp": -2.22,
+  "sha256": "732c9fb4c6f299fd7a5f7ca7f1175cf5e7137aa105589ea4affd97ef469ff9c5"
+ },
  "worlds-data/sweet/voice/sweet/sweet_ruby_house_found.mp3": {
   "lufs": -18.0,
   "tp": -1.82,
@@ -5059,6 +5074,11 @@
   "tp": -3.09,
   "sha256": "e3581f250fbc7cd955ec7cbc1bbdc252d2f22e6277f611b08ddc1c55023712d1"
  },
+ "worlds-data/sweet/voice/sweet/sweet_secret_cave.mp3": {
+  "lufs": -17.95,
+  "tp": -2.84,
+  "sha256": "7515dfacfd6cbfe2b41afc8c36c630bf4d69df4e39a9a193e930d0f2636be797"
+ },
  "worlds-data/sweet/voice/sweet/sweet_secret_cotton.mp3": {
   "lufs": -17.93,
   "tp": -3.64,
@@ -5073,6 +5093,11 @@
   "lufs": -17.96,
   "tp": -3.14,
   "sha256": "2f347a88c5dfa9a42b9c3450e1162089c9321a88cd687496d4cd177f0b1ffeb5"
+ },
+ "worlds-data/sweet/voice/sweet/sweet_secret_room.mp3": {
+  "lufs": -17.99,
+  "tp": -3.62,
+  "sha256": "12ee86326f5bbc50d36beede23213fb64133b145c472455b73c83a599ea54d16"
  },
  "worlds-data/sweet/voice/sweet/sweet_story_back_1.mp3": {
   "lufs": -18.03,

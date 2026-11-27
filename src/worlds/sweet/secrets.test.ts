@@ -12,10 +12,7 @@ import { createWorldScope } from '../../game/scope';
 import { OPEN_R } from './house';
 import { CANDY_BOX, COTTON_CLOUD, EDGE, FOUNTAIN, GUM_MACHINE, HALF, HOUSE, HOUSE_FACADE, RIVER_HALF, SHRINE, TREE_ARCH, ZONES } from './layout';
 import { buildScenery, SIGHT, sightLines } from './scenery';
-import {
-  BLOW_S, CHEST_FLAG, CLOUD_FLAG, GUM_FLAG, GUM_WAIT, LEMONADE_FLAG, SECRET_HOW, SPLASH_S, SWEET_SECRETS, TOSS_S, boxOf, createSweetSecrets,
-  fountainOf, gumOf, propsGeometry, roofOf, swirlGeometry, lidGeometry, tossAt,
-} from './secrets';
+import { BLOW_S, CHEST_FLAG, CLOUD_FLAG, GUM_FLAG, GUM_WAIT, LEMONADE_FLAG, SECRET_HOW, SPLASH_S, SWEET_SECRETS, TOSS_S, boxOf, createSweetSecrets, fountainOf, gumOf, propsGeometry, roofOf, swirlGeometry, lidGeometry, tossAt, CAVE_FLAG, ROOM_FLAG } from './secrets';
 import { colliders, height, lineDist, pathDist, resolve, riverDist, support, tops } from './terrain';
 
 /** A game of what the secrets read: the scene, the save, the heroine, the cat, the stars given. */
@@ -59,9 +56,9 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
   const fresh = () => { const t = game(); made.push(t); return t; };
   afterEach(() => { for (const t of made) t.scope.dispose(); made = []; colliders.length = 0; tops.length = 0; });
 
-  it('four, as the world description says: the box, the cloud, the lemonade, the gum; the box and the fountain by the action, the others by walking', () => {
-    expect([...SWEET_SECRETS]).toEqual(['candy_box', 'cotton_cloud', 'lemonade', 'bubble_gum']);
-    expect(SECRET_HOW).toEqual({ candy_box: 'act', cotton_cloud: 'walk', lemonade: 'act', bubble_gum: 'walk' });
+  it('six, as the world description says: the box, the cloud, the lemonade, the gum, the cave and Imbir\'s room; the box, the fountain and the room\'s jar by the action, the others by walking', () => {
+    expect([...SWEET_SECRETS]).toEqual(['candy_box', 'cotton_cloud', 'lemonade', 'bubble_gum', 'choco_cave', 'ginger_room']);
+    expect(SECRET_HOW).toEqual({ candy_box: 'act', cotton_cloud: 'walk', lemonade: 'act', bubble_gum: 'walk', choco_cave: 'walk', ginger_room: 'act' });
   });
 
   it('they stand in the map, off the ways and the lines of sight, out of the chocolate; where each is done she can stand', () => {
@@ -222,10 +219,13 @@ describe('the secrets of the Sweet Land (PLAY-07)', () => {
     put(t, t.s.at.bubble_gum);
     expect(t.s.cheat()).toBe('gum');
     run(t, GUM_WAIT + BLOW_S + 0.5);
+    // the secret places are found by their own modules (./cave.ts, ./room.ts) through `take`: once each
+    const at = new THREE.Vector3();
+    t.s.take(CAVE_FLAG, at); t.s.take(ROOM_FLAG, at); t.s.take(CAVE_FLAG, at);
     for (const id of SWEET_SECRETS) expect(t.g.ws.flags[id], id).toBe(true);
     expect(t.s.cheat()).toBe('');
     expect(t.s.glimmer()).toHaveLength(0);
-    expect(t.stars.reduce((a, b) => a + b, 0)).toBe(5 + 3 * 3);
+    expect(t.stars.reduce((a, b) => a + b, 0)).toBe(5 + 5 * 3);
   });
 
   it('their shapes are light: four meshes at most, none casting a shadow; the bubble drawn only while it is blown', () => {

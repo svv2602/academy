@@ -317,6 +317,19 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
     await settle(0.9);
     secretDraws.push({ secret: 'gum', ...(await draw()), shown: await page.evaluate(() => __game.sweetSecrets.bubble() !== null) });
     await shot({ path: join(out, `${tag}-secret-gum.png`) });
+    // the secret places (plan sweet-secrets-2026-11-27): the cave behind the chocolate waterfall from before its mouth
+    // and from inside at its basket; Imbir's room from inside its door and from its jar
+    const pl = sec.places;
+    if (pl) {
+      const { cave, room } = pl;
+      const views = [['cave-out', { x: cave.mouth.x + cave.out.x * 4, z: cave.mouth.z + cave.out.z * 4 }, cave.centre], ['cave-in', cave.find, cave.basket],
+        ['room-door', room.doorIn, room.cupboard], ['room-jar', room.jar, room.cupboard]];
+      for (const [name, a, b] of views) {
+        await stand(a, b); await settle(1);
+        secretDraws.push({ secret: name, ...(await draw()) });
+        await shot({ path: join(out, `${tag}-secret-${name}.png`) });
+      }
+    }
   }
   // the tour
   const tour = [];
