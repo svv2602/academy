@@ -26,6 +26,9 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 .tune-btns button { flex: 1; min-height: 44px; border-radius: 12px; background: #f1e6fa; color: #7a4fd0; font-weight: 700; font-size: 14px; }
 #tuneText { width: 100%; margin-top: 4px; font: 12px monospace; user-select: text; -webkit-user-select: text; }
 @media (max-aspect-ratio: 5/4) { #tune { top: 140px; right: 64px; width: min(280px, calc(100vw - 80px)); } }
+/* a short window (a phone lying, 390 px high): the sliders in two columns, else the panel's buttons fall under its edge */
+@media (max-height: 480px) and (min-aspect-ratio: 5/4) { #tune { width: min(580px, calc(100vw - 140px)); display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .tune-btns, #tuneText { grid-column: 1 / -1; } }
 
 /* The bubble is centred in the window while there is room for it; in a narrower window it moves to the right, so that
    it never covers the counters and the book button (--hud: the right edge of #hud at its widest, a 3-digit star count;
