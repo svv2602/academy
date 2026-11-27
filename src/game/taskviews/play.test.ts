@@ -4,6 +4,7 @@
  * read off the screen, checked against the declared bounds and solved through the same pointerdown handlers a child's
  * finger reaches.
  */
+import { WON_MAX_MS } from './fly';
 import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import type { Key } from '../../ui/strings';
@@ -343,7 +344,7 @@ describe.each(TYPES)('generator %s', (type) => {
         const done = runTask(type, level, hooks);
         await PLAY[type](level, heard);
         must(root().classList.contains('won'), 'the right answer did not finish the task');
-        vi.advanceTimersByTime(1100);
+        vi.advanceTimersByTime(WON_MAX_MS);
         const result = await done;
         must(result.solved && result.wrong === 0, `solved cleanly, but the result is ${JSON.stringify(result)}`);
         must(heard.wrong === 0 && heard.hints.length === 0, 'a clean solve triggered "try again" or a hint');
