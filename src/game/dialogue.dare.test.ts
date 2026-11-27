@@ -3,7 +3,8 @@
  * «А складніше зможеш?» in a conversation (LEARN-28; src/game/dialogue.ts with the real planner, panel and card):
  * after a panel task solved cleanly the character asks and the card shows two buttons; taken - a task of the same step
  * a level higher, which solved cleanly is her level from then on; put off, closed or solved with a mistake - nothing
- * moves. Asked once in a conversation, never after the last step of a chain, never where the rule says no.
+ * moves. Asked once in a conversation, never after the last step of a chain, never where the rule says no. The harder
+ * example is always a new one of its level, and a mistake in it is not kept to come back (src/game/planner.ts).
  */
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +14,7 @@ import type { Spoken } from '../core/audio';
 import type { Game } from './context';
 import { createDialogue } from './dialogue';
 import { createPlanner } from './planner';
-import { statOf, type SkillId } from './skills';
+import { LEVELS, statOf, type SkillId } from './skills';
 import { cheatTask, type TaskHooks, type TaskResult } from './taskviews/panel';
 import { WON_MAX_MS } from './taskviews/fly';
 import type { TaskType } from './tasks/types';
@@ -64,6 +65,8 @@ interface Play {
  */
 function world(steps: string[], skill: SkillId, level: number, streak = 0, settled = true, inWorld: Record<string, WorldTask> = {}) {
   const save = defaultSave(), ws = defaultWorld(), stars: number[] = [], said: string[] = [], given: [TaskType, number][] = [];
+  /** Of each task shown, in turn: whether its things stood in ten frames (addition does so from level 4). */
+  const framed: boolean[] = [];
   Object.assign((save.skills[skill] ??= statOf(save, skill)), { level, streak });
   if (settled) save.skills[skill].settled = true;
   const def = { id: 'elf', emoji: '🧝', x: 0, z: 0, heading: 0, steps, shard: '#fff' } as unknown as CharacterDef;
@@ -71,7 +74,7 @@ function world(steps: string[], skill: SkillId, level: number, streak = 0, settl
   let praised = 0, helpNext = false;
   const g = {
     save, ws, rng: mulberry32(11),
-    plan: { ...planner, runTask: (type: TaskType, lvl: number, h: TaskHooks, rng: () => number) => { given.push([type, lvl]); return planner.runTask(type, lvl, h, rng); } },
+    plan: { ...planner, runTask: (type: TaskType, lvl: number, h: TaskHooks, rng: () => number, asked?: boolean) => { given.push([type, lvl]); return planner.runTask(type, lvl, h, rng, asked); } },
     hero: { root: new THREE.Object3D(), play: () => {} }, cat: { play: () => {} }, cam: {}, sparks: { burst: () => {} },
     persist: () => {}, refreshHud: () => {}, addStars: (n: number) => { stars.push(n); }, above: () => new THREE.Vector3(),
     fault: () => {}, praise: () => { praised++; return Promise.resolve(); },
@@ -96,6 +99,7 @@ function world(steps: string[], skill: SkillId, level: number, streak = 0, settl
         cards++;
         document.getElementById(how.card === 'yes' ? 'dare_yes' : 'dare_no')!.click();
       } else if (taskUp()) {
+        framed.push(!!document.querySelector('#taskStage .tens'));
         const move = how.tasks?.[at++] ?? 0;
         if (move === 'close') document.getElementById('taskClose')!.click();
         else {
@@ -111,7 +115,7 @@ function world(steps: string[], skill: SkillId, level: number, streak = 0, settl
     await done;
     return cards;
   }
-  return { save, ws, stars, said, given, talk, praised: () => praised, start: () => d.talk(npc) };
+  return { save, ws, stars, said, given, framed, talk, praised: () => praised, start: () => d.talk(npc) };
 }
 
 describe('«А складніше зможеш?» in a conversation (LEARN-28)', () => {
@@ -244,6 +248,37 @@ describe('«А складніше зможеш?» in a conversation (LEARN-28)',
     await talk({ card: 'yes' });
     expect(given).toEqual([['missing', 3], ['house', 4]]);
     expect(save.skills.compose).toMatchObject({ level: 4, streak: 0 });
+  });
+
+  it('taken and solved with a mistake: the example is not kept, it never comes back by itself - the games after it are all of her level', async () => {
+    const { save, ws, given, framed, talk } = world(['add'], 'add', 3);
+    ws.quests.elf = 1;                               // the chain is finished: every conversation is one game
+    expect(await talk({ card: 'yes', tasks: [0, 2] })).toBe(1);
+    expect(given).toEqual([['add', 3], ['add', 4]]);
+    expect(framed).toEqual([false, true]);
+    expect(save.hard.list).toEqual([]);
+    expect(save.skills.add).toMatchObject({ level: 3, streak: 1, tasks: 2, errors: 2, settled: true });
+    // her level held where it is (the parent's lever), game after game: the example of level 4 would be due by the third
+    save.fixed.add = 3;
+    for (let i = 0; i < 6; i++) expect(await talk(), `game ${i + 1}`).toBe(0);
+    expect(given.slice(2)).toEqual(Array.from({ length: 6 }, () => ['add', 3]));
+    expect(framed.slice(2)).toEqual(Array.from({ length: 6 }, () => false));
+    expect(save.hard.list).toEqual([]);
+  });
+
+  it('an example of hers that waits to come back does not come as the harder one: that is a new example of the next level', async () => {
+    const { save, given, framed, talk } = world(['add', 'add', 'count', 'count', 'add', 'nuts'], 'add', 3);
+    // counting is on its top level: no question after its steps, the one of this conversation is left for addition
+    Object.assign((save.skills.count ??= statOf(save, 'count')), { level: LEVELS.count[1], settled: true });
+    // two examples of addition with a mistake each are kept; after two other tasks both are due
+    expect(await talk({ card: 'yes', tasks: [1, 1, 0, 0, 0, 0] })).toBe(1);
+    expect(given.map(([type]) => type)).toEqual(['add', 'add', 'count', 'count', 'add', 'add']);
+    expect(given.at(-2)).toEqual(['add', 3]);
+    expect(given.at(-1)).toEqual(['add', 4]);
+    // the third step of addition is the first kept example come back (level 3); the harder one is of level 4, not the second
+    expect([framed[0], framed[1], framed.at(-2), framed.at(-1)]).toEqual([false, false, false, true]);
+    expect(save.hard.list.map((h) => [h.l, h.e, h.c])).toEqual([[3, 1, 1], [3, 1, 0]]);
+    expect(save.skills.add).toMatchObject({ level: 4, streak: 0 });
   });
 
   it('the level she got by it is the level of the next tasks: no question twice for one level, and the usual rule goes on from there', async () => {

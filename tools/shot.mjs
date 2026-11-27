@@ -3951,6 +3951,7 @@ try {
         await set({ level: 3, streak: 0, settled: true });
         had = await stars();
         if (!(await game('the second game'))) fail('the second game: the card did not come');
+        const keptBefore = await g(() => JSON.stringify(__game.save.hard.list));
         await press('dare_yes');
         await taskOf('the harder example');
         if (!(await framed())) fail('the harder example is not of level 4 (its things do not stand in ten frames)');
@@ -3970,6 +3971,10 @@ try {
         await controlsBack(30, 'dare: taken, a mistake');
         k = await add();
         if (k.level !== 3 || k.streak !== 1 || k.tasks !== 6 || k.errors !== 3 || k.settled !== true || (await stars()) !== had + 2) fail(`taken, solved after a mistake: addition is ${JSON.stringify(k)}, the stars ${had} -> ${await stars()} - level 3, run 1, two tasks, one wrong answer and two stars more expected`);
+        // the example with the mistake is not kept (src/game/planner.ts): kept, it came back two tasks later by itself, as
+        // her usual task a level above her own - the fourth game of this block was then of level 4 (found here, 2026-11-27)
+        const keptAfter = await g(() => JSON.stringify(__game.save.hard.list));
+        if (keptAfter !== keptBefore) fail(`a mistake in the harder example was kept to come back: ${keptBefore} -> ${keptAfter}`);
 
         // 3: taken; solved cleanly - her level
         await set({ level: 3, streak: 0, settled: true });
@@ -3993,7 +3998,7 @@ try {
         await controlsBack(30, 'dare: the level fixed');
 
         await g(([was, fixed]) => { __game.save.skills = JSON.parse(was); __game.save.fixed.add = fixed; }, [skillsBefore, fixedBefore]);
-        console.log(`dare: after the unicorn's game of level 3 solved cleanly the unicorn asked and the card came (buttons ${card.b.map((x) => `${x.text} ${x.w}x${x.h}`).join(', ')}); put off - nothing more; taken with a mistake - a star, the level stayed; taken and solved cleanly - addition on level 4; no card in the fast climb nor with the level fixed`);
+        console.log(`dare: after the unicorn's game of level 3 solved cleanly the unicorn asked and the card came (buttons ${card.b.map((x) => `${x.text} ${x.w}x${x.h}`).join(', ')}); put off - nothing more; taken with a mistake - a star, the level stayed, the example not kept; taken and solved cleanly - addition on level 4; no card in the fast climb nor with the level fixed`);
       }
       // ---- the steps «things → picture → numbers» (src/game/tasks/cpa.ts, the customer's word of 2026-11-27) ----
       // Each number task opened by __game.task at each step held by the lever: what the step draws is on the panel (the

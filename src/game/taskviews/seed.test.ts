@@ -130,7 +130,9 @@ describe('a seed makes the tasks repeat (ARCH-08)', () => {
     // A call with arguments that may hold one level of brackets: runTask(type, levelFor(save, x), hooksFor(q.emoji), g.rng).
     const calls = [...dialogue.matchAll(/runTask\((?:[^()]|\([^()]*\))*\)/g)].map((m) => m[0]);
     expect(calls.length, 'no runTask call found in dialogue.ts').toBeGreaterThanOrEqual(1);
-    for (const call of calls) expect(call).toMatch(/, g\.rng\)$/);
+    // the rng is the last argument, or the one before the mark of a task she asked for (LEARN-28, `dare`)
+    for (const call of calls) expect(call).toMatch(/, g\.rng(?:, true)?\)$/);
+    expect(calls.filter((call) => /, g\.rng, true\)$/.test(call)), 'only the harder example is a task she asked for').toHaveLength(1);
     // The step of a chain and the game played again both open their panel task through `panelTask`, the one place
     // that calls runTask; the kind in breadth it may give instead (LEARN-27) is picked by the game's rng as well.
     expect([...dialogue.matchAll(/task\(\(\) => [^;\n]*panelTask\(/g)].length, 'the conversations open their panel tasks through panelTask').toBe(2);

@@ -212,6 +212,66 @@ describe('examples with mistakes come back (LEARN-11, R17, R18)', () => {
   });
 });
 
+describe('a harder example she asked for (LEARN-28): a new one of its level, and its mistake is not kept', () => {
+  it('a kept example that is due does not come in its place; it comes with the next task of her own', () => {
+    const { p, save, rng, play } = planner(7);
+    const first = p.next('add', 3, rng), k = sameness(first);
+    p.done(first, mistakes(1));
+    play('add', clean, 3); play('add', clean, 3);
+    // the kept example is due now: a task she asked for on level 4 is not it
+    const asked = p.next('add', 4, rng, true) as Extract<TaskSpec, { type: 'add' }>;
+    expect(sameness(asked)).not.toBe(k);
+    expect(asked.level).toBe(4);
+    expect(asked.body.a).toBeGreaterThanOrEqual(10);            // the numbers of level 4, not an example of level 3
+    p.done(asked, clean, true);
+    expect(save.hard.list).toEqual([{ k, l: 3, e: 1, c: 0, at: 0 }]);
+    // her next task of the usual kind: the example that waited
+    const back = p.next('add', 3, rng);
+    expect(sameness(back)).toBe(k);
+    expect(back.level).toBe(3);
+  });
+
+  it.each(['add', 'sub', 'missing'] as const)('a mistake in it keeps nothing, however many wrong answers: none of the next tasks is that example (%s)', (type) => {
+    const { p, save, rng } = planner(5);
+    const asked = p.next(type, 4, rng, true), k = sameness(asked);
+    p.done(asked, mistakes(3), true);
+    expect(save.hard.list).toEqual([]);
+    const next: TaskSpec[] = [];
+    for (let i = 0; i < 12; i++) { const s = p.next(type, 3, rng); p.done(s, clean); next.push(s); }
+    expect(next.map(sameness)).not.toContain(k);
+    expect(next.map((s) => s.level)).toEqual(next.map(() => 3));
+    // the same mistake in a task of her own is kept, as ever
+    const own = p.next(type, 3, rng);
+    p.done(own, mistakes(3));
+    expect(save.hard.list).toEqual([{ k: sameness(own), l: 3, e: 3, c: 0, at: 13 }]);
+  });
+
+  it('an example kept already is noted as ever, on the level it was kept with: its mistakes add up, a clean solve counts', () => {
+    const { p, save, rng } = planner(3);
+    const own = p.next('sub', 3, rng), k = sameness(own);
+    p.done(own, mistakes(2));
+    // the very example again, as a task she asked for a level higher
+    p.done({ ...own, level: 4 }, mistakes(1), true);
+    expect(save.hard.list).toEqual([{ k, l: 3, e: 3, c: 0, at: expect.any(Number) }]);
+    p.done({ ...own, level: 4 }, clean, true);
+    expect(save.hard.list[0]).toMatchObject({ k, l: 3, e: 3, c: 1 });
+    p.done({ ...own, level: 4 }, clean, true);
+    expect(save.hard.list).toEqual([]);
+  });
+
+  it('the task before it is not given again (LEARN-13), and it takes its number in the row of tasks', () => {
+    const { p, save, rng } = planner(9);
+    for (let i = 0; i < 40; i++) {
+      const own = p.next('add', 4, rng);
+      p.done(own, clean);
+      const asked = p.next('add', 5, rng, true);
+      p.done(asked, clean, true);
+      expect(sameness(asked), `pair ${i}`).not.toBe(sameness(own));
+    }
+    expect(save.hard.n).toBe(80);
+  });
+});
+
 describe('no task twice in a row (LEARN-13, R19, R20)', () => {
   const PAIRS = 1000;
   const cases = TYPES.flatMap((type) => levelsOf(type).map((level) => [type, level] as const));
@@ -308,7 +368,8 @@ describe('the conversations give their tasks through the planner', () => {
     // usual one (LEARN-27, src/game/wide.ts); the harder example she asks for (LEARN-28, `dare`) is planned as well.
     const planned = [...dialogue.matchAll(/plan\.runTask\(/g)];
     expect(planned.length).toBe(2);
-    expect(dialogue).toMatch(/async function dare\([^\n]*\n(?:[^\n]*\n){3}\s*const res = await task\(\(\) => plan\.runTask\(typeOf\(step, level\), level, hooksFor\(q\.emoji\), g\.rng\)\);/);
+    // ... as a task she asked for (the last argument): a new example of that level, its mistake not kept
+    expect(dialogue).toMatch(/async function dare\([^\n]*\n(?:[^\n]*\n){3}\s*const res = await task\(\(\) => plan\.runTask\(typeOf\(step, level\), level, hooksFor\(q\.emoji\), g\.rng, true\)\);/);
     expect(dialogue).toMatch(/const panelTask = [^\n]*\n[^\n]*\n\s*return plan\.runTask\(type, level, hooksFor\(emoji\), g\.rng\);/);
     expect([...dialogue.matchAll(/task\(\(\) => [^;\n]*panelTask\(/g)].length).toBe(2);
     expect(dialogue).not.toMatch(/[^.]\brunTask\(/);                 // no task of the panel past the planner

@@ -113,15 +113,16 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
 
   /**
    * «А складніше зможеш?» (LEARN-28, src/game/dare.ts): the character asks, the card has «Так!» and «Іншим разом».
-   * Taken - a task of the same step a level higher, through the same planner; its result is recorded by the rule of a
-   * task she asked for (`recordDare`). Tells whether it was solved: the stars and the praise are the caller's, the same
-   * as for the task of that place.
+   * Taken - a task of the same step a level higher, through the same planner as a task she asked for: a new example of
+   * that level, and a mistake in it is not kept to come back. Its result is recorded by the rule of such a task
+   * (`recordDare`). Tells whether it was solved: the stars and the praise are the caller's, the same as for the task of
+   * that place.
    */
   async function dare(n: Npc, step: PanelStep, skill: SkillId, given: number): Promise<boolean> {
     const q = n.def, level = dareLevel(given);
     void line('npc_harder', 'story', 0, q.emoji);
     if (!await askHarder(q.emoji)) return false;
-    const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng));
+    const res = await task(() => plan.runTask(typeOf(step, level), level, hooksFor(q.emoji), g.rng, true));
     cam.focus = above(n.pos, 1.1);
     if (!res.solved) return false;                  // closed by the child: nothing is recorded, as for any task
     recordDare(save, skill, level, res.wrong, res.helped === true, answerOf(res));
