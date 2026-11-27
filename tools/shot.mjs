@@ -3674,7 +3674,8 @@ try {
           for (const step of [1, 2, 3]) {
             const level = type === 'neighbors' ? 4 : 2;
             await g(([s, t, l]) => { __game.cpa.hold(s); window.__cpa = null; void __game.task(t, l).then((r) => { window.__cpa = r; }); }, [step, type, level]);
-            await page.locator('#task:not(.hidden) .opt').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type} ${step}: the task did not open`));
+            // comparing is answered by a tap on a group, the others by an answer button
+            await page.locator('#task:not(.hidden) :is(.opt, .group.pickable)').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type} ${step}: the task did not open`));
             await calm();
             const seen = await g(() => {
               const st = document.getElementById('taskStage'), vis = (e) => !e.closest('.cpa-asnum, .hid, .hidden');

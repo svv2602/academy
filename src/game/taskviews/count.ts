@@ -33,7 +33,9 @@ export function countView(spec: CountSpec, c: PanelCtx) {
   if (box) {
     const again = el('button', 'cpa-again', t('cpa_again'));
     tap(again, show);
-    c.stage.appendChild(again);
+    const row = el('div', 'cpa-again-row');
+    row.appendChild(again);
+    c.stage.appendChild(row);
     show();
   }
   let counted = 0;
