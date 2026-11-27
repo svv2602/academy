@@ -626,6 +626,8 @@ function standIn(o = {}) {
     travel(w) { here = w; entries++; return Promise.resolve(true); },
     renderer: { info: { memory: { get geometries() { return 40 + (fault.leaks ? entries : 0); }, get textures() { return 30 + (fault.leaks ? entries : 0); } } } },
     scene: { children: [] },
+    // what the world reports of itself for its pass tool (the forest's maze, tools/forest-pass.mjs); `check`: one
+    ...(fault.check ? { worldCheck: () => fault.check } : {}),
     npcs: [{ def: { id: 'owl', after: 'owl_ask', steps: { length: 0 } } }],
   });
   /** A page load: the game reads the stored save and shows its start screen. */
@@ -773,6 +775,7 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8'))).toEqual({
       world: 'meadow', size: 'mobile', online: true, need: 'one item of every kind',
       items: DEFS().map((d) => ({ kind: d.kind, id: d.id, how: d.how })), order: ['toured', 'owl', 'pet', 'well', 'key', 'tale', 'final'], worldTasks: [], worldSkills: {},
+      check: null,                                          // a world with no `__game.worldCheck` reports nothing of its own
     });
     // the character of a chain of two steps is talked to twice; the other four buttons once each
     expect(r.log.presses).toBe(6);
@@ -789,6 +792,14 @@ describe('the pass of a world by its description, on a stand-in page (ARCH-16)',
     out.find((x) => x.kind === 'finale').after.push('hare');
     return out;
   };
+
+  it('what a world reports of itself (__game.worldCheck, the forest\'s maze) goes into the report as it is, for its own pass tool', async () => {
+    const check = { maze: { forks: 3, filled: 3, rings: 0, fills: 3, refusals: 1 } };
+    const dir = mkdtempSync(join(tmpdir(), 'world-pass-')); dirs.push(dir);
+    const r = await pass({ fault: { check } }, { need: 'one', out: join(dir, 'pass.json') });
+    expect(r.errors).toEqual([]);
+    expect(JSON.parse(readFileSync(join(dir, 'pass.json'), 'utf8')).check).toEqual(check);
+  });
 
   it('a task in the world on a declared step: open, a wrong move, closed, opened anew, solved - through the door, in game time', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'world-pass-')); dirs.push(dir);

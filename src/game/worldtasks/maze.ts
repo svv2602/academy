@@ -5,6 +5,11 @@
  * is lost); after two wrong ways at one fork the right one glows a little. She may walk out at any time; coming in
  * again brings her to the last fork passed.
  *
+ * The row shows what is asked: an empty light ring lies where its next stone goes (it reads without colours). The
+ * right way taken, its first stone jumps into the ring and a flash runs along the row, start to end; a wrong way walked
+ * round, back at the fork its stone hops toward the ring, rocks and goes back to its place - no more than that (the
+ * customer's word of 2026-11-26). The forks passed show their rows full, also after a reload.
+ *
  * The pattern reads without reading and without colours alone: each element of it is a colour and a shape at once (a
  * round red stone, a square blue one ...), two different elements never share a shape - a child who does not tell the
  * colours apart, or a screen in the sun, still sees it.
@@ -93,7 +98,8 @@ export interface MazeGeo {
   out: Place;
   /** The paths she walks: the trunk from the way in through every right way to the way out. */
   trunk: Place[];
-  forks: { at: Place; ways: MazeWay[]; row: Place[]; lane: number; after: Place }[];
+  /** `slot`: the empty place of the row's next stone (its ring), one step after its last stone. */
+  forks: { at: Place; ways: MazeWay[]; row: Place[]; slot: Place; lane: number; after: Place }[];
   /** The bush in the middle of every wrong loop. */
   islands: Place[];
   /** The bushes of the hedge: everywhere in the frame but on the paths. */
@@ -167,6 +173,7 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
       // the row is a border of the path, ROW_SIDE off its middle: the camera behind her sees it past her, not under her
       // and ends ROW_GAP before the fork: no hedge sealing the fork's ways from the path stands over its last stones
       const row = f.row.map((_, j) => P(u + ROW_SIDE * dir, vf - dir * (STONE_STEP * (f.row.length - j - 1) + ROW_GAP)));
+      const slot = P(u + ROW_SIDE * dir, vf - dir * (ROW_GAP - STONE_STEP));
       const fan = FAN[f.ways.length] ?? FAN[3];
       let after = fork;
       const ways = f.ways.map((_, w): MazeWay => {
@@ -188,7 +195,7 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
       });
       trunk.push(fork, ...ways[f.answer].line.slice(1));
       for (const w of ways) if (!w.right) lines.push(w.line);
-      forks.push({ at: fork, ways, row, lane: i, after });
+      forks.push({ at: fork, ways, row, slot, lane: i, after });
     }
     trunk.push(P(u, v1));
   }
@@ -225,7 +232,7 @@ export function layMaze(spec: MazeSpec, frame: MazeFrame): MazeGeo {
   // single path the band from SEAL to CLEAR stays its own width: no bush there)
   // nor over the stones of a row: a sealing bush stands nearer a path than the others, its
   // leaves over them would hide what is to be read
-  const stones = forks.flatMap((f) => f.row);
+  const stones = forks.flatMap((f) => [...f.row, f.slot]);
   const clearOfStones = (p: Place) => stones.every((q) => Math.hypot(q.x - p.x, q.z - p.z) > 1.1);
   const pieces = lines.flatMap((l, li) => l.slice(1).map((b, i) => ({ a: l[i], b, li, i })));
   const between = (p: Place) => {
@@ -258,6 +265,8 @@ export interface MazeWalk {
   readonly wrongs: number;
   /** The right way of the fork she stands before glows (two wrong ways taken at it). */
   readonly glow: boolean;
+  /** The way (its index at the fork) the last `step` judged as taken, right or wrong; -1 before any. */
+  readonly taken: number;
   /** Where she is now: `step` judges the move. */
   step(x: number, z: number): MazeStep;
   /** Where she goes on from on coming in again: just after the last fork passed (the way in if none). */
@@ -272,8 +281,9 @@ export interface MazeWalk {
  */
 export function mazeWalk(geo: MazeGeo, passed = 0): MazeWalk {
   let at = Math.max(0, Math.min(geo.forks.length, Math.floor(passed))), done = false, wrongs = 0, here = 0;
-  let atFork = false;
+  let atFork = false, taken = -1;
   return {
+    get taken() { return taken; },
     get passed() { return at; },
     get done() { return done; },
     get wrongsHere() { return here; },
@@ -293,7 +303,7 @@ export function mazeWalk(geo: MazeGeo, passed = 0): MazeWalk {
       let best = -1, bd = CLEAR;
       f.ways.forEach((w, i) => { const dd = lineDist(w.line, x, z); if (dd < bd) { bd = dd; best = i; } });
       if (best < 0 || Math.hypot(f.at.x - x, f.at.z - z) > LOOP + 1.5) return null;
-      atFork = false;
+      atFork = false; taken = best;
       if (f.ways[best].right) { at++; here = 0; return 'right'; }
       here++; wrongs++;
       return 'wrong';
@@ -304,10 +314,29 @@ export function mazeWalk(geo: MazeGeo, passed = 0): MazeWalk {
 
 // ---------------------------------------------------------------- the show
 
+/** s: the right way's stone jumps into its ring; then the flash runs along the row, a stone after STONE_WAVE s. */
+export const STONE_JUMP = 0.5, STONE_WAVE = 0.06;
+/** s: a wrong way's stone hops toward the ring, rocks there, and hops back to its place. */
+export const STONE_HOP = 0.3, STONE_ROCK = 0.45;
+
 export interface MazeShow {
   readonly group: THREE.Group;
-  /** A frame: the glow of the right way at the fork ahead pulses (`glowAt`: that fork, or -1 for none). */
+  /** Forks whose row shows full: the right way's stone in its ring (`showMaze`'s `filled`, then each `fill`). */
+  readonly filled: number;
+  /** Something moves now (a stone jumps, hops or rocks, the flash runs). */
+  readonly moving: boolean;
+  /** How many stones jumped into their rings and how many hopped back (the walkthrough's report). */
+  readonly count: { fills: number; refusals: number };
+  /** A frame: the glow of the right way at the fork ahead pulses (`glowAt`: that fork, or -1 for none); stones that move. */
   update(time: number, glowAt: number): void;
+  /** Fork `k` passed: its right way's stone jumps into the ring, then the flash runs along the row; `landed` as it lands. */
+  fill(k: number, landed?: () => void): void;
+  /** Back at fork `k` from its wrong way `w`: that way's stone hops toward the ring, rocks and goes back to its place. */
+  refuse(k: number, w: number): void;
+  /** Where the first stone of way `w` of fork `k` lies now and how big it is (the tests and the walkthrough). */
+  stoneAt(k: number, w: number): { p: THREE.Vector3; scale: number };
+  /** Is the ring of fork `k` shown (its row not full yet). */
+  ringShown(k: number): boolean;
   dispose(): void;
 }
 
@@ -324,7 +353,7 @@ function stoneGeo(shape: (typeof LOOKS)[number]['shape']): THREE.BufferGeometry 
  * The maze in the scene: the hedge (one instanced mesh casting no shadow, lower than her: nothing of it to dissolve), the stones of the paths (grey ones every few steps, those of the rows and of
  * the ways' starts in their looks: one instanced mesh per look) and the glow of the right way at every fork.
  */
-export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groundY: (x: number, z: number) => number): MazeShow {
+export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groundY: (x: number, z: number) => number, filled = 0): MazeShow {
   const group = new THREE.Group();
   group.name = 'maze';
   const owned: { dispose(): void }[] = [];
@@ -378,7 +407,7 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   owned.push(floorGeo, floorMat);
   // the grey stones of the trunk, one every 1.6 m but where a row lies
   const grey: Place[] = [];
-  const rows = geo.forks.flatMap((f) => f.row);
+  const rows = geo.forks.flatMap((f) => [...f.row, f.slot]);
   for (let i = 0; i < geo.trunk.length - 1; i++) {
     const a = geo.trunk[i], b = geo.trunk[i + 1], len = Math.hypot(b.x - a.x, b.z - a.z);
     for (let s = 0.8; s < len; s += 1.6) {
@@ -395,23 +424,102 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   greys.computeBoundingSphere();
   group.add(greys);
   owned.push(greyGeo, greyMat);
-  // the looks: the rows and the first stone of every way
-  const byLook = LOOKS.map(() => [] as { p: Place; way?: { fork: number; right: boolean } }[]);
+  // the looks: the rows and the first stone of every way, each an instance of its look's mesh (a stone that moves is its
+  // instance moved: no mesh more)
+  interface Stone { mesh: THREE.InstancedMesh | null; i: number; p: Place; s: number }
+  const byLook = LOOKS.map(() => [] as Stone[]);
+  const rowStones: Stone[][] = [], wayStones: Stone[][] = [];
   geo.forks.forEach((f, k) => {
-    spec.forks[k].row.forEach((look, j) => byLook[look].push({ p: f.row[j] }));
-    spec.forks[k].ways.forEach((look, w) => byLook[look].push({ p: f.ways[w].stone, way: { fork: k, right: f.ways[w].right } }));
+    rowStones.push(spec.forks[k].row.map((look, j) => { const s: Stone = { mesh: null, i: byLook[look].length, p: f.row[j], s: 1 }; byLook[look].push(s); return s; }));
+    wayStones.push(spec.forks[k].ways.map((look, w) => { const s: Stone = { mesh: null, i: byLook[look].length, p: f.ways[w].stone, s: 1.25 }; byLook[look].push(s); return s; }));
   });
   LOOKS.forEach((look, i) => {
     if (!byLook[i].length) return;
     const g = stoneGeo(look.shape), mat = new THREE.MeshStandardMaterial({ color: look.color, roughness: 0.55 });
     const mesh = new THREE.InstancedMesh(g, mat, byLook[i].length);
     mesh.name = `maze-${look.shape}`;
-    byLook[i].forEach((s, j) => put(mesh, j, s.p, s.way ? 1.25 : 1, 0, 0.01));
+    for (const s of byLook[i]) { s.mesh = mesh; put(mesh, s.i, s.p, s.s, 0, 0.01); }
     mesh.receiveShadow = true;
     mesh.computeBoundingSphere();
     group.add(mesh);
     owned.push(g, mat);
   });
+  /** A stone where it is shown now: at `p`, `lift` m over the ground, `s` big, tilted `tilt` rad round the way it faces. */
+  const v3 = new THREE.Vector3(), sc = new THREE.Vector3(), tiltQ = new THREE.Quaternion(), side = new THREE.Vector3(1, 0, 0);
+  const pose = (st: Stone, p: Place, lift: number, s: number, tilt = 0) => {
+    tiltQ.setFromAxisAngle(side, tilt);
+    st.mesh!.setMatrixAt(st.i, m4.compose(v3.set(p.x, groundY(p.x, p.z) + 0.01 + lift, p.z), tiltQ, sc.set(s, s, s)));
+    st.mesh!.instanceMatrix.needsUpdate = true;
+  };
+  const right = (k: number) => wayStones[k][geo.forks[k].ways.findIndex((w) => w.right)];
+  // the rings: one light ring at the end of every row, where its next stone goes - one instanced mesh, a ring of a full
+  // row taken away (scaled to nothing). A low rim, not a flat ring: lit, its edges shade, so it reads on the light sand
+  // of the path and without colours (a flat light ring on the sand was hardly seen, 2026-11-26)
+  const ringMat = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#fff4d6', emissiveIntensity: 0.25, roughness: 0.6 });
+  const slotGeo = new THREE.TorusGeometry(0.36, 0.055, 6, 24).rotateX(-Math.PI / 2);
+  const rings = new THREE.InstancedMesh(slotGeo, ringMat, Math.max(1, geo.forks.length));
+  rings.name = 'maze-rings';
+  const ringOn = geo.forks.map(() => true);
+  const ring = (k: number, on: boolean) => {
+    ringOn[k] = on;
+    const p = geo.forks[k].slot;
+    rings.setMatrixAt(k, m4.compose(v3.set(p.x, groundY(p.x, p.z) + 0.05, p.z), q.identity(), sc.setScalar(on ? 1 : 0)));
+    rings.instanceMatrix.needsUpdate = true;
+  };
+  geo.forks.forEach((_, k) => ring(k, true));
+  rings.count = geo.forks.length;
+  rings.computeBoundingSphere();
+  group.add(rings);
+  owned.push(ringMat, slotGeo);
+  // the rows full so far: the right way's stone already in its ring
+  let full = 0;
+  const fillNow = (k: number) => { const st = right(k); st.p = geo.forks[k].slot; st.s = 1; pose(st, st.p, 0, 1); ring(k, false); };
+  for (let k = 0; k < Math.min(filled, geo.forks.length); k++) { fillNow(k); full = k + 1; }
+  // what moves: a stone jumping into its ring, the flash along a row, a stone hopping and rocking
+  type Move = { t0: number; k: number; kind: 'jump' | 'wave' | 'hop'; w: number; from: Place; landed?: () => void };
+  const moves: Move[] = [];
+  const count = { fills: 0, refusals: 0 };
+  let now = 0;
+  const lerp = (a: Place, b: Place, u: number): Place => ({ x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u });
+  const touched = new Set<THREE.InstancedMesh>();
+  const step = () => {
+    for (let i = moves.length - 1; i >= 0; i--) {
+      const m = moves[i], t = now - m.t0, f = geo.forks[m.k];
+      if (m.kind === 'jump') {
+        const st = right(m.k), u = Math.min(1, t / STONE_JUMP);
+        pose(st, lerp(m.from, f.slot, u), Math.sin(Math.PI * u) * 0.9, 1.25 - 0.25 * u);
+        touched.add(st.mesh!);
+        if (u >= 1) {
+          moves.splice(i, 1);
+          st.p = f.slot; st.s = 1;
+          count.fills++;
+          m.landed?.();
+          moves.push({ t0: now, k: m.k, kind: 'wave', w: -1, from: f.slot });
+        }
+      } else if (m.kind === 'wave') {
+        // the flash: each stone of the row, start to end and the new one last, bobs up and grows a moment
+        const row = [...rowStones[m.k], right(m.k)], span = 0.25;
+        row.forEach((st, j) => {
+          const u = (t - j * STONE_WAVE) / span, b = u > 0 && u < 1 ? Math.sin(Math.PI * u) : 0;
+          pose(st, st.p, b * 0.18, st.s * (1 + 0.35 * b));
+          touched.add(st.mesh!);
+        });
+        if (t > (row.length - 1) * STONE_WAVE + span) moves.splice(i, 1);
+      } else {
+        // a hop a third of the way to the ring, rocking there, a hop back
+        const st = wayStones[m.k][m.w], to = lerp(m.from, f.slot, 0.35);
+        let p = m.from, lift = 0, tilt = 0;
+        if (t < STONE_HOP) { const u = t / STONE_HOP; p = lerp(m.from, to, u); lift = Math.sin(Math.PI * u) * 0.45; }
+        else if (t < STONE_HOP + STONE_ROCK) { const u = (t - STONE_HOP) / STONE_ROCK; p = to; tilt = Math.sin(u * Math.PI * 4) * 0.3 * (1 - u); }
+        else if (t < 2 * STONE_HOP + STONE_ROCK) { const u = (t - STONE_HOP - STONE_ROCK) / STONE_HOP; p = lerp(to, m.from, u); lift = Math.sin(Math.PI * u) * 0.45; }
+        else moves.splice(i, 1);
+        pose(st, p, lift, st.s, tilt);
+        touched.add(st.mesh!);
+      }
+    }
+    for (const mesh of touched) mesh.computeBoundingSphere();
+    touched.clear();
+  };
   // the glow of the right way at every fork, shown for the fork ahead after two wrong ways: discs along its first leg,
   // a ring round its first stone and a pillar of light over it, seen over the hedge - all of one plain bright material
   // (no glow of q2 needed: it reads at q0 and in the sun), pulsing
@@ -441,7 +549,32 @@ export function showMaze(scene: THREE.Scene, spec: MazeSpec, geo: MazeGeo, groun
   scene.add(group);
   return {
     group,
+    get filled() { return full; },
+    get moving() { return moves.length > 0; },
+    get count() { return { ...count }; },
+    fill(k, landed) {
+      if (k < full || k >= geo.forks.length || moves.some((m) => m.k === k && m.kind === 'jump')) return;
+      full = k + 1;
+      // a stone of this fork still hopping is put back first: the jump starts from its place
+      for (let i = moves.length - 1; i >= 0; i--) if (moves[i].k === k) { const m = moves.splice(i, 1)[0]; if (m.kind === 'hop') pose(wayStones[k][m.w], m.from, 0, wayStones[k][m.w].s); }
+      ring(k, false);
+      moves.push({ t0: now, k, kind: 'jump', w: -1, from: right(k).p, landed });
+    },
+    refuse(k, w) {
+      const st = wayStones[k]?.[w];
+      if (!st || geo.forks[k].ways[w].right || moves.some((m) => m.k === k)) return;
+      moves.push({ t0: now, k, kind: 'hop', w, from: st.p });
+      count.refusals++;
+    },
+    stoneAt(k, w) {
+      const st = wayStones[k][w], m = new THREE.Matrix4(), p = new THREE.Vector3(), s = new THREE.Vector3();
+      st.mesh!.getMatrixAt(st.i, m); m.decompose(p, new THREE.Quaternion(), s);
+      return { p, scale: s.x };
+    },
+    ringShown: (k) => ringOn[k] === true,
     update(time, glowAt) {
+      now = time;
+      if (moves.length) step();
       glows.forEach((g, k) => { g.visible = k === glowAt; });
       const beat = 0.5 + 0.5 * Math.sin(time * 4);
       glowMat.opacity = glowAt >= 0 ? 0.55 + 0.4 * beat : 0;

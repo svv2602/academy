@@ -92,6 +92,72 @@ describe("the hedgehog's maze (WORLD-14)", () => {
     expect([hp.x, hp.z]).toEqual([at.x, at.z]);
   });
 
+  it('a fork passed fills its row: the right stone jumps into the ring with the sound of a right answer; a reload shows it full', async () => {
+    const { sfx } = await import('../../core/audio');
+    const { g } = host(3), m = createMaze(g as never);
+    m.start!(KOLYUCHKA as never, vi.fn());
+    let t = 0;
+    const tick = (n: number) => { for (let i = 0; i < n; i++) { t += 0.1; m.update(0.1, t, true); } };
+    vi.mocked(sfx).mockClear();
+    for (let i = 0; i < 40 && m.walk.passed < 1; i++) { m.cheat(); tick(2); }
+    expect(m.walk.passed).toBe(1);
+    expect(m.show!.ringShown(0)).toBe(false);
+    tick(30);
+    expect(m.show!.moving).toBe(false);
+    const k0 = m.spec.forks[0].answer, slot = m.geo.forks[0].slot;
+    const st = m.show!.stoneAt(0, k0).p;
+    expect(Math.hypot(st.x - slot.x, st.z - slot.z)).toBeLessThan(1e-4);
+    expect(vi.mocked(sfx).mock.calls.map((c) => c[0])).toContain('good');
+    m.dispose();
+    // the world entered again: the row of the fork passed is full at once, the next one still has its ring
+    const again = createMaze(g as never);
+    expect(again.show!.filled).toBe(1);
+    expect(again.show!.ringShown(0)).toBe(false);
+    expect(again.show!.ringShown(1)).toBe(true);
+    const st2 = again.show!.stoneAt(0, k0).p;
+    expect(Math.hypot(st2.x - slot.x, st2.z - slot.z)).toBeLessThan(1e-4);
+    again.dispose();
+  });
+
+  it('walked through before (no middle kept): it stands with every row full, no ring empty', () => {
+    const { g } = host(3), m = createMaze(g as never, () => true);
+    expect(m.show!.filled).toBe(m.spec.forks.length);
+    expect(m.spec.forks.map((_, k) => m.show!.ringShown(k))).toEqual(m.spec.forks.map(() => false));
+    m.dispose();
+    const fresh = createMaze(g as never);
+    expect(fresh.show!.filled).toBe(0);
+    expect(fresh.show!.ringShown(0)).toBe(true);
+    fresh.dispose();
+  });
+
+  it('a wrong way walked round: back at its fork that way\'s stone hops toward the ring and goes back; nothing is lost', () => {
+    const { g, wrong } = host(3), m = createMaze(g as never);
+    m.start!(KOLYUCHKA as never, vi.fn());
+    let t = 0;
+    const tick = (n: number) => { for (let i = 0; i < n; i++) { t += 0.1; m.update(0.1, t, true); } };
+    const f = m.geo.forks[0], w = f.ways.findIndex((x) => !x.right);
+    const far = f.ways[w].line.reduce((b, p) => (Math.hypot(p.x - f.at.x, p.z - f.at.z) > Math.hypot(b.x - f.at.x, b.z - f.at.z) ? p : b));
+    const home = m.show!.stoneAt(0, w).p.clone();
+    g.hero.root.position.set(f.at.x, 0, f.at.z); tick(1);
+    g.hero.root.position.set(far.x, 0, far.z); tick(1);
+    expect(wrong).toHaveBeenCalledTimes(1);
+    expect(m.show!.moving).toBe(false);                      // not yet: she is still on the wrong way
+    g.hero.root.position.set(f.at.x, 0, f.at.z); tick(1);
+    expect(m.show!.moving).toBe(true);
+    tick(3);
+    const moved = m.show!.stoneAt(0, w).p;
+    expect(moved.distanceTo(home)).toBeGreaterThan(0.3);
+    tick(20);
+    expect(m.show!.moving).toBe(false);
+    expect(m.show!.stoneAt(0, w).p.distanceTo(home)).toBeLessThan(1e-4);
+    expect(m.walk.passed).toBe(0);
+    expect(m.show!.ringShown(0)).toBe(true);
+    // once only: standing on at the fork moves nothing more
+    tick(5);
+    expect(m.show!.moving).toBe(false);
+    m.dispose();
+  });
+
   it('after 40 s without a fork passed the sparkles lead to the right way; none before, none once it is done', () => {
     const { g } = host(1), m = createMaze(g as never);
     m.start!(KOLYUCHKA as never, vi.fn());

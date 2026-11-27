@@ -292,9 +292,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const nuts = createNutsSearch(g);
   scope.own(() => nuts.tracks.dispose());
   // Kolyuchka's maze (WORLD-14): walked through in the background; its end puts the fifth leaf just past it, waiting
-  const maze = createMaze(g);
-  scope.own(() => maze.dispose());
   const mazeLeaf = leaves.find((l) => l.owner === 'kolyuchka')!;
+  // walked through before (its end marks the leaf's hint): the maze stands with every row full
+  const maze = createMaze(g, () => ws.flags[mazeLeaf.hint] === true);
+  scope.own(() => maze.dispose());
   const mazeTask: WorldTask = {
     skill: maze.skill, active: maze.active, owner: maze.owner, reask: maze.reask,
     start: (n, done) => maze.start!(n, () => { ws.flags[mazeLeaf.hint] = true; done(); }),
@@ -405,6 +406,12 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         forestMap: { scale: SCALE, zones: ZONES, paths: PATHS, landmarks: LANDMARKS, route: ROUTE, arrival: FROM_HUB, ground: (x: number, z: number) => groundY(x, z) },
         // the maze that stands now (WORLD-14): its paths and forks, where she is in it - for its pictures and its time on foot
         forestMaze: maze,
+        // what the walkthrough reports of the forest (tools/forest-pass.mjs): the rows of the maze, full by jumps, and the
+        // stones of its wrong ways that hopped back (the customer's word of 2026-11-26)
+        worldCheck: () => {
+          const s = maze.show, n = maze.spec.forks.length;
+          return { maze: { forks: n, filled: s?.filled ?? 0, rings: Array.from({ length: n }, (_, k) => s?.ringShown(k) ?? false).filter(Boolean).length, ...(s?.count ?? { fills: 0, refusals: 0 }) } };
+        },
         // the cut-scenes' player (./story.ts): the tools skip a scene on the way (tools/hub-grey.mjs, tools/forest-grey.mjs)
         story,
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's

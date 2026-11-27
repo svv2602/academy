@@ -241,6 +241,9 @@ export function createGame(o: {
   const live = (mine: number) => !between && mine === visit;
   const taskOf = (mine: number) => async (open: () => Promise<TaskResult>): Promise<TaskResult> => {
     if (!live(mine)) return { solved: false, wrong: 0 };
+    // Under the panel she stands and waits, whatever brought it up (a star run up to, a talk with its Talk): the frame
+    // gives her no clip while the controls are taken (src/game/player.ts), so it is put on her here.
+    hero.play('Idle', 0.25);
     beginTask(); try { return await open(); } finally { if (live(mine)) endTask(); }
   };
   const refreshHud = () => { setCounter('stars', String(save.stars)); setCounterIcon('crystals', part.world.crystalsIcon?.() ?? '💎'); setCounter('crystals', part.crystals()); };
