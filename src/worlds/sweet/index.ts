@@ -42,7 +42,7 @@ import { createSweetRoom, roomOf } from './room';
  * The Sweet Land (WORLD-04), its grey build (WORLD-12), step 1: the map of docs/worlds/world-4.md in simple shapes at
  * their real sizes, stretched by one number (./layout.ts SCALE, `?scale=`), the cake palace and the mill as its
  * landmarks (./landmarks.ts), its five characters as figures of their height with their chains of tasks the game
- * already has, the two rubies that lie in the world, its four secrets (./secrets.ts), the finale at the cake, the tour
+ * already has, the two rubies that lie in the world, its six secrets (./secrets.ts), the finale at the cake, the tour
  * and the arch back to the Great Tree (./hub-way.ts). It loads no file and speaks no line of its own: the conversations say the shared recorded lines,
  * as the forest's grey build did. The registry lists it only in a build made with `--mode grey` (src/worlds/index.ts):
  * the published game does not change. What the measurements of the grey build read: tools/sweet-grey.mjs.
@@ -481,7 +481,7 @@ export const sweet: WorldDef<SweetLoads, WorldSky> = {
   collect: COLLECT,                  // swirl lollipops and jelly sweets (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
-  // PLAY-07: the four secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
+  // PLAY-07: the six secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
   secrets: SWEET_SECRETS,
   chest: CHEST_FLAG,
   // PLAY-09: Zheleyka, between the garden's lollipops once Tyanuchka's chain is done and he has asked for him

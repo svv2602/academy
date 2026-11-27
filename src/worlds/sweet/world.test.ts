@@ -113,7 +113,7 @@ describe('the Sweet Land, the grey build (WORLD-12, step 1)', () => {
     }
   });
 
-  it('its description is the one of a grey build: five chains, two parts, the tour, four secrets and the finale, nothing that disagrees', () => {
+  it('its description is the one of a grey build: five chains, two parts, the tour, six secrets and the finale, nothing that disagrees', () => {
     const ws = { quests: {}, flags: {}, final: false };
     const tour = marked(ws, { kind: 'flyover', id: 'toured', how: 'auto', active: () => false });
     const parts = RUBIES.map((r) => marked(ws, { kind: 'part', id: r.flag, how: 'act', at: r.at }));
