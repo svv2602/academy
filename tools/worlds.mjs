@@ -138,7 +138,7 @@
 //      no probe build. Pictures shots-e2e/worlds-published/forest/.
 //  14. The part "sea" (tools/sea-pass.mjs `passEnv`, `passProblems`): the same for the published sea (2026-11-24): its
 //      chains with the two tasks in the world (the shell lock, the second half) and the two pearls in it, the
-//      cutscenes, the tour, Bulchik, its four secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
+//      cutscenes, the tour, Bulchik, its five secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
 //  15. The part "sweet" (tools/sweet-pass.mjs `passEnv`, `passProblems`): the same for the published Sweet Land
 //      (2026-11-26): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
 //      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
@@ -975,7 +975,7 @@ async function main() {
     const next = buildWorlds(dist);
     if (!next.includes('sea')) throw new Error(`the published build ${dist} has no sea among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the sea', dist, join('shots-e2e', 'worlds-published', 'sea'), (out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,
-      'the sea of the published build: played by its description from its entry to its finale, its four secrets found');
+      'the sea of the published build: played by its description from its entry to its finale, its five secrets found');
   } catch (e) { fail(e.message); }
   // ---- the part "sweet": the walkthrough of the published Sweet Land in the published build (tools/sweet-pass.mjs) ----
   // as the sea's, held to the numbers of the template; its own limit, the grey walkthrough's (tools/sweet-grey.mjs)
