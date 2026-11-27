@@ -967,9 +967,10 @@ export async function playWorld(h, o = {}) {
       const pieces = await g(() => window.__game.collect.items.filter((i) => i.kind === 'piece').map((i) => i.id));
       const before = await g((w) => { const ws = window.__game.save.worlds[w]; return { found: [...(ws.found ?? [])], led: ws.flags.easel_led ?? null }; }, worldId);
       await g(([w, id]) => { const ws = window.__game.save.worlds[w]; ws.found = [...(ws.found ?? []), id]; }, [worldId, pieces[0]]);
-      if (!(await gameUntil(() => window.__game.easel.hints.leading, null, REACTS))) fail(`${where}: the first piece found did not start the lead to it`);
+      // the lead starts (its flag) and ends at once: she stands at the easel already
+      if (!(await gameUntil(() => window.__game.easel.hints.led, null, REACTS))) fail(`${where}: the first piece found did not start the lead to it`);
       const h1 = await g(() => window.__game.easel.hints);
-      if (h1.sign !== 'flicker' || !h1.led || h1.goal) fail(`${where}: its hints after the first piece ${JSON.stringify(h1)}`);
+      if (h1.sign !== 'flicker' || h1.leading || h1.goal) fail(`${where}: its hints after the first piece, by the easel ${JSON.stringify(h1)}`);
       await g(([w, ids]) => { const ws = window.__game.save.worlds[w]; ws.found = [...new Set([...ws.found, ...ids])]; }, [worldId, pieces]);
       const h2 = await g(() => window.__game.easel.hints);
       if (!h2.goal) fail(`${where}: every piece found, it is not the cat's goal ${JSON.stringify(h2)}`);
