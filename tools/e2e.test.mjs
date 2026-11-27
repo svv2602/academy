@@ -66,13 +66,15 @@ const combineEnv = () => { const env = { ...process.env }; delete env.E2E_MUTE; 
 
 describe('tools/e2e.mjs E2E_NET: the network of a walkthrough chosen by hand (a trial of one piece, try.yml)', () => {
   const src = readFileSync(join(root, 'tools/e2e.mjs'), 'utf8');
-  it('anything but "net" and "offline" is refused before anything is played: exit code 2', () => {
-    for (const value of ['wifi', '1', 'OFFLINE', 'net,offline']) {
-      const r = spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--skip-build', '--mode', 'mobile'], { cwd: root, encoding: 'utf8', env: { ...process.env, E2E_NET: value }, timeout: 30000 });
-      expect({ value, code: r.status }).toEqual({ value, code: 2 });
-      expect(r.stderr).toContain(`bad E2E_NET "${value}": expected net or offline`);
-    }
-  });
+  it('anything but "net" and "offline" is refused before anything is played: exit code 2', async () => {
+    const values = ['wifi', '1', 'OFFLINE', 'net,offline'];
+    const runs = await Promise.all(values.map((value) => e2e(['--skip-build', '--mode', 'mobile'], { ...process.env, E2E_NET: value })));
+    runs.forEach((r, i) => {
+      const value = values[i];
+      expect({ value, code: r.code }).toEqual({ value, code: 2 });
+      expect(r.out).toContain(`bad E2E_NET "${value}": expected net or offline`);
+    });
+  }, CHILD_MS + 5000);   // a child that hangs is killed first, and the test then names it
 
   it('without it the size decides, as always: only the desktop is played without the network', () => {
     expect(src).toContain("const OFFLINE_MODES = ['desktop'];");
@@ -148,11 +150,14 @@ describe('tools/e2e.mjs --combine: the checks over the walkthroughs CI plays in 
     expect(r.out).toContain(models.at(-1));
   });
 
-  it('takes no other flag', () => {
-    expect(combine(results(), '--mode', 'mobile').code).toBe(2);
-    expect(combine(results(), '--skip-build').code).toBe(2);
-    expect(spawnSync(process.execPath, [join(root, 'tools/e2e.mjs'), '--combine'], { cwd: root, encoding: 'utf8' }).status).toBe(2);
-  });
+  it('takes no other flag', async () => {
+    const runs = await Promise.all([
+      e2e(['--combine', results(), '--mode', 'mobile'], combineEnv()),
+      e2e(['--combine', results(), '--skip-build'], combineEnv()),
+      e2e(['--combine'], process.env),
+    ]);
+    expect(runs.map((r) => r.code)).toEqual([2, 2, 2]);
+  }, CHILD_MS + 5000);
 });
 
 // CI may play the world in pieces (npm run e2e -- --only <group>): one job per size and group, each leaving files
