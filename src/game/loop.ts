@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pollInput } from '../core/input';
+import { dropHeld, pollInput } from '../core/input';
 import type { Quality } from '../core/renderer';
 import { meterTime } from '../core/quality';
 import { seeThrough, uTime } from '../core/materials';
@@ -88,6 +88,8 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     pollInput();
     const hp = hero.root.position;
     const canMove = g.started() && !g.busy && !g.paused;
+    // taken controls: a key or a finger held now does not steer her once they are back (src/core/input.ts)
+    if (!canMove) dropHeld();
 
     camera.look();
     const here = allSpots();
