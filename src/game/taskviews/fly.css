@@ -1,0 +1,6 @@
+/* The face of an answer flying to the "?" and back (./fly.ts): over the panel, never taking a tap. */
+.fly { position: fixed; z-index: 60; display: flex; align-items: center; justify-content: center; pointer-events: none;
+  box-sizing: border-box; margin: 0; font-weight: 800; color: #4a2f6b; will-change: transform; }
+/* The "?" that took the right answer: it shows the answer as one of the row. */
+.got { color: #2f9b4a !important; border-style: solid !important; }
+.t-signs .slot.got { border-style: solid; color: #2f9b4a; background: #e8f9e4; border-color: #7fd08c; }

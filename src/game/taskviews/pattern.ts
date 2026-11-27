@@ -15,8 +15,8 @@ export function patternView(spec: PatternSpec, c: PanelCtx) {
   if (spec.level === 4) return growingView(spec, c);
   if (spec.level >= 5) return twoView(spec, c);
   row.forEach((s, i) => { const x = el('span', 'it still', s); x.dataset.u = String(i % unit.length); c.stage.appendChild(x); });
-  c.stage.appendChild(el('span', 'it still q', '?'));
-  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right');
+  const q = c.stage.appendChild(el('span', 'it still q', '?'));
+  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right', { at: () => q, row: () => [...c.stage.children] as HTMLElement[] });
   c.hint = hintOf(spec.hint, pulseOf(ok), { markUnits: () => { c.stage.classList.add('units'); } });
 }
 
@@ -28,8 +28,8 @@ function growingView(spec: PatternSpec, c: PanelCtx) {
     for (const t of [...g]) { const x = el('span', 'it still', t); x.style.fontSize = GROW_SIZE; box.appendChild(x); }
     c.stage.appendChild(box); return box;
   });
-  c.stage.appendChild(el('span', 'it still q', '?'));
-  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right');
+  const q = c.stage.appendChild(el('span', 'it still q', '?'));
+  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right', { at: () => q, row: () => [...c.stage.children] as HTMLElement[] });
   const numbers = async () => {
     const round = c.wrongs;
     c.stage.classList.add('units');
@@ -51,8 +51,8 @@ function twoView(spec: PatternSpec, c: PanelCtx) {
     const x = el('span', 'it still fig'); x.appendChild(shapeEl(key)); x.dataset.u = String(i % cu.length);
     c.stage.appendChild(x); return x;
   });
-  c.stage.appendChild(el('span', 'it still q', '?'));
-  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right');
+  const q = c.stage.appendChild(el('span', 'it still q', '?'));
+  const ok = options(c, spec.body.options, (v) => pattern.answer(spec, st, v) === 'right', { at: () => q, row: () => [...c.stage.children] as HTMLElement[] });
   [...c.opts.children].forEach((b, i) => { b.textContent = ''; b.appendChild(shapeEl(spec.body.options[i], '1.3em')); });
   const frames = async () => {
     const round = c.wrongs;

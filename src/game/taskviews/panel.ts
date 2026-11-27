@@ -23,6 +23,7 @@ import type { TaskHelpers } from '../helpers';
 import type { HelperId } from '../shop';
 import { FRAMES_FROM } from './tenframe';
 import { afterMistake, type ShownHint } from './flow';
+import { WON_MS, clearFlights, flyRight, flyWrong, type Slot } from './fly';
 import { countView } from './count';
 import { addView } from './add';
 import { subView } from './sub';
@@ -80,7 +81,8 @@ export interface PanelCtx {
   wrongs: number; alive: boolean;
   /** The mistake (value of `wrongs`) after which the child last counted the things by herself; -1 = not yet. */
   own: number;
-  right(): void; wrong(el?: HTMLElement): void;
+  /** `later`: ms the end waits beyond its usual 1.1 s, for the answer flown into its place to be seen (./fly.ts). */
+  right(later?: number): void; wrong(el?: HTMLElement): void;
   /** The hint of this task type: the line the cat says, and the solution shown once the line has ended. */
   hint: ShownHint | null;
   cheat: () => void;
@@ -107,13 +109,22 @@ export function items(parent: HTMLElement, emoji: string, tilt: readonly number[
 }
 export function badge(e: HTMLElement, n: number) { e.querySelector('i')?.remove(); const b = el('i', '', String(n)); e.appendChild(b); }
 
-/** Answer buttons, judged by the task's model; returns the correct one. */
-export function options<V extends number | string>(c: PanelCtx, values: readonly V[], right: (v: V) => boolean) {
+/**
+ * Answer buttons, judged by the task's model; returns the correct one. `slot`: the empty place "?" of the show - the
+ * answer given flies into it (./fly.ts); a wrong one flies back.
+ */
+export function options<V extends number | string>(c: PanelCtx, values: readonly V[], right: (v: V) => boolean, slot?: Slot) {
   let ok!: HTMLElement;
   for (const v of values) {
     const b = el('button', 'opt', String(v));
     if (right(v)) ok = b;
-    tap(b, () => { if (right(v)) { b.classList.add('yes'); c.right(); } else { b.classList.add('no'); c.wrong(b); } });
+    // a tap after the end judges as before (it marks its button) but flies nothing
+    tap(b, () => {
+      const fly = slot && c.alive;
+      if (right(v)) { b.classList.add('yes'); c.right(fly ? flyRight(b, slot) : 0); return; }
+      if (fly) flyWrong(b, slot);
+      b.classList.add('no'); c.wrong(b);
+    });
     c.opts.appendChild(b);
   }
   c.cheat = () => ok.dispatchEvent(new PointerEvent('pointerdown'));
@@ -164,7 +175,7 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
   const root = document.getElementById('task')!, stage = document.getElementById('taskStage')!, opts = document.getElementById('taskOpts')!;
   const close = document.getElementById('taskClose')!;
   stage.className = 't-stage t-' + spec.type; stage.innerHTML = ''; opts.innerHTML = ''; stage.removeAttribute('style'); delete stage.dataset.shown;
-  root.classList.remove('hidden', 'won');
+  root.classList.remove('hidden', 'won'); clearFlights(root);
   const card = root.querySelector('.t-card') ?? root;
   card.querySelector('.t-helps')?.remove();
   return new Promise((resolve) => {
@@ -181,7 +192,7 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
     };
     document.addEventListener('visibilitychange', onVis);
     const finish = (solved: boolean) => {
-      c.alive = false; current = null; helps.remove(); root.classList.add('hidden');
+      c.alive = false; current = null; helps.remove(); root.classList.add('hidden'); clearFlights(root);
       document.removeEventListener('visibilitychange', onVis);
       const r: TaskResult = helped ? { solved, wrong: c.wrongs, helped } : { solved, wrong: c.wrongs };
       if (solved) answered.set(r, answeredMs === undefined ? { type: spec.type } : { type: spec.type, ms: answeredMs });
@@ -191,10 +202,10 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
       stage, opts, hooks, wrongs: 0, alive: true, own: -1, hint: null, cheat: () => {},
       // The end is set before the sound: whatever the sound does, a right answer always ends the task (a panel left up
       // with its answer taken and no end - the walkthrough's "quest stuck" - was the one way a chain could stand still).
-      right() {
+      right(later = 0) {
         if (!c.alive) return;
         answeredMs = Math.max(0, performance.now() - t0 - hiddenMs - (hiddenAt >= 0 ? performance.now() - hiddenAt : 0));
-        c.alive = false; root.classList.add('won'); setTimeout(() => finish(true), 1100); try { hooks.good(); } catch { /* no sound */ } },
+        c.alive = false; root.classList.add('won'); setTimeout(() => finish(true), WON_MS + later); try { hooks.good(); } catch { /* no sound */ } },
       wrong(e) {
         if (!c.alive) return;
         const round = ++c.wrongs;
