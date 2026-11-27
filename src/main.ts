@@ -72,7 +72,9 @@ addStrings(world.strings, true);
 for (const w of WORLDS) if (INSTALLED.includes(w.id) && w.id !== world.id) addStrings((await w.code()).strings, false);
 // Season 2 (step 2): the texts of its parts - Pip, the new kinds of tasks, the talking book, the parents' shares - join
 // the shared ones too, each from its own module (src/s2/strings-*.ts), so that the parts never share a file of texts.
-for (const p of [pipStrings, taskStrings, bookStrings, parentStrings, cpaStrings]) addStrings(p, false);
+for (const p of [pipStrings, taskStrings, bookStrings, parentStrings]) addStrings(p, false);
+// the screen texts of the steps «things → picture → numbers» of the number tasks (src/game/tasks/cpa.ts)
+addStrings(cpaStrings, false);
 knowWorlds(WORLDS);   // the artifacts and the shelf count the worlds of the registry (src/game/artifacts.ts)
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
