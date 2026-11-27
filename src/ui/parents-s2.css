@@ -19,5 +19,5 @@
   .psubj { grid-template-columns: minmax(0, 1fr); }
   /* five buttons in 390 px do not fit, and a second line of them pushed "close" out of the window: "subjects" stands in the
      free bottom left corner of the card, beside "close", as the version does in the right one (style.css #pVersion) */
-  #pBody .pset .preset .psubjbtn { position: absolute; left: 12px; bottom: 16px; max-width: 24%; flex: none; padding: 4px 8px; font-size: 13px; line-height: 1.15; }
+  #pBody .pset .preset .psubjbtn { position: absolute; left: 8px; bottom: 16px; width: 76px; flex: none; padding: 4px 4px; font-size: 12px; line-height: 1.15; }
 }
