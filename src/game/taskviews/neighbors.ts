@@ -7,6 +7,9 @@ import { neighbors, type NeighborsSpec } from '../tasks/neighbors';
 import { el, options, pulseOf, wait, type PanelCtx } from './panel';
 import { hintOf } from './flow';
 import './neighbors.css';
+import { cpaOf } from '../tasks/cpa';
+import { markStep } from './cpa';
+import './cpa.css';
 
 /**
  * Rung 2 of the hint (`h2_neighbors`, HINTS.md): the cat counts the cells from the start of the piece, one by one,
@@ -31,6 +34,14 @@ export function neighborsView(spec: NeighborsSpec, c: PanelCtx) {
   const road = el('div', 'road');
   const cells = numbers.map((v, i) => road.appendChild(i === gap ? el('span', 'cell empty', '?') : el('span', v === n ? 'cell here' : 'cell', String(v))));
   c.stage.appendChild(road);
+  // the step of the world (src/game/tasks/cpa.ts): 2 - the track without its other numbers (the number and "?" alone
+  // written), 3 - the number and "?" alone, no track; the hint's count shows the whole track again
+  const step = cpaOf(spec.level);
+  markStep(c.stage, step);
+  const others = cells.filter((x, i) => i !== gap && numbers[i] !== n);
+  if (step === 2) others.forEach((x) => x.classList.add('cpa-off'));
+  if (step === 3) others.forEach((x) => x.classList.add('hidden'));
+  const open = () => others.forEach((x) => x.classList.remove('cpa-off', 'hidden'));
   const ok = options(c, spec.body.options, (v) => neighbors.answer(spec, st, v) === 'right', { at: () => cells[gap], row: () => cells });
-  c.hint = hintOf(spec.hint, pulseOf(ok), { countCells: () => { void countCells(c, spec, cells); } });
+  c.hint = hintOf(spec.hint, pulseOf(ok), { countCells: () => { open(); void countCells(c, spec, cells); } });
 }

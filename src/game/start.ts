@@ -13,6 +13,7 @@ import { tour } from './flyover';
 import { atPlay } from './stops';
 import { playStory, seenStories } from './story';
 import { setPuzzleWorld } from './tasks/puzzle';
+import { setCpaWorld } from './tasks/cpa';
 import type { Gear } from './gear';
 import type { BookInfo, WorldLines } from './world';
 
@@ -93,6 +94,8 @@ export function initStartScreen(g: Game, o: {
   const { save, hero, cam, speech, persist, refreshHud } = g;
   // the puzzle cuts the frames of the world played, of a story only once she has seen it there (LEARN-19)
   setPuzzleWorld(() => g.world.id, (world, story) => g.save.worlds?.[world]?.flags?.[story] === true);
+  // the number tasks are drawn by the step of the world played (things, picture, numbers: src/game/tasks/cpa.ts)
+  setCpaWorld(() => g.world.id, () => Object.keys(g.save.worlds ?? {}));
   el.loading.classList.add('hidden'); el.setup.classList.remove('hidden');
   el.restart.addEventListener('click', () => { clearSave(); location.reload(); });
   el.play.addEventListener('click', async () => {
