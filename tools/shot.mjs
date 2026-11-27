@@ -77,6 +77,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from 'fs';
 import { inflateRawSync } from 'zlib';
 import { ACH_WHOLE, GROUPS, PIECES_ONLY, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
+import { blockerProblems } from './world-pass.mjs';   // the first world's tasks in the world seen whole, as every other world's
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { storySheets } from './story-sheet.mjs';
 
@@ -1806,6 +1807,8 @@ try {
           await cameraRests(); await calm(); await shot(`task-world-${st.kind}`);
           // every thing to tap is free on the screen, in every size (the places it goes to may lie under the bubble)
           const blocked = (await targetsOnScreen()).all.filter((a) => !a.free);
+          // nothing of the world stands between the camera and it (src/game/worldtasks/blockers.ts): it is seen whole
+          for (const b of blockerProblems(await g(() => __game.worldTask.blockers?.() ?? null))) errors.push(`world task: ${mode}: "${st.kind}": not seen whole: ${b}`);
           if (blocked.length) errors.push(`world task: ${mode}: "${st.kind}": ${blocked.length} thing(s) to tap under ${[...new Set(blocked.map((a) => a.under))].join(', ')}: ${JSON.stringify(blocked.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
           // three wrong moves through the door: each shows the rung of its round, the third the last
           for (let k = 1; k <= 3; k++) {
@@ -3662,6 +3665,38 @@ try {
         const after = await mem();
         if (after.geometries > before.geometries || after.textures > before.textures) fail(`the renderer holds more after the tasks: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
         console.log(`puzzle: the pieces show the picture, one dropped on a cell not its own went back, every piece turned right by ${touch ? 'taps' : 'clicks'} and dragged for real onto its cell (${told.join('; ')}), ${twins ? `a piece taken by its twin's cell ${twins}` : 'the twins of level 4 left to the piece tasks2'}; the renderer holds ${after.geometries} geometries and ${after.textures} textures, as before`);
+      }
+      // ---- the steps «things → picture → numbers» (src/game/tasks/cpa.ts, the customer's word of 2026-11-27) ----
+      // Each number task opened by __game.task at each step held by the lever: what the step draws is on the panel (the
+      // things taken still coloured at 2, the numbers alone at 3, ...), pictured cpa-<type>-<step>; solved, then the
+      // lever let go.
+      if (has('cpa')) {
+        const fail = (what) => { throw new Error(`cpa: ${what}`); };
+        const told = [];
+        for (const type of ['sub', 'add', 'count', 'compare', 'neighbors', 'missing']) {
+          for (const step of [1, 2, 3]) {
+            const level = type === 'neighbors' ? 4 : 2;
+            await g(([s, t, l]) => { __game.cpa.hold(s); window.__cpa = null; void __game.task(t, l).then((r) => { window.__cpa = r; }); }, [step, type, level]);
+            // comparing is answered by a tap on a group, the others by an answer button
+            await page.locator('#task:not(.hidden) :is(.opt, .group.pickable)').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type} ${step}: the task did not open`));
+            await calm();
+            const seen = await g(() => {
+              const st = document.getElementById('taskStage'), vis = (e) => !e.closest('.cpa-asnum, .hid, .hidden');
+              return { cpa: st.dataset.cpa ?? '1', things: [...st.querySelectorAll('.it')].filter(vis).length, gone: st.querySelectorAll('.it.gone').length,
+                line: st.querySelector('.cpa-line')?.textContent ?? null, nums: [...st.querySelectorAll('.cpa-asnum')].map((x) => x.dataset.n) };
+            });
+            if (seen.cpa !== String(step)) fail(`${type} ${step}: the panel is drawn at step ${seen.cpa}`);
+            if (type === 'sub' && step === 2 && seen.gone) fail(`sub 2: ${seen.gone} things greyed before the answer`);
+            if (type === 'sub' && step === 3 && (seen.things || !seen.line)) fail(`sub 3: ${seen.things} things seen, the line ${seen.line}`);
+            if (type === 'add' && step === 3 && (seen.things || seen.nums.length !== 2)) fail(`add 3: ${seen.things} things seen, numbers ${seen.nums}`);
+            await shot(`cpa-${type}-${step}`);
+            await g(() => __game.cheat());
+            await gameFor(() => window.__cpa !== null, null, 20).catch(() => fail(`${type} ${step}: the task did not end once solved`));
+            told.push(`${type} ${step}: ${seen.things} things${seen.line ? `, "${seen.line}"` : ''}${seen.nums.length ? `, numbers ${seen.nums}` : ''}`);
+          }
+        }
+        await g(() => __game.cpa.hold(null));
+        console.log(`cpa: ${told.join('; ')}`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the

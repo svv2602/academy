@@ -1,0 +1,17 @@
+/* The steps «things → picture → numbers» (src/game/taskviews/cpa.ts). */
+.cpa-things { display: contents; }
+.cpa-things.hid { display: none; }
+.cpa-basket { display: inline-flex; align-items: center; gap: 4px; font: 800 28px/1 system-ui, sans-serif; color: #c0743a; }
+.cpa-basket .cpa-bk { font-size: 40px; }
+.cpa-basket.closed .cpa-bk { filter: saturate(.7); }
+.cpa-line { flex: 1 0 100%; text-align: center; font: 800 30px/1.2 system-ui, sans-serif; color: #4a2f7a; }
+.it.taken { animation: cpa-take .55s ease-in var(--d, 0ms) forwards; }
+@keyframes cpa-take { to { transform: translate(40px, 30px) scale(.2); opacity: 0; } }
+.cpa-asnum > * { display: none !important; }
+.cpa-asnum::before { content: attr(data-n); font: 800 44px/1 system-ui, sans-serif; color: #4a2f7a; padding: 0 6px; }
+.group.cpa-big .it { font-size: 1.45em; }
+.group.cpa-small .it { font-size: .7em; }
+.road .cell.cpa-off { color: transparent; }
+.cpa-scatter .it { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--r, 0deg)); margin: 6px 10px; }
+.cpa-again-row { flex: 1 0 100%; display: flex; justify-content: center; margin-top: 6px; }
+.cpa-again { min-height: 48px; padding: 6px 22px; border-radius: 999px; background: #f1e6fa; color: #7a4fb0; font: 700 18px/1 system-ui, sans-serif; }

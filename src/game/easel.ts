@@ -31,6 +31,11 @@ const EASEL_R = 0.55;
 export const EASEL_LEAD_S = 20;
 /** m: the sign over the easel, its height over the ground. */
 const SIGN_Y = 2.45;
+/**
+ * m: the easel itself is drawn while she is this near it; its sign, seen from afar, always (TECH-06: the forest's
+ * village views were over the budget of draw calls with it, 2026-11-27). Past this a 1.7 m easel is a few pixels.
+ */
+export const EASEL_SHOW_R = 30;
 
 export interface EaselInWorld {
   /** Its action spot ("easel"), joined to the world's in the frame (src/game/loop.ts); none without an easel. */
@@ -65,20 +70,21 @@ export function createEasel(g: EaselHost): EaselInWorld {
   group.position.set(def.x, y, def.z);
   group.rotation.y = def.facing;
   const owned: THREE.BufferGeometry[] = [];
-  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, yy: number, z: number, rx = 0, rz = 0) => {
-    owned.push(geo);
-    const mesh = new THREE.Mesh(geo, m);
-    mesh.position.set(x, yy, z); mesh.rotation.set(rx, 0, rz);
-    mesh.castShadow = true;
-    group.add(mesh);
-    return mesh;
-  };
-  const wood = mat.wood('#9a6a3a');
-  const leg = new THREE.CylinderGeometry(0.035, 0.045, 1.7, 6);
-  add(leg, wood, -0.42, 0.82, 0.08, -0.12, 0.2);
-  add(leg.clone(), wood, 0.42, 0.82, 0.08, -0.12, -0.2);
-  add(leg.clone(), wood, 0, 0.8, -0.38, 0.35, 0);
-  add(new THREE.BoxGeometry(1.25, 0.06, 0.12), wood, 0, 0.72, 0.16);                        // the ledge the board stands on
+  // the three legs and the ledge the board stands on: one geometry of one wood, one draw call (and one for its shadow)
+  const part = (geo: THREE.BufferGeometry, x: number, yy: number, z: number, rx = 0, rz = 0) =>
+    geo.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, yy, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, 0, rz)), new THREE.Vector3(1, 1, 1)));
+  const woodParts = [
+    part(new THREE.CylinderGeometry(0.035, 0.045, 1.7, 6), -0.42, 0.82, 0.08, -0.12, 0.2),
+    part(new THREE.CylinderGeometry(0.035, 0.045, 1.7, 6), 0.42, 0.82, 0.08, -0.12, -0.2),
+    part(new THREE.CylinderGeometry(0.035, 0.045, 1.7, 6), 0, 0.8, -0.38, 0.35, 0),
+    part(new THREE.BoxGeometry(1.25, 0.06, 0.12).toNonIndexed(), 0, 0.72, 0.16),
+  ].map((geo) => (geo.index ? geo.toNonIndexed() : geo));
+  const woodGeo = mergeGeometries(woodParts, false)!;
+  woodParts.forEach((geo) => geo.dispose());
+  owned.push(woodGeo);
+  const frame = new THREE.Mesh(woodGeo, mat.wood('#9a6a3a'));
+  frame.castShadow = true;
+  group.add(frame);
   const board = new THREE.Group();
   board.position.set(0, 1.12, 0.12); board.rotation.x = -0.12;
   group.add(board);
@@ -88,15 +94,23 @@ export function createEasel(g: EaselHost): EaselInWorld {
   const tileGeo = new THREE.BoxGeometry(1.0 / pic.cols, 0.56 / pic.rows, 0.02);
   owned.push(tileGeo);
   const tileMat = mat.glow(COLLECT_KINDS.piece.color, 0.25);
-  const tiles = Array.from({ length: cells }, (_, cell) => {
-    const t = new THREE.Mesh(tileGeo, tileMat);
-    const col = cell % pic.cols, row = Math.floor(cell / pic.cols);
-    t.scale.set(0.9, 0.9, 1);
-    t.position.set((col - (pic.cols - 1) / 2) * (1.0 / pic.cols), ((pic.rows - 1) / 2 - row) * (0.56 / pic.rows), 0.03);
-    board.add(t);
-    return t;
-  });
-  const showSet = () => { const set = setCells(collect, g.ws.flags); tiles.forEach((t, cell) => { t.visible = set.includes(cell); }); };
+  // the tiles of the cells set: one instanced mesh, as many drawn as are set (one draw call for the whole picture)
+  const tiles = new THREE.InstancedMesh(tileGeo, tileMat, cells);
+  tiles.name = 'easel-tiles';
+  board.add(tiles);
+  const tileAt = new THREE.Matrix4(), tileScale = new THREE.Vector3(0.9, 0.9, 1), tileQ = new THREE.Quaternion(), tilePos = new THREE.Vector3();
+  const showSet = () => {
+    const set = setCells(collect, g.ws.flags);
+    set.forEach((cell, i) => {
+      const col = cell % pic.cols, row = Math.floor(cell / pic.cols);
+      tilePos.set((col - (pic.cols - 1) / 2) * (1.0 / pic.cols), ((pic.rows - 1) / 2 - row) * (0.56 / pic.rows), 0.03);
+      tiles.setMatrixAt(i, tileAt.compose(tilePos, tileQ, tileScale));
+    });
+    tiles.count = set.length;
+    tiles.visible = set.length > 0;
+    tiles.instanceMatrix.needsUpdate = true;
+    tiles.computeBoundingSphere();
+  };
   showSet();
   // the sign over it, seen from afar (the customer's word of 2026-11-27): a little glowing frame, turning; it flickers
   // while found pieces lie by the easel, and is gone once the picture is set. One mesh, its own material (it pulses).
@@ -160,6 +174,7 @@ export function createEasel(g: EaselHost): EaselInWorld {
     leading: () => (isLeading() ? spot.pos : null),
     update: (time) => {
       now = time;
+      group.visible = Math.hypot(g.hero.root.position.x - def.x, g.hero.root.position.z - def.z) < EASEL_SHOW_R;
       const found = foundOf(g.ws);
       if (leadsToEasel(collect, before, found, g.ws.flags)) {
         g.ws.flags[EASEL_LED] = true;
