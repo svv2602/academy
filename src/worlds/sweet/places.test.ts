@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWorldScope } from '../../game/scope';
 import { CAVE, EASEL, EDGE, HALF, HOUSE, HOUSE_DOOR, MILL, MILLSTONE, RIVER, RIVER_HALF, ROOM, SPAWN, ZONES } from './layout';
 import { CAVE_CAM, FIND_R, SHOW_NEAR, caveGeometry, caveOf, caveStones, createChocoCave, curtainGeometry } from './cave';
-import { DOOR_IN, ROOM_CAM, ROOM_FAR, ROOM_TOLD, createSweetRoom, roomGeometry, roomOf } from './room';
+import { DOOR_IN, ROOM_CAM, ROOM_FAR, ROOM_H, ROOM_TOLD, createSweetRoom, roomGeometry, roomOf } from './room';
 import { colliders, height, inRoom, lineDist, pathDist, resolve, riverDist } from './terrain';
 import { COLLECT } from './collect';
 import { SWEET_FLYOVER } from './flyover-path';
@@ -147,6 +147,22 @@ describe('Imbir\'s room', () => {
     t.room.update();
     expect(meshes[0].visible).toBe(false);
     expect(roomGeometry().getAttribute('position').count / 3).toBeLessThan(8000);
+    // what is on the walls is one-sided and faces in: the camera behind her at the door sees her through the front wall
+    // and its door (a box of a door hid her: the sweet-grey shot of 2026-11-27), the icing does not hang in the air
+    const pos = roomGeometry().getAttribute('position'), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    let onWalls = 0;
+    for (let i = 0; i < pos.count; i += 3) {
+      a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, i + 1); c.fromBufferAttribute(pos, i + 2);
+      const mx = (a.x + b.x + c.x) / 3 - ROOM.x, mz = (a.z + b.z + c.z) / 3 - ROOM.z, my = (a.y + b.y + c.y) / 3 - ROOM.y;
+      const n = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a));
+      if (n.lengthSq() < 1e-12) continue;
+      const front = mz > ROOM.half - 0.06, top = my > ROOM_H - 0.4 && Math.max(Math.abs(mx), Math.abs(mz)) > ROOM.half - 0.06;
+      if ((!front && !top) || my < 0.05) continue;   // the floor's seams end at the wall, lying on the floor
+      onWalls++;
+      // toward the middle of the room (in a corner either wall's way is in)
+      expect(n.dot(new THREE.Vector3(-mx, 0, -mz)), `a face at ${mx.toFixed(2)},${my.toFixed(2)},${mz.toFixed(2)}`).toBeGreaterThan(0);
+    }
+    expect(onWalls).toBeGreaterThan(20);
     expect(DOOR_IN).toBeLessThan(ROOM.half);
   });
 });

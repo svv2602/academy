@@ -52,12 +52,15 @@ export function roomGeometry(): THREE.BufferGeometry {
   // behind her sees her through a wall it stands behind (the first world's room)
   [[0, '#f3c6d3'], [Math.PI / 2, '#efbcca'], [Math.PI, '#f3c6d3'], [-Math.PI / 2, '#efbcca']].forEach(([ry, c]) => {
     parts.push([new THREE.PlaneGeometry(S * 2, H).translate(0, H / 2, -S).rotateY(ry as number).translate(ROOM.x, ROOM.y, ROOM.z), c as string]);
-    for (let k = -S + 0.3; k < S; k += 0.6) parts.push([new THREE.SphereGeometry(0.16, 6, 4).scale(1, 0.6, 0.3).translate(k, H - 0.25, -S + 0.04).rotateY(ry as number).translate(ROOM.x, ROOM.y, ROOM.z), '#ffffff']);
+    // the icing flat on the wall, as the wall one-sided: from behind (where the camera stands) neither is drawn
+    for (let k = -S + 0.3; k < S; k += 0.6) parts.push([new THREE.CircleGeometry(0.2, 8, Math.PI, Math.PI).translate(k, H - 0.12, -S + 0.02).rotateY(ry as number).translate(ROOM.x, ROOM.y, ROOM.z), '#ffffff']);
+    parts.push([new THREE.PlaneGeometry(S * 2, 0.12).translate(0, H - 0.06, -S + 0.02).rotateY(ry as number).translate(ROOM.x, ROOM.y, ROOM.z), '#ffffff']);
   });
-  // the door inside the front wall, a round window of sugar glass by it
-  parts.push([at(new THREE.BoxGeometry(1.4, 2.2, 0.08), 0, 1.1, S - 0.05), '#7a4a26']);
-  parts.push([at(new THREE.BoxGeometry(1.1, 1.85, 0.06), 0, 0.98, S - 0.09), '#9a5f30']);
-  parts.push([at(new THREE.SphereGeometry(0.07, 8, 6), 0.38, 1.0, S - 0.14), '#f2c45a']);
+  // the door inside the front wall (flat, facing in: the camera behind her at the door sees her through it), a round
+  // window of sugar glass by it
+  parts.push([at(new THREE.PlaneGeometry(1.4, 2.2).rotateY(Math.PI), 0, 1.1, S - 0.02), '#7a4a26']);
+  parts.push([at(new THREE.PlaneGeometry(1.1, 1.85).rotateY(Math.PI), 0, 0.98, S - 0.03), '#9a5f30']);
+  parts.push([at(new THREE.CircleGeometry(0.07, 8).rotateY(Math.PI), 0.38, 1.0, S - 0.04), '#f2c45a']);
   parts.push([at(new THREE.CircleGeometry(0.42, 16).rotateY(Math.PI), -1.9, 1.7, S - 0.04), '#bfe8ff']);
   // the table: its top, four legs; a teapot and three cupcakes on it
   const t = r.table;
