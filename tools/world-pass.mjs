@@ -974,14 +974,14 @@ export async function playWorld(h, o = {}) {
       await g(([w, ids]) => { const ws = window.__game.save.worlds[w]; ws.found = [...new Set([...ws.found, ...ids])]; }, [worldId, pieces]);
       const h2 = await g(() => window.__game.easel.hints);
       if (!h2.goal) fail(`${where}: every piece found, it is not the cat's goal ${JSON.stringify(h2)}`);
-      await g(([w, b]) => { const ws = window.__game.save.worlds[w]; ws.found = b.found; if (b.led === null) delete ws.flags.easel_led; else ws.flags.easel_led = b.led; }, [worldId, before]);
-      console.log(`easel hints: the sign steady, the first of ${pieces.length} pieces led to it and made it flicker, all of them made it the cat's goal`);
-      // the cat's sparkles (src/game/guide.ts): as the world fades them; a tap on the cat (`ask`, as player.ts does) shows
-      // the whole trail at once
+      // the cat's sparkles (src/game/guide.ts), the easel their goal now (the pass comes here with the rest of the world
+      // done: no other goal): as the world fades them; a tap on the cat (`ask`, as player.ts does) shows the whole trail
       const s0 = await g(() => window.__game.guide.state);
       await g(() => window.__game.guide.ask());
       if (!(await gameUntil(() => window.__game.guide.state.show === 'trail' && window.__game.guide.state.asked, null, REACTS))) fail(`${where}: asked by a tap on the cat, the sparkles did not show the way ${JSON.stringify(await g(() => window.__game.guide.state))}`);
       console.log(`the cat's sparkles: ${JSON.stringify(s0)} before, the whole trail once asked`);
+      await g(([w, b]) => { const ws = window.__game.save.worlds[w]; ws.found = b.found; if (b.led === null) delete ws.flags.easel_led; else ws.flags.easel_led = b.led; }, [worldId, before]);
+      console.log(`easel hints: the sign steady, the first of ${pieces.length} pieces led to it and made it flicker, all of them made it the cat's goal`);
     }
   }
 
