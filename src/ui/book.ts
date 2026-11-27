@@ -22,6 +22,7 @@ import { showPicture } from './picture';
 import { heroCloseup } from './shop';
 import { say } from '../core/audio';
 import { t, tf, voiceText, type Key, type SpokenKey } from './strings';
+import { pipOpen, renderMap, renderNotes, renderWords, wordbookState, wordbookView, wordsLeft, wordsOpened } from './wordbook';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -79,11 +80,21 @@ export const PET_ICON: Record<string, string> = { fawn: '🦌', owlet: '🦉', b
 /** The pictures of a world's secrets: the chest has its own. */
 const SECRET_ICON = '✨', CHEST_ICON = '🎁';
 
-type Tab = 'shelf' | 'secrets' | 'collect' | 'picture' | 'pets' | 'ach';
-const TABS: readonly { id: Tab; icon: string; label: Key }[] = [
-  { id: 'shelf', icon: '🏆', label: 'shelf_title' }, { id: 'secrets', icon: '🗝️', label: 'book_secrets_t' },
-  { id: 'collect', icon: '🦋', label: 'book_collect_t' }, { id: 'picture', icon: '🧩', label: 'book_pic_t' }, { id: 'pets', icon: '🐾', label: 'book_pets' }, { id: 'ach', icon: '🏅', label: 'ach_book' },
+type Tab = 'shelf' | 'secrets' | 'collect' | 'picture' | 'pets' | 'ach' | 'words';
+/**
+ * The tabs and the panes of each. The talking book's (Season 2, src/ui/wordbook.ts) comes with what fills it:
+ * the words once she has met one, the map of Pip and the notes once she has met Pip.
+ */
+const TABS: readonly { id: Tab; icon: string; label: Key; panes: readonly string[]; when?: (s: Save) => boolean }[] = [
+  { id: 'shelf', icon: '🏆', label: 'shelf_title', panes: ['bookShelf'] }, { id: 'secrets', icon: '🗝️', label: 'book_secrets_t', panes: ['bookSecrets'] },
+  { id: 'collect', icon: '🦋', label: 'book_collect_t', panes: ['bookCollect'] }, { id: 'picture', icon: '🧩', label: 'book_pic_t', panes: ['bookPicture'] },
+  { id: 'pets', icon: '🐾', label: 'book_pets', panes: ['bookPets'] }, { id: 'ach', icon: '🏅', label: 'ach_book', panes: ['bookAch'] },
+  // its pages: the words met, a page a world, then Pip's map and notes; one tab, so that the seven fit a row of the card on
+  // a small phone too (667 wide: eight do not, and the shelf would leave the card)
+  { id: 'words', icon: '🔤', label: 'book_words_t', panes: ['bookWords'], when: (s) => s.words.length > 0 || pipOpen(s) },
 ];
+/** The tabs the book shows for `save`. */
+export const bookTabs = (save: Save): Tab[] => TABS.filter((tb) => !tb.when || tb.when(save)).map((tb) => tb.id);
 
 /** What window.__game reads of the book (src/game/debug.ts does not: the walkthrough reads the DOM and this). */
 export const bookState = { opened: 0, firstSaid: false, tab: 'shelf' as Tab };
@@ -111,15 +122,30 @@ function sayLine(key: SpokenKey | null) {
 function renderTabs(save: Save) {
   const box = $('bookTabs');
   box.innerHTML = '';
+  const shown = bookTabs(save);
+  if (!shown.includes(tab)) tab = 'shelf';
   for (const tb of TABS) {
-    const b = button(tb.id === tab ? 'sel' : '', tb.icon, () => { tab = tb.id; renderProfile(save); });
+    if (!shown.includes(tb.id)) continue;
+    const b = button((tb.id === tab ? 'sel' : '') + (tb.id === 'words' && wordbookState.fresh.size ? ' fresh' : ''), tb.icon, () => openTab(save, tb.id));
     b.dataset.tab = tb.id; b.setAttribute('aria-label', t(tb.label)); b.title = t(tb.label);
     box.appendChild(b);
   }
-  for (const [id, pane] of [['shelf', 'bookShelf'], ['secrets', 'bookSecrets'], ['collect', 'bookCollect'], ['picture', 'bookPicture'], ['pets', 'bookPets'], ['ach', 'bookAch']] as const) {
-    $(pane).classList.toggle('hidden', id !== tab);
-  }
+  box.classList.toggle('many', shown.length > 6);
+  for (const tb of TABS) for (const pane of tb.panes) document.getElementById(pane)?.classList.toggle('hidden', tb.id !== tab);
+  // the tabs of the talking book have no use for the stars, the chest and the scenes of the shelf: the room is the words'
+  $('book').dataset.tab = tab;
   bookState.tab = tab;
+}
+
+/** A tap on a tab: the page of words says hello on its first look; leaving it ends its game and its English. */
+function openTab(save: Save, to: Tab) {
+  const from = tab;
+  tab = to;
+  if (from === 'words' && to !== 'words') wordsLeft();
+  // the cat's line of the shelf is not the talking book's (R20: there the cat says nothing)
+  if (to === 'words') sayLine(null);
+  renderProfile(save);
+  if (to === 'words' && from !== 'words') wordsOpened(save);
 }
 
 function renderShelf(save: Save, world: WorldEntry | null) {
@@ -287,6 +313,9 @@ export function renderProfile(save: Save, persist: () => void = () => achGame?.p
   renderPets(save, persist);
   renderAch(save);
   renderStories();
+  renderWords(save, tab === 'words');
+  renderMap(save);
+  renderNotes(save);
 }
 
 /**
@@ -297,6 +326,7 @@ export function bookView(open: boolean, save: Save) {
   heroCloseup(open);
   // A page without the profile's markup (a unit test of the parents' section builds only its own ids): nothing to draw.
   if (!document.getElementById('bookTabs')) return;
+  wordbookView(open);
   if (!open) { sayLine(null); return; }
   tab = 'shelf'; pickedPlace = -1; pickedAch = null;
   bookState.opened++;

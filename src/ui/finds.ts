@@ -4,6 +4,8 @@
  * not a sparkle she cannot read).
  */
 import { COLLECT_KINDS, type CollectKind } from '../game/collections';
+import type { WordId } from '../s2/types';
+import { PEBBLE, WORD_COLOUR, WORD_COUNT, WORD_EMOJI } from '../s2/word-pictures';
 import './finds.css';
 
 /**
@@ -23,10 +25,26 @@ const DRAWN: Record<string, string> = {
     + '<path d="M4 20 Q4.5 8 10 7" fill="none" stroke="#c8f2bd" stroke-width="1.6" stroke-linecap="round"/>'
     + [[8, 12], [13, 9], [15, 15], [9, 18], [17, 19]].map(([x, y]) => `<rect x="${x}" y="${y}" width="1.4" height="1.4" fill="#ffffff" opacity="0.9"/>`).join('')
     + '</svg>',
+  // the apple of the Sweet Land's page (wordbook §1, the one word with no picture in the game): red, a leaf, a stalk
+  apple: '<svg viewBox="0 0 24 26" width="0.92em" height="1em" aria-hidden="true">'
+    + '<path d="M12 7 Q6 3 3 8 Q0 14 4 20 Q7 25 12 23 Q17 25 20 20 Q24 14 21 8 Q18 3 12 7 Z" fill="#e8413a"/>'
+    + '<path d="M6 10 Q5 13 6 16" fill="none" stroke="#ff9a8f" stroke-width="1.6" stroke-linecap="round"/>'
+    + '<path d="M12 7 Q12 3 14 1" fill="none" stroke="#6b4122" stroke-width="1.6" stroke-linecap="round"/>'
+    + '<path d="M13 4 Q17 0 21 3 Q17 6 13 4 Z" fill="#5cbf4a"/></svg>',
 };
 
 /** The markup of the picture of `kind`. */
 export function findIcon(kind: CollectKind): string {
   const k = COLLECT_KINDS[kind] as { icon: string; svg?: string; gold?: boolean };
   return `<span class="find-ic${k.gold ? ' gold' : ''}">${k.svg ? DRAWN[k.svg] ?? '' : k.icon}</span>`;
+}
+
+/** The markup of the picture of the word `id` of the book. */
+export function wordIcon(id: WordId): string {
+  if (id === 'apple') return `<span class="word-ic">${DRAWN.apple}</span>`;
+  const colour = WORD_COLOUR[id];
+  if (colour) return `<span class="word-ic patch" style="--c:${colour}"></span>`;
+  const n = WORD_COUNT[id];
+  if (n) return `<span class="word-ic many" data-n="${n}">${(n <= 3 ? PEBBLE : DRAWN.cone.replace('0.72em', '0.36em').replace('height="1em"', 'height="0.5em"')).repeat(n)}</span>`;
+  return `<span class="word-ic">${WORD_EMOJI[id] ?? '❔'}</span>`;
 }
