@@ -82,3 +82,10 @@ describe('tools/sky-grey.mjs', () => {
     expect(PUBLISH_PARTS).not.toContain('sky-grey');
   });
 });
+
+describe('--budget (the CI job "budget"): the draw of the points only', () => {
+  it('leaves out the walkthrough, keeps the measures', () => {
+    expect(readArgs(['--budget'])).toMatchObject({ budget: true, pass: false, measure: true });
+    expect(readArgs([])).toMatchObject({ budget: false, pass: true });
+  });
+});

@@ -13,7 +13,7 @@ import { rungOf, type Hint, type HintStep } from '../tasks/types';
 export const SHAKE_MS = 900;
 
 /** The hint of a shown task: the line the cat says after mistake `round`, and what is shown once that line has ended. */
-export interface ShownHint { key(round: number): SpokenKey; show(round: number): void }
+export interface ShownHint { key(round: number): SpokenKey | null; show(round: number): void }
 
 /** The two lines the flow asks for; each returns the end of its line (a line cut off by a newer one settles at once). */
 export interface FlowVoice { wrong(): Spoken; hint(key: SpokenKey): Spoken }
@@ -34,7 +34,9 @@ export async function afterMistake(task: FlowTask, round: number, voice: FlowVoi
   const wanted = () => task.alive && task.wrongs === round;
   await Promise.all([voice.wrong(), wait(SHAKE_MS)]);
   if (!wanted() || !task.hint) return;
-  await voice.hint(task.hint.key(round));
+  // a rung of no line (the English tasks, ../tasks/types.ts HintRung) goes on to its steps at once
+  const key = task.hint.key(round);
+  if (key) await voice.hint(key);
   // Her own tap on a thing says its number and so cuts the hint off. She is doing what the hint asked:
   // the cat must not start counting from one over her. The next mistake brings the cat's count back.
   if (wanted() && task.own !== round) task.hint.show(round);

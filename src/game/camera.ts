@@ -18,6 +18,8 @@ export const WATER_LIFT = 0.6, WATER_SOFT = 0.5;
  * The tour of the world (src/game/flyover.ts) takes the camera over while it runs and hands it back smoothly after.
  */
 export function createCamera(g: Game, focusDist: () => number): { look(): void; update(dt: number, time: number, mag: number): void } {
+  /** How far a glide goes this frame: all the way while `g.camSnap` asks for it (debug). */
+  const k = (rate: number, dt: number) => (g.camSnap ? 1 : damp(rate, dt));
   const { hero, cam, camera, groundY, started } = g;
   let userPitch = 0.36;             // set by dragging up/down
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), fp = new THREE.Vector3(), fl = new THREE.Vector3();
@@ -39,12 +41,13 @@ export function createCamera(g: Game, focusDist: () => number): { look(): void; 
         const t = g.camTask;
         if (t) {
           // a task in the world (src/game/worldtasks/core.ts): its own frame, looked at from above as a table; glided to
-          v.copy(t.target); cam.yaw += angleDiff(t.yaw, cam.yaw) * damp(3, dt);
+          v.copy(t.target); cam.yaw += angleDiff(t.yaw, cam.yaw) * k(3, dt);
         } else if (cam.focus) { v.copy(cam.focus).lerp(v2.copy(hp).setY(hp.y + 1.2), 0.3); cam.yaw += angleDiff(Math.atan2(hp.x - cam.focus.x, hp.z - cam.focus.z) + 0.5, cam.yaw) * damp(2, dt); }
         else v.set(hp.x, hp.y + 1.5 * hero.root.scale.y + (soft < 1 ? WATER_LIFT : 0), hp.z);   // a tiny or a giant heroine (src/game/supplies.ts): her height
-        cam.target.lerp(v, damp(t || cam.focus ? 3 : 9 * soft, dt));
-        cam.dist = lerp(cam.dist, t ? t.dist : g.camOverride ?? (cam.focus ? focusDist() : camDistance(camera.aspect)), damp(3, dt));
-        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : Math.max(userPitch, g.camPitchMin ?? 0), damp(t || cam.focus ? 3 : g.camPitchMin !== null ? 3 : 10 * soft, dt));
+        cam.target.lerp(v, k(t || cam.focus ? 3 : 9 * soft, dt));
+        cam.dist = lerp(cam.dist, t ? t.dist : g.camOverride ?? (cam.focus ? focusDist() : camDistance(camera.aspect)), k(3, dt));
+        cam.pitch = lerp(cam.pitch, t ? t.pitch : cam.focus ? 0.3 : Math.max(userPitch, g.camPitchMin ?? 0), k(t || cam.focus ? 3 : g.camPitchMin !== null ? 3 : 10 * soft, dt));
+        g.camSnap = false;
       }
       camera.position.set(
         cam.target.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist,

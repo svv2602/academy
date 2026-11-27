@@ -9,7 +9,7 @@
  */
 import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_listen: 'Послухати', forest_story_title_intro: 'Початок історії лісу', forest_story_title_emerald: 'Смарагд мудрості повернувся', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}',
+const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Дерева', forest_listen: 'Послухати', forest_hollow: 'Дупло', forest_out: 'Вийти', forest_story_title_intro: 'Початок історії лісу', forest_story_title_emerald: 'Смарагд мудрості повернувся', forest_part: 'Листочок-смарагд!', forest_count: '{n} з 5', forest_nuts: 'Шукай горішки за слідами! 🌰 {n} з {of}', forest_maze: 'Йди стежкою, де візерунок триває! 🦔 {n} з {of}',
   // --- the forest's own lines: the cut-scenes (WORLD-13) and the tour (WORLD-11), the cat's
   forest_story_intro_1: 'Далеко за порталом є Зачарований ліс. Та він міцно заснув.',
   forest_story_intro_2: 'Смарагд мудрості розсипався на листочки. І дерева забули слова.',
@@ -91,6 +91,7 @@ const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Д
   forest_secret_fireflies: 'Світлячки співають! Торкнися їх по черзі — почуєш пісеньку.',
   forest_secret_ring: 'Хі-хі, ти стала крихітною! Не бійся, зараз знову виростеш.',
   forest_secret_roots: 'Печерка під корінням! Дивись, як світяться грибочки.',
+  forest_secret_hollow: 'Ми всередині дерева Шустрика! Скільки тут горішків!',
   forest_pet_found: 'Ось де совеня, під листям! Воно вже тупцяє до тебе.',
   forest_pet_follow: 'Совеня гулятиме з тобою лісом і біля Великого Дерева.',
   // --- the finale at the Old Oak: the cat's, and the trees together (the wise elder's voice, several takes over each other)
@@ -102,7 +103,7 @@ const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Д
 };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_listen: 'Послушать', forest_story_title_intro: 'Начало истории леса', forest_story_title_emerald: 'Изумруд мудрости вернулся', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}',
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованный лес', forest_to_tree: 'К Древу', forest_listen: 'Послушать', forest_hollow: 'Дупло', forest_out: 'Выйти', forest_story_title_intro: 'Начало истории леса', forest_story_title_emerald: 'Изумруд мудрости вернулся', forest_part: 'Листочек-изумруд!', forest_count: '{n} из 5', forest_nuts: 'Ищи орешки по следам! 🌰 {n} из {of}', forest_maze: 'Иди по тропке, где узор продолжается! 🦔 {n} из {of}',
   forest_story_intro_1: 'Далеко за порталом есть Зачарованный лес. Но он крепко уснул.',
   forest_story_intro_2: 'Изумруд мудрости рассыпался на листочки. И деревья забыли слова.',
   forest_story_intro_3: 'Найдём все листочки, и лес снова заговорит!',
@@ -178,6 +179,7 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованны�
   forest_secret_fireflies: 'Светлячки поют! Коснись их по очереди — услышишь песенку.',
   forest_secret_ring: 'Хи-хи, ты стала крошечной! Не бойся, сейчас снова вырастешь.',
   forest_secret_roots: 'Пещерка под корнями! Смотри, как светятся грибочки.',
+  forest_secret_hollow: 'Мы внутри дерева Шустрика! Сколько тут орешков!',
   forest_pet_found: 'Вот где совёнок, под листьями! Он уже топает к тебе.',
   forest_pet_follow: 'Совёнок будет гулять с тобой по лесу и у Великого Древа.',
   forest_all_leaves: 'Все листочки у нас! Несём их к Старому Дубу.',
@@ -208,7 +210,7 @@ const spoken = {
   yasen_trade_ask: 'warm', yasen_trade_far: 'joy', yasen_trade_thanks: 'joy',
   kolyuchka_trade_ask: 'warm', kolyuchka_trade_far: 'joy', kolyuchka_trade_thanks: 'joy',
   forest_secret_cave: 'joy', forest_secret_bounce: 'joy', forest_secret_fireflies: 'warm', forest_secret_ring: 'joy',
-  forest_secret_roots: 'joy',
+  forest_secret_roots: 'joy', forest_secret_hollow: 'joy',
   forest_pet_found: 'joy', forest_pet_follow: 'warm',
   forest_all_leaves: 'joy', forest_emerald_whole: 'joy', yasen_chorus: 'joy', forest_final_text: 'joy', forest_free: 'warm',
 } as const satisfies Partial<Record<keyof typeof uk, VoiceStyle>>;
