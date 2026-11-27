@@ -37,6 +37,9 @@
 .t-chain .sign.done { opacity: .45; }
 /* The number that goes on with the second action (rung 2): at the corner of the group, off its things. */
 .t-chain .group em, .t-story .group em { right: -14px; top: -14px; }
+/* A phone held upright: the frames of a chain take the whole width of the panel, and their right corner is where the
+   close button of the panel stands - the number stood on it. There it goes to the left corner. */
+@media (max-aspect-ratio: 5/4) { .t-chain .group em { right: auto; left: -14px; } }
 
 /* Comparing two examples: the show of the signs (signs.css) with an example where it has a number - smaller, and on
    one line; under it, at rung 2, what the example comes to. */

@@ -3817,6 +3817,14 @@ try {
               await gameFor(WORKED[type], read.answer, 40).catch(() => fail(`${type}: the second rung did not come to the answer ${read.answer} of ${read.text}`));
               if (await g(() => document.querySelectorAll('#task .pulse').length)) errors.push(`hint: ${mode} hint-${type}: the second rung worked out lit the answer (.pulse)`);
               await shot(`hint-${type}-counted`);
+              // the number of the rung stands off the close button of the panel (a chain on a phone held upright: its
+              // frames reach the corner where the button is, and the number stood on it - seen in the pictures, 2026-11-27)
+              const onClose = await g(() => {
+                const x = document.querySelector('#taskClose').getBoundingClientRect();
+                return [...document.querySelectorAll('#taskStage em')].map((e) => e.getBoundingClientRect())
+                  .filter((r) => r.width > 0 && r.left < x.right && r.right > x.left && r.top < x.bottom && r.bottom > x.top).length;
+              });
+              if (onClose) errors.push(`hint: ${mode} hint-${type}-counted: the number of the rung stands on the close button of the panel`);
             } else {
               const lit = await g(() => {
                 let right = null;

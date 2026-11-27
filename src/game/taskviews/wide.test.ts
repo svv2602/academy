@@ -147,6 +147,10 @@ describe('three addends on the panel', () => {
     expect(css).toMatch(/\.t-sum3 \.tf > \.it, \.t-sum3 \.tf > \.tf-e, \.t-story \.tf > \.it, \.t-story \.tf > \.tf-e \{[^}]*width: var\(--p\); height: var\(--p\);/);
     expect(css).toMatch(/\.t-sum3 \.tf > \.it i \{[^}]*height: calc\(var\(--p\) \* \.62\);/);
     expect(css).toMatch(/\.t-gap \.things \{[^}]*flex: 0 0 100%;/);
+    // the number of the second rung of a chain: off the things at the right corner; on a phone held upright at the left
+    // one - at the right one stands the close button of the panel
+    expect(css).toMatch(/\.t-chain \.group em, \.t-story \.group em \{ right: -14px; top: -14px; \}/);
+    expect(css).toMatch(/@media \(max-aspect-ratio: 5\/4\) \{ \.t-chain \.group em \{ right: auto; left: -14px; \} \}/);
   });
 });
 
