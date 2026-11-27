@@ -17,7 +17,7 @@
 }
 @media (max-aspect-ratio: 5/4) {
   .psubj { grid-template-columns: minmax(0, 1fr); }
-  /* five buttons in 390 px do not fit: "report", "move", "controls" on a line, "subjects" and "reset" on the next
-     (#pBody: over the line of style.css that keeps them on one) */
-  #pBody .pset .preset { flex-wrap: wrap; } #pBody .pset .preset button { flex: 1 1 30%; }
+  /* five buttons in 390 px do not fit, and a second line of them pushed "close" out of the window: "subjects" stands in the
+     free bottom left corner of the card, beside "close", as the version does in the right one (style.css #pVersion) */
+  #pBody .pset .preset .psubjbtn { position: absolute; left: 12px; bottom: 16px; max-width: 24%; flex: none; padding: 4px 8px; font-size: 13px; line-height: 1.15; }
 }
