@@ -242,6 +242,15 @@ async function measure(browser, url, scale, out, q = 2) {
       secretDraws.push({ secret: name, ...(await draw()) });
       await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
     }
+    // the hold of the ship (src/worlds/sea/hold.ts): inside its door toward the chest, and by the chest toward the door
+    const hold = await page.evaluate(() => JSON.parse(JSON.stringify(__game.seaHold ?? null)));
+    if (hold) {
+      for (const [name, a, b] of [['hold', hold.doorIn, hold.chest], ['hold-door', { x: hold.chest.x + 1, z: hold.chest.z + 1 }, hold.doorIn]]) {
+        await stand(a, b); await settle(1.5);
+        secretDraws.push({ secret: name, ...(await draw()), inside: await page.evaluate(() => __game.seaHold.inside()) });
+        await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+      }
+    }
   }
   // the tour
   const tour = [];
@@ -265,7 +274,7 @@ async function measure(browser, url, scale, out, q = 2) {
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays, the haze ${Math.round(v.fog * 100)} %), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
-  if (secretDraws.length) console.log(`[grey]   the secrets: ${secretDraws.map((d) => `${d.secret} ${d.calls}/${Math.round(d.tris / 1000)}k${d.shown === false ? ' (the whale NOT shown)' : ''}`).join(', ')}`);
+  if (secretDraws.length) console.log(`[grey]   the secrets: ${secretDraws.map((d) => `${d.secret} ${d.calls}/${Math.round(d.tris / 1000)}k${d.shown === false ? ' (the whale NOT shown)' : ''}${d.inside === false ? ' (NOT in the hold)' : ''}`).join(', ')}`);
   const over = q === 2 ? [...overBudget(views, tour), ...secretDraws.filter((x) => x.tris > BUDGET.tris || x.calls > BUDGET.calls).map((x) => ({ at: `secret ${x.secret}`, calls: x.calls, tris: x.tris }))] : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
   console.log(`[grey]   the heroine in the water: ${poses.map((p) => `${p.what} ${p.clip} (plays ${p.playing}) at ${p.over} m, bubbles ${JSON.stringify(p.bubbles)}`).join('; ')}`);

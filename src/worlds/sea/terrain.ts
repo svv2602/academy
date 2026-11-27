@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { uTier, uTime } from '../../core/materials';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
-import { EDGE, HALF, PATHS, ZONES, type Place } from './layout';
+import { EDGE, HALF, HOLD, PATHS, ZONES, type Place } from './layout';
 
 /**
  * The sea floor of the grey build (WORLD-12): gentle sand dunes, the dark trench sunk in its corner, the rim of rock
@@ -28,7 +28,17 @@ export const lineLength = (line: readonly Place[]) => line.slice(1).reduce((n, p
 /** m: the radius of the dark trench's hollow. */
 export const TRENCH_R = 9;
 
+/** Inside the hold (./hold.ts): its floor and walls, not the sea's. */
+export const inHold = (x: number, z: number) => Math.abs(x - HOLD.x) < HOLD.half + 2 && Math.abs(z - HOLD.z) < HOLD.half + 2;
+/**
+ * How far past the hold's walls its floor is the ground, m: as far as the camera behind her goes in it - the camera is
+ * kept over the ground (src/game/camera.ts), and out there the floor is the rim of the sea, 22 m up.
+ */
+export const HOLD_CAMERA_REACH = 6;
+const underHold = (x: number, z: number) => Math.abs(x - HOLD.x) < HOLD.half + HOLD_CAMERA_REACH && Math.abs(z - HOLD.z) < HOLD.half + HOLD_CAMERA_REACH;
+
 export function height(x: number, z: number): number {
+  if (underHold(x, z)) return HOLD.y;
   // dunes of sand, flatter along the ways
   let h = (fbm(x * 0.035 + 2.3, z * 0.035 + 5.9) - 0.5) * 2.4;
   h *= 0.45 + 0.55 * smoothstep(1.5, 6, pathDist(x, z));
@@ -87,6 +97,12 @@ export function resolve(p: { x: number; z: number; y?: number }, radius: number)
     if (c.under !== undefined && p.y !== undefined && p.y >= c.under) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius, d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
+  }
+  // the hold: its walls, not the edge of the sea
+  if (inHold(p.x, p.z)) {
+    const m = HOLD.half - radius;
+    p.x = Math.min(HOLD.x + m, Math.max(HOLD.x - m, p.x)); p.z = Math.min(HOLD.z + m, Math.max(HOLD.z - m, p.z));
+    return;
   }
   const d = Math.hypot(p.x, p.z), max = HALF - EDGE;
   if (d > max) { p.x *= max / d; p.z *= max / d; }
