@@ -7,7 +7,7 @@ import type { WorldInfo } from '../../game/world';
  * import three or the world's code, or the core would carry the world again.
  */
 export const SEA_INFO: WorldInfo = {
-  id: 'sea', shelf: 2, secrets: ['ship_chest', 'bubble_lift', 'echo_shells', 'whale'],   // ./secrets.ts SEA_SECRETS (src/worlds/meta.test.ts holds them equal)
+  id: 'sea', shelf: 2, secrets: ['ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'sea_grotto'],   // ./secrets.ts SEA_SECRETS (src/worlds/meta.test.ts holds them equal)
   // the kinds of the finds of ./collect.ts COLLECT, in its order (src/worlds/meta.test.ts holds them equal)
   collect: { items: [...Array(6).fill({ kind: 'shell' }), ...Array(6).fill({ kind: 'coral' }), ...Array(9).fill({ kind: 'piece' })] },
 };

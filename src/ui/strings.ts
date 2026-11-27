@@ -15,7 +15,7 @@ const sameKeys = <const T extends Record<Lang, Record<string, string>>>(
 const S = sameKeys({
   uk: {
     title: 'Академія чарівних світів', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
-    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', treat: 'Пригостити',
+    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', board: 'Дошка', board_title: 'Чарівна дошка', board_days: 'Днів поспіль: {n}', treat: 'Пригостити',
     welcome_back: 'З поверненням{, name}! Продовжимо нашу пригоду?',
     found: 'Знайдено!', ok: 'Далі',
     // --- the shared conversation (a world's own lines are in src/worlds/<id>/strings.ts)
@@ -79,7 +79,7 @@ const S = sameKeys({
     p_ctl_speed: 'Швидкість героїні', p_ctl_speed_less: 'Повільно', p_ctl_speed_normal: 'Звичайно', p_ctl_speed_more: 'Швидко',
     p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближче', p_ctl_cam_normal: 'Звичайно', p_ctl_cam_more: 'Далі',
     p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Менший', p_ctl_joy_normal: 'Звичайний', p_ctl_joy_more: 'Більший',
-    p_ctl_look: 'Поворот камери', p_ctl_look_less: 'Повільніше', p_ctl_look_normal: 'Звичайно', p_ctl_look_more: 'Швидше',
+    p_hints: 'Підказки кота', p_hints_world: 'Як у світі', p_hints_always: 'Завжди', p_hints_asked: 'На прохання', p_ctl_look: 'Поворот камери', p_ctl_look_less: 'Повільніше', p_ctl_look_normal: 'Звичайно', p_ctl_look_more: 'Швидше',
     // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
     p_upd_loading: 'завантажується оновлення', p_upd_ready: 'нова версія — після перезапуску',
     sk_count: 'Лічба', sk_add: 'Додавання', sk_sub: 'Віднімання', sk_compare: 'Порівняння', sk_logic: 'Логіка',
@@ -177,7 +177,7 @@ const S = sameKeys({
     mystery_found: 'Загадкова зірка! Розвʼяжи — і вона твоя.', mystery_won: 'Зірка твоя! Аж три зірочки!',
     collect_first: 'Ой, знахідка для колекції! Шукай таких ще.', collect_set: 'Колекцію зібрано! Ще пʼять зірочок!',
     // PLAY-26: the cauldron by the Great Tree and the find of the day of a world
-    cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
+    cauldron_hi: 'Це чарівний казан! Поклади в нього знахідки за рецептом.', board_hi: 'Це чарівна дошка! Обери, що потренуємо.', board_done: 'Чудове тренування! Так тримати!', board_again: 'Ти знову тут! Тренуємося щодня — це сила!', cauldron_more: 'Ще трішки знахідок — і вийде зілля.',
     cauldron_done: 'Зілля готове! Воно вже серед твоїх зілль унизу.', daily_find: 'Ой, нова знахідка дня!',
     // --- the trades of the characters (PLAY-28, src/ui/trade.ts)
     trade_hi: 'Можна обміняти знахідки на подарунок!', trade_done: 'Обмін вдався! Подарунок твій.',
@@ -220,7 +220,7 @@ const S = sameKeys({
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
-    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', treat: 'Угостить',
+    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', board: 'Доска', board_title: 'Волшебная доска', board_days: 'Дней подряд: {n}', treat: 'Угостить',
     welcome_back: 'С возвращением{, name}! Продолжим наше приключение?',
     found: 'Найдено!', ok: 'Дальше',
     npc_next: 'Отлично! А вот ещё одно задание.',
@@ -275,7 +275,7 @@ const S = sameKeys({
     p_ctl_speed: 'Скорость героини', p_ctl_speed_less: 'Медленно', p_ctl_speed_normal: 'Обычно', p_ctl_speed_more: 'Быстро',
     p_ctl_cam: 'Камера', p_ctl_cam_less: 'Ближе', p_ctl_cam_normal: 'Обычно', p_ctl_cam_more: 'Дальше',
     p_ctl_joy: 'Джойстик', p_ctl_joy_less: 'Меньше', p_ctl_joy_normal: 'Обычный', p_ctl_joy_more: 'Больше',
-    p_ctl_look: 'Поворот камеры', p_ctl_look_less: 'Медленнее', p_ctl_look_normal: 'Обычно', p_ctl_look_more: 'Быстрее',
+    p_hints: 'Подсказки кота', p_hints_world: 'Как в мире', p_hints_always: 'Всегда', p_hints_asked: 'По просьбе', p_ctl_look: 'Поворот камеры', p_ctl_look_less: 'Медленнее', p_ctl_look_normal: 'Обычно', p_ctl_look_more: 'Быстрее',
     // TECH-13: the state of a new version in the version line of the parents' section; read by the grown-ups only, never spoken
     p_upd_loading: 'загружается обновление', p_upd_ready: 'новая версия — после перезапуска',
     sk_count: 'Счёт', sk_add: 'Сложение', sk_sub: 'Вычитание', sk_compare: 'Сравнение', sk_logic: 'Логика',
@@ -365,7 +365,7 @@ const S = sameKeys({
     // the mysterious stars (src/game/mystery-stars.ts)
     mystery_found: 'Загадочная звезда! Реши — и она твоя.', mystery_won: 'Звезда твоя! Целых три звёздочки!',
     collect_first: 'Ой, находка для коллекции! Ищи такие ещё.', collect_set: 'Коллекция собрана! Ещё пять звёздочек!',
-    cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', cauldron_more: 'Ещё немного находок — и получится зелье.',
+    cauldron_hi: 'Это волшебный котёл! Положи в него находки по рецепту.', board_hi: 'Это волшебная доска! Выбери, что потренируем.', board_done: 'Отличная тренировка! Так держать!', board_again: 'Ты снова здесь! Тренируемся каждый день — это сила!', cauldron_more: 'Ещё немного находок — и получится зелье.',
     cauldron_done: 'Зелье готово! Оно уже среди твоих зелий внизу.', daily_find: 'Ой, новая находка дня!',
     trade_hi: 'Можно обменять находки на подарок!', trade_done: 'Обмен удался! Подарок твой.',
     talk_play: 'Играть', talk_trade: 'Обмен', talk_bye: 'Пока', trade_go: 'Обменять', trade_later: 'Не сейчас',
@@ -425,6 +425,8 @@ export interface WorldStrings { id: string; table: { uk: WorldTable; ru: WorldTa
 /**
  * The texts of a part of Season 2 (src/s2/strings-<part>.ts, the plan of step 2, rule 2): a world's form without the
  * keys of `WORLD_OWN`, added by the same `addStrings` (src/main.ts) and typed through `WorldTables` the same way.
+ * Its spoken lines are recorded with the rest: tools/parts.mjs finds the module by the words `satisfies PartStrings`
+ * and tools/sync_phrases.mjs hands it to `recordingList`. Their clips are the core's.
  */
 export interface PartStrings { id: string; table: { uk: Record<string, string>; ru: Record<string, string> }; spoken: Record<string, VoiceStyle> }
 /** Spoken lines kept apart from the game's table: the bank of the old game's clips (src/ui/strings-bank.ts, VOICE-07). */
@@ -455,7 +457,7 @@ const SPOKEN = {
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
   npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
-  collect_first: 'joy', cauldron_hi: 'warm', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
+  collect_first: 'joy', cauldron_hi: 'warm', board_hi: 'warm', board_done: 'joy', board_again: 'joy', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
   t_pairs: 'warm', t_order: 'warm', t_sort: 'warm', t_simon_watch: 'calm', t_simon_repeat: 'warm',
   h_count: 'warm', h_left: 'warm', h_compare: 'warm', h_pattern: 'warm', h_odd: 'warm', h_order: 'warm', h_sort: 'warm', h_simon: 'warm',
@@ -514,8 +516,9 @@ export function recordable(key: string, text: string): string {
 }
 /**
  * What is sent for recording: every spoken line in Ukrainian with its intonation and its speaker, the shared ones in
- * the order of `SPOKEN`, then each world's in the order given and of its `spoken`, then the bank's
- * (src/ui/strings-bank.ts). A key two tables share is an error.
+ * the order of `SPOKEN`, then each part's (`parts`: the modules of `PartStrings`, src/s2/strings-<part>.ts) and each
+ * world's in the order given and of its `spoken`, then the bank's (src/ui/strings-bank.ts). A key two tables share is
+ * an error.
  *
  * The speaker is a character of a world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). Every
  * line is the narrator's under its own key, the name of its clip, which never changes. A line the table's `voiced`
@@ -528,7 +531,7 @@ export function recordable(key: string, text: string): string {
  * brings, DEFAULT_WORLD of src/worlds/index.ts - is that world's voice and carries the id of its world as a fourth
  * field, and so does each `<key>@<voice>` of it: its clips lie in `voice/<id>/` and tools/gen_voice.py names them
  * `<id>/<key>`. Every other row has three fields, as it always had, and its clip is the core's: the shared lines (also
- * in the voice of a character of any world, `npc_next@<voice>`), the first world's and the bank's.
+ * in the voice of a character of any world, `npc_next@<voice>`), the parts', the first world's and the bank's.
  * The keys are one set for the whole game (R82): a key two tables share is an error, whichever worlds they are of.
  */
 export type RecordingRow = [text: string, style: VoiceStyle, speaker: string] | [text: string, style: VoiceStyle, speaker: string, world: string];
@@ -536,6 +539,7 @@ export function recordingList(
   worlds: readonly WorldStrings[], bank: SpokenTable,
   casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[]; only?: readonly string[] }[],
   first: string,
+  parts: readonly PartStrings[] = [],
 ): Record<string, RecordingRow> {
   const list: Record<string, RecordingRow> = {};
   const keys = new Set(Object.keys(S.uk));
@@ -560,6 +564,13 @@ export function recordingList(
     }
   };
   add('the shared strings', S.uk, SPOKEN);
+  // The parts: their texts join the shared table in the game (src/main.ts), so their lines are the core's too.
+  for (const p of parts) {
+    const twice = Object.keys(p.table.uk).filter((k) => keys.has(k));
+    if (twice.length) throw new Error(`part "${p.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);
+    for (const k of Object.keys(p.table.uk)) keys.add(k);
+    add(`part "${p.id}"`, p.table.uk, p.spoken);
+  }
   for (const w of worlds) {
     const twice = Object.keys(w.table.uk).filter((k) => !own(k) && keys.has(k));
     if (twice.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);

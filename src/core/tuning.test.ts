@@ -9,8 +9,9 @@ afterEach(() => resetTuning());
 describe('tuning values (ARCH-14)', () => {
   it('defaults are the numbers the game had before the panel', () => {
     // src/main.ts: look 0.006 / 0.004 per pixel, speed 5.4, run above 1.3, camera 6.2 (portrait 8);
-    // src/core/input.ts: joystick radius 56 px, joystick zone the left 40 % of the window; src/game/player.ts: the jump 6.4 m/s.
-    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 1.3, joyRadius: 56, joyZone: 0.4, joyHoldMs: 250, camDist: 6.2, jump: 6.4 });
+    // src/core/input.ts: joystick radius 56 px, joystick zone the left 40 % of the window; src/game/player.ts: the jump 6.4 m/s;
+    // a tap by a character (2026-11-27): on its figure within 0.35 of its height, "to it" within 2.5 m, again past 6 m.
+    expect(TUNING_DEFAULTS).toEqual({ lookX: 0.006, lookY: 0.004, speed: 5.4, runFrom: 1.3, joyRadius: 56, joyZone: 0.4, joyHoldMs: 250, camDist: 6.2, jump: 6.4, talkFigure: 0.35, talkNear: 2.5, talkAgain: 6 });
     expect(tuning).toEqual(TUNING_DEFAULTS);
     expect(camDistance(16 / 9)).toBe(6.2);
     expect(camDistance(390 / 844)).toBe(8);
@@ -40,16 +41,17 @@ describe('tuning values (ARCH-14)', () => {
     expect(tuning).toEqual(TUNING_DEFAULTS);
   });
 
-  it('the text to copy holds all nine current values', () => {
+  it('the text to copy holds all twelve current values', () => {
     expect(tuningText().split('\n')).toEqual([
       'lookX = 0.006', 'lookY = 0.004', 'speed = 5.4', 'runFrom = 1.3', 'joyRadius = 56', 'joyZone = 0.4', 'joyHoldMs = 250', 'camDist = 6.2', 'jump = 6.4',
+      'talkFigure = 0.35', 'talkNear = 2.5', 'talkAgain = 6',
     ]);
     setTuning('speed', 3.1);
     setTuning('joyZone', 0.55);
     const text = tuningText();
     expect(text).toContain('speed = 3.1');
     expect(text).toContain('joyZone = 0.55');
-    expect(text.split('\n')).toHaveLength(9);
+    expect(text.split('\n')).toHaveLength(12);
   });
 });
 

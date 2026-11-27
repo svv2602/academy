@@ -1,5 +1,5 @@
 /**
- * The secrets of the sea (./secrets.ts; PLAY-07, docs/worlds/world-3.md «Секреты»): four, each found once with its stars
+ * The secrets of the sea (./secrets.ts; PLAY-07, docs/worlds/world-3.md «Секреты»): five, each found once with its stars
  * and the cat's word; the lift carries her onto its rock and she sinks back off it; the shells sing the tune once all
  * three were touched, in any order; the whale passes every time she stands on the lookout, out of the map; all of them
  * where she can swim, off the ways.
@@ -8,8 +8,10 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Actor } from '../../game/actor';
 import { createWorldScope } from '../../game/scope';
-import { EDGE, HALF, LIFT_ROCK, LOOKOUT, PATHS, SQUARE_ARCH } from './layout';
-import { CHEST_FLAG, LIFT_FLAG, LIFT_S, SEA_SECRETS, SHELLS_FLAG, SWIM, WHALE_FLAG, WHALE_S, WHALE_WAIT, createSeaSecrets, liftAt, liftOf, restShells, rocksGeometry, secretTriangles, shellsOf, touchShell, tuneSeconds, whaleAt, whaleOf } from './secrets';
+import { COLLECT, DAILY_PLACES } from './collect';
+import { CORAL_NEST, EDGE, GROTTO, HALF, LANDMARKS, LIFT_ROCK, LOOKOUT, PATHS, SHIP, SQUARE_ARCH, ZONES } from './layout';
+import { placeLife } from './scenery';
+import { CHEST_FLAG, FIND_R, GROTTO_CAM_OUT, GROTTO_FLAG, GROTTO_PITCH, GROTTO_R, LIFT_FLAG, LIFT_S, SEA_SECRETS, SHELLS_FLAG, SWIM, WHALE_FLAG, WHALE_S, WHALE_WAIT, createSeaSecrets, liftAt, liftOf, restShells, rocksGeometry, secretTriangles, grottoOf, grottoRocks, shellsOf, touchShell, tuneSeconds, whaleAt, whaleOf } from './secrets';
 import { colliders, height, resolve, support, tops } from './terrain';
 
 /** m: the distance from (x, z) to the nearest way of the map. */
@@ -28,7 +30,7 @@ function game() {
   const scene = new THREE.Scene(), hero = { root: new THREE.Object3D() };
   const stars: number[] = [], said: string[] = [];
   const g = {
-    scene, hero, busy: false, touch: true,
+    scene, hero, busy: false, touch: true, camOverride: null as number | null, camPitchMin: null as number | null, camera: { aspect: 844 / 390 },
     ws: { flags: {} as Record<string, unknown> },
     addStars: (n: number) => { stars.push(n); },
     above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy),
@@ -60,8 +62,8 @@ describe('the secrets of the sea (PLAY-07)', () => {
   const fresh = () => { const t = game(); made.push(t); return t; };
   afterEach(() => { for (const t of made) t.scope.dispose(); made = []; colliders.length = 0; tops.length = 0; });
 
-  it('four, as the world description says: the chest, the lift, the shells, the whale', () => {
-    expect([...SEA_SECRETS]).toEqual(['ship_chest', 'bubble_lift', 'echo_shells', 'whale']);
+  it('five, as the world description says: the chest, the lift, the shells, the whale, the grotto', () => {
+    expect([...SEA_SECRETS]).toEqual(['ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'sea_grotto']);
   });
 
   it('they stand in the map, where she can swim, off the ways', () => {
@@ -205,15 +207,68 @@ describe('the secrets of the sea (PLAY-07)', () => {
 
   it('the walkthrough\'s moves find every walk and act secret; the glimmer shows only those not found', () => {
     const t = fresh();
-    expect(t.s.glimmer()).toHaveLength(4);
+    expect(t.s.glimmer()).toHaveLength(5);
     t.s.spots.find((x) => x.label === 'open')!.run();
     put(t, liftOf().column); run(t, LIFT_S + 0.5);
     expect(t.s.cheat()).toBe('lift'); frame(t);
     put(t, LOOKOUT); expect(t.s.cheat()).toBe('lookout'); run(t, WHALE_WAIT + 0.5);
     put(t, shellsOf().front); for (let k = 0; k < 20 && t.s.cheat() === 'shells' && !t.g.ws.flags[SHELLS_FLAG]; k++) run(t, 0.5);
+    put(t, grottoOf().pearl); frame(t);
     for (const id of SEA_SECRETS) expect(t.g.ws.flags[id], id).toBe(true);
     expect(t.s.glimmer()).toHaveLength(0);
-    expect(t.stars.reduce((a, b) => a + b, 0)).toBe(5 + 3 * 3);
+    expect(t.stars.reduce((a, b) => a + b, 0)).toBe(5 + 3 * 4);
+  });
+
+  it('the grotto stands in the map off the ways, clear of the zones, the landmarks, the other secrets, the finds and what grows', () => {
+    const reach = GROTTO_R + 1.8;
+    expect(Math.hypot(GROTTO.x, GROTTO.z) + reach).toBeLessThan(HALF - EDGE);
+    expect(wayDist(GROTTO.x, GROTTO.z)).toBeGreaterThan(reach + 3);
+    for (const p of [...Object.values(ZONES), ...Object.values(LANDMARKS), CORAL_NEST, LIFT_ROCK, LOOKOUT, SHIP, ...shellsOf().at]) expect(Math.hypot(p.x - GROTTO.x, p.z - GROTTO.z)).toBeGreaterThan(reach + 4);
+    for (const p of [...COLLECT.items, ...DAILY_PLACES]) expect(Math.hypot(p.x - GROTTO.x, p.z - GROTTO.z)).toBeGreaterThan(reach + 1);
+    const life = placeLife();
+    for (const p of [...life.corals, ...life.kelp, ...life.rocks, ...life.reef, ...life.anemones]) expect(Math.hypot(p.x - GROTTO.x, p.z - GROTTO.z)).toBeGreaterThan(GROTTO.clear - 0.01);
+  });
+
+  it('the grotto: she swims in through the curtain to the shell, which is the find, once; its camera comes in and lets go', () => {
+    const t = fresh(), gr = grottoOf();
+    // before the opening, 4 m out, she swims straight in: the rocks let her through the opening, not round them
+    const out = { x: gr.opening.x + Math.sin(GROTTO.face) * 4, z: gr.opening.z + Math.cos(GROTTO.face) * 4 };
+    put(t, out);
+    frame(t);
+    expect(t.g.camOverride ?? null).toBeNull();
+    for (let k = 0; k < 400 && !t.g.ws.flags[GROTTO_FLAG]; k++) {
+      const dx = gr.pearl.x - t.hp.x, dz = gr.pearl.z - t.hp.z, d = Math.hypot(dx, dz);
+      t.hp.x += (dx / d) * 0.05; t.hp.z += (dz / d) * 0.05;
+      frame(t);
+    }
+    expect(t.g.ws.flags[GROTTO_FLAG]).toBe(true);
+    expect(Math.hypot(t.hp.x - gr.pearl.x, t.hp.z - gr.pearl.z)).toBeLessThanOrEqual(FIND_R);
+    expect(t.stars).toEqual([3]);
+    expect(t.said).toEqual(['sea_secret_grotto']);
+    // inside: the camera close and looking down
+    expect(t.g.camOverride).toBeLessThan(3);
+    expect(t.g.camPitchMin).toBe(GROTTO_PITCH);
+    // again nothing; out past GROTTO_CAM_OUT the camera is the usual one
+    run(t, 1);
+    expect([t.stars, t.said]).toEqual([[3], ['sea_secret_grotto']]);
+    put(t, { x: GROTTO.x + Math.sin(GROTTO.face) * (GROTTO_CAM_OUT + 1), z: GROTTO.z + Math.cos(GROTTO.face) * (GROTTO_CAM_OUT + 1) });
+    frame(t);
+    expect([t.g.camOverride, t.g.camPitchMin]).toEqual([null, null]);
+  });
+
+  it('the grotto\'s rocks hold her outside its ring: the way in is the opening', () => {
+    const t = fresh();
+    // from behind, straight at the middle: the back rocks stop her
+    const back = { x: GROTTO.x - Math.sin(GROTTO.face) * 7, z: GROTTO.z - Math.cos(GROTTO.face) * 7 };
+    put(t, back);
+    for (let k = 0; k < 200; k++) {
+      const dx = GROTTO.x - t.hp.x, dz = GROTTO.z - t.hp.z, d = Math.hypot(dx, dz) || 1;
+      t.hp.x += (dx / d) * 0.05; t.hp.z += (dz / d) * 0.05;
+      frame(t);
+    }
+    expect(Math.hypot(t.hp.x - GROTTO.x, t.hp.z - GROTTO.z)).toBeGreaterThan(GROTTO_R - 1);
+    expect(t.g.ws.flags[GROTTO_FLAG]).toBeUndefined();
+    expect(grottoRocks()).toHaveLength(11);
   });
 
   it('their shapes are light, and the rocks are one mesh with no shadow', () => {

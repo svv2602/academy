@@ -16,6 +16,10 @@ export const TUNING_DEFAULTS = {
   joyHoldMs: 250,   // ms a finger held still in the joystick zone before the ring shows (a drag shows it at once)
   camDist: 6.2,     // camera distance behind the heroine in a landscape window (portrait: the same proportion of 8)
   jump: 6.4,        // m/s: the speed upwards the jump starts with (gravity 17 m/s²: about 1.2 m high)
+  // a tap by a character (src/game/player.ts talkByTap, the customer's word of 2026-11-27):
+  talkFigure: 0.35, // share of the figure's height on screen, to each side of it: a tap this near its figure is a tap on it
+  talkNear: 2.5,    // m: a tap near a character with a step to give (not on its figure) talks only if the ground tapped is this near it
+  talkAgain: 6,     // m: after a talk, a tap near the same character (not on it) walks past it till she has gone this far from it
 } as const;
 
 /** m/s²: what pulls her down in a jump - not tuned: with `jump`, how high she jumps (src/game/collections.ts `jumpApex`). */
@@ -35,6 +39,9 @@ export const TUNING_RANGES: Record<TuningKey, readonly [number, number, number]>
   joyHoldMs: [0, 800, 10],
   camDist: [3, 14, 0.1],
   jump: [3, 14, 0.1],
+  talkFigure: [0.1, 1, 0.05],
+  talkNear: [1, 6, 0.1],
+  talkAgain: [3, 15, 0.5],
 };
 
 /** The current values. */
@@ -107,3 +114,22 @@ export function camDistance(aspect: number) {
 export function tuningText() {
   return TUNING_KEYS.map((k) => `${k} = ${+tuning[k].toFixed(4)}`).join('\n');
 }
+
+/**
+ * The cat's sparkles to the next goal (src/game/guide.ts, the customer's word of 2026-11-27: «да, делаем»): how they
+ * fade world by world. `trail` - shown whenever there is a goal (the fairies, the forest, the hub); `idle` - only after
+ * `idleS` seconds of game time with no progress (a step of a chain, a find, a task); `flash` - after `idleS`, not the
+ * trail but a short flash towards the goal, `flashS` out of every `flashEveryS`, `flashM` metres long. A tap on the cat
+ * shows the whole trail at once for `askedS`. Not sliders of the panel: plain numbers.
+ */
+export const GUIDE = {
+  worlds: {
+    sea: { mode: 'idle', idleS: 30 },
+    sweet: { mode: 'flash', idleS: 60 },
+    sky: { mode: 'flash', idleS: 60 },
+  } as Record<string, { mode: 'idle' | 'flash'; idleS: number }>,
+  askedS: 20,
+  flashS: 1.5,
+  flashEveryS: 8,
+  flashM: 4,
+} as const;

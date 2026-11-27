@@ -102,10 +102,12 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     companion.update(dt);
     g.pets.update(dt);
     g.mystery.update(time, canMove);
+    g.easel.update(time);
     g.collect.update(dt, time, canMove);
     world.update(dt, time, canMove);
     suppliesOf(g)?.update(dt, time, canMove);   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
-    guide.update(time, g.started() && !g.busy ? world.goal() : null);
+    // the lead to the easel after the world's first piece goes over the world's own goal for a while (src/game/easel.ts)
+    guide.update(time, g.started() && !g.busy ? g.easel.leading() ?? world.goal() : null);
     player.fadeRing(dt);
 
     hero.update(dt); cat.update(dt);

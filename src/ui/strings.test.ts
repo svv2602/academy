@@ -4,7 +4,7 @@ import qa from '../../voice/qa.json';
 import { bank } from './strings-bank';
 import {
   SPOKEN, STRINGS, VOICE_STYLES, WORLD_OWN, addStrings, lang, recordable, recordingList, setChildName, setLang, t, tf, voiceText,
-  PRAISE, TRY, tapKey, type SpokenKey, type WorldStrings,
+  PRAISE, TRY, tapKey, type PartStrings, type SpokenKey, type WorldStrings,
 } from './strings';
 
 /** Language blocks as plain records, so the test keeps working even when the key sets differ. */
@@ -19,6 +19,17 @@ const worlds = Object.keys(files).sort().map((p) => files[p].strings);
 /** Each world's table "character - voice" (VOICE-10), as tools/sync_phrases.mjs reads them. */
 const castFiles = import.meta.glob<{ voices: Parameters<typeof recordingList>[2][number] }>('../worlds/*/voices.ts', { eager: true });
 const casts = Object.keys(castFiles).sort().map((p) => castFiles[p].voices);
+/**
+ * The texts of the parts (PartStrings: src/s2/strings-<part>.ts): the modules that say `satisfies PartStrings`, in the
+ * order of their paths under src/, as tools/parts.mjs finds them for tools/sync_phrases.mjs.
+ */
+const partText = import.meta.glob<string>('../**/strings-*.ts', { query: '?raw', import: 'default', eager: true });
+const partModules = import.meta.glob<{ strings: PartStrings }>('../**/strings-*.ts', { eager: true });
+/** A path of the glob (from this folder) as a path under src/. */
+const underSrc = (path: string) => (path.startsWith('./') ? `ui/${path.slice(2)}` : path.replace(/^\.\.\//, ''));
+const partPaths = Object.keys(partText).filter((p) => !p.endsWith('.test.ts') && partText[p].includes('satisfies PartStrings'))
+  .sort((a, b) => (underSrc(a) < underSrc(b) ? -1 : 1));
+const parts = partPaths.map((p) => partModules[p].strings);
 /** The first world - the one the installation brings - read from the registry as text, as tools/sync_phrases.mjs reads it. */
 const registry = import.meta.glob<string>('../worlds/index.ts', { query: '?raw', import: 'default', eager: true });
 const FIRST = /\bDEFAULT_WORLD\b[^=\n]*=\s*['"]([^'"]+)['"]/.exec(registry['../worlds/index.ts'])?.[1] ?? '';
@@ -26,9 +37,10 @@ const FIRST = /\bDEFAULT_WORLD\b[^=\n]*=\s*['"]([^'"]+)['"]/.exec(registry['../w
 // world (in the order of the folders) is the one played here.
 const played = worlds[0];
 for (const w of worlds) addStrings(w, w === played);
+for (const p of parts) addStrings(p, false);
 /** The shared table and every world's, merged, as plain records. */
 const all: Record<string, Record<string, unknown>> = Object.fromEntries(
-  langs.map((l) => [l, Object.assign({}, tables[l], ...worlds.map((w) => (w.table as Record<string, Record<string, string>>)[l]))]),
+  langs.map((l) => [l, Object.assign({}, tables[l], ...[...parts, ...worlds].map((w) => (w.table as Record<string, Record<string, string>>)[l]))]),
 );
 
 describe('string table parity', () => {
@@ -240,10 +252,10 @@ describe('lines to record (voice/phrases.json)', () => {
 
   /** The committed file as plain data, so a stale or hand-edited file is reported instead of breaking the test itself. */
   const file: Record<string, unknown> = phrases;
-  const spoken = [...Object.keys(SPOKEN), ...worlds.flatMap((w) => Object.keys(w.spoken)), ...Object.keys(bank.spoken)] as SpokenKey[];
+  const spoken = [...Object.keys(SPOKEN), ...parts.flatMap((p) => Object.keys(p.spoken)), ...worlds.flatMap((w) => Object.keys(w.spoken)), ...Object.keys(bank.spoken)] as SpokenKey[];
   const texts = () => Object.entries(file).map(([k, v]) => ({ key: k, text: Array.isArray(v) ? String(v[0]) : String(v) }));
 
-  it('lists exactly the lines marked as spoken (shared, then each world), in the order of the marks', () => {
+  it('lists exactly the lines marked as spoken (shared, then each part, then each world), in the order of the marks', () => {
     // A line a character says in its own voice is listed again as `<key>@<voice>` (VOICE-10): its key is the line's. A
     // line only the characters say (`only` of src/worlds/<id>/voices.ts) is there in their voices alone.
     const keys = [...new Set(Object.keys(file).map((k) => k.split('@')[0]))];
@@ -257,9 +269,9 @@ describe('lines to record (voice/phrases.json)', () => {
   });
 
   it('is what `npm run voice:sync` builds from the game texts', () => {
-    expect(file).toEqual(recordingList(worlds, bank, casts, FIRST));
+    expect(file).toEqual(recordingList(worlds, bank, casts, FIRST, parts));
     // The order too: the file is written in the order of the list.
-    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank, casts, FIRST)));
+    expect(Object.keys(file)).toEqual(Object.keys(recordingList(worlds, bank, casts, FIRST, parts)));
   });
 
   it('has a subtitle in every language for each spoken line', () => {
@@ -309,8 +321,8 @@ describe('lines to record (voice/phrases.json)', () => {
     expect(t('intro')).toContain('Зоряна');
     expect(voiceText('intro')).toContain('Зоряна');
     // …the list for recording is built the same and matches the committed file.
-    expect(JSON.stringify(recordingList(worlds, bank, casts, FIRST))).not.toContain('Зоряна');
-    expect(recordingList(worlds, bank, casts, FIRST)).toEqual(file);
+    expect(JSON.stringify(recordingList(worlds, bank, casts, FIRST, parts))).not.toContain('Зоряна');
+    expect(recordingList(worlds, bank, casts, FIRST, parts)).toEqual(file);
     expect(JSON.stringify(file)).not.toContain('Зоряна');
   });
 
@@ -384,7 +396,7 @@ describe('the world of a line to record (the voice of a next world)', () => {
 
   it('no shared line has a world, in the narrator\'s voice or in a character\'s: its clip is the core\'s (R78)', () => {
     // the committed list, the list built from the game's texts, and a list with a made-up next world that has voices
-    for (const list of [file, recordingList(worlds, bank, casts, FIRST), recordingList([home, lake], bank, [lakeCast], 'home')]) {
+    for (const list of [file, recordingList(worlds, bank, casts, FIRST, parts), recordingList([home, lake], bank, [lakeCast], 'home')]) {
       const shared = Object.keys(list).filter((k) => Object.hasOwn(SPOKEN, k.split('@')[0]));
       expect(shared.length).toBeGreaterThan(Object.keys(SPOKEN).length);   // the voices of the characters are among them
       expect(shared.filter((k) => list[k].length !== 3)).toEqual([]);
@@ -430,6 +442,80 @@ describe('the world of a line to record (the voice of a next world)', () => {
     const own = residents.flatMap((r) => [`${r}_hi`, `${r}_trade_ask`, `${r}_trade_far`, `${r}_trade_thanks`]);
     expect(alone.sort()).toEqual([...own, 'fox_part_hint', 'mushking_part_hint', 'npc_done', 't_stars'].sort());
     for (const k of alone) expect(Object.keys(file).filter((f) => f.startsWith(`${k}@`)).length, k).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * A part of the game keeps its texts in a module of its own (PartStrings; src/main.ts adds it with `addStrings`).
+ * Its spoken lines are sent for recording like the shared ones: until 2026-11-27 `recordingList` did not know the
+ * parts, and a spoken line of a part was shown and never recorded.
+ */
+describe('the spoken lines of the parts (PartStrings)', () => {
+  const part = (id: string, uk: Record<string, string>, spoken: PartStrings['spoken']): PartStrings =>
+    ({ id, table: { uk, ru: Object.fromEntries(Object.keys(uk).map((k) => [k, `ru ${k}`])) }, spoken });
+  const made = part('made', { t_made_up: 'Скільки тут зірок?', h1_made_up: 'Порахуй їх по одній.', made_label: 'Зірки' }, { t_made_up: 'warm', h1_made_up: 'calm' });
+
+  it('the game has parts, each with both languages; none is a world', () => {
+    expect(parts.length).toBeGreaterThan(0);
+    expect(new Set(parts.map((p) => p.id)).size).toBe(parts.length);
+    for (const p of parts) {
+      expect(Object.keys(p.table.ru).sort(), p.id).toEqual(Object.keys(p.table.uk).sort());
+      expect(worlds.map((w) => w.id), p.id).not.toContain(p.id);
+      for (const k of Object.keys(p.spoken)) expect(typeof p.table.uk[k], `${p.id}: ${k}`).toBe('string');
+    }
+  });
+
+  it('a spoken line of a part is listed as a line of the core: its text, its intonation, the narrator, no world', () => {
+    const list = recordingList(worlds, bank, casts, FIRST, [...parts, made]);
+    expect(list.h1_made_up).toEqual(['Порахуй їх по одній.', 'calm', casts[0].narrator]);
+    expect(list.t_made_up).toEqual(['Скільки тут зірок?', 'warm', casts[0].narrator]);
+    expect(Object.keys(list).filter((k) => k.startsWith('made_label'))).toEqual([]);
+    // without the part nothing of it is listed, and the rest of the list is the same
+    const without = recordingList(worlds, bank, casts, FIRST, parts);
+    expect(Object.keys(without).filter((k) => k.includes('made_up'))).toEqual([]);
+    expect(Object.fromEntries(Object.entries(list).filter(([k]) => !k.includes('made_up')))).toEqual(without);
+  });
+
+  it('the rules of the characters\' voices reach it: a question of a part is said in every voice that says the questions', () => {
+    const list = recordingList(worlds, bank, casts, FIRST, [made]);
+    const voicesOf = (key: string) => Object.keys(list).filter((k) => k.startsWith(`${key}@`)).map((k) => k.split('@')[1]).sort();
+    expect(voicesOf('t_made_up')).toEqual(voicesOf('t_add'));
+    expect(voicesOf('t_made_up').length).toBeGreaterThan(0);
+    expect(voicesOf('h1_made_up')).toEqual([]);
+    for (const k of Object.keys(list).filter((k) => k.startsWith('t_made_up@'))) expect(list[k], k).toHaveLength(3);
+  });
+
+  it('its lines stand after the shared ones and before the worlds\', in the order of the parts', () => {
+    const other = part('other', { other_line: 'Ще одна репліка.' }, { other_line: 'joy' });
+    const keys = Object.keys(recordingList(worlds, bank, casts, FIRST, [made, other])).filter((k) => !k.includes('@'));
+    const shared = Object.keys(SPOKEN), firstOfWorlds = keys.findIndex((k) => worlds.some((w) => Object.hasOwn(w.spoken, k)));
+    expect(keys.slice(0, shared.length)).toEqual(shared);
+    expect(keys.slice(shared.length, shared.length + 3)).toEqual(['t_made_up', 'h1_made_up', 'other_line']);
+    expect(firstOfWorlds).toBe(shared.length + 3);
+  });
+
+  it('one key, one clip: a part may not take a key of the shared strings, of another part, of a world or of the bank', () => {
+    const lineOf = (key: string) => part('made', { [key]: 'Репліка частини.' }, { [key]: 'warm' });
+    expect(() => recordingList(worlds, bank, casts, FIRST, [lineOf('play')])).toThrow(/part "made": these strings already exist \(one key, one clip\): play/);
+    expect(() => recordingList(worlds, bank, casts, FIRST, [made, { ...lineOf('h1_made_up'), id: 'second' }])).toThrow(/part "second".*h1_made_up/);
+    const worldKey = Object.keys(worlds[0].spoken)[0];
+    expect(() => recordingList(worlds, bank, casts, FIRST, [lineOf(worldKey)])).toThrow(new RegExp(`world "${worlds[0].id}".*${worldKey}`));
+    const banked = Object.keys(bank.spoken)[0];
+    expect(() => recordingList(worlds, bank, casts, FIRST, [lineOf(banked)])).toThrow(new RegExp(`the bank.*${banked}`));
+  });
+
+  it('a spoken line of a part with no Ukrainian text, or with a placeholder, cannot be recorded', () => {
+    expect(() => recordingList(worlds, bank, casts, FIRST, [part('made', { made_label: 'Зірки' }, { t_made_up: 'warm' })]))
+      .toThrow(/spoken line "t_made_up" of part "made" has no Ukrainian text/);
+    expect(() => recordingList(worlds, bank, casts, FIRST, [part('made', { t_made_up: 'Тут {n} зірок.' }, { t_made_up: 'warm' })]))
+      .toThrow(/t_made_up.*placeholder/);
+  });
+
+  it('the list of the repository is built with the parts of the game', () => {
+    const file: Record<string, unknown> = phrases;
+    const lines = parts.flatMap((p) => Object.keys(p.spoken));
+    expect({ notInFile: lines.filter((k) => !Object.hasOwn(file, k)) }).toEqual({ notInFile: [] });
+    expect(recordingList(worlds, bank, casts, FIRST, parts)).toEqual(file);
   });
 });
 

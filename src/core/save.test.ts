@@ -189,7 +189,24 @@ describe('loadSave', () => {
     recordTask(old, 'attention', 0);
     storeSave(old);
     const again = loadSave();
-    expect(again.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(again.skills.attention).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });   // the fast climb: one clean solve, one level
+    expect(again.v).toBe(SAVE_VERSION);
+  });
+
+  it('the end of a skill\'s fast climb (LEARN-15, 2026-11-27) is an optional field of its counters: absent in an old save, kept through a store and a load', () => {
+    const before = defaultSave();
+    storage.setItem(KEY, JSON.stringify(before));
+    const old = loadSave();
+    for (const k of Object.values(old.skills)) expect(k).not.toHaveProperty('settled');
+    recordTask(old, 'add', 0);                     // still climbing: one clean solve is one level
+    expect(old.skills.add).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });
+    recordTask(old, 'add', 2);                     // two wrong answers: the climb is over
+    storeSave(old);
+    const again = loadSave();
+    expect(again.skills.add).toEqual({ level: 2, streak: -1, tasks: 2, first: 1, errors: 2, settled: true });
+    recordTask(again, 'add', 0);
+    expect(again.skills.add.level).toBe(2);        // one clean solve is no longer a level
+    expect(again.skills.sub).not.toHaveProperty('settled');
     expect(again.v).toBe(SAVE_VERSION);
   });
 
@@ -1259,6 +1276,14 @@ describe('the counters of the achievements (PLAY-08): fields of version 4 withou
     expect(load({ days: { n: '5', last: 20261116 } }).days).toEqual({ n: 0, last: '' });
   });
 
+  it('the trainer\'s days (src/game/trainer.ts): a bad date is none and no day in a row, a bad count 1, a bad paid 0', () => {
+    for (const bad of [null, 3, 'x', []]) expect(load({ train: bad }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: 4, last: '2026-11-26', paid: 2 } }).train).toEqual({ days: 4, last: '2026-11-26', paid: 2 });
+    expect(load({ train: { days: 4, last: 'yesterday', paid: 2 } }).train).toEqual({ days: 0, last: '', paid: 0 });
+    expect(load({ train: { days: -1, last: '2026-11-26', paid: 'x' } }).train).toEqual({ days: 1, last: '2026-11-26', paid: 0 });
+    expect(load({}).train).toBeUndefined();
+  });
+
   it('a damaged list of shown scenes keeps only its ids', () => {
     expect(load({ achShown: 'first_task' }).achShown).toEqual([]);
     expect(load({ achShown: ['first_task', 4, null, 'days_3'] }).achShown).toEqual(['first_task', 'days_3']);
@@ -1398,6 +1423,11 @@ describe('the controls the parent chose (PLAY-22): `controls`, a field of versio
     expect(s).toMatchObject(fields);
     expect(JSON.parse(storage.getItem(KEY)!)).toMatchObject(fields);
     expect(s.v).toBe(SAVE_VERSION);
+  });
+
+  it('the cat\'s hints (Save.hints): a known choice kept, anything else is "as in the world" (no field)', () => {
+    for (const k of ['always', 'asked', 'world']) expect(load({ hints: k }).hints).toBe(k);
+    for (const bad of ['often', 3, null, ['always']]) expect(load({ hints: bad }).hints, JSON.stringify(bad)).toBeUndefined();
   });
 
   it('a damaged step is dropped (it is "normal"), the others kept; a damaged field is no choice at all', () => {

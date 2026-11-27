@@ -9,7 +9,8 @@ import { dealState } from './deal';
 import { PET_GEAR, wearPetGear, type PetGearId, type PetWearer } from './petgear';
 import { dealOf } from './shop';
 import type { TaskType } from './tasks/types';
-import { worldTaskDoor } from './worldtasks/core';
+import { worldTaskDoor, worldTaskOf } from './worldtasks/core';
+import { blockersOf } from './worldtasks/blockers';
 import { transition } from './transition';
 import type { Game } from './context';
 import { achState, queue } from '../ui/achieve';
@@ -17,6 +18,7 @@ import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
 import { easelState } from '../ui/easel';
+import { guideState, type HintsChoice } from './guide-rule';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -174,10 +176,21 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * here, or open already); `card` - the open card (src/ui/easel.ts): whether open, the cells set, the pieces lying by
      * it; `setAll()` - every piece lying by it dropped on its cell, as a finger would.
      */
+    /**
+     * The cat's sparkles (src/game/guide.ts): what they show now, the seconds with no progress, whether a tap on the cat
+     * asked for the way; `choice(c)` sets the parent's choice (Save.hints), `ask()` asks as a tap on the cat does.
+     */
+    guide: {
+      get state() { const { show, quiet, asked, choice } = guideState; return { show, quiet, asked, choice }; },
+      choice: (c: HintsChoice) => { if (c === 'world') delete g.save.hints; else g.save.hints = c; },
+      ask: () => guideState.ask(),
+    },
     easel: {
       open: () => g.easel.open(),
       get card() { return { open: easelState.open, set: [...easelState.set], loose: [...easelState.loose] }; },
       setAll: () => { easelState.setAll?.(); },
+      /** Its hints (the customer's word of 2026-11-27): the sign over it, whether it is the cat's goal, the lead after the first piece. */
+      get hints() { return g.easel.state(); },
     },
     /**
      * The finds of the collections in the world played (src/game/collect-items.ts, PLAY-25), read only: each with its id,
@@ -245,9 +258,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /**
      * The task played in the world now (src/game/worldtasks/core.ts), whatever its kind: `solve()`, `wrong()` (one wrong
      * move), `close()` (the close button), and `state` - its kind, phase (input / mistake / solved / closed), wrong moves,
-     * the rung of the hint on screen, its middle; null when none is open.
+     * the rung of the hint on screen, its middle; null when none is open. `blockers()` - what stands between the camera
+     * and the task now (./worldtasks/blockers.ts), the heroine and the cat aside; empty - it is seen whole; null - none open.
      */
-    worldTask: worldTaskDoor(g),
+    worldTask: Object.assign(worldTaskDoor(g), {
+      blockers: () => { const s = worldTaskOf(g); return s ? blockersOf(scene, camera.position, s, [hero.root, cat.root]) : null; },
+    }),
     /**
      * A panel task of `type` and `level` opened now, as a character would (the cat's hooks, the helpers of her stock):
      * the walkthrough's way to the helpers of a task (src/game/helpers.ts). The game stands while it is open; the

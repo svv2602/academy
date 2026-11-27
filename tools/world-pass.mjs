@@ -93,6 +93,19 @@ export function tapSizeProblems(seen) {
   return seen.filter((t) => t.px !== null && t.px < MIN_TAP_PX).map((t) => `a ${t.right ? 'right' : 'wrong'} thing ${Math.round(t.px)} px across, under ${MIN_TAP_PX}`);
 }
 
+/**
+ * What stands between the camera and a task in the world once the camera is in its frame (`__game.worldTask.blockers()`,
+ * src/game/worldtasks/blockers.ts): each is a problem, named. The hull of the sunken ship once hid half of Pantsyr's
+ * shell (2026-11-27). null (no task open, or a game without the door) - nothing to say.
+ */
+/**
+ * The worlds whose tasks in the world must be seen whole (blockerProblems): the others only log what stands in the way
+ * until each is looked into (2026-11-27, the lead: one world at a time).
+ */
+export const SEEN_WHOLE = ['sea'];
+export function blockerProblems(list) {
+  return (list ?? []).map((b) => `"${b.name}" stands between the camera and the task (${b.lines} of its lines to the things to tap)`);
+}
 /** Seconds of game time: after a teleport the action button on the screen is the one of the new place. */
 export const SETTLES = 0.2;
 /** Seconds of game time in which the game answers an action (a press, a tap, standing at a place). */
@@ -714,6 +727,9 @@ export async function playWorld(h, o = {}) {
         bad('a) open, the size of its things on the screen', tapSizeProblems(sizes));
         const measured = sizes.filter((t) => t.px !== null);
         if (measured.length) console.log(`world task: ${first.kind}: the things to tap ${measured.map((t) => Math.round(t.px)).join(', ')} px across (at least ${MIN_TAP_PX})`);
+        const blocked = blockerProblems(await g(() => window.__game.worldTask.blockers?.() ?? null));
+        if (blocked.length) console.log(`world task: ${first.kind}: not seen whole: ${blocked.join('; ')}`);
+        if (SEEN_WHOLE.includes(worldId)) bad('a) open, seen whole', blocked);
         await shot(`world-task-${first.kind}`);
       } else if (st === 'wrong') {
         // as many wrong moves as the kind asks for (the scales of WORLD-22: three), each after the course of the one before
@@ -959,6 +975,29 @@ export async function playWorld(h, o = {}) {
       await g(() => document.getElementById('easelClose').click());
       if (!(await gameUntil(() => !window.__game.easel.card.open && !window.__game.paused, null, REACTS))) fail(`${where}: its card did not close by its cross`);
       console.log(`easel: its card opened at its place (${card.set.length} cells set, ${card.loose.length} pieces lying by it) and closed by its cross`);
+      // its hints (the customer's word of 2026-11-27): with no piece found its sign glows steady and it is no goal; the
+      // world's first piece (put in the save as a find would) starts the lead and the flicker once; every piece found,
+      // it is the cat's goal. The finds are taken back after: this pass looks for none.
+      const h0 = await g(() => window.__game.easel.hints);
+      if (h0.sign !== 'on' || h0.goal || h0.leading) fail(`${where}: its hints with no piece found ${JSON.stringify(h0)}`);
+      const pieces = await g(() => window.__game.collect.items.filter((i) => i.kind === 'piece').map((i) => i.id));
+      const before = await g((w) => { const ws = window.__game.save.worlds[w]; return { found: [...(ws.found ?? [])], led: ws.flags.easel_led ?? null }; }, worldId);
+      await g(([w, id]) => { const ws = window.__game.save.worlds[w]; ws.found = [...(ws.found ?? []), id]; }, [worldId, pieces[0]]);
+      // the lead starts (its flag) and ends at once: she stands at the easel already
+      if (!(await gameUntil(() => window.__game.easel.hints.led, null, REACTS))) fail(`${where}: the first piece found did not start the lead to it`);
+      const h1 = await g(() => window.__game.easel.hints);
+      if (h1.sign !== 'flicker' || h1.leading || h1.goal) fail(`${where}: its hints after the first piece, by the easel ${JSON.stringify(h1)}`);
+      await g(([w, ids]) => { const ws = window.__game.save.worlds[w]; ws.found = [...new Set([...ws.found, ...ids])]; }, [worldId, pieces]);
+      const h2 = await g(() => window.__game.easel.hints);
+      if (!h2.goal) fail(`${where}: every piece found, it is not the cat's goal ${JSON.stringify(h2)}`);
+      // the cat's sparkles (src/game/guide.ts), the easel their goal now (the pass comes here with the rest of the world
+      // done: no other goal): as the world fades them; a tap on the cat (`ask`, as player.ts does) shows the whole trail
+      const s0 = await g(() => window.__game.guide.state);
+      await g(() => window.__game.guide.ask());
+      if (!(await gameUntil(() => window.__game.guide.state.show === 'trail' && window.__game.guide.state.asked, null, REACTS))) fail(`${where}: asked by a tap on the cat, the sparkles did not show the way ${JSON.stringify(await g(() => window.__game.guide.state))}`);
+      console.log(`the cat's sparkles: ${JSON.stringify(s0)} before, the whole trail once asked`);
+      await g(([w, b]) => { const ws = window.__game.save.worlds[w]; ws.found = b.found; if (b.led === null) delete ws.flags.easel_led; else ws.flags.easel_led = b.led; }, [worldId, before]);
+      console.log(`easel hints: the sign steady, the first of ${pieces.length} pieces led to it and made it flicker, all of them made it the cat's goal`);
     }
   }
 
