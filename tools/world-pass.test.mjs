@@ -11,7 +11,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   PART_MAGIC,
   ALL_KINDS, HOWS, ITEM_KINDS, OPTIONAL_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
-  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
+  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, blockerProblems, SEEN_WHOLE, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
   unmetWorldSteps, voiceProblems, travelProblems, TRAVEL_ROUNDS, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
@@ -1186,6 +1186,21 @@ describe('the size of the things of a task in the world on the screen (MIN_TAP_P
     expect(MIN_TAP_PX).toBe(48);
     expect(tapSizeProblems([{ px: 60, right: true }, { px: null, right: false }])).toEqual([]);
     expect(tapSizeProblems([{ px: 31.6, right: false }])).toEqual(['a wrong thing 32 px across, under 48']);
+  });
+});
+
+describe('a task in the world is seen whole (blockerProblems)', () => {
+  it('the sea is held to it (Pantsyr\'s halves, 2026-11-27)', () => {
+    expect(SEEN_WHOLE).toContain('sea');
+  });
+
+  it('nothing between the camera and it, or no door: no problem; each thing in the way: one, named', () => {
+    expect(blockerProblems([])).toEqual([]);
+    expect(blockerProblems(null)).toEqual([]);
+    expect(blockerProblems([{ name: 'landmark-ship', lines: 3 }, { name: 'kelp', lines: 1 }])).toEqual([
+      '"landmark-ship" stands between the camera and the task (3 of its lines to the things to tap)',
+      '"kelp" stands between the camera and the task (1 of its lines to the things to tap)',
+    ]);
   });
 });
 
