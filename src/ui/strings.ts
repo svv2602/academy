@@ -15,7 +15,7 @@ const sameKeys = <const T extends Record<Lang, Record<string, string>>>(
 const S = sameKeys({
   uk: {
     title: 'Академія чарівних світів', play: 'Грати', cont: 'Продовжити', again: 'Почати спочатку',
-    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', treat: 'Пригостити',
+    dress: 'Сукня', name: 'Як тебе звати?', namePh: 'Імʼя', hair: 'Волосся', loading: 'Чари завантажуються…', jump: 'Стриб', talk: 'Привіт!', take: 'Взяти', open: 'Відкрити', brew: 'Зварити', board: 'Дошка', board_title: 'Чарівна дошка', board_days: 'Днів поспіль: {n}', treat: 'Пригостити',
     welcome_back: 'З поверненням{, name}! Продовжимо нашу пригоду?',
     found: 'Знайдено!', ok: 'Далі',
     // --- the shared conversation (a world's own lines are in src/worlds/<id>/strings.ts)
@@ -220,7 +220,7 @@ const S = sameKeys({
   },
   ru: {
     title: 'Академия волшебных миров', play: 'Играть', cont: 'Продолжить', again: 'Начать сначала',
-    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', treat: 'Угостить',
+    dress: 'Платье', name: 'Как тебя зовут?', namePh: 'Имя', hair: 'Волосы', loading: 'Волшебство загружается…', jump: 'Прыг', talk: 'Привет!', take: 'Взять', open: 'Открыть', brew: 'Сварить', board: 'Доска', board_title: 'Волшебная доска', board_days: 'Дней подряд: {n}', treat: 'Угостить',
     welcome_back: 'С возвращением{, name}! Продолжим наше приключение?',
     found: 'Найдено!', ok: 'Дальше',
     npc_next: 'Отлично! А вот ещё одно задание.',

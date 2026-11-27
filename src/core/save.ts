@@ -101,6 +101,11 @@ export interface Save {
    */
   days?: { n: number; last: string };
   /**
+   * The trainer of the hub (src/game/trainer.ts): `days` the days in a row she played a session to its end, `last` the
+   * local date of the last one, `paid` the sessions of that day that paid their stars. Absent until the first session.
+   */
+  train?: { days: number; last: string; paid: number };
+  /**
    * The pet walking after the heroine (PLAY-09): an id of src/game/pets.ts, null or absent = none. Which pets are found
    * is `pets` below (and, for a save written before it, the flag `pet` of each pet's own world).
    */
@@ -447,6 +452,13 @@ function cleanOf(x: unknown): NonNullable<Save['clean']> {
   const run = count(c.run) ? c.run : 0;
   return { ...c, run, best: Math.max(run, count(c.best) ? c.best : 0) };
 }
+/** The trainer's days as stored: a damaged date is none (and no day in a row), a damaged count 1 when a date is known. */
+function trainOf(x: unknown): NonNullable<Save['train']> {
+  const t = part(x);
+  const last = typeof t.last === 'string' && DAY.test(t.last) ? t.last : '';
+  if (!last) return { days: 0, last: '', paid: 0 };
+  return { days: count(t.days) && t.days > 0 ? t.days : 1, last, paid: count(t.paid) ? t.paid : 0 };
+}
 /** The days played as stored: a damaged count is 0 (1 when a last day is known), a damaged date is none. */
 function daysOf(x: unknown): NonNullable<Save['days']> {
   const d = part(x);
@@ -537,6 +549,7 @@ function fromStored(s: Stored, d: Save): Save | null {
   // The counters of the achievements, when stored (absent: none yet); a damaged one is mended, not dropped.
   if (s.clean !== undefined) out.clean = cleanOf(s.clean);
   if (s.days !== undefined) out.days = daysOf(s.days);
+  if (s.train !== undefined) out.train = trainOf(s.train);
   // The pet chosen, when stored: anything but the id of a known pet is none.
   if (s.pet !== undefined) out.pet = typeof s.pet === 'string' && PET_IDS.includes(s.pet) ? s.pet : null;
   // The pets found, when stored: a damaged list keeps only its ids, each once (an unknown one is a later version's).
