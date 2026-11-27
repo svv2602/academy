@@ -4,7 +4,7 @@
  * from the camera to each thing to tap and to the task's middle; whatever visible solid thing of the scene it crosses
  * is named by its topmost named parent (`landmark-ship`), with how many of the lines it crosses.
  *
- * Not counted: the task's own things (whatever lies inside its footprint, `extent` around `center`, up to TASK_TOP over
+ * Not counted: the task's own things (those it names, WorldTaskShow.own, and whatever lies inside its footprint, `extent` around `center`, up to TASK_TOP over
  * it - a thing of the world lying right on the task is not caught here), the things the caller skips (the heroine and
  * the cat), what is hidden, points and lines (bubbles, sparkles), and what is all but transparent.
  */
@@ -46,9 +46,10 @@ export function inTask(show: Pick<WorldTaskShow, 'center' | 'facing' | 'extent'>
 }
 
 /** The things standing between `eye` and the task `show`, the most crossing first; empty - the task is seen whole. */
-export function blockersOf(root: THREE.Object3D, eye: THREE.Vector3, show: Pick<WorldTaskShow, 'center' | 'facing' | 'extent' | 'targets'>,
+export function blockersOf(root: THREE.Object3D, eye: THREE.Vector3, show: Pick<WorldTaskShow, 'center' | 'facing' | 'extent' | 'targets' | 'own'>,
   skip: readonly THREE.Object3D[] = []): Blocker[] {
-  const skipped = (o: THREE.Object3D) => { for (let p: THREE.Object3D | null = o; p; p = p.parent) if (skip.includes(p)) return true; return false; };
+  const away = [...skip, ...(show.own ?? [])];
+  const skipped = (o: THREE.Object3D) => { for (let p: THREE.Object3D | null = o; p; p = p.parent) if (away.includes(p)) return true; return false; };
   const ray = new THREE.Raycaster(), dir = new THREE.Vector3();
   const lines = new Map<string, number>();
   // the solid things shown, once; one by one - a skinned body whose bones are not bound yet throws on a ray, and stands
