@@ -81,6 +81,7 @@ describe('the world reaches the game', () => {
     const fields = [...entry.matchAll(/^ {2}(?:readonly )?(\w+)\??:/gm)].map((m) => m[1]);
     const literal = /const entryOf = \(world: WorldDef\): WorldEntry => \(\{([\s\S]*?)\}\);/.exec(MAIN)![1];
     expect(fields).toContain('daily');
+    expect(fields).toContain('enPlaces');          // LEARN-23: the places of Pip's commands
     expect(fields.filter((f) => !new RegExp(`\\b${f}:`).test(literal))).toEqual([]);
   });
 });

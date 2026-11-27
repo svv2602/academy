@@ -91,6 +91,27 @@ export function buildHouses(scene: THREE.Scene, puts: readonly { x: number; y: n
   scene.add(walls, windows);
 }
 
+/**
+ * The big mushrooms of Pip's command (LEARN-23, ./en-places.ts): the village's mushroom with no door and no window, of
+ * height `h` and stem `r`, at `puts`. One geometry of vertex colours for all of them and the houses' own material - no
+ * new program; a mesh each, so the frame draws only the ones in sight.
+ */
+export function buildBigMushrooms(h: number, r: number, puts: readonly { x: number; y: number; z: number; rot: number }[]): THREE.Mesh[] {
+  const geos = mushroomHouse(h, r, 1), paint = PAINT(CAP_RED);
+  const body = (['stem', 'cap', 'spots'] as const).map((key) => painted(geos[key], paint[key]));
+  const geo = mergeGeometries(body)!;
+  geo.computeBoundingSphere();
+  body.forEach((g) => g.dispose());
+  Object.values(geos).forEach((g) => g.dispose());
+  return puts.map((p, i) => {
+    const mesh = new THREE.Mesh(geo, bodyMaterial());
+    mesh.name = `big-mushroom-${i}`;
+    mesh.position.set(p.x, p.y, p.z); mesh.rotation.y = p.rot;
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    return mesh;
+  });
+}
+
 /** The elder's tower: the same house, tall, with windows up its stem; a group named for the landmark (WORLD-10). */
 export function buildTower(): THREE.Group {
   const { walls, windows } = bake(mushroomHouse(8.8, 1.45, 6), TOWER_RED, [{ x: 0, y: 0, z: 0, rot: 0 }]);
