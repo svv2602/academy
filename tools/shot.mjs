@@ -77,6 +77,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from 'fs';
 import { inflateRawSync } from 'zlib';
 import { ACH_WHOLE, GROUPS, PIECES_ONLY, startSave } from './e2e-saves.mjs';
 import { playWorld } from './world-pass.mjs';
+import { blockerProblems } from './world-pass.mjs';   // the first world's tasks in the world seen whole, as every other world's
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { storySheets } from './story-sheet.mjs';
 
@@ -1811,6 +1812,8 @@ try {
           await cameraRests(); await calm(); await shot(`task-world-${st.kind}`);
           // every thing to tap is free on the screen, in every size (the places it goes to may lie under the bubble)
           const blocked = (await targetsOnScreen()).all.filter((a) => !a.free);
+          // nothing of the world stands between the camera and it (src/game/worldtasks/blockers.ts): it is seen whole
+          for (const b of blockerProblems(await g(() => __game.worldTask.blockers?.() ?? null))) errors.push(`world task: ${mode}: "${st.kind}": not seen whole: ${b}`);
           if (blocked.length) errors.push(`world task: ${mode}: "${st.kind}": ${blocked.length} thing(s) to tap under ${[...new Set(blocked.map((a) => a.under))].join(', ')}: ${JSON.stringify(blocked.map((a) => [Math.round(a.x), Math.round(a.y)]))}`);
           // three wrong moves through the door: each shows the rung of its round, the third the last
           for (let k = 1; k <= 3; k++) {
