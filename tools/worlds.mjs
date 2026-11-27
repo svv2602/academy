@@ -75,7 +75,9 @@
 //      Every change asks the gate of the world first (src/game/gate.ts, wired by src/main.ts): a world that is not
 //      downloaded is let in "from the network" and downloaded in full behind the closed frame.
 //      "the files are gone": in another browser the server answers 404 for every file of the probe world; the network
-//      answers, the download does not make the world ready: the change answers false, the game is back in the first
+//      answers. The first change reloads the page once (a 404 is a new version on the site: src/game/travel.ts
+//      `renew`), the save naming the probe world; the launch refuses it and starts in the first world. The next
+//      change: the download does not make the world ready: the change answers false, the game is back in the first
 //      world and the cat says that the network is needed by its recorded clip, the heroine walks and a character
 //      gives a task; with the files back the change goes through. The console may hold only the 404s of those files
 //      (and the game's one "could not load"); anywhere else an error or a warning is a failure.
@@ -141,6 +143,10 @@
 //      (2026-11-26): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
 //      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
 //      (part 10) stays for the grey build. Pictures shots-e2e/worlds-published/sweet/.
+//  16. The part "sky" (tools/sky-pass.mjs `passEnv`, `passProblems`): the same for the published Sky Islands
+//      (2026-11-27): their chains with the three tasks in the world (the cloud bridge, the clock, the route of the winds)
+//      and the two rays in it, the tour, Pushok, their four secrets, the finale. Their grey walkthrough (part 11)
+//      stays for the grey build. Pictures shots-e2e/worlds-published/sky/.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
@@ -163,6 +169,7 @@ import { GREY_DIST, HUB_ARCH, HUB_ARRIVAL, buildWorlds, hubWay, serveDir } from 
 import { passEnv as forestPassEnv, passProblems as forestPassProblems, passTimeoutMs as forestPassTimeoutMs } from './forest-pass.mjs';
 import { passEnv as seaPassEnv, passProblems as seaPassProblems, passTimeoutMs as seaPassTimeoutMs } from './sea-pass.mjs';
 import { passEnv as sweetPubPassEnv, passProblems as sweetPubPassProblems, passTimeoutMs as sweetPubPassTimeoutMs } from './sweet-pass.mjs';
+import { passEnv as skyPubPassEnv, passProblems as skyPubPassProblems, passTimeoutMs as skyPubPassTimeoutMs } from './sky-pass.mjs';
 import { passEnv as skyPassEnv, passProblems as skyPassProblems, passTimeoutMs as skyPassTimeoutMs } from './sky-grey.mjs';
 import { passEnv as sweetPassEnv, passProblems as sweetPassProblems, passTimeoutMs as sweetPassTimeoutMs } from './sweet-grey.mjs';
 
@@ -186,7 +193,7 @@ export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
  * whose `timeout-minutes` is this (tools/ci-pieces.test.mjs). tools/e2e.mjs plays the parts so, one run each.
  */
 export const PART_TIMEOUT_MS = 30 * 60000;
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky'];
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
 export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sky-grey'];
 /**
@@ -204,7 +211,7 @@ export function publishedWithoutPart(next, parts = PUBLISH_PARTS) {
   return next.filter((id) => !parts.includes(id));
 }
 /** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest and the walkthroughs of the published worlds in the published one. */
-export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet'];
+export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet', 'sky'];
 /**
  * A request of the hub's part that failed only because the browser dropped a clip it no longer needed: a clip of the
  * voice (voice/, bank/) cut off by the next line or by a reload while it was still loading is cancelled by the browser
@@ -979,6 +986,15 @@ async function main() {
     await worldPass('the Sweet Land', dist, join('shots-e2e', 'worlds-published', 'sweet'), (out) => sweetPubPassEnv(process.env, out), sweetPubPassTimeoutMs(process.env), sweetPubPassProblems,
       'the Sweet Land of the published build: played by its description from its entry to its finale, its four secrets found');
   } catch (e) { fail(e.message); }
+  // ---- the part "sky": the walkthrough of the published Sky Islands in the published build (tools/sky-pass.mjs) ----
+  // as the Sweet Land's, held to the numbers of the template; its own limit, the grey walkthrough's (tools/sky-grey.mjs)
+  if (play('sky')) try {
+    await publishedBuild();
+    const next = buildWorlds(dist);
+    if (!next.includes('sky')) throw new Error(`the published build ${dist} has no Sky Islands among its next worlds (worlds.json: ${JSON.stringify(next)})`);
+    await worldPass('the Sky Islands', dist, join('shots-e2e', 'worlds-published', 'sky'), (out) => skyPubPassEnv(process.env, out), skyPubPassTimeoutMs(process.env), skyPubPassProblems,
+      'the Sky Islands of the published build: played by their description from their entry to their finale, their four secrets found');
+  } catch (e) { fail(e.message); }
   if (read.parts.every((x) => NO_PROBE_PARTS.includes(x))) end();
 
   // ---- 2. the probe build, made anew ----
@@ -1295,22 +1311,24 @@ async function hubScenarios({ url, shots, fail: report }) {
     {
       const two = HUB_SAVES.two();
       two.worlds.sea = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
-      // the Sweet Land (published 2026-11-26) behind the arch after the sea's: done as well, its words said, for the same reason
+      // the Sweet Land (published 2026-11-26) behind the arch after the sea's: done as well, its words said, for the same
+      // reason; and the Sky Islands behind the arch after it, published later
       two.worlds.sweet = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
+      two.worlds.sky = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
       const hubPart = two.worlds.hub ?? { quests: {}, final: false, starsTaken: [], flags: {}, pos: null };
-      two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true, sweet_home: true, sweet_after: true } };
+      two.worlds.hub = { ...hubPart, flags: { ...hubPart.flags, sea_home: true, sea_after: true, sweet_home: true, sweet_after: true, sky_home: true, sky_after: true } };
       const p = await open('two artifacts', two);
       await p.page.goto(`${url}?debug&world=hub${q}`);
       await p.play(true);
       const nests = await p.g(() => __game.hub.nests());
-      if (JSON.stringify(nests) !== JSON.stringify([true, true, true, true, false])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's, the forest's, the sea's and the Sweet Land's should glow`);
+      if (JSON.stringify(nests) !== JSON.stringify([true, true, true, true, true])) fail(`two artifacts: the nests ${JSON.stringify(nests)}, the crystal's, the forest's, the sea's, the Sweet Land's and the Sky Islands' should glow`);
       if (await p.g(() => __game.flyoverPlayer?.active === true)) {
         await p.g(() => __game.flyoverPlayer.hold(2));   // the tree over the glade: both nests on its side
         await p.gameSeconds(0.8);
         await p.shot('hub-tree-2.png');
         await p.g(() => __game.flyoverPlayer.skip());
       } else fail('two artifacts: no tour of the hub on its first entry');
-      told.push('with the probe world, the sea and the Sweet Land done too the crystal\'s, the forest\'s, the sea\'s and the Sweet Land\'s nests glow');
+      told.push('with the probe world, the sea, the Sweet Land and the Sky Islands done too all five nests glow');
       // nothing new (every open world done): the cat's sparkles lead back to the fairies' arch, a tap on the cat says
       // "the other worlds still sleep" (not the shared "new friends live here"), its clip in voice/hub/
       await p.inWorld('hub');
@@ -1929,6 +1947,20 @@ async function travelScenarios({ url, shots, asked, list, fail: report, block, r
       const p = await open(name, true);
       await p.page.goto(`${url}?debug${q}`);
       await p.start();
+      // A 404 for a file of the list is the site holding another version (src/core/worldcache.ts 'changed'): the first
+      // time in a build the page saves the world asked for as the one where she stopped and reloads into the version
+      // on the site (src/game/travel.ts `renew`). Here the files are gone in that version too: after the reload the
+      // launch refuses that world and the game starts in the first one; the next change is refused as without network.
+      const reloaded = p.page.waitForEvent('load', { timeout: T(60000) });   /* clock: page-load */
+      void p.g((id) => __game.travel(id), PROBE).catch(() => {});      // the page goes away under it
+      if (!(await reloaded.then(() => true, () => false))) fail(`${name}: the first change with the files gone did not reload the page into the version on the site`);
+      await p.page.locator('#play').waitFor({ state: 'visible', timeout: T(240000) });   /* clock: page-load */
+      const renewed = await p.g(() => ({ last: JSON.parse(localStorage.getItem('amw-save') ?? '{}').lastWorld, key: sessionStorage.getItem('amw-renewed') }));
+      if (renewed.last !== PROBE) fail(`${name}: before the reload the save names "${renewed.last}" as the world where she stopped, expected "${PROBE}"`);
+      if (!renewed.key) fail(`${name}: the page reloaded without marking its build in the session: it could reload round and round`);
+      await p.start();
+      const launched = await p.g(() => __game.world);
+      if (launched !== FIRST) fail(`${name}: after the reload, the files still gone, the game starts in "${launched}", expected "${FIRST}"`);
       const mark = `mark-${Date.now()}`;
       await p.g((m) => { window.__travelMark = m; __game.teleport(1.5, 11); }, mark);
       await p.until(() => Math.abs(__game.hero.root.position.x - 1.5) < 0.01, null, 'the heroine was not moved');

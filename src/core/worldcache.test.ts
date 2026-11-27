@@ -220,10 +220,19 @@ describe('download: the files of a world, one at a time', () => {
     expect(await worlds.download('ocean')).toEqual({ world: 'ocean', status: 'none', done: 0, total: 3, running: false, error: 'network' });
   });
 
-  it('a file the server does not have (404) stops the download as a failure of the network; nothing is kept for it', async () => {
+  it('a file the server does not have (404): the site holds another version - "changed", not the network; nothing is kept for it', async () => {
     const { worlds, store } = setup(await listOf({ ocean: OCEAN }), { 'models/ocean/a.glb': OCEAN['models/ocean/a.glb'] });
-    expect(await worlds.download('ocean')).toMatchObject({ status: 'partial', done: 1, error: 'network' });
+    expect(await worlds.download('ocean')).toMatchObject({ status: 'partial', done: 1, error: 'changed' });
     expect(store.state.puts).toEqual([at('models/ocean/a.glb')]);
+  });
+
+  it('a server that answers with an error other than 404 (503: the hosting is busy) is a failure of the network', async () => {
+    const { worlds, server } = setup(await listOf({ ocean: OCEAN }), OCEAN);
+    const plain = server.fetch;
+    const busy = async (url: string) => (url.includes('models/ocean/b.glb') ? new Response('', { status: 503 }) : plain(url));
+    const w = createWorldCache({ fetch: busy, caches: fakeCaches().caches, base: BASE, digest: sha256, mayDownload: () => true, online: () => true });
+    expect(await w.download('ocean')).toMatchObject({ status: 'partial', done: 1, error: 'network' });
+    void worlds;
   });
 
   it('the list did not arrive: nothing is downloaded, "network"', async () => {

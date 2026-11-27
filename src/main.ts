@@ -77,6 +77,8 @@ initStart(save, save.played, () => applyLook());
 // game answers), or by the browser once every page of the game is closed; never after "Play" (src/core/update.ts).
 let played = false;
 el.play.addEventListener('click', () => { played = true; }, { once: true, capture: true });
+/** The build this tab already reloaded from once because the site was updated under it (src/game/travel.ts `renew`). */
+const RENEWED = 'amw-renewed';
 const updater = startUpdater({ playing: () => played, hold: (on) => { (el.play as HTMLButtonElement).disabled = on; } });
 updater.onState(showUpdate);
 
@@ -133,6 +135,17 @@ async function boot() {
   // TECH-09: a refusal of the gate - the cat says that the network is needed. The world where she stopped, refused at
   // the launch, is said once she plays (src/game/start.ts, after "Play" and the entry into the world).
   refuse = () => { void g.speech.line('need_net', 'hint'); };
+  // The site was updated under this page and a world of it cannot be had any more: the new version is taken and the
+  // page reloads into it (src/core/update.ts `renew`) - once per build, kept in the tab's session; a second time the
+  // world is refused, so a site that lacks a file of its own list never reloads the page round and round.
+  const renew = () => {
+    try {
+      if (sessionStorage.getItem(RENEWED) === __BUILD_COMMIT__) return false;
+      sessionStorage.setItem(RENEWED, __BUILD_COMMIT__);
+    } catch { return false; }
+    updater.renew();
+    return true;
+  };
   // TECH-15: the change of world (src/game/travel.ts). The built world goes to the frame, the quality tier and
   // window.__game through it - the first one below, every next one from `travel(<id>)`.
   const travel: Travel = createTravel({
@@ -142,7 +155,7 @@ async function boot() {
     drawn: () => loop.drawn(),
     welcome: (first) => enterWorld(g, first, 'travel'),
     arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },
-    gate, cache: worlds, refuse,
+    gate, cache: worlds, refuse, renew,
   });
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
   const w = travel.begin(opened, L);

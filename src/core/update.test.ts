@@ -1,7 +1,7 @@
 // TECH-13: a new version is switched on at the start screen before "Play" (one reload, no other page of the game
 // answers) or once every page is closed; never after "Play". The browser's parts are stand-ins here.
 import { describe, expect, it } from 'vitest';
-import { ASK_MS, CHECK_AFTER_HIDDEN_MS, TAKE_MS, createUpdater, type ChannelLike, type UpdateDeps, type WorkerLike } from './update';
+import { ASK_MS, CHECK_AFTER_HIDDEN_MS, RENEW_MS, TAKE_MS, createUpdater, type ChannelLike, type UpdateDeps, type WorkerLike } from './update';
 
 class FakeWorker implements WorkerLike {
   sent: unknown[] = [];
@@ -264,5 +264,81 @@ describe('the state for the parents\' section, and a page open for long', () => 
     });
     await Promise.resolve();
     expect(u.state()).toBe('none');
+  });
+});
+
+describe('renew: the site was updated under a page that is played, and a world of it cannot be had any more', () => {
+  it('a waiting worker: SKIP_WAITING at once, while she plays, other pages or not; one reload when it has taken the page', async () => {
+    const b = bus(), w = new FakeWorker('installed');
+    const other = b();
+    other.onmessage = (e) => { if ((e.data as { t: string }).t === 'who') other.postMessage({ t: 'here' }); };
+    const p = page({ bus: b, waiting: w });
+    p.s.playing = true;
+    await p.pass(ASK_MS);
+    expect(w.sent).toEqual([]);
+    p.u.renew();
+    p.u.renew();                                // asked twice: one try
+    await p.pass(0);
+    expect(w.sent).toEqual([SKIP]);
+    expect(p.s.reloads).toBe(0);
+    p.controllerchange();
+    expect(p.s.reloads).toBe(1);
+    await p.pass(RENEW_MS + TAKE_MS);
+    expect(p.s.reloads).toBe(1);
+  });
+
+  it('no worker waiting yet: the site is asked for one, it installs, takes over, and the page reloads', async () => {
+    const p = page({ bus: bus() });
+    p.s.playing = true;
+    await p.pass(0);
+    const w = new FakeWorker('installing');
+    p.reg.update = async () => { p.reg.updates++; p.reg.installing = w; };
+    p.u.renew();
+    await p.pass(1000);
+    expect(p.reg.updates).toBe(1);
+    expect(w.sent).toEqual([]);
+    p.reg.installing = null; p.reg.waiting = w; w.to('installed');
+    await p.pass(0);
+    expect(w.sent).toEqual([SKIP]);
+    p.controllerchange();
+    expect(p.s.reloads).toBe(1);
+  });
+
+  it('no new worker comes, one never installs, or it never takes the page: the page reloads all the same, once', async () => {
+    const p = page({ bus: bus() });
+    p.s.playing = true;
+    p.u.renew();
+    await p.pass(0);
+    expect(p.reg.updates).toBe(1);
+    expect(p.s.reloads).toBe(1);                // the site has no new worker for it: the files come from the site
+    await p.pass(RENEW_MS + TAKE_MS);
+    expect(p.s.reloads).toBe(1);
+    const r = page({ bus: bus() });
+    r.reg.update = async () => { r.reg.updates++; r.reg.installing = new FakeWorker('installing'); };
+    r.u.renew();
+    await r.pass(RENEW_MS - 1);
+    expect(r.s.reloads).toBe(0);
+    await r.pass(1);
+    expect(r.s.reloads).toBe(1);
+    const w = new FakeWorker('installed');
+    const q = page({ bus: bus(), waiting: w });
+    q.s.playing = true;
+    q.u.renew();
+    await q.pass(TAKE_MS);
+    expect(w.sent).toEqual([SKIP]);
+    expect(q.s.reloads).toBe(1);
+    q.controllerchange();
+    await q.pass(RENEW_MS + TAKE_MS);
+    expect(q.s.reloads).toBe(1);
+  });
+
+  it('without service workers: the page reloads at once', () => {
+    let reloads = 0;
+    const u = createUpdater({
+      sw: undefined, channel: () => null, playing: () => true, reload: () => { reloads++; }, hold: () => {},
+      session: null, setTimeout: () => {}, onVisible: () => {}, onLeave: () => {},
+    });
+    u.renew();
+    expect(reloads).toBe(1);
   });
 });

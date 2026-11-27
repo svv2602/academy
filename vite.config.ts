@@ -42,10 +42,10 @@ function probeFiles(): Plugin {
 // file of worlds-data/<id>/ of a next world of the build, put in under the path the world asks for (the forest's
 // characters, models/forest/…, written there by tools/assets.mjs; the voice, voice/<id>/…, written there by
 // tools/gen_voice.py - outside public/, which every build copies whole). The published build has the forest and the
-// sea (published 2026-11-24) and gets their files; a grey build (WORLD-12, `--mode grey`) also the Sweet Land's. A
+// sea (published 2026-11-24), the Sweet Land (2026-11-26) and the Sky Islands (2026-11-27) and gets their files; a grey
+// build (WORLD-12, `--mode grey`) has the same worlds now (a next world in its grey build is listed as `<id>: 'grey'`). A
 // world's files from elsewhere (tools/vite-worlds.mjs WORLD_EXTRA_FILES: the sea's swimming clips, the probe world's
 // copy) too, under its folder - models/sea/ counts them in the sea's own budget.
-const GREY_MODE = 'grey';
 function worldFiles(next: string[], extra: Record<string, string>): Plugin {
   let root = '.';
   return {
@@ -65,8 +65,8 @@ function worldFiles(next: string[], extra: Record<string, string>): Plugin {
 // when the page first asks for it, and by the download in the background while the previous world is played
 // (src/core/worldcache.ts). A build without a next world would get none of this; the published game has the forest.
 export default defineConfig(({ mode }) => {
-  // the Sweet Land and the Sky Islands only in their grey build (WORLD-12, src/worlds/index.ts); the forest and the sea in every build
-  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE, sky: GREY_MODE });
+  // the forest, the sea, the Sweet Land and the Sky Islands in every build (src/worlds/index.ts); the probe world in its own
+  const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
   return {

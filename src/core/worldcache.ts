@@ -24,8 +24,8 @@ export interface WorldList { cache: string; worlds: Record<string, { revision: s
 export type WorldStatus = 'core' | 'ready' | 'partial' | 'none';
 /**
  * Why a download did not run or stopped: 'network' - a file or the list did not arrive; 'storage' - the cache refused
- * it (no room, no cache at all); 'changed' - the server sent other bytes than the list names (another version is being
- * published); 'saving' - the browser asks to save data, nothing is downloaded; 'yielded' - a download in the background
+ * it (no room, no cache at all); 'changed' - the server sent other bytes than the list names, or has no such file
+ * (another version is published, or being published); 'saving' - the browser asks to save data, nothing is downloaded; 'yielded' - a download in the background
  * stopped to let a world asked for by name go first.
  */
 export type WorldError = 'network' | 'storage' | 'changed' | 'saving' | 'yielded';
@@ -176,7 +176,9 @@ export function createWorldCache(env: WorldCacheEnv = pageEnv()): WorldCache {
         // Past the service worker's route (it answers plain addresses from this very cache): the fingerprint in the
         // query also keeps an old copy of the file anywhere on the way from being handed out.
         const res = await env.fetch(`${abs(f.url)}?v=${f.revision}`);
-        if (!res.ok) return stopped('network');
+        // A file of the list the server does not have: the site holds another version (its files are renamed or
+        // gone), not a failure of the network - the page of an old version cannot have the world any more.
+        if (!res.ok) return stopped(res.status === 404 ? 'changed' : 'network');
         bytes = await res.arrayBuffer();
         type = res.headers.get('Content-Type');
       } catch { return stopped('network'); }
