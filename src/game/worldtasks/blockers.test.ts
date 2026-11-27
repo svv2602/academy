@@ -42,6 +42,12 @@ describe('blockersOf', () => {
     expect(blockersOf(scene(own, hero), EYE, show(), [hero])).toEqual([]);
   });
 
+  it('the things the task names its own (WorldTaskShow.own) are not in the way, wherever they stand', () => {
+    const facade = new THREE.Group(); facade.name = 'facade'; facade.add(box(WAY));
+    expect(blockersOf(scene(facade), EYE, { ...show(), own: [facade] })).toEqual([]);
+    expect(blockersOf(scene(facade), EYE, show()).map((b) => b.name)).toEqual(['facade']);
+  });
+
   it('hidden, see-through things and points are not in the way; a solid one is', () => {
     const hidden = box(WAY, 'hidden'); hidden.visible = false;
     const parentHidden = new THREE.Group(); parentHidden.visible = false; parentHidden.add(box(WAY, 'under-hidden'));

@@ -1190,8 +1190,8 @@ describe('the size of the things of a task in the world on the screen (MIN_TAP_P
 });
 
 describe('a task in the world is seen whole (blockerProblems)', () => {
-  it('the sea is held to it (Pantsyr\'s halves, 2026-11-27)', () => {
-    expect(SEEN_WHOLE).toContain('sea');
+  it('every published world is held to it (Pantsyr\'s halves hidden by the ship, 2026-11-27)', () => {
+    expect([...SEEN_WHOLE].sort()).toEqual(['forest', 'sea', 'sky', 'sweet']);
   });
 
   it('nothing between the camera and it, or no door: no problem; each thing in the way: one, named', () => {

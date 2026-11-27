@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorldState } from '../core/save';
 import { EASEL_ITEM, EASEL_LED, cellFlag, easelSign, easelWaits, leadsToEasel, looseCells, pictureSet, piecesFound, setCells, type CollectDef } from './collections';
-import { EASEL_LEAD_S, createEasel, type EaselHost } from './easel';
+import { EASEL_LEAD_S, EASEL_SHOW_R, createEasel, type EaselHost } from './easel';
 import { declared } from './describe';
 import { EASEL_STAND, easelStand } from './easel-place';
 import { WHOLE_MS, easelState, openEasel } from '../ui/easel';
@@ -148,7 +148,7 @@ describe('the easel in a world: its sign, its lead, its goal', () => {
     } as unknown as EaselHost;
     const easel = createEasel(g);
     const sign = scene.getObjectByName('easel-sign') as THREE.Mesh;
-    return { easel, ws, hero, sign, saved: () => saved };
+    return { easel, ws, hero, sign, scene, saved: () => saved };
   };
 
   it('one more mesh: the sign over it, seen while the picture is not set', () => {
@@ -158,6 +158,38 @@ describe('the easel in a world: its sign, its lead, its goal', () => {
     for (let c = 0; c < 4; c++) ws.flags[cellFlag(c)] = true;
     easel.update(2);
     expect(sign.visible).toBe(false);
+  });
+
+  it('its draw calls (TECH-06): the wood one mesh, the tiles of the cells set one instanced mesh', () => {
+    const { scene, easel } = make([], { [cellFlag(1)]: true, [cellFlag(3)]: true });
+    easel.update(1);
+    const body = scene.getObjectByName('easel')!;
+    const drawn: THREE.Mesh[] = [];
+    body.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) drawn.push(o as THREE.Mesh); });
+    // the wood (legs and ledge), the board, the tiles: three, whatever the cells set
+    expect(drawn).toHaveLength(3);
+    expect(drawn.filter((m) => m.castShadow)).toHaveLength(1);
+    const tiles = scene.getObjectByName('easel-tiles') as THREE.InstancedMesh;
+    expect(tiles.isInstancedMesh).toBe(true);
+    expect(tiles.count).toBe(2);
+    // the first drawn is cell 1 (top right of 2 x 2), the second cell 3 (bottom right)
+    const at = (i: number) => { const m = new THREE.Matrix4(); tiles.getMatrixAt(i, m); return new THREE.Vector3().setFromMatrixPosition(m); };
+    expect([at(0).x > 0, at(0).y > 0, at(1).x > 0, at(1).y < 0]).toEqual([true, true, true, true]);
+    // none set: not drawn at all
+    const none = make();
+    none.easel.update(1);
+    expect((none.scene.getObjectByName('easel-tiles') as THREE.InstancedMesh).visible).toBe(false);
+  });
+
+  it('far from her the easel is not drawn, its sign is (it is seen from afar)', () => {
+    const { easel, hero, sign, scene } = make();
+    const body = scene.getObjectByName('easel')!;
+    hero.root.position.set(10 - EASEL_SHOW_R + 1, 0, 0);
+    easel.update(1);
+    expect([body.visible, sign.visible]).toEqual([true, true]);
+    hero.root.position.set(10 - EASEL_SHOW_R - 1, 0, 0);
+    easel.update(2);
+    expect([body.visible, sign.visible]).toEqual([false, true]);
   });
 
   it('it flickers while a piece lies by it, steady otherwise', () => {
