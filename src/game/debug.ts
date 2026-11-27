@@ -178,6 +178,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       open: () => g.easel.open(),
       get card() { return { open: easelState.open, set: [...easelState.set], loose: [...easelState.loose] }; },
       setAll: () => { easelState.setAll?.(); },
+      /** Its hints (the customer's word of 2026-11-27): the sign over it, whether it is the cat's goal, the lead after the first piece. */
+      get hints() { return g.easel.state(); },
     },
     /**
      * The finds of the collections in the world played (src/game/collect-items.ts, PLAY-25), read only: each with its id,

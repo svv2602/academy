@@ -242,6 +242,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     if (shard) return shard;
     const next = npcs.find((n) => !chainDone(ws, n.def));
     if (next) return next.pos;
+    // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+    const easel = g.easel.goal();
+    if (easel) return easel;
     // the crystal whole: to the way to the Great Tree until she has been there (R28: also a save from before the hub)
     if (ws.final) return TREE_WAY_OPEN && !hubVisited(g.save) ? treeWay.pos : null;
     return shrine.pos;

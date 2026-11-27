@@ -959,6 +959,22 @@ export async function playWorld(h, o = {}) {
       await g(() => document.getElementById('easelClose').click());
       if (!(await gameUntil(() => !window.__game.easel.card.open && !window.__game.paused, null, REACTS))) fail(`${where}: its card did not close by its cross`);
       console.log(`easel: its card opened at its place (${card.set.length} cells set, ${card.loose.length} pieces lying by it) and closed by its cross`);
+      // its hints (the customer's word of 2026-11-27): with no piece found its sign glows steady and it is no goal; the
+      // world's first piece (put in the save as a find would) starts the lead and the flicker once; every piece found,
+      // it is the cat's goal. The finds are taken back after: this pass looks for none.
+      const h0 = await g(() => window.__game.easel.hints);
+      if (h0.sign !== 'on' || h0.goal || h0.leading) fail(`${where}: its hints with no piece found ${JSON.stringify(h0)}`);
+      const pieces = await g(() => window.__game.collect.items.filter((i) => i.kind === 'piece').map((i) => i.id));
+      const before = await g((w) => { const ws = window.__game.save.worlds[w]; return { found: [...(ws.found ?? [])], led: ws.flags.easel_led ?? null }; }, worldId);
+      await g(([w, id]) => { const ws = window.__game.save.worlds[w]; ws.found = [...(ws.found ?? []), id]; }, [worldId, pieces[0]]);
+      if (!(await gameUntil(() => window.__game.easel.hints.leading, null, REACTS))) fail(`${where}: the first piece found did not start the lead to it`);
+      const h1 = await g(() => window.__game.easel.hints);
+      if (h1.sign !== 'flicker' || !h1.led || h1.goal) fail(`${where}: its hints after the first piece ${JSON.stringify(h1)}`);
+      await g(([w, ids]) => { const ws = window.__game.save.worlds[w]; ws.found = [...new Set([...ws.found, ...ids])]; }, [worldId, pieces]);
+      const h2 = await g(() => window.__game.easel.hints);
+      if (!h2.goal) fail(`${where}: every piece found, it is not the cat's goal ${JSON.stringify(h2)}`);
+      await g(([w, b]) => { const ws = window.__game.save.worlds[w]; ws.found = b.found; if (b.led === null) delete ws.flags.easel_led; else ws.flags.easel_led = b.led; }, [worldId, before]);
+      console.log(`easel hints: the sign steady, the first of ${pieces.length} pieces led to it and made it flicker, all of them made it the cat's goal`);
     }
   }
 

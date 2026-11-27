@@ -189,6 +189,23 @@ export const pictureSet = (def: CollectDef, flags: Readonly<Record<string, boole
 };
 
 /**
+ * The hints to the easel (PLAY-29, the customer's word of 2026-11-27: «да, делаем все три» - the easel was hard to find).
+ * EASEL_LED: the world's flag that the cat's sparkles led her to the easel after her first piece - once a world.
+ */
+export const EASEL_LED = 'easel_led';
+/** The sign over the easel: none once the picture is set, flickering while found pieces lie by it, steady otherwise. */
+export const easelSign = (def: CollectDef, found: readonly number[], flags: Readonly<Record<string, boolean>>): 'off' | 'on' | 'flicker' =>
+  pictureSet(def, flags) ? 'off' : looseCells(def, found, flags).length > 0 ? 'flicker' : 'on';
+/** The easel is a goal of the cat's sparkles: every piece found, the picture not set. */
+export const easelWaits = (def: CollectDef, found: readonly number[], flags: Readonly<Record<string, boolean>>) =>
+  pictureDone(def, found) && !pictureSet(def, flags);
+/** The pieces found of the world's picture. */
+export const piecesFound = (def: CollectDef, found: readonly number[]) => piecesOf(def).filter((i) => found.includes(i)).length;
+/** A piece was just found, the world's first, and the sparkles have not led her to the easel in this world yet. */
+export const leadsToEasel = (def: CollectDef, before: number, found: readonly number[], flags: Readonly<Record<string, boolean>>) =>
+  before === 0 && piecesFound(def, found) > 0 && flags[EASEL_LED] !== true;
+
+/**
  * What is wrong with a world's finds: each kind of a set has SET_SIZE of them, the pieces as many as the cells of its
  * picture; every find of a known kind and way.
  */
