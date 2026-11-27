@@ -386,6 +386,7 @@
  "forest_secret_fireflies": ["Світлячки співають! Торкнися їх по черзі — почуєш пісеньку.", "warm", "cat", "forest"],
  "forest_secret_ring": ["Хі-хі, ти стала крихітною! Не бійся, зараз знову виростеш.", "joy", "cat", "forest"],
  "forest_secret_roots": ["Печерка під корінням! Дивись, як світяться грибочки.", "joy", "cat", "forest"],
+ "forest_secret_hollow": ["Ми всередині дерева Шустрика! Скільки тут горішків!", "joy", "cat", "forest"],
  "forest_pet_found": ["Ось де совеня, під листям! Воно вже тупцяє до тебе.", "joy", "cat", "forest"],
  "forest_pet_follow": ["Совеня гулятиме з тобою лісом і біля Великого Дерева.", "warm", "cat", "forest"],
  "forest_all_leaves": ["Усі листочки в нас! Несімо їх до Старого Дуба.", "joy", "cat", "forest"],

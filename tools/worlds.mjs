@@ -131,7 +131,7 @@
 //  13. The part "forest" (tools/forest-pass.mjs `passEnv`, `passProblems`): the walkthrough of the published forest by
 //      its description in the published build, the phone size (E2E_WORLD=forest, the numbers of the world template):
 //      from its entry to its finale - its chains with the task in the world and the two leaves in it, the tour, the
-//      owlet, its five secrets, the finale. The build must list the forest among its next worlds (worlds.json). A job
+//      owlet, its six secrets, the finale. The build must list the forest among its next worlds (worlds.json). A job
 //      of both workflows, beside the others (a walkthrough of a world takes up to 20 minutes on the runner). Every
 //      published next world has a part of its own, named by its id: the part "walk" fails a published build that
 //      lists a world without one (`publishedWithoutPart`), and so does a test of the sources. Played alone it makes
@@ -966,7 +966,7 @@ async function main() {
     const next = buildWorlds(dist);
     if (!next.includes('forest')) throw new Error(`the published build ${dist} has no forest among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the forest', dist, join('shots-e2e', 'worlds-published', 'forest'), (out) => forestPassEnv(process.env, out), forestPassTimeoutMs(process.env), forestPassProblems,
-      'the forest of the published build: played by its description from its entry to its finale, its five secrets found');
+      'the forest of the published build: played by its description from its entry to its finale, its six secrets found');
   } catch (e) { fail(e.message); }
   // ---- the part "sea": the walkthrough of the published sea in the published build (tools/sea-pass.mjs) ----
   // as the forest's; the sea's own limit: the longest walkthrough seen on the runner (tools/sea-pass.mjs PASS_TIMEOUT_MS)

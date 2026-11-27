@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { fbm, smoothstep } from '../../core/util';
 import type { WorldGround } from '../../game/world';
-import { EDGE, HALF, PATHS, STREAM, STREAM_HALF, type Place } from './layout';
+import { EDGE, HALF, PATHS, STREAM, STREAM_HALF, TREE_ROOM, type Place } from './layout';
 
 /**
  * The ground of the forest, the grey build (WORLD-12): a gentle relief, the stream's bed, the rim rising past the edge
@@ -75,7 +75,15 @@ export function deckY(x: number, z: number): number {
   return best;
 }
 
+/** Is (x, z) in the room in Shustrik's tree (./tree-room.ts), or just round its wall? */
+export const inTreeRoom = (x: number, z: number) => Math.hypot(x - TREE_ROOM.x, z - TREE_ROOM.z) < TREE_ROOM.r + 2;
+/** m round the room's wall where the ground is still its floor: the camera behind her, outside the wall, stands on it. */
+export const TREE_ROOM_CAMERA_REACH = 6;
+const underTreeRoom = (x: number, z: number) => Math.hypot(x - TREE_ROOM.x, z - TREE_ROOM.z) < TREE_ROOM.r + TREE_ROOM_CAMERA_REACH;
+
 export function height(x: number, z: number): number {
+  // the room in the tree, far past the rim: its floor flat
+  if (underTreeRoom(x, z)) return TREE_ROOM.y;
   let h = (fbm(x * 0.03 + 4.1, z * 0.03 + 8.7) - 0.5) * 3;
   // the paths and the glades lie a little flatter
   h *= 0.5 + 0.5 * smoothstep(1.5, 6, pathDist(x, z));
@@ -108,6 +116,12 @@ export function resolve(p: { x: number; z: number; y?: number }, radius: number)
     if (c.top !== undefined && p.y !== undefined && p.y > c.top) continue;
     const dx = p.x - c.x, dz = p.z - c.z, min = c.r + radius, d2 = dx * dx + dz * dz;
     if (d2 < min * min && d2 > 1e-6) { const d = Math.sqrt(d2); p.x = c.x + (dx / d) * min; p.z = c.z + (dz / d) * min; }
+  }
+  // in the room in the tree: inside its wall, never pulled back to the map's edge
+  if (inTreeRoom(p.x, p.z)) {
+    const dx = p.x - TREE_ROOM.x, dz = p.z - TREE_ROOM.z, r = Math.hypot(dx, dz), m = TREE_ROOM.r - radius;
+    if (r > m) { p.x = TREE_ROOM.x + (dx / r) * m; p.z = TREE_ROOM.z + (dz / r) * m; }
+    return;
   }
   const d = Math.hypot(p.x, p.z), max = HALF - EDGE;
   if (d > max) { p.x *= max / d; p.z *= max / d; }

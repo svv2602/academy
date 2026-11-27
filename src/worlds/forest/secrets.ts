@@ -12,6 +12,7 @@ import { left } from '../../game/supplies';
 import { CAVE, FAIRY_RING, ROOTS, SONG_TREE, ZONES } from './layout';
 import { FIND_R, ROOTLET_TOP, ROOTS_CAM_OUT, ROOTS_PITCH, ROOTS_R, glowGeometry, rootletGeometry, rootletSwing, rootsCamDist, rootsGeometry, rootsLumps, rootsOf, rootsTree } from './roots';
 import { HOUSE_STEM_TOP, villageHouses } from './scenery';
+import { createTreeRoom, roomOf, treeDoorOf } from './tree-room';
 import { colliders, height, tops } from './terrain';
 
 /**
@@ -28,14 +29,16 @@ import { colliders, height, tops } from './terrain';
  *   the same order they sing the whole tune. A wrong touch is no mistake: they only sing their order again.
  * - roots: the cave under the roots of a fallen tree (./roots.ts) - a curtain of rootlets parts round her, glowing
  *   mushrooms inside; walking up to the glowing stone at its back is the find.
+ * - hollow: the room in Shustrik's tree (./tree-room.ts) - its little door in the grove's great tree is there once his
+ *   chain is done; the first time in is the find.
  * - ring: the ring of fairy mushrooms - in its middle she is tiny for RING_SECONDS (the funny potion's size, PLAY-26:
  *   the camera and her radius follow it), sparkles round her, the cat laughs; her controls stay hers. Every time she
  *   steps in; the stars and the word the first time.
  *
  * Each is drawn only within SHOW_R of her: the forest's frame is close to its budget of draw calls (TECH-06).
  */
-export const CAVE_FLAG = 'cave', BOUNCE_FLAG = 'bounce', SONG_FLAG = 'fireflies', RING_FLAG = 'ring', ROOTS_FLAG = 'roots';
-export const FOREST_SECRETS = [CAVE_FLAG, BOUNCE_FLAG, SONG_FLAG, RING_FLAG, ROOTS_FLAG] as const;
+export const CAVE_FLAG = 'cave', BOUNCE_FLAG = 'bounce', SONG_FLAG = 'fireflies', RING_FLAG = 'ring', ROOTS_FLAG = 'roots', HOLLOW_FLAG = 'hollow';
+export const FOREST_SECRETS = [CAVE_FLAG, BOUNCE_FLAG, SONG_FLAG, RING_FLAG, ROOTS_FLAG, HOLLOW_FLAG] as const;
 /** m: a secret is drawn while she is this near it. */
 export const SHOW_R = 22;
 /** s: the cat's word of a find waits this long at most for the line that sounds to end (else it is not said). */
@@ -121,7 +124,7 @@ export interface ForestSecrets {
   /** The chest's clip, with the rest of the world's. */
   animate(dt: number): void;
   /** What the walkthrough reads: the song's state, the trampoline and the roof. */
-  readonly debug: { song(): Song; trampoline: { x: number; z: number }; roof: { x: number; z: number; y: number }; chest: { x: number; z: number }; roots: ReturnType<typeof rootsOf> };
+  readonly debug: { song(): Song; trampoline: { x: number; z: number }; roof: { x: number; z: number; y: number }; chest: { x: number; z: number }; roots: ReturnType<typeof rootsOf>; hollow: { door: ReturnType<typeof treeDoorOf>; room: ReturnType<typeof roomOf>; inside(): boolean } };
 }
 
 /** One geometry of vertex colours: each part painted its colour. */
@@ -187,7 +190,7 @@ export function caveCamDist(d: number, far: number): number {
   return CAVE_CAM + (far - CAVE_CAM) * k * k * (3 - 2 * k);
 }
 
-export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): ForestSecrets {
+export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig, o: { hollowOpen: () => boolean }): ForestSecrets {
   const { scene, ws, save, hero } = g;
   const { line } = g.speech;
   const groundY = height;
@@ -412,7 +415,19 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
     rootlets.instanceMatrix.needsUpdate = true;
   }
 
+  // ---------- the room in Shustrik's tree ----------
+  const room = createTreeRoom(g, scope, {
+    open: o.hollowOpen, lit: colourMat(), glow: new THREE.MeshBasicMaterial({ vertexColors: true }), told: () => found(HOLLOW_FLAG),
+    inFirst: () => {
+      sfx('good');
+      g.sparks.burst(g.above(hero.root.position, 1.6), '#ffd27a', 30, 3);
+      give(HOLLOW_FLAG, false, hero.root.position);
+      tell('forest_secret_hollow');
+    },
+  });
+
   const spots: Spot[] = [
+    ...room.spots,
     { pos: chestFront, r: 2.2, label: 'open', on: () => !found(CAVE_FLAG), run: openChest },
     { pos: songAt, r: 2.4, label: 'forest_listen', on: () => song.phase === 'rest', run: begin },
   ];
@@ -421,13 +436,14 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
 
   return {
     spots,
-    at: { cave: { x: chestFront.x, z: chestFront.z }, bounce: { x: house.x, z: house.z }, fireflies: { x: songAt.x, z: songAt.z }, ring: { x: rx, z: rz }, roots: { ...ro.stone } },
+    at: { cave: { x: chestFront.x, z: chestFront.z }, bounce: { x: house.x, z: house.z }, fireflies: { x: songAt.x, z: songAt.z }, ring: { x: rx, z: rz }, roots: { ...ro.stone }, hollow: { x: room.doorOut.x, z: room.doorOut.z } },
     glimmer: () => [
       ...(found(CAVE_FLAG) ? [] : [chestFront]),
       ...(found(BOUNCE_FLAG) ? [] : [lantern.position]),
       ...(found(SONG_FLAG) ? [] : [songAt]),
       ...(found(RING_FLAG) ? [] : [ringAt]),
       ...(found(ROOTS_FLAG) ? [] : [stoneAt]),
+      ...(found(HOLLOW_FLAG) || !o.hollowOpen() ? [] : [room.doorOut]),
     ],
     tap(screenDist) {
       if (song.phase !== 'wait' || g.busy) return false;
@@ -455,6 +471,7 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
       songLook.visible = show(SONG_TREE);
       ringLook.visible = show(FAIRY_RING);
       // the cave under the roots: drawn near her, its camera, its curtain, its find
+      room.update(show);
       rootsLook.visible = show(ROOTS);
       rootsCamera(Math.hypot(hp.x - ROOTS.x, hp.z - ROOTS.z));
       if (rootsLook.visible) swingRootlets(time);
@@ -500,6 +517,6 @@ export function createForestSecrets(g: Game, scope: WorldScope, chestRig: Rig): 
       if (left(save, 'tiny') > 0 && d < FAIRY_RING.r + 3 && (sparkT += dt) > 0.3) { sparkT = 0; g.sparks.burst(g.above(hp, 0.4), '#ffc4ec', 3, 0.8); }
     },
     animate: (dt) => { chest.update(dt); },
-    debug: { song: () => song, trampoline: tAt, roof: { x: house.x, z: house.z, y: roofY }, chest: { x: cx, z: cz }, roots: ro },
+    debug: { song: () => song, trampoline: tAt, roof: { x: house.x, z: house.z, y: roofY }, chest: { x: cx, z: cz }, roots: ro, hollow: { door: treeDoorOf(), room: roomOf(), inside: () => room.inside() } },
   };
 }

@@ -20,7 +20,7 @@ export const PASS_KINDS = ['chain', 'scene', 'flyover', 'secret', 'pet', 'finale
 /** The leaves of the artifact that lie in the forest (WORLD-08): in the hollow and in the maze. */
 export const PARTS_IN_WORLD = 2;
 /** The forest's secrets (src/worlds/forest/secrets.ts FOREST_SECRETS). */
-export const SECRETS = ['cave', 'bounce', 'fireflies', 'ring', 'roots'];
+export const SECRETS = ['cave', 'bounce', 'fireflies', 'ring', 'roots', 'hollow'];
 /** The task played in the forest (by "<character> <step>") and the skill it records: Mudrena's steps to her hollow (WORLD-16). */
 export const WORLD_SKILLS = { 'mudrena 1': 'series' };
 

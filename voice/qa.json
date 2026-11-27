@@ -8664,5 +8664,13 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_hollow": {
+  "text": "Ми всередині дерева Шустрика! Скільки тут горішків!",
+  "heard": "Ми всередині дерева Шустрика. Скільки тут горішків!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -282,7 +282,9 @@ async function measure(browser, url, scale, out, q = 2) {
   // the secrets (src/worlds/forest/secrets.ts): from SECRET_LOOK m away, turned to it as she comes, and at its find -
   // their draw calls and triangles within the budget like every point of the route (TECH-06), a picture of each
   const secrets = [];
-  const sec = await page.evaluate(() => JSON.parse(JSON.stringify({ at: __game.forestSecrets.at, middle: __game.forestSecrets.middle, look: __game.forestSecrets.look, trampoline: __game.forestSecrets.trampoline })));
+  // the door of the room in Shustrik's tree is there once his chain is done: done, so that it is drawn
+  await page.evaluate(() => { const q = __game.save.worlds.forest.quests; q.shustrik = __game.npcs.find((n) => n.def.id === 'shustrik').def.steps.length; });
+  const sec = await page.evaluate(() => JSON.parse(JSON.stringify({ at: __game.forestSecrets.at, middle: __game.forestSecrets.middle, look: __game.forestSecrets.look, trampoline: __game.forestSecrets.trampoline, hollow: __game.forestSecrets.hollow })));
   for (const id of Object.keys(sec.at)) {
     // the roof's find is up on the house: she is pictured on the trampoline beside it
     const m = sec.middle[id], f = id === 'bounce' ? sec.trampoline : sec.at[id];
@@ -301,6 +303,12 @@ async function measure(browser, url, scale, out, q = 2) {
       secrets.push({ id, where, ...dr });
     }
   }
+  // in the room in Shustrik's tree (src/worlds/forest/tree-room.ts): inside its door, turned to its middle - the forest
+  // far off, not drawn (the camera's short sight there)
+  await stand(sec.hollow.in, sec.hollow.middle); await settle(1.2);
+  if (!(await page.evaluate(() => __game.forestSecrets.hollow.inside()))) throw new Error('the room in the tree: she is not in it at its door inside');
+  secrets.push({ id: 'hollow', where: 'in', ...(await draw()) });
+  await page.screenshot({ path: join(out, `${tag}-secret-hollow-in.png`) });
   // the owlet (PLAY-09): its heap of leaves in the grove, then found and flying after her
   const heap = await page.evaluate(() => __game.forestSecrets.heap);
   await page.evaluate(() => { const q = __game.save.worlds.forest.quests; q.mudrena = __game.npcs.find((n) => n.def.id === 'mudrena').def.steps.length; });

@@ -123,6 +123,13 @@ export const ROOTS = (() => {
   return { ...p, face: Math.atan2(to.x - p.x, to.z - p.z), clear: 7 };
 })();
 export const SECRET_CLEARINGS: readonly { x: number; z: number; clear: number }[] = [CAVE, SONG_TREE, FAIRY_RING, ROOTS];
+/**
+ * The room in Shustrik's tree (`hollow`, the customer's word of 2026-11-27: a secret place to explore, as the first
+ * world's room of the house): far past the map, south of it, where nothing of the forest reaches (./terrain.ts holds
+ * the floor flat under it and her inside its wall); the door in the trunk of the grove's great tree leads into it
+ * (./tree-room.ts). Placed by HALF, so that a stretched map (?scale) never reaches it. r: the wall's radius inside.
+ */
+export const TREE_ROOM = { x: 0, z: -(HALF + 150), r: 4.2, y: 0 };
 
 /**
  * What of each zone is seen from afar (WORLD-10, the landmark of a target): where it stands and how high its top is, m.
