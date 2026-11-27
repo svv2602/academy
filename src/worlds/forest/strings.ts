@@ -90,6 +90,7 @@ const uk = { subtitle: 'Зачарований ліс', forest_to_tree: 'До Д
   forest_secret_bounce: 'Гриб-батут! Стрибни вище — що там на даху?',
   forest_secret_fireflies: 'Світлячки співають! Торкнися їх по черзі — почуєш пісеньку.',
   forest_secret_ring: 'Хі-хі, ти стала крихітною! Не бійся, зараз знову виростеш.',
+  forest_secret_roots: 'Печерка під корінням! Дивись, як світяться грибочки.',
   forest_pet_found: 'Ось де совеня, під листям! Воно вже тупцяє до тебе.',
   forest_pet_follow: 'Совеня гулятиме з тобою лісом і біля Великого Дерева.',
   // --- the finale at the Old Oak: the cat's, and the trees together (the wise elder's voice, several takes over each other)
@@ -176,6 +177,7 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Зачарованны�
   forest_secret_bounce: 'Гриб-батут! Прыгни повыше — что там на крыше?',
   forest_secret_fireflies: 'Светлячки поют! Коснись их по очереди — услышишь песенку.',
   forest_secret_ring: 'Хи-хи, ты стала крошечной! Не бойся, сейчас снова вырастешь.',
+  forest_secret_roots: 'Пещерка под корнями! Смотри, как светятся грибочки.',
   forest_pet_found: 'Вот где совёнок, под листьями! Он уже топает к тебе.',
   forest_pet_follow: 'Совёнок будет гулять с тобой по лесу и у Великого Древа.',
   forest_all_leaves: 'Все листочки у нас! Несём их к Старому Дубу.',
@@ -206,6 +208,7 @@ const spoken = {
   yasen_trade_ask: 'warm', yasen_trade_far: 'joy', yasen_trade_thanks: 'joy',
   kolyuchka_trade_ask: 'warm', kolyuchka_trade_far: 'joy', kolyuchka_trade_thanks: 'joy',
   forest_secret_cave: 'joy', forest_secret_bounce: 'joy', forest_secret_fireflies: 'warm', forest_secret_ring: 'joy',
+  forest_secret_roots: 'joy',
   forest_pet_found: 'joy', forest_pet_follow: 'warm',
   forest_all_leaves: 'joy', forest_emerald_whole: 'joy', yasen_chorus: 'joy', forest_final_text: 'joy', forest_free: 'warm',
 } as const satisfies Partial<Record<keyof typeof uk, VoiceStyle>>;

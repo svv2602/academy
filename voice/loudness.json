@@ -3689,6 +3689,11 @@
   "tp": -2.59,
   "sha256": "4bcfb963a65ee21d3cf1499a13c8b5f806f643ac77dd2ae078b1fb630eade41b"
  },
+ "worlds-data/forest/voice/forest/forest_secret_roots.mp3": {
+  "lufs": -18.0,
+  "tp": -2.84,
+  "sha256": "61625a8e7691055a53c5d67a69c83861be15471f1d83cf2a033944b3eaf39d5c"
+ },
  "worlds-data/forest/voice/forest/forest_story_back_1.mp3": {
   "lufs": -18.05,
   "tp": -1.94,
