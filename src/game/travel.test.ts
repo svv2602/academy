@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import * as THREE from 'three';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Save } from '../core/save';
 import type { WorldDownload } from '../core/worldcache';
 import type { Game, WorldEntry } from './context';
@@ -236,6 +236,12 @@ const names = (scene: THREE.Scene) => scene.children.map((c) => c.name).filter(B
 /** The gate is asked first: the change takes the controls and ends the scenes once it has answered (the next task). */
 const gated = () => new Promise((r) => setTimeout(r, 0));
 let error: ReturnType<typeof vi.spyOn>;
+// The game's modules are transformed and loaded cold by the first import: about a second alone, more than the 5 s of a
+// test on a loaded machine (three full runs at once failed the first test of this file now and then). Paid here once,
+// with a limit of its own; every `setup` still takes them anew (vi.resetModules), from the transformed code.
+beforeAll(async () => {
+  await Promise.all([import('./context'), import('./travel'), import('./transition'), import('./flyover'), import('../core/save')]);
+}, 60_000);
 beforeEach(() => {
   localStorage.clear();
   log.length = 0; h.progress = null;
