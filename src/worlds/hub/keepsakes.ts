@@ -25,7 +25,8 @@ import { barkRadius, treeHollow } from './tree-look';
 /** A keepsake: the world it is of, and what it is for - `secret:<flag>` or `set:<kind>`. */
 export interface Keepsake { world: string; id: string }
 
-export const KEEPSAKES_PER_WORLD = 7;
+/** 8 since 2026-11-27: the Sweet Land has six secrets and two sets (the lead's word, reversible). */
+export const KEEPSAKES_PER_WORLD = 8;
 /** The cost of the fairy world's seven together (./keepsakes.test.ts holds it). */
 export const KEEPSAKE_BUDGET = { triangles: 3000, draws: 0 } as const;
 /** How much a keepsake glows by its own colour (they read on the poor tree of the first stage). */
