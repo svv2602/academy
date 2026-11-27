@@ -5,7 +5,8 @@ import { fadeAtCamera, propMaterial } from '../../core/materials';
 import { mulberry32 } from '../../core/util';
 import { ALTAR, ARRIVAL, HALF, HOLLOW, LANDMARKS, OAK, OWL_TREE, PATHS, ROUTE, SCALE, SECRET_CLEARINGS, STREAM, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { WATER_Y, colliders, height, lineDist, pathDist, streamDist } from './terrain';
-import { buildHouses, buildTower } from './village';
+import { BIG_MUSHROOM, BIG_MUSHROOMS, BIG_MUSHROOM_WALL, bigMushroomsAt } from './en-places';
+import { buildBigMushrooms, buildHouses, buildTower } from './village';
 
 /**
  * The trees of the forest (plan A of its look, 2026-11-21): models of the core (nature_pack, Quaternius CC0 - their
@@ -139,9 +140,20 @@ export function buildScenery(scene: THREE.Scene, flora: Flora) {
   const cells = flora.trees.flatMap((geo, k) => instanced(scene, height, geo, treeMat, trees.filter((t, i) => !grove(t) && (i % 3 === 0 ? 1 : 0) === k).map(at), true)
     .map((c) => { c.mesh.name = `trees-${k}`; return c.mesh; }));
   cells.push(...instanced(scene, height, flora.grove, treeMat, trees.filter(grove).map((t) => at({ ...t, s: t.s * 1.35 })), true).map((c) => { c.mesh.name = 'trees-grove'; return c.mesh; }));
-  /** Every frame: a cell of trees casts its shadow only while its middle is within TREE_SHADOW m (and its own radius) of her. */
+  // the big mushrooms of Pip's command round the central glade (LEARN-23, ./en-places.ts): one mesh, drawn only near
+  // the glade - the forest's frame is close to its budget of draw calls (TECH-06)
+  const mushrooms = buildBigMushrooms(BIG_MUSHROOM.h, BIG_MUSHROOM.r, BIG_MUSHROOMS.map((p) => ({ x: p.x, y: height(p.x, p.z), z: p.z, rot: p.rot })));
+  mushrooms.visible = false;
+  scene.add(mushrooms);
+  for (const p of BIG_MUSHROOMS) colliders.push({ x: p.x, z: p.z, r: BIG_MUSHROOM_WALL });
+  /**
+   * Every frame: a cell of trees casts its shadow only while its middle is within TREE_SHADOW m (and its own radius) of
+   * her; the big mushrooms are drawn, and cast theirs, by where she is (./en-places.ts bigMushroomsAt).
+   */
   const shadows = (x: number, z: number) => {
     for (const m of cells) { const b = m.boundingSphere!; m.castShadow = Math.hypot(b.center.x - x, b.center.z - z) < TREE_SHADOW + b.radius; }
+    const near = bigMushroomsAt(x, z);
+    mushrooms.visible = near.shown; mushrooms.castShadow = near.shadow;
   };
   instances(scene, 'rim', new THREE.ConeGeometry(2.4, 9, 6).translate(0, 4.2, 0), mat('#2c5a46'), rim, 0, false);
 
