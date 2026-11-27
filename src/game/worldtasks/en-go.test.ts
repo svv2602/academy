@@ -159,10 +159,15 @@ describe('the guard of a world\'s places', () => {
     expect(enPlacesProblems([flower(0, 15), flower(0, -25)], FROM)).toEqual([]);
   });
 
-  it('a place at a resident or a thing of the world (R10)', () => {
-    const busy = [{ x: 0, z: -18 + EN_GO_CLEAR - 0.1 }];
-    expect(enPlacesProblems(PLACES, FROM, busy)).toEqual([expect.stringMatching(/^the flower at \(0, -18\) stands nearer than 5 m to a resident or a thing of the world at \(0, -13\.1\)$/)]);
-    expect(enPlacesProblems(PLACES, FROM, [{ x: 0, z: -18 + EN_GO_CLEAR }])).toEqual([]);
+  it('a place at a resident or a thing of the world (R10): they stand EN_GO_CLEAR beyond its reach', () => {
+    const clear = EN_GO_REACH + EN_GO_CLEAR;
+    expect(clear).toBe(5);
+    expect(enPlacesProblems(PLACES, FROM, [{ x: 0, z: -18 + clear - 0.1 }])).toEqual([expect.stringMatching(/^the flower at \(0, -18\) stands nearer than 5 m to a resident or a thing of the world at \(0, -13\.1\)$/)]);
+    expect(enPlacesProblems(PLACES, FROM, [{ x: 0, z: -18 + clear }])).toEqual([]);
+    // a place with a reach of its own keeps them that much farther off
+    const big: EnPlace = { ...house(-20, 0), r: 6 };
+    expect(enPlacesProblems([big], FROM, [{ x: -20, z: 7.9 }])).toEqual([expect.stringMatching(/^the house at \(-20, 0\) stands nearer than 8 m to a resident/)]);
+    expect(enPlacesProblems([big], FROM, [{ x: -20, z: 8 }])).toEqual([]);
   });
 
   it('two places of different kinds nearer than their two reaches and EN_GO_APART: she would be at both at once; of one kind they may stand together', () => {

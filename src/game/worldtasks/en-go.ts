@@ -44,8 +44,11 @@ export const EN_GO_DWELL = 1.5, EN_GO_STILL = 0.4;
  * told "wrong" while she stands at the right one.
  */
 export const EN_GO_APART = 1;
-/** The nearest a place may stand to a resident or a thing of the world that has its own tap, m (R10). */
-export const EN_GO_CLEAR = 5;
+/**
+ * A resident, or a thing of the world with a tap of its own, stands this much beyond the reach of a place, m (R10): by
+ * a resident she is at no place of a command.
+ */
+export const EN_GO_CLEAR = 2;
 
 type At = { readonly x: number; readonly z: number };
 const dist = (a: At, b: At) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -133,8 +136,8 @@ export function enPlacesProblems(places: readonly EnPlace[], from: At, busy: rea
     const d = dist(a, from);
     if (d < EN_GO_NEAR) out.push(`${name(a)} stands ${d.toFixed(1)} m from where the command is given (${from.x}, ${from.z}), nearer than ${EN_GO_NEAR} m`);
     if (d > EN_GO_FAR) out.push(`${name(a)} stands ${d.toFixed(1)} m from where the command is given (${from.x}, ${from.z}), farther than ${EN_GO_FAR} m`);
-    const at = busy.find((b) => dist(a, b) < EN_GO_CLEAR);
-    if (at) out.push(`${name(a)} stands nearer than ${EN_GO_CLEAR} m to a resident or a thing of the world at (${at.x}, ${at.z})`);
+    const clear = reachOf(a) + EN_GO_CLEAR, at = busy.find((b) => dist(a, b) < clear);
+    if (at) out.push(`${name(a)} stands nearer than ${clear} m to a resident or a thing of the world at (${at.x}, ${at.z})`);
     if (!(reachOf(a) > 0 && reachOf(a) <= EN_GO_REACH_MAX)) out.push(`${name(a)} is come to from ${reachOf(a)} m: not within 0-${EN_GO_REACH_MAX} m`);
     places.slice(i + 1).forEach((b) => {
       const apart = reachOf(a) + reachOf(b) + EN_GO_APART;
