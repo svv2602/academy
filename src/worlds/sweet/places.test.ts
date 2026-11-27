@@ -139,6 +139,11 @@ describe('Imbir\'s room', () => {
     const t = make(true);
     const jar = t.room.spots.find((s) => s.label === 'open')!;
     expect(Math.hypot(jar.pos.x - roomOf().cupboard.x, jar.pos.z - roomOf().cupboard.z)).toBeLessThan(1.6);
+    // the jar waits for the door too, as the item's `after` (the walkthrough's order check: brought in not by the door)
+    expect(jar.on()).toBe(true);
+    t.state.open = false;
+    expect(jar.on()).toBe(false);
+    t.state.open = true;
     jar.run();
     expect(t.jarRuns).toEqual([1]);
     const meshes: THREE.Mesh[] = [];

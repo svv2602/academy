@@ -163,7 +163,7 @@ export function createSweetRoom(g: Game, scope: WorldScope, o: { door: THREE.Vec
     spots: [
       { pos: o.door, r: 2.2, label: 'sweet_room', on: () => o.open() && !moving, run: () => moveTo(r.doorIn, ROOM.y, Math.PI, true) },
       { pos: doorIn, r: DOOR_IN_R, label: 'sweet_out', on: () => !moving, run: () => { const p = out(); moveTo(p, g.groundY(p.x, p.z), o.facing, false); } },
-      { pos: jarAt, r: 1.4, label: o.jar.label as Spot['label'], on: () => !moving && o.jar.on(), run: o.jar.run },
+      { pos: jarAt, r: 1.4, label: o.jar.label as Spot['label'], on: () => o.open() && !moving && o.jar.on(), run: o.jar.run },
     ],
     inside: () => inRoom(hp.x, hp.z),
     doorOut: o.door, doorIn, jarAt,
