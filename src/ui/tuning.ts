@@ -17,6 +17,9 @@ const LABELS: Record<TuningKey, string> = {
   joyHoldMs: 'кольцо через, мс',
   camDist: 'камера',
   jump: 'прыжок',
+  talkFigure: 'тап по герою, доля',
+  talkNear: 'тап к герою, м',
+  talkAgain: 'снова к герою, м',
 };
 
 const shown = (n: number) => String(+n.toFixed(4));

@@ -4,6 +4,7 @@ import { setCast, sfx, speaking, willSay } from '../../core/audio';
 import type { Save } from '../../core/save';
 import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
@@ -369,7 +370,7 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
     frame: {
       spots: [
         ...secrets.spots,
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: n.def.id === 'gromykhalo' ? 4.2 : 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); }, n.def.id === 'gromykhalo' ? 4.2 : 3.0)),
         ...raySpots,
         ...clock.spots,
         ...winds.spots,

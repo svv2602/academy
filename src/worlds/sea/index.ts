@@ -4,13 +4,14 @@ import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
-import { swimming, type Spot } from '../../game/player';
+import { swimming } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
@@ -365,7 +366,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
       spots: [
         // the secrets' first: where one's reach meets a character's or the cabin's, theirs is the button
         ...secrets.spots,
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         { pos: cabin, r: CABIN_R, label: 'sea_cabin', on: () => waiting(cabinPearl), run: () => take(cabinPearl) },
         { pos: throne, r: THRONE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],

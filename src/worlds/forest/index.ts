@@ -7,6 +7,7 @@ import { worldClips } from '../../core/voice';
 import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -16,7 +17,6 @@ import { generateSteps, showStepsInWorld } from '../../game/worldtasks/steps';
 import { createNutsSearch } from './tracks';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
-import type { Spot } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { PET_FLAG, loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
@@ -344,7 +344,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   return {
     frame: {
       spots: [
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
         ...secrets.spots,
