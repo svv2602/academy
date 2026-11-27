@@ -4405,6 +4405,31 @@ try {
             console.log(`report: ${rep.rows.length} skills, ${rep.rows.filter((r) => !r.none).map((r) => `${r.skill} ${r.ok}/${r.dots}`).join(', ')}`);
             await page.click('#pRepBack'); await calm();
           }
+          // ---- the subjects of Season 2 (part P): a row a subject, its step and its aim; "more" and English off are written,
+          // then put back as they were - the rest of the walkthrough plays with the shares it had ----
+          {
+            await page.locator('.psubjbtn:visible').first().click(); await calm();
+            await shot('31-subjects');
+            const read = () => g(() => ({ rows: [...document.querySelectorAll('#pBody [data-subject]')].map((r) => ({ k: r.dataset.subject, aim: parseInt(r.querySelector('.paim')?.textContent ?? '', 10) })),
+              shares: { ...__game.save.shares }, english: __game.save.english }));
+            const before = await read();
+            const sum = before.rows.reduce((n, r) => n + r.aim, 0);
+            if (before.rows.map((r) => r.k).join(' ') !== 'math logic en read') errors.push(`subjects: the rows are ${before.rows.map((r) => r.k).join(' ')}, not the four subjects`);
+            if (Math.abs(sum - 100) > 2) errors.push(`subjects: the aims add up to ${sum} %`);
+            await page.click('#pBody [data-share="en"]'); await calm();
+            const more = await read();
+            if (more.shares.en !== 1.5 || !(more.rows[2].aim > before.rows[2].aim)) errors.push(`subjects: "more" of English wrote ${more.shares.en}, its aim ${before.rows[2].aim} -> ${more.rows[2].aim} %`);
+            for (let i = 0; i < 2; i++) { await page.click('#pBody [data-share="en"]'); await calm(); }
+            await page.click('#pEnglish'); await calm();
+            const off = await read();
+            if (off.english !== false || off.rows[2].aim !== 0) errors.push(`subjects: English off wrote ${off.english}, its aim ${off.rows[2].aim} %`);
+            await shot('31-subjects-en-off');
+            await page.click('#pEnglish'); await calm();
+            const after = await read();
+            if (JSON.stringify([after.shares, after.english]) !== JSON.stringify([before.shares, before.english])) errors.push(`subjects: not put back as they were: ${JSON.stringify(after)}`);
+            console.log(`subjects: aims ${before.rows.map((r) => `${r.k} ${r.aim}%`).join(', ')}; "more" of English ${more.rows[2].aim}%, English off 0%, put back`);
+            await page.click('#pSubjBack'); await calm();
+          }
           // ---- the controls (PLAY-22): "fast" and "further" apply at once, are written, and a page opened anew has them ----
           {
             const near = (a, b) => Math.abs(a - b) < 1e-9;

@@ -8,13 +8,21 @@ import { HELPER_IDS, dealOf } from '../game/shop';
 import { breakMinutes } from '../game/session';
 import { stopPoint } from '../game/stops';
 import { hardest } from '../game/planner';
-import { LEVELS, levelFor, shownSkills, withinLevels, type SkillId } from '../game/skills';
+import { LEVELS, SEASON2_SKILLS, isOpen, levelFor, shownSkills, statOf, withinLevels, type SkillId } from '../game/skills';
+import { SUBJECTS, type Share } from '../s2/types';
+import { actualShares, nextShare, percent, targetShares } from '../s2/shares';
+import './parents-s2.css';
+
+// The section names the subjects of Season 2 (part P): its texts are here whoever draws it (src/main.ts adds them too;
+// a table is added once).
+addStrings(parentStrings, false);
 import { skillReport } from '../game/answers';
 import type { BookInfo } from '../game/world';
 import { bookView, setBookStories, type BookStory } from './book';
 import { SUPPLY_LOOK } from './supplies';
 import { gateOpens, gateQuestion, type GateQuestion } from './gate';
-import { isSharedKey, lang, setChildName, setLang, t, tf, type Key } from './strings';
+import { addStrings, isSharedKey, lang, setChildName, setLang, t, tf, type Key } from './strings';
+import { strings as parentStrings } from '../s2/strings-parents';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -234,7 +242,7 @@ export function initBook(save: Save, book: BookInfo, on: {
   // A skill's row (PLAY-15): its level - the fixed one, or "auto" and the adaptive one -, its tasks, the share of clean
   // solves. The level is also the button that fixes it (LEARN-15): one per skill, nine rows of five buttons would not fit.
   const skillRow = (k: SkillId) => {
-    const s = save.skills[k], pinned = (save.fixed[k] ?? 0) > 0;
+    const s = statOf(save, k), pinned = (save.fixed[k] ?? 0) > 0;     // a late skill has no counters in the save before its first task
     return `<tr><td>${t(('sk_' + k) as Key)}</td><td><button class="pfix${pinned ? ' sel' : ''}" data-fix="${k}">${pinned ? '' : t('d0') + ' '}${levelFor(save, k)}</button></td>`
       + `<td>${s.tasks}</td><td>${s.tasks ? Math.round((s.first / s.tasks) * 100) + '%' : '–'}</td></tr>`;
   };
@@ -261,13 +269,15 @@ export function initBook(save: Save, book: BookInfo, on: {
   // TECH-13: a new version that downloads or waits for the next launch (src/core/update.ts) - a word for the grown-ups.
   const updateLine = () => `<span id="pUpdate" data-state="${updateState}">${updateState === 'none' ? '' : ` · ${t(updateState === 'ready' ? 'p_upd_ready' : 'p_upd_loading')}`}</span>`;
   const renderParents = () => {
-    $('pBody').innerHTML = `<div class="pskills">${skillTable(shownSkills(save).slice(0, 5))}<div class="pcol">${skillTable(shownSkills(save).slice(5))}<div class="prow pcoderow"><button id="pRep" class="prepbtn">${t('p_rep')}</button><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button></div></div></div>
+    // the skills of Season 2 have their rows in the view of the subjects (renderSubjects): a phone held sideways has no room
+    const first = shownSkills(save).filter((k) => !SEASON2_SKILLS.includes(k));
+    $('pBody').innerHTML = `<div class="pskills">${skillTable(first.slice(0, 5))}<div class="pcol">${skillTable(first.slice(5))}<div class="prow pcoderow"><button id="pRep" class="prepbtn">${t('p_rep')}</button><button id="pCode" class="pcodebtn">${t('p_code')}</button><button id="pCtl" class="pctlbtn">${t('p_ctl')}</button><button id="pSubj" class="psubjbtn">${t('p2_subj')}</button></div></div></div>
       <div class="pside"><div class="pinfo">${timeBlock()}<p class="pnote"><b>${t('p_fix')}</b> · ${t('p_fix_note')}</p>
       ${hardBlock()}</div>
       <div class="pset"><div class="prow"><span>${t('p_quality')}</span><button id="pQuality" class="${save.pinTier === null ? '' : 'sel'}">${t(save.pinTier === null ? 'd0' : `q${save.pinTier}`)}</button></div>
       <div class="prow pbreak" title="${t('p_break_hint')}"><span>${t('p_break')}</span><button id="pBreak" class="${breakMinutes(save) === 0 ? '' : 'sel'}">${t(breakLabel(breakMinutes(save)))}</button></div>
       <div class="prow pvol">${(['music', 'sfx', 'voice'] as const).map((v) => `<label><span>${t(('p_' + v) as Key)}</span><input type="range" min="0" max="1" step="0.05" value="${save.vol[v]}" data-v="${v}"></label>`).join('')}</div>
-      <div class="prow preset"><button id="pRepUp" class="prepbtn">${t('p_rep')}</button><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pReset">${t('p_reset')}</button></div>
+      <div class="prow preset"><button id="pRepUp" class="prepbtn">${t('p_rep')}</button><button id="pCodeUp" class="pcodebtn">${t('p_code')}</button><button id="pCtlUp" class="pctlbtn">${t('p_ctl')}</button><button id="pSubjUp" class="psubjbtn">${t('p2_subj')}</button><button id="pReset">${t('p_reset')}</button></div>
       <div id="pVersion">${t('p_version')}: <span id="pBuilt">${__BUILD_DATE__}</span> · <span id="pCommit">${__BUILD_COMMIT__}</span>${updateLine()}${helpsLine()}</div></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.fix as SkillId;
@@ -285,6 +295,35 @@ export function initBook(save: Save, book: BookInfo, on: {
     $('pBody').querySelectorAll('.pcodebtn').forEach((b) => b.addEventListener('click', renderCode));
     $('pBody').querySelectorAll('.pctlbtn').forEach((b) => b.addEventListener('click', renderControls));
     $('pBody').querySelectorAll('.prepbtn').forEach((b) => b.addEventListener('click', renderReport));
+    $('pBody').querySelectorAll('.psubjbtn').forEach((b) => b.addEventListener('click', renderSubjects));
+  };
+  // The subjects of Season 2 (part P, layout §4.4, R07, R09): a view of its own in place of the section, like the
+  // controls'. A row a subject: its button "less / as it is / more" (x0.5 / x1 / x1.5, src/s2/shares.ts), the share the
+  // game aims at after the steps are brought to a whole, and the share of the last 20 tasks. English on or off: off, its
+  // share is 0 (Pip leaving and the golden stars are parts G and I; the section only writes `save.english`). Beside them
+  // the skills of Season 2, the rows of the main tables: reading English only once it is open (`isOpen`).
+  const shareLabel = (s: Share): Key => (s === 0.5 ? 'p2_less' : s === 1.5 ? 'p2_more' : 'p2_same');
+  const renderSubjects = () => {
+    const aim = targetShares(save), now = actualShares(save.recent);
+    const rows = SUBJECTS.map((k) => {
+      const off = k === 'en' && !save.english, s = save.shares[k] ?? 1;
+      return `<tr data-subject="${k}"><td>${t(`p2_${k}` as Key)}</td><td><button class="pshare${s === 1 ? '' : ' sel'}" data-share="${k}"${off ? ' disabled' : ''}>${t(shareLabel(s))}</button></td>`
+        + `<td class="paim">${percent(aim[k])}</td><td>${save.recent.length ? percent(now[k]) : '–'}</td></tr>`;
+    }).join('');
+    const skills = SEASON2_SKILLS.filter((k) => isOpen(save, k));
+    $('pBody').innerHTML = `<div class="psubj"><table class="ptab"><tr><th>${t('p2_subject')}</th><th>${t('p2_share')}</th><th>${t('p2_target')}</th><th>${t('p2_now')}</th></tr>${rows}</table>
+      <div class="pcol"><div class="prow pen"><span>${t('p2_english')}</span><button id="pEnglish" class="${save.english ? 'sel' : ''}">${t(save.english ? 'p2_on' : 'p2_off')}</button></div>${skillTable(skills)}</div>
+      <div class="pcfoot"><p class="pnote">${t('p2_note')}</p><button id="pSubjBack">${t('p_code_back')}</button></div></div>`;
+    $('pBody').querySelectorAll<HTMLElement>('[data-share]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.share as (typeof SUBJECTS)[number];
+      save.shares[k] = nextShare(save.shares[k] ?? 1); on.change(); renderSubjects();
+    }));
+    $('pBody').querySelectorAll<HTMLElement>('[data-fix]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.fix as SkillId;
+      save.fixed[k] = nextFixed(k, save.fixed[k] ?? 0); on.change(); renderSubjects();
+    }));
+    $('pEnglish').addEventListener('click', () => { save.english = !save.english; on.change(); renderSubjects(); });
+    $('pSubjBack').addEventListener('click', renderParents);
   };
   // The report (the customer's word of 2026-11-26, src/game/answers.ts): a view of its own in place of the section, like
   // the controls' - a row a skill: its last answers as dots (green at the first try), how many of them right, the mean
