@@ -87,6 +87,7 @@ const S = sameKeys({
     p_diff: 'Складність', d0: 'Авто', d1: 'Легко', d2: 'Середньо', d3: 'Складно',
     // --- the skills after LEARN-03 and R34, the level fixed per skill (LEARN-15), the week and the hard examples (PLAY-15)
     sk_series: 'Числовий ряд', sk_pattern: 'Закономірності', sk_memory: 'Памʼять', sk_classify: 'Класифікація', sk_compose: 'Склад числа', sk_attention: 'Уважність', sk_assemble: 'Складання картинки',
+    sk_en_words: 'Англійські слова', sk_en_phrases: 'Англійські фрази', sk_en_read: 'Читання англійською', sk_read: 'Читання',
     p_fix: 'Закріпити рівень', p_fix_note: 'Авто — гра сама підбирає рівень за відповідями дитини.',
     p_time: 'Час гри за 7 днів', p_total: 'Усього', p_min: '{n} хв', p_time_none: 'Цього тижня ще не грали.',
     p_hard: 'Пʼять найважчих прикладів', p_hard_none: 'Поки немає прикладів із помилками.',
@@ -281,6 +282,7 @@ const S = sameKeys({
     p_skill: 'Навык', p_level: 'Уровень', p_tasks: 'Заданий', p_first: 'С первой попытки', p_errors: 'Ошибок',
     p_diff: 'Сложность', d0: 'Авто', d1: 'Легко', d2: 'Средне', d3: 'Сложно',
     sk_series: 'Числовой ряд', sk_pattern: 'Закономерности', sk_memory: 'Память', sk_classify: 'Классификация', sk_compose: 'Состав числа', sk_attention: 'Внимательность', sk_assemble: 'Сборка картинки',
+    sk_en_words: 'Английские слова', sk_en_phrases: 'Английские фразы', sk_en_read: 'Чтение по-английски', sk_read: 'Чтение',
     p_fix: 'Закрепить уровень', p_fix_note: 'Авто — игра сама подбирает уровень по ответам ребёнка.',
     p_time: 'Время игры за 7 дней', p_total: 'Всего', p_min: '{n} мин', p_time_none: 'На этой неделе ещё не играли.',
     p_hard: 'Пять самых трудных примеров', p_hard_none: 'Пока нет примеров с ошибками.',
@@ -420,6 +422,11 @@ type WorldTable = Record<string, string> & Record<WorldOwnKey, string>;
  * Such a file holds only `import type` and `declare module` (tools/sync_phrases.mjs loads it in Node).
  */
 export interface WorldStrings { id: string; table: { uk: WorldTable; ru: WorldTable }; spoken: Record<string, VoiceStyle> }
+/**
+ * The texts of a part of Season 2 (src/s2/strings-<part>.ts, the plan of step 2, rule 2): a world's form without the
+ * keys of `WORLD_OWN`, added by the same `addStrings` (src/main.ts) and typed through `WorldTables` the same way.
+ */
+export interface PartStrings { id: string; table: { uk: Record<string, string>; ru: Record<string, string> }; spoken: Record<string, VoiceStyle> }
 /** Spoken lines kept apart from the game's table: the bank of the old game's clips (src/ui/strings-bank.ts, VOICE-07). */
 export interface SpokenTable { table: Record<Lang, Record<string, string>>; spoken: Record<string, VoiceStyle> }
 /** Each world's strings.ts adds itself: `declare module '../../ui/strings' { interface WorldTables { <id>: typeof strings } }`. */
@@ -487,7 +494,7 @@ const added = new Set<string>();
  * a next world's, once its code is loaded). A key that already exists is an error: one key, one clip. The keys of
  * `WORLD_OWN` come only from the world `played`, and only one world is played. A world added before adds nothing.
  */
-export function addStrings(w: WorldStrings, played: boolean): void {
+export function addStrings(w: WorldStrings | PartStrings, played: boolean): void {
   if (added.has(w.id)) return;
   const langs = Object.keys(TABLE) as Lang[];
   const taken = langs.flatMap((l) => Object.keys(w.table[l]))

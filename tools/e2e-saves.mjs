@@ -1,5 +1,5 @@
 // The groups of the walkthrough (npm run e2e -- --only <group>, tools/shot.mjs: E2E_ONLY=<group>) and the saves they
-// start from. A group skips the game up to its place: the page starts with the group's save (version 4, written once
+// start from. A group skips the game up to its place: the page starts with the group's save (version 5, written once
 // in the tab before the game loads), "play" is pressed and only the blocks of the group are played; the checks at the
 // end count only what the group played. Without a group the whole world is played from no save, as it always was.
 //
@@ -65,20 +65,24 @@ const PART_FLAGS = { fox: ['fox_hint', 'part_fox'], mushking: ['mushking_hint', 
 
 /**
  * A skill as the save counts it after `tasks` tasks, one of them failed on purpose (the walkthrough does that; a single
- * wrong answer ends the run of clean solves). `level`: the skill's first one (the composition of a number starts at 3).
+ * wrong answer ends the run of clean solves). `level`: the one the skill starts at (START).
  */
 const skill = (tasks, level = 1) => ({ level, streak: 0, tasks, first: Math.max(0, tasks - 1), errors: tasks ? 1 : 0 });
-/** The skills of src/game/skills.ts in its order. */
-const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose'];
+/** The skills of src/game/skills.ts in its order, but the late ones (no field of a fresh save). */
+const SKILL_IDS = ['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'en_words', 'en_phrases', 'read'];
+/** The level a skill starts at, when not 1 (START of src/game/skills.ts): the composition of a number, English, reading. */
+const START = { compose: 3, en_words: 2, en_phrases: 2, read: 3 };
 
 /** defaultSave() of src/core/save.ts, written out (this file runs under plain node); the unit test compares the two. */
 export function baseSave() {
   return {
-    v: 4, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
+    v: 5, played: false, name: '', dress: '#ff7eb6', hair: '#8a5a3a', wings: true,
     stars: 0,
-    skills: Object.fromEntries(SKILL_IDS.map((k) => [k, skill(0, k === 'compose' ? 3 : 1)])),
+    skills: Object.fromEntries(SKILL_IDS.map((k) => [k, skill(0, START[k] ?? 1)])),
     fixed: Object.fromEntries(SKILL_IDS.map((k) => [k, 0])), playMinutes: {}, hard: { n: 0, list: [] },
     owned: [], gear: { head: null, wand: null, wings: 'wings_petals', trail: null }, wingColor: '#d8f6ff', achievements: {},
+    recent: [], pip: { met: false, pieces: [], cap: 'purple' }, notes: [], words: [],
+    shares: { math: 1, logic: 1, en: 1, read: 1 }, english: true,
     vol: { music: 0.5, sfx: 0.8, voice: 1 },
     tier: 2, launches: 0, pinTier: null,
     worlds: {},

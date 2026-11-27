@@ -126,7 +126,7 @@ describe('the save as a code (PLAY-16)', () => {
       worlds: { fairy: { quests: { q1: 3 }, final: false, starsTaken: [2], flags: {}, pos: null } } };
     expect((await loadCode(defaultSave(), await toCode(v3))).ok).toBe(true);
     const s = loadSave();
-    expect(s.v).toBe(4);
+    expect(s.v).toBe(5);
     expect(s.skills.series).toEqual({ level: 3, streak: 1, tasks: 6, first: 5, errors: 1 });
     expect(s.skills).not.toHaveProperty('logic');
     expect(s.fixed.add).toBe(2);
