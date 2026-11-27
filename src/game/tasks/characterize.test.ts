@@ -118,9 +118,9 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
     '3d7aeb99 ce702c69 e38d3fa8 24553c80 0d0d18f0 d3ea9f6a 2c239d38 f430580f 1b362124 8e468602',
   ],
   note: [
-    'd36de8d9 4b2be564 7c2877fe 87b178ef e9da07e0 f53b1d37 1a5825bd 418d707d 31a617b3 d36de8d9',
-    'ae93d1b4 89f992ca 8a952ff6 cbfb135b 293ea2fe cbfb135b b60d204d 7d6e010d ba4d607b 9f46914a',
-    '5b902f72 ff51b2a1 4d3f951f 0bf6f1b2 29b9a92a 8c06bc49 f30e8ab4 adeec257 d8003c24 5cdf2f30',
+    '6ed3a190 8e546d91 619c69e3 f5f5a26a 13c33a11 99385e52 5e73bc2c 1a88ec8a b5d303ec 6ed3a190',
+    '68e7d64f aa6caf65 575a6cc5 4f6a583c 9b98dc35 4f6a583c 1052900e 9218f2f8 61957c7e 48d23b31',
+    'bf987763 4df00a3a b4c34308 8b442cbf 03479e69 a2ba3b1e 81cab361 381c0b28 7528000b 139a3f85',
   ],
 };
 

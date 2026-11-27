@@ -105,11 +105,11 @@ describe('the note on the panel', () => {
   it('is read in Ukrainian whatever the language of the game; with the Russian one its translation is a caption (R08)', () => {
     const { hooks } = listen();
     void showTask(noteExample(3, 'note_1', createRng('uk')), hooks);
-    expect(stage().querySelector('.note-text')!.textContent).toBe(NOTE_TEXTS.note_1.uk);
+    expect(stage().querySelector('.note-read')!.textContent).toBe(NOTE_TEXTS.note_1.uk);
     expect(stage().querySelector('.note-ru')).toBeNull();
     setLang('ru');
     void showTask(noteExample(3, 'note_1', createRng('ru')), hooks);
-    expect(stage().querySelector('.note-text')!.textContent).toBe(NOTE_TEXTS.note_1.uk);
+    expect(stage().querySelector('.note-read')!.textContent).toBe(NOTE_TEXTS.note_1.uk);
     expect(stage().querySelector('.note-ru')!.textContent).toBe(NOTE_TEXTS.note_1.ru);
   });
 

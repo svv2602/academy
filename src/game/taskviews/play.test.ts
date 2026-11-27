@@ -347,7 +347,7 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     const paper = stage().querySelector<HTMLElement>('.note-paper')!, id = paper.dataset.note as NoteId, def = NOTES[id];
     seen = `${id}; ${text(paper)}; asked ${JSON.stringify(heard.screens)}`;
     must(def.level <= Math.max(2, level), `${id} is for level ${def.level}, asked on ${level}`);
-    must(text(stage().querySelector<HTMLElement>('.note-text')!) === NOTE_TEXTS[id].uk, 'the note is not its Ukrainian text');
+    must(text(stage().querySelector<HTMLElement>('.note-read')!) === NOTE_TEXTS[id].uk, 'the note is not its Ukrainian text');
     must(heard.prompts.length === 0 && heard.screens.length === 1 && heard.screens[0].key === 'q_note'
       && heard.screens[0].en.length === 0, 'the note is asked on the screen only, nothing said');
     const q = def.q;

@@ -20,7 +20,7 @@ export function noteView(spec: NoteSpec, c: PanelCtx) {
   const st = note.start(spec), b = spec.body;
   const paper = el('div', 'note-paper');
   paper.dataset.note = b.id;
-  const text = el('p', 'note-text');
+  const text = el('p', 'note-read');
   text.lang = 'uk';
   const words = b.uk.split(' ').map((w, i) => {
     if (i) text.appendChild(document.createTextNode(' '));

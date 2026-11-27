@@ -3714,9 +3714,13 @@ try {
           if (type === 'note') {
             // src/s2/strings-tasks.ts q_note; the note itself Ukrainian whatever the language (R08), its Russian a caption
             if (!['Прочитай записку Піпа', 'Прочитай записку Пипа'].includes(b.text)) fail(`note: the bubble shows "${b.text}", not the question of the screen`);
-            const n = await g(() => ({ id: document.querySelector('#taskStage .note-paper')?.dataset.note ?? '', text: document.querySelector('#taskStage .note-text')?.lang ?? '',
+            const n = await g(() => ({ id: document.querySelector('#taskStage .note-paper')?.dataset.note ?? '', text: document.querySelector('#taskStage .note-read')?.lang ?? '',
               ru: !!document.querySelector('#taskStage .note-ru') }));
             if (!/^note_\d$/.test(n.id) || n.text !== 'uk') fail(`note: no Ukrainian note on the panel (${JSON.stringify(n)})`);
+            // read as a text, not a column of words (2026-11-27: the book's own .note-text laid it out one word a line);
+            // by the layout's own line (offsetTop): the slip is turned a little, the words of one line lie at different heights
+            const lines = await g(() => { const w = [...document.querySelectorAll('#taskStage .note-w')]; return { words: w.length, lines: new Set(w.map((e) => e.offsetTop)).size }; });
+            if (lines.words >= 4 && lines.lines >= lines.words) fail(`note: its ${lines.words} words stand one a line`);
             told.push(`note: ${n.id} on the panel, in Ukrainian${n.ru ? ' with its Russian caption' : ''}`);
           }
           await shot(`task-${type}`);
