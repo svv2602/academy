@@ -4,6 +4,7 @@
  * nothing else, the answer the panel accepts is the description's answer, and `runTask` with a seed is
  * `showTask(generate(...))` with that seed. The shows draw no random numbers.
  */
+import { WON_MAX_MS } from './fly';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRng } from '../../core/rng';
 import type { Spoken } from '../../core/audio';
@@ -116,7 +117,7 @@ describe.each(TYPES)('the panel shows %s from its description', (type) => {
       const yes = choices.filter((c) => c.classList.contains('yes'));
       expect(yes).toHaveLength(1);
       expect(valueOf(type, choices, yes[0])).toBe(spec.body.answer);
-      vi.advanceTimersByTime(1100);
+      vi.advanceTimersByTime(WON_MAX_MS);
       expect(await done).toEqual({ solved: true, wrong: 0 });
       expect(cheatTask()).toBe(false);
       if (i % 25 === 24) await breathe();
@@ -183,7 +184,7 @@ describe('the shows draw no random numbers', () => {
   const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
   it('the glob reached the panel, the flow and the ten shows', () => {
-    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './diff-scene.ts', './diff.ts', './flow.ts', './house.ts', './missing.ts', './neighbors.ts', './odd.ts', './order.ts',
+    expect(SOURCES.map(([p]) => p).sort()).toEqual(['./add.ts', './compare.ts', './count.ts', './diff-scene.ts', './diff.ts', './flow.ts', './fly.ts', './house.ts', './missing.ts', './neighbors.ts', './odd.ts', './order.ts',
       './pairs.ts', './panel.ts', './pattern.ts', './puzzle.ts', './shapes.ts', './signs.ts', './simon.ts', './sort.ts', './sub.ts', './tenframe.ts']);
   });
 
@@ -230,7 +231,7 @@ describe('a right answer always ends the task', () => {
     expect(root().classList.contains('won')).toBe(true);
     cheatTask();
     expect(sounds).toBe(1);
-    vi.advanceTimersByTime(1100);
+    vi.advanceTimersByTime(WON_MAX_MS);
     await expect(done).resolves.toEqual({ solved: true, wrong: 0 });
     expect(root().classList.contains('hidden')).toBe(true);
   });

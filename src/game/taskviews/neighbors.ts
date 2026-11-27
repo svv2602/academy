@@ -31,6 +31,6 @@ export function neighborsView(spec: NeighborsSpec, c: PanelCtx) {
   const road = el('div', 'road');
   const cells = numbers.map((v, i) => road.appendChild(i === gap ? el('span', 'cell empty', '?') : el('span', v === n ? 'cell here' : 'cell', String(v))));
   c.stage.appendChild(road);
-  const ok = options(c, spec.body.options, (v) => neighbors.answer(spec, st, v) === 'right');
+  const ok = options(c, spec.body.options, (v) => neighbors.answer(spec, st, v) === 'right', { at: () => cells[gap], row: () => cells });
   c.hint = hintOf(spec.hint, pulseOf(ok), { countCells: () => { void countCells(c, spec, cells); } });
 }

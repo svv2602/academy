@@ -19,7 +19,8 @@ export function houseView(spec: HouseSpec, c: PanelCtx) {
     return row;
   });
   c.stage.appendChild(home);
-  const ok = options(c, spec.body.options, (v) => house.answer(spec, st, v) === 'right');
+  const ok = options(c, spec.body.options, (v) => house.answer(spec, st, v) === 'right',
+    { at: () => rows[gap.floor].querySelector<HTMLElement>('.win.empty'), row: () => [...rows[gap.floor].querySelectorAll<HTMLElement>('.win')] });
   c.hint = hintOf(spec.hint, pulseOf(ok), {
     countUp: () => {
       // On the floor of the empty window only: the dots of the number in the window next to it, then empty dots
