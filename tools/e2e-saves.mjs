@@ -208,11 +208,11 @@ export const HUB_SAVES = {
 export const SEA_CHAINS = { khvylia: 3, bulk: 4, pantsyr: 4, kleshnya: 3, iskorka: 3 };
 /**
  * The marks of the sea done (the unit test compares with the world): the pearls in the world with their hints, the
- * tour, both cut-scenes, the four secrets, the cat's three first lines (said already: none of them breaks in later).
+ * tour, both cut-scenes, the five secrets, the cat's three first lines (said already: none of them breaks in later).
  */
 export const SEA_DONE_FLAGS = [
   'bulk_hint', 'pearl_reef', 'pantsyr_hint', 'pearl_ship', 'toured', 'story_intro', 'story_pearl',
-  'ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'told_bubble', 'told_swim', 'told_wet',
+  'ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'sea_grotto', 'told_bubble', 'told_swim', 'told_wet',
 ];
 
 /**

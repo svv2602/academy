@@ -17,7 +17,10 @@
 //      (a ray from the camera behind her to points of the landmark) and the draw calls and the triangles there; the
 //      throne from the gate with the gate open, as she only goes to it once the shell lock is solved;
 //    - the heroine at her swimming height still, talking and dancing, the cat in its bubble: a picture of each;
-//    - the draw at every point of the tour, and a picture from every target and every point of the tour.
+//    - the draw at every point of the tour, and a picture from every target and every point of the tour;
+//    - the draw by every secret (the grotto from before its curtain and from inside, by its shell);
+//    - on q2 a point over BUDGET (triangles or draw calls; tools/grey-route.mjs, 2026-11-27 as the forest's, the Sweet
+//      Land's and the Sky Islands') fails the run.
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/sea-grey by default.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -25,7 +28,7 @@ import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { lengthOf, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { passEnv, passProblems } from './sea-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -98,7 +101,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [], water = [];
   try {
-    if (args.measure) for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
+    if (args.measure) for (const scale of args.scales) { const m = await measure(browser, url, scale, args.out, args.q); all.push(m); if (m.over.length) failed = true; }
     if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
   } finally { await browser.close(); server.close(); }
   if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
@@ -232,6 +235,13 @@ async function measure(browser, url, scale, out, q = 2) {
     await settle(5);
     secretDraws.push({ secret: 'whale', ...(await draw()), shown: await page.evaluate(() => __game.seaSecrets.whale() !== null) });
     await page.screenshot({ path: join(out, `${tag}-secret-whale.png`) });
+    // the grotto: from 5 m before its curtain toward its shell, and inside by the shell, faced out through the curtain
+    const gr = sec.grotto, ox = gr.opening.x - gr.pearl.x, oz = gr.opening.z - gr.pearl.z, ol = Math.hypot(ox, oz);
+    for (const [name, a, b] of [['grotto', { x: gr.opening.x + (ox / ol) * 5, z: gr.opening.z + (oz / ol) * 5 }, gr.pearl], ['grotto-in', { x: gr.pearl.x + (ox / ol) * 0.6, z: gr.pearl.z + (oz / ol) * 0.6 }, gr.opening]]) {
+      await stand(a, b); await settle(1.5);
+      secretDraws.push({ secret: name, ...(await draw()) });
+      await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+    }
   }
   // the tour
   const tour = [];
@@ -256,8 +266,10 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays, the haze ${Math.round(v.fog * 100)} %), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
   if (secretDraws.length) console.log(`[grey]   the secrets: ${secretDraws.map((d) => `${d.secret} ${d.calls}/${Math.round(d.tris / 1000)}k${d.shown === false ? ' (the whale NOT shown)' : ''}`).join(', ')}`);
+  const over = q === 2 ? [...overBudget(views, tour), ...secretDraws.filter((x) => x.tris > BUDGET.tris || x.calls > BUDGET.calls).map((x) => ({ at: `secret ${x.secret}`, calls: x.calls, tris: x.tris }))] : [];
+  if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
   console.log(`[grey]   the heroine in the water: ${poses.map((p) => `${p.what} ${p.clip} (plays ${p.playing}) at ${p.over} m, bubbles ${JSON.stringify(p.bubbles)}`).join('; ')}`);
-  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, secrets: secretDraws, heaviest };
+  return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, secrets: secretDraws, heaviest, over };
 }
 /**
  * The heroine swimming and the cat in its bubble, in pictures (the main risk of the world, docs/worlds/world-3.md): at the

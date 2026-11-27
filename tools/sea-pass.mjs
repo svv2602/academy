@@ -20,7 +20,7 @@ export const PASS_KINDS = ['chain', 'scene', 'flyover', 'secret', 'pet', 'finale
 /** The pearls of the artifact that lie in the sea (WORLD-08): in the corals and in the cabin. */
 export const PARTS_IN_WORLD = 2;
 /** The sea's secrets (src/worlds/sea/secrets.ts SEA_SECRETS). */
-export const SECRETS = ['ship_chest', 'bubble_lift', 'echo_shells', 'whale'];
+export const SECRETS = ['ship_chest', 'bubble_lift', 'echo_shells', 'whale', 'sea_grotto'];
 /**
  * The tasks played in the sea (by "<character> <step>") and the skill each records: Khvylia's shell lock
  * (src/worlds/sea/lock.ts, `compose`) and Pantsyr's second half (WORLD-18, `pattern`).

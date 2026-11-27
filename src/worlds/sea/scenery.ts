@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { CASTLE, CORAL_NEST, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, TOWERS, ZONES, type Place } from './layout';
+import { CASTLE, CORAL_NEST, GROTTO, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, TOWERS, ZONES, type Place } from './layout';
 import { colliders, height, lineDist, pathDist } from './terrain';
 import { mat as style } from '../../core/style';
 import { buildLandmarks } from './landmarks';
@@ -86,7 +86,10 @@ export function placeLife(seed = 11): { corals: Put[]; kelp: Put[]; rocks: Put[]
     if (!clear(x, z, 6) || taken(x, z) || sprinkle.some((t) => Math.hypot(t.x - x, t.z - z) < 2)) continue;
     sprinkle.push({ x, z, s: 0.4 + own() * 0.4, rot: own() * 6.28 });
   }
-  return { corals, kelp, rocks, rim, reef, anemones, sprinkle };
+  // the grotto behind the seaweed (./secrets.ts): nothing grows in it or before its curtain - taken out after the
+  // scattering, so that everything else stands where it stood before the grotto was made
+  const out = (puts: Put[]) => puts.filter((t) => Math.hypot(GROTTO.x - t.x, GROTTO.z - t.z) > GROTTO.clear);
+  return { corals: out(corals), kelp: out(kelp), rocks: out(rocks), rim, reef: out(reef), anemones: out(anemones), sprinkle: out(sprinkle) };
 }
 
 const mat = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, ...extra });
