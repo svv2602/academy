@@ -146,6 +146,8 @@ const QUESTIONS = {
   count: ['t_count'], add: ['t_add'], sub: ['t_sub'], compare: ['t_compare_more', 't_compare_less'], pattern: ['t_pattern'], odd: ['t_odd'],
   pairs: ['t_pairs'], order: ['t_order'], sort: ['t_sort', 't_sort_two'], simon: ['t_simon_watch', 't_simon_repeat'], butterflies: ['t_count'], stars: ['t_stars'],
   missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'], diff: ['t_diff'],
+  // the English tasks (Season 2, part D1): "listen and touch" is asked on the screen only, "how many" by the cat's question of "count"
+  en_tap: ['q_en_tap'], en_count: ['t_count'],
 };
 // Addition, take away, counting and the neighbours of a number ask the very example with its clip of the bank of the old game's clips (R37,
 // src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
@@ -172,14 +174,15 @@ const SHOWS = {
   count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
   missing: '#taskStage .up', house: '#taskStage .up', neighbors: '#taskStage .road .cell.said', signs: '#taskStage .side .tf > .pt',
+  en_tap: '#taskStage .en-pic.outline', en_count: '#taskStage .it i',
 };
 // The kinds of task no chain of the first world asks (they belong to later worlds): each is closed with its button -
 // PLAY-02, nothing recorded - in the block that opens it, not in a chain; the block names itself here.
-const OWN_CLOSE = { diff: 'diff' };
+const OWN_CLOSE = { diff: 'diff', en_tap: 'en-tasks', en_count: 'en-tasks' };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
   '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
-  '#taskStage .up', '#taskStage .dots-up', '#taskStage .cell.said', '#taskStage .side .tens'].join(', ');
+  '#taskStage .up', '#taskStage .dots-up', '#taskStage .cell.said', '#taskStage .side .tens', '#taskStage .en-pic.outline', '#taskStage .en-word'].join(', ');
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -3667,6 +3670,91 @@ try {
       // Each number task opened by __game.task at each step held by the lever: what the step draws is on the panel (the
       // things taken still coloured at 2, the numbers alone at 3, ...), pictured cpa-<type>-<step>; solved, then the
       // lever let go.
+      // ---- the English tasks (Season 2, step 2, part D1): "listen and touch" and "how many" in English ----
+      // Each is closed with its button first (nothing recorded), then opened, its question checked, three deliberate
+      // mistakes each with its rung (1 gives nothing away, 2 shows the solution, 3 lights the right answer alone),
+      // then solved. Their question is never left to the synthesizer: the voice check at the end of the run fails a
+      // line without its clip (q_en_tap has none and must have none).
+      if (has('en-tasks')) {
+        const fail = (what) => { throw new Error(`en-tasks: ${what}`); };
+        const told = [];
+        const open = async (type) => {
+          await g((t) => { window.__en = null; void __game.task(t, 3).then((r) => { window.__en = r; }); }, type);
+          await page.locator('#task:not(.hidden) #taskStage > *').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type}: the panel did not open`));
+        };
+        for (const type of ['en_tap', 'en_count']) {
+          const skill = await g(() => JSON.stringify(__game.save.skills.en_words ?? null));
+          await open(type);
+          await tapOn('#taskClose').catch((e) => fail(`${type}: #taskClose cannot be pressed: ${why(e)}`));
+          await gameFor(() => window.__en !== null, null, 20).catch(() => fail(`${type}: closed with its button, the task did not end`));
+          const r = await g(() => window.__en), after = await g(() => JSON.stringify(__game.save.skills.en_words ?? null));
+          if (r.solved || r.wrong !== 0 || after !== skill) fail(`${type}: closed with its button: the result ${JSON.stringify(r)}, en_words ${skill} -> ${after}`);
+          await calm();
+        }
+        told.push('both closed with their button: unsolved, nothing recorded');
+        for (const type of ['en_tap', 'en_count']) {
+          await open(type);
+          await calm();
+          const b = await bubbleNow();
+          if (!b.shown || !b.text) fail(`${type}: no question in the bubble`);
+          if (type === 'en_tap') {
+            // src/s2/strings-tasks.ts q_en_tap, in either language of the game
+            if (!['Послухай і знайди картинку', 'Послушай и найди картинку'].includes(b.text)) fail(`en_tap: the bubble shows "${b.text}", not the question of the screen`);
+            const kinds = await g(() => [...document.querySelectorAll('#taskStage .en-pic')].map((e) => e.dataset.word));
+            if (kinds.length !== 4) fail(`en_tap on level 3: ${kinds.length} pictures, not 4`);
+            if (await g(() => !!document.querySelector('#taskStage .en-word'))) fail('en_tap: the translation is shown before the answer');
+          }
+          await shot(`task-${type}`);
+          for (let k = 1; k <= 3; k++) {
+            const wrong = await g(() => {
+              const tap = (e) => e.dispatchEvent(new PointerEvent('pointerdown'));
+              let right = null;
+              const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+              document.addEventListener('pointerdown', swallow, true);
+              try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+              if (!right) return 'the game did not show which element is right';
+              const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
+                .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('no') && !e.classList.contains('yes'));
+              if (!same.length) return `no other element like the right one (${right.className})`;
+              tap(same[0]); return '';
+            });
+            if (wrong) fail(`${type}: no deliberate mistake ${k}: ${wrong}`);
+            if (!(await hintRan(`#taskStage[data-shown="${k}"]`))) fail(`${type}: the hint of mistake ${k} did not run its course`);
+            if (k === 1) {
+              const away = await g((sel) => [...document.querySelectorAll(sel)].map((e) => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')}`), GIVEAWAY);
+              if (away.length) fail(`hint step 1: ${type}: after the first mistake the screen gives the answer away: ${[...new Set(away)].join(', ')}`);
+              await shot(`hint1-${type}`);
+            } else if (k === 2) {
+              if (!(await gameFor((sel) => !!document.querySelector(sel), SHOWS[type], 15).then(() => true, () => false))) fail(`hint: ${type}: the solution was not shown after the second mistake (no ${SHOWS[type]})`);
+              if (await g(() => document.querySelectorAll('#task .pulse').length)) fail(`hint: ${type}: the second mistake already lights the answer`);
+              await shot(`hint-${type}`);
+            } else {
+              const lit = await g(() => {
+                let right = null;
+                const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+                document.addEventListener('pointerdown', swallow, true);
+                try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+                const p = [...document.querySelectorAll('#task .pulse')];
+                return { n: p.length, right: !!right && p.length === 1 && (p[0] === right || p[0].contains(right)) };
+              });
+              if (!lit.right) fail(`hint step 3: ${type}: after the third mistake ${lit.n} element(s) pulse, not the right answer alone`);
+              await shot(`hint3-${type}`);
+            }
+          }
+          await g(() => __game.cheat());
+          if (type === 'en_tap') {
+            const word = await g(() => document.querySelector('#taskStage .en-pic.yes .en-word')?.textContent ?? '');
+            if (!word) fail('en_tap: no translation under the picture found');
+            told.push(`en_tap: found, its translation "${word}" under it`);
+          }
+          await gameFor(() => window.__en !== null, null, 20).catch(() => fail(`${type}: solved, the task did not end`));
+          const r = await g(() => window.__en);
+          if (!r.solved || r.wrong !== 3) fail(`${type}: the result ${JSON.stringify(r)}, not solved with 3 mistakes`);
+          told.push(`${type}: asked, three mistakes each on its rung, solved`);
+          await calm();
+        }
+        console.log(`en-tasks: ${told.join('; ')}`);
+      }
       if (has('cpa')) {
         const fail = (what) => { throw new Error(`cpa: ${what}`); };
         const told = [];
