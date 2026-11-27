@@ -5,7 +5,8 @@
  *
  * The valley had no red flower: its meadow is pink and yellow, scattered by chance all over it - "find a flower" would
  * be anywhere. So the red ones are planted for the command, three little beds of them, taller than the meadow's flowers
- * and the only red in it (./scenery.ts draws them with the valley's own flower, its petals turned red).
+ * and the only red in it (./scenery.ts draws them with the valley's own flower, its petals turned red). A dozen to a bed:
+ * from Pip's place, 17-19 m away, nine were a few red specks on a phone.
  */
 import type { Placement } from '../../core/instancing';
 import type { EnPlace } from '../../game/worldtasks/en-go';
@@ -21,7 +22,7 @@ export const EN_GIVEN = { x: 6, z: 2 } as const;
  */
 export const RED_BEDS: readonly { readonly x: number; readonly z: number }[] = [{ x: -7, z: 16 }, { x: 7, z: 20 }, { x: -6, z: -10 }];
 /** Flowers in a bed, how far from its middle the outermost stands (m), and how tall they grow against the meadow's. */
-export const RED_BED = { flowers: 9, r: 1.2, scale: 1.7 } as const;
+export const RED_BED = { flowers: 12, r: 1.2, scale: 1.7 } as const;
 
 /**
  * How near to the middle of the fairy's house she has come to it: its wall keeps her 3.2 m out, its door is 4.1 m out
