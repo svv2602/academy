@@ -2,11 +2,11 @@
  * When the cat's sparkles show (src/game/guide.ts, the customer's word of 2026-11-27): the rule of the fading by world,
  * the help asked by a tap on the cat and the parent's choice. Pure: no Three.js, no page.
  */
-import type { Save, WorldState } from '../core/save';
+import type { HintsChoice, Save, WorldState } from '../core/save';
 import { GUIDE } from '../core/tuning';
 
-/** The parent's choice (the parents' section): as the world has it, always, or only when asked by a tap on the cat. */
-export type HintsChoice = 'world' | 'always' | 'asked';
+/** The parent's choice (Save.hints, the parents' section): as the world has it, always, or only when asked by a tap on the cat. */
+export type { HintsChoice };
 /** What the guide draws: the beam and the whole trail, a short flash towards the goal, or nothing. */
 export type GuideShow = 'trail' | 'flash' | null;
 

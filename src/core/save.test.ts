@@ -1400,6 +1400,11 @@ describe('the controls the parent chose (PLAY-22): `controls`, a field of versio
     expect(s.v).toBe(SAVE_VERSION);
   });
 
+  it('the cat\'s hints (Save.hints): a known choice kept, anything else is "as in the world" (no field)', () => {
+    for (const k of ['always', 'asked', 'world']) expect(load({ hints: k }).hints).toBe(k);
+    for (const bad of ['often', 3, null, ['always']]) expect(load({ hints: bad }).hints, JSON.stringify(bad)).toBeUndefined();
+  });
+
   it('a damaged step is dropped (it is "normal"), the others kept; a damaged field is no choice at all', () => {
     expect(load({ controls: { speed: 'fast', cam: 'more', joy: 3, look: null } }).controls).toEqual({ cam: 'more' });
     for (const bad of ['more', 3, null, ['more']]) expect(load({ controls: bad }).controls, JSON.stringify(bad)).toEqual({});

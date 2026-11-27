@@ -5,7 +5,7 @@
  * after 60 s, a short flash towards the goal; a tap on the cat - the whole trail at once; the parent's choice over all.
  */
 import * as THREE from 'three';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GUIDE } from '../core/tuning';
 import { guideOf, guideShows, guideState, progressOf } from './guide-rule';
 
@@ -51,10 +51,9 @@ describe('the rule', () => {
 describe('the guide in a world', () => {
   const make = (world: string) => {
     const scene = new THREE.Scene(), hero = { root: new THREE.Object3D() };
-    const g = { scene, hero, groundY: () => 0, world: { id: world }, save: { skills: {} }, ws: { quests: {}, flags: {} as Record<string, boolean>, found: [] as number[] } };
+    const g = { scene, hero, groundY: () => 0, world: { id: world }, save: { skills: {} } as { skills: object; hints?: string }, ws: { quests: {}, flags: {} as Record<string, boolean>, found: [] as number[] } };
     return { g, scene };
   };
-  beforeEach(() => { guideState.choice = 'world'; });
 
   /** Plays `seconds` of frames of 0.1 s with a goal 10 m off; what the trail showed at the end. */
   const play = async (world: string) => {
@@ -100,6 +99,17 @@ describe('the guide in a world', () => {
     expect([trail.visible, beacon.visible, guideState.asked]).toEqual([true, true, true]);
     run(GUIDE.askedS);
     expect(trail.visible).toBe(false);
+  });
+
+  it('the parent\'s choice is read from the save: "only when asked" hides it in the fairies, "always" shows it in the sky', async () => {
+    const fairy = await play('fairy');
+    fairy.g.save.hints = 'asked';
+    fairy.run(0.2);
+    expect([fairy.trail.visible, guideState.choice]).toEqual([false, 'asked']);
+    const sky = await play('sky');
+    sky.g.save.hints = 'always';
+    sky.run(0.2);
+    expect([sky.trail.visible, sky.beacon.visible]).toEqual([true, true]);
   });
 
   it('the fairies: shown at once', async () => {

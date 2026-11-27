@@ -36,7 +36,8 @@ export function createGuide(g: Game): { update(time: number, target: THREE.Vecto
       else if (target && last >= 0) guideState.quiet += Math.max(0, Math.min(0.25, time - last));
       last = time;
       const askedAt = askedTime(time);
-      guideState.asked = askedAt >= 0 && time - askedAt < GUIDE.askedS;
+      guideState.asked = askedAt >= 0 && time >= askedAt && time - askedAt < GUIDE.askedS;
+      guideState.choice = g.save.hints ?? 'world';
       const show = target ? guideShows(world, guideState.quiet, guideState.asked, guideState.choice) : null;
       guideState.show = show;
       beacon.visible = show === 'trail';

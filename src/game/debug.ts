@@ -177,11 +177,11 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      */
     /**
      * The cat's sparkles (src/game/guide.ts): what they show now, the seconds with no progress, whether a tap on the cat
-     * asked for the way; `choice(c)` sets the parent's choice, `ask()` asks as a tap on the cat does.
+     * asked for the way; `choice(c)` sets the parent's choice (Save.hints), `ask()` asks as a tap on the cat does.
      */
     guide: {
       get state() { const { show, quiet, asked, choice } = guideState; return { show, quiet, asked, choice }; },
-      choice: (c: HintsChoice) => { guideState.choice = c; },
+      choice: (c: HintsChoice) => { if (c === 'world') delete g.save.hints; else g.save.hints = c; },
       ask: () => guideState.ask(),
     },
     easel: {
