@@ -11,7 +11,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   PART_MAGIC,
   ALL_KINDS, HOWS, ITEM_KINDS, OPTIONAL_KINDS, MAY_DROP, ONE_OF_EACH, OPENS, PLAYS, STARTS, STEP_STARS, TRIES, WORLD_TASK_STEPS, bookProblems, closeProblems, descriptionProblems, heldBack, itemName, markOf,
-  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, blockerProblems, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
+  GREY_BUILD, MIN_TAP_PX, tapSizeProblems, blockerProblems, SEEN_WHOLE, marksProblems, nextItem, nextStep, openProblems, planFor, planLine, playWorld, readNeed, reloadProblems, reportProblems, restartProblems, solveProblems, stageProblems, startProblems,
   unmetWorldSteps, voiceProblems, travelProblems, TRAVEL_ROUNDS, worldStepOf, wrongProblems, halfProblems, recordedSkill,
 } from './world-pass.mjs';
 import { CLOCK_REASONS } from './clock-waits.mjs';
@@ -1190,6 +1190,10 @@ describe('the size of the things of a task in the world on the screen (MIN_TAP_P
 });
 
 describe('a task in the world is seen whole (blockerProblems)', () => {
+  it('the sea is held to it (Pantsyr\'s halves, 2026-11-27)', () => {
+    expect(SEEN_WHOLE).toContain('sea');
+  });
+
   it('nothing between the camera and it, or no door: no problem; each thing in the way: one, named', () => {
     expect(blockerProblems([])).toEqual([]);
     expect(blockerProblems(null)).toEqual([]);

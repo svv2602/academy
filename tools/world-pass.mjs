@@ -98,6 +98,11 @@ export function tapSizeProblems(seen) {
  * src/game/worldtasks/blockers.ts): each is a problem, named. The hull of the sunken ship once hid half of Pantsyr's
  * shell (2026-11-27). null (no task open, or a game without the door) - nothing to say.
  */
+/**
+ * The worlds whose tasks in the world must be seen whole (blockerProblems): the others only log what stands in the way
+ * until each is looked into (2026-11-27, the lead: one world at a time).
+ */
+export const SEEN_WHOLE = ['sea'];
 export function blockerProblems(list) {
   return (list ?? []).map((b) => `"${b.name}" stands between the camera and the task (${b.lines} of its lines to the things to tap)`);
 }
@@ -722,7 +727,9 @@ export async function playWorld(h, o = {}) {
         bad('a) open, the size of its things on the screen', tapSizeProblems(sizes));
         const measured = sizes.filter((t) => t.px !== null);
         if (measured.length) console.log(`world task: ${first.kind}: the things to tap ${measured.map((t) => Math.round(t.px)).join(', ')} px across (at least ${MIN_TAP_PX})`);
-        bad('a) open, seen whole', blockerProblems(await g(() => window.__game.worldTask.blockers?.() ?? null)));
+        const blocked = blockerProblems(await g(() => window.__game.worldTask.blockers?.() ?? null));
+        if (blocked.length) console.log(`world task: ${first.kind}: not seen whole: ${blocked.join('; ')}`);
+        if (SEEN_WHOLE.includes(worldId)) bad('a) open, seen whole', blocked);
         await shot(`world-task-${first.kind}`);
       } else if (st === 'wrong') {
         // as many wrong moves as the kind asks for (the scales of WORLD-22: three), each after the course of the one before
