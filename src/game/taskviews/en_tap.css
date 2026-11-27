@@ -1,0 +1,8 @@
+/* "listen and touch" (./en_tap.ts): the pictures in a row, the button that says the question again */
+.t-en_tap { flex-direction: column; gap: 14px; }
+.t-en_tap .en-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.t-en_tap .en-pic { position: relative; min-width: 1.6em; min-height: 1.6em; display: inline-flex; align-items: center; justify-content: center; }
+.t-en_tap .en-colour { display: block; width: 1em; height: 1em; border-radius: 50%; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, .15); }
+.t-en_tap .en-pic.outline { box-shadow: inset 0 0 0 5px #5cb8ff, 0 5px 0 #b9dcf7; }
+.t-en_tap .en-word { position: absolute; left: 50%; bottom: -1.4em; transform: translateX(-50%); font-size: 18px; white-space: nowrap; color: #4a3a6a; }
+.t-en_tap .en-again { min-width: 44px; min-height: 44px; font-size: 26px; padding: 6px 16px; border-radius: 16px; background: #fff; box-shadow: 0 3px 0 #e2d2f1; border: 0; }

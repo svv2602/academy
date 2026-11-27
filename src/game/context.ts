@@ -266,6 +266,7 @@ export function createGame(o: {
     number: (n) => { const k = tapKey(n); if (k) void say(k, voiceText(k), 'task'); },
     wrong: () => { sfx('soft'); const k = TRY[randInt(0, TRY.length - 1)]; return say(k, voiceText(k), 'task'); },
     hint: speech.hintLine,
+    screen: (a) => { void speech.screen(a); },
     good: () => sfx('pop'),
     helpers,
   });

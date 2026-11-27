@@ -44,7 +44,7 @@ describe('"where are more?" over three columns, the probe world\'s task in the w
     expect(a.columns.map((c) => c.children.filter((x) => (x as THREE.Mesh).isMesh).length)).toEqual([...COLUMNS]);
     expect(new Set(COLUMNS).size, 'one tallest column').toBe(COLUMNS.length);
     const keys = [PROMPT, ...HINT.rungs.map((r) => r.key)];
-    for (const k of keys) expect(CORE_CLIPS, k).toContain(k);
+    for (const k of keys) expect(CORE_CLIPS, String(k)).toContain(k);
     expect(a.state()).toEqual({ kind: TALLY, phase: 'input', wrongs: 0, moves: 0, rung: 0, progress: [] });
   });
 

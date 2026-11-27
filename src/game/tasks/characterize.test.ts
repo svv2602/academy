@@ -106,6 +106,17 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   diff: ['c085b1d1 171cedef 5216e01d 90091ab0 4a94762a 0efba182 05d5e445 936d9513 1defa07e afa01384', '8cef02ef 8be74a98 8cfde50b 0439dfbc 492b0c25 abedf56b 4587394c 6319e8ec a1eaf0fb 40b4b825', '695e7300 f4959c00 d83c1146 5db1dc04 2382482c 5b80873c 1e17f0e0 ef07394e e26d6520 26438270'],
   // The puzzle (LEARN-19) came after the split: recorded when it was made.
   puzzle: ['9cf7312d 829f6a59 f9b1a967 7bfd990d 27b869fd 44db2f59 383850c9 d9ad0361 e1efe62f bfc920b9', '59cb0c6c a3f41d19 362ffb79 663deea6 33ce96e1 ce9dd92f 0b6e6a3b ce530c44 4b5b20a0 cc2259f0', 'd0697bf6 519e030b e3c0ef1d 92b9bf30 901c3dc9 743cec5b 39a05fd1 5b975010 517ebf86 532739b4'],
+  // "listen and touch" and "how many" in English (Season 2, part D1) came after the split: recorded when they were made.
+  en_tap: [
+    'ddb9118a b35ee2c1 da9e9078 72495538 ea44476f d426c9f4 d3dc650c 26abcb09 7981a4f4 03de3b20',
+    '9cbab620 a7f79a59 4cb19a7c 8c3316e2 0999efe9 e2c9ccfd 7a4a455a 5c6cb807 13072e2e 5b624532',
+    '63de9089 f41b654b f669a89b 65682c35 c70ea147 063e7b39 08b0cff2 7f5b14d3 c46f8aa1 617d76c6',
+  ],
+  en_count: [
+    'e531e8e5 528d9806 f8037091 0d1da2d5 c3612ce0 8ff5245a fa3dec61 e68217cd 2a47940d 833fbf5d',
+    'f46a37c1 6a921f91 3375d4f3 2711eda4 703745ef d1b94a5d 59cde7d5 37544058 0b0353c1 4795a402',
+    '3d7aeb99 ce702c69 e38d3fa8 24553c80 0d0d18f0 d3ea9f6a 2c239d38 f430580f 1b362124 8e468602',
+  ],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {
