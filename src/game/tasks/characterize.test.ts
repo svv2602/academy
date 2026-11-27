@@ -113,6 +113,22 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   exprs: ['ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c', 'ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c', 'ad897a67 31fcabd9 daa3f8c0 7bc599ff b3da4a83 e998af7d 919fd7db fd329db5 94374910 22296b5c'],
   story: ['36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29', '36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29', '36c598a7 5960fb63 233f6921 a725e68e 5ee49bf0 0fb148a7 ef5c07bd 3a5dc487 29240b3c cae2cc29'],
   puzzle: ['9cf7312d 829f6a59 f9b1a967 7bfd990d 27b869fd 44db2f59 383850c9 d9ad0361 e1efe62f bfc920b9', '59cb0c6c a3f41d19 362ffb79 663deea6 33ce96e1 ce9dd92f 0b6e6a3b ce530c44 4b5b20a0 cc2259f0', 'd0697bf6 519e030b e3c0ef1d 92b9bf30 901c3dc9 743cec5b 39a05fd1 5b975010 517ebf86 532739b4'],
+  // "listen and touch" and "how many" in English (Season 2, part D1) came after the split: recorded when they were made.
+  en_tap: [
+    'ddb9118a b35ee2c1 da9e9078 72495538 ea44476f d426c9f4 d3dc650c 26abcb09 7981a4f4 03de3b20',
+    '9cbab620 a7f79a59 4cb19a7c 8c3316e2 0999efe9 e2c9ccfd 7a4a455a 5c6cb807 13072e2e 5b624532',
+    '63de9089 f41b654b f669a89b 65682c35 c70ea147 063e7b39 08b0cff2 7f5b14d3 c46f8aa1 617d76c6',
+  ],
+  en_count: [
+    'e531e8e5 528d9806 f8037091 0d1da2d5 c3612ce0 8ff5245a fa3dec61 e68217cd 2a47940d 833fbf5d',
+    'f46a37c1 6a921f91 3375d4f3 2711eda4 703745ef d1b94a5d 59cde7d5 37544058 0b0353c1 4795a402',
+    '3d7aeb99 ce702c69 e38d3fa8 24553c80 0d0d18f0 d3ea9f6a 2c239d38 f430580f 1b362124 8e468602',
+  ],
+  note: [
+    '6ed3a190 8e546d91 619c69e3 f5f5a26a 13c33a11 99385e52 5e73bc2c 1a88ec8a b5d303ec 6ed3a190',
+    '68e7d64f aa6caf65 575a6cc5 4f6a583c 9b98dc35 4f6a583c 1052900e 9218f2f8 61957c7e 48d23b31',
+    'bf987763 4df00a3a b4c34308 8b442cbf 03479e69 a2ba3b1e 81cab361 381c0b28 7528000b 139a3f85',
+  ],
 };
 
 describe('one seed builds the same task as before the split (ARCH-09, R20)', () => {

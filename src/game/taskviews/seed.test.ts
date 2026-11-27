@@ -119,7 +119,7 @@ describe('a seed makes the tasks repeat (ARCH-08)', () => {
   });
 
   it('the task code asks no Math.random: the panel and its shows, and the world tasks take the game\'s rng', () => {
-    const panel = ['flow', 'fly', 'panel', 'count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'tenframe', 'missing', 'house', 'neighbors', 'signs', 'shapes', 'diff', 'diff-scene', 'puzzle', 'cpa', 'sum3', 'gap', 'chain', 'exprs', 'story'].map((f) => `./${f}.ts`);
+    const panel = ['flow', 'fly', 'panel', 'count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'tenframe', 'missing', 'house', 'neighbors', 'signs', 'shapes', 'diff', 'diff-scene', 'puzzle', 'cpa', 'en_tap', 'en_count', 'note', 'sum3', 'gap', 'chain', 'exprs', 'story'].map((f) => `./${f}.ts`);
     const world = ['../dialogue.ts', ...['butterflies-task', 'star-search'].map((f) => `../../worlds/fairy/${f}.ts`)];
     expect(Object.keys(TASK_SOURCES).sort(), 'the glob did not reach the task files').toEqual([...panel, ...world].sort());
     for (const [path, text] of Object.entries(TASK_SOURCES)) expect(text, path).not.toMatch(/Math\.random/);

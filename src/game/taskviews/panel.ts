@@ -17,7 +17,7 @@ import type { Spoken } from '../../core/audio';
 import type { BankKey } from '../../core/voice';
 import type { SpokenKey } from '../../ui/strings';
 import { generate, type SpecOf, type TaskSpec } from '../tasks/index';
-import type { TaskType } from '../tasks/types';
+import type { ScreenAsk, TaskType } from '../tasks/types';
 import type { SkillId } from '../skills';
 import type { TaskHelpers } from '../helpers';
 import type { HelperId } from '../shop';
@@ -40,6 +40,9 @@ import { neighborsView } from './neighbors';
 import { signsView } from './signs';
 import { diffView } from './diff';
 import { puzzleView } from './puzzle';
+import { enTapView } from './en_tap';
+import { enCountView } from './en_count';
+import { noteView } from './note';
 import { sum3View } from './sum3';
 import { gapView } from './gap';
 import { chainView } from './chain';
@@ -56,6 +59,7 @@ export const SKILL: Record<TaskType, SkillId> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
   pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
   neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
+  en_tap: 'en_words', en_count: 'en_words', note: 'read',
   sum3: 'add', gap: 'sub', chain: 'add', exprs: 'add', story: 'sub',
 };
 
@@ -77,6 +81,11 @@ export const answerOf = (res: TaskResult): { type?: string; ms?: number } => ans
 export interface TaskHooks {
   /** Show + speak the question; `ask`: the clip of the bank that asks this very example (R37), `key` without it. */
   prompt(key: SpokenKey, ask?: BankKey): void;
+  /**
+   * Show the question of a task asked in English (../tasks/types.ts `ScreenAsk`): its text in the bubble, never said by
+   * the cat (no clip of it exists: it must never reach the synthesizer), and its English clips said. Absent: nothing.
+   */
+  screen?(ask: ScreenAsk): void;
   number(n: number): void;         // say a number aloud while counting
   wrong(): Spoken;                 // gentle "try again"
   hint(key: SpokenKey): Spoken;    // the cat says the hint aloud, with its subtitle
@@ -157,8 +166,8 @@ export async function countAloud(c: PanelCtx, list: HTMLElement[]) {
 const viewOf = <T extends TaskType>(type: T) => ({
   count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
   odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView, missing: missingView, house: houseView,
-  neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView, sum3: sum3View, gap: gapView,
-  chain: chainView, exprs: exprsView, story: storyView,
+  neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView, en_tap: enTapView, en_count: enCountView, note: noteView,
+  sum3: sum3View, gap: gapView, chain: chainView, exprs: exprsView, story: storyView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 /**
@@ -248,7 +257,9 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
         given = 1;
         const shown = c.hint!, round = c.wrongs;
         // the first rung as after a first mistake: its line, then what it shows (a rung of the way shows nothing)
-        void hooks.hint(shown.key(1 - given)).then(() => { if (c.alive && c.wrongs === round) { stage.dataset.shown = '1'; } });
+        // a rung of no line (the English tasks) shows its steps at once
+        const key = shown.key(1 - given);
+        void (key ? hooks.hint(key) : Promise.resolve()).then(() => { if (c.alive && c.wrongs === round) { if (key) stage.dataset.shown = '1'; else shown.show(1 - given); } });
       });
       // a mistake or a hint before the owl was asked: the hint is on its way already, the owl has nothing to add
       const was = c.wrong.bind(c);
@@ -262,7 +273,7 @@ export function showTask(spec: TaskSpec, hooks: TaskHooks): Promise<TaskResult> 
       });
     }
     if (helps.children.length) card.appendChild(helps);
-    hooks.prompt(spec.prompt, spec.ask);
+    if (spec.prompt === null) hooks.screen?.(spec.screen); else hooks.prompt(spec.prompt, spec.ask);
   });
 }
 

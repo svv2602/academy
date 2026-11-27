@@ -3,6 +3,8 @@ import { sayBank, type BankKey } from '../core/voice';
 import { lang, voiceText, type SpokenKey } from '../ui/strings';
 import { bank } from '../ui/strings-bank';
 import { bubble } from '../ui/ui';
+import { enVoice } from '../s2/types';
+import type { ScreenAsk } from './tasks/types';
 
 /**
  * What the bubble says. A question asked by its clip of the bank (R37) has the key of the bank and, as `general`, the
@@ -24,6 +26,12 @@ export interface Speech {
   ask(key: BankKey, general: SpokenKey, pri: Priority, speaker?: string): Spoken;
   muted(): boolean;
   hintLine(key: SpokenKey): Spoken;
+  /**
+   * The question of a task asked in English (./tasks/types.ts `ScreenAsk`): its text in the bubble, its English clips
+   * said by the voice of English; the cat's voice and the synthesizer never get its text (it has no clip). A tap on the
+   * bubble then says nothing again: the show has its own button for that.
+   */
+  screen(ask: ScreenAsk, speaker?: string): Promise<void>;
   /**
    * A tap on the bubble or on the cat (VOICE-08): the line is said again, with its own priority. Only while the voice
    * is silent - a repeat that cut "try again" off would bring the hint too early. Nothing is recorded.
@@ -55,11 +63,16 @@ export function createSpeech(): Speech {
     });
   const muted = () => volume.voice === 0;
   const hintLine = (key: SpokenKey) => (muted() ? say(key, voiceText(key), 'task') : line(key, 'task'));
+  const screen = (ask: ScreenAsk, speaker = '📖') => {
+    shown = null;
+    bubble(ask.key, 0, speaker);
+    return enVoice().say(ask.en);
+  };
   const repeat = () => {
     if (!shown || speaking()) return;
     if (shown.general === undefined) void line(shown.key, shown.pri, shown.hold, shown.speaker, shown.text);
     else void ask(shown.key, shown.general, shown.pri, shown.speaker);
   };
   // `shown` is read through a getter: a copy taken here would stay at null for good (__game.line reads it too).
-  return { get shown() { return shown; }, caption, line, ask, muted, hintLine, repeat };
+  return { get shown() { return shown; }, caption, line, ask, muted, hintLine, screen, repeat };
 }

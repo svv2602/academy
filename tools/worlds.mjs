@@ -131,7 +131,7 @@
 //  13. The part "forest" (tools/forest-pass.mjs `passEnv`, `passProblems`): the walkthrough of the published forest by
 //      its description in the published build, the phone size (E2E_WORLD=forest, the numbers of the world template):
 //      from its entry to its finale - its chains with the task in the world and the two leaves in it, the tour, the
-//      owlet, its five secrets, the finale. The build must list the forest among its next worlds (worlds.json). A job
+//      owlet, its six secrets, the finale. The build must list the forest among its next worlds (worlds.json). A job
 //      of both workflows, beside the others (a walkthrough of a world takes up to 20 minutes on the runner). Every
 //      published next world has a part of its own, named by its id: the part "walk" fails a published build that
 //      lists a world without one (`publishedWithoutPart`), and so does a test of the sources. Played alone it makes
@@ -147,6 +147,9 @@
 //      (2026-11-27): their chains with the three tasks in the world (the cloud bridge, the clock, the route of the winds)
 //      and the two rays in it, the tour, Pushok, their four secrets, the finale. Their grey walkthrough (part 11)
 //      stays for the grey build. Pictures shots-e2e/worlds-published/sky/.
+//  17. The part "budget" (2026-11-27, after the forest's village went over the budget unseen): every point of the
+//      worlds 2-5 (BUDGET_WORLDS) within the q2 budget of tools/grey-route.mjs - each world's tools/<id>-grey.mjs
+//      --budget --built in the grey build made once: the draw of its targets, tour and secrets, a few frames each.
 // Without "walk" the published build is neither made nor read (1 is the check of that part).
 // Environment: E2E_PORT=<n> (the first port to try, default 4183; a busy one is skipped), E2E_GL, E2E_SLOW, Q,
 // E2E_LEVEL, E2E_STUCK_MS (passed on to tools/shot.mjs), E2E_RUN_TIMEOUT_MS (limit of one walkthrough, default 600000;
@@ -193,7 +196,14 @@ export const PROBE_ARRIVAL_FACING = Math.atan2(7 - 0, 3 - 6);
  * whose `timeout-minutes` is this (tools/ci-pieces.test.mjs). tools/e2e.mjs plays the parts so, one run each.
  */
 export const PART_TIMEOUT_MS = 30 * 60000;
-export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky'];
+export const PARTS = ['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky', 'budget'];
+/**
+ * The worlds the part "budget" measures (each its tools/<id>-grey.mjs --budget): the shelf's worlds 2-5, whose points
+ * hold BUDGET on q2 (tools/grey-route.mjs). The first world holds its own, in the walkthroughs (docs/perf.md).
+ */
+export const BUDGET_WORLDS = ['forest', 'sea', 'sweet', 'sky'];
+/** ms: the limit of one world's measure in the part "budget" (the runner draws a frame in about a second). */
+export const BUDGET_WORLD_MS = 8 * 60000;
 /** The parts of the grey build (`--mode grey`, dist-grey/): they need neither the published build nor the probe one. */
 export const GREY_PARTS = ['hub-grey', 'sweet-grey', 'sky-grey'];
 /**
@@ -211,7 +221,7 @@ export function publishedWithoutPart(next, parts = PUBLISH_PARTS) {
   return next.filter((id) => !parts.includes(id));
 }
 /** The parts that need no probe build (dist-probe/): the grey build's, and the way to the forest and the walkthroughs of the published worlds in the published one. */
-export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet', 'sky'];
+export const NO_PROBE_PARTS = [...GREY_PARTS, 'hub-forest', 'forest', 'sea', 'sweet', 'sky', 'budget'];
 /**
  * A request of the hub's part that failed only because the browser dropped a clip it no longer needed: a clip of the
  * voice (voice/, bank/) cut off by the next line or by a reload while it was still loading is cancelled by the browser
@@ -958,6 +968,19 @@ async function main() {
     await worldPass('the Sky Islands', greyDist, join('shots-e2e', 'worlds-grey', 'sky'), (out) => skyPassEnv(process.env, out), skyPassTimeoutMs(process.env), skyPassProblems,
       'the Sky Islands of the grey build: played by their description from their entry to their finale');
   } catch (e) { fail(e.message); }
+  // ---- the part "budget": every point of the worlds 2-5 within BUDGET on q2 (TECH-06, tools/grey-route.mjs) ----
+  // The lead's word of 2026-11-27: the forest's village went over the budget and no job saw it. Each world's grey tool
+  // with --budget (the draw of its points only, a few frames each) in the grey build made once; a point over fails.
+  if (play('budget')) try {
+    await greyBuild();
+    for (const id of BUDGET_WORLDS) {
+      const t0 = Date.now(), port = await freePort(); /* clock: log-time */
+      const { code, signal, timedOut } = await run(process.execPath, [join(root, 'tools', `${id}-grey.mjs`), '--budget', '--built'], BUDGET_WORLD_MS, { ...process.env, E2E_PORT: String(port) }); /* clock: ceiling */
+      const took = `${Math.round((Date.now() - t0) / 1000)} s`; /* clock: log-time */
+      if (code === 0) console.log(`[worlds] the budget of ${id}: every point within it (${took})`);
+      else fail(`the budget of ${id}: tools/${id}-grey.mjs --budget ${timedOut ? `was killed after ${BUDGET_WORLD_MS} ms` : `exited with ${signal ?? `code ${code}`}`} (${took}): a point over BUDGET or a measure that failed - its lines above`);
+    }
+  } catch (e) { fail(e.message); }
   // ---- the part "forest": the walkthrough of the published forest in the published build (tools/forest-pass.mjs) ----
   // a job of its own in both workflows: a publication waits for it. A build without the forest among its next worlds fails
   // here - the part must not be green over a world the build does not have.
@@ -966,7 +989,7 @@ async function main() {
     const next = buildWorlds(dist);
     if (!next.includes('forest')) throw new Error(`the published build ${dist} has no forest among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the forest', dist, join('shots-e2e', 'worlds-published', 'forest'), (out) => forestPassEnv(process.env, out), forestPassTimeoutMs(process.env), forestPassProblems,
-      'the forest of the published build: played by its description from its entry to its finale, its five secrets found');
+      'the forest of the published build: played by its description from its entry to its finale, its six secrets found');
   } catch (e) { fail(e.message); }
   // ---- the part "sea": the walkthrough of the published sea in the published build (tools/sea-pass.mjs) ----
   // as the forest's; the sea's own limit: the longest walkthrough seen on the runner (tools/sea-pass.mjs PASS_TIMEOUT_MS)

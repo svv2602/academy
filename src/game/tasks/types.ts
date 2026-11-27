@@ -8,12 +8,12 @@
  */
 import { randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
-import type { SpokenKey } from '../../ui/strings';
+import type { Key, SpokenKey } from '../../ui/strings';
 import type { BankKey } from '../../core/voice';
 import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house'
-  | 'neighbors' | 'signs' | 'diff' | 'puzzle'
+  | 'neighbors' | 'signs' | 'diff' | 'puzzle' | 'en_tap' | 'en_count' | 'note'
   // the tasks in breadth (LEARN-27, src/game/wide.ts): given on the top level of addition and take away
   | 'sum3' | 'gap' | 'chain' | 'exprs' | 'story';
 
@@ -35,9 +35,15 @@ export type HintStep =
   | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
   | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
   | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' } | { do: 'countUp' }
-  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'countGone' } | { do: 'showMid' } | { do: 'showExample' };
-/** One rung of the hint: the line the cat says, and what is shown on screen once it has ended. */
-export interface HintRung { key: SpokenKey; steps: readonly HintStep[] }
+  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'outline' } | { do: 'readAlong' } | { do: 'slowly' }
+  | { do: 'countGone' } | { do: 'showMid' } | { do: 'showExample' };
+/**
+ * One rung of the hint: the line the cat says, and what is shown on screen once it has ended. `outline` (the English
+ * words, Season 2): the right picture is outlined. `readAlong` (a note, Season 2): the words of the text light up one
+ * by one; `slowly`: "read slowly" in the bubble, never said, and the key words of the text lit. A rung of no line (null: the English tasks, whose cat's lines are not
+ * recorded yet - R25) carries out its steps right after the shake.
+ */
+export interface HintRung { key: SpokenKey | null; steps: readonly HintStep[] }
 /**
  * The hint in three rungs (LEARN-10, HINTS.md): the first mistake says the way and shows nothing, the second solves it
  * together step by step, the third and every later one lights the right answer. What the second showed stays on screen.
@@ -53,6 +59,14 @@ export const rungOf = (hint: Hint, round: number): HintRung => hint.rungs[Math.m
  * that asks this very example ("Скільки буде вісім плюс п'ять?", R37), when the old game recorded one.
  */
 export interface Spec<T extends TaskType, B> { type: T; level: number; prompt: SpokenKey; ask?: BankKey; hint: Hint | null; body: B }
+/**
+ * A question shown in the bubble and never said by the cat (the English tasks of Season 2): `key` - its text (a line of
+ * no voice: no clip of it is recorded, the synthesizer never gets it), `en` - the English clips that ask it, said one
+ * after the other by the voice of English (src/s2/types.ts `enVoice`).
+ */
+export interface ScreenAsk { key: Key; en: readonly string[] }
+/** A task asked in English: no spoken question of the cat (`prompt: null`), its question on the screen (`screen`). */
+export type EnSpec<T extends TaskType, B> = Omit<Spec<T, B>, 'prompt' | 'ask'> & { prompt: null; ask?: undefined; screen: ScreenAsk };
 /** `key` if the bank has its clip (the bank lists every clip of public/bank/, src/ui/strings-bank.ts), else nothing. */
 export const inBank = (key: BankKey): BankKey | undefined => (Object.hasOwn(bank.table.uk, key) ? key : undefined);
 /**

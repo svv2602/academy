@@ -9,7 +9,12 @@ import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import { mulberry32 } from '../../core/util';
 import type { Key } from '../../ui/strings';
 import type { Spoken } from '../../core/audio';
-import type { TaskType } from '../tasks/types';
+import type { ScreenAsk, TaskType } from '../tasks/types';
+import { kindOf, picturesAt } from '../tasks/en_tap';
+import { choicesAt } from '../tasks/note';
+import { NOTES, PINK } from '../../s2/notes';
+import { NOTE_TEXTS, type NoteId } from '../../s2/strings-book';
+import type { WordId } from '../../s2/types';
 import { PAIRS_PEEK_MS } from '../tasks/pairs';
 import { cheatTask, runTask, type TaskHooks } from './panel';
 
@@ -30,12 +35,13 @@ const all = (parent: HTMLElement, selector: string) => [...parent.querySelectorA
 const tap = (e: HTMLElement) => { e.dispatchEvent(new PointerEvent('pointerdown')); };
 const text = (e: HTMLElement) => e.textContent ?? '';
 
-interface Heard { prompts: Key[]; numbers: number[]; hints: Key[]; wrong: number; good: number; onGood: () => void; }
+interface Heard { prompts: Key[]; screens: ScreenAsk[]; numbers: number[]; hints: Key[]; wrong: number; good: number; onGood: () => void; }
 /** Hooks that only remember what the game asked the cat to say. */
 function listen(): { hooks: TaskHooks; heard: Heard } {
-  const heard: Heard = { prompts: [], numbers: [], hints: [], wrong: 0, good: 0, onGood: () => {} };
+  const heard: Heard = { prompts: [], screens: [], numbers: [], hints: [], wrong: 0, good: 0, onGood: () => {} };
   const hooks: TaskHooks = {
     prompt: (key) => { heard.prompts.push(key); },
+    screen: (ask) => { heard.screens.push(ask); },
     number: (n) => { heard.numbers.push(n); },
     wrong: () => { heard.wrong++; return spoken(); },
     hint: (key) => { heard.hints.push(key); return spoken(); },
@@ -316,6 +322,45 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(buttons.map(text).join(' ') === '> < =', 'the sign buttons are not ">", "<", "="');
     must(text(stage().querySelector<HTMLElement>('.slot')!) === '?', 'the place of the sign is not empty');
     must(text(accepted(buttons)) === (a > b ? '>' : a < b ? '<' : '='), 'the accepted sign does not open towards the larger number');
+  },
+  en_tap(level, heard) {
+    const pics = all(stage(), '.en-pic'), words = pics.map((p) => p.dataset.word as WordId);
+    seen = `${words.join(' ')}; asked ${JSON.stringify(heard.screens)}`;
+    must(pics.length === picturesAt(level), `${picturesAt(level)} pictures on level ${level}`);
+    must(new Set(words).size === words.length, 'a picture twice');
+    must(new Set(words.map(kindOf)).size === 1 && kindOf(words[0]) !== null, 'the pictures are not of one kind');
+    must(heard.prompts.length === 0, 'the cat said a question: the English task is asked on the screen only');
+    must(heard.screens.length === 1, 'the question on the screen was not asked once');
+    const [frame, said] = heard.screens[0].en;
+    must(frame === 'wb_find' && heard.screens[0].key === 'q_en_tap', 'the frame "Find…" and the question of the screen');
+    must(said === `wb_w_${accepted(pics).dataset.word}`, 'the accepted picture is not the word said');
+  },
+  en_count(level, heard) {
+    const n = all(stage(), '.it').length;
+    const { buttons, values } = numberOptions(`${n} things`, 5, 1);
+    between(n, [1, 1, 2, 3, 3, 3][level], [3, 3, 4, 5, 5, 5][level], 'the number of things');
+    once(values, n, 'the right answer');
+    must(heard.prompts[0] === 't_count', 'the question is the recorded one of "count"');
+    must(Number(text(accepted(buttons))) === n, 'the accepted answer is not the number of things');
+  },
+  note(level, heard) {
+    const paper = stage().querySelector<HTMLElement>('.note-paper')!, id = paper.dataset.note as NoteId, def = NOTES[id];
+    seen = `${id}; ${text(paper)}; asked ${JSON.stringify(heard.screens)}`;
+    must(def.level <= Math.max(2, level), `${id} is for level ${def.level}, asked on ${level}`);
+    must(text(stage().querySelector<HTMLElement>('.note-read')!) === NOTE_TEXTS[id].uk, 'the note is not its Ukrainian text');
+    must(heard.prompts.length === 0 && heard.screens.length === 1 && heard.screens[0].key === 'q_note'
+      && heard.screens[0].en.length === 0, 'the note is asked on the screen only, nothing said');
+    const q = def.q;
+    if (q.ask === 'picture') {
+      const pics = all(stage(), '.note-pic');
+      must(pics.length === Math.min(choicesAt(level), 1 + q.wrong.length), `${pics.length} pictures on level ${level}`);
+      must(text(accepted(pics)) === q.right, 'the accepted picture is not the one of the note');
+    } else {
+      const buttons = all(opts(), '.opt');
+      const right = q.ask === 'number' ? q.right : all(stage(), '.note-pebble').filter((p) => p.style.background === PINK).length;
+      if (q.ask === 'pebbles') between(right, 3, 5, 'the pink pebbles');
+      must(Number(text(accepted(buttons))) === right, 'the accepted answer is not the one the note asks');
+    }
   },
   // The tasks in breadth (LEARN-27) play one set of numbers whatever level they are asked with.
   sum3() {

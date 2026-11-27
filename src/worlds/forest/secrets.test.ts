@@ -12,8 +12,8 @@ import { bounce, colliders, height, pathDist, resolve, streamDist, support, tops
 afterEach(() => { tops.length = 0; colliders.length = 0; });
 
 describe('the places of the secrets', () => {
-  it('five, named as the flags the book, the Tree\'s keepsakes and the achievement read', () => {
-    expect([...FOREST_SECRETS]).toEqual(['cave', 'bounce', 'fireflies', 'ring', 'roots']);
+  it('six, named as the flags the book, the Tree\'s keepsakes and the achievement read', () => {
+    expect([...FOREST_SECRETS]).toEqual(['cave', 'bounce', 'fireflies', 'ring', 'roots', 'hollow']);
   });
 
   it('off the paths, out of the zones and the maze, inside the map; the cave by the stream, not in it', () => {

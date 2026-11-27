@@ -20,6 +20,9 @@ import { neighbors, type NeighborsSpec } from './neighbors';
 import { signs, type SignsSpec } from './signs';
 import { diff, type DiffSpec } from './diff';
 import { puzzle, type PuzzleSpec } from './puzzle';
+import { en_tap, type EnTapSpec } from './en_tap';
+import { en_count, type EnCountSpec } from './en_count';
+import { note, type NoteSpec } from './note';
 import { sum3, type Sum3Spec } from './sum3';
 import { gap, type GapSpec } from './gap';
 import { chain, type ChainSpec } from './chain';
@@ -30,12 +33,12 @@ import type { SkillId } from '../skills';
 export type * from './types';
 /** The description of a task of any type; `type` tells which. */
 export type TaskSpec = CountSpec | AddSpec | SubSpec | CompareSpec | PatternSpec | OddSpec | PairsSpec | OrderSpec | SortSpec | SimonSpec
-  | MissingSpec | HouseSpec | NeighborsSpec | SignsSpec | DiffSpec | PuzzleSpec | Sum3Spec | GapSpec
-  | ChainSpec | ExprsSpec | StorySpec;
+  | MissingSpec | HouseSpec | NeighborsSpec | SignsSpec | DiffSpec | PuzzleSpec | EnTapSpec | EnCountSpec | NoteSpec
+  | Sum3Spec | GapSpec | ChainSpec | ExprsSpec | StorySpec;
 export type SpecOf<T extends TaskType> = Extract<TaskSpec, { type: T }>;
 
 /** The model of every type: its generator, how it takes an input, its solution (and, for pairs, its result). */
-export const MODELS = { count, add, sub, compare, pattern, odd, pairs, order, sort, simon, missing, house, neighbors, signs, diff, puzzle, sum3, gap, chain, exprs, story } satisfies Record<TaskType, unknown>;
+export const MODELS = { count, add, sub, compare, pattern, odd, pairs, order, sort, simon, missing, house, neighbors, signs, diff, puzzle, en_tap, en_count, note, sum3, gap, chain, exprs, story } satisfies Record<TaskType, unknown>;
 
 /**
  * A step of a chain may name a skill instead of a task type (R34): the type is then the one the skill plays on the
