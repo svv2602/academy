@@ -5,7 +5,7 @@ import { createRng } from '../../core/rng';
 import { BY_LEVEL, MODELS, generate, isSkillStep, typeOf } from './index';
 import type { TaskType } from './types';
 
-const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs', 'diff', 'puzzle', 'en_tap', 'en_count'];
+const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs', 'diff', 'puzzle', 'en_tap', 'en_count', 'note'];
 
 describe('tasks/index', () => {
   it('runs without a page', () => { expect(typeof document).toBe('undefined'); });
