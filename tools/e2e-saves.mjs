@@ -26,6 +26,7 @@ export const BLOCKS = [
   'broken-talk',    // a conversation broken on purpose (PLAY-03)
   'tuning',         // the tuning panel (ARCH-14)
   'collisions',     // the heroine does not walk through a character
+  'stand',          // the controls taken while she runs (a star's task, a talk, its panel): she stands in Idle; a key or a finger held through them does not move her after
   'secrets',        // the chest, the glade behind the waterfall, the fairy house and its room: each found once
   'creatures',      // the creatures of no task: both actions of each kind pictured, a tap on each - its own reaction
   'magic',          // the magic of the world from the shards; a point of the tour pictured at magic 0 and 1, a reload (WORLD-09)
@@ -123,7 +124,7 @@ export const GROUPS = {
   // the collisions, the three secrets, the creatures, the magic of four shards - none of them needs the finished world
   world2: {
     save: () => played({ done: ['unicorn', 'fox'], stars: 8, tasks: { count: 1, add: 1, compare: 1, series: 1, pattern: 1, classify: 1 } }),
-    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'secrets', 'creatures', 'magic', 'achievements'], ach: [...ACH_BASE, 'secret_chest', 'three_secrets'],
+    friends: ['mushking', 'queen'], blocks: ['world-sort', 'broken-talk', 'tuning', 'collisions', 'stand', 'secrets', 'creatures', 'magic', 'achievements'], ach: [...ACH_BASE, 'secret_chest', 'three_secrets'],
   },
   // the deer: its star search with everything around it; then the finale and the return of the crystal (a save played:
   // no introduction), the book and its scene shown again, the fawn that waits after the deer's chain (found, chosen,

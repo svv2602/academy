@@ -10,6 +10,18 @@ export const input = {
 };
 
 const keys = new Set<string>();
+// Lets go of the finger on the joystick (set by initInput, which owns it); nothing to let go of before it ran.
+let dropStick = () => {};
+
+/**
+ * The controls are taken (a task panel, a conversation, a scene, a menu): what is held at that moment steers no more.
+ * A key still down and a finger still on the joystick when the controls come back do not move her until they are
+ * pressed anew, so she does not dash off the moment the panel closes. Called every frame the controls are taken.
+ */
+export function dropHeld() {
+  keys.clear();
+  dropStick();
+}
 
 export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLElement, btnJump: HTMLElement, btnAct: HTMLElement) {
   input.touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -27,12 +39,23 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   // One pointer may steer (left half on touch), another may look around; a short press is a tap.
   // The ring shows only once the finger steers: moved past 12 px, or held longer than `tuning.joyHoldMs` - a short tap
   // to walk ("go here") on the joystick side shows nothing.
-  let stick: { id: number; x: number; y: number; t: number; moved: boolean; hold: number } | null = null;
-  const showRing = () => { if (stick) { clearTimeout(stick.hold); joy.classList.add('on'); } };
+  // `dead`: let go of by dropHeld while the finger stays down - it steers nothing until it lifts (a short press is
+  // still a tap: a task of the world on screen takes taps while the controls are taken).
+  let stick: { id: number; x: number; y: number; t: number; moved: boolean; hold: number; dead?: boolean } | null = null;
+  const showRing = () => { if (stick && !stick.dead) { clearTimeout(stick.hold); joy.classList.add('on'); } };
+  dropStick = () => {
+    stickX = stickY = 0;
+    if (!stick || stick.dead) return;
+    stick.dead = true; clearTimeout(stick.hold); joy.classList.remove('on');
+    knob.style.transform = 'translate(-50%,-50%)';
+  };
   let look: { id: number; x: number; y: number; sx: number; sy: number; t: number; moved: boolean } | null = null;
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
+    // a finger let go of by dropHeld whose lifting was never heard (it lifted over a panel) steers nothing: a new one
+    // on the joystick side takes its place, or the joystick would stay dead until the page is reloaded
+    if (stick?.dead) stick = null;
     if (input.touch && e.clientX < innerWidth * tuning.joyZone && !stick) {
       stick = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false, hold: window.setTimeout(showRing, tuning.joyHoldMs) };
       joy.style.left = `${e.clientX}px`; joy.style.top = `${e.clientY}px`; sizeRing(joy, tuning.joyRadius);
@@ -43,6 +66,7 @@ export function initInput(canvas: HTMLElement, joy: HTMLElement, knob: HTMLEleme
   });
   canvas.addEventListener('pointermove', (e) => {
     if (stick && e.pointerId === stick.id) {
+      if (stick.dead) { if (Math.hypot(e.clientX - stick.x, e.clientY - stick.y) > 12) stick.moved = true; return; }
       let dx = e.clientX - stick.x, dy = e.clientY - stick.y;
       const d = Math.hypot(dx, dy), R = tuning.joyRadius;   // read on every move: the debug panel may change it
       if (d > 12 && !stick.moved) { stick.moved = true; showRing(); }

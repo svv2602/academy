@@ -90,6 +90,8 @@ export function tapTarget(spotD: number | null, catD: number, touch: boolean): '
 export function createPlayer(g: Game): Player {
   const { hero, cat, cam, camera, touch, groundY, started } = g;
   let vy = 0, grounded = true;
+  // The clip this frame itself last put on her (Run, Walk, Jump, Idle): what a scene plays on her is the scene's own.
+  let mine = '';
   const real = speedometer();   // her speed over the ground as it is (a wall stops her, the pace too)
   const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
   const ripple = createRipple(g.scene);
@@ -173,6 +175,12 @@ export function createPlayer(g: Game): Player {
         // the clip by the speed asked for, its pace by the speed she goes at (src/game/stride.ts)
         else if (mag > 0.08) hero.play(speed > tuning.runFrom ? 'Run' : 'Walk', 0.18, pace(v, speed > tuning.runFrom ? GROUND.heroRun : GROUND.heroWalk));
         else hero.play('Idle', 0.25);
+        mine = hero.playing;
+      } else if (grounded && mine && hero.playing === mine) {
+        // A task panel, a conversation or a find took the controls while she ran: she stands and waits (as the cat
+        // does, src/game/companion.ts), not running on the spot. A clip the scene put on her (Talk, Dance) is left alone.
+        hero.play('Idle', 0.25);
+        mine = '';
       }
       return mag;
     },

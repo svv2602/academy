@@ -2324,6 +2324,153 @@ try {
         if (!(moved < 2.2)) fail(`she did not walk towards "${at.id}" (still ${moved.toFixed(2)} m away)`);
         console.log(`collisions: she stopped ${near.toFixed(2)} m from the middle of "${at.id}"`);
       }
+      // ---- the controls taken while she runs: she stands and waits (a report of 2026-11-26: the panel of a star opened and
+      // she ran on the spot under it). Steered as a child steers - W held on a computer, a real finger held on the
+      // joystick on a phone (touch events of the browser, src/core/input.ts) - she runs up to a mysterious star and its
+      // task is opened by the action button, then to a friend whose chain is done (the unicorn: its task again, LEARN-16),
+      // then a task in the world opens while she runs (the deer's sort, through g.task as a chain step opens it).
+      // While the controls are taken: no Run or Walk on her (Idle; the talk's own Talk), she stays where she is. The
+      // panel closed with the key or the finger still held: she does not move off (dropHeld); a new press walks her. ----
+      if (has('stand')) {
+        const fail = (what) => { throw new Error(`stand: ${what}`); };
+        const until = async (pred, arg, what, seconds = 10) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        const cdp = touch ? await page.context().newCDPSession(page) : null;
+        let finger = null;
+        /** Forward held: W, or a finger landed on the joystick side and pushed up past the ring's 12 px. */
+        const hold = async () => {
+          if (!touch) return page.keyboard.down('KeyW');
+          // a point of the joystick side where the canvas itself is on top (a bubble of the cat may lie over a part of it)
+          const at = await g(() => {
+            const zone = innerWidth * __game.tuning.joyZone;
+            for (const fy of [0.72, 0.8, 0.64, 0.86, 0.56]) for (const fx of [0.5, 0.3, 0.7, 0.15]) {
+              const x = Math.round(zone * fx), y = Math.round(innerHeight * fy), el = document.elementFromPoint(x, y);
+              if (el && el.id === 'c' && document.elementFromPoint(x, y - 50)?.id === 'c') return { x, y };
+            }
+            return null;
+          });
+          if (!at) fail('no free canvas on the joystick side for a finger');
+          finger = at;
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: at.x, y: at.y, id: 7 }] });
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: at.x, y: at.y - 25, id: 7 }] });
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: at.x, y: at.y - 50, id: 7 }] });
+        };
+        const letGo = async () => {
+          if (!touch) return page.keyboard.up('KeyW');
+          if (finger) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+          finger = null;
+        };
+        /** The finger, still down, moved a little (a child's finger is never still): a held one that was let go of steers nothing. */
+        const wiggle = async () => { if (finger) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: finger.x + 6, y: finger.y - 56, id: 7 }] }); };
+        const here = () => g(() => ({ x: __game.hero.root.position.x, z: __game.hero.root.position.z, clip: __game.hero.playing, busy: __game.busy }));
+        /** For `seconds` of game time: every frame's clip on her and how far she went from where it started. */
+        const watch = async (seconds) => {
+          await g(() => {
+            const h = __game.hero, from = h.root.position.clone(); window.__stand = { clips: new Set(), far: 0 };
+            const look = () => { const w = window.__stand; if (!w || w.done) return; w.clips.add(h.playing); w.far = Math.max(w.far, h.root.position.distanceTo(from)); requestAnimationFrame(look); };
+            look();
+          });
+          await gameSeconds(seconds);
+          return g(() => { const w = window.__stand; w.done = true; window.__stand = null; return { clips: [...w.clips], far: w.far }; });
+        };
+        /** She stands `back` m from (x, z), facing it, the camera behind her. */
+        const face = (x, z, back) => g(([x, z, back]) => {
+          const hp = __game.hero.root.position, d = Math.hypot(x - hp.x, z - hp.z) || 1;
+          const sx = x - ((x - hp.x) / d) * back, sz = z - ((z - hp.z) / d) * back;
+          __game.teleport(sx, sz);
+          const yaw = Math.atan2(-(x - sx), -(z - sz));
+          __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; __game.hero.root.rotation.y = yaw + Math.PI;
+        }, [x, z, back]);
+        /** Runs at (x, z) held forward, the camera turned toward it, until the action button shows; presses it, still held. */
+        const runUpAndAct = async (x, z, what) => {
+          await hold();
+          if (!(await gameUntil(([x, z]) => {
+            const hp = __game.hero.root.position; __game.cam.yaw = Math.atan2(-(x - hp.x), -(z - hp.z));
+            return !document.querySelector('#btnAct').classList.contains('hidden');
+          }, [x, z], 8))) {
+            const st = await g(([x, z]) => ({ d: Math.hypot(__game.hero.root.position.x - x, __game.hero.root.position.z - z).toFixed(2), clip: __game.hero.playing, busy: __game.busy, ring: document.querySelector('#joy').classList.contains('on'), task: __game.inTask }), [x, z]);
+            fail(`running up to ${what} brought no action button in 8 s of game time: ${JSON.stringify(st)}`);
+          }
+          const ran = await here();
+          if (ran.clip !== 'Run' && ran.clip !== 'Walk') fail(`she ran up to ${what} playing "${ran.clip}"`);
+          await act();
+        };
+        /** The panel closed with forward still held: she stays in Idle where she is; let go and pressed anew, she walks. */
+        const afterClose = async (what) => {
+          await gameFor(() => !__game.busy, null, 30).catch(() => fail(`${what}: the controls did not come back`));
+          await wiggle();
+          const w = await watch(1.2);
+          if (w.far > 0.05 || w.clips.some((c) => c !== 'Idle')) fail(`${what}: closed with forward still held, she moved off (${w.far.toFixed(2)} m, ${w.clips.join(', ')})`);
+          await letGo();
+          if (!(await walks())) fail(`${what}: pressed anew, she did not walk`);
+        };
+        const log = [];
+        if (!(await gameUntil(() => !__game.busy && !__game.inTask, null, 15))) fail('the heroine is not free before the block');
+        const home = await here();
+        try {
+          // ---- a mysterious star: its task opened by the action button while she runs ----
+          await holdAchDuring(async () => {
+            await g(() => { __game.mystery.day('2029-12-31'); __game.mystery.release(); });
+            await until(() => __game.mystery.today.length === 10, null, 'no mysterious stars of the day');
+            const star = await g(() => { const s = __game.mystery.today.find((s) => !s.solved); return { x: s.pos.x, z: s.pos.z }; });
+            await face(star.x, star.z, 6); await gameSeconds(0.5);
+            await runUpAndAct(star.x, star.z, 'a mysterious star');
+            await until(() => !!document.querySelector('#task:not(.hidden)'), null, 'the action button did not open the task of the star', 20);
+            await wiggle();
+            const w = await watch(1.2);
+            if (w.clips.some((c) => c === 'Run' || c === 'Walk')) fail(`under the panel of the star she played ${w.clips.join(', ')}`);
+            if ((await here()).clip !== 'Idle') fail(`under the panel of the star she plays "${(await here()).clip}", not Idle`);
+            if (w.far > 0.05) fail(`under the panel of the star she moved ${w.far.toFixed(2)} m`);
+            await tapOn('#taskClose').catch((e) => fail(`the task of the star cannot be closed: ${why(e)}`));
+            await afterClose('the star');
+            log.push(`the star: Idle under its panel (${w.clips.join(', ')})`);
+            await g(() => { __game.mystery.hold(); __game.mystery.day(null); });
+          });
+          // ---- a friend whose chain is done: the talk (its own Talk) and then its task's panel (Idle) ----
+          await holdAchDuring(async () => {
+            const n = await g(() => { const n = __game.npcs.find((n) => n.def.id === 'unicorn'); return { x: n.pos.x, z: n.pos.z }; });
+            await face(n.x, n.z, 6); await gameSeconds(0.5);
+            await runUpAndAct(n.x, n.z, 'the unicorn');
+            await until(() => __game.busy, null, 'the action button did not start the talk', 5);
+            const talk = await watch(0.6);
+            if (talk.clips.some((c) => c === 'Run' || c === 'Walk')) fail(`in the talk she played ${talk.clips.join(', ')}`);
+            if (talk.far > 0.05) fail(`in the talk she moved ${talk.far.toFixed(2)} m`);
+            await until(() => !!document.querySelector('#task:not(.hidden)'), null, 'the talk of a done chain opened no task', 30);
+            await wiggle();
+            const w = await watch(1.2);
+            if ((await here()).clip !== 'Idle' || w.clips.some((c) => c === 'Run' || c === 'Walk')) fail(`under the panel of the unicorn's task she played ${w.clips.join(', ')}`);
+            if (w.far > 0.05) fail(`under the panel of the unicorn's task she moved ${w.far.toFixed(2)} m`);
+            await tapOn('#taskClose').catch((e) => fail(`the unicorn's task cannot be closed: ${why(e)}`));
+            await afterClose('the unicorn');
+            log.push(`the talk: ${talk.clips.join(', ')}, its panel: Idle`);
+          });
+          // ---- a task in the world (the deer's sort on its pedestals, as a chain step opens it through g.task) opened while
+          // she runs: she is put at its place and stands there in Idle, as under a panel ----
+          await holdAchDuring(async () => {
+            const n = await g(() => { const n = __game.npcs.find((n) => n.def.id === 'deer'); return { x: n.pos.x, z: n.pos.z }; });
+            await face(n.x, n.z, 9); await gameSeconds(0.5);
+            await hold();
+            await gameSeconds(0.8);
+            const ran = await here();
+            if (ran.clip !== 'Run' && ran.clip !== 'Walk') fail(`held forward before the task in the world she plays "${ran.clip}"`);
+            await g(() => __game.worldSort());
+            await gameFor(() => __game.sorting.active && __game.busy, null, 10).catch(() => fail('the task in the world did not open'));
+            await wiggle();
+            const w = await watch(1.2);
+            if ((await here()).clip !== 'Idle' || w.clips.some((c) => c === 'Run' || c === 'Walk')) fail(`in the task in the world she played ${w.clips.join(', ')}`);
+            if (w.far > 0.05) fail(`in the task in the world she moved ${w.far.toFixed(2)} m`);
+            await tapOn('#answersClose').catch((e) => fail(`the task in the world cannot be closed: ${why(e)}`));
+            await gameFor(() => !__game.sorting.active, null, 10).catch(() => fail('the task in the world did not end'));
+            await afterClose('the task in the world');
+            log.push(`the task in the world: ${w.clips.join(', ')}`);
+          });
+        } finally {
+          await letGo().catch(() => {});
+          await g(() => { __game.mystery.hold(); __game.mystery.day(null); }).catch(() => {});
+          await gameFor(() => !__game.busy, null, 30).catch(() => {});
+          await g((p) => { __game.teleport(p.x, p.z); }, home).catch(() => {});
+        }
+        console.log(`stand (${touch ? 'a finger on the joystick' : 'W held'}): ${log.join('; ')}; closed with forward held she stayed, pressed anew she walked`);
+      }
       // ---- the three secrets of the first world (PLAY-10, R03, R04; src/worlds/fairy/secrets.ts): the chest by the action
       // button; the glade walked into through its waterfall - "forward" held from the valley until its flag is set, so the
       // curtain is no wall; the house - its door, the music box in the room, the door back out. Each is the world's flag
