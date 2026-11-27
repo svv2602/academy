@@ -19,6 +19,7 @@ import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
 import { easelState } from '../ui/easel';
 import { guideState, type HintsChoice } from './guide-rule';
+import { cpaHold, cpaOf, type Cpa } from './tasks/cpa';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -184,6 +185,14 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       get state() { const { show, quiet, asked, choice } = guideState; return { show, quiet, asked, choice }; },
       choice: (c: HintsChoice) => { if (c === 'world') delete g.save.hints; else g.save.hints = c; },
       ask: () => guideState.ask(),
+    },
+    /**
+     * The steps «things → picture → numbers» of the number tasks (src/game/tasks/cpa.ts): `step(level)` - the one a task
+     * of that level is drawn at now; `hold(n)` fixes it for every task (null - the world's again).
+     */
+    cpa: {
+      step: (level: number) => cpaOf(level),
+      hold: (n: Cpa | null) => { cpaHold.step = n; },
     },
     easel: {
       open: () => g.easel.open(),
