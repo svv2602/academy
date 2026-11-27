@@ -16,6 +16,7 @@ import { generate as generateCount, numberClip } from '../tasks/en_count';
 import type { ScreenAsk } from '../tasks/types';
 import { SKILL, cheatTask, showTask, type TaskHooks } from './panel';
 import { WON_MAX_MS } from './fly';
+import { wordbookState } from '../../ui/wordbook';
 import { SHAKE_MS } from './flow';
 
 const MARKUP = '<div id="task" class="hidden"><button id="taskClose"></button>'
@@ -123,8 +124,13 @@ describe('"listen and touch" (en_tap)', () => {
     expect(spec.type).toBe('en_tap');
     if (spec.type !== 'en_tap') return;
     const word = spec.body.word;
+    const english: (string | readonly string[])[] = [];
+    setEnVoice({ say: (id) => { english.push(id); return Promise.resolve(); }, has: () => true });
     plan.done(spec, { solved: true, wrong: 1 });
     expect(save.words).toEqual([word]);
+    // the book's button is marked new, and Isabella keeps quiet: the cat praises the answer at that moment
+    expect(wordbookState.fresh.has(word)).toBe(true);
+    expect(english).toEqual([]);
     plan.done(spec, { solved: true, wrong: 0 });
     expect(save.words).toEqual([word]);
     expect(save.hard.list.map((h) => h.k)).toEqual([`en_tap:${word}`]);

@@ -14,6 +14,7 @@ import type { SkillId } from './skills';
 import { generate, type TaskSpec } from './tasks/index';
 import { enTapExample, kindOf } from './tasks/en_tap';
 import { isWord } from '../s2/types';
+import { meetWord } from '../ui/wordbook';
 import type { TaskType } from './tasks/types';
 import { example as addExample } from './tasks/add';
 import { example as subExample } from './tasks/sub';
@@ -147,8 +148,9 @@ export function createPlanner(save: Save): Planner {
   }
 
   function done(spec: TaskSpec, res: TaskResult) {
-    // a word found in "listen and touch" lies in the book from now on (save.words, the order met; the book is part H)
-    if (spec.type === 'en_tap' && res.solved && !save.words.includes(spec.body.word)) save.words.push(spec.body.word);
+    // a word found in "listen and touch" lies in the book from now on, its button marked (part H); quiet: the cat praises
+    // the answer at that moment, Isabella's "A new word!" would talk over it
+    if (spec.type === 'en_tap' && res.solved) meetWord(save, spec.body.word, true);
     if (!KEPT.includes(spec.type)) return;
     const list = save.hard.list, k = sameness(spec), at = given.get(spec) ?? save.hard.n - 1;
     const h = list.find((x) => x.k === k);
