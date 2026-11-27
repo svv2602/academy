@@ -8656,5 +8656,13 @@
   "style": "joy",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "forest/forest_secret_roots": {
+  "text": "Печерка під корінням! Дивись, як світяться грибочки.",
+  "heard": "Печерка під корінням! Дивись, як світяться грибочки!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
