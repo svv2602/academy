@@ -7,6 +7,7 @@ import { el, items, pulseOf, tap, type PanelCtx } from './panel';
 import { hintOf } from './flow';
 import './twenty.css';
 import { cpaOf } from '../tasks/cpa';
+import { markStep } from './cpa';
 import './cpa.css';
 
 /** `n` dots in rows of ten, under the digits of a group: "count here and here" for numbers written as digits. */
@@ -21,7 +22,7 @@ export function compareView(spec: CompareSpec, c: PanelCtx) {
   // the step of the world (src/game/tasks/cpa.ts): 2 - the bigger number in small things, the smaller in big ones (the
   // number is compared, not the size); 3 - the numbers in digits, as from level 4
   const step = cpaOf(spec.level), digits = spec.body.digits || step === 3;
-  if (step > 1) c.stage.dataset.cpa = String(step);
+  markStep(c.stage, step);
   const groups = sizes.map((n, i) => {
     const g = el('button', digits ? 'group pickable digits' : 'group pickable');
     if (digits) g.appendChild(el('b', 'n', String(n))); else items(g, thing, tilt[i], 'still');

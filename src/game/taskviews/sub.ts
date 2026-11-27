@@ -9,12 +9,12 @@ import { countAloud, items, options, pulseOf, type PanelCtx } from './panel';
 import { FRAMES_FROM, countOn, takeToTen, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 import { cpaOf } from '../tasks/cpa';
-import { basket, line, takeAway, things } from './cpa';
+import { basket, line, markStep, takeAway, things } from './cpa';
 import { tf } from '../../ui/strings';
 
 export function subView(spec: SubSpec, c: PanelCtx) {
   const st = sub.start(spec), { total, gone } = spec.body, step = cpaOf(spec.level);
-  if (step > 1) c.stage.dataset.cpa = String(step);   // the first step draws exactly as it always did
+  markStep(c.stage, step);   // the first step draws exactly as it always did
   if (step === 3) line(c.stage, tf('cpa_sub', { n: total, k: gone }));
   const box = step === 1 ? null : things(c.stage, step === 3);
   const list = items(box?.box ?? c.stage, spec.body.thing, spec.body.tilt);

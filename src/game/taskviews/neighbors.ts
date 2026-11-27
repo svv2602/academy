@@ -8,6 +8,7 @@ import { el, options, pulseOf, wait, type PanelCtx } from './panel';
 import { hintOf } from './flow';
 import './neighbors.css';
 import { cpaOf } from '../tasks/cpa';
+import { markStep } from './cpa';
 import './cpa.css';
 
 /**
@@ -36,7 +37,7 @@ export function neighborsView(spec: NeighborsSpec, c: PanelCtx) {
   // the step of the world (src/game/tasks/cpa.ts): 2 - the track without its other numbers (the number and "?" alone
   // written), 3 - the number and "?" alone, no track; the hint's count shows the whole track again
   const step = cpaOf(spec.level);
-  if (step > 1) c.stage.dataset.cpa = String(step);
+  markStep(c.stage, step);
   const others = cells.filter((x, i) => i !== gap && numbers[i] !== n);
   if (step === 2) others.forEach((x) => x.classList.add('cpa-off'));
   if (step === 3) others.forEach((x) => x.classList.add('hidden'));

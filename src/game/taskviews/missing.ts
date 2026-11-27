@@ -9,7 +9,7 @@ import { tenFrames } from './tenframe';
 import { hintOf } from './flow';
 import './compose.css';
 import { cpaOf } from '../tasks/cpa';
-import { asNumber } from './cpa';
+import { asNumber, markStep } from './cpa';
 
 /**
  * Counting up (rung 2 of HINTS.md for the composition of a number): from the number that is there, dots come one by
@@ -42,7 +42,7 @@ export function missingView(spec: MissingSpec, c: PanelCtx) {
   if (framed) tenFrames(known, things, true);
   // the step of the world (src/game/tasks/cpa.ts): 2 and 3 - the known addend as its number; the hint shows its things
   const step = cpaOf(spec.level);
-  if (step > 1) c.stage.dataset.cpa = String(step);
+  markStep(c.stage, step);
   const open = step === 1 ? () => {} : asNumber(known, a);
   // the hint's dots take the place of "?" (q.remove below): then the answer does not fly
   const ok = options(c, spec.body.options, (v) => missing.answer(spec, st, v) === 'right', { at: () => (q.isConnected ? q : null), row: () => [...c.stage.children] as HTMLElement[] });

@@ -6,6 +6,14 @@
 import { el } from './panel';
 import './cpa.css';
 
+/**
+ * Marks the panel with the step its task is drawn at (`data-cpa`, 2 or 3), or takes the mark off (step 1: drawn as it
+ * always was). The panel keeps the stage element from task to task and does not clear this mark itself.
+ */
+export function markStep(stage: HTMLElement, step: number) {
+  if (step > 1) stage.dataset.cpa = String(step); else delete stage.dataset.cpa;
+}
+
 /** The basket the things taken go into: open with "− k" (the picture), or closed (the numbers). */
 export function basket(parent: HTMLElement, k: number, closed: boolean) {
   const b = el('div', closed ? 'cpa-basket closed' : 'cpa-basket');

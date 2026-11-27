@@ -198,6 +198,17 @@ describe('the other number tasks by the step', () => {
     expect(all('.cpa-asnum')).toHaveLength(0);
   });
 
+  it('the panel kept from task to task: a task at step 1 after one at step 3 carries no mark of step 3', async () => {
+    await openType('add', 3);
+    expect(stage().dataset.cpa).toBe('3');
+    for (const type of ['sub', 'add', 'count', 'compare', 'neighbors', 'missing'] as const) {
+      await openType(type === 'sub' ? 'add' : type, 3);
+      cpaHold.step = 1;
+      void runTask(type, type === 'neighbors' ? 4 : 2, hooks, mulberry32(3));
+      expect(stage().dataset.cpa, type).toBeUndefined();
+    }
+  });
+
   it('no step limits the time of an answer or counts a mistake: an hour open at every step (LEARN-14)', async () => {
     for (const type of ['sub', 'add', 'count', 'compare', 'neighbors', 'missing'] as const) {
       for (const step of [1, 2, 3] as const) {

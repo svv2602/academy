@@ -7,7 +7,7 @@ import { countAloud, el, items, options, pulseOf, type PanelCtx } from './panel'
 import { FRAMES_FROM, countOn, fillTen, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 import { cpaOf } from '../tasks/cpa';
-import { asNumber } from './cpa';
+import { asNumber, markStep } from './cpa';
 
 export function addView(spec: AddSpec, c: PanelCtx) {
   const st = add.start(spec), { a, thing, tilt } = spec.body, framed = spec.level >= FRAMES_FROM || c.framed === true;   // c.framed: the abacus
@@ -19,7 +19,7 @@ export function addView(spec: AddSpec, c: PanelCtx) {
   // the step of the world (src/game/tasks/cpa.ts): 2 - the first group as its number (counting on from it), 3 - both;
   // the hint opens the things again, as do the answer
   const step = cpaOf(spec.level);
-  if (step > 1) c.stage.dataset.cpa = String(step);
+  markStep(c.stage, step);
   const backs = step === 1 ? [] : [asNumber(ga, a), ...(step === 3 ? [asNumber(gb, all.length - a)] : [])];
   const open = () => backs.forEach((b) => b());
   const ok = options(c, spec.body.options, (v) => add.answer(spec, st, v) === 'right', { at: () => q, row: () => [...c.stage.children] as HTMLElement[] });

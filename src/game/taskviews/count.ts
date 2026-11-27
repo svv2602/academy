@@ -7,7 +7,7 @@ import { badge, countAloud, el, items, options, pulseOf, tap, type PanelCtx } fr
 import { FRAMES_FROM, countOn, tenFrames } from './tenframe';
 import { hintOf } from './flow';
 import { cpaOf } from '../tasks/cpa';
-import { things } from './cpa';
+import { markStep, things } from './cpa';
 import { CPA_PEEK_MS } from '../../core/tuning';
 import { t } from '../../ui/strings';
 
@@ -16,7 +16,7 @@ export function countView(spec: CountSpec, c: PanelCtx) {
   // the step of the world (src/game/tasks/cpa.ts): 2 - the things scattered, not in rows; 3 - shown for a moment
   // (CPA_PEEK_MS, seen at a glance), then hidden; «Ще раз» shows them again, as often as she likes, and costs nothing
   const step = cpaOf(spec.level);
-  if (step > 1) c.stage.dataset.cpa = String(step);
+  markStep(c.stage, step);
   const box = step === 3 ? things(c.stage, false) : null;
   const list = items(box?.box ?? c.stage, spec.body.thing, spec.body.tilt);
   if (framed) tenFrames(box?.box ?? c.stage, list);   // c.framed: the abacus (src/game/helpers.ts)
