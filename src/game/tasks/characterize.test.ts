@@ -120,7 +120,7 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   note: [
     'd36de8d9 4b2be564 7c2877fe 87b178ef e9da07e0 f53b1d37 1a5825bd 418d707d 31a617b3 d36de8d9',
     'ae93d1b4 89f992ca 8a952ff6 cbfb135b 293ea2fe cbfb135b b60d204d 7d6e010d ba4d607b 9f46914a',
-    '5b902f72 ff51b2a1 4d3f951f 0bf6f1b2 abb56ce6 8c06bc49 f30e8ab4 f48c09b1 d8003c24 5cdf2f30',
+    '5b902f72 ff51b2a1 4d3f951f 0bf6f1b2 29b9a92a 8c06bc49 f30e8ab4 adeec257 d8003c24 5cdf2f30',
   ],
 };
 

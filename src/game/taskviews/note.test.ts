@@ -80,7 +80,8 @@ describe('the notes (layout §3)', () => {
       } else if (q.ask === 'pebbles') {
         const pink = b.pebbles!.filter((c) => c === PINK).length;
         expect(pink).toBeGreaterThanOrEqual(3); expect(pink).toBeLessThanOrEqual(5);
-        expect(b.pebbles!.length - pink).toBeGreaterThanOrEqual(2);
+        expect(b.pebbles!.length - pink).toBeGreaterThanOrEqual(3);
+        expect(b.options).toHaveLength(4);
         expect(b.options[b.answer]).toBe(pink);
         expect(b.options).toContain(b.pebbles!.length);
       } else expect(b.options[b.answer]).toBe(4);

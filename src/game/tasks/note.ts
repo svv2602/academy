@@ -54,10 +54,11 @@ export function noteExample(level: number, id: NoteId, rng: Rng): NoteSpec {
     right = q.right;
     options = shuffle([q.right, ...shuffle([...q.wrong], rng).slice(0, choicesAt(level) - 1)], rng);
   } else if (q.ask === 'pebbles') {
-    const pink = randInt(3, 5, rng), other = randInt(2, 4, rng);
+    const pink = randInt(3, 5, rng), other = randInt(3, 4, rng);
     pebbles = shuffle([...Array(pink).fill(PINK), ...Array.from({ length: other }, () => pick(OTHER_PEBBLES, rng))], rng);
     right = pink;
-    // the count of all the pebbles is among the answers: the note asks for the pink ones only
+    // the count of all the pebbles is among the answers: the note asks for the pink ones only; there are at least six,
+    // so four answers - room for the three mistakes of the hint
     options = [...new Set([3, 4, 5, pink + other])].sort((a, b) => a - b);
   } else {
     right = q.right;

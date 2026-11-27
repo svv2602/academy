@@ -149,6 +149,8 @@ const QUESTIONS = {
   missing: ['t_missing'], house: ['t_house'], neighbors: ['t_before', 't_after'], signs: ['t_signs'], diff: ['t_diff'],
   // the English tasks (Season 2, part D1): "listen and touch" is asked on the screen only, "how many" by the cat's question of "count"
   en_tap: ['q_en_tap'], en_count: ['t_count'],
+  // the note (part D2): asked on the screen only
+  note: ['q_note'],
 };
 // Addition, take away, counting and the neighbours of a number ask the very example with its clip of the bank of the old game's clips (R37,
 // src/core/voice.ts `sayBank`): the bubble then holds the key of the bank. Without network a clip not kept yet gives
@@ -175,15 +177,15 @@ const SHOWS = {
   count: '#taskStage .it i', add: '#taskStage .it i', sub: '#taskStage .it i', compare: '#taskStage .group em, #taskStage .dots', pattern: '#taskStage.units',
   odd: '#taskStage .it.alike', order: '#taskStage .track', sort: '#taskOpts .basket.own', simon: '#taskStage.watch',
   missing: '#taskStage .up', house: '#taskStage .up', neighbors: '#taskStage .road .cell.said', signs: '#taskStage .side .tf > .pt',
-  en_tap: '#taskStage .en-pic.outline', en_count: '#taskStage .it i',
+  en_tap: '#taskStage .en-pic.outline', en_count: '#taskStage .it i', note: '#taskStage .note-w.key',
 };
 // The kinds of task no chain of the first world asks (they belong to later worlds): each is closed with its button -
 // PLAY-02, nothing recorded - in the block that opens it, not in a chain; the block names itself here.
-const OWN_CLOSE = { diff: 'diff', en_tap: 'en-tasks', en_count: 'en-tasks' };
+const OWN_CLOSE = { diff: 'diff', en_tap: 'en-tasks', en_count: 'en-tasks', note: 'en-tasks' };
 // What gives the answer away (HINTS.md, "Проверка ступени 1"): after the first mistake none of it may be on screen (R16).
 const GIVEAWAY = ['#taskStage .it i', '#taskStage .group em', '#taskStage .dots', '#task .grow', '#task .shrink', '#task .alike', '#taskStage.units',
   '#task .pulse', '#taskStage.watch', '#taskStage .track', '#task .try', '#task .own', '#task .glow', '#task .away', '#taskStage .it.hit',
-  '#taskStage .up', '#taskStage .dots-up', '#taskStage .cell.said', '#taskStage .side .tens', '#taskStage .en-pic.outline', '#taskStage .en-word'].join(', ');
+  '#taskStage .up', '#taskStage .dots-up', '#taskStage .cell.said', '#taskStage .side .tens', '#taskStage .en-pic.outline', '#taskStage .en-word', '#taskStage .note-w.key'].join(', ');
 let origin, host, basePath;
 try { ({ origin, hostname: host, pathname: basePath } = new URL('.', url)); } catch { usage(`bad url "${url}"`); }
 const T = (ms) => Math.round(ms * slow);
@@ -3673,7 +3675,8 @@ try {
       // Each number task opened by __game.task at each step held by the lever: what the step draws is on the panel (the
       // things taken still coloured at 2, the numbers alone at 3, ...), pictured cpa-<type>-<step>; solved, then the
       // lever let go.
-      // ---- the English tasks (Season 2, step 2, part D1): "listen and touch" and "how many" in English ----
+      // ---- the English tasks (Season 2, step 2, part D1): "listen and touch" and "how many" in English; and the note
+      // for reading (part D2), asked on the screen only the same way ----
       // Each is closed with its button first (nothing recorded), then opened, its question checked, three deliberate
       // mistakes each with its rung (1 gives nothing away, 2 shows the solution, 3 lights the right answer alone),
       // then solved. Their question is never left to the synthesizer: the voice check at the end of the run fails a
@@ -3685,17 +3688,18 @@ try {
           await g((t) => { window.__en = null; void __game.task(t, 3).then((r) => { window.__en = r; }); }, type);
           await page.locator('#task:not(.hidden) #taskStage > *').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type}: the panel did not open`));
         };
-        for (const type of ['en_tap', 'en_count']) {
-          const skill = await g(() => JSON.stringify(__game.save.skills.en_words ?? null));
+        const SKILL_OF = { en_tap: 'en_words', en_count: 'en_words', note: 'read' };
+        for (const type of ['en_tap', 'en_count', 'note']) {
+          const skill = await g((k) => JSON.stringify(__game.save.skills[k] ?? null), SKILL_OF[type]);
           await open(type);
           await tapOn('#taskClose').catch((e) => fail(`${type}: #taskClose cannot be pressed: ${why(e)}`));
           await gameFor(() => window.__en !== null, null, 20).catch(() => fail(`${type}: closed with its button, the task did not end`));
-          const r = await g(() => window.__en), after = await g(() => JSON.stringify(__game.save.skills.en_words ?? null));
-          if (r.solved || r.wrong !== 0 || after !== skill) fail(`${type}: closed with its button: the result ${JSON.stringify(r)}, en_words ${skill} -> ${after}`);
+          const r = await g(() => window.__en), after = await g((k) => JSON.stringify(__game.save.skills[k] ?? null), SKILL_OF[type]);
+          if (r.solved || r.wrong !== 0 || after !== skill) fail(`${type}: closed with its button: the result ${JSON.stringify(r)}, ${SKILL_OF[type]} ${skill} -> ${after}`);
           await calm();
         }
-        told.push('both closed with their button: unsolved, nothing recorded');
-        for (const type of ['en_tap', 'en_count']) {
+        told.push('all three closed with their button: unsolved, nothing recorded');
+        for (const type of ['en_tap', 'en_count', 'note']) {
           await open(type);
           await calm();
           const b = await bubbleNow();
@@ -3706,6 +3710,14 @@ try {
             const kinds = await g(() => [...document.querySelectorAll('#taskStage .en-pic')].map((e) => e.dataset.word));
             if (kinds.length !== 4) fail(`en_tap on level 3: ${kinds.length} pictures, not 4`);
             if (await g(() => !!document.querySelector('#taskStage .en-word'))) fail('en_tap: the translation is shown before the answer');
+          }
+          if (type === 'note') {
+            // src/s2/strings-tasks.ts q_note; the note itself Ukrainian whatever the language (R08), its Russian a caption
+            if (!['Прочитай записку Піпа', 'Прочитай записку Пипа'].includes(b.text)) fail(`note: the bubble shows "${b.text}", not the question of the screen`);
+            const n = await g(() => ({ id: document.querySelector('#taskStage .note-paper')?.dataset.note ?? '', text: document.querySelector('#taskStage .note-text')?.lang ?? '',
+              ru: !!document.querySelector('#taskStage .note-ru') }));
+            if (!/^note_\d$/.test(n.id) || n.text !== 'uk') fail(`note: no Ukrainian note on the panel (${JSON.stringify(n)})`);
+            told.push(`note: ${n.id} on the panel, in Ukrainian${n.ru ? ' with its Russian caption' : ''}`);
           }
           await shot(`task-${type}`);
           for (let k = 1; k <= 3; k++) {
