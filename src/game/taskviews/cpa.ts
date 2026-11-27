@@ -1,0 +1,48 @@
+/**
+ * What the shows of the number tasks share for the steps «things → picture → numbers» (src/game/tasks/cpa.ts): the
+ * basket the things taken go into, the box that hides the things on the step of numbers, the line of numbers in words.
+ * Not in ./panel.ts (the shared panel of another part): its own module, imported by the shows that use it.
+ */
+import { el } from './panel';
+import './cpa.css';
+
+/**
+ * Marks the panel with the step its task is drawn at (`data-cpa`, 2 or 3), or takes the mark off (step 1: drawn as it
+ * always was). The panel keeps the stage element from task to task and does not clear this mark itself.
+ */
+export function markStep(stage: HTMLElement, step: number) {
+  if (step > 1) stage.dataset.cpa = String(step); else delete stage.dataset.cpa;
+}
+
+/** The basket the things taken go into: open with "− k" (the picture), or closed (the numbers). */
+export function basket(parent: HTMLElement, k: number, closed: boolean) {
+  const b = el('div', closed ? 'cpa-basket closed' : 'cpa-basket');
+  b.append(el('span', 'cpa-bk', '🧺'), el('span', 'cpa-k', `− ${k}`));
+  parent.appendChild(b);
+  return b;
+}
+
+/** The things `list` go into the basket: they leave the picture after the answer (a short flight, then gone). */
+export function takeAway(list: readonly HTMLElement[]) {
+  for (const [i, e] of list.entries()) { e.style.setProperty('--d', `${i * 60}ms`); e.classList.add('taken'); }
+}
+
+/** A box for the things of a show; hidden on the step of numbers until `open()` (the answer, or a hint). */
+export function things(parent: HTMLElement, hidden: boolean) {
+  const box = el('div', hidden ? 'cpa-things hid' : 'cpa-things');
+  parent.appendChild(box);
+  return { box, open: () => box.classList.remove('hid'), get hidden() { return box.classList.contains('hid'); } };
+}
+
+/**
+ * A group of things drawn as its number (the steps of the picture and of the numbers): the things stay in it, hidden,
+ * for the hint to show (`open`). Nothing changes on the first step.
+ */
+export function asNumber(group: HTMLElement, n: number) {
+  group.classList.add('cpa-asnum');
+  group.dataset.n = String(n);
+  return () => group.classList.remove('cpa-asnum');
+}
+
+/** A line of the task in numbers and words on the screen ("Було 8, 3 забрали"). */
+export const line = (parent: HTMLElement, text: string) => { const p = el('div', 'cpa-line', text); parent.appendChild(p); return p; };

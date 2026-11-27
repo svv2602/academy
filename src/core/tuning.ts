@@ -133,3 +133,14 @@ export const GUIDE = {
   flashEveryS: 8,
   flashM: 4,
 } as const;
+
+/**
+ * The steps «things → picture → numbers» of the number tasks (src/game/tasks/cpa.ts, the customer's word of 2026-11-27:
+ * «да, делаем всё»): the step of each world - 1 the things as they are, 2 a picture that does not give the answer
+ * away, 3 the numbers - and the level of a skill at or under which the task comes a step lower (CPA_LOW). A world not
+ * named here (the hub: the furthest world she has been in decides) is step 1.
+ */
+export const CPA: Record<string, 1 | 2 | 3> = { fairy: 1, forest: 2, sea: 2, sweet: 3, sky: 3 };
+export const CPA_LOW = 2;
+/** ms: on the step of numbers the things of a count are shown this long, then hidden; «Ще раз» shows them again. */
+export const CPA_PEEK_MS = 2000;

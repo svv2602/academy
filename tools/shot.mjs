@@ -3992,6 +3992,38 @@ try {
         await g(([was, fixed]) => { __game.save.skills = JSON.parse(was); __game.save.fixed.add = fixed; }, [skillsBefore, fixedBefore]);
         console.log(`dare: after the unicorn's game of level 3 solved cleanly the unicorn asked and the card came (buttons ${card.b.map((x) => `${x.text} ${x.w}x${x.h}`).join(', ')}); put off - nothing more; taken with a mistake - a star, the level stayed; taken and solved cleanly - addition on level 4; no card in the fast climb nor with the level fixed`);
       }
+      // ---- the steps «things → picture → numbers» (src/game/tasks/cpa.ts, the customer's word of 2026-11-27) ----
+      // Each number task opened by __game.task at each step held by the lever: what the step draws is on the panel (the
+      // things taken still coloured at 2, the numbers alone at 3, ...), pictured cpa-<type>-<step>; solved, then the
+      // lever let go.
+      if (has('cpa')) {
+        const fail = (what) => { throw new Error(`cpa: ${what}`); };
+        const told = [];
+        for (const type of ['sub', 'add', 'count', 'compare', 'neighbors', 'missing']) {
+          for (const step of [1, 2, 3]) {
+            const level = type === 'neighbors' ? 4 : 2;
+            await g(([s, t, l]) => { __game.cpa.hold(s); window.__cpa = null; void __game.task(t, l).then((r) => { window.__cpa = r; }); }, [step, type, level]);
+            // comparing is answered by a tap on a group, the others by an answer button
+            await page.locator('#task:not(.hidden) :is(.opt, .group.pickable)').first().waitFor({ timeout: 20000 }).catch(() => fail(`${type} ${step}: the task did not open`));
+            await calm();
+            const seen = await g(() => {
+              const st = document.getElementById('taskStage'), vis = (e) => !e.closest('.cpa-asnum, .hid, .hidden');
+              return { cpa: st.dataset.cpa ?? '1', things: [...st.querySelectorAll('.it')].filter(vis).length, gone: st.querySelectorAll('.it.gone').length,
+                line: st.querySelector('.cpa-line')?.textContent ?? null, nums: [...st.querySelectorAll('.cpa-asnum')].map((x) => x.dataset.n) };
+            });
+            if (seen.cpa !== String(step)) fail(`${type} ${step}: the panel is drawn at step ${seen.cpa}`);
+            if (type === 'sub' && step === 2 && seen.gone) fail(`sub 2: ${seen.gone} things greyed before the answer`);
+            if (type === 'sub' && step === 3 && (seen.things || !seen.line)) fail(`sub 3: ${seen.things} things seen, the line ${seen.line}`);
+            if (type === 'add' && step === 3 && (seen.things || seen.nums.length !== 2)) fail(`add 3: ${seen.things} things seen, numbers ${seen.nums}`);
+            await shot(`cpa-${type}-${step}`);
+            await g(() => __game.cheat());
+            await gameFor(() => window.__cpa !== null, null, 20).catch(() => fail(`${type} ${step}: the task did not end once solved`));
+            told.push(`${type} ${step}: ${seen.things} things${seen.line ? `, "${seen.line}"` : ''}${seen.nums.length ? `, numbers ${seen.nums}` : ''}`);
+          }
+        }
+        await g(() => __game.cpa.hold(null));
+        console.log(`cpa: ${told.join('; ')}`);
+      }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
       // cat tells of it (once that day), the tile has the ribbon and the deal's price; bought at that price (the watch
