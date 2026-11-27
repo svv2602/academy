@@ -638,3 +638,113 @@ describe('recorded clips', () => {
     expect(worldList('probe')).toEqual(['probe_hi']);
   });
 });
+
+// English (Season 2, part B): `--en` records Pip's lines of voice/phrases-en.json in Zephyr, the sixth voice, in British
+// English; the book's Isabella (Kokoro, recorded free elsewhere) is never sent. The stand-in service answers with the
+// text it was sent, and the stand-in transcription reads it back: no request leaves.
+describe('tools/gen_voice.py --en: Pip in English (Zephyr)', { timeout: 60_000 }, () => {
+  let n = 0;
+  const EN = {
+    wb_w_cat: ['Cat.', 'en', 'Isabella', 'hub'],
+    pip_hi: ['Hello! I am Pip.', 'en', 'Zephyr', 'hub'],
+    pip_red: ['Red!', 'en', 'Zephyr', 'fairy'],
+  };
+  function tree(phrases = EN) {
+    const dir = join(tmp, `en-${++n}`);
+    for (const d of ['voice', 'public/en', 'src/core']) mkdirSync(join(dir, d), { recursive: true });
+    writeFileSync(join(dir, 'voice/phrases-en.json'), JSON.stringify(phrases));
+    writeFileSync(join(dir, 'voice/phrases.json'), JSON.stringify({ hello: ['Привіт!', 'warm', '🐱'] }));
+    writeFileSync(join(dir, 'public/en/wb_w_cat.mp3'), 'kokoro');
+    writeFileSync(join(dir, 'key.env'), 'GEMINI_API_KEY=stand-in\n');
+    return dir;
+  }
+  function run(dir, ...argv) {
+    const r = py(`
+import base64, types
+v.ROOT = pathlib.Path(${JSON.stringify(dir)})
+v.KEY_FILE = v.ROOT / 'key.env'
+v.PACE = 0
+sent = []
+def post(url, body, key):
+    sent.append({'text': body['contents'][0]['parts'][0]['text'], 'voice': body['generationConfig']['speechConfig']['voiceConfig']['prebuiltVoiceConfig']['voiceName'], 'style': body['generationConfig']['speechConfig'].get('style')})
+    said = body['contents'][0]['parts'][0]['text'].split('\\n')[-1]
+    return {'candidates': [{'content': {'parts': [{'inlineData': {'data': base64.b64encode(said.encode()).decode()}}]}}]}
+v.post = post
+v.encode = lambda pcm, out: pathlib.Path(out).write_bytes(pcm)
+stand_in = types.ModuleType('gen_audio')
+stand_in.transcribe = lambda path: 'українською'
+stand_in.transcribe_en = lambda path: pathlib.Path(path).read_bytes().decode()
+sys.modules['gen_audio'] = stand_in
+sys.argv = ['gen_voice.py'] + json.loads(${JSON.stringify(JSON.stringify(argv))})
+try:
+    v.main()
+finally:
+    print('SENT ' + json.dumps(sent, ensure_ascii=False))`);
+    const lines = r.out.split('\n');
+    return { ...r, lines, sent: JSON.parse(lines.find((l) => l.startsWith('SENT '))?.slice(5) ?? '[]') };
+  }
+  const json = (dir, path) => JSON.parse(readFileSync(join(dir, path), 'utf8'));
+
+  it('the five Ukrainian voices stay five; Zephyr is the sixth, for English only', () => {
+    const r = py('print(json.dumps([list(v.VOICES), list(v.EN_VOICES), list(v.EN_LOCAL), "British English" in v.EN_STYLE]))');
+    expect(r.code, r.err).toBe(0);
+    expect(JSON.parse(r.out)).toEqual([['Puck', 'Charon', 'Sulafat', 'Leda', 'Orus'], ['Zephyr'], ['Isabella'], true]);
+  });
+
+  it('--dry-run counts the lines by voice, sends nothing, reads no key and writes nothing', () => {
+    const dir = tree();
+    rmSync(join(dir, 'key.env'));
+    const r = run(dir, '--en', '--dry-run');
+    expect(r.code, r.err).toBe(0);
+    expect(r.lines[0]).toBe('2 of 2 English lines of Zephyr to record, model gemini-2.5-flash-preview-tts: pip_hi pip_red');
+    expect(r.lines[1]).toBe("English lines by voice: Zephyr 2, Isabella 1 (Isabella is Kokoro's, never sent from here)");
+    expect(r.sent).toEqual([]);
+    expect(readdirSync(join(dir, 'public/en'))).toEqual(['wb_w_cat.mp3']);
+    expect(existsSync(join(dir, 'voice/qa-en.json'))).toBe(false);
+    expect(existsSync(join(dir, 'src/core/clips-en.json'))).toBe(false);
+  });
+
+  it('records only Zephyr, in British English, into public/en; hears it back in English; lists every clip of public/en', () => {
+    const dir = tree();
+    const r = run(dir, '--en');
+    expect(r.code, r.err).toBe(0);
+    expect(r.sent.map((s) => s.voice)).toEqual(['Zephyr', 'Zephyr']);
+    for (const s of r.sent) expect(s.text).toMatch(/^Speak in clear, friendly British English[^\n]*\n\n/);
+    expect(r.sent.map((s) => s.text.split('\n').at(-1))).toEqual(['Hello! I am Pip.', 'Red!']);
+    expect(readFileSync(join(dir, 'public/en/wb_w_cat.mp3'), 'utf8'), 'the Kokoro clip is not touched').toBe('kokoro');
+    expect(json(dir, 'src/core/clips-en.json')).toEqual(['pip_hi', 'pip_red', 'wb_w_cat']);
+    const qa = json(dir, 'voice/qa-en.json');
+    expect(Object.keys(qa)).toEqual(['pip_hi', 'pip_red']);
+    expect(qa.pip_hi).toMatchObject({ text: 'Hello! I am Pip.', heard: 'Hello! I am Pip.', score: 1, style: 'en', voice: 'Zephyr' });
+    // the Ukrainian list and its clips are not touched
+    expect(existsSync(join(dir, 'public/voice'))).toBe(false);
+    expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
+    // recorded once: a second run sends nothing
+    expect(run(dir, '--en').sent).toEqual([]);
+  });
+
+  it('the new model takes the British style in a field of its own, not read aloud', () => {
+    const r = run(tree(), '--en', '--model=new', '--only=pip_red');
+    expect(r.code, r.err).toBe(0);
+    expect(r.sent).toEqual([{ text: 'Red!', voice: 'Zephyr', style: expect.stringMatching(/^Speak in clear, friendly British English/) }]);
+  });
+
+  it('--only an Isabella line, an unknown line, or a voice that is neither: nothing is sent', () => {
+    const local = run(tree(), '--en', '--only=wb_w_cat');
+    expect(local.err).toContain('gen_voice: nothing was sent. These are lines of Isabella, recorded free with Kokoro, not here: wb_w_cat');
+    const none = run(tree(), '--en', '--only=pip_whale');
+    expect(none.err).toContain('gen_voice: nothing was sent. Not in voice/phrases-en.json: pip_whale');
+    const puck = run(tree({ ...EN, odd: ['Hi.', 'en', 'Puck', 'hub'] }), '--en', '--dry-run');
+    expect(puck.err).toContain('neither Zephyr nor Isabella: odd');
+    for (const r of [local, none, puck]) { expect(r.code).not.toBe(0); expect(r.sent).toEqual([]); }
+  });
+
+  it('the real list: a dry run counts its lines by voice and reads no key (the paid Zephyr waits for the customer, R25)', () => {
+    const out = execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--en', '--dry-run'],
+      { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
+    const rows = Object.values(JSON.parse(readFileSync(join(root, 'voice/phrases-en.json'), 'utf8')));
+    const of = (v) => rows.filter((r) => r[2] === v).length;
+    expect(of('Isabella')).toBeGreaterThan(0);
+    expect(out.split('\n')[1]).toBe(`English lines by voice: Zephyr ${of('Zephyr')}, Isabella ${of('Isabella')} (Isabella is Kokoro's, never sent from here)`);
+  });
+});

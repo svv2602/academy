@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { MAX_DIST, MAX_DIST_FILE, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
+import { MAX_DIST, MAX_DIST_FILE, MAX_EN, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
 
 const dirs = [];
 afterAll(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
@@ -32,6 +32,21 @@ describe('the size budget of the build', () => {
     expect(over.problems).toEqual(['dist/voice/: 2100 bytes in 3 files, the limit is 2000']);
     // A file that only has "voice" in its name is the game's.
     expect(checkDistSize(folder({ 'assets/voice.js': 900, 'b': 200 }), 1000, 1000, 2000).problems.join()).toContain('without voice/');
+  });
+
+  it('leaves the English clips (en/, Season 2) out of the first load, with a limit of their own of 3 MB, never precached', () => {
+    expect(MAX_EN).toBe(3_000_000);
+    const layout = { worlds: [], first: null, maxEn: 1000 };
+    const r = checkDistSize(folder({ 'a.glb': 900, 'voice/x.mp3': 900, 'en/wb_w_cat.mp3': 500, 'en/wb_p_cat.mp3': 500 }), 1000, 1000, 1000, layout);
+    expect(r.problems).toEqual([]);
+    expect([r.total, r.voice, r.bank, r.en, r.files]).toEqual([900, 900, 0, 1000, 4]);
+    const over = checkDistSize(folder({ 'a.glb': 900, 'en/wb_w_cat.mp3': 600, 'en/wb_p_cat.mp3': 500 }), 1000, 1000, 1000, layout);
+    expect(over.problems).toEqual(['the English clips (en/): 1100 bytes in 2 files, the limit is 1000']);
+    const big = checkDistSize(folder({ 'a.glb': 900, 'en/wb_w_cat.mp3': 1001 }), 1000, 1000, 1000, { ...layout, maxEn: 5000 });
+    expect(big.problems).toEqual(['en/wb_w_cat.mp3: 1001 bytes, the limit for one file is 1000']);
+    const dir = folder({ 'a.glb': 900, 'en/wb_w_cat.mp3': 500 });
+    writeFileSync(join(dir, 'sw.js'), 'define(["./workbox-1"],(function(e){e.precacheAndRoute([{url:"en/wb_w_cat.mp3",revision:"1"}])}));');
+    expect(checkDistSize(dir, 2000, 1000, 1000, layout).problems).toEqual(['sw.js precaches 1 files of en/: the English clips are not part of the first load (vite.config.ts globIgnores)']);
   });
 
   it('leaves the bank of the old game out of both limits (R37), but holds each of its files to the limit for one', () => {
