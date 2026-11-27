@@ -4314,6 +4314,17 @@ try {
             const back = await read(page);
             if (off(back.t, { speed: 5.4, runFrom: 1.3, camDist: 6.2 }).length) errors.push(`controls: "normal" did not bring the numbers back: ${off(back.t, { speed: 5.4, runFrom: 1.3, camDist: 6.2 }).join(', ')}`);
             if (back.stored && Object.keys(back.stored).length) errors.push(`controls: after "normal" the save still has ${JSON.stringify(back.stored)}`);
+            // the cat's sparkles (src/game/guide-rule.ts): "only when asked" is written and read by the guide; "as in the
+            // world" stores nothing
+            const hints = () => g(() => ({ save: __game.save.hints ?? null, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').hints ?? null,
+              sel: [...document.querySelectorAll('[data-hints].sel')].map((b) => b.dataset.hints).join(' ') }));
+            await page.click('[data-hints=asked]'); await calm();
+            const h1 = await hints();
+            if (h1.save !== 'asked' || h1.stored !== 'asked' || h1.sel !== 'asked') errors.push(`controls: the cat's hints "only when asked" ${JSON.stringify(h1)}`);
+            await page.click('[data-hints=world]'); await calm();
+            const h2 = await hints();
+            if (h2.save !== null || h2.stored !== null || h2.sel !== 'world') errors.push(`controls: the cat's hints back "as in the world" ${JSON.stringify(h2)}`);
+            else console.log('controls: the cat\'s hints "only when asked" written, "as in the world" stores nothing');
             await page.click('#pCtlBack'); await calm();
           }
           // closed and opened again: another example, and the section is shut until it is answered

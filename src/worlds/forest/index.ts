@@ -389,7 +389,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         if (l) return l.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
-        return finaleItem.done() ? null : altar;
+        // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+        return g.easel.goal() ?? (finaleItem.done() ? null : altar);
       },
       animate: (dt, time) => { flies.update(time); player.update(time); hubWay.update(time); secrets.animate(dt); },
       focusDist: () => 6.5,

@@ -123,6 +123,11 @@ export interface Save {
    */
   controls?: Controls;
   /**
+   * The cat's sparkles (src/game/guide-rule.ts, the parents' section, the customer's word of 2026-11-27): as the world
+   * has them, always, or only when asked by a tap on the cat. Absent or damaged = as the world has them.
+   */
+  hints?: HintsChoice;
+  /**
    * The world she was in last (WORLD-01, TECH-09; the hub too): "Continue" opens it, through the gate of worlds
    * (src/main.ts). Written at every entry into a world. Absent, or a world this build does not have: the default world.
    * Progress, not the device's: the transfer code carries it, "Start again" clears it. Anything but a word is absent.
@@ -217,6 +222,9 @@ function controlsOf(v: unknown): Controls {
 export const BREAK_CHOICES: readonly number[] = [0, 10, 15, 20, 30];
 /** The minutes before a break of a save that has not chosen (Q8: 20). */
 export const BREAK_DEFAULT = 20;
+/** The parent's choices of the cat's sparkles (Save.hints): as the world has them, always, only when asked. */
+export const HINTS = ['world', 'always', 'asked'] as const;
+export type HintsChoice = (typeof HINTS)[number];
 
 export interface Gear { head: string | null; wand: string | null; wings: string | null; trail: string | null }
 
@@ -569,6 +577,7 @@ function fromStored(s: Stored, d: Save): Save | null {
       .filter(([day]) => DAY.test(day))
       .map(([day, counts]) => [day, countsOf(counts, (n) => Number.isInteger(n) && n > 0)]));
   }
+  if (s.hints !== undefined) { if (HINTS.includes(s.hints)) out.hints = s.hints; else delete out.hints; }
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);
