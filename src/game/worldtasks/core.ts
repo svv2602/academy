@@ -62,6 +62,11 @@ export interface WorldTaskShow {
    * The camera stands back far enough to show all of it (`side` in the width of the screen, `depth` in its height).
    */
   readonly extent: { side: number; depth: number };
+  /**
+   * The task's own things that reach out of its footprint (`extent` around `center`): the gingerbread house's facade
+   * stands tall behind its pieces. What stands between the camera and the task (./blockers.ts) does not count them.
+   */
+  readonly own?: readonly THREE.Object3D[];
   /** A tap while the task is open takes it, even one that hits nothing (true). */
   tap(screenDist: (p: THREE.Vector3) => number): boolean;
   /** The farthest a tap may land from a thing on the screen, in pixels. */
