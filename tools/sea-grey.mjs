@@ -20,7 +20,8 @@
 //    - the draw at every point of the tour, and a picture from every target and every point of the tour;
 //    - the draw by every secret (the grotto from before its curtain and from inside, by its shell);
 //    - on q2 a point over BUDGET (triangles or draw calls; tools/grey-route.mjs, 2026-11-27 as the forest's, the Sweet
-//      Land's and the Sky Islands') fails the run.
+//      Land's and the Sky Islands') fails the run at the stretch the game plays (SHIPPED_SCALE); at another one it is
+//      only told.
 //    The numbers go to <out>/measures.json and to the log; <out> is shots-e2e/sea-grey by default.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -35,6 +36,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = 'dist-grey';
 /** m from the end of a way where she has come (the end of a way is the middle of its zone; the throne is a shell she swims over). */
 export const REACHED = 3.5;
+
+/** The stretch the game plays (src/worlds/sea/layout.ts DEFAULT_SCALE, the customer's of 2026-11-20): the budget fails
+ * the run there only. The other stretch of --scales is the one turned down, measured to compare. */
+export const SHIPPED_SCALE = 1.6;
+/** Whether the measures of a stretch fail the run by the budget. */
+export function budgetFails(m) { return m.scale === SHIPPED_SCALE && m.over.length > 0; }
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
 export function readArgs(argv) {
@@ -101,7 +108,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [], water = [];
   try {
-    if (args.measure) for (const scale of args.scales) { const m = await measure(browser, url, scale, args.out, args.q); all.push(m); if (m.over.length) failed = true; }
+    if (args.measure) for (const scale of args.scales) { const m = await measure(browser, url, scale, args.out, args.q); all.push(m); if (budgetFails(m)) failed = true; }
     if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
   } finally { await browser.close(); server.close(); }
   if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
@@ -276,7 +283,7 @@ async function measure(browser, url, scale, out, q = 2) {
   console.log(`[grey]   the tour: ${tour.map((t) => `${t.calls}/${Math.round(t.tris / 1000)}k`).join(', ')}; the heaviest: ${heaviest.at}, ${heaviest.calls} calls, ${Math.round(heaviest.tris / 1000)}k triangles`);
   if (secretDraws.length) console.log(`[grey]   the secrets: ${secretDraws.map((d) => `${d.secret} ${d.calls}/${Math.round(d.tris / 1000)}k${d.shown === false ? ' (the whale NOT shown)' : ''}${d.inside === false ? ' (NOT in the hold)' : ''}`).join(', ')}`);
   const over = q === 2 ? [...overBudget(views, tour), ...secretDraws.filter((x) => x.tris > BUDGET.tris || x.calls > BUDGET.calls).map((x) => ({ at: `secret ${x.secret}`, calls: x.calls, tris: x.tris }))] : [];
-  if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
+  if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}${over.length && scale !== SHIPPED_SCALE ? ` - told only, the game plays the scale ${SHIPPED_SCALE}` : ''}`);
   console.log(`[grey]   the heroine in the water: ${poses.map((p) => `${p.what} ${p.clip} (plays ${p.playing}) at ${p.over} m, bubbles ${JSON.stringify(p.bubbles)}`).join('; ')}`);
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, poses, tour, secrets: secretDraws, heaviest, over };
 }
