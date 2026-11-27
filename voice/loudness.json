@@ -4314,6 +4314,11 @@
   "tp": -2.8,
   "sha256": "c10f0430fbbe9841aa5439cc5f94b20323e92f532f9e17986a138c98591f73e0"
  },
+ "worlds-data/sea/voice/sea/sea_hold_in.mp3": {
+  "lufs": -18.01,
+  "tp": -2.48,
+  "sha256": "fff31ad23903e39c67416d3945a7675e7934dea1c85ce386bf3c237e966a64ac"
+ },
  "worlds-data/sea/voice/sea/sea_magic_1.mp3": {
   "lufs": -17.99,
   "tp": -5.12,

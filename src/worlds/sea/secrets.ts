@@ -17,8 +17,8 @@ import { colliders, height, tops } from './terrain';
  * WorldDef.secrets and of the items of the world description), its stars and the cat's word the first time; coming
  * back gives nothing again. The Great Tree hangs a keepsake for each (src/worlds/hub/keepsakes.ts reads the flags).
  *
- * - ship_chest: the chest in the hold by the cabin's door (the world's chest, PLAY-08): opened, 5 stars; every other
- *   secret 3.
+ * - ship_chest: the chest in the hold behind the cabin's door (the world's chest, PLAY-08; ./hold.ts, 2026-11-27): opened,
+ *   5 stars; every other secret 3. Its button only once the hold is open.
  * - bubble_lift: a pillar of rock off the ways; a column of bubbles at its foot carries her up onto its flat top, where
  *   a glowing starfish (the hair clip's look) is the find. Off its edge she sinks back to the floor.
  * - echo_shells: three great shells before the garden's great shell - each touched sings its note; all three touched,
@@ -289,7 +289,7 @@ export interface SeaSecrets {
   readonly debug: { grotto: ReturnType<typeof grottoOf>; lift: ReturnType<typeof liftOf>; shells: ReturnType<typeof shellsOf>; lookout: { x: number; z: number; top: number }; chestFront: { x: number; z: number }; chest: { x: number; z: number }; whale: () => THREE.Vector3 | null; showWhale: () => void };
 }
 
-export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }): SeaSecrets {
+export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor; open?: () => boolean }): SeaSecrets {
   const { scene, ws, hero } = g;
   const found = (flag: SeaSecret) => ws.flags[flag] === true;
   /** The cat's word of a find: after the line that sounds now, not over it (a hint over another line is turned away). */
@@ -404,7 +404,8 @@ export function createSeaSecrets(g: Game, scope: WorldScope, o: { chest: Actor }
   const wm4 = new THREE.Matrix4(), wq = new THREE.Quaternion(), wone = new THREE.Vector3(1, 1, 1), weul = new THREE.Euler(0, 0, 0, 'YXZ');
 
   const spots: Spot[] = [
-    { pos: chestFront, r: 2, label: 'open', on: () => !found(CHEST_FLAG), run: openChest },
+    // the chest in the hold: its button only once the hold is open (./hold.ts) - it is there before, out of her reach
+    { pos: chestFront, r: 2, label: 'open', on: () => !found(CHEST_FLAG) && (o.open?.() ?? true), run: openChest },
     // the shells' action: they sing their notes one after another - the child hears them, then touches them herself
     { pos: shellsFront, r: 2.6, label: 'sea_listen', on: () => song.tune < 0 && song.sung.every((x) => !x), run: () => { [0, 1, 2].forEach((i) => scope.timeout(() => { note(SHELL_NOTES[i]); flash[i] = 1; }, 400 * i)); } },
   ];

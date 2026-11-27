@@ -8,7 +8,7 @@
  */
 import type { VoiceStyle, WorldStrings } from '../../ui/strings';
 
-const uk = { subtitle: 'Підводне королівство', sea_part: 'Перлинка!', sea_count: '{n} з 5', sea_cabin: 'Каюта', sea_listen: 'Послухати', sea_story_title_intro: 'Початок історії моря', sea_story_title_pearl: 'Перлина глибин повернулася', sea_lock: 'Пливи до воріт замку! 🐚',
+const uk = { subtitle: 'Підводне королівство', sea_part: 'Перлинка!', sea_count: '{n} з 5', sea_cabin: 'Каюта', sea_hold: 'Трюм', sea_out: 'Вийти', sea_listen: 'Послухати', sea_story_title_intro: 'Початок історії моря', sea_story_title_pearl: 'Перлина глибин повернулася', sea_lock: 'Пливи до воріт замку! 🐚',
   // the bubble of Bulk's search among the corals (./corals.ts): the subtitle with the count, not spoken
   sea_corals: 'Шукай таку мушлю серед коралів! 🐚 {n} з {of}',
   // --- the sea's own lines (docs/worlds/world-3.md; the draft of 2026-11-18): the cat's `sea_*`, each character's
@@ -92,6 +92,7 @@ const uk = { subtitle: 'Підводне королівство', sea_part: 'П�
   sea_secret_shells: 'Мушлі співають! Торкнися кожної — вийде пісенька.',
   sea_secret_whale: 'Дивись, там, удалині, кит! Він махає нам хвостом.',
   sea_secret_grotto: 'Грот за водоростями! Дивись, як світяться корали.',
+  sea_hold_in: 'Це трюм старого корабля! Роздивися все — тут щось сховано.',
   sea_pet_found: 'Ось де Бульчик, між мушлями! Пливе до тебе.',
   sea_pet_follow: 'Бульчик попливе з тобою. Тепер ви друзі!',
   sea_pearl_ship_found: 'Ось вона, перлинка в каюті капітана! Панцир не помилився.',
@@ -106,7 +107,7 @@ const uk = { subtitle: 'Підводне королівство', sea_part: 'П�
 };
 
 // Exactly the keys of uk: a missing translation or a key of one language only fails `tsc` right here.
-const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное королевство', sea_part: 'Жемчужинка!', sea_count: '{n} из 5', sea_cabin: 'Каюта', sea_listen: 'Послушать', sea_story_title_intro: 'Начало истории моря', sea_story_title_pearl: 'Жемчужина глубин вернулась', sea_lock: 'Плыви к воротам замка! 🐚',
+const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное королевство', sea_part: 'Жемчужинка!', sea_count: '{n} из 5', sea_cabin: 'Каюта', sea_hold: 'Трюм', sea_out: 'Выйти', sea_listen: 'Послушать', sea_story_title_intro: 'Начало истории моря', sea_story_title_pearl: 'Жемчужина глубин вернулась', sea_lock: 'Плыви к воротам замка! 🐚',
   sea_corals: 'Ищи такую ракушку среди кораллов! 🐚 {n} из {of}',
   sea_story_intro_1: 'Под волнами прячется Подводное королевство. Но оно загрустило.',
   sea_story_intro_2: 'Жемчужина глубин раскололась, а ворота замка закрылись.',
@@ -187,6 +188,7 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Подводное ко
   sea_secret_shells: 'Ракушки поют! Коснись каждой — выйдет песенка.',
   sea_secret_whale: 'Смотри, там, вдали, кит! Он машет нам хвостом.',
   sea_secret_grotto: 'Грот за водорослями! Смотри, как светятся кораллы.',
+  sea_hold_in: 'Это трюм старого корабля! Огляди всё — тут что-то спрятано.',
   sea_pet_found: 'Вот где Бульчик, среди ракушек! Плывёт к тебе.',
   sea_pet_follow: 'Бульчик поплывёт с тобой. Теперь вы друзья!',
   sea_pearl_ship_found: 'Вот она, жемчужинка в каюте капитана! Панцирь не ошибся.',
@@ -270,6 +272,7 @@ const spoken = {
   sea_secret_shells: 'warm',
   sea_secret_whale: 'joy',
   sea_secret_grotto: 'joy',
+  sea_hold_in: 'joy',
   sea_pet_found: 'joy',
   sea_pet_follow: 'warm',
   sea_pearl_ship_found: 'joy',

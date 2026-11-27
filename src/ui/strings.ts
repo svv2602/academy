@@ -446,6 +446,8 @@ export interface WorldStrings { id: string; table: { uk: WorldTable; ru: WorldTa
 /**
  * The texts of a part of Season 2 (src/s2/strings-<part>.ts, the plan of step 2, rule 2): a world's form without the
  * keys of `WORLD_OWN`, added by the same `addStrings` (src/main.ts) and typed through `WorldTables` the same way.
+ * Its spoken lines are recorded with the rest: tools/parts.mjs finds the module by the words `satisfies PartStrings`
+ * and tools/sync_phrases.mjs hands it to `recordingList`. Their clips are the core's.
  */
 export interface PartStrings { id: string; table: { uk: Record<string, string>; ru: Record<string, string> }; spoken: Record<string, VoiceStyle> }
 /** Spoken lines kept apart from the game's table: the bank of the old game's clips (src/ui/strings-bank.ts, VOICE-07). */
@@ -538,8 +540,9 @@ export function recordable(key: string, text: string): string {
 }
 /**
  * What is sent for recording: every spoken line in Ukrainian with its intonation and its speaker, the shared ones in
- * the order of `SPOKEN`, then each world's in the order given and of its `spoken`, then the bank's
- * (src/ui/strings-bank.ts). A key two tables share is an error.
+ * the order of `SPOKEN`, then each part's (`parts`: the modules of `PartStrings`, src/s2/strings-<part>.ts) and each
+ * world's in the order given and of its `spoken`, then the bank's (src/ui/strings-bank.ts). A key two tables share is
+ * an error.
  *
  * The speaker is a character of a world's table "character - voice" (src/worlds/<id>/voices.ts, VOICE-10). Every
  * line is the narrator's under its own key, the name of its clip, which never changes. A line the table's `voiced`
@@ -552,7 +555,7 @@ export function recordable(key: string, text: string): string {
  * brings, DEFAULT_WORLD of src/worlds/index.ts - is that world's voice and carries the id of its world as a fourth
  * field, and so does each `<key>@<voice>` of it: its clips lie in `voice/<id>/` and tools/gen_voice.py names them
  * `<id>/<key>`. Every other row has three fields, as it always had, and its clip is the core's: the shared lines (also
- * in the voice of a character of any world, `npc_next@<voice>`), the first world's and the bank's.
+ * in the voice of a character of any world, `npc_next@<voice>`), the parts', the first world's and the bank's.
  * The keys are one set for the whole game (R82): a key two tables share is an error, whichever worlds they are of.
  */
 export type RecordingRow = [text: string, style: VoiceStyle, speaker: string] | [text: string, style: VoiceStyle, speaker: string, world: string];
@@ -560,6 +563,7 @@ export function recordingList(
   worlds: readonly WorldStrings[], bank: SpokenTable,
   casts: readonly { id: string; narrator: string; cast: Record<string, { emoji: string; voice: string }>; voiced: readonly string[]; only?: readonly string[] }[],
   first: string,
+  parts: readonly PartStrings[] = [],
 ): Record<string, RecordingRow> {
   const list: Record<string, RecordingRow> = {};
   const keys = new Set(Object.keys(S.uk));
@@ -584,6 +588,13 @@ export function recordingList(
     }
   };
   add('the shared strings', S.uk, SPOKEN);
+  // The parts: their texts join the shared table in the game (src/main.ts), so their lines are the core's too.
+  for (const p of parts) {
+    const twice = Object.keys(p.table.uk).filter((k) => keys.has(k));
+    if (twice.length) throw new Error(`part "${p.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);
+    for (const k of Object.keys(p.table.uk)) keys.add(k);
+    add(`part "${p.id}"`, p.table.uk, p.spoken);
+  }
   for (const w of worlds) {
     const twice = Object.keys(w.table.uk).filter((k) => !own(k) && keys.has(k));
     if (twice.length) throw new Error(`world "${w.id}": these strings already exist (one key, one clip): ${twice.join(', ')}`);

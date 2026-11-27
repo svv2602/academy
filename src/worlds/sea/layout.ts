@@ -96,6 +96,13 @@ export const GROTTO = (() => {
   const p = at(-34, -16), to = at(-23, -19);
   return { ...p, face: Math.atan2(to.x - p.x, to.z - p.z), clear: 7 };
 })();
+/**
+ * The hold of the sunken ship (the customer's word of 2026-11-27: a secret place behind the door that led nowhere): a
+ * room far past the map, as the first world's room of the house - the door of the cabin leads into it once Pantsyr's
+ * pearl is back (./hold.ts). Placed by HALF, so that a stretched map (?scale) never reaches it. half: from its middle to
+ * a wall, m; y: its floor.
+ */
+export const HOLD = { x: 0, z: -(HALF + 150), half: 4.4, y: 0 };
 /** The shell of the throne where the pearls come together: the finale. */
 export const THRONE = { x: ZONES.throne.x, z: ZONES.throne.z };
 
