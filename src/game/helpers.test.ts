@@ -58,12 +58,24 @@ describe('the stock and the count of the week', () => {
 describe('a task solved with a helper raises no level and is no clean solve (recordTask, helped)', () => {
   it('two clean solves raise the level; with a helper the run starts again, no error, no first-try solve', () => {
     const k = s.skills.add, level = k.level;
+    k.settled = true;                              // the fast climb of the skill is over: the rule of the card (LEARN-15)
     recordTask(s, 'add', 0);
     recordTask(s, 'add', 0, true);
     expect([k.level, k.streak, k.errors, k.first, k.tasks, s.clean?.run]).toEqual([level, 0, 0, 1, 2, 0]);
     recordTask(s, 'add', 0);
     recordTask(s, 'add', 0);
     expect(k.level).toBe(level + 1);
+  });
+
+  it('in the fast climb a clean solve raises the level at once; one with a helper does not, and the climb goes on', () => {
+    const k = s.skills.add, level = k.level;
+    recordTask(s, 'add', 0);
+    expect(k.level).toBe(level + 1);
+    recordTask(s, 'add', 0, true);
+    expect([k.level, k.streak, k.errors, k.first, k.tasks, s.clean?.run]).toEqual([level + 1, 0, 0, 1, 2, 0]);
+    expect(k).not.toHaveProperty('settled');
+    recordTask(s, 'add', 0);
+    expect(k.level).toBe(level + 2);
   });
 
   it('with a helper and mistakes the rule is the usual one: three mistakes step the level down', () => {

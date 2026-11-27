@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, isOpen, levelFor, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
+import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, climbs, isOpen, levelFor, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
 import { SKILL } from './taskviews/panel';
 
 /** Feeds a series of finished tasks (number of wrong answers in each, the step of the hint reached) through recordTask. */
@@ -8,10 +8,17 @@ function play(s: Save, skill: SkillId, ...wrongs: number[]) {
   for (const wrong of wrongs) recordTask(s, skill, wrong);
 }
 
-/** A fresh save with skill `skill` at `level` (the counters empty). */
-function at(skill: SkillId, level: number) {
+/** A fresh save with skill `skill` at `level` (the counters empty), still in its fast climb, as in a new game. */
+function climbing(skill: SkillId, level: number) {
   const s = defaultSave();
   (s.skills[skill] ??= statOf(s, skill)).level = level;
+  return s;
+}
+
+/** The same with the fast climb of the skill over: the rule of the card (LEARN-15) from the first task on. */
+function at(skill: SkillId, level: number) {
+  const s = climbing(skill, level);
+  s.skills[skill].settled = true;
   return s;
 }
 
@@ -69,7 +76,7 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
     expect(shownSkills(s)).not.toContain('attention');
     expect(shownSkills(s)).toHaveLength(SKILLS.length - 2 - SEASON2_SKILLS.length);
     recordTask(s, 'attention', 0);
-    expect(s.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(s.skills.attention).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });   // the fast climb: one clean solve, one level
     expect(shownSkills(s)).toEqual(SKILLS.filter((k) => k !== 'assemble' && !SEASON2_SKILLS.includes(k)));
   });
 
@@ -78,8 +85,8 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
     for (const k of SEASON2_SKILLS) expect(shownSkills(s)).not.toContain(k);
     recordTask(s, 'read', 0);
     recordTask(s, 'en_read', 0);
-    expect(s.skills.read).toEqual({ level: 3, streak: 1, tasks: 1, first: 1, errors: 0 });
-    expect(s.skills.en_read).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(s.skills.read).toEqual({ level: 4, streak: 0, tasks: 1, first: 1, errors: 0 });
+    expect(s.skills.en_read).toEqual({ level: 2, streak: 0, tasks: 1, first: 1, errors: 0 });
     expect(shownSkills(s).filter((k) => SEASON2_SKILLS.includes(k))).toEqual(['en_read', 'read']);
   });
 
@@ -99,6 +106,7 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
 /**
  * The rule of LEARN-15 (R21), as a table: a series of tasks (wrong answers in each) played from every level of every
  * skill, and what it does to the level. The expected level is the start moved by `delta`, kept within the skill's levels.
+ * The skill's fast climb is over (`at`): this is the rule every task follows after it; the climb has its own table below.
  */
 const SCENARIOS: readonly { wrongs: number[]; delta: number; why: string }[] = [
   { wrongs: [0], delta: 0, why: 'one clean solve keeps the level' },
@@ -123,7 +131,7 @@ const SCENARIOS: readonly { wrongs: number[]; delta: number; why: string }[] = [
   { wrongs: [2, 0, 0], delta: 1, why: 'two clean solves after a second step step it up' },
 ];
 
-describe('recordTask: the level rule on five levels (LEARN-15, R21, R22)', () => {
+describe('recordTask: the level rule on five levels once the fast climb is over (LEARN-15, R21, R22)', () => {
   const rows = SKILLS.flatMap((skill) => {
     const [min, max] = LEVELS[skill];
     return Array.from({ length: max - min + 1 }, (_, i) => min + i)
@@ -178,9 +186,112 @@ describe('recordTask: the level rule on five levels (LEARN-15, R21, R22)', () =>
     const s = defaultSave();
     play(s, 'pattern', 0, 0);
     play(s, 'classify', 3);
-    expect(s.skills.pattern.level).toBe(2);
+    expect(s.skills.pattern.level).toBe(3);                    // a new game: the fast climb, a level for each clean solve
     expect(s.skills.classify).toMatchObject({ level: 1, tasks: 1 });
     for (const k of SKILLS.filter((k) => k !== 'pattern' && k !== 'classify')) expect(s.skills[k], k).toEqual(defaultSave().skills[k]);
+  });
+});
+
+/**
+ * The fast climb (LEARN-15, the amendment of 2026-11-27, decision Q17), as a table: a series of tasks played by a skill
+ * still climbing, the move of the level each task makes (kept within the skill's levels step by step), and whether the
+ * climb is over after the series.
+ */
+const CLIMB: readonly { wrongs: number[]; moves: number[]; settled: boolean; why: string }[] = [
+  { wrongs: [0], moves: [1], settled: false, why: 'every clean solve steps the level up' },
+  { wrongs: [0, 0], moves: [1, 1], settled: false, why: 'two clean solves: two steps up' },
+  { wrongs: [0, 0, 0, 0], moves: [1, 1, 1, 1], settled: false, why: 'four clean solves: four steps up' },
+  { wrongs: [1], moves: [0], settled: false, why: 'one wrong answer keeps the level and the climb' },
+  { wrongs: [1, 1, 1], moves: [0, 0, 0], settled: false, why: 'tasks with one wrong answer never end the climb' },
+  { wrongs: [0, 1, 0], moves: [1, 0, 1], settled: false, why: 'a slip between two clean solves costs nothing' },
+  { wrongs: [1, 0], moves: [0, 1], settled: false, why: 'the clean solve after a slip is a step up at once' },
+  { wrongs: [2], moves: [0], settled: true, why: 'two wrong answers end the climb; one such task keeps the level' },
+  { wrongs: [2, 0], moves: [0, 0], settled: true, why: 'after the climb one clean solve keeps the level' },
+  { wrongs: [2, 0, 0], moves: [0, 0, 1], settled: true, why: 'after the climb two clean solves in a row step it up' },
+  { wrongs: [2, 2], moves: [0, -1], settled: true, why: 'the task that ends the climb counts towards the step down' },
+  { wrongs: [3], moves: [-1], settled: true, why: 'the third step ends the climb and steps the level down' },
+  { wrongs: [6], moves: [-1], settled: true, why: 'more wrong answers are the third step too' },
+  { wrongs: [0, 2, 0], moves: [1, 0, 0], settled: true, why: 'a step up, the end of the climb, then one clean solve: one step in all' },
+  { wrongs: [0, 3], moves: [1, -1], settled: true, why: 'a step up, then the third step takes it back' },
+  { wrongs: [0, 0, 2, 0, 0], moves: [1, 1, 0, 0, 1], settled: true, why: 'two steps of the climb, then the rule of the card: one more for two clean solves' },
+];
+
+describe('recordTask: the fast climb (LEARN-15, the amendment of 2026-11-27, decision Q17)', () => {
+  const rows = SKILLS.flatMap((skill) => {
+    const [min, max] = LEVELS[skill];
+    return Array.from({ length: max - min + 1 }, (_, i) => min + i)
+      .flatMap((level) => CLIMB.map((c) => ({ skill, level, ...c, want: c.moves.reduce((l, move) => Math.min(max, Math.max(min, l + move)), level) })));
+  });
+
+  it.each(rows)('$skill climbing at level $level, tasks with $wrongs wrong answers: $why', ({ skill, level, wrongs, want, settled }) => {
+    const s = climbing(skill, level);
+    play(s, skill, ...wrongs);
+    expect(s.skills[skill].level).toBe(want);
+    expect(climbs(s.skills[skill])).toBe(!settled);
+  });
+
+  it('a new game climbs: four clean solves take a skill from level 1 to 5 (eight by the rule of the card)', () => {
+    const s = defaultSave();
+    play(s, 'add', 0, 0, 0, 0);
+    expect(s.skills.add).toEqual({ level: 5, streak: 0, tasks: 4, first: 4, errors: 0 });
+    const after = at('add', 1);
+    play(after, 'add', 0, 0, 0, 0);
+    expect(after.skills.add.level).toBe(3);
+  });
+
+  it('the end of the climb is written into the counters once, by the task with two wrong answers or more, and stays', () => {
+    const s = defaultSave();
+    play(s, 'sub', 0, 1, 0);
+    expect(s.skills.sub).not.toHaveProperty('settled');
+    play(s, 'sub', 2);
+    expect(s.skills.sub).toEqual({ level: 3, streak: -1, tasks: 4, first: 2, errors: 3, settled: true });
+    play(s, 'sub', 0, 0, 0, 0, 0, 0, 0, 0);
+    expect(s.skills.sub).toMatchObject({ level: 5, settled: true });
+  });
+
+  it('only `true` ends it: a save without the field, or with a damaged one, climbs', () => {
+    for (const damaged of [undefined, false, 0, 1, 'yes', null]) {
+      const s = defaultSave();
+      (s.skills.count as { settled?: unknown }).settled = damaged;
+      expect(climbs(s.skills.count), String(damaged)).toBe(true);
+      play(s, 'count', 0);
+      expect(s.skills.count.level, String(damaged)).toBe(2);
+    }
+    expect(climbs({ ...defaultSave().skills.count, settled: true })).toBe(false);
+    expect(climbs(statOf(defaultSave(), 'attention'))).toBe(true);          // a late skill, no field of the save yet
+  });
+
+  it('a clean solve with a helper is no step up and does not end the climb; with a helper and two wrong answers it ends', () => {
+    const s = defaultSave();
+    recordTask(s, 'add', 0, true);
+    expect(s.skills.add).toEqual({ level: 1, streak: 0, tasks: 1, first: 0, errors: 0 });
+    recordTask(s, 'add', 0);
+    expect(s.skills.add.level).toBe(2);
+    recordTask(s, 'add', 2, true);
+    expect(s.skills.add).toMatchObject({ level: 2, settled: true });
+  });
+
+  it('each skill climbs and ends its climb on its own', () => {
+    const s = defaultSave();
+    play(s, 'add', 2);
+    play(s, 'sub', 0);
+    play(s, 'add', 0);
+    expect([s.skills.add.level, climbs(s.skills.add)]).toEqual([1, false]);
+    expect([s.skills.sub.level, climbs(s.skills.sub)]).toEqual([2, true]);
+    for (const k of SKILLS.filter((k) => k !== 'add' && k !== 'sub')) expect(climbs(statOf(s, k)), k).toBe(true);
+  });
+
+  it('a skill that starts above its lowest level climbs from there: reading from 3, English words from 2, the composition of a number from 3', () => {
+    const s = defaultSave();
+    for (const k of ['read', 'en_words', 'compose'] as const) play(s, k, 0);
+    expect([s.skills.read.level, s.skills.en_words.level, s.skills.compose.level]).toEqual([4, 3, 4]);
+  });
+
+  it('the level the parent fixed is the one given, whatever the climb does underneath', () => {
+    const s = defaultSave();
+    s.fixed.add = 2;
+    play(s, 'add', 0, 0, 0);
+    expect([levelFor(s, 'add'), s.skills.add.level]).toEqual([2, 4]);
   });
 });
 
@@ -220,7 +331,7 @@ describe('levelFor: the level fixed by the parent for each skill (LEARN-15, R21,
     play(s, 'count', 0, 0);
     expect(levelFor(s, 'count')).toBe(5);
     s.fixed.count = 0;
-    expect(levelFor(s, 'count')).toBe(2);
+    expect(levelFor(s, 'count')).toBe(3);                      // a new game: two clean solves of the fast climb
   });
 });
 

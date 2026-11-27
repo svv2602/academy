@@ -5,9 +5,10 @@ import { defaultSave } from './save';
 import { mulberry32 } from './util';
 
 /**
- * LEARN-17, repeated on five levels for LEARN-15 (R22): what the level rule does to a child over a whole session, not
- * over one step. Five made-up children play 200 tasks each through the real recordTask and levelFor. The rule is never
- * copied here, so a change in src/game/skills.ts changes the table and trips the corridors below.
+ * LEARN-17, repeated on five levels for LEARN-15 (R22) and measured again on 2026-11-27 with the fast climb (decision
+ * Q17): what the level rule does to a child over a whole session, not over one step. Five made-up children play 200
+ * tasks each through the real recordTask and levelFor. The rule is never copied here, so a change in
+ * src/game/skills.ts changes the table and trips the corridors below.
  */
 
 /**
@@ -32,7 +33,7 @@ interface Child {
 }
 
 const TASKS = 200;
-/** "Settled" is tasks 101…200: by then every skill has had 12 or 13 tasks, more than the climb from 1 to 5 takes (8). */
+/** "Settled" is tasks 101…200: by then every skill has had 12 or 13 tasks, more than the way from 1 to 5 takes (4 in the fast climb, 8 after it). */
 const SETTLED_FROM = TASKS / 2;
 /**
  * The skills some kind of task trains take turns, 25 tasks each (the composition of a number has no task yet; attention,
@@ -73,6 +74,8 @@ interface Stats {
   shakyRun: number;
   /** Share of clean solves, percent. */
   clean: number;
+  /** Tasks played below the top level: the way up and every dip (what the fast climb shortens for a child who is sure). */
+  belowTop: number;
   /** Level the most tasks 101…200 were played at. */
   settledLevel: number;
   /** Level changes within tasks 101…200. */
@@ -125,7 +128,7 @@ function simulate(child: Child, seed = child.seed): Stats {
   }
   const stats = Object.values(save.skills);
   return {
-    mainLevel: busiest(atLevel), changes, shakyRun, clean: percent(clean, TASKS),
+    mainLevel: busiest(atLevel), changes, shakyRun, clean: percent(clean, TASKS), belowTop: TASKS - atLevel[LEVEL_COUNT - 1],
     settledLevel: busiest(settledAtLevel), settledChanges, settledCalm, settledClean: percent(settledClean, TASKS - SETTLED_FROM),
     bySkill: Object.fromEntries(ROUND.map((id) => [id, { mainLevel: busiest(skill[id].atLevel), changes: skill[id].changes }])) as Stats['bySkill'],
     recorded: { tasks: stats.reduce((sum, k) => sum + k.tasks, 0), first: stats.reduce((sum, k) => sum + k.first, 0) },
@@ -144,48 +147,48 @@ type Range = readonly [min: number, max: number];
 interface Limits { mainLevel: number; changes: Range; shakyRun: Range; clean: Range; settledChanges: Range }
 
 /**
- * Measured on 2026-11-16 on the rule of LEARN-15 (src/game/skills.ts) and five levels; eight skills take turns.
- * The comment beside each corridor lists the five measured values, for seeds seed + 100·j, j = 0…4; the first one
- * is the seed fixed above. A corridor is the lowest and the highest of the five, widened on both sides by half of
- * their spread, rounded up (at least 2 for level changes and percent, at least 1 for the shaky run), and never
+ * Measured on 2026-11-27 on the rule of LEARN-15 with its fast climb (src/game/skills.ts) and five levels; eight skills
+ * take turns. The comment beside each corridor lists the five measured values, for seeds seed + 100·j, j = 0…4; the
+ * first one is the seed fixed above. A corridor is the lowest and the highest of the five, widened on both sides by half
+ * of their spread, rounded up (at least 2 for level changes, tasks and percent, at least 1 for the shaky run), and never
  * below 0. An exact number would break on any honest edit of the run; a corridor wider than two spreads would let
- * a different rule through.
+ * a different rule through. The numbers of 2026-11-16, before the climb, are kept in docs/11-learning.md (LEARN-17).
  */
 const LIMITS: Record<ChildId, Limits> = {
   confident: {
     mainLevel: 5,                 // 5 · 5 · 5 · 5 · 5 — the top level, where the child still solves four tasks in five
-    changes: [28, 44],            // 39 · 38 · 32 · 37 · 40 — mostly the climb: eight skills from 1 to 5 are 32 changes
-    shakyRun: [1, 5],             // 3 · 4 · 3 · 3 · 2
-    clean: [76.5, 92.5],          // 81 · 80.5 · 84.5 · 81 · 88.5
-    settledChanges: [0, 14],      // 9 · 4 · 0 · 4 · 8
+    changes: [30, 45],            // 41 · 40 · 34 · 37 · 40 — mostly the climb: eight skills from 1 to 5 are 32 changes
+    shakyRun: [2, 5],             // 3 · 4 · 3 · 3 · 3
+    clean: [75, 90.5],            // 79 · 80 · 83 · 79 · 86.5
+    settledChanges: [0, 12],      // 7 · 4 · 0 · 3 · 8
   },
   average: {
-    mainLevel: 3,                 // 3 · 3 · 3 · 3 · 3
-    changes: [35, 62],            // 53 · 48 · 55 · 42 · 45
-    shakyRun: [4, 11],            // 6 · 8 · 8 · 7 · 9
-    clean: [43.5, 59],            // 54 · 53 · 55 · 47.5 · 48
-    settledChanges: [11, 31],     // 26 · 20 · 23 · 16 · 19 — was 28…38 on the rule of 2026-11-14
+    mainLevel: 4,                 // 4 · 4 · 4 · 3 · 3 — was 3 on all five before the climb: she gets to the hard levels sooner
+    changes: [38, 74],            // 65 · 64 · 65 · 47 · 59
+    shakyRun: [4, 12],            // 6 · 8 · 10 · 10 · 9
+    clean: [34, 52.5],            // 45.5 · 44.5 · 47.5 · 39 · 43 — was 47.5…55 before the climb (finding, see Q12 below)
+    settledChanges: [12, 28],     // 24 · 22 · 22 · 16 · 20 — was 28…38 on the rule of 2026-11-14
   },
   uneven: {
-    mainLevel: 3,                 // 3 · 4 · 4 · 3 · 3
-    changes: [40, 60],            // 52 · 52 · 55 · 45 · 47
+    mainLevel: 4,                 // 4 · 4 · 4 · 3 · 3
+    changes: [54, 65],            // 60 · 62 · 61 · 57 · 58
     shakyRun: [2, 10],            // 5 · 7 · 8 · 4 · 7
-    clean: [50, 64.5],            // 54 · 56.5 · 60.5 · 56.5 · 55
-    settledChanges: [15, 27],     // 24 · 21 · 21 · 22 · 18
+    clean: [42.5, 58.5],          // 46.5 · 53 · 54.5 · 50.5 · 48 — was 54…60.5 before the climb
+    settledChanges: [15, 26],     // 23 · 22 · 21 · 20 · 18
   },
   guessing: {
     mainLevel: 1,                 // 1 · 1 · 1 · 1 · 1
-    changes: [0, 35],             // 6 · 25 · 14 · 20 · 23
+    changes: [0, 42],             // 10 · 31 · 16 · 24 · 31
     shakyRun: [3, 27],            // 21 · 12 · 14 · 9 · 12
     clean: [13, 36],              // 19 · 24 · 24.5 · 30 · 29.5
-    settledChanges: [0, 20],      // 3 · 9 · 7 · 14 · 13
+    settledChanges: [0, 20],      // 3 · 10 · 7 · 14 · 13
   },
   tiring: {
-    mainLevel: 3,                 // 3 · 3 · 3 · 3 · 3
-    changes: [34, 62],            // 41 · 43 · 55 · 54 · 41
-    shakyRun: [4, 15],            // 12 · 8 · 10 · 11 · 7
-    clean: [38.5, 49.5],          // 41.5 · 46.5 · 44 · 45 · 46
-    settledChanges: [15, 30],     // 19 · 22 · 21 · 26 · 19
+    mainLevel: 3,                 // 3 · 4 · 3 · 3 · 3
+    changes: [48, 68],            // 53 · 58 · 63 · 59 · 59
+    shakyRun: [4, 15],            // 12 · 9 · 11 · 11 · 7
+    clean: [29, 44],              // 33 · 38.5 · 36 · 37 · 40 — was 41.5…46.5 before the climb
+    settledChanges: [15, 30],     // 19 · 23 · 20 · 26 · 19
   },
 };
 
@@ -246,42 +249,55 @@ describe('level rule over 200 tasks on five levels: seesaw between levels', () =
   });
 
   /**
-   * FINDING of 2026-11-16, not a wish: the rule of LEARN-15 halves the seesaw, but does not end it. In tasks 101…200
-   * the average child changes level 16…26 times (28…38 on the old rule) and meets the definition on two seeds of five
-   * (all five on the old rule), the tiring one on three of five, the uneven one on four of five. The test holds the
-   * measured corridors of the calm stretch, so that the behaviour does not change unnoticed.
+   * FINDING of 2026-11-16, not a wish, measured again on 2026-11-27 with the fast climb: the rule of LEARN-15 halves the
+   * seesaw of the first rule, but does not end it, and the climb does not mend it. In tasks 101…200 the average child
+   * changes level 16…24 times (28…38 on the rule of 2026-11-14) and meets the definition on three seeds of five, the
+   * uneven one on three, the tiring one on two. The test holds the measured corridors of the calm stretch, so that the
+   * behaviour does not change unnoticed.
    */
-  it.each([['average', [11, 18]], ['uneven', [7, 18]], ['tiring', [4, 24]]] as const)('%s child: the longest calm stretch stays within the measured corridor (finding)', (id, corridor) => {
-    within(run(id).settledCalm, corridor, `${id}: settledCalm`);   // 16 · 14 · 13 · 16 · 14; 13 · 10 · 15 · 12 · 15; 16 · 19 · 19 · 9 · 10
+  it.each([['average', [8, 19]], ['uneven', [6, 18]], ['tiring', [4, 24]]] as const)('%s child: the longest calm stretch stays within the measured corridor (finding)', (id, corridor) => {
+    within(run(id).settledCalm, corridor, `${id}: settledCalm`);   // 16 · 11 · 13 · 16 · 14; 9 · 10 · 15 · 13 · 15; 16 · 19 · 19 · 9 · 10
   });
 
   it('uneven child: the strong skill gets to the top while the weak one stays low', () => {
     const { count, sub } = run('uneven').bySkill;
     expect(count.mainLevel, 'uneven: main level of count').toBe(5);      // 5 on all five seeds
-    expect(sub.mainLevel, 'uneven: main level of sub').toBe(1);          // 1 · 2 · 2 · 3 · 2
+    expect(sub.mainLevel, 'uneven: main level of sub').toBe(2);          // 2 · 2 · 2 · 3 · 2
     within(count.changes, [2, 10], 'uneven: level changes of count');    // 8 · 4 · 4 · 5 · 6
-    within(sub.changes, [2, 9], 'uneven: level changes of sub');         // 4 · 5 · 5 · 3 · 7
+    within(sub.changes, [1, 9], 'uneven: level changes of sub');         // 6 · 5 · 5 · 3 · 7
+  });
+});
+
+describe('level rule over 200 tasks on five levels: what the fast climb changes (LEARN-15, the amendment of 2026-11-27)', () => {
+  /**
+   * The child who is sure plays about half as many tasks below the top level: 48 · 46 · 35 · 41 · 46 of 200, against
+   * 95 · 87 · 76 · 83 · 80 by the rule of the card alone - the way up through eight skills takes 32 tasks, not 64.
+   */
+  it('confident child: the tasks below the top level stay within the measured corridor, half of what they were', () => {
+    within(run('confident').belowTop, [28, 55], 'confident: belowTop');
   });
 });
 
 describe('level rule over 200 tasks on five levels: share of clean solves once the level has settled (decision Q12)', () => {
   /**
-   * FINDING of 2026-11-16: Q12 asks for 70–85 % of clean solves at the settled level; the rule of LEARN-15 gives the
-   * average child 46 % on the fixed seed and 36…46 % over five seeds (46 · 41 · 41 · 36 · 37), lower than the old rule
-   * (60…70 %): a single wrong answer and a lone second step no longer lower the level, so the child settles at level
-   * 4 (three seeds of five) or 3, where she solves cleanly every third task. The test holds the measured corridor.
+   * FINDING of 2026-11-16, measured again on 2026-11-27: Q12 asks for 70–85 % of clean solves at the settled level; the
+   * rule of LEARN-15 gives the average child 41 % on the fixed seed and 35…41 % over five seeds (41 · 41 · 39 · 35 · 37):
+   * a single wrong answer and a lone second step do not lower the level, so the child settles at level 4 (four seeds of
+   * five) or 3, where she solves cleanly every third task. The fast climb does not change where she settles; it takes
+   * her there sooner, so over the whole session she solves cleanly 39…47.5 % of the tasks, against 47.5…55 % before it.
+   * The test holds the measured corridor.
    */
   it('average child: settles at level 4 with the measured share of clean solves, below the 70–85 % of Q12', () => {
     const stats = run('average');
-    expect(stats.settledLevel, 'average: settled level').toBe(4);        // 4 · 4 · 4 · 3 · 3
-    within(stats.settledClean, [31, 51], 'average: settledClean');
+    expect(stats.settledLevel, 'average: settled level').toBe(4);        // 4 · 4 · 4 · 4 · 3
+    within(stats.settledClean, [32, 44], 'average: settledClean');
   });
 
   it.todo('average child: 70–85 % of clean solves at the settled level — the rule of LEARN-15 does not give it (finding above)');
 
   it('tiring child: solves less cleanly in the second half than over the whole session', () => {
     const stats = run('tiring');
-    within(stats.settledClean, [19, 38], 'tiring: settledClean');        // 33 · 33 · 24 · 32 · 32
+    within(stats.settledClean, [18, 37], 'tiring: settledClean');        // 31 · 32 · 23 · 31 · 32
     expect(stats.settledClean).toBeLessThan(stats.clean);
   });
 });

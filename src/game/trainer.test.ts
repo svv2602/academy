@@ -107,11 +107,28 @@ describe('a session', () => {
     expect(h.save.train?.paid).toBe(1);
   });
 
-  it('every task at the level the skill has then: two clean solves step it up', async () => {
+  it('every task at the level the skill has then: two clean solves step it up once its fast climb is over', async () => {
+    const h = host([]);
+    h.save.skills.add.level = 1;
+    h.save.skills.add.settled = true;              // the rule of the card (LEARN-15): a level for two clean solves in a row
+    await runTraining(h.g, 'add');
+    expect(h.asked.map((a) => a.level)).toEqual([1, 1, 2, 2, 3, 3]);
+  });
+
+  it('every task at the level the skill has then: in the fast climb each clean solve steps it up, to the top in one session', async () => {
     const h = host([]);
     h.save.skills.add.level = 1;
     await runTraining(h.g, 'add');
-    expect(h.asked.map((a) => a.level)).toEqual([1, 1, 2, 2, 3, 3]);
+    expect(h.asked.map((a) => a.level)).toEqual([1, 2, 3, 4, 5, 5]);
+    expect(h.save.skills.add).not.toHaveProperty('settled');
+  });
+
+  it('a task with two wrong answers ends the climb in the middle of a session: the next levels follow the rule of the card', async () => {
+    const h = host([{ solved: true, wrong: 0 }, { solved: true, wrong: 2 }]);
+    h.save.skills.add.level = 1;
+    await runTraining(h.g, 'add');
+    expect(h.asked.map((a) => a.level)).toEqual([1, 2, 2, 2, 3, 3]);
+    expect(h.save.skills.add.settled).toBe(true);
   });
 
   it('closed half way: what was solved is recorded, nothing paid, no day counted', async () => {

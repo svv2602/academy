@@ -1,12 +1,13 @@
 // voice/phrases.json is what `npm run voice:sync` builds from the shared strings and the strings of every world
 // (VOICE-04, ARCH-12). CI has no voice:sync step, so the check runs here: the script itself, as a developer runs it.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, existsSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, existsSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { sourceWorlds } from './dist-size.mjs';
+import { MARK, partFiles } from './parts.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const sync = (...args) => spawnSync(process.execPath, [join(root, 'tools/sync_phrases.mjs'), ...args], { cwd: root, encoding: 'utf8' });
@@ -254,5 +255,110 @@ describe('the English lines (src/s2/strings-en.ts, voice/phrases-en.json)', { ti
       [[{ ...ok, variant_of: 'wb_p_cat' }], /a set of 1 is no choice/],
     ];
     for (const [lines, why] of bad) expect(() => englishRows(lines)).toThrow(why);
+  });
+});
+
+// A part of the game keeps its texts in a module of its own (PartStrings of src/ui/strings.ts: src/s2/strings-<part>.ts;
+// tools/parts.mjs finds it). Its spoken lines are listed for recording like the shared ones. Until 2026-11-27 they were
+// not: a spoken line of a part was shown, never listed, and nothing asked for its clip.
+describe('the spoken lines of the parts (PartStrings)', { timeout: 60_000 }, () => {
+  const rel = (file) => file.slice(join(root, 'src').length + 1).replaceAll('\\', '/');
+  /** A folder with one made-up part, deep inside it: a question (the characters say the questions too), a hint, a label. */
+  const made = (name, body) => {
+    const dir = join(tmp, name);
+    mkdirSync(join(dir, 'deep'), { recursive: true });
+    writeFileSync(join(dir, 'deep', 'strings-made.ts'), body);
+    return dir;
+  };
+  const part = (uk) => `const uk = ${JSON.stringify(uk)};
+const ru = ${JSON.stringify(Object.fromEntries(Object.keys(uk).map((k) => [k, `ru ${k}`])))};
+export const strings = { id: 'made', table: { uk, ru }, spoken: { t_made_up: 'warm', h1_made_up: 'calm' } } satisfies PartStrings;
+`;
+  const TEXTS = { t_made_up: 'Скільки тут зірок?', h1_made_up: 'Порахуй їх по одній.', made_label: 'Зірки' };
+  const refusals = (run) => run.stderr.split('\n').filter((line) => line.startsWith('[voice:sync]'));
+
+  it('the parts of the game are the modules src/main.ts adds: each is found, and nothing else is', () => {
+    const found = partFiles().map(rel);
+    expect(found.length).toBeGreaterThan(0);
+    const main = readFileSync(join(root, 'src/main.ts'), 'utf8');
+    // `import { strings as <name> } from './<path>'` of a part, and <name> in the list handed to addStrings
+    const added = [...main.matchAll(/import \{ strings as (\w+) \} from '\.\/([^']*\/strings-[^']+)';/g)]
+      .filter(([, name]) => new RegExp(`for \\(const p of \\[[^\\]]*\\b${name}\\b[^\\]]*\\]\\) addStrings\\(p, false\\)`).test(main))
+      .map(([, , path]) => `${path}.ts`).sort();
+    expect(added).toEqual(found);
+    // the mark is what makes a module a part's: a strings-*.ts without it (the bank, the English lines) is none
+    for (const file of partFiles()) expect(readFileSync(file, 'utf8'), rel(file)).toContain(MARK);
+    expect(found).not.toContain('ui/strings-bank.ts');
+    expect(found).not.toContain('s2/strings-en.ts');
+  });
+
+  it('a spoken line of a part is listed in the narrator\'s voice, a question in the characters\' voices too; a label is not', () => {
+    const out = join(tmp, 'with-part.json');
+    const run = sync(`--out=${out}`, `--parts=${made('part-ok', part(TEXTS))}`);
+    expect({ status: run.status, err: run.stderr }).toEqual({ status: 0, err: '' });
+    const file = JSON.parse(readFileSync(out, 'utf8'));
+    expect(file.t_made_up).toEqual([TEXTS.t_made_up, 'warm', 'cat']);
+    expect(file.h1_made_up).toEqual([TEXTS.h1_made_up, 'calm', 'cat']);
+    // the question: once more in every voice of a character (`t_*` of the first world's table), three fields each
+    const voices = Object.keys(file).filter((k) => k.startsWith('t_made_up@'));
+    expect(voices.map((k) => k.split('@')[1]).sort()).toEqual(['Charon', 'Leda', 'Orus', 'Sulafat']);
+    for (const k of voices) expect(file[k], k).toEqual([TEXTS.t_made_up, 'warm', expect.any(String)]);
+    expect(Object.keys(file).filter((k) => k.startsWith('h1_made_up@'))).toEqual([]);
+    expect(Object.keys(file).filter((k) => k.startsWith('made_label'))).toEqual([]);
+    // a line of a part is the core's: after the shared lines, before the first line of a world
+    const keys = Object.keys(file), world = keys.findIndex((k) => file[k].length === 4);
+    expect(keys.indexOf('t_made_up')).toBeGreaterThan(keys.indexOf('h3_show'));
+    expect(keys.indexOf('h1_made_up')).toBeLessThan(world);
+    expect(readFileSync(join(root, 'voice/phrases.json'), 'utf8')).not.toContain('t_made_up');
+  });
+
+  it('--check names every line of a part the list lacks, and writes nothing', () => {
+    const before = readFileSync(join(root, 'voice/phrases.json'), 'utf8');
+    const run = sync('--check', `--parts=${made('part-check', part(TEXTS))}`);
+    expect(run.status).toBe(1);
+    const lines = run.stderr.split('\n').filter((line) => line.startsWith('  '));
+    for (const k of ['t_made_up', 't_made_up@Sulafat', 't_made_up@Leda', 't_made_up@Orus', 't_made_up@Charon', 'h1_made_up']) {
+      expect(lines, k).toContain(`  missing: ${k}`);
+    }
+    expect(readFileSync(join(root, 'voice/phrases.json'), 'utf8')).toBe(before);
+  });
+
+  it('refuses a part that takes a key of the shared strings, a spoken line with no text and a module that is no part; nothing is written', () => {
+    const cases = [
+      ['part-clash', part({ ...TEXTS, play: 'Грати ще' }), /part "made": these strings already exist \(one key, one clip\): play/],
+      ['part-no-text', part({ t_made_up: TEXTS.t_made_up }), /spoken line "h1_made_up" of part "made" has no Ukrainian text/],
+      ['part-none', `// ${MARK}\nexport const other = 1;\n`, /strings-made\.ts says it holds a part's strings \(PartStrings\) and exports no `strings` of that form/],
+    ];
+    for (const [name, body, why] of cases) {
+      const out = join(tmp, `${name}.json`);
+      const run = sync(`--out=${out}`, `--parts=${made(name, body)}`);
+      expect(run.status, name).toBe(1);
+      expect(refusals(run)[0], name).toMatch(why);
+      expect(existsSync(out), name).toBe(false);
+    }
+  });
+
+  it('refuses a part named twice: two modules with one id would hide one another\'s lines; nothing is written', () => {
+    const dir = made('part-twice', part(TEXTS));
+    writeFileSync(join(dir, 'strings-second.ts'), part({ second_line: 'Друга частина.' }).replace("spoken: { t_made_up: 'warm', h1_made_up: 'calm' }", "spoken: { second_line: 'joy' }"));
+    const out = join(tmp, 'part-twice.json');
+    const run = sync(`--out=${out}`, `--parts=${dir}`);
+    expect(run.status).toBe(1);
+    expect(refusals(run)[0]).toMatch(/strings-second\.ts: the part "made" is already in deep\/strings-made\.ts/);
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('a folder with no part gives the list of the repository; --parts without a folder, or twice, is refused', () => {
+    const empty = join(tmp, 'no-parts');
+    mkdirSync(empty, { recursive: true });
+    writeFileSync(join(empty, 'strings-plain.ts'), 'export const strings = 1;\n');   // no mark: not a part
+    const out = join(tmp, 'no-parts.json');
+    const run = sync(`--out=${out}`, `--parts=${empty}`);
+    expect({ status: run.status, err: run.stderr }).toEqual({ status: 0, err: '' });
+    expect(Object.keys(JSON.parse(readFileSync(out, 'utf8'))).some((k) => k.includes('made'))).toBe(false);
+    for (const bad of [['--parts='], [`--parts=${empty}`, `--parts=${empty}`]]) {
+      const refused = sync('--check', ...bad);
+      expect([refused.status, /unknown argument: --parts=/.test(refused.stderr)], bad.join(' ')).toEqual([2, true]);
+    }
   });
 });
