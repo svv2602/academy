@@ -8,6 +8,7 @@ import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height,
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
 import { SEE_THROUGH_NARROW, fadeAtCamera, propMaterial } from '../../core/materials';
 import type { MagicCount, MagicGlow } from './magic';
+import { buildRedFlowers } from './red-flowers';
 
 /** How many more flowers (at the full density) the magic of the world grows over the drifts. */
 export const MAGIC_FLOWERS = 120;
@@ -28,6 +29,8 @@ function reserved(x: number, z: number, margin: number) {
 // Detailed textured trees near the play area; cheap flat-colour ones for the distant forest ring.
 /** How much of its colour the purple-leaved plant keeps (WORLD-10, the accents). */
 export const PLANT_SATURATION = 0.3;
+/** Which of the flowers of the meadow (`flowerKinds` of buildScenery) is the single pink one: the red flowers are made of it. */
+const PINK_SINGLE = 2;
 
 export const NEAR_TREES: readonly (readonly [string, number, number])[] = [
   ['CommonTree1', 8, 3], ['CommonTree2', 7.5, 3], ['CommonTree3', 6.5, 3], ['CommonTree4', 7, 3], ['CommonTree5', 6, 3],
@@ -191,6 +194,9 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
       mesh.count = shown;
     }
   });
+  // The red flowers of Pip's command (LEARN-23, ./en-places.ts, ./red-flowers.ts): three beds of the single pink flower
+  // with its head tinted red - the only red of the meadow. Their places are fixed: nothing of chance is drawn for them.
+  buildRedFlowers(scene, height, flowerKinds[PINK_SINGLE]);
 
   // Stepping stones along the path and pebbles on the pond shore.
   const stones: Placement[] = [], shore: Placement[] = [];
