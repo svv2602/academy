@@ -2580,9 +2580,9 @@
   "sha256": "1f538a3ee737c5e3674255fc2a1082108769322c18c2be63c740680e3e1043a4"
  },
  "public/voice/npc_harder.mp3": {
-  "lufs": -18.05,
-  "tp": -2.37,
-  "sha256": "d8164f574585cba72552612d27308ad862d0d0a4c16912516533cb03c3381a3a"
+  "lufs": -18.04,
+  "tp": -3.47,
+  "sha256": "b59298c138cf8d74c9d09612ae507bfb2cc1566f7791de87fdefddac85b5f8dd"
  },
  "public/voice/npc_next.mp3": {
   "lufs": -17.61,

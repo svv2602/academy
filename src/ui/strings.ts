@@ -428,11 +428,8 @@ const S = sameKeys({
 });
 /** The shared table, exported for the parity unit test only; game code goes through `t` / `tf` / `voiceText`. */
 export { S as STRINGS };
-/**
- * Intonations the recording pipeline knows; tools/gen_voice.py passes the name on as it is. `ask`: a line that ends in
- * a question after a praise - said as a praise it did not sound as a question (the customer, 2026-11-27).
- */
-export const VOICE_STYLES = ['warm', 'joy', 'calm', 'ask'] as const;
+/** Intonations the recording pipeline knows; tools/gen_voice.py passes the name on as it is. */
+export const VOICE_STYLES = ['warm', 'joy', 'calm'] as const;
 export type VoiceStyle = (typeof VOICE_STYLES)[number];
 
 /**
@@ -483,7 +480,7 @@ const SPOKEN = {
   // PLAY-20, PLAY-21: the break and the welcome of a new day (batch 2 of stage 4)
   break_1: 'warm', break_2: 'calm', break_3: 'warm', break_4: 'calm', break_5: 'warm', break_more_1: 'warm', break_more_2: 'joy', break_more_3: 'joy', break_bye_1: 'warm', break_bye_2: 'warm',
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
-  npc_next: 'joy', npc_again: 'warm', npc_harder: 'ask', go_next: 'warm', need_net: 'warm',
+  npc_next: 'joy', npc_again: 'warm', npc_harder: 'warm', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
   collect_first: 'joy', cauldron_hi: 'warm', board_hi: 'warm', board_done: 'joy', board_again: 'joy', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
