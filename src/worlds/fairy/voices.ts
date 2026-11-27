@@ -27,7 +27,7 @@ export const voices = {
    * shared lines of a conversation and the questions of the tasks (src/game/dialogue.ts, `hooksFor` in
    * src/game/context.ts). `t_stars_back` is the cat's hint after the star search (star-search.ts), not the deer's.
    */
-  voiced: ['own', 'npc_next', 'npc_again', 'npc_done', 't_*', '!t_stars_back'] as string[],
+  voiced: ['own', 'npc_next', 'npc_again', 'npc_done', 'npc_harder', 't_*', '!t_stars_back'] as string[],
   /**
    * Of the lines above, those only the characters of this world ever say, each in its own voice: the narrator's clip
    * of the same key is never played (src/core/voice.ts `clipFor`), so it is not recorded and not installed. The same

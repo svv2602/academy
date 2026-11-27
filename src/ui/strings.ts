@@ -21,6 +21,8 @@ const S = sameKeys({
     // --- the shared conversation (a world's own lines are in src/worlds/<id>/strings.ts)
     npc_next: 'Чудово! А ось іще одне завдання.',
     npc_again: 'Пограємо ще разок?',
+    // LEARN-28: after a clean solve the character offers a harder example (the child chooses)
+    npc_harder: 'Оце так! А складніше зможеш?',
     go_next: 'Біжи за іскорками до нового друга!',
     // TECH-09: the cat at the portal of a world that is not downloaded, without the network (src/game/gate.ts)
     need_net: 'Щоб відкрити цей портал, потрібен інтернет. Попроси дорослих увімкнути його.',
@@ -63,6 +65,16 @@ const S = sameKeys({
     h2_odd: 'Знайдемо разом тих, хто схожий між собою.', h2_sort: 'Знайдемо разом кошик такого ж кольору.',
     h1_sort_two: 'Подивись на колір і на форму. Потрібен кошик, де збігається і те, і те.', h2_sort_two: 'Спочатку знайдемо колір, а потім форму.',
     h3_show: 'Подивись, що світиться. Це підказка для тебе.',
+    // --- LEARN-27, the tasks "in breadth" at the top level, numbers to 20: three addends, a chain of two actions, two
+    // expressions compared, the number missing in a subtraction, a problem in two actions; their questions and hints.
+    // The second step of sum3 is h2_add_cross, both steps of story are those of chain.
+    t_sum3: 'Скільки буде всього разом?', t_chain: 'Порахуй по черзі. Скільки вийде?',
+    t_exprs: 'Порахуй обидва приклади. Який знак поставимо?', t_gap: 'Скільки забрали?',
+    t_story: 'Подивись, що сталося. Скільки стало?',
+    h1_sum3: 'Знайди два числа, які разом дають десять. Почни з них.',
+    h1_chain: 'Спочатку зроби першу дію, а потім другу.', h2_chain: 'Рахуймо разом, дія за дією.',
+    h1_exprs: 'Спочатку порахуй, скільки ліворуч, а потім — скільки праворуч.', h2_exprs: 'Порахуймо разом кожен бік і порівняємо.',
+    h1_gap: 'Рахуй від меншого числа до більшого. Стільки й забрали.', h2_gap: 'Рахуймо разом тих, кого забрали.',
     place: 'Скласти',
     // --- collection & parents
     col_title: 'Мої скарби', col_stars: 'Зірочки', parents: 'Для батьків', close: 'Закрити',
@@ -225,6 +237,7 @@ const S = sameKeys({
     found: 'Найдено!', ok: 'Дальше',
     npc_next: 'Отлично! А вот ещё одно задание.',
     npc_again: 'Сыграем ещё разок?',
+    npc_harder: 'Вот это да! А посложнее сможешь?',
     go_next: 'Беги за искорками к новому другу!',
     need_net: 'Чтобы открыть этот портал, нужен интернет. Попроси взрослых включить его.',
     t_count: 'Сколько их здесь? Касайся и считай.', t_add: 'Сколько будет вместе?', t_sub: 'Кое-кто убежал. Сколько осталось?',
@@ -261,6 +274,14 @@ const S = sameKeys({
     h2_odd: 'Найдём вместе тех, кто похож друг на друга.', h2_sort: 'Найдём вместе корзину такого же цвета.',
     h1_sort_two: 'Посмотри на цвет и на форму. Нужна корзина, где совпадает и то, и другое.', h2_sort_two: 'Сначала найдём цвет, а потом форму.',
     h3_show: 'Посмотри, что светится. Это подсказка для тебя.',
+    // --- LEARN-27: the tasks "in breadth" at the top level
+    t_sum3: 'Сколько будет всего вместе?', t_chain: 'Посчитай по порядку. Сколько получится?',
+    t_exprs: 'Посчитай оба примера. Какой знак поставим?', t_gap: 'Сколько забрали?',
+    t_story: 'Посмотри, что случилось. Сколько стало?',
+    h1_sum3: 'Найди два числа, которые вместе дают десять. Начни с них.',
+    h1_chain: 'Сначала сделай первое действие, а потом второе.', h2_chain: 'Считаем вместе, действие за действием.',
+    h1_exprs: 'Сначала посчитай, сколько слева, а потом — сколько справа.', h2_exprs: 'Посчитаем вместе каждую сторону и сравним.',
+    h1_gap: 'Считай от меньшего числа к большему. Столько и забрали.', h2_gap: 'Считаем вместе тех, кого забрали.',
     place: 'Собрать',
     col_title: 'Мои сокровища', col_stars: 'Звёздочки', parents: 'Для родителей', close: 'Закрыть',
     gate_q: 'Раздел для взрослых. Сколько будет {a} × {b}?', p_title: 'Родительский раздел', p_version: 'Версия',
@@ -453,7 +474,7 @@ const SPOKEN = {
   // PLAY-20, PLAY-21: the break and the welcome of a new day (batch 2 of stage 4)
   break_1: 'warm', break_2: 'calm', break_3: 'warm', break_4: 'calm', break_5: 'warm', break_more_1: 'warm', break_more_2: 'joy', break_more_3: 'joy', break_bye_1: 'warm', break_bye_2: 'warm',
   hello_1: 'joy', hello_2: 'joy', hello_3: 'warm', hello_4: 'joy', hello_5: 'joy', gift_star_1: 'joy', gift_star_2: 'joy', left_new_world: 'warm', left_mid_chain: 'warm', left_between: 'warm', left_before_final: 'joy', left_after_artifact: 'joy',
-  npc_next: 'joy', npc_again: 'warm', go_next: 'warm', need_net: 'warm',
+  npc_next: 'joy', npc_again: 'warm', npc_harder: 'joy', go_next: 'warm', need_net: 'warm',
   mystery_found: 'joy', mystery_won: 'joy', mystery_wait: 'warm', mystery_day: 'joy',
   collect_first: 'joy', cauldron_hi: 'warm', board_hi: 'warm', board_done: 'joy', board_again: 'joy', cauldron_more: 'warm', cauldron_done: 'joy', daily_find: 'joy', trade_hi: 'warm', trade_done: 'joy', pet_treat: 'joy', pet_trick: 'joy', sup_rainbow: 'joy', collect_set: 'joy', collect_all: 'joy', piece_first: 'joy', picture_done: 'joy', easel_hi: 'warm', easel_some: 'joy',
   t_count: 'warm', t_add: 'warm', t_sub: 'warm', t_compare_more: 'warm', t_compare_less: 'warm', t_pattern: 'warm', t_odd: 'warm',
@@ -466,6 +487,9 @@ const SPOKEN = {
   h2_missing: 'warm', h1_house: 'warm', h2_house: 'warm', h2_pattern: 'warm', h1_pattern_grow: 'warm', h2_pattern_grow: 'warm',
   h1_pattern_two: 'warm', h2_pattern_two: 'warm', h1_simon: 'warm', h1_simon_long: 'warm', h1_odd_shape: 'warm', h1_odd_two: 'warm',
   h2_odd: 'warm', t_diff: 'warm', h_diff: 'warm', h1_diff: 'warm', h2_diff: 'warm', t_puzzle: 'warm', h_puzzle: 'warm', h1_puzzle: 'warm', h2_sort: 'warm', h1_sort_two: 'warm', h2_sort_two: 'warm', h3_show: 'warm',
+  // LEARN-27: the tasks "in breadth"
+  t_sum3: 'warm', t_chain: 'warm', t_exprs: 'warm', t_gap: 'warm', t_story: 'warm',
+  h1_sum3: 'warm', h1_chain: 'warm', h2_chain: 'warm', h1_exprs: 'warm', h2_exprs: 'warm', h1_gap: 'warm', h2_gap: 'warm',
   shop_hi: 'warm', shop_more: 'warm', shop_bought: 'joy', shop_deal: 'joy',
   sup_speed: 'joy', sup_jump: 'joy', sup_glow: 'joy', sup_tiny: 'joy', sup_giant: 'joy', sup_compass: 'warm', sup_all_found: 'warm',
   // recorded by the old game (voice/qa.json `from`): one word is allowed here, the clip exists
