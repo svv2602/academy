@@ -133,7 +133,7 @@ const uk = {
   sweet_secret_lemonade: 'Фонтан лимонаду! Дивись, у бризках веселка!',
   sweet_secret_gum: 'Яка велика бульбашка з жуйки! Ой, луснула — конфеті!',
   // the secret places (plan sweet-secrets-2026-11-27): the cave behind the chocolate waterfall, Imbir's room
-  sweet_secret_cave: 'За шоколадним водоспадом печера! А тут золоті цукерки!',
+  sweet_secret_cave: 'За водоспадом печера! Тут золоті цукерки!',
   sweet_room_in: 'Який затишний будиночок! Пахне пряниками.',
   sweet_secret_room: 'У банці пряники-зірочки! Ось твої зірочки.',
   imbir_room: 'Заходь, у мене вдома затишно!',
@@ -259,7 +259,7 @@ const ru: Record<keyof typeof uk, string> = {
   sweet_secret_cotton: 'Сахарная вата подбрасывает вверх! Что там, на крыше?',
   sweet_secret_lemonade: 'Фонтан лимонада! Смотри, в брызгах радуга!',
   sweet_secret_gum: 'Какой большой пузырь из жвачки! Ой, лопнул — конфетти!',
-  sweet_secret_cave: 'За шоколадным водопадом пещера! А тут золотые конфеты!',
+  sweet_secret_cave: 'За водопадом пещера! Тут золотые конфеты!',
   sweet_room_in: 'Какой уютный домик! Пахнет пряниками.',
   sweet_secret_room: 'В банке пряники-звёздочки! Вот твои звёздочки.',
   imbir_room: 'Заходи, у меня дома уютно!',
