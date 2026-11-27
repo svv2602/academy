@@ -4,6 +4,7 @@ import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
@@ -334,7 +335,7 @@ function buildSweet(g: Game, L: SweetLoads, sky: WorldSky, scope: WorldScope): B
       spots: [
         // the secrets' first: where one's reach meets a character's, the character's is the button (the last in reach)
         ...secrets.spots,
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         ...rubySpots,
         { pos: shrine, r: SHRINE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,

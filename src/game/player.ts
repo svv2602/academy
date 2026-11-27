@@ -15,7 +15,18 @@ import type { WorldFrame } from './loop';
 import type { WorldGround } from './world';
 
 /** A place the heroine can do something at: the last one that fits wins (the world lists them in that order). */
-export interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; }
+export interface Spot { pos: THREE.Vector3; r: number; label: Key; on: () => boolean; run: () => void; talker?: Talker }
+
+/**
+ * A character's spot of talk (`talkSpot`, src/game/talk-spot.ts): what a tap near it needs to know. A tap meant for the
+ * path by a character must not walk her into a conversation (the customer's word of 2026-11-27): see `talkByTap`.
+ */
+export interface Talker {
+  /** Its chain is finished: only a tap on its figure (or the action button) talks to it. */
+  done(): boolean;
+  /** m over its feet (`Spot.pos`) the figure reaches with its mark over the head: what a tap "on it" may hit. */
+  top(): number;
+}
 
 export interface Player {
   readonly grounded: boolean;
@@ -88,14 +99,49 @@ export function tapTarget(spotD: number | null, catD: number, touch: boolean): '
   return cat ? 'cat' : 'ground';
 }
 
+/**
+ * Whether a tap at (tx, ty) lands on a figure seen on screen from its feet (fx, fy) to its top (hx, hy): no farther from
+ * that line than `share` of its height on screen - the size the figure has on this screen at this distance, the same
+ * share on a phone and on a 4K monitor (a fixed number of px is not).
+ */
+export function onFigure(tx: number, ty: number, fx: number, fy: number, hx: number, hy: number, share: number): boolean {
+  const lx = hx - fx, ly = hy - fy, h2 = lx * lx + ly * ly;
+  if (h2 < 1) return false;
+  const t = Math.min(1, Math.max(0, ((tx - fx) * lx + (ty - fy) * ly) / h2));
+  return Math.hypot(tx - (fx + t * lx), ty - (fy + t * ly)) <= share * Math.sqrt(h2);
+}
+
+/**
+ * Whether a tap by a character walks her to it and opens their conversation (the customer's three rules, 2026-11-27):
+ * - a tap on its figure always does (`hit`);
+ * - near it but not on it (`nearPx`: within SPOT_TAP_PX), only while its chain has a step to give (not `done`), the
+ *   point tapped on the ground no farther from it than `near` m - a tap "to it", not on the path past it -, and only
+ *   when it is `armed`: after a talk it is not, till she has gone farther than `tuning.talkAgain` from it (`rearmed`).
+ */
+export function talkByTap(t: { hit: boolean; nearPx: boolean; done: boolean; armed: boolean; groundD: number | null }, near: number): boolean {
+  if (t.hit) return true;
+  if (t.done || !t.armed || !t.nearPx) return false;
+  return t.groundD !== null && t.groundD <= near;
+}
+
+/** Whether a character talked to is ready for a tap near it again: she is farther than `again` m from it. */
+export function rearmed(d: number, again: number): boolean {
+  return d > again;
+}
+
 export function createPlayer(g: Game): Player {
   const { hero, cat, cam, camera, touch, groundY, started } = g;
   let vy = 0, grounded = true;
   // The clip this frame itself last put on her (Run, Walk, Jump, Idle): what a scene plays on her is the scene's own.
   let mine = '';
   const real = speedometer();   // her speed over the ground as it is (a wall stops her, the pace too)
-  const v = new THREE.Vector3(), v2 = new THREE.Vector3(), ray = new THREE.Raycaster();
+  const v = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), v4 = new THREE.Vector3(), ray = new THREE.Raycaster();
+  /** The point `up` m over `p` on screen, in px; null behind the camera. */
+  const screenPoint = (p: THREE.Vector3, up: number) => { v4.copy(p).setY(p.y + up).project(camera); return v4.z < 1 ? { x: (v4.x * 0.5 + 0.5) * innerWidth, y: (-v4.y * 0.5 + 0.5) * innerHeight } : null; };
   const ripple = createRipple(g.scene);
+  // the characters talked to and not walked away from yet (`talkByTap`, `rearmed`)
+  const talked = new Set<Spot>();
+  const run = (s: Spot) => { if (s.talker) talked.add(s); s.run(); };
 
   return {
     get grounded() { return grounded; },
@@ -107,10 +153,26 @@ export function createPlayer(g: Game): Player {
         // A task of the world on screen takes every tap, even one that hits nothing: the heroine does not walk off.
         if (worldTap(screenDist)) { /* taken by the world */ }
         else if (canMove) {
+          // the point of the ground under the tap, asked once and only when a character near it needs it
+          let ground: THREE.Vector3 | null | undefined;
+          const groundAt = () => {
+            if (ground === undefined) { ray.setFromCamera(new THREE.Vector2((tx / innerWidth) * 2 - 1, -(ty / innerHeight) * 2 + 1), camera); ground = g.ground.raycast(ray.ray.origin, ray.ray.direction, v3) ? v3 : null; }
+            return ground;
+          };
           let spot: Spot | null = null, spotD = Infinity;
-          for (const s of spots) { const d = s.on() ? screenDist(v2.copy(s.pos).setY(s.pos.y + 1)) : Infinity; if (d < SPOT_TAP_PX) { spot = s; spotD = d; } }
+          for (const s of spots) {
+            if (!s.on()) continue;
+            const d = screenDist(v2.copy(s.pos).setY(s.pos.y + 1));
+            if (s.talker) {
+              const feet = screenPoint(s.pos, 0), top = screenPoint(s.pos, s.talker.top());
+              const hit = !!feet && !!top && onFigure(tx, ty, feet.x, feet.y, top.x, top.y, tuning.talkFigure);
+              const gp = hit ? null : groundAt();
+              if (!talkByTap({ hit, nearPx: d < SPOT_TAP_PX, done: s.talker.done(), armed: !talked.has(s), groundD: gp ? Math.hypot(gp.x - s.pos.x, gp.z - s.pos.z) : null }, tuning.talkNear)) continue;
+              spot = s; spotD = Math.min(d, SPOT_TAP_PX - 1);
+            } else if (d < SPOT_TAP_PX) { spot = s; spotD = d; }
+          }
           const to = tapTarget(spot ? spotD : null, screenDist(v2.copy(cat.root.position).setY(cat.root.position.y + CAT_TAP_Y)), touch);
-          if (to === 'spot' && spot) g.auto = { x: spot.pos.x, z: spot.pos.z, then: spot.run, stuck: 0, last: 1e9 };
+          if (to === 'spot' && spot) { const s = spot; g.auto = { x: s.pos.x, z: s.pos.z, then: () => run(s), stuck: 0, last: 1e9 }; }
           // A tap on the cat asks it to say its line again - or, with the bubble empty, where we stopped (PLAY-21) -,
           // not to walk to it. (In the butterflies task the cat is out of the frame.)
           // ...and shows the way at once: the whole trail of sparkles for a while (src/game/guide.ts)
@@ -189,10 +251,11 @@ export function createPlayer(g: Game): Player {
     // interaction prompt
     prompt: (canMove, spots) => {
       const hp = hero.root.position;
+      for (const s of talked) if (rearmed(Math.hypot(s.pos.x - hp.x, s.pos.z - hp.z), tuning.talkAgain)) talked.delete(s);
       const near = canMove ? spotInReach(spots, hp.x, hp.z) : null;
       setAct(near ? near.label : null);
       el.btnJump.classList.toggle('hidden', !canMove || swimming(g));
-      if (input.act && near) near.run();
+      if (input.act && near) run(near);
       input.act = false;
     },
     fadeRing: (dt) => ripple.update(dt),

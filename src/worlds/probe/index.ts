@@ -3,11 +3,12 @@ import { gltf, rig, staticGeo } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { worldClips } from '../../core/voice';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { createStage, type Game } from '../../game/context';
 import { createDialogue } from '../../game/dialogue';
 import { loadFailed } from '../../game/boot';
 import { createGear } from '../../game/gear';
-import { swimming, type Spot } from '../../game/player';
+import { swimming } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { travel } from '../../game/travel';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldGround, WorldLines, WorldSky, WorldTask } from '../../game/world';
@@ -177,7 +178,7 @@ function buildProbe(g: Game, L: ProbeLoads, sky: WorldSky, scope: WorldScope): B
   return {
     frame: {
       spots: [
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void talk(n); })),
         // The portal home: the same `travel` the game changes the world with.
         { pos: portal, r: 2.2, label: 'open', on: () => true, run: () => { void travel(PORTAL.to); } },
         ...items.spots,

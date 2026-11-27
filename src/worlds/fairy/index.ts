@@ -3,6 +3,7 @@ import { setCast } from '../../core/audio';
 import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
+import { talkSpot } from '../../game/talk-spot';
 import { createDialogue } from '../../game/dialogue';
 import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
@@ -220,7 +221,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   scene.add(badge);
 
   const spots: Spot[] = [
-    ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+    ...npcs.map((n) => talkSpot(n, () => chainDone(ws, n.def), () => { void talk(n); })),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
