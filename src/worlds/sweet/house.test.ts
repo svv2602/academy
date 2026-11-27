@@ -16,6 +16,7 @@ import { createDialogue } from '../../game/dialogue';
 import { createWorldScope } from '../../game/scope';
 import type { TaskResult } from '../../game/taskviews/panel';
 import type { CharacterDef, Npc } from '../../game/world';
+import { blockersOf } from '../../game/worldtasks/blockers';
 import { taskFrame, type WorldTaskShow } from '../../game/worldtasks/core';
 import type { WorldHouse } from '../../game/worldtasks/house';
 import { FLY, generateHouse } from '../../game/worldtasks/house';
@@ -271,5 +272,17 @@ describe('the house in its frame on a phone', () => {
     for (const p of f.corners) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThan(1); expect(p.y).toBeGreaterThan(0.22); expect(p.y).toBeLessThan(0.97); }
     for (const p of f.placeAt) expect(p.y).toBeGreaterThan(0.25);
     for (const t of [...f.pieces, ...f.places]) expect(t).toBeGreaterThanOrEqual(48);
+  });
+
+  it('the house is the task\'s own: its tall facade is not taken for a thing in the way of the camera', () => {
+    const scene = new THREE.Scene(), spec = generateHouse(5, createRng('frame')), d = drawHouse(scene, spec, [], () => 0);
+    scene.updateMatrixWorld(true);
+    const { cam: c } = taskFrame(d, { fov: 55, aspect: 844 / 390 });
+    const eye = new THREE.Vector3(c.target.x + Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist, c.target.y + Math.sin(c.pitch) * c.dist, c.target.z + Math.cos(c.yaw) * Math.cos(c.pitch) * c.dist);
+    const targets = () => [...spec.body.pieces.map((_, i) => d.piece(i).pos), ...spec.body.places.map((_, k) => d.place(k).pos)].map((pos) => ({ pos, right: false }));
+    expect(d.own).toEqual([d.group]);
+    expect(blockersOf(scene, eye, { ...d, targets })).toEqual([]);
+    // without it the facade over the footprint would be named: the check is not blind to the house
+    expect(blockersOf(scene, eye, { ...d, own: [], targets }).map((b) => b.name)).toContain('imbir-house-assembly');
   });
 });

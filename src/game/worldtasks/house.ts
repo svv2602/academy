@@ -163,6 +163,8 @@ export interface HouseView {
   readonly center: THREE.Vector3;
   readonly facing: number;
   readonly extent: { side: number; depth: number };
+  /** Its own things for the camera's check (WorldTaskShow.own): the house itself. */
+  readonly own?: readonly THREE.Object3D[];
   /** Where a tap on piece `i` (lying) is measured from, and how big it is around that point (m). */
   piece(i: number): { pos: THREE.Vector3; r: number };
   /** The same for place `k` of the outline. */
@@ -239,7 +241,7 @@ export function showHouseInWorld(spec: HouseSpec, view: HouseView, hooks: Pick<T
   };
 
   return {
-    kind: 'house', done: core.done, board, center: view.center, facing: view.facing, extent: view.extent,
+    kind: 'house', done: core.done, board, center: view.center, facing: view.facing, extent: view.extent, own: view.own,
     tap: (screenDist) => {
       if (!core.alive) return false;
       let best: { piece: boolean; n: number } | null = null, bd = o.reach;
