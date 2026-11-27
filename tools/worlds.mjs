@@ -138,7 +138,7 @@
 //      no probe build. Pictures shots-e2e/worlds-published/forest/.
 //  14. The part "sea" (tools/sea-pass.mjs `passEnv`, `passProblems`): the same for the published sea (2026-11-24): its
 //      chains with the two tasks in the world (the shell lock, the second half) and the two pearls in it, the
-//      cutscenes, the tour, Bulchik, its four secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
+//      cutscenes, the tour, Bulchik, its five secrets, the finale. Pictures shots-e2e/worlds-published/sea/.
 //  15. The part "sweet" (tools/sweet-pass.mjs `passEnv`, `passProblems`): the same for the published Sweet Land
 //      (2026-11-26): its chains with the three tasks in the world (the gingerbread house, the scales, the shape bridge)
 //      and the two rubies in it, the cutscenes, the tour, Zheleyka, its four secrets, the finale. Its grey walkthrough
@@ -975,7 +975,7 @@ async function main() {
     const next = buildWorlds(dist);
     if (!next.includes('sea')) throw new Error(`the published build ${dist} has no sea among its next worlds (worlds.json: ${JSON.stringify(next)})`);
     await worldPass('the sea', dist, join('shots-e2e', 'worlds-published', 'sea'), (out) => seaPassEnv(process.env, out), seaPassTimeoutMs(process.env), seaPassProblems,
-      'the sea of the published build: played by its description from its entry to its finale, its four secrets found');
+      'the sea of the published build: played by its description from its entry to its finale, its five secrets found');
   } catch (e) { fail(e.message); }
   // ---- the part "sweet": the walkthrough of the published Sweet Land in the published build (tools/sweet-pass.mjs) ----
   // as the sea's, held to the numbers of the template; its own limit, the grey walkthrough's (tools/sweet-grey.mjs)
@@ -1469,6 +1469,39 @@ async function hubScenarios({ url, shots, fail: report }) {
         await press('#cauldronClose');
         if (await p.g(() => __game.paused === true || !document.getElementById('cauldron').classList.contains('hidden'))) fail('keepsakes: the cauldron closed, the game still stands');
         told.push(`the cauldron by the roots: ${shown.length} recipes of the open worlds, a mushroom not asked refused, the jumping potion brewed by touches (the stash ${JSON.stringify(before.stash)} -> ${JSON.stringify(after.stash)})`);
+      }
+      // the magic board by the roots (src/game/trainer.ts): reached by walking up to it, its button "board"; the card
+      // lists the skills the parents' section shows; addition picked - six tasks on the panel, each recorded in the
+      // skill, one star at the end; a run of two days shows on the card
+      {
+        const b = await p.g(() => __game.hub.board());
+        await p.g(([x, z]) => { const g = __game; g.teleport(x, z + 1.6); g.hero.heading = Math.PI; g.hero.root.rotation.y = Math.PI; g.cam.yaw = 0; }, [b.x, b.z]);
+        await p.gameSeconds(1);
+        await p.shot('hub-board-look.png');
+        await p.page.locator('#btnAct').waitFor({ state: 'visible', timeout: 10000 }).catch(() => fail('keepsakes: no action button by the board'));
+        await p.page.locator('#btnAct').click({ force: true });
+        await p.page.locator('#board .bd-skill').first().waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the board did not open'));
+        const card = await p.g(() => ({ skills: [...document.querySelectorAll('#board .bd-skill')].map((e) => e.dataset.skill), shown: __game.hub.board().card.skills }));
+        if (JSON.stringify(card.skills) !== JSON.stringify(card.shown) || !card.skills.includes('add')) fail(`keepsakes: the board's card ${JSON.stringify(card)}`);
+        await p.shot('hub-board.png');
+        const before = await p.g(() => ({ stars: __game.save.stars, tasks: __game.save.skills.add?.tasks ?? 0, answers: __game.save.answers?.add?.length ?? 0 }));
+        await p.page.locator('#board [data-skill=add]').click({ force: true });
+        await p.until(() => {
+          const shown = (i) => !document.getElementById(i).classList.contains('hidden');
+          if (shown('fanfare')) document.getElementById('fanfareOk').click();
+          else if (shown('task') && !document.getElementById('task').classList.contains('won')) __game.cheat();
+          return __game.hub.board().end === 'done' && !__game.busy && !shown('task');
+        }, null, 'keepsakes: the session of addition on the board did not end', 180000);
+        const after = await p.g(() => ({ stars: __game.save.stars, tasks: __game.save.skills.add.tasks, answers: __game.save.answers?.add?.length ?? 0, train: __game.hub.board().train }));
+        if (after.tasks !== before.tasks + 6 || after.answers !== Math.min(20, before.answers + 6) || after.stars !== before.stars + 1 || after.train?.paid !== 1 || after.train?.days !== 1)
+          fail(`keepsakes: the session on the board: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+        // two days in a row: yesterday's run goes on, the card says so
+        await p.g(() => { const t = __game.save.train; t.days = 2; __game.hub.board().open(); });
+        await p.page.locator('#board .bd-days').waitFor({ timeout: 10000 }).catch(() => fail('keepsakes: the board does not show two days in a row'));
+        await p.shot('hub-board-days.png');
+        await p.page.locator('#boardClose').click({ force: true });
+        if (await p.g(() => __game.busy || !document.getElementById('board').classList.contains('hidden'))) fail('keepsakes: the board closed, the game still stands');
+        told.push(`the magic board: ${card.skills.length} skills, addition - six tasks recorded (${before.tasks} -> ${after.tasks}), a star (${before.stars} -> ${after.stars}), two days in a row shown`);
       }
       await p.close();
     }

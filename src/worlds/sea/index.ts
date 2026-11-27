@@ -4,13 +4,14 @@ import { setCast, sfx, speaking } from '../../core/audio';
 import { worldClips } from '../../core/voice';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
+import { talkSpot } from '../../game/talk-spot';
 import { loadFailed } from '../../game/boot';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
 import { flyoverOf, setTour, tour } from '../../game/flyover';
 import { createGear } from '../../game/gear';
-import { swimming, type Spot } from '../../game/player';
+import { swimming } from '../../game/player';
 import type { WorldScope } from '../../game/scope';
 import { loadOwnPets } from '../../game/pets';
 import { playScene } from '../../game/stage';
@@ -20,7 +21,8 @@ import { waterOf } from '../../game/water';
 import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SEA_FLYOVER } from './flyover-path';
-import { CABIN, CORAL_NEST, EASEL, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SPAWN, THRONE, ZONES } from './layout';
+import { HOLD_TOLD, createSeaHold, holdOf } from './hold';
+import { CABIN, CORAL_NEST, EASEL, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SHIP, SPAWN, THRONE, ZONES } from './layout';
 import { buildScenery, buildShafts } from './scenery';
 import { LOCK, createLock } from './lock';
 import { CORALS, createCoralsSearch } from './corals';
@@ -114,7 +116,7 @@ const TOUR = 'toured';
  * The cat's words of the first visit, each said once (the flag of the save): after the tour, his bubble (he does not
  * like water); as she first swims a few metres, that she swims as she walks; after the first pearl, he is wet but stays.
  */
-export const ONCE = { bubble: 'told_bubble', swim: 'told_swim', wet: 'told_wet' } as const;
+export const ONCE = { bubble: 'told_bubble', swim: 'told_swim', wet: 'told_wet', hold: HOLD_TOLD } as const;
 /** m she swims after the cat's bubble before he says she swims like a fish. */
 const SWIM_SAID_AT = 1.5;
 /** s of game time she must be free and the voice silent before the cat says one of them. */
@@ -138,10 +140,10 @@ const MUSIC: MusicParams = {
 const SWIM_CLIPS = 'sea/swim';
 /** The sunken ship (step B of the look): Kenney's "Ship Wreck", CC0 1.0 (CREDITS.md), the world's own file. */
 const WRECK = 'sea/kenney/ship_wreck';
-/** The chest in the hold, by the cabin's door: the core's (Platformer Game Kit, CC0), the first world's chest. */
+/** The chest in the hold: the core's (Platformer Game Kit, CC0), the first world's chest. */
 const CHEST_MODEL = 'platformer_game_pack/Chest';
-/** Where the chest stands: by the door of the cabin, toward the stern, out of the door's spot. */
-const CHEST = { x: CABIN.x - 1.7, z: CABIN.z + 0.9 };
+/** Where the chest stands: in the hold behind the cabin's door (./hold.ts), since 2026-11-27 - before, on the sand by the door. */
+const CHEST = holdOf().chest;
 /** m: how high she swims over the floor (the probe world's height). */
 const SWIM_HEIGHT = 0.6;
 
@@ -229,20 +231,19 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   scope.own(worldClips('sea', CLIPS));
   scene.add(buildGround(160));
   const floor = buildScenery(scene, L.wreck);
-  // the chest in the hold, by the cabin's door: the world's secret `ship_chest` (./secrets.ts) opens it
+  // the chest in the hold: the world's secret `ship_chest` (./secrets.ts) opens it; its lid to the room
   const chest = new Actor(L.chest);
-  // its lid away from the cabin's door and from Pantsyr: the action of each stays its own (the button of the nearest
-  // spot is the last in reach - opened by the chest's, the cabin's door was the chest's: the walkthrough of 2026-11-23)
-  const PANTSYR = FRIENDS.find((c) => c.id === 'pantsyr')!;
-  const toCabin = Math.atan2(CABIN.x - CHEST.x, CABIN.z - CHEST.z), toTurtle = Math.atan2(PANTSYR.x - CHEST.x, PANTSYR.z - CHEST.z);
   chest.root.position.set(CHEST.x, groundY(CHEST.x, CHEST.z), CHEST.z);
-  chest.root.rotation.y = Math.atan2(-(Math.sin(toCabin) + Math.sin(toTurtle)), -(Math.cos(toCabin) + Math.cos(toTurtle)));
+  chest.root.rotation.y = holdOf().chestFacing;
   chest.root.traverse((o) => { o.castShadow = true; });
   scene.add(chest.root);
   g.ground.block(CHEST.x, CHEST.z, 0.6);
   const shafts = buildShafts(scene, SHAFTS);
   // the secrets (PLAY-07, ./secrets.ts): the chest, the bubble lift, the echo shells, the whale from the lookout
-  const secrets = createSeaSecrets(g, scope, { chest });
+  // the hold behind the cabin's door, open once Pantsyr's pearl is back (./hold.ts); the chest in it with it
+  const holdOpen = () => ws.flags.pearl_ship === true;
+  const secrets = createSeaSecrets(g, scope, { chest, open: holdOpen });
+  const hold = createSeaHold(g, scope, { door: new THREE.Vector3(CABIN.x, groundY(CABIN.x, CABIN.z), CABIN.z), facing: Math.atan2(CABIN.x - SHIP.x, CABIN.z - SHIP.z), open: holdOpen });
   // the creatures of no task (PLAY-11, PLAY-12): schools of fish, jellyfish, crabs, starfish; the columns of bubbles
   const creatures = createSeaCreatures(g);
   const bubbles = buildBubbles(scene);
@@ -342,7 +343,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...THRONE }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
   // the secrets are the child's own, never needed by the finale
-  const secretItems = SEA_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id) }));
+  // the chest is in the hold: after Pantsyr's pearl, which opens its door
+  const secretItems = SEA_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: SECRET_HOW[id], at: secrets.at[id], active: () => secrets.active(id), ...(id === CHEST_FLAG ? { after: ['pearl_ship'] } : {}) }));
   // a scene goes on frame by frame with a tap (src/game/story.ts): the child's taps, the walkthrough's too
   const sceneOn = (id: string) => () => story.active && story.id === id;
   const introItem = marked(ws, { kind: 'scene', id: 'story_intro', how: 'tap', active: sceneOn('story_intro') });
@@ -374,7 +376,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
       spots: [
         // the secrets' first: where one's reach meets a character's or the cabin's, theirs is the button
         ...secrets.spots,
-        ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void dialogue.talk(n); } })),
+        ...hold.spots,
+        ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         { pos: cabin, r: CABIN_R, label: 'sea_cabin', on: () => waiting(cabinPearl), run: () => take(cabinPearl) },
         { pos: throne, r: THRONE_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
       ],
@@ -404,6 +407,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         lock.update(dt, canMove);
         corals.update(dt, time, canMove);
         secrets.update(dt, time, canMove);
+        hold.update(dt, time);
         // the cat's words of the first visit (ONCE): only while she is free and nobody speaks, so no line is cut
         // and never while a task in the world is open: closing one must leave the save as it was
         // and only after QUIET s of game time free so: never in the moment a task or a talk has just ended or begins
@@ -435,7 +439,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (p) return p.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
-        return finaleItem.done() ? null : throne;
+        // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+        return g.easel.goal() ?? (finaleItem.done() ? null : throne);
       },
       animate: (_dt, time) => { flies.update(time); shafts.sway(time); floor.sway(time); bubbles.update(time); player.update(time); },
       focusDist: () => 6.5,
@@ -464,6 +469,7 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and its things, for their pictures and their draw calls
         seaSecrets: { at: secrets.at, ...secrets.debug },
+        seaHold: { doorIn: { x: hold.doorIn.x, z: hold.doorIn.z }, doorOut: { x: hold.doorOut.x, z: hold.doorOut.z }, chest: { ...CHEST }, inside: () => hold.inside() },
         // a clip of the heroine held at her swimming height (tools/sea-grey.mjs pictures her talking and dancing in the
         // water): the game is busy meanwhile, as in a conversation, so her own moving does not take it back; null lets go
         pose: (clip: string | null) => { g.busy = clip !== null; if (clip) hero.play(clip, 0.2); } },

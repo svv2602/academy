@@ -38,7 +38,8 @@ export function missingView(spec: MissingSpec, c: PanelCtx) {
   c.stage.append(known, el('span', 'sign', '+'), gap, el('span', 'sign', '='), el('span', 'sign sum', String(sum)));
   const things = items(known, thing, tilt);
   if (framed) tenFrames(known, things, true);
-  const ok = options(c, spec.body.options, (v) => missing.answer(spec, st, v) === 'right');
+  // the hint's dots take the place of "?" (q.remove below): then the answer does not fly
+  const ok = options(c, spec.body.options, (v) => missing.answer(spec, st, v) === 'right', { at: () => (q.isConnected ? q : null), row: () => [...c.stage.children] as HTMLElement[] });
   c.hint = hintOf(spec.hint, pulseOf(ok), {
     countUp: () => {
       // The number of the known addend over its group, then the dots: into the empty cells of its frame up to ten

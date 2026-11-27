@@ -1,4 +1,4 @@
-import type { Save } from '../core/save';
+import { HINTS, type HintsChoice, type Save } from '../core/save';
 import { CONTROL_IDS, CONTROL_STEPS, type ControlId, type ControlStep, type Controls } from '../core/tuning';
 import type { UpdateState } from '../core/update';
 import { fromCode, hasBefore, loadCode, restoreBefore, toCode, type Refusal } from '../core/savecode';
@@ -315,6 +315,7 @@ export function initBook(save: Save, book: BookInfo, on: {
     const step = (id: ControlId) => (c[id] && CONTROL_STEPS.includes(c[id]) ? c[id] : 'normal');
     $('pBody').innerHTML = `<div class="pctl">${CONTROL_IDS.map((id) => `<div class="prow"><span>${t(`p_ctl_${id}` as Key)}</span>${CONTROL_STEPS.map((k) =>
       `<button data-ctl="${id}" data-step="${k}" class="${step(id) === k ? 'sel' : ''}">${t(`p_ctl_${id}_${k}` as Key)}</button>`).join('')}</div>`).join('')}
+      <div class="prow"><span>${t('p_hints')}</span>${HINTS.map((k) => `<button data-hints="${k}" class="${(save.hints ?? 'world') === k ? 'sel' : ''}">${t(`p_hints_${k}` as Key)}</button>`).join('')}</div>
       <div class="pcfoot"><p class="pnote">${t('p_ctl_note')}</p><button id="pCtlBack">${t('p_code_back')}</button></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-ctl]').forEach((b) => b.addEventListener('click', () => {
       const id = b.dataset.ctl as ControlId, k = b.dataset.step as ControlStep;
@@ -322,6 +323,12 @@ export function initBook(save: Save, book: BookInfo, on: {
       if (k === 'normal') delete next[id]; else next[id] = k;
       save.controls = next;
       on.controls?.(); renderControls();
+    }));
+    // the cat's sparkles (src/game/guide-rule.ts): as the world has them (none stored), always, only when asked
+    $('pBody').querySelectorAll<HTMLElement>('[data-hints]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.hints as HintsChoice;
+      if (k === 'world') delete save.hints; else save.hints = k;
+      on.change(); renderControls();
     }));
     $('pCtlBack').addEventListener('click', renderParents);
   };

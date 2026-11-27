@@ -10,10 +10,11 @@ import { hintOf } from './flow';
 export function addView(spec: AddSpec, c: PanelCtx) {
   const st = add.start(spec), { a, thing, tilt } = spec.body, framed = spec.level >= FRAMES_FROM || c.framed === true;   // c.framed: the abacus
   const ga = el('div', framed ? 'group framed' : 'group'), gb = el('div', framed ? 'group framed' : 'group');
-  c.stage.append(ga, el('span', 'sign', '+'), gb, el('span', 'sign', '='), el('span', 'sign q', '?'));
+  const q = el('span', 'sign q', '?');
+  c.stage.append(ga, el('span', 'sign', '+'), gb, el('span', 'sign', '='), q);
   const all = [...items(ga, thing, tilt.slice(0, a)), ...items(gb, thing, tilt.slice(a))];
   if (framed) { tenFrames(ga, all.slice(0, a), true); tenFrames(gb, all.slice(a), true); }
-  const ok = options(c, spec.body.options, (v) => add.answer(spec, st, v) === 'right');
+  const ok = options(c, spec.body.options, (v) => add.answer(spec, st, v) === 'right', { at: () => q, row: () => [...c.stage.children] as HTMLElement[] });
   c.hint = hintOf(spec.hint, pulseOf(ok), {
     countAloud: () => { void countAloud(c, all); },
     countOn: () => { void countOn(c, all); },

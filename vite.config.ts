@@ -106,15 +106,20 @@ export default defineConfig(({ mode }) => {
         // "bank": the first answer in full is kept, later plays and plays without network are served from it, the byte
         // ranges the player asks for cut from it). src/core/voice.ts `sayBank` downloads it in full before it plays and,
         // without network, asks this cache first: a clip not kept yet gives way to the general question, no request leaves.
+        // The English clips (public/en/, src/core/voice-en.ts) are a lazy bank too, the same way, in the cache "en".
         // A next world (TECH-09) is not part of the first load either: its folders are left out of the list, the list of
         // its files (worlds.json) is added to it, and its files are kept in the cache "worlds" - the first answer in
         // full, as for the bank; the game's download in the background fills the same cache under the same addresses.
-        workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**', ...worldGlobs(next)], maximumFileSizeToCacheInBytes: 4_000_000,
+        workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**', 'en/**', ...worldGlobs(next)], maximumFileSizeToCacheInBytes: 4_000_000,
           clientsClaim: true, skipWaiting: false,
           manifestTransforms: [list.api.precache],
           runtimeCaching: [{
             urlPattern: /\/bank\/[^/]+\.mp3$/, handler: 'CacheFirst',
             options: { cacheName: 'bank', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 400 } },
+          }, {
+            // The English clips (public/en/, src/core/voice-en.ts, Season 2): a lazy bank of their own, as the bank above.
+            urlPattern: /\/en\/[^/]+\.mp3$/, handler: 'CacheFirst',
+            options: { cacheName: 'en', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 600 } },
           }, ...(route ? [{
             urlPattern: route, handler: 'CacheFirst' as const,
             options: { cacheName: WORLDS_CACHE, cacheableResponse: { statuses: [200] }, rangeRequests: true },

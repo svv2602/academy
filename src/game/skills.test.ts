@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { LATE_SKILLS, LEVELS, SKILLS, levelFor, recordTask, shownSkills, statOf, withinLevels, type SkillId } from './skills';
+import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, isOpen, levelFor, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
 import { SKILL } from './taskviews/panel';
 
 /** Feeds a series of finished tasks (number of wrong answers in each, the step of the hint reached) through recordTask. */
@@ -16,9 +16,11 @@ function at(skill: SkillId, level: number) {
 }
 
 describe('the skills of the ladder (LEARN-03, R38)', () => {
-  it('are the eleven of docs/11-learning.md, "logic" split into four, attention and assembling a picture (from the second world) last, in the order of the parents\' section', () => {
-    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble']);
+  it('are the eleven of docs/11-learning.md, "logic" split into four, attention and assembling a picture (from the second world), then the four of Season 2, in the order of the parents\' section', () => {
+    expect(SKILLS).toEqual(['count', 'add', 'sub', 'compare', 'series', 'pattern', 'memory', 'classify', 'compose', 'attention', 'assemble',
+      'en_words', 'en_phrases', 'en_read', 'read']);
     expect(SKILLS).not.toContain('logic');
+    expect(SEASON2_SKILLS).toEqual(['en_words', 'en_phrases', 'en_read', 'read']);
   });
 
   it('each has levels 1 to 5, but the composition of a number: 3 to 5 (it has no levels 1 and 2)', () => {
@@ -26,19 +28,59 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
     expect(Object.keys(LEVELS).sort()).toEqual([...SKILLS].sort());
   });
 
-  it('a fresh save starts each skill at its first level; a late one is no field of it until its first task', () => {
+  it('a fresh save starts each skill at its start level; a late one is no field of it until its first task', () => {
     const s = defaultSave();
-    for (const k of SKILLS) expect(statOf(s, k).level, k).toBe(LEVELS[k][0]);
+    expect(START).toEqual({ compose: 3, en_words: 2, en_phrases: 2, read: 3 });
+    for (const k of SKILLS) expect(statOf(s, k).level, k).toBe(START[k] ?? LEVELS[k][0]);
+    for (const k of SKILLS) expect(startLevel(k), k).toBe(START[k] ?? 1);
+    expect(LATE_SKILLS).toEqual(['attention', 'assemble', 'en_read']);
     for (const k of LATE_SKILLS) { expect(s.skills[k], k).toBeUndefined(); expect(levelFor(s, k)).toBe(1); }
+  });
+
+  it('English words, English phrases and reading start above their lowest level and may still go down to 1 (PROPOSAL §3)', () => {
+    for (const k of ['en_words', 'en_phrases', 'read'] as const) {
+      const s = defaultSave();
+      expect(LEVELS[k], k).toEqual([1, 5]);
+      for (let i = 0; i < 10; i++) recordTask(s, k, 3);
+      expect(s.skills[k].level, k).toBe(1);
+      s.fixed[k] = 1;
+      expect(levelFor(s, k), k).toBe(1);
+    }
+    // the composition of a number, by contrast, never goes below its 3
+    const c = defaultSave();
+    for (let i = 0; i < 10; i++) recordTask(c, 'compose', 3);
+    expect(c.skills.compose.level).toBe(3);
+  });
+
+  it('an English word read is closed until English words reach level 3 (adaptive or fixed); the rest are always open', () => {
+    const s = defaultSave();
+    expect(isOpen(s, 'en_read')).toBe(false);
+    s.skills.en_words.level = 3;
+    expect(isOpen(s, 'en_read')).toBe(true);
+    s.fixed.en_words = 2;
+    expect(isOpen(s, 'en_read')).toBe(false);
+    s.fixed.en_words = 4;
+    expect(isOpen(s, 'en_read')).toBe(true);
+    for (const k of SKILLS.filter((k) => k !== 'en_read')) expect(isOpen(defaultSave(), k), k).toBe(true);
   });
 
   it('attention is shown to the grown-ups only once a task of it is recorded; recording writes its counters', () => {
     const s = defaultSave();
     expect(shownSkills(s)).not.toContain('attention');
-    expect(shownSkills(s)).toHaveLength(SKILLS.length - 2);
+    expect(shownSkills(s)).toHaveLength(SKILLS.length - 2 - SEASON2_SKILLS.length);
     recordTask(s, 'attention', 0);
     expect(s.skills.attention).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
-    expect(shownSkills(s)).toEqual(SKILLS.filter((k) => k !== 'assemble'));
+    expect(shownSkills(s)).toEqual(SKILLS.filter((k) => k !== 'assemble' && !SEASON2_SKILLS.includes(k)));
+  });
+
+  it('a skill of Season 2 is shown to the grown-ups once a task of it is recorded (an English word read writes its counters then)', () => {
+    const s = defaultSave();
+    for (const k of SEASON2_SKILLS) expect(shownSkills(s)).not.toContain(k);
+    recordTask(s, 'read', 0);
+    recordTask(s, 'en_read', 0);
+    expect(s.skills.read).toEqual({ level: 3, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(s.skills.en_read).toEqual({ level: 1, streak: 1, tasks: 1, first: 1, errors: 0 });
+    expect(shownSkills(s).filter((k) => SEASON2_SKILLS.includes(k))).toEqual(['en_read', 'read']);
   });
 
   it('every kind of task trains the skill of its line of the ladder', () => {
@@ -48,8 +90,9 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
       neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
-    // every skill is trained by some kind of task (the composition of a number: the missing addend and the house)
-    expect(SKILLS.filter((k) => !Object.values(SKILL).includes(k))).toEqual([]);
+    // every skill is trained by some kind of task (the composition of a number: the missing addend and the house), but
+    // the four of Season 2: their kinds come with the next parts of step 2 (D1, D2, E)
+    expect(SKILLS.filter((k) => !Object.values(SKILL).includes(k))).toEqual(SEASON2_SKILLS);
   });
 });
 

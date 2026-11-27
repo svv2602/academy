@@ -3,6 +3,7 @@ import { setCast } from '../../core/audio';
 import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
+import { talkSpot } from '../../game/talk-spot';
 import { createDialogue } from '../../game/dialogue';
 import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
@@ -220,7 +221,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   scene.add(badge);
 
   const spots: Spot[] = [
-    ...npcs.map((n): Spot => ({ pos: n.pos, r: 3.0, label: 'talk', on: () => true, run: () => { void talk(n); } })),
+    ...npcs.map((n) => talkSpot(n, () => chainDone(ws, n.def), () => { void talk(n); })),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
@@ -242,6 +243,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     if (shard) return shard;
     const next = npcs.find((n) => !chainDone(ws, n.def));
     if (next) return next.pos;
+    // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+    const easel = g.easel.goal();
+    if (easel) return easel;
     // the crystal whole: to the way to the Great Tree until she has been there (R28: also a save from before the hub)
     if (ws.final) return TREE_WAY_OPEN && !hubVisited(g.save) ? treeWay.pos : null;
     return shrine.pos;

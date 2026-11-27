@@ -18,6 +18,7 @@ import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
 import { easelState } from '../ui/easel';
+import { guideState, type HintsChoice } from './guide-rule';
 import { over, played, stopPoint, type StopWhere } from './stops';
 import { describeWorld, look, missing, problems, type Need } from './describe';
 import type { WorldItem } from './world';
@@ -175,10 +176,21 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * here, or open already); `card` - the open card (src/ui/easel.ts): whether open, the cells set, the pieces lying by
      * it; `setAll()` - every piece lying by it dropped on its cell, as a finger would.
      */
+    /**
+     * The cat's sparkles (src/game/guide.ts): what they show now, the seconds with no progress, whether a tap on the cat
+     * asked for the way; `choice(c)` sets the parent's choice (Save.hints), `ask()` asks as a tap on the cat does.
+     */
+    guide: {
+      get state() { const { show, quiet, asked, choice } = guideState; return { show, quiet, asked, choice }; },
+      choice: (c: HintsChoice) => { if (c === 'world') delete g.save.hints; else g.save.hints = c; },
+      ask: () => guideState.ask(),
+    },
     easel: {
       open: () => g.easel.open(),
       get card() { return { open: easelState.open, set: [...easelState.set], loose: [...easelState.loose] }; },
       setAll: () => { easelState.setAll?.(); },
+      /** Its hints (the customer's word of 2026-11-27): the sign over it, whether it is the cat's goal, the lead after the first piece. */
+      get hints() { return g.easel.state(); },
     },
     /**
      * The finds of the collections in the world played (src/game/collect-items.ts, PLAY-25), read only: each with its id,

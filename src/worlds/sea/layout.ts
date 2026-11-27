@@ -87,6 +87,22 @@ export const CORAL_NEST = { x: ZONES.reef.x - 5, z: ZONES.reef.z - 3 };
  */
 export const LIFT_ROCK = { ...at(6, -17), r: 1.7, h: 5, slope: 0 };
 export const LOOKOUT = { ...at(37, -12), r: 2, h: 3.2, slope: 6 };
+/**
+ * The grotto behind the seaweed (sea_grotto, the customer's word of 2026-11-27: a secret place to explore, as the first
+ * world's waterfall cave): a mound of rocks off the way from the reef to the trench, west of it, its opening behind a
+ * curtain of seaweed `face` toward that way; `clear` m round it nothing else stands.
+ */
+export const GROTTO = (() => {
+  const p = at(-34, -16), to = at(-23, -19);
+  return { ...p, face: Math.atan2(to.x - p.x, to.z - p.z), clear: 7 };
+})();
+/**
+ * The hold of the sunken ship (the customer's word of 2026-11-27: a secret place behind the door that led nowhere): a
+ * room far past the map, as the first world's room of the house - the door of the cabin leads into it once Pantsyr's
+ * pearl is back (./hold.ts). Placed by HALF, so that a stretched map (?scale) never reaches it. half: from its middle to
+ * a wall, m; y: its floor.
+ */
+export const HOLD = { x: 0, z: -(HALF + 150), half: 4.4, y: 0 };
 /** The shell of the throne where the pearls come together: the finale. */
 export const THRONE = { x: ZONES.throne.x, z: ZONES.throne.z };
 

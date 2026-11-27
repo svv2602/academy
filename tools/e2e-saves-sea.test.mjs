@@ -36,7 +36,7 @@ describe('tools/e2e-saves.mjs: the sea done (SEA_SAVES.done)', () => {
     expect(seaMagicOf(sea, SEA_FRIENDS)).toBe(1);
   });
 
-  it('has every mark of the sea done: the pearls and their hints, the tour, both cut-scenes, the four secrets, the cat\'s first lines', () => {
+  it('has every mark of the sea done: the pearls and their hints, the tour, both cut-scenes, the five secrets, the cat\'s first lines', () => {
     const marks = [...PEARLS.flatMap((p) => [p.hint, p.flag]), 'toured', ...SEA_STORIES.map((x) => x.id), ...SEA_SECRETS, ...Object.values(SEA_ONCE)];
     expect([...SEA_DONE_FLAGS].sort()).toEqual([...marks].sort());
     expect(Object.keys(SEA_SAVES.done().worlds.sea.flags).sort()).toEqual([...marks].sort());

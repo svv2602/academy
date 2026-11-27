@@ -3,7 +3,7 @@
  * Drawn by `signs.css`.
  */
 import { signs, type SignsSpec } from '../tasks/signs';
-import { el, options, pulseOf, tap, wait, type PanelCtx } from './panel';
+import { el, options, pulseOf, wait, type PanelCtx } from './panel';
 import { tenFrames } from './tenframe';
 import { hintOf } from './flow';
 import './signs.css';
@@ -39,8 +39,7 @@ export function signsView(spec: SignsSpec, c: PanelCtx) {
   // The abacus (src/game/helpers.ts): under each number its things in ten frames, not matched - the matching is the
   // second rung of the hint.
   if (c.framed) [a, b].forEach((n, i) => tenFrames(sides[i], Array.from({ length: n }, () => el('span', 'pt', spec.body.thing))));
-  const ok = options(c, spec.body.options, (v) => signs.answer(spec, st, v) === 'right');
-  // The sign the child put stands between the numbers.
-  tap(ok, () => { slot.textContent = spec.body.answer; slot.classList.add('set'); });
+  // The sign the child put flies in and stands between the numbers (./fly.ts; `.got` is drawn as the placed sign).
+  const ok = options(c, spec.body.options, (v) => signs.answer(spec, st, v) === 'right', { at: () => slot, row: () => [sides[0], slot, sides[1]] });
   c.hint = hintOf(spec.hint, pulseOf(ok), { pairUp: () => { void pairUp(c, spec, sides); } });
 }
