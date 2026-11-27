@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { recordTask, levelFor } from './skills';
 import { typeOf } from './tasks';
 import { SKILL, answerOf } from './taskviews/panel';
+import { mixWide } from './wide';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
@@ -104,8 +105,10 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
       await playScene(stage(), `mystery ${s.id}`, async () => {
         g.cam.focus = g.above(s.pos, -0.4);
         await g.speech.line('mystery_found', 'story');
-        const type0 = typeOf(s.step, 1), skill = SKILL[type0], level = levelFor(g.save, skill), type = typeOf(s.step, level);
-        const res = await g.task(() => g.plan.runTask(type, level, g.hooksFor('🐱'), g.rng));
+        const type0 = typeOf(s.step, 1), skill = SKILL[type0], level = levelFor(g.save, skill);
+        // on the top level of addition and take away, every other time an example in breadth (LEARN-27, ./wide.ts);
+        // the type is chosen as the task opens: a task turned away takes no turn
+        const res = await g.task(() => { const type = mixWide(g.save, skill, typeOf(s.step, level), g.rng); return g.plan.runTask(type, level, g.hooksFor('🐱'), g.rng); });
         if (!res.solved) { void g.speech.line('mystery_wait', 'story'); return; }      // closed: it waits, nothing is taken
         recordTask(g.save, skill, res.wrong, false, answerOf(res));
         const state = mysteryOf(g.ws, shownDay);

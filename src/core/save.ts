@@ -65,8 +65,10 @@ export interface Save {
    * The counters of every skill by its id; the skills and the rule that moves the counters: src/game/skills.ts.
    * `settled` (LEARN-15, the amendment of 2026-11-27): the fast climb of the skill is over - a task of it took two wrong
    * answers or more. An optional field, no new version: a save without it is still climbing.
+   * `wideMiss` (LEARN-27): the tasks in breadth of the skill in a row that took two wrong answers or more, while there
+   * are such. An optional field as well: a save without it has none.
    */
-  skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number; settled?: true }>;
+  skills: Record<string, { level: number; streak: number; tasks: number; first: number; errors: number; settled?: true; wideMiss?: number }>;
   /** The level the parent fixed for each skill, by its id (LEARN-15): 0 = adaptive, else 1 to 5 (levelFor keeps it within the skill's). */
   fixed: Record<string, number>;
   /**

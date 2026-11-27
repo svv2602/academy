@@ -1,16 +1,17 @@
 // @vitest-environment node
-/** All ten task types behind one entry (ARCH-09): `MODELS` covers every type, `generate(type, …)` is that type's generator. */
+/** All the task types behind one entry (ARCH-09): `MODELS` covers every type, `generate(type, …)` is that type's generator. */
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../core/rng';
 import { BY_LEVEL, MODELS, generate, isSkillStep, typeOf } from './index';
 import type { TaskType } from './types';
 
-const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs', 'diff', 'puzzle'];
+const TYPES: TaskType[] = ['count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs', 'diff', 'puzzle',
+  'sum3', 'gap'];
 
 describe('tasks/index', () => {
   it('runs without a page', () => { expect(typeof document).toBe('undefined'); });
 
-  it('has a model for each of the sixteen types', () => {
+  it('has a model for each of the eighteen types', () => {
     expect(Object.keys(MODELS).sort()).toEqual([...TYPES].sort());
   });
 
@@ -32,7 +33,7 @@ describe('tasks/index', () => {
     expect(levels.map((l) => typeOf('compare', l))).toEqual(['compare', 'compare', 'compare', 'compare', 'signs']);
     expect([3, 4, 5].map((l) => typeOf('compose', l))).toEqual(['missing', 'house', 'missing']);
     // The other types are themselves on every level.
-    for (const t of ['count', 'add', 'sub', 'pattern', 'odd', 'pairs', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs'] as const) {
+    for (const t of ['count', 'add', 'sub', 'pattern', 'odd', 'pairs', 'sort', 'simon', 'missing', 'house', 'neighbors', 'signs', 'sum3', 'gap'] as const) {
       expect(levels.map((l) => typeOf(t, l)), t).toEqual(levels.map(() => t));
     }
     expect(Object.keys(BY_LEVEL).sort()).toEqual(['compare', 'compose', 'series']);

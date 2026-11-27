@@ -304,8 +304,12 @@ describe('the conversations give their tasks through the planner', () => {
   const dialogue = sources['./dialogue.ts'];
 
   it('both the step of a chain and the replay are planned; the replay picks the weakest step', () => {
+    // Both open their panel task through `panelTask`, the one place of the conversations that asks the planner: it
+    // may first put an example in breadth in the place of the usual one (LEARN-27, src/game/wide.ts).
     const planned = [...dialogue.matchAll(/plan\.runTask\(/g)];
-    expect(planned.length).toBe(2);
+    expect(planned.length).toBe(1);
+    expect(dialogue).toMatch(/const panelTask = [^\n]*\n[^\n]*\n\s*return plan\.runTask\(type, level, hooksFor\(emoji\), g\.rng\);/);
+    expect([...dialogue.matchAll(/task\(\(\) => [^;\n]*panelTask\(/g)].length).toBe(2);
     expect(dialogue).not.toMatch(/[^.]\brunTask\(/);                 // no task of the panel past the planner
     // one planner for the session (`g.plan`, src/game/context.ts): the conversations and the mysterious stars draw from it
     expect(dialogue).toMatch(/const \{ plan \} = g;/);

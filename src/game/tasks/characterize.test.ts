@@ -105,6 +105,10 @@ const EXPECTED: Record<TaskType, [string, string, string]> = {
   // Find the differences (LEARN-18) came after the split: recorded when it was made.
   diff: ['c085b1d1 171cedef 5216e01d 90091ab0 4a94762a 0efba182 05d5e445 936d9513 1defa07e afa01384', '8cef02ef 8be74a98 8cfde50b 0439dfbc 492b0c25 abedf56b 4587394c 6319e8ec a1eaf0fb 40b4b825', '695e7300 f4959c00 d83c1146 5db1dc04 2382482c 5b80873c 1e17f0e0 ef07394e e26d6520 26438270'],
   // The puzzle (LEARN-19) came after the split: recorded when it was made.
+  // The tasks in breadth (LEARN-27) came after the split: recorded when they were made. Their numbers do not follow
+  // the level (src/game/tasks/sum3.ts, gap.ts), so the three levels are one row.
+  sum3: ['efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2', 'efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2', 'efa5ef47 22ea383a d36eabaf 2cea7295 1bb3adb8 78b7b4ed 954f0325 98cbe9cf f083e52d 8d597dc2'],
+  gap: ['ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0', 'ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0', 'ba43ea48 b3a9fba4 7a74dbe2 5b7e74c9 e49adde0 6ac84087 e83a0c24 a7de7e57 69504fb4 33fb02b0'],
   puzzle: ['9cf7312d 829f6a59 f9b1a967 7bfd990d 27b869fd 44db2f59 383850c9 d9ad0361 e1efe62f bfc920b9', '59cb0c6c a3f41d19 362ffb79 663deea6 33ce96e1 ce9dd92f 0b6e6a3b ce530c44 4b5b20a0 cc2259f0', 'd0697bf6 519e030b e3c0ef1d 92b9bf30 901c3dc9 743cec5b 39a05fd1 5b975010 517ebf86 532739b4'],
 };
 

@@ -5,7 +5,7 @@
  * The show of each type is its own module (`taskviews/<type>.ts`); it only draws and wires the taps, and draws no
  * random numbers: every choice of the task is in the description. `runTask` makes the description from the task's rng.
  * The shows are drawn by `hints.css` (the composition of a number by its own `compose.css`, the neighbours of a number
- * by `neighbors.css`, the signs by `signs.css`).
+ * by `neighbors.css`, the signs by `signs.css`, the tasks in breadth by `wide.css`).
  *
  * The helpers of a task (src/game/helpers.ts) have their buttons in a corner of the panel, only when she has one and
  * where it gives something: the owl - before any mistake or hint, the first rung of the hint at once (and the first
@@ -40,13 +40,20 @@ import { neighborsView } from './neighbors';
 import { signsView } from './signs';
 import { diffView } from './diff';
 import { puzzleView } from './puzzle';
+import { sum3View } from './sum3';
+import { gapView } from './gap';
 import './hints.css';
 
-/** The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). */
+/**
+ * The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). A task in
+ * breadth (LEARN-27: sum3, gap) is recorded to the skill that asked for it (src/game/wide.ts); the one named here is the
+ * skill it belongs to when nothing asked. A new type goes to the end: the tests take their seeds by this order.
+ */
 export const SKILL: Record<TaskType, SkillId> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
   pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
   neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
+  sum3: 'add', gap: 'sub',
 };
 
 /** `helped`: a helper was taken in this task (src/game/helpers.ts): the level does not grow for it. */
@@ -147,7 +154,7 @@ export async function countAloud(c: PanelCtx, list: HTMLElement[]) {
 const viewOf = <T extends TaskType>(type: T) => ({
   count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
   odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView, missing: missingView, house: houseView,
-  neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView,
+  neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView, sum3: sum3View, gap: gapView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 /**

@@ -51,13 +51,13 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
   const HINT: Record<Hinted, Key> = {
     count: 'h1_count', add: 'h1_add', sub: 'h1_sub', compare: 'h_compare', pattern: 'h_pattern',
     odd: 'h_odd', order: 'h_order', sort: 'h_sort', simon: 'h1_simon', missing: 'h1_missing', house: 'h1_house',
-    neighbors: 'h1_neighbors', signs: 'h1_signs',
+    neighbors: 'h1_neighbors', signs: 'h1_signs', sum3: 'h1_sum3', gap: 'h1_gap',
   };
   /** The line of rung 2 (solved together on screen). Rung 3 is the same line for every type. */
   const HINT2: Record<Hinted, Key> = {
     count: 'h_count', add: 'h_count', sub: 'h_left', compare: 'h2_compare', pattern: 'h2_pattern',
     odd: 'h2_odd', order: 'h2_order', sort: 'h2_sort', simon: 'h_simon', missing: 'h2_missing', house: 'h2_house',
-    neighbors: 'h2_neighbors', signs: 'h2_signs',
+    neighbors: 'h2_neighbors', signs: 'h2_signs', sum3: 'h2_add_cross', gap: 'h2_gap',
   };
   const H3: Key = 'h3_show';
   /** The line said after mistake `k`. */
@@ -67,7 +67,14 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
     count: '#taskOpts .opt', add: '#taskOpts .opt', sub: '#taskOpts .opt', pattern: '#taskOpts .opt',
     compare: '#taskStage .group.pickable', odd: '#taskStage .it.big', order: '#taskStage .opt.num',
     sort: '#taskOpts .basket', simon: '#taskStage .pad', missing: '#taskOpts .opt', house: '#taskOpts .opt',
-    neighbors: '#taskOpts .opt', signs: '#taskOpts .opt',
+    neighbors: '#taskOpts .opt', signs: '#taskOpts .opt', sum3: '#taskOpts .opt', gap: '#taskOpts .opt',
+  };
+  /**
+   * The task a type must have on screen for its lines above: of three addends the one with two numbers that make ten
+   * (without such a pair its first rung is another line, src/game/taskviews/wide.test.ts).
+   */
+  const FITS: Partial<Record<Hinted, () => boolean>> = {
+    sum3: () => { const [a, b, c] = all(stage(), '.group > .n').map((e) => Number(text(e))); return [a + b, a + c, b + c].includes(10); },
   };
   const HINTED = Object.keys(HINT) as Hinted[];
   const COUNTING: Hinted[] = ['count', 'add', 'sub'];        // the solution is counted aloud
@@ -135,7 +142,7 @@ describe('after a mistake: "try again", then the whole line of its rung, then wh
   }
 
   /** A level 1 task on screen, ready for an answer, with a wrong answer at hand. `fits` picks a task that suits the test. */
-  async function open(type: Hinted, muted = false, fits = () => true) {
+  async function open(type: Hinted, muted = false, fits = FITS[type] ?? (() => true)) {
     let seed = 7000 + TYPES.indexOf(type) * 100;
     for (; ; seed++) {
       Math.random = mulberry32(seed);

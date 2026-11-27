@@ -13,7 +13,9 @@ import type { BankKey } from '../../core/voice';
 import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house'
-  | 'neighbors' | 'signs' | 'diff' | 'puzzle';
+  | 'neighbors' | 'signs' | 'diff' | 'puzzle'
+  // the tasks in breadth (LEARN-27, src/game/wide.ts): given on the top level of addition and take away
+  | 'sum3' | 'gap';
 
 /**
  * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.
@@ -23,13 +25,14 @@ export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' |
  * `countUp` (the composition of a number): from the known number, dots come one by one with the numbers up to the sum,
  * then the dots are counted 1, 2, 3 - how many were missing; `countCells` (the neighbours of a number): the cat counts the
  * cells of the track one by one and stops at the empty one, saying its number; `pairUp` (the signs): both numbers are laid
- * out as things in ten frames, matched in pairs one to one, the things left over of the larger number glow.
+ * out as things in ten frames, matched in pairs one to one, the things left over of the larger number glow;
+ * `countGone` (the missing number of a take away): the things taken away are counted aloud one by one.
  */
 export type HintStep =
   | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
   | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
   | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' } | { do: 'countUp' }
-  | { do: 'countCells' } | { do: 'pairUp' };
+  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'countGone' };
 /** One rung of the hint: the line the cat says, and what is shown on screen once it has ended. */
 export interface HintRung { key: SpokenKey; steps: readonly HintStep[] }
 /**

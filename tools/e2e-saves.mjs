@@ -42,6 +42,7 @@ export const BLOCKS = [
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
   'diff',           // find the differences (LEARN-18): two pictures drawn, a miss counts nothing, every difference found by a real touch, no leak
   'puzzle',         // the puzzle (LEARN-19): the pieces show the picture, a wrong drop goes back, turned by touches, every piece dragged for real onto its cell, no leak
+  'wide',           // the tasks in breadth (LEARN-27): each kind closed, then its question, three mistakes and their rungs, solved; given by a character every other time, the level unmoved
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
   'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop
@@ -160,7 +161,9 @@ export const GROUPS = {
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
   // is a stop point and earns its achievements there; then no friend to play, the finds alone.
-  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
+  // The tasks in breadth (LEARN-27) are played here too, before the finds: the piece is the shortest one, and the block
+  // needs a finished chain with addition in it (the unicorn's) and puts the skills back as they were.
+  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['wide', 'collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };
@@ -176,7 +179,7 @@ export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'
  * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
  * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
  */
-export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks'];
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice

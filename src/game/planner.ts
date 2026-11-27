@@ -51,6 +51,8 @@ export function sameness(s: TaskSpec): string {
     case 'simon': return `simon:${s.body.pads.join(',')}:${s.body.seq.join(',')}`;
     case 'diff': return `diff:${s.body.things.map((t) => `${t.prop}${t.color}${t.n}`).join(',')}:${s.body.changes.map((c) => c.at).join(',')}`;
     case 'puzzle': return `puzzle:${s.body.cols}x${s.body.rows}:${s.body.picture}`;
+    case 'sum3': return `sum3:${s.body.parts.join('+')}`;
+    case 'gap': return `gap:${s.body.total}-?=${s.body.left}`;
   }
 }
 

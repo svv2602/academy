@@ -317,6 +317,41 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     must(text(stage().querySelector<HTMLElement>('.slot')!) === '?', 'the place of the sign is not empty');
     must(text(accepted(buttons)) === (a > b ? '>' : a < b ? '<' : '='), 'the accepted sign does not open towards the larger number');
   },
+  // The tasks in breadth (LEARN-27) play one set of numbers whatever level they are asked with.
+  sum3() {
+    const groups = all(stage(), '.group'), parts = groups.map((g) => Number(text(g.querySelector<HTMLElement>('.n')!)));
+    const things = groups.map((g) => all(g, '.tf > .it').length), sum = parts.reduce((x, y) => x + y, 0);
+    const buttons = all(opts(), '.opt'), values = buttons.map((b) => Number(text(b)));
+    seen = `${parts.join(' + ')}; things ${things.join(' ')}; options ${values.join(' ')}`;
+    must(parts.length === 3, `${parts.length} addends, declared 3`);
+    parts.forEach((p) => between(p, 2, 9, 'an addend'));
+    between(sum, 11, 20, 'the sum');
+    must(things.join() === parts.join(), 'each group shows as many things as its number says');
+    must(all(stage(), '.sign').map(text).join(' ') === '+ + = ?', 'the row is not "a + b + c = ?"');
+    must(all(stage(), 'button').length === 0, 'a thing of a group is a button');
+    must(buttons.length === 4, `${buttons.length} options, declared 4`);
+    values.forEach((v) => between(v, 0, 20, 'an option'));
+    distinct(values, 'options');
+    once(values, sum, 'the sum');
+    must(Number(text(accepted(buttons))) === sum, 'the accepted option is not the sum of the three numbers');
+  },
+  gap() {
+    const things = all(stage(), '.things .it'), gone = all(stage(), '.things .it.gone');
+    const row = all(stage(), '.sign').map(text), [total, , , , left] = row.map(Number);
+    const buttons = all(opts(), '.opt'), values = buttons.map((b) => Number(text(b)));
+    seen = `${row.join(' ')}; things ${things.length}, gone ${gone.length}; options ${values.join(' ')}`;
+    must(row.length === 5 && row[1] === '−' && row[2] === '?' && row[3] === '=', 'the row is not "total − ? = left"');
+    between(total, 11, 20, 'the number of things');
+    between(total - left, 2, 9, 'the number taken away');
+    must(things.length === total, 'as many things as the first number says');
+    must(gone.length === total - left, 'as many things greyed out as were taken away');
+    must(things.slice(left).every((x) => x.classList.contains('gone')), 'the things taken away are the last ones');
+    must(buttons.length === 4, `${buttons.length} options, declared 4`);
+    values.forEach((v) => between(v, 0, 20, 'an option'));
+    distinct(values, 'options');
+    once(values, total - left, 'the number taken away');
+    must(Number(text(accepted(buttons))) === total - left, 'the accepted option is not the number taken away');
+  },
 };
 
 const TYPES = Object.keys(PLAY) as TaskType[];

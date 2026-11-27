@@ -1,0 +1,26 @@
+/* The tasks in breadth on the panel (LEARN-27; sum3.ts, gap.ts). As in hints.css, only `scale` and `opacity` move, and
+   nothing grows past its own box. */
+
+/* Three addends: each group is its number over its things in a small ten frame. The things are pictures, not buttons,
+   so a cell need not be 44 px: its side `--p` follows the screen, and three groups with their signs stand in one row on
+   a phone held sideways (844 x 390: p = 28.9, a group 178 px wide - three of them, four signs and the gaps take about
+   670 px of the 796 the stage has). Held upright the groups go under one another, each with its sign. */
+/* `.group.framed`, as the view names it: the rules of hints.css for a framed group come later in the style sheet. */
+.t-sum3 .group.framed { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 2px; max-width: none; padding: 4px 6px 6px; }
+.t-sum3 .group > .n { font: 800 clamp(26px, 6vh, 44px)/1 system-ui, sans-serif; color: #7a4fd0; font-variant-numeric: tabular-nums; }
+.t-sum3 .tf { --p: clamp(26px, min(4vw, 7.4vh), 40px); grid-template-columns: repeat(5, var(--p)); grid-auto-rows: var(--p); gap: 4px; padding: 4px;
+  border-width: 2px; border-radius: 10px; }
+.t-sum3 .tf > .it, .t-sum3 .tf > .tf-e { width: var(--p); height: var(--p); border-radius: 7px; }
+.t-sum3 .tf > .it { font-size: calc(var(--p) * .68); line-height: var(--p); text-align: center; }
+/* The number of a counted thing (rung 2), sized to the small cell. */
+.t-sum3 .tf > .it i { right: -5px; top: -5px; min-width: calc(var(--p) * .62); height: calc(var(--p) * .62); border-radius: var(--p);
+  font-size: calc(var(--p) * .42); line-height: calc(var(--p) * .62); box-shadow: 0 1px 0 #d4508f; }
+@media (max-height: 430px) {
+  .t-sum3 .group.framed { padding: 1px 3px 3px; gap: 1px; }
+}
+
+/* The missing number of a take away: the things on a row of their own, the example in numbers under them. */
+.t-gap .things { flex: 0 0 100%; display: flex; justify-content: center; }
+.t-gap .sign.n { color: #7a4fd0; font-variant-numeric: tabular-nums; }
+/* A thing taken away that the hint has counted shows in full again and glows as any counted thing; its cross is kept. */
+.t-gap .it.gone.hit { opacity: 1; filter: drop-shadow(0 0 8px #ffc94d); }
