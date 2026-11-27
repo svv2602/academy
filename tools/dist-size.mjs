@@ -27,9 +27,11 @@ export const MAX_DIST = 12_000_000;
 export const MAX_DIST_FILE = 1_000_000;
 /**
  * The recorded voice of the first load: the clips under dist/voice/, a budget of its own (4 -> 5 MB 2026-11-18, 5 -> 6 MB
- * the customer's word of 2026-11-21: the cauldron, the treats, the trade and the puzzle speak in the installation).
+ * the customer's word of 2026-11-21: the cauldron, the treats, the trade and the puzzle speak in the installation;
+ * 6 -> 7 MB the customer's word of 2026-11-27: the questions and hints of the tasks in breadth, in the characters'
+ * voices too, came to 6.02 MB with 23 of their 37 clips recorded).
  */
-export const MAX_VOICE = 6_000_000;
+export const MAX_VOICE = 7_000_000;
 /** A next world: its models, story frames and code together, and its voice apart (TECH-09). */
 export const MAX_WORLD = 8_000_000;
 export const MAX_WORLD_VOICE = 3_000_000;

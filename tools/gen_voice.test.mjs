@@ -135,13 +135,30 @@ print(json.dumps({'url': sent[0][0], 'body': sent[0][1], 'styles': v.STYLES}))`)
   });
 
   it('the new model: the text of the request is only the line, the style goes in a field of its own', () => {
-    for (const style of ['warm', 'joy', 'calm']) {
+    for (const style of ['warm', 'joy', 'calm', 'ask']) {
       const { url, body } = request('fox_hi@Leda', LINE, style, 'new');
       expect(url).toContain('/models/gemini-3.8-flash-tts:generateContent');
       expect(body.contents[0].parts[0].text, style).toBe(LINE);
       expect(body.generationConfig.speechConfig.style, style).toMatch(/українською/);
       expect(body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe('Leda');
     }
+  });
+
+  it('a line that ends in a question (`ask`): the prompt says so and where the voice goes, for the cat and for a character in its own style', () => {
+    const QUESTION = 'Оце так! А складніше зможеш?';
+    const cat = request('npc_harder', QUESTION, 'ask', 'old').body.contents[0].parts[0].text;
+    expect(cat.endsWith(`\n\n${QUESTION}`)).toBe(true);
+    expect(cat).toMatch(/котик/);
+    expect(cat).toMatch(/запитання: вимов його з виразною питальною інтонацією, наприкінці голос іде вгору/);
+    for (const [cid, who] of [['npc_harder@Orus', 'гном'], ['npc_harder@Sulafat', 'королева'], ['npc_harder@Leda', 'звірятко'], ['npc_harder@Charon', 'мудрий']]) {
+      const said = request(cid, QUESTION, 'ask', 'old').body.contents[0].parts[0].text;
+      expect(said, cid).toMatch(new RegExp(who));
+      expect(said.includes('котик'), cid).toBe(false);
+      expect(said, cid).toMatch(/запитання: вимов його з виразною питальною інтонацією, наприкінці голос іде вгору/);
+      expect(said.endsWith(`\n\n${QUESTION}`), cid).toBe(true);
+    }
+    // a praise without a question keeps its prompt: no word of a question in it
+    expect(request('npc_next', QUESTION, 'joy', 'old').body.contents[0].parts[0].text).not.toMatch(/запитання/);
   });
 
   it('a line is recorded in the voice its key names, a character with its own style, not the cat\'s', () => {

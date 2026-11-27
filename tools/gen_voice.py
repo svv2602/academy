@@ -74,6 +74,11 @@ STYLES = {
     'joy': BASE + 'Дуже радісно і захоплено, як веселий мультяшний котик, що хвалить шестирічну дівчинку. Чітко.',
     'calm': 'Говори чистою літературною українською мовою, без акценту, голосом доброго мультяшного котика. '
             'Спокійно і чітко, рівною інтонацією, як під час рахунку. Скажи лише ці слова.',
+    # A line that ends in a question said after a praise («Оце так! А складніше зможеш?»): recorded as a praise (`joy`)
+    # it did not sound as a question (the customer, 2026-11-27) - the prompt names the question and where the voice goes.
+    'ask': BASE + 'Радісно і з цікавістю, як веселий мультяшний котик, що хвалить шестирічну дівчинку і одразу питає '
+                  'її. Останнє речення — запитання: вимов його з виразною питальною інтонацією, наприкінці голос іде '
+                  'вгору. Чітко.',
 }
 # Who a voice is (the probe of 2026-11-15, idea/proposal/voice-probe-2026-11-15/probe.py), and in English for the
 # prompt of a calm line: one-word Ukrainian prompts give empty audio unless the instruction is in English.
@@ -88,7 +93,9 @@ ROLES = {
     'Orus': (BASE + 'Низьким голосом, кумедно, з добрим бурчанням, як мультяшний гном. Повільно і чітко.',
              'in the voice of a funny cartoon gnome'),
 }
-MOOD = {'warm': ' Тепло і лагідно.', 'joy': ' Радісно і захоплено.', 'calm': ' Спокійно і чітко, рівною інтонацією.'}
+MOOD = {'warm': ' Тепло і лагідно.', 'joy': ' Радісно і захоплено.', 'calm': ' Спокійно і чітко, рівною інтонацією.',
+        'ask': ' Радісно і з цікавістю. Останнє речення — запитання: вимов його з виразною питальною інтонацією, '
+               'наприкінці голос іде вгору.'}
 # A short imperative line («Тепер повтори!») is taken for an instruction: the model reads the style prompt aloud.
 # The second try says where the words to speak begin.
 STRICT = ' Скажи лише ці слова:'
