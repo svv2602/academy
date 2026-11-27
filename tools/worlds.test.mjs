@@ -1054,7 +1054,7 @@ describe('node tools/worlds.mjs', () => {
   }, 60000);   // seven starts of node: seconds on a busy machine
 
   it('readArgs: without --only every part is played, in the order of the run', () => {
-    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky']);
+    expect(PARTS).toEqual(['walk', 'cache', 'transition', 'travel', 'hub', 'hub-grey', 'sweet-grey', 'sky-grey', 'hub-forest', 'forest', 'sea', 'sweet', 'sky', 'budget']);
     expect(readArgs([])).toEqual({ dist: null, parts: PARTS });
     expect(readArgs(['dist'])).toEqual({ dist: 'dist', parts: PARTS });
   });
@@ -1070,7 +1070,7 @@ describe('node tools/worlds.mjs', () => {
   it('readArgs: a mistake is said, never guessed around - no part is played by a mistyped name', () => {
     expect(readArgs(['--only']).error).toContain('--only needs a part');
     expect(readArgs(['--only', '--x']).error).toContain('--only needs a part');
-    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sky-grey, hub-forest, forest, sea, sweet, sky');
+    expect(readArgs(['--only', 'walk,rounds']).error).toBe('unknown part "rounds" of --only: use walk, cache, transition, travel, hub, hub-grey, sweet-grey, sky-grey, hub-forest, forest, sea, sweet, sky, budget');
     expect(readArgs(['--only', '']).error).toContain('unknown part ""');
     expect(readArgs(['--only', 'walk', '--only', 'cache']).error).toBe('--only is given twice');
     expect(readArgs(['--frobnicate']).error).toBe('unknown flag "--frobnicate"');
@@ -1156,5 +1156,17 @@ describe('the published worlds: each has a part of its own before a publication'
     const src = readFileSync(new URL('./worlds.mjs', import.meta.url), 'utf8');
     const hub = src.slice(src.indexOf('async function hubScenarios'), src.indexOf('\nasync function', src.indexOf('async function hubScenarios') + 1));
     expect(hub).toContain("page.on('requestfailed', (r) => { if (!clipCutOff(r.url(), r.failure()?.errorText)) fail(");
+  });
+});
+
+describe('the part "budget": the draw of the worlds 2-5 within their budget', () => {
+  it('each of BUDGET_WORLDS has its grey tool, which takes --budget --built: the measures only, in the build made once', async () => {
+    const { BUDGET_WORLDS, PUBLISH_PARTS } = await import('./worlds.mjs');
+    expect(BUDGET_WORLDS).toEqual(['forest', 'sea', 'sweet', 'sky']);
+    expect(PUBLISH_PARTS).toContain('budget');
+    for (const id of BUDGET_WORLDS) {
+      const { readArgs } = await import(`./${id}-grey.mjs`);
+      expect(readArgs(['--budget', '--built']), id).toMatchObject({ budget: true, built: true, pass: false, measure: true });
+    }
   });
 });

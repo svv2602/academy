@@ -35,3 +35,10 @@ describe('tools/forest-grey.mjs: the walkthrough and the measurements of the gre
     expect(new Set(MAGIC_PICTURES.map(([, n]) => n)).size).toBe(4);
   });
 });
+
+describe('--budget (the CI job "budget"): the draw of the points only', () => {
+  it('leaves out the walkthrough and the way, keeps the measures', () => {
+    expect(readArgs(['--budget'])).toMatchObject({ budget: true, pass: false, way: false, measure: true });
+    expect(readArgs([])).toMatchObject({ budget: false, pass: true, way: true });
+  });
+});

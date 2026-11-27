@@ -84,3 +84,22 @@ describe('under water (docs/worlds/world-3.md): higher and softer', () => {
     expect(after(game(true), 1 / 60, 5).target.x).toBeCloseTo(3, 2);
   });
 });
+
+describe('the camera snapped (debug, g.camSnap: the measures of the budget, tools/grey-route.mjs)', () => {
+  it('one frame puts it where it glides to - her head, the override distance, the least pitch - then it glides again', () => {
+    const g = game();
+    const c = createCamera(g, () => 6.5);
+    Object.assign(g, { camOverride: 2.2, camPitchMin: 1.0, camSnap: true });
+    g.hero.root.position.set(40, 0, -30);
+    c.update(0.05, 0, 0);
+    expect(g.cam.target.distanceTo(new THREE.Vector3(40, 1.5, -30))).toBeLessThan(1e-9);
+    expect(g.cam.dist).toBeCloseTo(2.2, 9);
+    expect(g.cam.pitch).toBeCloseTo(1.0, 9);
+    expect((g as unknown as { camSnap: boolean }).camSnap).toBe(false);
+    // the next frame without it: a step of 3 m is glided, not jumped
+    g.hero.root.position.set(43, 0, -30);
+    c.update(0.05, 0.05, 0);
+    expect(g.cam.target.x).toBeGreaterThan(40.1);
+    expect(g.cam.target.x).toBeLessThan(42.5);
+  });
+});

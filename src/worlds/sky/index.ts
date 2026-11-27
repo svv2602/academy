@@ -469,7 +469,7 @@ function buildIslands(g: Game, L: SkyLoads, sky: WorldSky, scope: WorldScope): B
         holdCreature: (i: number, at: [number, number, number] | null) => creatures.herd.hold(creatures.herd.all[i], at && new THREE.Vector3(...at)),
         // the secrets (./secrets.ts): where each is found and its things
         skySecrets: { at: secrets.at, ...secrets.debug },
-        skyShip: { flySeconds: flightSeconds(), far: () => winds.far, flying: () => winds.flying, fly: (out: boolean) => { winds.opened(true); return winds.fly(out); } },
+        skyShip: { flySeconds: flightSeconds(), far: () => winds.far, flying: () => winds.flying, fly: (out: boolean) => { winds.opened(true); return winds.fly(out); }, seek: (u: number) => winds.seek(u) },
         // the cloud bridge (WORLD-25): its gap, whether it is built, and the deck over it laid by the debug door (the
         // measurements walk every bridge, the one to the dragon island too, before Lazur's chain has built it)
         skyBridge: { gap: CLOUD_GAP, at: GAP_AT, built: () => bridge.built, build: () => bridge.opened(true) } },

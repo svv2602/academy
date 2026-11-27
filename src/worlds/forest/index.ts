@@ -23,7 +23,7 @@ import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, ROOTS, SONG_TREE, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, ROOTS, SONG_TREE, TREE_ROOM, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
@@ -31,7 +31,7 @@ import { buildDecor, loadDecor, type Decor } from './decor';
 import { FIND_CLEAR, buildUndergrowth, loadUndergrowth, placePlants } from './undergrowth';
 import { buildFireflies } from './fireflies';
 import { createForestMagic } from './magic';
-import { CAVE_FLAG, FOREST_SECRETS, SONG_FLAG, createForestSecrets } from './secrets';
+import { CAVE_FLAG, FOREST_SECRETS, HOLLOW_FLAG, SONG_FLAG, createForestSecrets } from './secrets';
 import { ROOTS_R } from './roots';
 import { FOREST_STORIES } from './story';
 import { strings } from './strings';
@@ -244,8 +244,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   let heapGone = ws.flags[PET_FLAG] === true;
   heap.visible = !heapGone;
 
-  // ----- the secrets (PLAY-10, ./secrets.ts): the cave, the trampoline's roof, the singing fireflies, the fairy ring, the roots -----
-  const secrets = createForestSecrets(g, scope, L.chest);
+  // ----- the secrets (PLAY-10, ./secrets.ts): the cave, the trampoline's roof, the singing fireflies, the fairy ring, the roots, the room in Shustrik's tree -----
+  // the room in Shustrik's tree opens with his chain done (./tree-room.ts)
+  const secrets = createForestSecrets(g, scope, L.chest, { hollowOpen: () => { const n = npcs.find((x) => x.def.id === 'shustrik'); return !!n && finished(n); } });
   const npc = (id: string) => npcs.find((n) => n.def.id === id)!;
 
   // ----- the leaves that lie in the world (WORLD-08): the step `part` of the owl's and the hedgehog's chains -----
@@ -318,7 +319,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const tourItem = marked(ws, { kind: 'flyover', id: TOUR, how: 'auto', active: () => flyoverOf(g)?.active === true });
   const leafItems = LEAVES.map((l) => marked(ws, { kind: 'part', id: l.flag, how: 'walk', at: { x: l.at.x, z: l.at.z } }));
   // the finale waits for the chains, the tour and the leaves; the pet and the secrets are the child's own, never needed
-  const secretItems = FOREST_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: id === CAVE_FLAG || id === SONG_FLAG ? 'act' : 'walk', at: secrets.at[id] }));
+  const secretItems = FOREST_SECRETS.map((id) => marked(ws, { kind: 'secret', id, how: id === CAVE_FLAG || id === SONG_FLAG || id === HOLLOW_FLAG ? 'act' : 'walk', at: secrets.at[id], ...(id === HOLLOW_FLAG ? { after: ['shustrik'] } : {}) }));
   const before = [...declared(g).filter(finaleWaits), tourItem, ...leafItems];
   const finaleItem = marked(ws, { kind: 'finale', id: FINALE, how: 'act', at: { ...ALTAR }, after: before.map((i) => i.id), active: () => finaleOn });
   const all = [...before, finaleItem];
@@ -419,7 +420,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         // the magic of the forest (WORLD-09): `magic.value` shown, `magic.target` the save's; setMagic(v) shows v at once, null the save's
         magic, setMagic: (v: number | null) => magic.set(v),
         // the secrets (./secrets.ts): where each is found and where it stands, for their pictures and their draw calls
-        forestSecrets: { at: secrets.at, look: { cave: secrets.debug.chest }, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING, roots: ROOTS }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP } },
+        forestSecrets: { at: secrets.at, look: { cave: secrets.debug.chest, hollow: secrets.debug.hollow.door.tree }, middle: { cave: CAVE, bounce: secrets.debug.roof, fireflies: SONG_TREE, ring: FAIRY_RING, roots: ROOTS, hollow: secrets.debug.hollow.door.tree }, song: secrets.debug.song, trampoline: secrets.debug.trampoline, heap: OWLET_HEAP, hollow: { in: secrets.debug.hollow.room.doorIn, middle: { x: TREE_ROOM.x, z: TREE_ROOM.z }, inside: secrets.debug.hollow.inside } } },
       talk: (id) => { void dialogue.talk(npc(id)); },
       // a leaf waiting in the world: the heroine is put on it (the walkthrough's way to the step `part`)
       // a task in the world open: its right move (the walkthrough's door); else a leaf waiting in the world
@@ -467,7 +468,7 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   sky: buildSky,
   load: loadForest,
   build: buildForest,
-  // PLAY-10: the five secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
+  // PLAY-10: the six secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
   collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)

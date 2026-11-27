@@ -3569,6 +3569,11 @@
   "tp": -2.13,
   "sha256": "ee6565a0f0765f4fc22f314b3c4ec59ede6ff2540ded661d9d141440d39cc8ce"
  },
+ "worlds-data/forest/voice/forest/forest_secret_hollow.mp3": {
+  "lufs": -18.25,
+  "tp": -4.88,
+  "sha256": "2f19ad2ec593a31937b9980a3f210a8fdf35d47e7a4cb29059c7a53d4c727e5d"
+ },
  "worlds-data/forest/voice/forest/forest_secret_ring.mp3": {
   "lufs": -18.03,
   "tp": -2.59,

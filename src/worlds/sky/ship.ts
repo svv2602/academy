@@ -72,6 +72,8 @@ export interface WindsStep extends WorldTask {
   cheat(): boolean;
   /** Flies her there (`out`) or back now; settles with the game seconds the flight took. */
   fly(out: boolean): Promise<number>;
+  /** Debug (the budget's measures, tools/sky-grey.mjs --budget): the flight on now put at `u` (0-1) of its way; it lands on its next frame at 1. */
+  seek(u: number): void;
   opened(done: boolean): void;
 }
 
@@ -190,6 +192,7 @@ export function createWinds(g: Game, player: WorldTaskPlayer, scope: WorldScope,
     owner: () => (on ? owner?.def.id ?? null : null),
     reask: async () => { bubble(); },
     tap: () => { if (!flight) return false; flight.fast = true; return true; },
+    seek(u) { if (flight) flight.s = Math.min(1, Math.max(0, u)) * flight.len; },
     update(dt, time, canMove) {
       if (flight) {
         const f = flight;
