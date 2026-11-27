@@ -77,10 +77,21 @@ export function levelFor(s: Save, skill: SkillId) {
 }
 
 /**
+ * Whether the skill is still in its fast climb: no task of it has taken two wrong answers or more yet. Only `true`
+ * ends it - a save without the field, or with a damaged one, climbs.
+ */
+export const climbs = (k: SkillStat) => k.settled !== true;
+
+/**
  * Adaptive difficulty (LEARN-15). `wrong` is the number of wrong answers in the task, which is also the step of the hint
  * the child got to (HINTS.md): two clean solves in a row step the level up; a task that reached the third step, or two
  * tasks in a row that reached the second, step it down; a single wrong answer keeps the level (and ends both runs).
  * `streak` counts the clean solves in a row (above 0) or the tasks in a row that ended at the second step (below 0).
+ *
+ * The fast climb (the amendment of 2026-11-27, decision Q17): while the skill climbs, every clean solve steps the level
+ * up, not every second one - a child for whom the tasks are easy gets to her level in a few tasks, not in a whole world.
+ * One wrong answer neither ends the climb nor moves the level. A task with two wrong answers or more ends it for good
+ * (`settled` in the counters) and is itself counted by the rule above, as is every task after it.
  */
 export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false, note?: { type?: string; ms?: number }) {
   // its answer for the parents' report (src/game/answers.ts): right when at the first try with no helper, as `first`;
@@ -93,9 +104,10 @@ export function recordTask(s: Save, skill: SkillId, wrong: number, helped = fals
   // the run of clean solves and the run towards the next level start again, the level stays.
   if (helped && wrong === 0) { countClean(s, 1); k.streak = 0; k.level = withinLevels(skill, k.level); return; }
   countClean(s, wrong);
+  if (wrong >= 2) k.settled = true;
   if (wrong === 0) {
     k.first++; k.streak = Math.max(1, k.streak + 1);
-    if (k.streak >= 2 && k.level < max) { k.level++; k.streak = 0; }
+    if ((k.streak >= 2 || climbs(k)) && k.level < max) { k.level++; k.streak = 0; }
   } else if (wrong === 1) {
     k.streak = 0;
   } else {
