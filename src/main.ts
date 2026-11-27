@@ -24,6 +24,7 @@ import { strings as bookStrings } from './s2/strings-book';
 import { strings as parentStrings } from './s2/strings-parents';
 import { strings as pipStrings } from './s2/strings-pip';
 import { strings as taskStrings } from './s2/strings-tasks';
+import { strings as cpaStrings } from './game/tasks/strings-cpa';
 import { el, hideNotice, initStart, showNotice, showUpdate } from './ui/ui';
 import { initSupplyRow } from './ui/supplies';
 import { initTuningPanel } from './ui/tuning';
@@ -71,7 +72,7 @@ addStrings(world.strings, true);
 for (const w of WORLDS) if (INSTALLED.includes(w.id) && w.id !== world.id) addStrings((await w.code()).strings, false);
 // Season 2 (step 2): the texts of its parts - Pip, the new kinds of tasks, the talking book, the parents' shares - join
 // the shared ones too, each from its own module (src/s2/strings-*.ts), so that the parts never share a file of texts.
-for (const p of [pipStrings, taskStrings, bookStrings, parentStrings]) addStrings(p, false);
+for (const p of [pipStrings, taskStrings, bookStrings, parentStrings, cpaStrings]) addStrings(p, false);
 knowWorlds(WORLDS);   // the artifacts and the shelf count the worlds of the registry (src/game/artifacts.ts)
 setMusic(world.music ?? null);
 if (debug) initTuningPanel(el.fps); else el.fps.remove();
