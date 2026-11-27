@@ -1,0 +1,78 @@
+/* The talking book (src/ui/wordbook.ts, src/ui/wordbook-games.ts): its pages of words, its games, the map of Pip, the
+   notes. Every button 44 px at least; at 844x390 nothing scrolls. */
+
+/* seven tabs fit one row of the card at 667 wide */
+#bookTabs.many { gap: 5px; }
+#bookTabs.many button { width: 44px; height: 44px; font-size: 23px; border-radius: 14px; }
+/* the talking book's tabs: no stars, no chest, no scenes of the shelf - the room is the words' */
+#book[data-tab="words"] #colStats, #book[data-tab="words"] #bookStories { display: none; }
+/* new words: a mark on the button of the book and on the tab of words */
+#btnBook.fresh, #bookTabs button.fresh { position: relative; }
+#btnBook.fresh::after, #bookTabs button.fresh::after { content: ''; position: absolute; top: 3px; right: 3px; width: 11px; height: 11px;
+  border-radius: 50%; background: #ffcf3a; box-shadow: 0 0 0 2px #fff, 0 0 6px #ffb100; }
+
+/* the panes of the talking book: centred, but never spilling over the tabs above them; on a phone smaller than the
+   checked 844x390 the rest scrolls inside the pane instead */
+#bookWords, #bookMap, #bookNotes { justify-content: safe center; overflow-y: auto; }
+#bookWords.pip { flex: none; }
+#bookMap { flex: none; }
+.word-bar { display: flex; gap: 6px 14px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.word-pages, .word-games { display: flex; gap: 5px; }
+.word-pages:empty, .word-games:empty { display: none; }
+.word-pages .wpage, .word-games .wgame { width: 44px; height: 44px; border-radius: 14px; font-size: 22px; line-height: 1; background: #f3ecfa; }
+.word-pages .wpage.sel { background: #a56bff; box-shadow: 0 0 0 3px #e3d1ff; }
+.word-games .wgame { background: #fff7d6; box-shadow: 0 0 0 2px #ffd95e; }
+
+.word-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 76px)); gap: 5px; justify-content: center; width: 100%; }
+.word-grid .word { min-height: 52px; padding: 2px; border-radius: 14px; background: #f6eefc; box-shadow: 0 3px 0 #e2d2f1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+.word-grid .word .pic { font-size: 24px; line-height: 1.05; }
+.word-grid .word .en { font-size: 14px; font-weight: 900; color: #5a3a8a; line-height: 1.1; }
+.word-grid .word .tr { font-size: 10px; font-weight: 700; color: #8a6bb0; line-height: 1.1; overflow-wrap: anywhere; }
+.word-grid .word.sil .pic { filter: brightness(0); opacity: .22; }
+.word-grid .word.new { background: #fff7d6; box-shadow: 0 0 0 3px #ffd95e; }
+
+/* a game of the book */
+.word-game { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.word-game .wg-head { display: flex; align-items: center; gap: 8px; }
+.word-game .wg-step { font-size: 14px; font-weight: 800; color: #8a6bb0; }
+.word-game .wg-again, .word-game .wg-head .wg-back { width: 44px; height: 44px; border-radius: 14px; font-size: 20px; background: #f3ecfa; }
+.word-game .wg-row { display: flex; gap: 10px; justify-content: center; }
+.word-game .wg-opt, .word-game .wg-yn { width: 74px; height: 64px; border-radius: 18px; font-size: 38px; line-height: 1;
+  background: #f6eefc; box-shadow: 0 4px 0 #e2d2f1; display: grid; place-items: center; }
+.word-game .wg-yn { width: 88px; height: 56px; font-size: 32px; }
+.word-game .wg-pic { font-size: 46px; line-height: 1; padding: 4px 18px; border-radius: 18px; background: #f6eefc; }
+.word-game .right { background: #d9f7d0; box-shadow: 0 0 0 3px #7fd36a; }
+.word-game .hint { box-shadow: 0 0 0 4px #ffd95e, 0 0 14px #ffcf3a; animation: wg-glow 1s ease-in-out infinite alternate; }
+@keyframes wg-glow { from { transform: scale(1); } to { transform: scale(1.06); } }
+.word-game .wg-card { display: flex; flex-direction: column; align-items: center; padding: 4px 18px; border-radius: 16px; background: #fffdf2; box-shadow: 0 3px 0 #efe1a8; }
+.word-game .wg-uk { font-size: 26px; font-weight: 900; color: #5a3a8a; letter-spacing: .02em; }
+.word-game .wg-ru { font-size: 12px; font-weight: 700; color: #8a6bb0; }
+/* the first hint of "read and match": the syllables light one after the other; the second - its first letter too */
+.word-game .wg-card.syllables .syl { animation: wg-syl 2.4s calc(var(--i) * 0.5s) 2 both; }
+@keyframes wg-syl { 0%, 30%, 100% { color: inherit; background: transparent; } 10%, 22% { color: #fff; background: #a56bff; border-radius: 8px; } }
+.word-game .wg-card.first .syl:first-child::first-letter { color: #e8413a; }
+.word-game .wg-done { margin: 0; font-size: 18px; font-weight: 800; color: #5a3a8a; }
+
+/* the map of Pip: five places, a piece each */
+.pip-map { display: flex; gap: 6px; justify-content: center; padding: 4px; border-radius: 18px; background: linear-gradient(#fbeecb, #f1dca4); box-shadow: 0 4px 0 #d9bf7c; }
+.pip-map .mpiece { width: clamp(52px, 13vw, 72px); min-height: 44px; border-radius: 14px; background: #fff8e2; display: flex; flex-direction: row; gap: 3px;
+  align-items: center; justify-content: center; border: 2px dashed #c9a85a; }
+.pip-map .mpiece .ic { font-size: 22px; line-height: 1.1; } .pip-map .mpiece .cap { font-size: 12px; font-weight: 800; color: #9a7a30; }
+.pip-map .mpiece.got { border-style: solid; border-color: #ffb84d; background: #fff2b8; box-shadow: 0 0 10px #ffd95e; }
+.pip-map .mpiece.sil .ic { filter: grayscale(1); opacity: .3; }
+.pip-map .mpiece.sel { outline: 3px solid #a56bff; outline-offset: 2px; }
+
+/* the notes: eight bookmarks, a found one lit, its text under them */
+#book .tile.note { width: 44px; min-height: 44px; padding: 1px; }
+#book .tile.note .ic { font-size: 20px; }
+#book .notes { gap: 5px; }
+#book .tile.note.sil .ic { filter: grayscale(1); opacity: .28; }
+#book .tile.note.sel { outline: 3px solid #a56bff; outline-offset: 2px; }
+.note-text { max-width: 420px; padding: 6px 14px; border-radius: 14px; background: #fffdf2; box-shadow: 0 3px 0 #efe1a8; display: flex; flex-direction: column; gap: 2px; }
+.note-text .uk { font-size: 17px; font-weight: 800; color: #5a3a8a; line-height: 1.25; }
+.note-text .ru { font-size: 12px; font-weight: 700; color: #8a6bb0; }
+
+@media (max-aspect-ratio: 5/4) {
+  .word-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
