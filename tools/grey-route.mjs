@@ -31,5 +31,21 @@ export function overBudget(views, tour, budget = BUDGET) {
     .filter((p) => p.tris > budget.tris || p.calls > budget.calls);
 }
 
+/**
+ * `--budget` of the grey walkthroughs (the CI job "budget", .github/workflows/ci.yml): the draw of every point only - no
+ * walk of the paths, no pictures, no checks of the look. Under the runner's software drawing a frame takes about a
+ * second and the game's time steps 0.05 s a frame (src/game/loop.ts), so the seconds of game time the full measure waits
+ * at a point were minutes there. A point is measured BUDGET_FRAMES frames after she is put on it, the camera put at once
+ * where it would come to rest (src/game/debug.ts settleCamera) and the world's things near her shown (their `update`).
+ */
+export const BUDGET_FRAMES = 4;
+/** Waits BUDGET_FRAMES frames of `page`, the camera snapped on the first. */
+export const budgetSettle = (page) => page.evaluate((n) => new Promise((r) => {
+  __game.settleCamera();
+  let k = 0;
+  const f = () => (++k >= n ? r() : requestAnimationFrame(f));
+  requestAnimationFrame(f);
+}), BUDGET_FRAMES);
+
 /** m along a line of points. */
 export const lengthOf = (line) => line.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - line[i].x, p.z - line[i].z), 0);

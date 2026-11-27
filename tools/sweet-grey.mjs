@@ -38,7 +38,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkDistSize, sizeSummary } from './dist-size.mjs';
-import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { GREY_DIST, serveDir } from './hub-grey.mjs';
 import { MAGIC_DIFF, pictureDiffs } from './picture-diff.mjs';
 import { reportProblems } from './world-pass.mjs';
@@ -83,10 +83,14 @@ export const LANDMARK_NAMES = {
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. */
 export function readArgs(argv) {
-  const o = { scales: [1.6], q: 2, pass: true, measure: true, out: join(root, 'shots-e2e', 'sweet-grey') };
+  const o = { scales: [1.6], q: 2, pass: true, measure: true, budget: false, built: false, out: join(root, 'shots-e2e', 'sweet-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
+    // the CI job "budget" (tools/grey-route.mjs budgetSettle): the draw of the points, nothing else
+    else if (a === '--budget') { o.budget = true; o.pass = false; }
+    // the grey build made already (the part "budget" of tools/worlds.mjs builds it once for the four worlds)
+    else if (a === '--built') o.built = true;
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--scales') {
       const v = (argv[++i] ?? '').split(',').map(Number);
@@ -155,12 +159,15 @@ export function routeSeconds(route, legs) {
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sweet-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sweet-grey.mjs [--scales 1.6] [--q 2] [--no-pass] [--no-measure] [--budget] [--built] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, GREY_DIST);
   // ---- 1. the grey build ----
-  rmSync(dist, { recursive: true, force: true });
-  execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', GREY_DIST], { cwd: root, stdio: 'inherit' });
+  if (args.built && existsSync(join(dist, 'index.html'))) console.log(`[grey] the grey build made already: ${dist}`);
+  else {
+    rmSync(dist, { recursive: true, force: true });
+    execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', GREY_DIST], { cwd: root, stdio: 'inherit' });
+  }
   let failed = false;
   const size = checkDistSize(dist);
   console.log(`[grey] the size of the build: ${sizeSummary(size)}`);
@@ -188,7 +195,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [];
   try {
-    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q));
+    for (const scale of args.scales) all.push(await measure(browser, url, scale, args.out, args.q, args.budget));
   } finally { await browser.close(); server.close(); }
   writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1));
   if (all.some((m) => m.failed)) failed = true;
@@ -197,7 +204,7 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out, q = 2) {
+async function measure(browser, url, scale, out, q = 2, budget = false) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
@@ -213,7 +220,10 @@ async function measure(browser, url, scale, out, q = 2) {
   await page.evaluate(() => __game.setMagic(1));
   const tag = `x${String(scale).replace('.', '_')}`;
   /** Seconds of game time, waited for frame by frame. */
-  const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
+  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
   const draw = () => page.evaluate(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
@@ -221,7 +231,7 @@ async function measure(browser, url, scale, out, q = 2) {
 
   // the ways on foot
   const legs = [];
-  for (const [a, b] of routeLegs(map.route)) {
+  for (const [a, b] of budget ? [] : routeLegs(map.route)) {
     const line = pathBetween(map.paths, map.zones, a, b);
     if (!line) throw new Error(`no path of the map from "${a}" to "${b}"`);
     const len = lengthOf(line);
@@ -278,7 +288,7 @@ async function measure(browser, url, scale, out, q = 2) {
       return { hits, of: tops.length, metres: +d.toFixed(0), met, fog };
     }, [LANDMARK_NAMES[b], map.landmarks[b], map.zones[b]]);
     const d = await draw();
-    await page.screenshot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
+    await shot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
     views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, met: seen.met, fog: seen.fog, ...d });
   }
   // the secrets (src/worlds/sweet/secrets.ts): the draw and a picture by each - the box from a step before its front, the
@@ -292,19 +302,20 @@ async function measure(browser, url, scale, out, q = 2) {
     for (const [name, a, b] of near) {
       await stand(a, b); await settle(1);
       secretDraws.push({ secret: name, ...(await draw()) });
-      await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+      await shot({ path: join(out, `${tag}-secret-${name}.png`) });
     }
     // on the roof, at where the cloud sets her down, toward the lollipop
     await page.evaluate((r) => { const h = __game.hero.root.position; h.set(r.landing.x, r.top, r.landing.z); const yaw = Math.atan2(-(r.swirl.x - r.landing.x), -(r.swirl.z - r.landing.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, sec.roof);
     await settle(1);
     secretDraws.push({ secret: 'roof', ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-secret-roof.png`) });
+    await shot({ path: join(out, `${tag}-secret-roof.png`) });
     // the machine: she before it, faced to it, the bubble halfway blown
     await stand(sec.gum.stand, sec.gum.at);
     await page.evaluate(() => __game.sweetSecrets.blow());
-    await settle(0.9);
+    // the bubble grows by game time: its wait stays whole in --budget too
+    await gameSettle(0.9);
     secretDraws.push({ secret: 'gum', ...(await draw()), shown: await page.evaluate(() => __game.sweetSecrets.bubble() !== null) });
-    await page.screenshot({ path: join(out, `${tag}-secret-gum.png`) });
+    await shot({ path: join(out, `${tag}-secret-gum.png`) });
   }
   // the tour
   const tour = [];
@@ -315,34 +326,37 @@ async function measure(browser, url, scale, out, q = 2) {
     await page.evaluate((i) => __game.flyoverPlayer.hold(i), i);
     await settle(0.4);
     tour.push({ point: i + 1, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
+    await shot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
-  // the magic: the camera on its point, the world still (no game time: the butterflies, the river and the carousel
-  // stand), so two pictures of the same magic differ by nothing that lives in the frame
-  await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
-  await settle(0.6);
-  const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
-  const pics = [];
-  await page.evaluate(() => __game.still(true));
-  try {
-    for (const [m, name] of MAGIC_PICTURES) {
-      await page.evaluate((m) => __game.setMagic(m), m);
-      await frames();
-      pics.push((await page.screenshot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
-    }
-    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
-    await page.evaluate(() => __game.still(false));
+  let magic = { skipped: true, ok: true };
+  if (!budget) {
+    // the magic: the camera on its point, the world still (no game time: the butterflies, the river and the carousel
+    // stand), so two pictures of the same magic differ by nothing that lives in the frame
+    await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_POINT);
     await settle(0.6);
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const pics = [];
     await page.evaluate(() => __game.still(true));
-    for (const [m, name] of MAGIC_PICTURES.filter(([, n]) => n !== 'magic-0-again')) {
-      await page.evaluate((m) => __game.setMagic(m), m);
-      await frames();
-      await page.screenshot({ path: join(out, `${tag}-${name.replace('magic', 'magic-near')}.png`) });
-    }
-  } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(1); }); }
-  const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 4, 1], [0, 4, 0.2], [0, 1, 1], [0, 2, 1]]);
-  const magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
-  magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
+    try {
+      for (const [m, name] of MAGIC_PICTURES) {
+        await page.evaluate((m) => __game.setMagic(m), m);
+        await frames();
+        pics.push((await shot({ path: join(out, `${tag}-${name}.png`) })).toString('base64'));
+      }
+      await page.evaluate((i) => __game.flyoverPlayer.hold(i), MAGIC_NEAR_POINT);
+      await page.evaluate(() => __game.still(false));
+      await settle(0.6);
+      await page.evaluate(() => __game.still(true));
+      for (const [m, name] of MAGIC_PICTURES.filter(([, n]) => n !== 'magic-0-again')) {
+        await page.evaluate((m) => __game.setMagic(m), m);
+        await frames();
+        await shot({ path: join(out, `${tag}-${name.replace('magic', 'magic-near')}.png`) });
+      }
+    } finally { await page.evaluate(() => { __game.still(false); __game.setMagic(1); }); }
+    const [all, sky, same, half] = await pictureDiffs(page, pics, [[0, 4, 1], [0, 4, 0.2], [0, 1, 1], [0, 2, 1]]);
+    magic = { point: MAGIC_POINT + 1, all: +all.toFixed(4), sky: +sky.toFixed(4), same: +same.toFixed(4), half: +half.toFixed(4) };
+    magic.ok = all > MAGIC_DIFF.all && sky > MAGIC_DIFF.sky && all > same * MAGIC_DIFF.same;
+  }
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   // the cake after the finale: the world's part of the save marked final in memory (never stored: the page is closed
   // after it) - the Ruby over the lit candle, the carousel turning; from the palace's middle and from the square
@@ -353,7 +367,7 @@ async function measure(browser, url, scale, out, q = 2) {
   for (const [name, from, to] of [['palace', before, map.landmarks.palace], ['square', map.zones.square, map.landmarks.palace]]) {
     await stand(from, to); await settle(1.5);
     finale.push({ at: name, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-finale-${name}.png`) });
+    await shot({ path: join(out, `${tag}-finale-${name}.png`) });
   }
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
@@ -373,7 +387,8 @@ async function measure(browser, url, scale, out, q = 2) {
   // the points by the secrets are held to the budget as the views are
   const over = q === 2 ? overBudget([...views, ...secretDraws.map((d) => ({ from: 'secret', to: d.secret, calls: d.calls, tris: d.tris }))], tour) : [];
   if (q === 2) console.log(`[grey]   the budget (q2, ${BUDGET.tris / 1000}k triangles, ${BUDGET.calls} calls): ${over.length ? `OVER at ${over.map((p) => `${p.at} (${p.calls} calls, ${Math.round(p.tris / 1000)}k)`).join('; ')}` : 'every point within it'}`);
-  console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.32 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-*.png, ${tag}-magic-near-*.png)`);
+  if (magic.skipped) console.log('[grey]   the magic: not measured (--budget)');
+  else console.log(`[grey]   the magic, point ${magic.point} of the tour: 0 vs 1 differ by ${magic.all} (the sky ${magic.sky}), 0 vs 0.32 by ${magic.half}, two pictures at 0 by ${magic.same}: ${magic.ok ? 'ok' : `FAILED - the threshold is ${MAGIC_DIFF.all} (the sky ${MAGIC_DIFF.sky}) and ${MAGIC_DIFF.same} times the same magic`} (${tag}-magic-*.png, ${tag}-magic-near-*.png)`);
   const notReached = legs.filter((l) => !l.reached);
   return { scale, speed, legs, route: map.route, routeSeconds: +routeTime.toFixed(0), total, views, tour, secrets: secretDraws, finale, heaviest, mostCalls, over, magic, failed: over.length > 0 || notReached.length > 0 || !magic.ok };
 }

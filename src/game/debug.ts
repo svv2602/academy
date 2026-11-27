@@ -226,6 +226,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /** Whether a walker of radius `r` at (x, z) stands clear of the world's obstacles (WorldGround.resolve leaves it there). */
     free(x: number, z: number, r: number) { const p = { x, z }; g.ground.resolve(p, r); return Math.hypot(p.x - x, p.z - z) < 1e-6; },
     closeup(d: number | null) { g.camOverride = d; },
+    /** The camera behind her at once where it glides to, the next frame (the budget's measures, tools/grey-route.mjs). */
+    settleCamera() { g.camSnap = true; },
     /**
      * The transition between worlds (TECH-15), stopped at the point `p` of its closing (0 - open, 1 - closed, with the
      * loading ring at `progress`); null lets it go. `fade` is the transition itself: its state (`phase`, `active`,

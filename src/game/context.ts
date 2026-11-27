@@ -87,6 +87,12 @@ export interface Game extends GameWorld {
   paused: boolean;
   /** Debug (the walkthrough's pictures): frames are drawn with no game time - nothing moves, nothing ends. */
   still: boolean;
+  /**
+   * Debug (the measures of the budget, tools/grey-route.mjs): the next frame the camera behind her stands at once where
+   * it glides to - its target, distance and pitch - then this is false again. A teleport measured a few frames later is
+   * measured from where a child's camera comes to rest, not from half way.
+   */
+  camSnap: boolean;
   /** The picture is lost (src/core/contextloss.ts): no frame runs - the game stands as on a hidden page. */
   dark: boolean;
   auto: Auto | null;
@@ -283,7 +289,7 @@ export function createGame(o: {
     get easel() { return easel!; },
     get collect() { return collect!; },
     plan: createPlanner(save),
-    busy: false, paused: false, still: false, dark: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
+    busy: false, paused: false, still: false, camSnap: false, dark: false, auto: null, camOverride: null, camPitchMin: null, camTask: null, finale: 0, failNext: false,
     // the world's part (GameWorld): everything `worldPart` made, the way `enter` swaps it
     ...part, groundY, get visit() { return visit; },
     started: () => el.start.classList.contains('hidden'),

@@ -29,7 +29,7 @@ import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { BUDGET, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
+import { BUDGET, budgetSettle, lengthOf, overBudget, pathBetween, routeLegs } from './grey-route.mjs';
 import { passEnv, passProblems } from './sea-pass.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,10 +45,14 @@ export function budgetFails(m) { return m.scale === SHIPPED_SCALE && m.over.leng
 
 /** The arguments: { scales, q, pass, measure, out } or { error }. The two stretches the customer chooses from by default. */
 export function readArgs(argv) {
-  const o = { scales: [1, 1.6], q: 2, pass: true, measure: true, water: true, out: join(root, 'shots-e2e', 'sea-grey') };
+  const o = { scales: [1, 1.6], q: 2, pass: true, measure: true, water: true, budget: false, built: false, out: join(root, 'shots-e2e', 'sea-grey') };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-pass') o.pass = false;
+    // the CI job "budget" (tools/grey-route.mjs budgetSettle): the draw at the scale the game plays, nothing else
+    else if (a === '--budget') { o.budget = true; o.pass = false; o.water = false; o.scales = [SHIPPED_SCALE]; }
+    // the grey build made already (the part "budget" of tools/worlds.mjs builds it once for the four worlds)
+    else if (a === '--built') o.built = true;
     else if (a === '--water-only') { o.pass = false; o.measure = false; o.water = true; }
     else if (a === '--no-measure') o.measure = false;
     else if (a === '--scales') {
@@ -67,12 +71,15 @@ export function readArgs(argv) {
 
 async function main() {
   const args = readArgs(process.argv.slice(2));
-  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--out <dir>]`); process.exit(2); }
+  if (args.error) { console.error(`[grey] ${args.error}\nUsage: node tools/sea-grey.mjs [--scales 1,1.6] [--no-pass] [--no-measure] [--water-only] [--budget] [--built] [--out <dir>]`); process.exit(2); }
   const port = Number(process.env.E2E_PORT || 4183);
   const dist = join(root, DIST);
   // ---- 1. the grey build ----
-  rmSync(dist, { recursive: true, force: true });
-  execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', DIST], { cwd: root, stdio: 'inherit' });
+  if (args.built && existsSync(join(dist, 'index.html'))) console.log(`[grey] the grey build made already: ${dist}`);
+  else {
+    rmSync(dist, { recursive: true, force: true });
+    execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '--mode', 'grey', '--outDir', DIST], { cwd: root, stdio: 'inherit' });
+  }
   // ---- 2. served ----
   const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
     '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg' };
@@ -108,7 +115,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true, args: [...gl, '--ignore-gpu-blocklist', '--mute-audio'] });
   const all = [], water = [];
   try {
-    if (args.measure) for (const scale of args.scales) { const m = await measure(browser, url, scale, args.out, args.q); all.push(m); if (budgetFails(m)) failed = true; }
+    if (args.measure) for (const scale of args.scales) { const m = await measure(browser, url, scale, args.out, args.q, args.budget); all.push(m); if (budgetFails(m)) failed = true; }
     if (args.water) for (const q of [2, 0]) water.push(await inWater(browser, url, q, args.out));
   } finally { await browser.close(); server.close(); }
   if (all.length) { writeFileSync(join(args.out, 'measures.json'), JSON.stringify(all, null, 1)); console.log(`[grey] the numbers: ${join(args.out, 'measures.json')}`); }
@@ -117,7 +124,7 @@ async function main() {
 }
 
 /** The measurements of one stretch of the map (see the head of the file). */
-async function measure(browser, url, scale, out, q = 2) {
+async function measure(browser, url, scale, out, q = 2, budget = false) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
@@ -131,7 +138,10 @@ async function measure(browser, url, scale, out, q = 2) {
   if (Math.abs(map.scale - scale) > 1e-9) throw new Error(`the page plays the scale ${map.scale}, not ${scale}`);
   const tag = `x${String(scale).replace('.', '_')}`;
   /** Seconds of game time, waited for frame by frame. */
-  const settle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  const gameSettle = (s) => page.evaluate((s) => new Promise((r) => { const t0 = __game.time; const f = () => (__game.time - t0 >= s ? r() : requestAnimationFrame(f)); f(); }), s);
+  // --budget (tools/grey-route.mjs): a few frames, the camera snapped; no pictures
+  const settle = budget ? () => budgetSettle(page) : gameSettle;
+  const shot = budget ? async () => Buffer.alloc(0) : (o) => page.screenshot(o);
   /** She stands at `a`, faced toward `b` (the camera behind her). */
   const stand = (a, b) => page.evaluate(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; }, [a, b]);
   const draw = () => page.evaluate(() => ({ calls: __game.renderer.info.render.calls, tris: __game.renderer.info.render.triangles }));
@@ -139,7 +149,7 @@ async function measure(browser, url, scale, out, q = 2) {
 
   // the ways swum
   const legs = [];
-  for (const [a, b] of routeLegs(map.route)) {
+  for (const [a, b] of budget ? [] : routeLegs(map.route)) {
     const line = pathBetween(map.paths, map.zones, a, b);
     if (!line) throw new Error(`no path of the map from "${a}" to "${b}"`);
     const len = lengthOf(line);
@@ -209,7 +219,7 @@ async function measure(browser, url, scale, out, q = 2) {
       return { hits, of: tops.length, metres: +d.toFixed(0), met, fog };
     }, [b, map.landmarks[b]]);
     const d = await draw();
-    await page.screenshot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
+    await shot({ path: join(out, `${tag}-from-${a}-to-${b}.png`) });
     views.push({ from: a, to: b, seen: seen.hits > 0, rays: `${seen.hits}/${seen.of}`, metres: seen.metres, met: seen.met, fog: seen.fog, ...d });
   }
   // the heroine in the water: still, talking and dancing at the height she swims at, the cat in its bubble beside her -
@@ -218,10 +228,10 @@ async function measure(browser, url, scale, out, q = 2) {
   await stand(map.zones.square, map.zones.ship); await settle(1.5);
   // the game's own clips by their names (in the water "Idle" is played by the world's Float); the game is held busy
   // meanwhile, as a conversation holds it, so that the heroine's own moving does not take the clip back
-  for (const [what, clip] of [['still', 'Idle'], ['talk', 'Talk'], ['dance', 'Dance']]) {
+  for (const [what, clip] of budget ? [] : [['still', 'Idle'], ['talk', 'Talk'], ['dance', 'Dance']]) {
     await page.evaluate((c) => __game.pose(c), clip); await settle(0.8);
     const at = await page.evaluate(() => ({ playing: __game.hero.current, over: +(__game.hero.root.position.y - __game.seaMap.ground(__game.hero.root.position.x, __game.hero.root.position.z)).toFixed(2), bubbles: __game.bubbles() }));
-    await page.screenshot({ path: join(out, `${tag}-pose-${what}.png`) });
+    await shot({ path: join(out, `${tag}-pose-${what}.png`) });
     poses.push({ what, clip, ...at });
   }
   await page.evaluate(() => __game.pose(null));
@@ -235,19 +245,20 @@ async function measure(browser, url, scale, out, q = 2) {
     for (const [name, a, b] of near) {
       await stand(a, b); await settle(1);
       secretDraws.push({ secret: name, ...(await draw()) });
-      await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+      await shot({ path: join(out, `${tag}-secret-${name}.png`) });
     }
     // the lookout: she on its top, faced toward the middle of the map, the whale halfway across high over it
     await page.evaluate((l) => { const h = __game.hero.root.position; h.set(l.x, l.top + __game.seaMap.swim, l.z); const d = Math.hypot(l.x, l.z); const yaw = Math.atan2(l.x / d, l.z / d); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; __game.seaSecrets.showWhale(); }, sec.lookout);
-    await settle(5);
+    // the whale crosses by game time: its wait stays whole in --budget too (the sea's heaviest point)
+    await gameSettle(5);
     secretDraws.push({ secret: 'whale', ...(await draw()), shown: await page.evaluate(() => __game.seaSecrets.whale() !== null) });
-    await page.screenshot({ path: join(out, `${tag}-secret-whale.png`) });
+    await shot({ path: join(out, `${tag}-secret-whale.png`) });
     // the grotto: from 5 m before its curtain toward its shell, and inside by the shell, faced out through the curtain
     const gr = sec.grotto, ox = gr.opening.x - gr.pearl.x, oz = gr.opening.z - gr.pearl.z, ol = Math.hypot(ox, oz);
     for (const [name, a, b] of [['grotto', { x: gr.opening.x + (ox / ol) * 5, z: gr.opening.z + (oz / ol) * 5 }, gr.pearl], ['grotto-in', { x: gr.pearl.x + (ox / ol) * 0.6, z: gr.pearl.z + (oz / ol) * 0.6 }, gr.opening]]) {
       await stand(a, b); await settle(1.5);
       secretDraws.push({ secret: name, ...(await draw()) });
-      await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+      await shot({ path: join(out, `${tag}-secret-${name}.png`) });
     }
     // the hold of the ship (src/worlds/sea/hold.ts): inside its door toward the chest, and by the chest toward the door
     const hold = await page.evaluate(() => JSON.parse(JSON.stringify(__game.seaHold ?? null)));
@@ -255,7 +266,7 @@ async function measure(browser, url, scale, out, q = 2) {
       for (const [name, a, b] of [['hold', hold.doorIn, hold.chest], ['hold-door', { x: hold.chest.x + 1, z: hold.chest.z + 1 }, hold.doorIn]]) {
         await stand(a, b); await settle(1.5);
         secretDraws.push({ secret: name, ...(await draw()), inside: await page.evaluate(() => __game.seaHold.inside()) });
-        await page.screenshot({ path: join(out, `${tag}-secret-${name}.png`) });
+        await shot({ path: join(out, `${tag}-secret-${name}.png`) });
       }
     }
   }
@@ -268,15 +279,15 @@ async function measure(browser, url, scale, out, q = 2) {
     await page.evaluate((i) => __game.flyoverPlayer.hold(i), i);
     await settle(0.4);
     tour.push({ point: i + 1, ...(await draw()) });
-    await page.screenshot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
+    await shot({ path: join(out, `${tag}-tour-${i + 1}.png`) });
   }
   await page.evaluate(() => { __game.flyoverPlayer.hold(null); __game.flyoverPlayer.skip(); });
   await ctx.close();
   const total = { metres: +legs.reduce((n, l) => n + l.metres, 0).toFixed(0), byLength: +legs.reduce((n, l) => n + l.byLength, 0).toFixed(0), walked: +legs.reduce((n, l) => n + l.walked, 0).toFixed(0) };
   // the route walks some paths twice (there and back): its time is the sum over the route, not over the legs
-  const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + l.walked; }, 0);
+  const routeTime = map.route.slice(1).reduce((n, b, i) => { const l = legs.find((x) => (x.from === map.route[i] && x.to === b) || (x.to === map.route[i] && x.from === b)); return n + (l?.walked ?? 0); }, 0);
   const heaviest = [...views.map((v) => ({ at: `${v.from} -> ${v.to}`, calls: v.calls, tris: v.tris })), ...tour.map((t) => ({ at: `tour ${t.point}`, calls: t.calls, tris: t.tris })), ...secretDraws.map((d) => ({ at: `secret ${d.secret}`, calls: d.calls, tris: d.tris }))].sort((x, y) => y.tris - x.tris)[0];
-  console.log(`[grey] scale ${scale}: top speed ${speed} m/s on foot; swum ${(legs.reduce((n, l) => n + l.speed, 0) / legs.length).toFixed(2)} m/s on average; clips ${[...new Set(legs.flatMap((l) => l.clips))].join(', ')}`);
+  console.log(`[grey] scale ${scale}: top speed ${speed} m/s on foot; swum ${legs.length ? `${(legs.reduce((n, l) => n + l.speed, 0) / legs.length).toFixed(2)} m/s on average` : 'not (--budget)'}; clips ${[...new Set(legs.flatMap((l) => l.clips))].join(', ')}`);
   for (const l of legs) console.log(`[grey]   ${l.from} -> ${l.to}: ${l.metres} m, ${l.walked} s swum at ${l.speed} m/s (${l.byLength} s by its length at the speed on foot), ${l.height[0]}-${l.height[1]} m over the floor${l.reached ? '' : ` - NOT REACHED, stopped at ${l.stopped.x}, ${l.stopped.z}`}`);
   console.log(`[grey]   the route ${map.route.join(' -> ')}: ${routeTime.toFixed(0)} s run; the paths once: ${total.metres} m, ${total.walked} s`);
   for (const v of views) console.log(`[grey]   from ${v.from} the landmark of ${v.to} (${v.metres} m): ${v.seen ? 'seen' : `NOT seen - the rays meet ${v.met.join(', ')}`} (${v.rays} rays, the haze ${Math.round(v.fog * 100)} %), ${v.calls} calls, ${Math.round(v.tris / 1000)}k`);
