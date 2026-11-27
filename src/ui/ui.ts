@@ -311,8 +311,10 @@ export function initBook(save: Save, book: BookInfo, on: {
         + `<td class="paim">${percent(aim[k])}</td><td>${save.recent.length ? percent(now[k]) : '–'}</td></tr>`;
     }).join('');
     const skills = SEASON2_SKILLS.filter((k) => isOpen(save, k));
-    $('pBody').innerHTML = `<div class="psubj"><table class="ptab"><tr><th>${t('p2_subject')}</th><th>${t('p2_share')}</th><th>${t('p2_target')}</th><th>${t('p2_now')}</th></tr>${rows}</table>
-      <div class="pcol"><div class="prow pen"><span>${t('p2_english')}</span><button id="pEnglish" class="${save.english ? 'sel' : ''}">${t(save.english ? 'p2_on' : 'p2_off')}</button></div>${skillTable(skills)}</div>
+    // the subjects and English on or off in one column, the skills of Season 2 in the other: a phone held sideways has
+    // the height of five rows
+    $('pBody').innerHTML = `<div class="psubj"><div class="pcol"><table class="ptab"><tr><th>${t('p2_subject')}</th><th>${t('p2_share')}</th><th>${t('p2_target')}</th><th>${t('p2_now')}</th></tr>${rows}</table>
+      <div class="prow pen"><span>${t('p2_english')}</span><button id="pEnglish" class="${save.english ? 'sel' : ''}">${t(save.english ? 'p2_on' : 'p2_off')}</button></div></div>${skillTable(skills)}
       <div class="pcfoot"><p class="pnote">${t('p2_note')}</p><button id="pSubjBack">${t('p_code_back')}</button></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-share]').forEach((b) => b.addEventListener('click', () => {
       const k = b.dataset.share as (typeof SUBJECTS)[number];

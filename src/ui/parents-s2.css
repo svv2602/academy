@@ -1,17 +1,22 @@
 /* the subjects of Season 2 in the parents' section (./ui.ts renderSubjects, part P): the shares beside the new skills */
-.prow .psubjbtn { background: #fde8f1; color: #c0507f; } .preset .psubjbtn { display: none; }
+.prow .psubjbtn { background: #fde8f1; color: #c0507f; }
+/* "subjects" stands beside "reset" (the line under the tables has no room for a fourth button on a phone held sideways) */
+.pcoderow .psubjbtn { display: none; } .preset .psubjbtn { display: inline-block; }
 .psubj { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 14px; grid-column: 1 / -1; align-items: start; }
-.psubj .pshare { min-height: 44px; min-width: 88px; }
+.psubj .pshare { min-height: 44px; min-width: 88px; background: #f1e6fa; border-radius: 999px; padding: 4px 12px; font-weight: 700; color: #a07ac0; }
+.psubj .pshare.sel { background: #a56bff; color: #fff; }
 .psubj .pshare:disabled { opacity: .4; }
 .psubj .paim { font-weight: 800; color: #5a3a8a; }
-.psubj .pen { margin: 0 0 4px; flex-wrap: nowrap; } .psubj .pen button { min-height: 44px; }
+.psubj .pen { margin: 6px 0 0; flex-wrap: nowrap; justify-content: center; gap: 10px; }
 .psubj .pcfoot { grid-column: 1 / -1; }
 .psubj .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; }
+@media (max-height: 480px) {
+  .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; } .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 8px; line-height: 1.15; }
+  .psubj .pnote { margin: 2px 0; }
+  .psubj .pen { margin-top: 4px; font-size: 14px; }
+}
 @media (max-aspect-ratio: 5/4) {
   .psubj { grid-template-columns: minmax(0, 1fr); }
-  .preset .psubjbtn { display: inline-block; }
-}
-@media (max-height: 480px) {
-  .psubj .ptab td, .psubj .ptab th { padding-top: 1px; padding-bottom: 1px; }
-  .psubj .pnote { margin: 2px 0; font-size: 13px; }
+  /* five buttons in 390 px do not fit: "reset", "move", "controls" on a line, "report" and "subjects" on the next */
+  .pset .preset { flex-wrap: wrap; } .pset .preset button { flex: 1 1 30%; }
 }
