@@ -1,0 +1,15 @@
+/* The magic board (src/ui/trainer.ts): a card over the game, a slate-green title band, the skills as big buttons -
+   three in a row on a wide screen, two held upright. Every button is 48 px at least. */
+#board { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: #0003; }
+#board.hidden { display: none; }
+.bd-card { position: relative; width: min(96vw, 760px); max-height: calc(100vh - 16px); overflow: auto; box-sizing: border-box;
+  background: #fffdf8; border-radius: 26px; padding: 12px 14px 16px; box-shadow: 0 16px 50px #0004; border-top: 10px solid #2f4a3c; }
+.bd-card h2 { margin: 4px 56px 6px; text-align: center; font: 800 26px/1.15 system-ui, sans-serif; color: #2f4a3c; }
+.bd-days { margin: 0 0 8px; text-align: center; font: 700 17px/1.2 system-ui, sans-serif; color: #c07a12; }
+.bd-close { position: absolute; top: 6px; right: 6px; width: 48px; height: 48px; border-radius: 50%; font-size: 26px; background: #f3ecfa; }
+.bd-skills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bd-skill { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 6px 10px; border-radius: 16px;
+  background: #eef5ef; font: 700 18px/1.15 system-ui, sans-serif; color: #2f4a3c; text-align: left; }
+.bd-skill .ic { font-size: 28px; flex: 0 0 auto; }
+.bd-skill .nm { min-width: 0; overflow-wrap: anywhere; }
+@media (orientation: portrait) { .bd-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

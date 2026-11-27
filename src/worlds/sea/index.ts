@@ -429,7 +429,8 @@ function buildSea(g: Game, L: SeaLoads, sky: WorldSky, scope: WorldScope): Built
         if (p) return p.mesh.position;
         const n = npcs.find((x) => !finished(x));
         if (n) return n.pos;
-        return finaleItem.done() ? null : throne;
+        // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
+        return g.easel.goal() ?? (finaleItem.done() ? null : throne);
       },
       animate: (_dt, time) => { flies.update(time); shafts.sway(time); floor.sway(time); bubbles.update(time); player.update(time); },
       focusDist: () => 6.5,

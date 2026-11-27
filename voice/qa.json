@@ -8617,6 +8617,30 @@
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
  },
+ "board_hi": {
+  "text": "Це чарівна дошка! Обери, що потренуємо.",
+  "heard": "Це чарівна дошка. Обери, що потренуємо.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "board_done": {
+  "text": "Чудове тренування! Так тримати!",
+  "heard": "Чудове тренування! Так тримати!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "board_again": {
+  "text": "Ти знову тут! Тренуємося щодня — це сила!",
+  "heard": "Ти знову тут! Тренуємося щодня – це сила!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
  "sea/sea_secret_grotto": {
   "text": "Грот за водоростями! Дивись, як світяться корали.",
   "heard": "Грод за водоростями, дивися, як світяться корали!",

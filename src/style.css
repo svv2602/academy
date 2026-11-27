@@ -293,7 +293,9 @@ button.it { min-width: 44px; min-height: 44px; }
   .ptab :is(th, td):first-child { width: 36%; } .ptab :is(th, td):nth-child(2) { width: 24%; } .ptab :is(th, td):nth-child(3) { width: 18%; }
   .ptime { font-size: 13px; } .pdays { font-size: 12px; } .pdays b { font-size: 11px; } #pBody .pnote { font-size: 11px; margin-top: 2px; }
   .pcoderow { flex-wrap: nowrap; gap: 6px; } .pcoderow button { padding: 4px 10px; font-size: 14px; }
-  .pctl .prow { font-size: 14px; }
+  /* five rows of choices (the cat's hints the fifth) and the foot in 367 px of a phone held sideways: no space between
+     the rows, the buttons keep their 44 px */
+  .pctl { gap: 0; } .pctl .prow { font-size: 14px; margin: 0; }
   .pset .prow { margin: 2px 0; gap: 4px 8px; font-size: 14px; } .pvol label { font-size: 12px; } .prow.pvol { flex-wrap: nowrap; } .prow.pvol input[type=range] { width: 64px; }
   /* The version goes up to the free left end of the title's line ("close" holds the right one): the column of the settings
      has the height of a line more for the break (PLAY-20). */
