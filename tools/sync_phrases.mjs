@@ -1,7 +1,8 @@
 /**
  * Rebuild voice/phrases.json — the list of lines to record — from the game's own texts.
  *
- * The list is built by `recordingList()` in src/ui/strings.ts from the shared strings and the strings of every world
+ * The list is built by `recordingList()` in src/ui/strings.ts from the shared strings, the strings of every part
+ * (the modules of `PartStrings`, src/s2/strings-<part>.ts; tools/parts.mjs finds them) and of every world
  * (src/worlds/<id>/strings.ts, in the order of the folder names), then the bank of the old game's clips
  * (src/ui/strings-bank.ts): one entry per key marked as spoken, Ukrainian text
  * with the name placeholder cut out, plus the intonation and the speaker. The speakers and their voices come from each
@@ -14,6 +15,7 @@
  *   npm run voice:sync              rewrite voice/phrases.json
  *   npm run voice:sync -- --check   change nothing; exit 1 and list the differences if the file is out of date
  *   --out=<file>                    the list to write or to check instead of voice/phrases.json (the tests)
+ *   --parts=<folder>                the folder searched for the modules of the parts instead of src/ (the tests)
  *
  * The English lines (Season 2, part B) are a list of their own: src/s2/strings-en.ts `englishRows` writes
  * voice/phrases-en.json, `key: [text, "en", voice, world]` (Isabella - the book, Zephyr - Pip). --check checks both.
@@ -24,16 +26,17 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sourceWorlds } from './dist-size.mjs';
+import { partStrings } from './parts.mjs';
 
 const WORLDS = fileURLToPath(new URL('../src/worlds/', import.meta.url));
 
 const args = process.argv.slice(2);
 const valued = (flag) => args.filter((a) => a.startsWith(flag)).map((a) => a.slice(flag.length));
-const given = valued('--out='), givenEn = valued('--out-en=');
-const unknown = args.filter((a) => a !== '--check' && !(a.startsWith('--out=') && a.length > '--out='.length)
-  && !(a.startsWith('--out-en=') && a.length > '--out-en='.length));
-if (unknown.length > 0 || given.length > 1 || givenEn.length > 1) {
-  console.error(`[voice:sync] unknown argument: ${(unknown.length ? unknown : args.filter((a) => a.startsWith('--out'))).join(' ')}\nusage: node tools/sync_phrases.mjs [--check] [--out=<file>] [--out-en=<file>]`);
+const given = valued('--out='), givenEn = valued('--out-en='), givenParts = valued('--parts=');
+const VALUED = ['--out=', '--out-en=', '--parts='];
+const unknown = args.filter((a) => a !== '--check' && !VALUED.some((flag) => a.startsWith(flag) && a.length > flag.length));
+if (unknown.length > 0 || given.length > 1 || givenEn.length > 1 || givenParts.length > 1) {
+  console.error(`[voice:sync] unknown argument: ${(unknown.length ? unknown : args.filter((a) => VALUED.some((flag) => a.startsWith(flag)))).join(' ')}\nusage: node tools/sync_phrases.mjs [--check] [--out=<file>] [--out-en=<file>] [--parts=<folder>]`);
   process.exit(2);
 }
 const check = args.includes('--check');
@@ -88,7 +91,8 @@ try {
   const { bank } = await import('../src/ui/strings-bank.ts');
   // The first world, read as text (tools/dist-size.mjs): the registry itself is not imported - it brings Three.js.
   const { first } = sourceWorlds();
-  list = recordingList(await worldStrings(), bank, await worldVoices(), first);
+  // The parts' modules (PartStrings): from src/, or from the folder a test names.
+  list = recordingList(await worldStrings(), bank, await worldVoices(), first, await partStrings(givenParts[0]));
   const { englishRows } = await import('../src/s2/strings-en.ts');
   listEn = englishRows();
 } catch (e) {

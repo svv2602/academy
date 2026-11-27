@@ -116,17 +116,37 @@ describe('pairs: extra openings make the result shaky, never "wrong"', () => {
   it('6 pairs with no extra openings, twice in a row: the level goes up', async () => {
     const save = defaultSave();
     save.fixed.memory = 3;
+    save.skills.memory.settled = true;             // the fast climb is over: two clean solves in a row for a level (LEARN-15)
     await playAndRecord(save, 0);
     await playAndRecord(save, 0);
     expect(save.skills.memory).toMatchObject({ level: 2, tasks: 2, first: 2 });
   });
 
+  it('6 pairs with no extra openings in a new game: the level goes up each time (the fast climb)', async () => {
+    const save = defaultSave();
+    save.fixed.memory = 3;
+    await playAndRecord(save, 0);
+    await playAndRecord(save, 0);
+    expect(save.skills.memory).toMatchObject({ level: 3, tasks: 2, first: 2 });
+  });
+
   it('adaptive difficulty: brute-forced pairs never count as a clean solve', async () => {
     const save = defaultSave();                    // level 1: three pairs
     await playAndRecord(save, 0);
-    await playAndRecord(save, 20);                 // breaks the streak instead of completing it
-    expect(save.skills.memory.level).toBe(1);
+    expect(save.skills.memory.level).toBe(2);      // a new game: the fast climb, a clean solve is a level
+    await playAndRecord(save, 20);                 // not a clean solve: no level for it
+    expect(save.skills.memory).toMatchObject({ level: 2, tasks: 2, first: 1 });
     await playAndRecord(save, 3);                  // within the allowance: clean
+    expect(save.skills.memory).toMatchObject({ level: 3, tasks: 3, first: 2 });
+  });
+
+  it('adaptive difficulty after the fast climb: brute-forced pairs break the run of two instead of completing it', async () => {
+    const save = defaultSave();                    // level 1: three pairs
+    save.skills.memory.settled = true;
+    await playAndRecord(save, 0);
+    await playAndRecord(save, 20);
+    expect(save.skills.memory.level).toBe(1);
+    await playAndRecord(save, 3);
     await playAndRecord(save, 3);
     expect(save.skills.memory.level).toBe(2);
   });
