@@ -14,6 +14,8 @@
   #pBody .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; } #pBody .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 8px; line-height: 1.15; }
   .psubj .pnote { margin: 2px 0; }
   .psubj .pen { margin-top: 4px; font-size: 14px; }
+  /* "close" stands on the title's line, on the right: the table of the skills starts under it */
+  .psubj > .ptab { margin-top: 30px; }
 }
 @media (max-aspect-ratio: 5/4) {
   .psubj { grid-template-columns: minmax(0, 1fr); }
