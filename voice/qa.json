@@ -8889,5 +8889,121 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_exprs": {
+  "text": "Порахуй обидва приклади. Який знак поставимо?",
+  "heard": "Порахуй обидва приклади. Який знак поставимо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_story": {
+  "text": "Подивись, що сталося. Скільки стало?",
+  "heard": "Подивись, що сталося! Скільки стало?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_exprs@Sulafat": {
+  "text": "Порахуй обидва приклади. Який знак поставимо?",
+  "heard": "Порахуй обидва приклади. Який знак поставимо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_exprs@Leda": {
+  "text": "Порахуй обидва приклади. Який знак поставимо?",
+  "heard": "Порахуй обидва приклади. Який знак поставимо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_exprs@Orus": {
+  "text": "Порахуй обидва приклади. Який знак поставимо?",
+  "heard": "Порахуй обидва приклади. Який знак поставимо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_exprs@Charon": {
+  "text": "Порахуй обидва приклади. Який знак поставимо?",
+  "heard": "Порахуй обидва приклади. Який знак поставимо?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_story@Sulafat": {
+  "text": "Подивись, що сталося. Скільки стало?",
+  "heard": "Подивись, що сталося, скільки стало?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_story@Leda": {
+  "text": "Подивись, що сталося. Скільки стало?",
+  "heard": "Подивись, що сталося! Скільки стало?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_story@Orus": {
+  "text": "Подивись, що сталося. Скільки стало?",
+  "heard": "Подивись, що сталося, скільки стало!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "t_story@Charon": {
+  "text": "Подивись, що сталося. Скільки стало?",
+  "heard": "Подивись, що сталося! Скільки стало!",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_harder@Sulafat": {
+  "text": "Оце так! А складніше зможеш?",
+  "heard": "Оце так! А складніше зможеш?",
+  "score": 1.0,
+  "said": "Оце так! А складніше — зможеш?",
+  "style": "warm",
+  "voice": "Sulafat",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_harder@Leda": {
+  "text": "Оце так! А складніше зможеш?",
+  "heard": "Отже так, а складніше зможеш?",
+  "score": 0.943,
+  "said": "Оце так! А складніше — зможеш?",
+  "style": "warm",
+  "voice": "Leda",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_harder@Orus": {
+  "text": "Оце так! А складніше зможеш?",
+  "heard": "Оце так! А складніше зможеш?",
+  "score": 1.0,
+  "said": "Оце так! А складніше — зможеш?",
+  "style": "warm",
+  "voice": "Orus",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "npc_harder@Charon": {
+  "text": "Оце так! А складніше зможеш?",
+  "heard": "Оце так! А складніше зможеш?",
+  "score": 1.0,
+  "said": "Оце так! А складніше — зможеш?",
+  "style": "warm",
+  "voice": "Charon",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }
