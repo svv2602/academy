@@ -47,7 +47,7 @@ jobs:
         size: [mobile, desktop, desktop-tall, mobile-portrait]
         # The pieces of the world (tools/e2e-saves.mjs): each starts from its own save, together they are the whole
         # walkthrough of a size; the four of one size are what --combine expects of it.
-        group: [world1, world2, finale, shop, tasks2, collect]
+        group: [world1, world2, finale, shop, tasks2, collect, pip]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -220,7 +220,7 @@ jobs:
         run: node tools/ci-pieces.mjs results e2e-results-all e2e-results
       - name: Checks over all sizes
         if: ${{ !cancelled() }}
-        run: node tools/e2e.mjs --combine e2e-results --only world1,world2,finale,shop,tasks2,collect
+        run: node tools/e2e.mjs --combine e2e-results --only world1,world2,finale,shop,tasks2,collect,pip
 
   deploy:
     needs: check            # published only after a green "check": the build checked above, not a new one
