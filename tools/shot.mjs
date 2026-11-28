@@ -4424,6 +4424,15 @@ try {
           // ---- the subjects of Season 2 (part P): a row a subject, its step and its aim; "more" and English off are written,
           // then put back as they were - the rest of the walkthrough plays with the shares it had ----
           {
+            // a phone held sideways: the buttons under the tables reach into the column of the settings; the line of
+            // "subjects" and "reset" keeps at least 24 px clear of them (the CI runner's font is wider than this machine's)
+            const clear = await g(() => {
+              const box = (sel) => [...document.querySelectorAll(sel)].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
+              const low = box('#pBody .pcoderow button'), set = box('#pBody .preset button');
+              const gaps = low.flatMap((a) => set.filter((b) => a.bottom > b.top && b.bottom > a.top).map((b) => Math.round(b.left - a.right)));
+              return gaps.length ? Math.min(...gaps) : null;
+            });
+            if (clear !== null && clear < 24) errors.push(`subjects: the buttons under the tables come within ${clear} px of "subjects" / "reset" (at least 24)`);
             await page.locator('.psubjbtn:visible').first().click(); await calm();
             await shot('31-subjects');
             const read = () => g(() => ({ rows: [...document.querySelectorAll('#pBody [data-subject]')].map((r) => ({ k: r.dataset.subject, aim: parseInt(r.querySelector('.paim')?.textContent ?? '', 10) })),
