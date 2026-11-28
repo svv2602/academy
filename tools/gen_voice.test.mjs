@@ -269,6 +269,42 @@ print(json.dumps({'calls': calls, 'res': res, 'strict': v.style_prompt('Leda', '
     expect(out.strict.endsWith('Скажи лише ці слова:')).toBe(true);
   });
 
+  // --max-tries=N (the customer's limit of 2026-11-27: at most 2 paid requests a line): the plain prompt ceil(N/2) times,
+  // the strict one the rest; the run counts what it sent. A stand-in takes the place of the service: nothing is sent.
+  const tries = (maxTries, heard = () => '') => {
+    const r = py(`
+calls = []
+v.synth = lambda text, style, voice, model, key, strict=False: (calls.append(strict), b'x')[1]
+v.encode = lambda data, path: pathlib.Path(path).write_bytes(data)
+answers = ${JSON.stringify([heard(0), heard(1), heard(2), heard(3), heard(4), heard(5)])}
+rec = v.Recorder(pathlib.Path(${JSON.stringify(join(tmp, 'voice-tries'))}), 'k', v.MODELS['old'], lambda p: answers[len(calls) - 1], max_tries=${maxTries === null ? 'None' : maxTries})
+res = rec.record('npc_next@Leda', 'Тепер повтори!', 'warm', {})
+print(json.dumps({'calls': calls, 'sent': rec.sent, 'score': res['score']}))`);
+    expect(r.code, r.err).toBe(0);
+    return JSON.parse(r.out.trim().split('\n').at(-1));   // after the line the recorder prints of the clip
+  };
+
+  it('--max-tries=2: one request with the plain prompt, one with the strict, never more', () => {
+    expect(tries(2)).toMatchObject({ calls: [false, true], sent: 2 });
+    expect(tries(1)).toMatchObject({ calls: [false], sent: 1 });
+    expect(tries(3)).toMatchObject({ calls: [false, false, true], sent: 3 });
+    // without the limit, as ever: three and three
+    expect(tries(null)).toMatchObject({ calls: [false, false, false, true, true, true], sent: 6 });
+  });
+
+  it('--max-tries: a clip that sounds like its text ends the line at once', () => {
+    expect(tries(2, () => 'Тепер повтори!')).toMatchObject({ calls: [false], sent: 1, score: 1 });
+  });
+
+  it('--max-tries with --dry-run prints the most requests the lines can take, and sends nothing', () => {
+    const r = execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--dry-run', '--max-tries=2', '--only=sup_jump'],
+      { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
+    expect(r).toMatch(/^requests: at most 2 \(1 lines x 2\)$/m);
+    const en = execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--en', '--dry-run', '--max-tries=2'],
+      { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
+    expect(en).toMatch(/^requests: at most \d+ \(\d+ lines x 2\)$/m);
+  });
+
   it('--dry-run counts the lines by voice and model and sends nothing, without a key', () => {
     const r = execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--dry-run', '--model=new'],
       { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmp, 'no-such.env') } });
@@ -284,7 +320,7 @@ describe('tools/gen_voice.py: its arguments (2026-11-19: an unknown one recorded
     { encoding: 'utf8', env: { ...process.env, ACADEMY_GEMINI_ENV: join(tmpdir(), 'gen-voice-no-such.env') } });
 
   it('an argument it does not know stops it before anything is read or sent', () => {
-    for (const bad of [['--help-me'], ['--dryrun'], ['--only', 'sup_speed'], ['sup_speed'], ['--dry-run', '--forse']]) {
+    for (const bad of [['--help-me'], ['--dryrun'], ['--only', 'sup_speed'], ['sup_speed'], ['--dry-run', '--forse'], ['--max-tries'], ['--max-tries', '2']]) {
       const r = cli(bad);
       expect(r.status, bad.join(' ')).not.toBe(0);
       expect(r.stderr, bad.join(' ')).toMatch(/^gen_voice: nothing was sent\. Unknown argument: /m);
@@ -320,6 +356,16 @@ except SystemExit as e:
 
   it('the known arguments still pass the check', () => {
     expect(cli(['--dry-run', '--model=old', '--only=sup_jump']).status).toBe(0);
+    expect(cli(['--dry-run', '--max-tries=2', '--only=sup_jump']).status).toBe(0);
+  });
+
+  it('--max-tries that is no whole number from 1 stops it before anything is read or sent', () => {
+    for (const bad of ['0', 'x', '', '-1', '1.5']) {
+      const r = cli(['--dry-run', `--max-tries=${bad}`]);
+      expect(r.status, bad).not.toBe(0);
+      expect(r.stderr, bad).toMatch(/^gen_voice: nothing was sent\. --max-tries is a whole number from 1/m);
+      expect(r.stdout, bad).not.toMatch(/lines to record/);
+    }
   });
 });
 

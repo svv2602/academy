@@ -24,7 +24,9 @@ A line may have a text for the model of its own (`SAY_AS`: the same words, other
 its clip is still checked against the line as the screen shows it.
 The Gemini key is read from ~/.config/academy/gemini.env (a line `GEMINI_API_KEY=...`; ACADEMY_GEMINI_ENV names
 another file). The service is paid: a line is sent only if it has no clip yet or its text or intonation changed.
-Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new] [--help]
+Run: python3 tools/gen_voice.py [--only=id1,id2] [--force] [--dry-run] [--model=old|new] [--max-tries=N] [--help]
+`--max-tries=N`: at most N paid requests a line (2: one with the plain prompt, one with the strict); the run prints the
+requests it made, and `--dry-run` with it the most it could make.
 An argument it does not know stops it before anything is read or sent (2026-11-19: `--help` was not known then, and
 the run recorded seven lines for real); `--help` prints this text and sends nothing.
 English (Season 2, part B): `--en` records voice/phrases-en.json instead (`npm run voice:sync` writes it from
@@ -354,16 +356,26 @@ GOOD = 0.85   # how closely the transcription of a clip must match its text
 class Recorder:
     """Records clips into `audio` with one model; `transcribe(path) -> text` hears them back."""
 
-    def __init__(self, audio, key, model, transcribe, voice=None):
+    def __init__(self, audio, key, model, transcribe, voice=None, max_tries=None):
         self.audio, self.key, self.model, self.transcribe = audio, key, model, transcribe
         self.voice = voice or voice_of   # the voice of a clip: by its key, or (`--en`) the one of its row
+        # `--max-tries=N`: at most N paid requests for one line - the plain prompt ceil(N/2) of them, the strict one the
+        # rest (2: one and one); None - as ever, 3 and 3. `sent`: the requests made by this run, printed at its end.
+        self.max_tries, self.sent = max_tries, 0
+
+    def tries(self, strict):
+        if self.max_tries is None:
+            return 3
+        plain = (self.max_tries + 1) // 2
+        return self.max_tries - plain if strict else plain
 
     def job(self, cid, text, style, strict=False):
         out = clip_file(self.audio, cid)
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp = out.with_suffix('.tmp.mp3')
         best = None
-        for _ in range(3):
+        for _ in range(self.tries(strict)):
+            self.sent += 1
             # the model reads the line, or its text of SAY_AS; the clip is heard back against the line itself
             encode(synth(to_say(cid, text), style, self.voice(cid), self.model, self.key, strict), tmp)
             heard = self.transcribe(tmp)
@@ -383,7 +395,7 @@ class Recorder:
         clip = clip_file(self.audio, cid)
         before = None if stale(cid, text, style, qa, self.audio) else (qa[cid], clip.read_bytes())
         res = self.job(cid, text, style)
-        if res['score'] < GOOD:
+        if res['score'] < GOOD and self.tries(True) > 0:
             res = self.job(cid, text, style, strict=True)
         if before and before[0]['score'] >= res['score']:
             clip.write_bytes(before[1])
@@ -393,7 +405,7 @@ class Recorder:
 
 
 FLAGS = ('--dry-run', '--force', '--en')
-VALUED = ('--only=', '--model=')
+VALUED = ('--only=', '--model=', '--max-tries=')
 
 
 def check_args(argv):
@@ -403,12 +415,28 @@ def check_args(argv):
     unknown = [a for a in argv if a not in FLAGS and not a.startswith(VALUED)]
     if unknown:
         sys.exit('gen_voice: nothing was sent. Unknown argument: ' + ' '.join(unknown)
-                 + '. Known: --only=id1,id2 --force --dry-run --model=old|new --en --help')
+                 + '. Known: --only=id1,id2 --force --dry-run --model=old|new --max-tries=N --en --help')
+    tries = next((a.split('=', 1)[1] for a in argv if a.startswith('--max-tries=')), None)
+    if tries is not None and not (tries.isdigit() and int(tries) >= 1):
+        sys.exit(f'gen_voice: nothing was sent. --max-tries is a whole number from 1, not "{tries}".')
     return None
 
 
 def arg(name, default=None):
     return next((a.split('=', 1)[1] for a in sys.argv if a.startswith(f'--{name}=')), default)
+
+
+def print_most(lines):
+    """With `--max-tries=N`: the most requests the lines to record can take (each is one line on its own at a run)."""
+    n = max_tries()
+    if n is not None:
+        print(f'requests: at most {lines * n} ({lines} lines x {n})', flush=True)
+
+
+def max_tries():
+    """`--max-tries=N` (checked in check_args), or None: as many as ever."""
+    n = arg('max-tries')
+    return int(n) if n else None
 
 
 def en_transcriber(g):
@@ -467,12 +495,13 @@ def main_en():
     counts = {v: sum(1 for x in voices.values() if x == v) for v in EN_VOICES + EN_LOCAL}
     print('English lines by voice: ' + ', '.join(f'{v} {counts[v]}' for v in EN_VOICES + EN_LOCAL)
           + ' (Isabella is Kokoro\'s, never sent from here)', flush=True)
+    print_most(len(todo))
     if '--dry-run' in sys.argv:
         return
     failed = []
     if todo:
         key = gemini_key(KEY_FILE)
-        rec = Recorder(audio, key, model, en_transcriber(old_tools()), voice=lambda cid: voices[cid])
+        rec = Recorder(audio, key, model, en_transcriber(old_tools()), voice=lambda cid: voices[cid], max_tries=max_tries())
         for cid, text, style in todo:
             try:
                 qa[cid] = rec.record(cid, text, style, qa)
@@ -485,6 +514,7 @@ def main_en():
                 print(f'FAIL  {cid}: {e}', flush=True)
                 continue
             qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=1) + '\n')
+        print(f'requests sent: {rec.sent}', flush=True)
     # The game asks only for the clips listed here (src/core/voice-en.ts `has`).
     (ROOT / 'src' / 'core' / 'clips-en.json').write_text(json.dumps(recorded(audio)) if audio.is_dir() else '[]')
     low = sorted((v['score'], k) for k, v in qa.items() if k in mine and v['score'] < GOOD)
@@ -551,6 +581,7 @@ def main():
         by_voice[voice_of(cid)] = by_voice.get(voice_of(cid), 0) + 1
     print(f'by voice (model {model}): ' + (', '.join(f'{v} {by_voice[v]}' for v in VOICES if v in by_voice) or 'none'),
           flush=True)
+    print_most(len(todo))
     if '--dry-run' in sys.argv:
         return
 
@@ -558,7 +589,7 @@ def main():
     if todo:
         key = gemini_key(KEY_FILE)
         # The old game's tools lie next to the main tree; a working copy (git worktree) finds them through git.
-        rec = Recorder(audio, key, model, old_tools().transcribe)
+        rec = Recorder(audio, key, model, old_tools().transcribe, max_tries=max_tries())
         for cid, text, style in todo:
             try:
                 qa[cid] = rec.record(cid, text, style, qa)
@@ -571,6 +602,7 @@ def main():
                 print(f'FAIL  {cid}: {e}', flush=True)
                 continue
             qa_path.write_text(json.dumps(qa, ensure_ascii=False, indent=1) + '\n')
+        print(f'requests sent: {rec.sent}', flush=True)
 
     # The loudness of every clip recorded now (tools/voice_loudness.py, voice/loudness.json): held by its test.
     made = [(cid, clip_file(audio, cid)) for cid, *_ in todo if cid not in failed]
