@@ -44,6 +44,7 @@ export const BLOCKS = [
   'puzzle',         // the puzzle (LEARN-19): the pieces show the picture, a wrong drop goes back, turned by touches, every piece dragged for real onto its cell, no leak
   'cpa',            // the steps «things → picture → numbers» of the number tasks: each task at each step pictured, solved
   'en-tasks',       // the English tasks (Season 2, D1): closed, asked on the screen, three mistakes on their rungs, solved
+  'pip',            // Pip (Season 2, G): met in the hub, his request of the fairies whole, note 2 and its bookmark, by the forest's arch, gone with English off, his model missing
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
   'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop
@@ -159,6 +160,10 @@ export const GROUPS = {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
     friends: [], blocks: ['helpers', 'diff', 'puzzle', 'cpa', 'en-tasks', 'trade'], ach: [...ACH_BASE, 'first_artifact'],
   },
+  // Pip (Season 2, step 2, part G): the first world finished, Pip not met yet, English on - the shop's save. The block
+  // goes to the hub (his meeting), back to the fairies (his request, note 2), to the forest (his place by the arch),
+  // turns English off and back, and opens a page of its own with his model refused. It ends in the first world.
+  pip: { save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }), friends: [], blocks: ['pip'] },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
   // is a stop point and earns its achievements there; then no friend to play, the finds alone.
@@ -168,7 +173,7 @@ export const GROUPS = {
 };
 
 /** The groups that together play the whole world: CI plays each of them in each size. */
-export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'];
+export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect', 'pip'];
 
 /**
  * The blocks the whole walkthrough (no group: the nightly run and "try all") leaves to the pieces (2026-11-22: the
@@ -178,7 +183,7 @@ export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'
  * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
  * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
  */
-export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks'];
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'pip'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice

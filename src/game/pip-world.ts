@@ -16,7 +16,7 @@ import { enVoice } from '../s2/types';
 import { el, hideAnswers, showClose } from '../ui/ui';
 import type { SpokenKey } from '../ui/strings';
 import { createStage, type Game } from './context';
-import { createPip, pipShown, readMs, type PipFigure, type PipPlace } from './pip';
+import { PIP_SHOW, createPip, pipShown, readMs, type PipFigure, type PipPlace } from './pip';
 import { loadPip } from './pip-load';
 import { createPipRequest, markShown, requestWaits, type PipRequest, type PipRequestEnv } from './pip-request';
 import type { Spot } from './player';
@@ -64,7 +64,7 @@ export function worldPip(g: Game, place: PipPlace, scope: WorldScope, given?: { 
   if (pipShown(g.save)) {
     void loadPip().then((rig) => {
       if (!rig || gone) return;
-      figure = createPip(g.scene, rig, place, g.groundY, (x, z, r) => g.ground.block(x, z, r));
+      figure = createPip(g.scene, rig, place, g.groundY, (x, z, r) => g.ground.block(x, z, r), false);
     });
   }
   const pos = new THREE.Vector3(place.x, g.groundY(place.x, place.z), place.z);
@@ -94,12 +94,14 @@ export function worldPip(g: Game, place: PipPlace, scope: WorldScope, given?: { 
     update: (dt, time, canMove = false) => {
       if (!figure) return;
       const shown = pipShown(g.save);
-      figure.show(shown);
       if (!shown) request?.drop();
+      // drawn only within PIP_SHOW m, as the forest's secrets: the views from far off keep their draw calls
+      const hero = g.hero.root.position, near = Math.hypot(hero.x - pos.x, hero.z - pos.z) < PIP_SHOW;
+      figure.show(shown && near);
       figure.update(dt, time, g.hero.root.position);
       if (request) {
         request.update(g.hero.root.position, time, canMove && !g.busy);
-        figure.mark.visible = markShown({ shown, busy: g.busy, running: request.running(), waits: requestWaits(g.save, g.worldId) });
+        figure.mark.visible = markShown({ shown: shown && near, busy: g.busy, running: request.running(), waits: requestWaits(g.save, g.worldId) });
         if (closeGo && !g.busy && el.answersClose.classList.contains('hidden')) showClose(closeGo);
       }
     },

@@ -116,6 +116,11 @@ export function worldNotes(g: Game, places: readonly NotePlace[], scope: WorldSc
 
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0);
   const at = new THREE.Vector3();
+  // The frame of the camera: one mesh for the notes has one bounding sphere round all of them, and two notes behind her
+  // (the forest's 5 and 6 behind her as she looks from the arch to the village) made a sphere that still touched the
+  // frame - a draw call for nothing in the frame (the forest is at its budget, TECH-06). Only the notes in the frame go in.
+  const frustum = new THREE.Frustum(), view = new THREE.Matrix4(), ball = new THREE.Sphere(new THREE.Vector3(), 0.6);
+  const inFrame = (p: THREE.Vector3) => { ball.center.copy(p); return frustum.intersectsSphere(ball); };
   let drawnKey = '';
   const byId = new Map(lay.map((p, i) => [p.id, { p, ground: spots[i].pos }]));
   return {
@@ -124,7 +129,9 @@ export function worldNotes(g: Game, places: readonly NotePlace[], scope: WorldSc
       const hp = g.hero.root.position;
       notes.update(hp, canMove);
       // the near notes only, in one mesh whose bounds are theirs: far off, or out of the frame, it costs no call
-      const near = notes.shown().filter((id) => { const p = byId.get(id)!.p; return Math.hypot(p.x - hp.x, p.z - hp.z) < NOTE_SHOW; });
+      g.camera.updateMatrixWorld();
+      frustum.setFromProjectionMatrix(view.multiplyMatrices(g.camera.projectionMatrix, g.camera.matrixWorldInverse));
+      const near = notes.shown().filter((id) => { const { p, ground } = byId.get(id)!; return Math.hypot(p.x - hp.x, p.z - hp.z) < NOTE_SHOW && inFrame(ground); });
       const key = near.join(',');
       if (key !== drawnKey) {
         drawnKey = key;
@@ -136,7 +143,9 @@ export function worldNotes(g: Game, places: readonly NotePlace[], scope: WorldSc
       }
       material.emissiveIntensity = 0.18 + 0.12 * Math.sin(time * 2.5);
       const w = notes.waiting(), f = w ? byId.get(w)!.p.find : undefined;
-      bookmark.visible = !!f && notesOn(g.save);
+      // within NOTE_SHOW of her, as the notes (the forest's secrets the same way, SHOW_R): the bookmark of №5 by the
+      // village's first house cost a call in the look from the arch to the village, 65 m off
+      bookmark.visible = !!f && notesOn(g.save) && Math.hypot(f.x - hp.x, f.z - hp.z) < NOTE_SHOW;
       if (f && bookmark.visible) {
         const hang = f.hang ?? f;
         at.copy(pos(hang, f.up ?? BOOKMARK_UP + Math.sin(time * 2) * 0.06));

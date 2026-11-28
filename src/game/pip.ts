@@ -20,6 +20,8 @@ export const PIP_MODEL = 'pip/pip';
 export const PIP_HEIGHT = 0.6;
 /** m within which he turns to her (as the residents do, src/worlds/fairy/characters.ts). */
 export const PIP_TURN = 7;
+/** m beyond which he is not drawn in a world (as the forest's secrets, SHOW_R): two draw calls kept for the views far off. */
+export const PIP_SHOW = 35;
 /** m of the spot of talk round him (src/game/talk-spot.ts). */
 export const PIP_TALK = 2.4;
 
@@ -73,9 +75,10 @@ export interface PipFigure {
 
 /** His figure at `place`, on the ground `groundY`; `block` keeps her out of him (the world's ground.block). */
 export function createPip(scene: THREE.Object3D, rig: Rig, place: PipPlace, groundY: (x: number, z: number) => number,
-  block?: (x: number, z: number, r: number) => void): PipFigure {
+  block?: (x: number, z: number, r: number) => void, shadow = true): PipFigure {
   const actor = new Actor(rig);
-  shadowFromBody(actor.root);
+  // his shadow is a draw call of its own: the worlds, at the edge of their budget, go without it (./pip-world.ts)
+  if (shadow) shadowFromBody(actor.root);
   const pos = new THREE.Vector3(place.x, groundY(place.x, place.z), place.z);
   actor.root.position.copy(pos); actor.heading = place.heading; actor.root.rotation.y = place.heading;
   actor.root.name = 'pip';

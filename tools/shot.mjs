@@ -860,6 +860,24 @@ try {
     if (offline) {
       cachedFiles = await waitForOfflineCache();
       if (worldId) worldFiles = await cacheWorld(worldId);
+      // The piece "pip" goes to the forest and meets Pip, whose model is lazy (src/game/pip-load.ts: out of the precache,
+      // brought in the background once "Play" is pressed - after the network is off here). A child who played online has
+      // both in the cache by then: the forest by the game's own download, Pip's two files by the service worker's route
+      // (a plain request for them is kept in the cache "pip-<revision>", vite.config.ts) - the same cache the game fills.
+      if (listed('pip')) {
+        await cacheWorld('forest');
+        const pip = await g(async () => {
+          const files = ['models/pip/pip.glb', 'models/pip/tex/pip.webp'].map((f) => new URL(f, location.href).href);
+          for (const f of files) { const r = await fetch(f); if (!r.ok) return `${f}: HTTP ${r.status}`; await r.arrayBuffer(); }
+          for (const name of await caches.keys()) {
+            if (!name.startsWith('pip-')) continue;
+            const c = await caches.open(name);
+            if ((await Promise.all(files.map((f) => c.match(f)))).every(Boolean)) return '';
+          }
+          return `his files are in no cache "pip-…" (${(await caches.keys()).join(', ')})`;
+        }).catch((e) => why(e));
+        if (pip) throw new Error(`offline: Pip's model could not be brought into the cache: ${pip}`);
+      }
       // the last request of this page that may reach the server: what is asked for after it was asked without network
       if (offlineMark) await g((path) => fetch(path, { cache: 'no-store' }).then((r) => r.status), offlineMark).catch((e) => { throw new Error(`offline: the mark ${offlineMark} could not be asked for: ${why(e)}`); });
       await ctx.setOffline(true);
@@ -3801,6 +3819,305 @@ try {
         }
         await g(() => __game.cpa.hold(null));
         console.log(`cpa: ${told.join('; ')}`);
+      }
+      // ---- Pip (Season 2, step 2, part G): the save of the piece has the first world finished and Pip not met. In the hub
+      // his lazy model comes and his meeting plays by itself once she is free (the five words of the hub in the book); back
+      // in the fairies he waits at his feeder with the golden mark, a tap (the action button) is his request - en_tap,
+      // note, en_go, en_count in that order, a mistake in each panel, his command walked to for real on a computer - and
+      // the piece of his map with 3 stars a step; note 2 read, its bookmark waits, found by walking to it; nobody of his
+      // stands on her way to a resident (R10); in the forest he stands by the arch; English off - he is gone and his model
+      // is not asked for; on a page of its own with his files refused the hub stands without him and without a meeting. ----
+      if (has('pip')) {
+        const fail = (what) => { throw new Error(`pip: ${what}`); };
+        const told = [];
+        // the page's requests for his files (src/game/pip-load.ts): none may be made while English is off
+        const pipAsked = [];
+        const onAsk = (r) => { if (/\/models\/pip\//.test(r.url())) pipAsked.push(r.url()); };
+        page.on('request', onAsk);
+        // the five words of the hub (src/ui/wordbook.ts PAGES, the page of the Great Tree): his meeting puts them in the book
+        const HUB_WORDS = ['hello', 'goodbye', 'cat', 'bird', 'tree'];
+        // where she starts in the fairies (src/worlds/fairy/layout.ts SPAWN): her ways to the residents begin there
+        const SPAWN = { x: 0, z: 14 };
+        // her request's order (src/game/pip-request.ts REQUEST, layout §2): a request without its note is not his
+        const ORDER = ['en_tap', 'note', 'en_go', 'en_count'];
+        // the change of world, its first entry's scene and tour skipped as the other walks do (tools/world-pass.mjs rounds)
+        const enter = async (id) => {
+          if ((await g((w) => __game.travel(w), id)) !== true) fail(`the change of world to "${id}" was refused`);
+          const free = await gameUntil((w) => { const x = __game; if (x.story?.active) x.story.skip?.(); if (x.flyoverPlayer?.active) x.flyoverPlayer.skip();
+            return x.world === w && !x.transitioning && !x.story?.active && !x.flyoverPlayer?.active; }, id, 60);
+          if (!free) fail(`not in "${id}" with its scene and tour skipped after 60 s of game time`);
+        };
+        // she stands at `a` facing `b`, the camera behind her (as tools/forest-grey.mjs stands her), then the camera rests
+        const stand = async (a, b) => {
+          // a tour that starts only once the world's scene is over may begin after the entry (tools/hub-grey.mjs): skipped too
+          await gameUntil(() => { const x = __game; if (x.story?.active) x.story.skip?.(); if (x.flyoverPlayer?.active) x.flyoverPlayer.skip(); return !x.story?.active && !x.flyoverPlayer?.active && !x.busy; }, null, 30);
+          await g(([a, b]) => { __game.teleport(a.x, a.z); const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z)); __game.cam.yaw = yaw; __game.hero.heading = yaw + Math.PI; __game.hero.root.rotation.y = yaw + Math.PI; }, [a, b]);
+          await framesDrawn(2); await cameraRests(10);
+        };
+        // for a picture of him: she stands `d` m from him on the side of `from` and `side` m aside, looking past him,
+        // so that the camera behind her sees him beside her, not behind her
+        const beside = async (him, from, d, side = 1.3) => {
+          const l = Math.hypot(from.x - him.x, from.z - him.z) || 1, ux = (from.x - him.x) / l, uz = (from.z - him.z) / l;
+          await stand({ x: him.x + ux * d - uz * side, z: him.z + uz * d + ux * side }, { x: him.x - uz * side, z: him.z + ux * side });
+        };
+        const toward = (from, to, d) => { const l = Math.hypot(to.x - from.x, to.z - from.z) || 1; return { x: from.x + (to.x - from.x) / l * d, z: from.z + (to.z - from.z) / l * d }; };
+        // his figure on the ground: the root at the relief of the world, and how low the model reaches (its skinned box)
+        const feet = () => g(() => {
+          const o = __game.scene.getObjectByName('pip');
+          if (!o) return null;
+          const box = new __game.THREE.Box3().setFromObject(o, true);
+          return { y: o.position.y, low: box.min.y, top: box.max.y, ground: __game.collect.ground(o.position.x, o.position.z), visible: o.visible };
+        });
+        const onGround = (f, where) => {
+          if (!f) fail(`${where}: no figure named "pip" in the scene`);
+          // the hub's root is the Tree's (his place is beside the trunk, on the glade's flat ground at 0)
+          if (Math.abs(f.y - f.ground) > 0.05) fail(`${where}: he stands at y ${f.y.toFixed(2)}, the ground under him is at ${f.ground.toFixed(2)}`);
+          if (Math.abs(f.low - f.y) > 0.25) fail(`${where}: his lowest point is ${(f.low - f.y).toFixed(2)} m from his feet: hanging or sunk`);
+          return `feet ${f.y.toFixed(2)} on the ground ${f.ground.toFixed(2)}, the model from ${(f.low - f.y).toFixed(2)} to ${(f.top - f.y).toFixed(2)} m`;
+        };
+        const calls = () => g(() => __game.renderer.info.render.calls);
+        // a deliberate mistake on the panel open (as the block "en-tasks" makes it): the game's own answer found by the
+        // cheat with its tap swallowed, then a tap on another element like it; its first rung must run
+        const mistake = async (kind) => {
+          const wrong = await g(() => {
+            let right = null;
+            const swallow = (e) => { right ??= e.target; e.stopImmediatePropagation(); };
+            document.addEventListener('pointerdown', swallow, true);
+            try { __game.cheat(); } finally { document.removeEventListener('pointerdown', swallow, true); }
+            if (!right) return 'the game did not show which element is right';
+            const same = [...document.querySelectorAll(`#task ${right.tagName}.${[...right.classList][0]}`)]
+              .filter((e) => e !== right && !e.contains(right) && !right.contains(e) && !e.classList.contains('no') && !e.classList.contains('yes'));
+            if (!same.length) return `no other element like the right one (${right.className})`;
+            same[0].dispatchEvent(new PointerEvent('pointerdown')); return '';
+          });
+          if (wrong) fail(`${kind}: no deliberate mistake: ${wrong}`);
+          if (!(await hintRan('#taskStage[data-shown="1"]'))) fail(`${kind}: the hint of the mistake did not run its course`);
+        };
+        const panelKind = () => g(() => (/\bt-(?!stage\b)(\w+)/.exec(document.getElementById('taskStage').className) ?? [])[1] ?? '');
+        const panelOpen = () => !!document.querySelector('#task:not(.hidden) #taskStage > *');
+        const panelGone = (where) => gameFor(() => document.querySelector('#task').classList.contains('hidden'), null, 30).catch(() => fail(`${where}: the panel did not close`));
+        // she walks there for real: "forward" held, the camera turned to `to` every frame, until `done` (the page's) or 20 s of game time
+        const walkTo = async (to, done) => {
+          await page.keyboard.down('KeyW');
+          try {
+            return await g(([to, done]) => new Promise((r) => {
+              const t0 = __game.time, hp = __game.hero.root.position, ok = new Function(`return (${done})()`);
+              const f = () => {
+                __game.cam.yaw = Math.atan2(-(to.x - hp.x), -(to.z - hp.z));
+                if (ok()) r(true); else if (__game.time - t0 > 20) r(false); else requestAnimationFrame(f);
+              };
+              f();
+            }), [to, done.toString()]);
+          } finally { await page.keyboard.up('KeyW'); }
+        };
+        await holdAchDuring(async () => {
+          const s0 = await g(() => ({ met: __game.save.pip.met, words: [...__game.save.words], english: __game.save.english, world: __game.world }));
+          if (s0.met || !s0.english || s0.world !== 'fairy') fail(`the piece does not start as its save says: ${JSON.stringify(s0)}`);
+          if (await g(() => __game.pip?.().shown)) fail('in the fairies Pip stands before he is met');
+
+          // ---- a. the hub: his model comes by itself, the meeting plays once she is free ----
+          await enter('hub');
+          if (!(await g(() => !!__game.hub.pip()))) fail('the hub has no Pip with the first world finished and English on');
+          // his model is lazy (out of the first load): it may take the load's own time (PIP_LOAD_MS, 15 s of the clock)
+          if (!(await gameUntil(() => __game.hub.pip().shown, null, 90))) fail(`his model did not come to the hub in 90 s of game time (${pipAsked.length} request(s) for it)`);
+          if (!(await gameUntil(() => __game.hub.pip().meeting || __game.save.pip.met, null, 60))) fail(`his meeting did not start (${JSON.stringify(await g(() => ({ ...__game.hub.pip(), busy: __game.busy, wake: __game.hub.wake() })))})`);
+          // the meeting as the game frames it (the camera turned to him from behind her), then close up once it is over
+          await cameraRests(10);
+          await shot('pip-hub-meeting');
+          if (!(await gameUntil(() => !__game.hub.pip().meeting, null, 240))) fail('his meeting did not end in 240 s of game time');
+          const m = await g(() => ({ met: __game.save.pip.met, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').pip?.met, words: [...__game.save.words], busy: __game.busy, focus: !!__game.cam.focus }));
+          if (!m.met || !m.stored) fail(`after his meeting save.pip.met is ${m.met}, stored ${m.stored}`);
+          const lack = HUB_WORDS.filter((w) => !m.words.includes(w));
+          if (lack.length) fail(`after his meeting the book lacks the words of the hub: ${lack.join(', ')} (it has ${m.words.join(', ') || 'none'})`);
+          if (!(await gameUntil(() => !__game.busy && !__game.cam.focus, null, 10))) fail('after his meeting the controls or the camera are still held');
+          const hp0 = await g(() => __game.hub.pip());
+          await beside(hp0, toward(hp0, { x: 0, z: 0 }, -5), 3.2);
+          await shot('pip-hub');
+          const hubFeet = onGround(await feet(), 'the hub');
+          told.push(`hub: his model came, the meeting played by itself and gave her the controls back, met and stored, the five words of the hub in the book; ${hubFeet}`);
+
+          // ---- b. the fairies: at his feeder with the mark, his request whole by a tap ----
+          await enter('fairy');
+          if (!(await gameUntil(() => __game.pip().shown, null, 60))) fail('in the fairies he did not come to his feeder in 60 s of game time');
+          const at = await g(() => __game.pip());
+          if (Math.hypot(at.place.x - 6, at.place.z - 2) > 0.5) fail(`he stands at ${at.place.x}, ${at.place.z}, not at his feeder (6, 2)`);
+          if (!at.waits) fail('his request does not wait in the fairies, the piece of the world not found yet');
+          if (!(await gameUntil(() => __game.pip().mark, null, 10))) fail('the golden mark is not over him while his request waits');
+          // pictured from the spawn's side, a few steps off: he on his feeder, the mark over him
+          await beside(at.place, SPAWN, 3.2);
+          await shot('pip-fairy');
+          const fairyFeet = onGround(await feet(), 'the fairies');
+          const fairyCalls = await calls();
+          // the tap: by him on the side away from note 1 (8.5, -1.5), out of its spot, the action button
+          const note1 = { x: 8.5, z: -1.5 };
+          await stand(toward(at.place, { x: 2 * at.place.x - note1.x, z: 2 * at.place.z - note1.z }, 1.6), at.place);
+          if (!(await gameUntil(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 10))) fail('no action button by him');
+          const stars0 = await g(() => __game.save.stars), ground0 = await g(() => __game.save.worlds.fairy.starsTaken.length);
+          await act();
+          const kinds = [];
+          for (let n = 0; n < ORDER.length; n++) {
+            if (!(await gameUntil((p) => (!!document.querySelector('#task:not(.hidden) #taskStage > *')) || !!__game.pip().go, null, 90))) {
+              fail(`step ${n + 1} of his request did not come (after ${kinds.join(', ') || 'none'}; ${JSON.stringify(await g(() => ({ step: __game.pip().request, busy: __game.busy, line: __game.line })))})`);
+            }
+            if (await g(() => !!__game.pip().go)) {
+              const go = await g(() => __game.pip().go);
+              kinds.push('en_go');
+              if (!touch) {
+                // on a computer she walks there for real, steered at the place named; from 8 m of it on the line from his feeder
+                const target = go.target;
+                await stand(toward(target, at.place, 8), target);
+                if (!(await walkTo(target, () => !__game.pip().go))) fail(`his command "${go.kind}": she walked to ${target.x}, ${target.z} and it did not end (${JSON.stringify(await g(() => __game.pip().go))})`);
+                told.push(`his command "${go.kind}" walked to for real (W held)`);
+              } else {
+                await g(() => __game.pip().solveGo());
+                told.push(`his command "${go.kind}" (solveGo: a phone has no key to walk her by)`);
+              }
+              if (!(await gameUntil(() => !__game.pip().go, null, 20))) fail('his command did not end once she had come');
+              continue;
+            }
+            const kind = await panelKind();
+            kinds.push(kind);
+            if (kind !== ORDER[n]) break;
+            await calm();
+            await shot(`pip-${kind}`);
+            await mistake(kind);
+            await g(() => __game.cheat());
+            await panelGone(kind);
+          }
+          if (kinds.join() !== ORDER.join()) fail(`his request came as ${kinds.join(', ')}, not ${ORDER.join(', ')}`);
+          if (!(await gameUntil(() => __game.pip().request === null && !__game.busy, null, 120))) fail(`his request did not end after its fourth task (${JSON.stringify(await g(() => __game.pip()))})`);
+          const done = await g(() => ({ pip: __game.pip(), stars: __game.save.stars, ground: __game.save.worlds.fairy.starsTaken.length, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').pip?.pieces }));
+          // the fairies' piece is number 1 of the map (src/ui/wordbook.ts MAP_PLACES, as the book reads it)
+          if (!done.pip.pieces.includes(1) || !done.stored?.includes(1)) fail(`after his request the pieces are ${JSON.stringify(done.pip.pieces)} (stored ${JSON.stringify(done.stored)}), without the fairies' piece 1`);
+          if (done.stars - stars0 - (done.ground - ground0) !== 12) fail(`his request gave ${done.stars - stars0} stars (${done.ground - ground0} of them from the ground on the way), not 3 for each of its 4 steps`);
+          if (done.pip.mark || done.pip.waits) fail(`after his request the mark is ${done.pip.mark ? 'still shown' : 'gone'}, his request ${done.pip.waits ? 'still waits' : 'done'}`);
+          told.push(`fairies: at his feeder with the mark (${fairyCalls} draw calls), ${fairyFeet}; a tap - ${kinds.join(', ')}, a mistake on each panel; the piece 1, +${done.stars - stars0} stars, the mark gone`);
+
+          // ---- c. note 2: read by its own button, its bookmark waits, found by walking up to it ----
+          {
+            // a star on the ground she walks over on the way (src/worlds/fairy/chest-stars.ts) is one more, counted apart
+            const n0 = await g(() => ({ ...__game.notes(), stars: __game.save.stars, ground: __game.save.worlds.fairy.starsTaken.length }));
+            if (!n0.shown.includes('note_2')) fail(`note 2 does not lie in the fairies with Pip met: ${JSON.stringify(n0.shown)}`);
+            const p = n0.places.note_2;
+            // she stands by it on the side away from the shop's signboard (4, 9.6): its spot, not the sign's
+            await stand(toward(p, { x: 2 * p.x - 4, z: 2 * p.z - 9.6 }, 1.2), p);
+            if (!(await gameUntil(() => !document.querySelector('#btnAct').classList.contains('hidden'), null, 10))) fail('note 2: no action button by it');
+            await act();
+            if (!(await gameUntil(() => !!document.querySelector('#task:not(.hidden) #taskStage > *'), null, 30))) fail('note 2: the action button by it opened no panel');
+            if ((await panelKind()) !== 'note' || (await g(() => document.querySelector('#taskStage .note-paper')?.dataset.note)) !== 'note_2') fail(`note 2: the panel is "${await panelKind()}" of ${await g(() => document.querySelector('#taskStage .note-paper')?.dataset.note)}`);
+            await g(() => __game.cheat());
+            await panelGone('note 2');
+            if (!(await gameUntil(() => __game.notes().waiting === 'note_2' && !__game.busy, null, 30))) fail(`note 2 solved: its bookmark does not wait (${JSON.stringify(await g(() => __game.notes().waiting))})`);
+            const f = p.find;
+            await stand(toward(f, p, 4), f);
+            await shot('note-bookmark');
+            const bm = await g(() => { const o = __game.scene.getObjectByName('note-bookmark'); return o && { visible: o.visible, x: o.position.x, z: o.position.z }; });
+            if (!bm?.visible || Math.hypot(bm.x - f.x, bm.z - f.z) > 0.6) fail(`note 2: the bookmark is ${bm ? `${bm.visible ? 'shown' : 'hidden'} at ${bm.x.toFixed(1)}, ${bm.z.toFixed(1)}` : 'not in the scene'}, not at ${f.x}, ${f.z}`);
+            if (!touch) { if (!(await walkTo(f, () => __game.notes().waiting === null))) fail('note 2: she walked to its bookmark and did not find it'); }
+            else if (!(await g(() => __game.notes().find('note_2')))) fail('note 2: find() found no bookmark waiting');
+            const n1 = await g(() => ({ found: [...__game.save.notes], stars: __game.save.stars, ground: __game.save.worlds.fairy.starsTaken.length, waiting: __game.notes().waiting, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').notes }));
+            if (!n1.found.includes('note_2') || !n1.stored?.includes('note_2')) fail(`note 2 found: save.notes is ${JSON.stringify(n1.found)}, stored ${JSON.stringify(n1.stored)}`);
+            if (n1.stars - n0.stars - (n1.ground - n0.ground) !== 3) fail(`note 2 found: ${n1.stars - n0.stars} stars (${n1.ground - n0.ground} of them from the ground on the way), not 3`);
+            if (n1.waiting) fail(`note 2 found: the bookmark of ${n1.waiting} still waits`);
+            told.push(`note 2: by its button, solved, its bookmark waited at ${f.x}, ${f.z}, ${touch ? 'found (find())' : 'walked to and found'}; +3 stars, in save.notes`);
+          }
+
+          // ---- g. R10: nothing of his in her way to a resident. She walks from the spawn to each (the chains send her
+          // there); Pip is a collider (src/game/pip.ts block, 0.4 m): the straight line from the spawn to each resident
+          // keeps 1.5 m from his feeder. The notes and their bookmarks hold nobody (no collider, only a button within
+          // 1.8 m): their ways are the unit test's (src/worlds/fairy/notes.test.ts, from the nearest path); here their
+          // nearness to the same straight lines is told for a person to read, not failed. ----
+          {
+            const w = await g(() => ({ npcs: __game.npcs.map((n) => ({ id: n.def.id, x: n.pos.x, z: n.pos.z })), pip: __game.pip().place, notes: __game.notes().places }));
+            const notes = Object.entries(w.notes).flatMap(([id, n]) => [{ what: id, x: n.x, z: n.z }, ...(n.find ? [{ what: `the bookmark of ${id}`, x: n.find.x, z: n.find.z }] : [])]);
+            const seg = (p, a, b) => { const dx = b.x - a.x, dz = b.z - a.z, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1))); return Math.hypot(p.x - a.x - dx * t, p.z - a.z - dz * t); };
+            const bad = [], least = [], near = [];
+            for (const r of w.npcs) {
+              const d = seg(w.pip, SPAWN, r);
+              if (d < 1.5) bad.push(`his feeder ${d.toFixed(1)} m from the way to ${r.id}`);
+              least.push(`${r.id} ${d.toFixed(1)} m`);
+              for (const n of notes) { const dn = seg(n, SPAWN, r); if (dn < 1.5) near.push(`${n.what} ${dn.toFixed(1)} m from the line to ${r.id}`); }
+            }
+            if (bad.length) fail(`in her way from the spawn to a resident: ${bad.join('; ')}`);
+            told.push(`R10: his feeder from the straight ways spawn -> resident: ${least.join(', ')}; the notes near those lines (no collider, told only): ${near.join(', ') || 'none'}`);
+          }
+
+          // ---- d. the forest: he stands by the arch of the Great Tree ----
+          await enter('forest');
+          if (!(await gameUntil(() => __game.pip().shown, null, 60))) fail('in the forest he did not come to his place by the arch in 60 s of game time');
+          const fp = await g(() => __game.pip().place);
+          const arch = await g(() => { const c = __game.forestMap.landmarks.center; return { x: c.x, z: c.z }; });
+          if (Math.hypot(fp.x - arch.x, fp.z - arch.z) > 6) fail(`he stands at ${fp.x.toFixed(1)}, ${fp.z.toFixed(1)}, ${Math.hypot(fp.x - arch.x, fp.z - arch.z).toFixed(1)} m from the arch`);
+          // from the glade's side, the arch behind him
+          await beside(fp, { x: 2 * fp.x - arch.x, z: 2 * fp.z - arch.z }, 3.2);
+          await shot('pip-forest');
+          const forestFeet = onGround(await feet(), 'the forest');
+          const forestCalls = await calls();
+          told.push(`forest: by the arch (${Math.hypot(fp.x - arch.x, fp.z - arch.z).toFixed(1)} m from it, ${forestCalls} draw calls), ${forestFeet}, his request waits: ${(await g(() => __game.pip().waits))}`);
+
+          // ---- e. English off (the parents' field): he is gone at once, and at the next entry his model is not asked for ----
+          await g(() => { __game.save.english = false; __game.persist?.(); });
+          if (!(await gameUntil(() => !__game.pip().shown && !__game.pip().mark, null, 5))) fail('English off: he still stands in the forest');
+          const asked = pipAsked.length;
+          await enter('fairy');
+          await gameSeconds(3);
+          const off = await g(() => ({ shown: __game.pip().shown, notes: __game.notes().shown }));
+          if (off.shown) fail('English off: he stands at his feeder');
+          if (pipAsked.length !== asked) fail(`English off: his files were asked for at the entry: ${pipAsked.slice(asked).join(' ')}`);
+          if (!off.notes.length) fail('English off: no note of his lies in the fairies - they are reading, not English');
+          await g(() => { __game.save.english = true; __game.persist?.(); });
+          told.push(`English off: gone from the forest at once, not at his feeder at the next entry, nothing of his asked for; his notes still lie there (${off.notes.join(', ')}); English back on`);
+        });
+        page.off('request', onAsk);
+
+        // ---- f. his model missing (no network for it, an error): a page of its own whose every request for models/pip/ is
+        // refused, from the piece's save. The hub stands, without him and without his meeting, the controls hers; the game
+        // writes nothing to the console - the browser's own line for each refused request is all there is. ----
+        {
+          // without a service worker: every request of the page is the page's own, and the route refuses it
+          const ctx2 = await browser.newContext({ ...ctxOptions, serviceWorkers: 'block' });
+          const said = [], refused = [];
+          try {
+            await ctx2.route((u) => !own(u.href), (route) => route.abort());
+            await ctx2.route((u) => /\/models\/pip\//.test(u.pathname), (route) => { refused.push(route.request().url()); return route.abort(); });
+            await ctx2.addInitScript((save) => {
+              if (!localStorage.getItem('amw-save')) localStorage.setItem('amw-save', save);
+              for (const k of ['amw-gift-hold', 'amw-deal-hold', 'amw-break-hold', 'amw-mystery-hold', 'amw-trade-hold']) sessionStorage.setItem(k, '1');
+            }, groupSave);
+            const p2 = await ctx2.newPage();
+            p2.on('console', (msg) => {
+              if (msg.type() !== 'error' && msg.type() !== 'warning') return;
+              if (/^Failed to load resource/.test(msg.text()) && /\/models\/pip\//.test(msg.location()?.url ?? '')) return;
+              if (msg.text() === 'Service Worker registration blocked by Playwright') return;   // the context's own: no worker on this page
+              said.push(`${msg.type()}: ${msg.text()}`);
+            });
+            p2.on('pageerror', (e) => said.push(`pageerror: ${e.message}`));
+            ctx2.on('requestfailed', (r) => { if (own(r.url()) && !/\/models\/pip\//.test(r.url()) && r.failure()?.errorText !== 'net::ERR_ABORTED') said.push(`request failed: ${r.url()} (${r.failure()?.errorText})`); });
+            ctx2.on('response', (r) => { if (r.status() >= 400) said.push(`request failed: ${r.url()} (HTTP ${r.status()})`); });
+            const w2 = gameWaits(p2, { ceiling: T(600000) }); /* clock: ceiling */
+            await p2.goto(url + '?debug' + (process.env.Q ? `&q=${process.env.Q}` : ''));
+            await p2.waitForSelector('#play', { state: 'visible', timeout: T(90000) }); /* clock: page-load */
+            await p2.click('#play');
+            await w2.gameFor(() => !!window.__game && __game.world === 'fairy' && !__game.transitioning, null, 60).catch(() => fail('the page without his model did not start in the fairies'));
+            await p2.evaluate(() => __game.ach.hold());
+            if ((await p2.evaluate(() => __game.travel('hub'))) !== true) fail('the page without his model: the change of world to the hub was refused');
+            const inHub = await w2.gameUntil(() => { const x = __game; if (x.story?.active) x.story.skip?.(); if (x.flyoverPlayer?.active) x.flyoverPlayer.skip();
+              if (!document.querySelector('#fanfare').classList.contains('hidden')) document.querySelector('#fanfareOk')?.click();
+              return x.world === 'hub' && !x.transitioning && !x.busy; }, null, 60);
+            if (!inHub) fail('the page without his model: the hub held the controls for 60 s of game time');
+            // the load gives up in its own time (src/game/pip-load.ts PIP_LOAD_MS, 15 s of the clock): past it, and 10 s of
+            // the game's in which the meeting would have started
+            await p2.waitForTimeout(T(16000)); /* clock: page-load */
+            await w2.gameUntil(() => false, null, 10);
+            const h = await p2.evaluate(() => ({ pip: __game.hub.pip(), met: __game.save.pip.met, busy: __game.busy, line: __game.line }));
+            if (!refused.length) fail('the page without his model: the game never asked for his files - the refusal tested nothing');
+            if (h.pip?.shown || h.pip?.meeting || h.met) fail(`the page without his model: in the hub ${JSON.stringify(h)}`);
+            if (h.busy) fail('the page without his model: the controls are held in the hub');
+            if (said.length) fail(`the page without his model: ${[...new Set(said)].join('; ')}`);
+            told.push(`his model refused (${refused.length} request(s)): the hub without him and without a meeting, the controls hers, nothing in the console`);
+          } finally { await ctx2.close().catch(() => {}); }
+        }
+        console.log(`pip: ${told.join('; ')}`);
       }
       // ---- the deal of the day (decision of 2026-11-20, src/game/deal.ts) ----
       // The lever let go and a day set: the book's shop button has its mark, the shop opens on the deal's tab and the
