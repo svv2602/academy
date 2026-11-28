@@ -263,8 +263,12 @@ button.it { min-width: 44px; min-height: 44px; }
 .prow .pctlbtn { background: #e9f7ee; color: #3f9a64; } .preset .pctlbtn { display: none; }
 .pctl { display: grid; gap: 4px; grid-column: 1 / -1; } .pctl .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; } .pctl .prow { margin: 2px 0; flex-wrap: nowrap; }
 .pctl .prow > span { flex: 0 0 34%; text-align: right; } .pctl .prow button { flex: 1 1 0; max-width: 170px; padding: 6px 8px; }
-/* a phone lying (390 px high): the six rows of the controls (the free pass of PLAY-36 the sixth) closer together */
-@media (max-height: 480px) { .pctl { gap: 2px; } .pctl .prow { margin: 0; } }
+/* a phone lying (390 px high): six rows of 44 px and the foot do not fit in 367 px - the free pass (PLAY-36) shares
+   the foot's line, left of the note and "back" */
+@media (max-height: 480px) and (min-aspect-ratio: 5/4) {
+  .pctl { grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; } .pctl > * { grid-column: 1 / -1; }
+  .pctl > .pfree { grid-column: 1; } .pctl > .pcfoot { grid-column: 2; } .pctl .pfree > span { flex: none; }
+}
 /* The report (src/game/answers.ts): a view in place of the section, a row a skill - the name, the last answers as dots
    (green at the first try), how many right, the mean time, the week's trend, the kinds hard now; two columns of rows on a
    phone held sideways and wider, one upright. Its button beside "move the game". */
