@@ -6,7 +6,7 @@ import { mixWide } from './wide';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
-import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_KINDS, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
+import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_KINDS, MYSTERY_STAR, dailyStars, goldStars, mysteryOf, type MysteryStar } from './mystery';
 import { dayKey } from './playtime';
 
 /**
@@ -66,7 +66,7 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
   const day = () => mysteryHold.day ?? dayKey(new Date(now()));
   const spots: Spot[] = [], unsolvedPos: THREE.Vector3[] = [];
   let shown: (MysteryStar & { pos: THREE.Vector3; solved: boolean })[] = [];
-  let shownDay = '', shownAll = false;
+  let shownDay = '', shownAll = false, shownGold = false;
   /** The stars of the lever `all`: every place, the kinds in turn. */
   const everyPlace = (n: number): MysteryStar[] => Array.from({ length: n }, (_, i) => ({ id: i, spot: i, kind: MYSTERY_KINDS[i % 3], step: i % 3 === 0 ? 'add' : i % 3 === 1 ? 'sub' : 'pattern' }));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sv = new THREE.Vector3(), colour = new THREE.Color();
@@ -86,11 +86,14 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
   let opening = false, gone = false;
 
 
-  /** The stars of the day `d` at their places, their colours set per day. */
+  /**
+   * The stars of the day `d` at their places, their colours set per day. Once she has met Pip, and while English is on,
+   * three of them are golden (Season 2, part I; ./mystery.ts `goldStars`): the same places, other kinds.
+   */
   function place(d: string) {
-    shownDay = d; shownAll = mysteryHold.all;
+    shownDay = d; shownAll = mysteryHold.all; shownGold = goldStars(g.save);
     const state = mysteryOf(g.ws, d);
-    shown = def ? (shownAll ? everyPlace(def.spots.length) : dailyStars(g.world.id, d, def.spots.length)).map((s) => {
+    shown = def ? (shownAll ? everyPlace(def.spots.length) : dailyStars(g.world.id, d, def.spots.length, shownGold)).map((s) => {
       const p = { ...def.spots[s.spot] };
       g.ground.resolve(p, 0.6);
       return { ...s, pos: new THREE.Vector3(p.x, g.groundY(p.x, p.z) + FLOAT, p.z), solved: state.solved.includes(s.id) };
@@ -149,7 +152,8 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
       if (gone) return;
       if (hidden()) { if (shown.length) { shown = []; spots.length = 0; refreshUnsolved(); if (mesh) mesh.count = 0; } return; }
       const d = day();
-      if (d !== shownDay || mysteryHold.all !== shownAll || (!shown.length && def)) place(d);
+      // a new day, the lever, or the golden stars come or gone (Pip met; the parent turned English on or off)
+      if (d !== shownDay || mysteryHold.all !== shownAll || goldStars(g.save) !== shownGold || (!shown.length && def)) place(d);
       if (!mesh) return;
       drawn = showR === undefined || near();
       mesh.visible = drawn;

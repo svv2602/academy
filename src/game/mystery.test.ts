@@ -5,6 +5,7 @@ import { defaultSave, worldState, type Save } from '../core/save';
 import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_GOLD_SET, MYSTERY_MIN_SPOTS, MYSTERY_REWARD, MYSTERY_STEPS, dailyStars, goldStars, mysteryOf, mysteryProblems } from './mystery';
 import { createMystery, mysteryHold, type MysteryHost } from './mystery-stars';
 import type { Stage } from './stage';
+import { statOf } from './skills';
 import type { TaskResult } from './taskviews/panel';
 import { loadWorlds } from '../worlds';
 
@@ -147,19 +148,19 @@ function host(save: Save = defaultSave()) {
   const ws = worldState(save, 'fairy');
   const lines: string[] = [];
   let answer: TaskResult = { solved: true, wrong: 1 };
-  const asked: string[] = [];
+  const asked: string[] = [], levels: number[] = [];
   const g = {
     scene: new THREE.Scene(), save, ws, world: { id: 'fairy', mystery: { spots: SPOTS } },
     ground: { resolve: () => {} }, groundY: () => 0,
     hero: { root: new THREE.Object3D() }, cam: { focus: null }, sparks: { burst: vi.fn() },
     speech: { line: async (k: string) => { lines.push(k); } },
     task: (open: () => Promise<TaskResult>) => open(), hooksFor: () => ({}),
-    plan: { runTask: async (type: string) => { asked.push(type); return answer; } }, rng: Math.random,
+    plan: { runTask: async (type: string, level: number) => { asked.push(type); levels.push(level); return answer; } }, rng: Math.random,
     addStars: vi.fn(), above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy), praise: async () => {}, persist: vi.fn(),
   };
   let busy = false;
   const stage = (): Stage => ({ busy: () => busy, take: () => { busy = true; }, release: () => { busy = false; } });
-  return { g: g as unknown as MysteryHost & typeof g, stage, lines, asked, setAnswer: (r: TaskResult) => { answer = r; } };
+  return { g: g as unknown as MysteryHost & typeof g, stage, lines, asked, levels, setAnswer: (r: TaskResult) => { answer = r; } };
 }
 
 describe('the stars in the world (src/game/mystery-stars.ts)', () => {
@@ -203,6 +204,97 @@ describe('the stars in the world (src/game/mystery-stars.ts)', () => {
     mysteryHold.day = '2026-11-20';
     const h = host(), m = createMystery(h.g, geo, h.stage);
     for (const [i, s] of m.today.entries()) { m.spots[i].run(); await vi.waitFor(() => expect(h.asked).toHaveLength(i + 1)); expect(h.asked[i]).toBe(s.step); }
+  });
+
+  describe('golden stars (Season 2, part I): once Pip is met, while English is on', () => {
+    const DAY = '2026-11-20';
+    const met = (english = true) => { const s = defaultSave(); s.pip.met = true; s.english = english; return s; };
+    const kinds = (m: { today: readonly { kind: string }[] }) => m.today.map((s) => s.kind);
+    const golden = (m: { today: readonly { kind: string }[] }) => kinds(m).filter((k) => k === 'gold').length;
+
+    it('before the meeting and with English off: the ten of a plain day, none golden', () => {
+      mysteryHold.day = DAY;
+      const plain = dailyStars('fairy', DAY, SPOTS.length).map((s) => s.kind);
+      for (const save of [defaultSave(), met(false)]) {
+        const h = host(save), m = createMystery(h.g, geo, h.stage);
+        expect(kinds(m)).toEqual(plain);
+        expect(golden(m)).toBe(0);
+      }
+    });
+
+    it('Pip met, English on: three of the ten are golden, each star at its place of the plain day, the golden glow gold', () => {
+      mysteryHold.day = DAY;
+      const h = host(met()), m = createMystery(h.g, geo, h.stage);
+      expect(kinds(m)).toEqual(dailyStars('fairy', DAY, SPOTS.length, true).map((s) => s.kind));
+      expect([golden(m), m.today.length, m.spots.length]).toEqual([3, MYSTERY_COUNT, MYSTERY_COUNT]);
+      const plain = dailyStars('fairy', DAY, SPOTS.length);
+      m.today.forEach((s, i) => { expect([s.pos.x, s.pos.z]).toEqual([SPOTS[plain[i].spot].x, SPOTS[plain[i].spot].z]); });
+      const mesh = h.g.scene.children[0] as THREE.InstancedMesh, c = new THREE.Color();
+      m.today.forEach((s, i) => { mesh.getColorAt(i, c); expect('#' + c.getHexString()).toBe(MYSTERY_COLOR[s.kind]); });
+      expect(MYSTERY_COLOR.gold).toBe('#ffd54a');
+    });
+
+    it('a golden star: a task of English on the level of the English words, recorded to them and to nothing else', async () => {
+      mysteryHold.day = DAY;
+      const save = met();
+      // the English words on level 3, their fast climb over: two clean solves in a row are a step up
+      Object.assign((save.skills.en_words ??= statOf(save, 'en_words')), { level: 3, streak: 0, settled: true });
+      const before = JSON.stringify([save.skills.add, save.skills.sub, save.skills.pattern, save.skills.compare]);
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      h.setAnswer({ solved: true, wrong: 0 });
+      const gold = m.today.map((s, i) => ({ s, i })).filter(({ s }) => s.kind === 'gold');
+      expect(gold).toHaveLength(3);
+      for (const [n, { s, i }] of gold.entries()) {
+        m.spots[i].run();
+        await vi.waitFor(() => expect(h.lines.filter((k) => k === 'mystery_won')).toHaveLength(n + 1));
+        expect(['en_tap', 'en_count']).toContain(h.asked[n]);
+        expect(h.asked[n]).toBe(s.step);
+      }
+      expect(h.levels).toEqual([3, 3, 4]);                    // each on the level of the moment
+      expect(save.skills.en_words.tasks).toBe(3);
+      expect(JSON.stringify([save.skills.add, save.skills.sub, save.skills.pattern, save.skills.compare])).toBe(before);
+      expect(h.g.addStars).toHaveBeenCalledTimes(3);
+      expect(h.g.addStars).toHaveBeenCalledWith(MYSTERY_REWARD, expect.any(THREE.Vector3));
+    });
+
+    it('the parent turns English off in the middle of the day: at the next frame no star is golden, none has moved, a solved one stays solved; on again - golden again', async () => {
+      mysteryHold.day = DAY;
+      const save = met();
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      m.update(0, true);
+      const places = m.today.map((s) => [s.pos.x, s.pos.z]), withGold = kinds(m);
+      m.spots[0].run(); await vi.waitFor(() => expect(h.lines).toContain('mystery_won'));
+      save.english = false;
+      m.update(1, true);
+      expect(golden(m)).toBe(0);
+      expect(kinds(m)).toEqual(dailyStars('fairy', DAY, SPOTS.length).map((s) => s.kind));
+      expect(m.today.map((s) => [s.pos.x, s.pos.z])).toEqual(places);
+      expect(m.today.map((s) => s.solved)).toEqual([true, ...Array(MYSTERY_COUNT - 1).fill(false)]);
+      expect(m.unsolved()).toHaveLength(MYSTERY_COUNT - 1);
+      expect(h.lines.filter((k) => k === 'mystery_day')).toHaveLength(1);       // the line of the day is not said again
+      save.english = true;
+      m.update(2, true);
+      expect(kinds(m)).toEqual(withGold);
+      expect(m.today[0].solved).toBe(true);
+    });
+
+    it('she meets Pip in the middle of the day: the stars of the world she is in turn golden at the next frame', () => {
+      mysteryHold.day = DAY;
+      const save = defaultSave();
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      m.update(0, true);
+      expect(golden(m)).toBe(0);
+      save.pip.met = true;
+      m.update(1, true);
+      expect(golden(m)).toBe(3);
+    });
+
+    it('the lever of every place is as it was: the kinds in turn, none golden', () => {
+      mysteryHold.day = DAY; mysteryHold.all = true;
+      const h = host(met()), m = createMystery(h.g, geo, h.stage);
+      expect(m.today).toHaveLength(SPOTS.length);
+      expect(golden(m)).toBe(0);
+    });
   });
 
   it('a new day: other places, nothing solved; the line of the day once a day, when she is free to move', async () => {
