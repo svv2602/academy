@@ -1,0 +1,146 @@
+{
+ "pip_arrive": {
+  "text": "Hello! Hello! I'm Pip!",
+  "heard": "Hello, hello, I'm Pip.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_lost": {
+  "text": "Hello, friend! I'm lost. My home is far away.",
+  "heard": "Hello friend, I'm lost, my home is far away.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_map": {
+  "text": "The wind took my map. The pieces flew away!",
+  "heard": "The wind took my map. The pieces flew away!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_help": {
+  "text": "Can you help me? Please!",
+  "heard": "Can you help me, please?",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_hi_world": {
+  "text": "Hi! It's me, Pip!",
+  "heard": "Hi! It's me, Pip!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_look": {
+  "text": "Look, look!",
+  "heard": "Look, look.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_piece": {
+  "text": "A piece of my map! Thank you!",
+  "heard": "A piece of my map! Thank you!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_mum": {
+  "text": "I can see my house! My mum and dad live there.",
+  "heard": "I can see my house. My mum and dad live there.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_more": {
+  "text": "More pieces are in other lands.",
+  "heard": "More pieces are in other lands.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_wait": {
+  "text": "Let's fly there later!",
+  "heard": "Let's fly there later.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_star": {
+  "text": "A golden star! It's for you!",
+  "heard": "A golden star! It's for you.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "en_go_flower": {
+  "text": "Find a red flower!",
+  "heard": "Find a red flower.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "en_go_house": {
+  "text": "Go to the little house!",
+  "heard": "Go to the little house.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "en_go_mushroom": {
+  "text": "Find a big mushroom!",
+  "heard": "Find a big mushroom.",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_yes_1": {
+  "text": "Yes! Well done!",
+  "heard": "Yes, well done!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_yes_2": {
+  "text": "Great!",
+  "heard": "くらい。",
+  "score": 0.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_yes_3": {
+  "text": "You're so clever!",
+  "heard": "You're so clever!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_thanks": {
+  "text": "Hooray! Thank you!",
+  "heard": "Hooray! Thank you!",
+  "score": 1.0,
+  "style": "en",
+  "voice": "Zephyr",
+  "model": "gemini-2.5-flash-preview-tts"
+ }
+}

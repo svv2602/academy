@@ -73,7 +73,8 @@ describe('the notes (layout §3)', () => {
       const s = generate(level, createRng(`n${level}-${i}`)), b = s.body, q = NOTES[b.id].q;
       expect(notesFor(level)).toContain(b.id);
       expect(new Set(b.options).size).toBe(b.options.length);
-      expect([s.prompt, s.screen]).toEqual([null, { key: 'q_note', en: [] }]);
+      expect(s.prompt).toBe('q_note');
+      expect(s.hint!.rungs[2].key).toBe(`h3_${b.id}`);
       if (q.ask === 'picture') {
         expect(b.options).toHaveLength(Math.min(choicesAt(level), 1 + q.wrong.length));
         expect(b.options[b.answer]).toBe(q.right);
@@ -90,15 +91,21 @@ describe('the notes (layout §3)', () => {
 });
 
 describe('the note on the panel', () => {
-  it('is asked on the screen only: nothing said, no English (Q1)', () => {
+  it('the cat asks it (recorded with Pip\'s voice of step 2): no English, nothing on the screen only', () => {
     const { hooks, heard } = listen();
     void showTask(noteExample(3, 'note_5', createRng('a')), hooks);
-    expect(heard.prompts).toEqual([]);
-    expect(heard.screens).toEqual([{ key: 'q_note', en: [] }]);
-    // its lines are on the screen, never spoken: no clip is asked for them, the synthesizer never gets them
-    for (const k of ['q_note', 'h2_note']) {
-      expect(Object.keys(strings.table.uk)).toContain(k);
-      expect(Object.keys(strings.spoken)).not.toContain(k);
+    expect(heard.prompts).toEqual(['q_note']);
+    expect(heard.screens).toEqual([]);
+    // its lines are spoken lines: each has its clip (a line without one fails the test of the clips)
+    for (const k of ['q_note', 'h2_note']) expect(Object.keys(strings.spoken)).toContain(k);
+  });
+
+  it('rung 3 of each note is the cat reading that very note: its text is the note\'s', () => {
+    for (const id of NOTE_IDS) {
+      const k = `h3_${id}` as keyof typeof strings.table.uk;
+      expect(Object.keys(strings.spoken)).toContain(k);
+      expect(strings.table.uk[k]).toBe(NOTE_TEXTS[id].uk);
+      expect(strings.table.ru[k]).toBe(NOTE_TEXTS[id].ru);
     }
   });
 
@@ -113,7 +120,7 @@ describe('the note on the panel', () => {
     expect(stage().querySelector('.note-ru')!.textContent).toBe(NOTE_TEXTS.note_1.ru);
   });
 
-  it('the hint: rung 1 lights the words one by one, rung 2 shows "read slowly" and the key words, rung 3 says "look at what glows" and pulses the answer', async () => {
+  it('the hint: rung 1 lights the words one by one, rung 2 the cat\'s "read slowly" and the key words, rung 3 the cat reads the note and the answer pulses', async () => {
     const { hooks, heard } = listen();
     const spec = noteExample(4, 'note_7', createRng('h'));
     void showTask(spec, hooks);
@@ -130,13 +137,12 @@ describe('the note on the panel', () => {
     expect(stage().querySelector('.key, .pulse')).toBeNull();
 
     tap(wrongs[1]); await vi.advanceTimersByTimeAsync(SHAKE_MS + 10);
-    expect(heard.hints).toEqual([]);
-    expect(heard.screens.at(-1)).toEqual({ key: 'h2_note', en: [] });
+    expect(heard.hints).toEqual(['h2_note']);
     expect([...stage().querySelectorAll('.key')].map((e) => e.textContent)).toEqual(['Сова', 'вгору.']);
     expect(right.classList.contains('pulse')).toBe(false);
 
     tap(wrongs[2]); await vi.advanceTimersByTimeAsync(SHAKE_MS + 10);
-    expect(heard.hints).toEqual(['h3_show']);
+    expect(heard.hints).toEqual(['h2_note', 'h3_note_7']);
     expect(right.classList.contains('pulse')).toBe(true);
   });
 

@@ -1,9 +1,9 @@
 /**
  * The panel show of "read the note" (../tasks/note.ts, Season 2): the note on a slip of paper, in Ukrainian whatever the
  * language of the game (R08) - with the Russian one its translation is a small caption under it - then what it asks:
- * pictures to choose from, or numbers (with the pebbles of №3 over them). Nothing here is said.
- * The hint: rung 1 lights the words of the note one by one; rung 2 shows "read slowly" in the bubble (never said) and
- * lights the key words; rung 3 is the pulse of the answer after the recorded "look at what glows".
+ * pictures to choose from, or numbers (with the pebbles of №3 over them). What the cat says is ../tasks/note.ts's.
+ * The hint: rung 1 lights the words of the note one by one; rung 2 lights the key words after the cat's "read it again,
+ * slowly"; rung 3 pulses the answer after the cat has read the note (../tasks/note.ts).
  */
 import { note, type NoteSpec } from '../tasks/note';
 import { lang } from '../../ui/strings';
@@ -71,7 +71,6 @@ export function noteView(spec: NoteSpec, c: PanelCtx) {
       })();
     },
     slowly: () => {
-      c.hooks.screen?.({ key: 'h2_note', en: [] });
       for (const w of words) if (b.key.includes(bare(w.textContent ?? ''))) w.classList.add('key');
     },
   });
