@@ -6,7 +6,7 @@
  */
 import { speaking } from '../../core/audio';
 import type { Game } from '../../game/context';
-import { MEETING, createPip, meetPip, meetsPip, pipShown, type PipFigure, type PipPlace } from '../../game/pip';
+import { MEETING, createPip, meetPip, meetsPip, pipShown, readMs, type PipFigure, type PipPlace } from '../../game/pip';
 import type { WorldScope } from '../../game/scope';
 import { playScene } from '../../game/stage';
 import { loadPip } from '../../game/pip-load';
@@ -20,8 +20,8 @@ export function pipHubPlace(): PipPlace {
   return { x: Math.sin(a) * d, z: Math.cos(a) * d, heading: a };
 }
 
-/** ms a line of his stays at least, for reading it: his clip may be shorter, or not there (no network, not recorded). */
-export const readMs = (text: string) => 900 + text.length * 45;
+/** ms a line of his stays at least, for reading it (src/game/pip.ts, shared with his request in the worlds). */
+export { readMs };
 
 export interface HubPip {
   /** His root (where he sits, whether his model has come or not). */

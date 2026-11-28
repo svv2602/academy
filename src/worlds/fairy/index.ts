@@ -5,7 +5,7 @@ import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
 import { talkSpot } from '../../game/talk-spot';
 import { worldPip } from '../../game/pip-world';
-import { PIP_PLACE } from './en-places';
+import { EN_GIVEN, EN_PLACES, PIP_PLACE } from './en-places';
 import { createDialogue } from '../../game/dialogue';
 import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
@@ -72,8 +72,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
   const characters = createCharacters(g, L, () => starSearch.search.active, scope);
-  // Pip on his feeder (Season 2, src/game/pip-world.ts): no resident, his model lazy - he stands there once it comes
-  const pip = worldPip(g, PIP_PLACE, scope);
+  // Pip on his feeder (Season 2, src/game/pip-world.ts): no resident, his model lazy - he stands there once it comes;
+  // a tap on him is his request, his commands given at EN_GIVEN (src/game/pip-request.ts)
+  const pip = worldPip(g, PIP_PLACE, scope, EN_GIVEN);
   const { npcs, npc, starMat } = characters;
   const shrine = buildShrine(g, L, sky);
   // The magic of the world (WORLD-09): from the shards in the save; before the ambient butterflies (its own come first).
@@ -234,12 +235,14 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     ...secrets.spots,
   ];
 
+  // Pip's command she walks to leads over everything else while it runs (its sparkles only at its last rung)
+  const guided = pip.goal(target);
   /**
    * Where the cat's sparkles lead: the next unfinished friend, then the shrine. A goal on the other side of the fairy
    * house's door (the king's shard in the room, a friend in the valley while she is in the room) leads to the door first.
    */
   function goal(): THREE.Vector3 | null {
-    const at = target();
+    const at = guided();
     return at && throughTheDoor(at, secrets.inRoom(), secrets);
   }
   function target(): THREE.Vector3 | null {
@@ -267,7 +270,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     update: (dt, time, canMove) => {
       oakShadows();
       characters.update(dt, time);
-      pip.update(dt, time);
+      pip.update(dt, time, canMove);
       chestStars.update(time, canMove);
       secrets.update(dt, time, canMove);
       reach();
@@ -329,7 +332,9 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       parts: { waiting: (id: string) => parts.waiting(id) },
       // the cut-scenes (WORLD-13): their player (active, id, index, elapsed, pass, fading, log; play(id) shows one without
       // marking it, next(), skip(), hold(u), flat)
-      story },
+      story,
+      // Pip (Season 2, src/game/pip-world.ts): shown, his mark, the step of his request, the pieces; start() taps him
+      pip: pip.debug },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (worldTaskDoor(g).solve()) return 'world task';
@@ -459,6 +464,7 @@ export const fairy: WorldDef<FairyOwnLoads, FairySky> = {
   collect: COLLECT,
   easel: EASEL,
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
+  enPlaces: EN_PLACES,               // the places of Pip's commands (LEARN-23, ./en-places.ts)
   pet: { species: 'fawn', at: { x: 26, z: 9.5 }, after: 'deer' },
   // Its texts (ARCH-12): src/main.ts adds them to the shared ones before the start screen.
   strings,

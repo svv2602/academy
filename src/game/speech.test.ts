@@ -52,4 +52,15 @@ describe('a line of Pip (speech.english, Season 2 part G)', () => {
     sp.repeat();
     expect(said).toEqual([]);
   });
+
+  it('a set of variants: one recorded line of it, its own text in the bubble, never the same twice in a row', async () => {
+    const heard: string[] = [];
+    setEnVoice({ say: (id) => { heard.push(String(id)); return Promise.resolve(); }, has: () => true });
+    const sp = createSpeech();
+    for (let i = 0; i < 12; i++) await sp.english('pip_yes');
+    expect(heard.every((id) => /^pip_yes_[123]$/.test(id))).toBe(true);
+    heard.forEach((id, i) => { if (i) expect(id).not.toBe(heard[i - 1]); });
+    const texts: Record<string, string> = { pip_yes_1: 'Yes! Well done!', pip_yes_2: 'Great!', pip_yes_3: "You're so clever!" };
+    expect(english.map(([t]) => t)).toEqual(heard.map((id) => texts[id]));
+  });
 });

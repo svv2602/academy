@@ -108,8 +108,9 @@ describe('the registry of worlds (ARCH-06, TECH-15)', () => {
 // their folders would take the files of the core for its own.
 describe('the folders of the worlds under public/ (TECH-09)', () => {
   /** The folders of the core and the first world: the packs of models. Their voice and story frames have none. */
+  // `pip`: Pip's model (Season 2), the core's - lazy, out of the precache (src/game/pip-load.ts), never a world's
   const CORE_FOLDERS: Record<string, readonly string[]> = {
-    models: ['animals_pack', 'creatures', 'extra', 'hero', 'items', 'medieval_village_pack', 'nature2', 'nature_pack', 'pet_items', 'platformer_game_pack', 'rpg_items_pack'],
+    models: ['animals_pack', 'creatures', 'extra', 'hero', 'items', 'medieval_village_pack', 'nature2', 'nature_pack', 'pet_items', 'pip', 'platformer_game_pack', 'rpg_items_pack'],
     voice: [],
     story: [],
   };

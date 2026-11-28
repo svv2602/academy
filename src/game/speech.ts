@@ -3,7 +3,7 @@ import { sayBank, type BankKey } from '../core/voice';
 import { lang, voiceText, type SpokenKey } from '../ui/strings';
 import { bank } from '../ui/strings-bank';
 import { bubble, bubbleEnglish } from '../ui/ui';
-import { EN } from '../s2/strings-en';
+import { EN, VARIANTS } from '../s2/strings-en';
 import { enVoice } from '../s2/types';
 import type { ScreenAsk } from './tasks/types';
 
@@ -80,7 +80,17 @@ export function createSpeech(): Speech {
     else void ask(shown.key, shown.general, shown.pri, shown.speaker);
   };
   // `shown` is read through a getter: a copy taken here would stay at null for good (__game.line reads it too).
-  const english = (id: string, speaker = '🐦', hold = 0) => {
+  // a set of variants (`pip_yes`): one of them chosen here, never the one said last, among those recorded - the bubble
+  // shows the very line the voice says
+  const lastOf = new Map<string, string>();
+  const english = (name: string, speaker = '🐦', hold = 0) => {
+    const set = VARIANTS.get(name);
+    let id = name;
+    if (set) {
+      const fresh = set.filter((v) => v !== lastOf.get(name) && enVoice().has(v));
+      id = fresh.length ? fresh[Math.floor(Math.random() * fresh.length)] : set[0];
+      lastOf.set(name, id);
+    }
     const l = EN.get(id);
     shown = null;
     if (l) bubbleEnglish(l.text, l[lang], hold, speaker);

@@ -51,6 +51,9 @@ export const MEETING: readonly ({ pip: string } | { cat: SpokenKey })[] = [
   { pip: 'pip_help' }, { cat: 'pip_cat_learn' },
 ];
 
+/** ms a line of his stays at least, for reading it: his clip may be shorter, or not there (no network, not recorded). */
+export const readMs = (text: string) => 900 + text.length * 45;
+
 /** Where he stands in a world: on the ground at (x, z), looking along `heading` when she is far. */
 export interface PipPlace { x: number; z: number; heading: number }
 

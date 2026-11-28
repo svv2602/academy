@@ -9,7 +9,7 @@ import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { talkSpot } from '../../game/talk-spot';
 import { worldPip } from '../../game/pip-world';
-import { PIP_PLACE } from './en-places';
+import { EN_GIVEN, EN_PLACES, PIP_PLACE } from './en-places';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -196,8 +196,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
-  // Pip on his stone by the arch (Season 2, src/game/pip-world.ts): no resident, his model lazy
-  const pip = worldPip(g, PIP_PLACE, scope);
+  // Pip on his stone by the arch (Season 2, src/game/pip-world.ts): no resident, his model lazy; a tap on him is his
+  // request, his commands given at EN_GIVEN (src/game/pip-request.ts)
+  const pip = worldPip(g, PIP_PLACE, scope, EN_GIVEN);
   // its own voice (TECH-09): each character with its voice, the clips of voice/forest/ while the world is played
   setCast(voices);
   scope.own(() => setCast({ narrator: '', cast: {} }));
@@ -360,7 +361,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       tap: (screenDist) => secrets.tap(screenDist) || player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
-        pip.update(dt, time);
+        pip.update(dt, time, canMove);
         const hp = hero.root.position;
         for (const n of npcs) {
           n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
@@ -390,7 +391,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         emerald.visible = ws.final;
         emerald.rotation.y = time;
       },
-      goal: () => {
+      // Pip's command she walks to leads over everything else while it runs (its sparkles only at its last rung)
+      goal: pip.goal(() => {
         const nut = nuts.goal() ?? maze.goal();
         if (nut) return nut;
         const l = leaves.find(waiting);
@@ -399,7 +401,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         if (n) return n.pos;
         // the easel when every piece is found and the picture not set (src/game/easel.ts): after the friends, before the finale
         return g.easel.goal() ?? (finaleItem.done() ? null : altar);
-      },
+      }),
       animate: (dt, time) => { flies.update(time); player.update(time); hubWay.update(time); secrets.animate(dt); },
       focusDist: () => 6.5,
       beforeRender: (hp) => { sky.sun.position.copy(hp).add(sky.sunOffset); sky.sun.target.position.copy(hp); scenery.shadows(hp.x, hp.z); undergrowth.near(hp.x, hp.z); },
@@ -409,6 +411,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       // the tour as the first world's: played without a mark, its points with the moment each is passed, its player
       // gear: the heroine's items (src/game/gear.ts), put on by the pictures of the trade's gifts as in the first world
       more: { gear, flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: FOREST_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
+        // Pip (Season 2, src/game/pip-world.ts): shown, his mark, the step of his request, the pieces; start() taps him
+        pip: pip.debug,
         // the map as the measurements of the grey build read it (tools/forest-grey.mjs): its stretch, zones, paths, landmarks
         // `arrival`: where she comes out of the arch of the Great Tree on the central glade (./hub-way.ts FROM_HUB) - the
         // place a child stands on that glade; its middle is the arch itself (tools/forest-grey.mjs: the sights from there)
@@ -478,6 +482,7 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
+  enPlaces: EN_PLACES,               // the places of Pip's commands (LEARN-23, ./en-places.ts)
   secrets: FOREST_SECRETS,
   chest: CAVE_FLAG,
   // PLAY-09: the owlet, under its heap in the squirrel grove once Mudrena's chain is done
