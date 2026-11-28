@@ -734,9 +734,31 @@ describe('recorded clips', () => {
     expect(stray, `records with a text for the model that SAY_AS does not have: ${stray.join(' ')}`).toEqual([]);
   }, 60_000);
 
-  it('every clip was heard back as its text (voice/qa.json has no score below 0.85)', () => {
-    const low = Object.keys(phrases).filter((key) => !waits(key) && !(qa[nameOf(key)]?.score >= 0.85)).map((key) => `${nameOf(key)} ${qa[nameOf(key)]?.score}`);
+  /**
+   * Clips heard back below 0.85 that the customer heard himself and took (the one place for them; the lead's rule of
+   * 2026-11-28): the line, the day, the customer's word, why the transcription missed, and the text the clip was recorded
+   * from - a changed text, or a missing clip, takes the line out of here again.
+   */
+  const ACCEPTED_BY_EAR = {
+    pip_cat_hello: {
+      date: '2026-11-28', word: '«Пип годится весь»', why: 'the English "Hello" heard back in Cyrillic ("Хелоу"), 0.821',
+      text: '«Hello» — це «привіт». Помахай йому!',
+    },
+  };
+
+  it('every clip was heard back as its text (voice/qa.json has no score below 0.85), but those the customer took by ear', () => {
+    const low = Object.keys(phrases).filter((key) => !waits(key) && !(qa[nameOf(key)]?.score >= 0.85) && !Object.hasOwn(ACCEPTED_BY_EAR, nameOf(key)))
+      .map((key) => `${nameOf(key)} ${qa[nameOf(key)]?.score}`);
     expect(low, `clips that do not sound like their text: ${low.join(', ')}. ${HOW}`).toEqual([]);
+  });
+
+  it('a clip taken by ear is that very clip: its line, its text unchanged, its record and its file', () => {
+    for (const [key, a] of Object.entries(ACCEPTED_BY_EAR)) {
+      expect(phrases[key]?.[0], `${key}: no such line, or its text changed since the customer heard it - record it again`).toBe(a.text);
+      expect(qa[key]?.text, `${key}: its clip was recorded from another text`).toBe(a.text);
+      expect(existsSync(join(root, 'public/voice', `${key}.mp3`)), `${key}: no clip`).toBe(true);
+      expect(a.date && a.word && a.why, `${key}: the day, the customer's word and why`).toBeTruthy();
+    }
   });
 
   // The worlds of the sources (one folder each) and the first of them, as tools/dist-size.mjs reads them.
