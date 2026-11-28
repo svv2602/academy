@@ -4,6 +4,8 @@ import { updateRanged } from '../../core/instancing';
 import { createRng } from '../../core/rng';
 import { createStage, type Game } from '../../game/context';
 import { talkSpot } from '../../game/talk-spot';
+import { worldPip } from '../../game/pip-world';
+import { PIP_PLACE } from './en-places';
 import { createDialogue } from '../../game/dialogue';
 import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
@@ -70,6 +72,8 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
   // The heroine's wings and the quest characters, then the shrine, then the chest and the stars on the ground, then
   // the ambient butterflies: the order they always joined the scene (and the colliders) in.
   const characters = createCharacters(g, L, () => starSearch.search.active, scope);
+  // Pip on his feeder (Season 2, src/game/pip-world.ts): no resident, his model lazy - he stands there once it comes
+  const pip = worldPip(g, PIP_PLACE, scope);
   const { npcs, npc, starMat } = characters;
   const shrine = buildShrine(g, L, sky);
   // The magic of the world (WORLD-09): from the shards in the save; before the ambient butterflies (its own come first).
@@ -222,6 +226,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
 
   const spots: Spot[] = [
     ...npcs.map((n) => talkSpot(n, () => chainDone(ws, n.def), () => { void talk(n); })),
+    pip.spot(),
     { pos: shrine.pos, r: 2.6, label: 'place', on: () => shardCount(ws) === 5 && !ws.final, run: () => { void restoreCrystal(); } },
     { pos: chestStars.chest.root.position, r: 2.2, label: 'open', on: () => !ws.flags.chest, run: () => chestStars.open() },
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
@@ -262,6 +267,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     update: (dt, time, canMove) => {
       oakShadows();
       characters.update(dt, time);
+      pip.update(dt, time);
       chestStars.update(time, canMove);
       secrets.update(dt, time, canMove);
       reach();

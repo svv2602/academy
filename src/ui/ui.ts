@@ -12,6 +12,7 @@ import { LEVELS, SEASON2_SKILLS, isOpen, levelFor, shownSkills, statOf, withinLe
 import { SUBJECTS, type Share } from '../s2/types';
 import { actualShares, nextShare, percent, targetShares } from '../s2/shares';
 import './parents-s2.css';
+import './bubble-en.css';
 
 // The section names the subjects of Season 2 (part P): its texts are here whoever draws it (src/main.ts adds them too;
 // a table is added once).
@@ -76,6 +77,23 @@ export function bubble(key: Key | null, holdMs = 0, speaker = '🐱', text?: str
   el.bubbleText.textContent = text ?? t(key);
   el.bubble.classList.remove('hidden');
   if (!same) { el.bubble.style.animation = 'none'; void el.bubble.offsetWidth; el.bubble.style.animation = ''; }
+  if (holdMs) bubbleTimer = window.setTimeout(() => el.bubble.classList.add('hidden'), holdMs);
+}
+/**
+ * A line in English, no key of the table (Pip, Season 2: src/game/speech.ts `english`): the English as it is said, its
+ * translation in the language of the game small under it. It pops as a new line always; `bubble` gives the text back.
+ */
+export function bubbleEnglish(text: string, translation: string, holdMs = 0, speaker = '🐦') {
+  clearTimeout(bubbleTimer);
+  bubbleOf = null;
+  $('speaker').textContent = speaker;
+  el.bubbleText.textContent = text;
+  const small = document.createElement('small');
+  small.className = 'bubble-en';
+  small.textContent = translation;
+  el.bubbleText.appendChild(small);
+  el.bubble.classList.remove('hidden');
+  el.bubble.style.animation = 'none'; void el.bubble.offsetWidth; el.bubble.style.animation = '';
   if (holdMs) bubbleTimer = window.setTimeout(() => el.bubble.classList.add('hidden'), holdMs);
 }
 

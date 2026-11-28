@@ -1,0 +1,2 @@
+/* Pip's English line in the bubble (./ui.ts bubbleEnglish): its translation small under it */
+#bubbleText .bubble-en { display: block; margin-top: 2px; font-size: .72em; font-weight: 600; opacity: .8; }

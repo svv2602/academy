@@ -42,6 +42,40 @@ export function greyWorldFiles(next, extra = {}, root = '.') {
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
 /**
+ * Pip's model (Season 2): a lazy folder of public/models/ (decision of 2026-11-28, variant (а); tools/world-files.mjs
+ * PIP, tools/dist-size.mjs MAX_PIP). The service worker does not precache it (vite.config.ts globIgnores); its route
+ * keeps the files, once asked for, in the cache `pipCache(revision)`, and the page writes the same cache when it brings
+ * them in the background (src/game/pip-load.ts).
+ *
+ * Why the revision is in the cache's NAME and not in the files' addresses. The .glb references its texture by a plain
+ * relative address (tex/pip.webp, tools/assets.mjs), and the page asks for models/pip/pip.glb (src/core/assets.ts
+ * `gltf`) - the same addresses in every build. A cache keyed by them still holds the model after an update of the site
+ * that left the model as it was (the revision is the same, so is the cache): a reload, at the arch or anywhere, finds
+ * it, without network too. A new model - and only a new one - gets a new cache, so an old .glb is never served beside a
+ * new texture nor to a newer page; the page drops the caches of older revisions once it holds the current one. A tab
+ * left open on the old version is served by the old worker (skipWaiting: false), with the old cache.
+ */
+export const PIP_DIR = 'public/models/pip';
+/** The cache of Pip's files for the revision `rev`. src/game/pip-load.ts names it the same way. */
+export const pipCache = (rev) => `pip-${rev}`;
+/** The service worker's route into that cache: his files at their plain addresses; one with a query goes past it. */
+export const PIP_ROUTE = /\/models\/pip\/[\w/-]+\.(?:glb|webp)$/;
+
+/**
+ * The revision of Pip's files: the first 12 hex of the SHA-256 of every file of `PIP_DIR` (its path and its bytes, in
+ * the order of the paths); 'none' when there is no such folder.
+ */
+export function pipRevision(root = '.') {
+  const dir = join(root, PIP_DIR);
+  if (!existsSync(dir)) return 'none';
+  const hash = createHash('sha256');
+  const files = readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile())
+    .map((f) => join(f.parentPath, f.name)).sort();
+  for (const file of files) hash.update(relative(dir, file).split(sep).join('/')).update('\0').update(readFileSync(file));
+  return hash.digest('hex').slice(0, 12);
+}
+
+/**
  * The next worlds of a build of `mode`: the folders of src/worlds/ but the first world's (`sourceWorlds`) and those of
  * the installation (`installedWorlds`: the hub - its voice is precached with the core), and but a world of `modes`
  * unless the build is made in that world's mode - the registry (src/worlds/index.ts) lists such a world under the same

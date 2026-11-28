@@ -8,6 +8,8 @@ import { rig, type Rig } from '../../core/assets';
 import type { Save } from '../../core/save';
 import { Actor } from '../../game/actor';
 import { talkSpot } from '../../game/talk-spot';
+import { worldPip } from '../../game/pip-world';
+import { PIP_PLACE } from './en-places';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -194,6 +196,8 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   const { scene, hero, save, ws, flies, groundY } = g;
   // The colliders are one list of the module: the world empties it as it is left, a second entry starts from none.
   scope.own(() => { colliders.length = 0; });
+  // Pip on his stone by the arch (Season 2, src/game/pip-world.ts): no resident, his model lazy
+  const pip = worldPip(g, PIP_PLACE, scope);
   // its own voice (TECH-09): each character with its voice, the clips of voice/forest/ while the world is played
   setCast(voices);
   scope.own(() => setCast({ narrator: '', cast: {} }));
@@ -349,12 +353,14 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         ...npcs.map((n) => talkSpot(n, () => finished(n), () => { void dialogue.talk(n); })),
         { pos: altar, r: ALTAR_R, label: 'place', on: () => !finaleItem.done() && ready(finaleItem, all), run: () => { void restore(); } },
         hubWay.spot,
+        pip.spot(),
         ...secrets.spots,
       ],
       // a firefly of the hollow while they wait for her, else the tasks played in the world
       tap: (screenDist) => secrets.tap(screenDist) || player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
+        pip.update(dt, time);
         const hp = hero.root.position;
         for (const n of npcs) {
           n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);

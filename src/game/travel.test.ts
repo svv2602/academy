@@ -1044,7 +1044,14 @@ describe('src/main.ts hands the change of world its gate', () => {
 
   it('every change of world starts the download of the next world from the world entered (TECH-09, R18)', () => {
     const args = MAIN.slice(MAIN.indexOf('createTravel({'), MAIN.indexOf('\n  });', MAIN.indexOf('createTravel({')));
-    expect(args).toContain('arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },');
+    expect(args).toContain('arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); void prefetchPip(save); },');
+  });
+
+  it('Pip\'s lazy model is brought in the background as the next world is: at the first "Play", every arrival, every save a world writes (src/game/pip-load.ts)', () => {
+    expect(MAIN).toContain("el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); void prefetchPip(save); }, { once: true });");
+    // the finale of the first world writes the save through g.persist: wrapped before the world is built
+    expect(MAIN).toContain('g.persist = () => { persist(); void prefetchPip(save); };');
+    expect(MAIN.indexOf('g.persist = () =>')).toBeLessThan(MAIN.indexOf('travel.begin('));
   });
 });
 

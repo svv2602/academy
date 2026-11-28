@@ -10,10 +10,20 @@
  * she is near.
  */
 import type { EnPlace } from '../../game/worldtasks/en-go';
-import { ZONES } from './layout';
+import { HUB_ARCH, ZONES } from './layout';
 
 /** Where Pip gives his commands here: his branch by the arch of the hub, in the middle of the central glade. */
 export const EN_GIVEN = { x: ZONES.center.x, z: ZONES.center.z } as const;
+/**
+ * Pip on a stone beside the arch (src/game/pip-world.ts), not in its passage: PIP_ASIDE m to its side, PIP_AHEAD m out
+ * toward where she comes out of it, facing her as she comes.
+ */
+const PIP_ASIDE = 3.2, PIP_AHEAD = 1;
+export const PIP_PLACE = {
+  x: EN_GIVEN.x + Math.cos(HUB_ARCH.facing) * PIP_ASIDE + Math.sin(HUB_ARCH.facing) * PIP_AHEAD,
+  z: EN_GIVEN.z - Math.sin(HUB_ARCH.facing) * PIP_ASIDE + Math.cos(HUB_ARCH.facing) * PIP_AHEAD,
+  heading: HUB_ARCH.facing,
+} as const;
 
 /** Where the big mushrooms stand; `rot` turns each a little so no two look the same from the glade. */
 export const BIG_MUSHROOMS: readonly { readonly x: number; readonly z: number; readonly rot: number }[] = [

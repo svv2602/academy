@@ -2,7 +2,8 @@ import { say, speaking, volume, willSay, type Priority, type Spoken } from '../c
 import { sayBank, type BankKey } from '../core/voice';
 import { lang, voiceText, type SpokenKey } from '../ui/strings';
 import { bank } from '../ui/strings-bank';
-import { bubble } from '../ui/ui';
+import { bubble, bubbleEnglish } from '../ui/ui';
+import { EN } from '../s2/strings-en';
 import { enVoice } from '../s2/types';
 import type { ScreenAsk } from './tasks/types';
 
@@ -37,6 +38,11 @@ export interface Speech {
    * is silent - a repeat that cut "try again" off would bring the hint too early. Nothing is recorded.
    */
   repeat(): void;
+  /**
+   * A line of Pip (src/s2/strings-en.ts, Zephyr): the English and its translation in the bubble, its clip said by the voice
+   * of English. Not the cat's: the cat's voice and the synthesizer never get it, a tap on the bubble says nothing again.
+   */
+  english(id: string, speaker?: string, hold?: number): Promise<void>;
 }
 
 /** The bubble and the spoken lines. A factory: nothing is created at import (see the WebGL2 check in main.ts). */
@@ -74,5 +80,11 @@ export function createSpeech(): Speech {
     else void ask(shown.key, shown.general, shown.pri, shown.speaker);
   };
   // `shown` is read through a getter: a copy taken here would stay at null for good (__game.line reads it too).
-  return { get shown() { return shown; }, caption, line, ask, muted, hintLine, screen, repeat };
+  const english = (id: string, speaker = '🐦', hold = 0) => {
+    const l = EN.get(id);
+    shown = null;
+    if (l) bubbleEnglish(l.text, l[lang], hold, speaker);
+    return enVoice().say(id);
+  };
+  return { get shown() { return shown; }, caption, line, ask, muted, hintLine, screen, repeat, english };
 }

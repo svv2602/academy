@@ -11,13 +11,14 @@ vi.mock('../core/audio', () => ({
   speaking: () => false, willSay: () => true, volume: { voice: 1 },
 }));
 vi.mock('../core/voice', () => ({ sayBank: () => Promise.resolve() }));
-vi.mock('../ui/ui', () => ({ bubble: (key: string | null) => { bubbles.push(key); } }));
+const english: [string, string][] = [];
+vi.mock('../ui/ui', () => ({ bubble: (key: string | null) => { bubbles.push(key); }, bubbleEnglish: (text: string, sub: string) => { english.push([text, sub]); } }));
 
 const { createSpeech } = await import('./speech');
 const { setEnVoice } = await import('../s2/types');
 const { strings } = await import('../s2/strings-tasks');
 
-afterEach(() => { said.length = 0; bubbles.length = 0; setEnVoice(null); });
+afterEach(() => { said.length = 0; bubbles.length = 0; english.length = 0; setEnVoice(null); });
 
 describe('a question on the screen only (ScreenAsk)', () => {
   it('shows its text, says its English clips, and gives the cat\'s voice nothing', async () => {
@@ -36,5 +37,19 @@ describe('a question on the screen only (ScreenAsk)', () => {
   it('its line is no spoken line: no clip is asked for it, the synthesizer never gets it', () => {
     expect(Object.keys(strings.table.uk)).toContain('q_en_tap');
     expect(Object.keys(strings.spoken)).not.toContain('q_en_tap');
+  });
+});
+
+describe('a line of Pip (speech.english, Season 2 part G)', () => {
+  it('the English and its translation in the bubble, his clip said by the voice of English, nothing to the cat', async () => {
+    const heard: (string | readonly string[])[] = [];
+    setEnVoice({ say: (id) => { heard.push(id); return Promise.resolve(); }, has: () => true });
+    const sp = createSpeech();
+    await sp.english('pip_arrive');
+    expect(english).toEqual([["Hello! Hello! I'm Pip!", 'Привіт! Привіт! Я Піп!']]);
+    expect(heard).toEqual(['pip_arrive']);
+    expect(said).toEqual([]);
+    sp.repeat();
+    expect(said).toEqual([]);
   });
 });

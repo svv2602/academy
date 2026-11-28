@@ -1,7 +1,7 @@
 // Runs in `npm test`: which part of the build a file belongs to (tools/world-files.mjs) - the groups the size budget
 // of tools/dist-size.mjs is counted by.
 import { describe, expect, it } from 'vitest';
-import { BANK, CORE, EN, WORLD_FOLDERS, groupOf, isBank, isEn, isVoice, worldGroup, worldOf } from './world-files.mjs';
+import { BANK, CORE, EN, PIP, WORLD_FOLDERS, groupOf, isBank, isEn, isPip, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
 describe('the part of the build a file belongs to', () => {
   it('gives a next world the files inside its own folders of models, voice, story frames and code (TECH-09)', () => {
@@ -59,6 +59,14 @@ describe('the part of the build a file belongs to', () => {
     // Only the folder en/ is the English bank.
     expect([groupOf('assets/en.js', ['probe']), groupOf('voice/en/x.mp3', []), groupOf('models/probe/en/x.glb', ['probe'])]).toEqual([CORE, CORE, 'world:probe']);
     expect([isEn('en/x.mp3'), isEn('assets/en.js'), isEn('bank/en/x.mp3'), isVoice('en/x.mp3'), isBank('en/x.mp3')]).toEqual([true, false, false, false, false]);
+  });
+
+  it('keeps Pip\'s model (models/pip/, Season 2) apart from the core: a lazy folder of its own', () => {
+    expect(PIP).toBe('pip');
+    expect([groupOf('models/pip/pip.glb', ['probe']), groupOf('models/pip/tex/pip.webp', [])]).toEqual([PIP, PIP]);
+    // Only that folder: a model merely named after him, or a world's folder, is not his.
+    expect([groupOf('models/pip.glb', []), groupOf('models/extra/pip/x.glb', []), groupOf('voice/pip/x.mp3', [])]).toEqual([CORE, CORE, CORE]);
+    expect([isPip('models/pip/pip.glb'), isPip('models/pipe/x.glb'), isPip('pip/x.glb')]).toEqual([true, false, false]);
   });
 
   it('tells the voice by the folder voice/, of the first load and of a next world alike', () => {

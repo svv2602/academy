@@ -14,6 +14,8 @@ import { HOUSE } from './layout';
 
 /** Where Pip gives his commands here: his feeder by the path between the spawn meadow and the pond (R14). */
 export const EN_GIVEN = { x: 6, z: 2 } as const;
+/** Pip on his feeder (src/game/pip-world.ts): where his commands are given, facing the spawn meadow she comes from. */
+export const PIP_PLACE = { x: EN_GIVEN.x, z: EN_GIVEN.z, heading: Math.atan2(0 - EN_GIVEN.x, 14 - EN_GIVEN.z) } as const;
 
 /**
  * The middles of the beds of red flowers: two behind the spawn meadow - west of it and by the way to the Great Tree -
