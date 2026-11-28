@@ -11,7 +11,10 @@
 .psubj .pcfoot { grid-column: 1 / -1; }
 .psubj .pcfoot button { min-height: 44px; background: #f1e6fa; border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #a07ac0; }
 @media (max-height: 480px) {
-  #pBody .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; } #pBody .pset .preset button { flex: 1 1 0; min-width: 0; padding: 4px 8px; line-height: 1.15; }
+  /* "subjects" and "reset" to the right of their line, "reset" on two lines of text: the buttons under the tables reach
+     into this column on a phone held sideways (by 8 px on the CI runner's wider font), so this line keeps clear of them */
+  #pBody .pset .preset { display: flex; flex-wrap: nowrap; gap: 6px; justify-content: flex-end; }
+  #pBody .pset .preset button { flex: 0 1 auto; min-width: 0; padding: 4px 8px; line-height: 1.15; } #pBody .pset .preset #pReset { max-width: 96px; }
   .psubj .pnote { margin: 2px 0; }
   .psubj .pen { margin-top: 4px; font-size: 14px; }
   /* "close" stands on the title's line, on the right: the table of the skills starts under it */
