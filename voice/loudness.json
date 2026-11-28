@@ -2405,24 +2405,24 @@
   "sha256": "467ffe8640da90da803769850a54d99e70b3aa655e4aac8b9790b42a4bfb4703"
  },
  "public/voice/hub/hub_doze_fairy.mp3": {
-  "lufs": -18.11,
-  "tp": -1.88,
-  "sha256": "a35752f2b1ceb86822fe01e0f0f9a1694960d9aceda270a124181de37ddde2ef"
+  "lufs": -18.07,
+  "tp": -2.29,
+  "sha256": "fd5968307f1228184d6c0ae6ab64ce27e949873e398f92926ce2ed59ae66c3ec"
  },
  "public/voice/hub/hub_doze_forest.mp3": {
-  "lufs": -17.97,
-  "tp": -2.39,
-  "sha256": "d63a51c068099ef5c00110e160c890afa7b51eda2b13a8a7408c407639891cb5"
+  "lufs": -18.18,
+  "tp": -1.8,
+  "sha256": "e5f0c1246c2e12fa351f91c7d9e7235a703d980fcb6be6ffeb3b0489d27a2be8"
  },
  "public/voice/hub/hub_doze_sea.mp3": {
-  "lufs": -18.12,
-  "tp": -2.34,
-  "sha256": "964767509503aca5e8ee08e163e62386d7c96d0e1090436ed55ee57d286cef55"
+  "lufs": -18.16,
+  "tp": -3.38,
+  "sha256": "b3240422f59b553a629e7414b9b337876208454ed39dce9add41cb30079e4b80"
  },
  "public/voice/hub/hub_doze_sweet.mp3": {
-  "lufs": -18.24,
-  "tp": -1.75,
-  "sha256": "c0d6b1a5b28d533f8410d199bf37684d8e966d3082093551491bd8707635f9c6"
+  "lufs": -17.99,
+  "tp": -2.45,
+  "sha256": "69d1f9e6e44f0e769e09e1511e57c9d814e75d5a0c5dc9d05531a2cead829cb8"
  },
  "public/voice/hub/hub_feather.mp3": {
   "lufs": -18.1,

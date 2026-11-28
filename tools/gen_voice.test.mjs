@@ -204,6 +204,8 @@ v.check_say_as(json.loads(${JSON.stringify(JSON.stringify(phrases))}))`);
     const phrases = { npc_harder: ['Оце так! А складніше зможеш?', 'warm', 'cat'] };
     expect(run({ npc_harder: 'Оце так! А складніше — зможеш?' }, phrases).code).toBe(0);
     expect(run({ npc_harder: 'Оце так!.. А СКЛАДНІШЕ, зможеш?' }, phrases).code).toBe(0);
+    // a stress mark (U+0301) is no word of its own: «А́рка» is «Арка»
+    expect(run({ doze: 'А\u0301рка ще дрімає!' }, { doze: ['Арка ще дрімає!', 'warm', 'cat'] }).code).toBe(0);
     const words = run({ npc_harder: 'Оце так! А важче — зможеш?' }, phrases);
     expect(words.code).not.toBe(0);
     expect(words.err).toContain('nothing was sent');

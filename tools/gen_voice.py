@@ -99,7 +99,12 @@ MOOD = {'warm': ' Тепло і лагідно.', 'joy': ' Радісно і з�
 # and with a prompt that named the question and sent the voice up at the end alike (the customer, 2026-11-27). What
 # made it a question: the calm `warm` of every question of the game, and a dash - the last word is said after a
 # pause, from below upwards.
-SAY_AS = {'npc_harder': 'Оце так! А складніше — зможеш?'}
+SAY_AS = {'npc_harder': 'Оце так! А складніше — зможеш?',
+          # «А́рка», not «аркА» (the customer's ear, 2026-11-28): the stress mark on its first syllable
+          'hub_doze_fairy': 'А\u0301рка ще дрімає — давай ще трохи дослідимо Королівство фей!',
+          'hub_doze_forest': 'А\u0301рка ще дрімає — давай ще трохи дослідимо Зачарований ліс!',
+          'hub_doze_sea': 'А\u0301рка ще дрімає — давай ще трохи дослідимо Підводне королівство!',
+          'hub_doze_sweet': 'А\u0301рка ще дрімає — давай ще трохи дослідимо Солодку країну!'}
 # A short imperative line («Тепер повтори!») is taken for an instruction: the model reads the style prompt aloud.
 # The second try says where the words to speak begin.
 STRICT = ' Скажи лише ці слова:'
@@ -310,7 +315,8 @@ def encode(pcm, out):
 
 
 def norm(s):
-    s = s.lower().replace('’', "'").replace('ʼ', "'")
+    # the stress mark of a text for the model (U+0301, «А́рка», SAY_AS) is not a word of its own
+    s = s.replace('\u0301', '').lower().replace('’', "'").replace('ʼ', "'")
     s = re.sub(r'\d+', lambda m: DIGITS.get(m.group(), m.group()), s)
     s = re.sub(r"[^\w' ]+", ' ', s)
     return ' '.join(s.split())
