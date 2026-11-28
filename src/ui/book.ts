@@ -14,6 +14,8 @@ import type { Save, WorldState } from '../core/save';
 import { findIcon } from './finds';
 import { ACHIEVEMENTS } from '../game/achievements';
 import { artifactBack, knownWorlds, type ArtifactWorld } from '../game/artifacts';
+import { exploreOf, fullyExplored, gatesArch } from '../game/explore';
+import { exploreDots } from './explore';
 import type { WorldEntry } from '../game/context';
 import { PETS, choosePet, foundPets } from '../game/pets';
 import { foundOf, itemsOf, piecesOf, pictureDone, pictureSet, setCells, setDone, setKindsOf } from '../game/collections';
@@ -157,7 +159,10 @@ function renderShelf(save: Save, world: WorldEntry | null) {
   SHELF.forEach((p, i) => {
     const s = states[i];
     const cap = s.kind === 'found' ? '✨' : s.kind === 'parts' ? `${s.n}/${s.of}` : '';
-    const cls = 'place' + (s.kind === 'found' ? ' found' : s.kind === 'parts' ? ' parts' : ' sil') + (i === pickedPlace ? ' sel' : '');
+    const pw = knownWorlds().find((k) => k.id === shelfWorld(p, i));
+    // every point of its world got: the gold frame, as by its nest on the Great Tree (PLAY-36)
+    const gold = !!pw && fullyExplored(exploreOf(save, pw));
+    const cls = 'place' + (s.kind === 'found' ? ' found' : s.kind === 'parts' ? ' parts' : ' sil') + (gold ? ' gold' : '') + (i === pickedPlace ? ' sel' : '');
     const b = button(cls, `<span class="ic">${p.icon}</span><span class="cap">${cap}</span>`, () => { pickedPlace = i; renderShelf(save, world); });
     const id = shelfWorld(p, i);
     b.dataset.place = String(i); b.dataset.state = s.kind; if (id) b.dataset.world = id;
@@ -165,7 +170,11 @@ function renderShelf(save: Save, world: WorldEntry | null) {
     box.appendChild(b);
   });
   const p = SHELF[pickedPlace];
-  $('shelfSay').innerHTML = `<b>${t(p.art)}</b> · ${text(p, states[pickedPlace])}`;
+  // the explorer's key (PLAY-36): how much of the world of the place picked she explored, once she was there
+  const id = shelfWorld(p, pickedPlace), w = id ? knownWorlds().find((k) => k.id === id) : undefined;
+  const e = w && save.worlds[w.id] !== undefined ? exploreOf(save, w) : null;
+  const explored = e && e.of > 0 ? `<span class="explored">${t('book_explored')} ${exploreDots(e, gatesArch(w!) && save.freeArches !== true)}</span>` : '';
+  $('shelfSay').innerHTML = `<b>${t(p.art)}</b> · ${text(p, states[pickedPlace])}${explored}`;
 }
 
 function renderSecrets(world: WorldEntry | null, ws: { flags: Record<string, boolean> } | null) {

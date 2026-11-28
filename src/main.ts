@@ -14,6 +14,7 @@ import { createGame, type WorldEntry } from './game/context';
 import { exposeDebug } from './game/debug';
 import { createGate, probeNetwork } from './game/gate';
 import { startLoop } from './game/loop';
+import { installExploreLead } from './game/explore-lead';
 import { createSpeech } from './game/speech';
 import { enterWorld, initStartScreen } from './game/start';
 import { installSupplies } from './game/supplyfx';
@@ -184,6 +185,10 @@ async function boot() {
   }));
   // The cat's line answers the child's own tap: as the shop's lines, it is not a hint a sounding line turns away.
   supplies.onFrame(initSupplyRow(supplies, { say: (key) => { void g.speech.line(key, 'story'); } }));
+
+  // ---------- the explorer's key in the world (src/game/explore-lead.ts): the cat's word and lead after the final ----------
+  // nothing in the scene: not made inside shared() (src/game/scope.test.ts counts those)
+  installExploreLead(g, { glimmer: () => travel.built?.glimmer?.() ?? [] });
 
   // ---------- loop ----------
   // The parts of the loop every world shares are made inside shared(); the first frame is played outside it.

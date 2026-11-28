@@ -1071,6 +1071,17 @@ export async function playWorld(h, o = {}) {
     }
   }
 
+  // ---- 4d. the explorer's key (PLAY-36, src/game/explore.ts): the row under the counters says the world's points ----
+  {
+    const e = await g((w) => window.__game.explore?.points(w) ?? null, worldId);
+    if (e) {
+      const row = await g(() => { const r = document.querySelector('#explore'); return r && { shown: !r.classList.contains('hidden'), got: +r.dataset.got, of: +r.dataset.of, on: r.querySelectorAll('i.on').length }; });
+      if (!row?.shown || row.got !== e.got || row.of !== e.of || row.on !== e.got) errors.push(`explore: ${mode} ${worldId}: the row under the counters ${JSON.stringify(row)}, the world's points ${e.got} of ${e.of}`);
+      if (e.secrets.got !== e.secrets.of) errors.push(`explore: ${mode} ${worldId}: the pass found ${e.secrets.got} of ${e.secrets.of} secrets, the points count fewer than it found`);
+      console.log(`explore: ${e.got} of ${e.of} points (secrets ${e.secrets.got}/${e.secrets.of}, sets ${e.sets.got}/${e.sets.of}, easel ${e.easel.got}/${e.easel.of}, stars ${e.mystery.got}/${e.mystery.of}), the half ${e.need}; the row under the counters the same`);
+    }
+  }
+
   // ---- 5. the end: everything is done, each mark is in the stored save under the id of its item ----
   const last = await seen();
   await shot('20-done');

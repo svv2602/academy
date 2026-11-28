@@ -12,7 +12,9 @@ import { travel } from '../../game/travel';
 import type { BuiltWorld, MusicParams, WorldDef, WorldGround, WorldLines, WorldSky } from '../../game/world';
 import { HUB_FLYOVER } from './flyover-path';
 import { PORTALS, RADIUS, arrivalAt } from './layout';
-import { openArches, portalWorlds, sleepingToSpeakOf, somethingNew, wakingArches, woke } from './portals';
+import { dozingArches, openArches, portalWorlds, sleepingToSpeakOf, somethingNew, wakingArches, woke } from './portals';
+import { exploreOf, halfExplored } from '../../game/explore';
+import { goldFrames, goldShelves } from './gold-frame';
 import CLIPS from './clips.json';
 import { strings } from './strings';
 import { buildTreeLook, loadTreeLook, treeStage, type TreeLoads, type TreeStage } from './tree-look';
@@ -72,10 +74,42 @@ const doneIn = (save: Save) => (id: string) => (save.worlds[id] as { final?: boo
  * shall we go back to the fairies?" - on a tap always (the shared words speak of friends, the hub has none), as she
  * comes in only while LEAD_HOME. With an open world not done yet - the shared words.
  */
-export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME): 'hub_asleep' | null {
-  if (somethingNew(openArches(portalWorlds(knownWorlds()), doneIn(save)), doneIn(save))) return null;
+export function hubLeft(save: Save, why: 'tap' | 'entry', leadHome = LEAD_HOME): SpokenKey | null {
+  const { open, dozing } = archesIn(save);
+  if (somethingNew(open, doneIn(save))) return null;
+  // an arch dozing: the world before it to explore more (the explorer's key), on a tap and as she comes in
+  const doze = dozing.length > 0 ? dozeKey(dozing[0].before) : null;
+  if (doze) return doze;
   return why === 'tap' || leadHome ? 'hub_asleep' : null;
 }
+/**
+ * A world ready for its next arch (the explorer's key, PLAY-36): its final reached and half of it explored
+ * (src/game/explore.ts), or its final alone with the parents' free pass (`Save.freeArches`).
+ */
+export const readyIn = (save: Save) => {
+  const done = doneIn(save);
+  return (id: string): boolean => {
+    if (!done(id)) return false;
+    if (save.freeArches === true) return true;
+    const w = knownWorlds().find((k) => k.id === id);
+    return !w || halfExplored(exploreOf(save, w));
+  };
+};
+/**
+ * An arch kept open - none closes (the key came after saves that went on by the artifact alone): it woke before (the
+ * hub's woke<shelf>, or its world's own word of waking, `HEARD_WAKE`), or its world was played (its part of the save).
+ */
+export const keptIn = (save: Save) => {
+  const f = ((save.worlds.hub as Partial<WorldState> | undefined)?.flags ?? {}) as Record<string, unknown>;
+  return (shelf: number, id: string): boolean => f[woke(shelf)] === true || (id in HEARD_WAKE && f[HEARD_WAKE[id]] === true) || save.worlds[id] !== undefined;
+};
+/** The hub's arches for a save: where each open one leads (null: asleep or dozing) and the dozing ones. */
+export function archesIn(save: Save): { open: (string | null)[]; dozing: { shelf: number; before: string }[] } {
+  const leadsTo = portalWorlds(knownWorlds()), open = openArches(leadsTo, readyIn(save), keptIn(save));
+  return { open, dozing: dozingArches(leadsTo, open, doneIn(save)) };
+}
+/** The cat's word by an arch dozing on the world `before` (hub_doze_<world> of the hub's strings); null - it has none. */
+export const dozeKey = (before: string): SpokenKey | null => (`hub_doze_${before}` in strings.spoken ? `hub_doze_${before}` as SpokenKey : null);
 /**
  * The flag of the hub's part of the save that the sea's word of waking set before the arches woke (`HEARD_WAKE`); its
  * words of coming home have the flags every world's have (`worldWord`): sea_home, sea_after.
@@ -262,7 +296,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     g.persist();
     sleep();
   };
-  const leadsTo = openArches(portalWorlds(knownWorlds()), doneIn(save));
+  const { open: leadsTo, dozing } = archesIn(save);
   const { arches: portals, update: breathe, wake } = buildArches(scene, leadsTo, ground.block, wakingArches(leadsTo, ws.flags, HEARD_WAKE));
   // The arches whose world opened since she was last here wake once she is free and the cat silent (docs/worlds/hub.md, step 4): the
   // vines fall, the stone warms, the veil and the runes light; the camera on the first of them, the controls held. Then
@@ -291,7 +325,9 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       if (key) void g.speech.line(key as SpokenKey, 'hint', 6000);
     };
   };
-  const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), boardGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : [])]);
+  // the gold frames of the worlds explored whole (the explorer's key, ./gold-frame.ts): in the nests' call too
+  const gold = goldShelves(save), frames = goldFrames(gold);
+  const { nests, update: glow } = buildNestLook(scene, L.arch, [cauldronGeometry(), boardGeometry(), ...(keepsakes.geometry ? [keepsakes.geometry] : []), ...(frames ? [frames] : [])]);
   // the glade dressed (./glade-look.ts): paths to the tree from the open arches, bushes, rocks, ferns, the motes
   const dressed = buildGladeLook(scene, L.glade, portals.filter((p) => p.world !== null), ground.block);
   buildRing(scene);
@@ -311,7 +347,9 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   const sleeping = portals.filter((p) => p.world === null), heard = new Set<number>();
   const home = portals[0];   // the arch of the first world: the fairies' (R9)
   // The cat leads to the next open arch whose world is not done yet (R10); none - back to the fairies' (LEAD_HOME).
-  const frameGoal = () => open.find((p) => !done(p.world!))?.at ?? (LEAD_HOME && home.world !== null ? home.at : null);
+  // With an arch dozing (the explorer's key) - to the arch of the world to explore more, before going home.
+  const dozeGoal = dozing.length > 0 ? open.find((p) => p.world === dozing[0].before)?.at ?? null : null;
+  const frameGoal = () => open.find((p) => !done(p.world!))?.at ?? dozeGoal ?? (LEAD_HOME && home.world !== null ? home.at : null);
   return {
     frame: {
       spots: [...open.map((p): Spot => ({ pos: p.at, r: PORTAL_SPOT, label: 'open', on: () => true, run: () => { void travel(p.world!); } })),
@@ -338,7 +376,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
         }
         if (!canMove || g.busy) return;
         const at = g.hero.root.position, shelf = sleepingToSpeakOf(at.x, at.z, sleeping, heard);
-        if (shelf !== null) void g.speech.line('hub_sleeping', 'hint', 5000);
+        // a dozing arch (the world before it done, not explored enough): to explore that world more
+        if (shelf !== null) void g.speech.line(dozeKey(dozing.find((d) => d.shelf === shelf)?.before ?? '') ?? 'hub_sleeping', 'hint', 5000);
       },
       goal: frameGoal,
       animate: (_dt, time) => {
@@ -351,7 +390,7 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
     },
     debug: {
       npcs: [],
-      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), board: () => ({ x: BOARD.x, z: BOARD.z, open: () => openTrainer(), card: { ...boardState }, skill: training.skill, end: training.end, days: trainDays(save), train: save.train ? { ...save.train } : null }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
+      more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), gold: () => [...gold], dozing: () => dozing.map((d) => ({ ...d })), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), board: () => ({ x: BOARD.x, z: BOARD.z, open: () => openTrainer(), card: { ...boardState }, skill: training.skill, end: training.end, days: trainDays(save), train: save.train ? { ...save.train } : null }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
         // the arches waking (or woken) in this entry: how far, whether it plays; `hold(t)` keeps it at t, null lets it go
         wake: (hold?: number | null) => { if (hold !== undefined) waking.hold = hold; return { shelves: wake?.shelves ?? [], t: waking.t, on: waking.on }; } } },
       talk: () => {},

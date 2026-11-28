@@ -2939,7 +2939,7 @@ try {
         });
         const lit = b.places.filter((p) => p.state === 'found').length;
         if (lit !== want) left.push(`${lit} places lit, not ${want}`);
-        if (b.ach.length !== 13) left.push(`${b.ach.length} achievements, not 13`);
+        if (b.ach.length !== 14) left.push(`${b.ach.length} achievements, not 14`);   // the twelve, the collector, the explorer (PLAY-36)
         for (const a of b.ach) if (a.got !== b.earned.includes(a.id) || a.got === a.sil) left.push(`the achievement ${a.id}: ${a.got ? 'shown received' : 'a silhouette'}, the save ${b.earned.includes(a.id) ? 'has' : 'has not'} it`);
         for (const x of b.secrets) if (x.got !== (b.flags[x.k] === true)) left.push(`the secret ${x.k}: ${x.got ? 'found' : 'a silhouette'}, the flag is ${b.flags[x.k]}`);
         if (left.length) fail(left.join('; '));
@@ -3256,6 +3256,82 @@ try {
           console.log(`mystery: 10 stars of the day, the ${star.kind} one opened "${type}", a mistake - the first rung, closed - it stayed; solved - +3 stars, stored; the next day ${10 - same} of 10 places new`);
         });
         await g(() => { __game.mystery.hold(); __game.mystery.day(null); });
+        if (bookOpen) {
+          await tapOn('#btnBook');
+          if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
+        }
+      }
+      // ---- the explorer's key (PLAY-36): the next arch dozes until half the world is explored, then wakes; every point -
+      // the gold frame and «Дослідниця». Sets up what it needs itself (the fairies done, the free pass off) and puts the
+      // save back as it was: the fairies' part, the hub's flags, the free pass, the achievements.
+      if (has('doze')) {
+        const fail = (what) => { throw new Error(`doze: ${what}`); };
+        const until = async (pred, arg, what, seconds = 20) => { if (!(await gameUntil(pred, arg, seconds))) fail(`${what} (in ${seconds} s of game time)`); };
+        const go = async (id) => {
+          if ((await g((w) => __game.travel(w), id)) !== true) fail(`the way to "${id}" was refused`);
+          await until((w) => __game.world === w && !__game.transitioning && !__game.busy, id, `she is not in "${id}"`, 90);
+          // the hub's tour on a first entry, ended as a player ends it
+          if (await gameUntil(() => __game.flyoverPlayer?.active === true, null, 3)) { await g(() => __game.flyoverPlayer.skip()); await until(() => !__game.busy, null, 'not given back after the tour'); }
+        };
+        const bookOpen = await visible('#book');
+        if (bookOpen) await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+        const kept = await g(() => JSON.stringify({ fairy: __game.save.worlds.fairy, hub: __game.save.worlds.hub ?? null, free: __game.save.freeArches ?? null, ach: __game.save.achievements, shown: __game.save.achShown ?? null }));
+        await holdAchDuring(async () => {
+          // the fairies done, the free pass off: little explored - the cat's word, the row of the points, the lead
+          await g(() => { __game.save.worlds.fairy.final = true; delete __game.save.freeArches; localStorage.setItem('amw-save', JSON.stringify(__game.save)); });
+          const p0 = await g(() => __game.explore.points('fairy'));
+          if (!p0 || p0.of !== 12 || p0.need !== 6 || p0.got >= p0.need) fail(`the fairies' points ${JSON.stringify(p0)}: 12, the half 6, fewer got expected`);
+          await until(() => __game.line === 'explore_more', null, 'the cat did not say "explore_more" after the final');
+          const row = await g(() => { const r = document.querySelector('#explore'); return r && { shown: !r.classList.contains('hidden'), got: +r.dataset.got, of: +r.dataset.of, dots: r.querySelectorAll('i').length, half: r.querySelectorAll('i.half').length }; });
+          if (!row?.shown || row.of !== 12 || row.dots !== 12 || row.half !== 1) fail(`the row of the points under the counters ${JSON.stringify(row)}`);
+          if (!(await g(() => __game.explore.lead().leading))) fail('the sparkles lead nowhere while the next arch dozes');
+          await framesDrawn(10);
+          await shot('doze-world-row');
+          // the hub: the forest's arch dozes, the cat speaks of the fairies, the sparkles to the fairies' arch
+          await go('hub');
+          const h1 = await g(() => ({ portals: __game.hub.portals().map((p) => p.world), dozing: __game.hub.dozing(), goal: __game.hub.goal(), fairy: __game.hub.portals()[0] }));
+          if (h1.portals[1] !== null || JSON.stringify(h1.dozing) !== JSON.stringify([{ shelf: 1, before: 'fairy' }])) fail(`the hub's arches ${JSON.stringify(h1)}: the forest's dozing on the fairies expected`);
+          if (!h1.goal || Math.hypot(h1.goal.x - h1.fairy.x, h1.goal.z - h1.fairy.z) > 3) fail(`the sparkles lead to ${JSON.stringify(h1.goal)}, not to the fairies' arch`);
+          // by the dozing arch (as by a sleeping one: within SLEEP_NEAR, src/worlds/hub/portals.ts) the cat names the world to explore
+          const arch = await g(() => __game.hub.portals()[1]);
+          await g((a) => __game.teleport(a.x * 0.85, a.z * 0.85), arch);
+          await until(() => __game.line === 'hub_doze_fairy', null, 'the cat did not say "hub_doze_fairy" by the forest\'s arch');
+          if ((await g(() => __game.hub.left('tap'))) !== 'hub_doze_fairy') fail('a tap on the cat in the hub is not "hub_doze_fairy"');
+          await shot('doze-hub');
+          // half explored: in the fairies the cat says so; every point - the frame's word
+          await g(() => __game.explore.fill('fairy', 0.5));
+          await go('fairy');
+          await until(() => __game.line === 'explore_half', null, 'the cat did not say "explore_half" with half the fairies explored');
+          await g(() => __game.explore.fill('fairy', 1));
+          await until(() => __game.line === 'explore_full', null, 'the cat did not say "explore_full" with the fairies explored whole');
+          // the book: the place of the crystal framed in gold, the dots under its line
+          await tapOn('#btnBook');
+          await until(() => !document.querySelector('#book').classList.contains('hidden'), null, 'the book did not open');
+          const book = await g(() => ({ gold: !!document.querySelector('#shelf .place[data-place="0"].gold'), dots: document.querySelectorAll('#shelfSay .explored i.on').length }));
+          if (!book.gold || book.dots !== 12) fail(`the book's shelf ${JSON.stringify(book)}: the crystal's place in gold, 12 dots filled expected`);
+          await shot('doze-book');
+          await closeBook().catch((e) => fail(`the book cannot be closed: ${why(e)}`));
+          // the hub again: the forest's arch wakes, the fairies' nest framed in gold, «Дослідниця» earned
+          await go('hub');
+          await until(() => __game.save.worlds.hub?.flags?.woke1 === true, null, 'the forest\'s arch did not wake', 60);
+          const h2 = await g(() => ({ forest: __game.hub.portals()[1].world, gold: __game.hub.gold(), ach: 'explorer' in __game.save.achievements }));
+          if (h2.forest !== 'forest' || JSON.stringify(h2.gold) !== '[0]' || !h2.ach) fail(`after exploring the hub ${JSON.stringify(h2)}: the forest's arch open, the fairies' frame, the achievement expected`);
+          await framesDrawn(10);
+          await shot('doze-hub-gold');
+          console.log(`doze: the fairies done with ${p0.got} of 12 points - "explore_more", the row and the lead; in the hub the forest's arch dozing, "hub_doze_fairy", the sparkles to the fairies; half - "explore_half"; all - "explore_full", gold in the book; the forest's arch woke, the gold frame, «Дослідниця»`);
+        });
+        // the save as it was, then back to the fairies
+        await g((k) => {
+          const was = JSON.parse(k), s = __game.save;
+          for (const key of Object.keys(s.worlds.fairy)) delete s.worlds.fairy[key];
+          Object.assign(s.worlds.fairy, was.fairy);
+          if (was.hub) s.worlds.hub = was.hub; else delete s.worlds.hub;
+          if (was.free) s.freeArches = true; else delete s.freeArches;
+          // the achievements the block earned (the artifact, the secrets, «Дослідниця») are not the piece's
+          s.achievements = was.ach; if (was.shown) s.achShown = was.shown; else delete s.achShown;
+          localStorage.setItem('amw-save', JSON.stringify(s));
+        }, kept);
+        await go('fairy');
         if (bookOpen) {
           await tapOn('#btnBook');
           if (!(await gameUntil(() => !document.querySelector('#book').classList.contains('hidden'), null, 5))) fail('the book does not open again after the block');
@@ -4847,6 +4923,18 @@ try {
             const h2 = await hints();
             if (h2.save !== null || h2.stored !== null || h2.sel !== 'world') errors.push(`controls: the cat's hints back "as in the world" ${JSON.stringify(h2)}`);
             else console.log('controls: the cat\'s hints "only when asked" written, "as in the world" stores nothing');
+            // the free pass between the worlds (the explorer's key, PLAY-36): on - stored and read by the hub; off - no field
+            const free = () => g(() => ({ save: __game.save.freeArches ?? null, stored: JSON.parse(localStorage.getItem('amw-save') || '{}').freeArches ?? null,
+              on: document.querySelector('#pFree')?.classList.contains('sel') ?? null }));
+            if ((await free()).on !== false) errors.push(`controls: the free pass is not there, off: ${JSON.stringify(await free())}`);
+            await page.click('#pFree'); await calm();
+            const f1 = await free();
+            if (f1.save !== true || f1.stored !== true || f1.on !== true) errors.push(`controls: the free pass on ${JSON.stringify(f1)}`);
+            await shot('parents-free-pass');
+            await page.click('#pFree'); await calm();
+            const f2 = await free();
+            if (f2.save !== null || f2.stored !== null || f2.on !== false) errors.push(`controls: the free pass back off ${JSON.stringify(f2)}`);
+            else console.log('controls: the free pass between the worlds on - stored, off - no field');
             await page.click('#pCtlBack'); await calm();
           }
           // closed and opened again: another example, and the section is shut until it is answered

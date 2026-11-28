@@ -42,19 +42,36 @@ export function portalWorlds(worlds: readonly PortalWorld[], places = 5): (strin
 }
 
 /**
- * Which arches are open (docs/worlds/hub.md «Какая арка открыта», the lead's decision 2026-11-22): an arch whose world
- * is in the registry (`leadsTo`, from `portalWorlds`) wakes once the world before it is done - the world of the nearest
- * place before it that has one (the forest after the fairies, the sea after the forest; with no forest in a build, the
- * sea after the fairies). The first place is open with its world. A world not yet woken: null, its arch sleeps. The
- * published game lists the first world alone (src/worlds/index.ts), so there the others sleep whatever is done.
+ * Which arches are open (docs/worlds/hub.md «Какая арка открыта», the lead's decision 2026-11-22, the explorer's key
+ * of 2026-11-28): an arch whose world is in the registry (`leadsTo`, from `portalWorlds`) wakes once the world before it
+ * is ready - the world of the nearest place before it that has one (the forest after the fairies, the sea after the
+ * forest; with no forest in a build, the sea after the fairies). Ready: its final reached and half of it explored, or
+ * its final alone with the parents' free pass (src/worlds/hub/index.ts `readyIn`, src/game/explore.ts). An arch once
+ * open never closes (`kept`: it woke before, or its world was played) - the key came after saves that went on by the
+ * artifact alone. The first place is open with its world. A world not yet woken: null, its arch sleeps or dozes.
+ * Every build lists all five worlds (src/worlds/index.ts).
  */
-export function openArches(leadsTo: readonly (string | null)[], done: (id: string) => boolean): (string | null)[] {
+export function openArches(leadsTo: readonly (string | null)[], ready: (id: string) => boolean, kept: (shelf: number, id: string) => boolean = () => false): (string | null)[] {
   let before: string | null = null;
   return leadsTo.map((id, i) => {
-    const open = id !== null && (i === 0 || (before !== null && done(before)));
+    const open = id !== null && (i === 0 || (before !== null && ready(before)) || kept(i, id));
     if (id !== null) before = id;
     return open ? id : null;
   });
+}
+
+/**
+ * The arches that doze (the explorer's key, «Арка ще дрімає»): their world in the registry and the world before them
+ * done, but not open - the world before not explored enough. Each with that world, the one to explore more.
+ */
+export function dozingArches(leadsTo: readonly (string | null)[], open: readonly (string | null)[], done: (id: string) => boolean): { shelf: number; before: string }[] {
+  const out: { shelf: number; before: string }[] = [];
+  let before: string | null = null;
+  leadsTo.forEach((id, shelf) => {
+    if (id !== null && open[shelf] === null && before !== null && done(before)) out.push({ shelf, before });
+    if (id !== null) before = id;
+  });
+  return out;
 }
 
 /** The flag of the hub's part of the save that marks the arch of a place of the shelf awake (./index.ts, `wakingArches`). */

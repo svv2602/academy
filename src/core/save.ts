@@ -38,6 +38,11 @@ export interface WorldState {
   pos: [number, number] | null;     // where the heroine stood
   /** The mysterious stars of the day (src/game/mystery.ts): absent until the first of them is shown; mended where read. */
   mystery?: { day: string; solved: number[]; told?: boolean };
+  /**
+   * The mysterious stars solved in this world over every day (src/game/explore.ts, the explorer's key): absent until
+   * the first solved after the key came (then today's solved are counted in); mended where read.
+   */
+  mysteryTotal?: number;
   /** The finds of the collections found (src/game/collections.ts): their numbers in the world's list; mended where read. */
   found?: number[];
   /** The day (dayKey) the find of the day was taken (src/game/daily-find.ts, PLAY-26): absent until then. */
@@ -138,6 +143,12 @@ export interface Save {
    * has them, always, or only when asked by a tap on the cat. Absent or damaged = as the world has them.
    */
   hints?: HintsChoice;
+  /**
+   * The free pass between the worlds (the parents' section, the explorer's key, docs/worlds/hub.md «Какая арка
+   * открыта»): on - the next arch wakes with the artifact alone, as before the key; absent or off - with the artifact
+   * and half the world explored (src/game/explore.ts). Anything but true is off.
+   */
+  freeArches?: boolean;
   /**
    * The world she was in last (WORLD-01, TECH-09; the hub too): "Continue" opens it, through the gate of worlds
    * (src/main.ts). Written at every entry into a world. Absent, or a world this build does not have: the default world.
@@ -597,6 +608,7 @@ function fromStored(s: Stored, d: Save): Save | null {
       .map(([day, counts]) => [day, countsOf(counts, (n) => Number.isInteger(n) && n > 0)]));
   }
   if (s.hints !== undefined) { if (HINTS.includes(s.hints)) out.hints = s.hints; else delete out.hints; }
+  if (s.freeArches !== undefined) { if (s.freeArches === true) out.freeArches = true; else delete out.freeArches; }
   if (s.breakMin !== undefined) out.breakMin = BREAK_CHOICES.includes(s.breakMin) ? s.breakMin : BREAK_DEFAULT;
   if (s.gift !== undefined) out.gift = typeof s.gift === 'string' && DAY.test(s.gift) ? s.gift : '';
   if (s.session !== undefined) out.session = sessionOf(s.session);

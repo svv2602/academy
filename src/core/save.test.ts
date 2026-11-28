@@ -1425,6 +1425,12 @@ describe('the controls the parent chose (PLAY-22): `controls`, a field of versio
     expect(s.v).toBe(SAVE_VERSION);
   });
 
+  it('the free pass between the worlds (Save.freeArches, PLAY-36): true kept, anything else is off (no field)', () => {
+    expect(load({ freeArches: true }).freeArches).toBe(true);
+    for (const bad of [false, 'yes', 1, null]) expect(load({ freeArches: bad }).freeArches, JSON.stringify(bad)).toBeUndefined();
+    expect(load({}).freeArches).toBeUndefined();
+  });
+
   it('the cat\'s hints (Save.hints): a known choice kept, anything else is "as in the world" (no field)', () => {
     for (const k of ['always', 'asked', 'world']) expect(load({ hints: k }).hints).toBe(k);
     for (const bad of ['often', 3, null, ['always']]) expect(load({ hints: bad }).hints, JSON.stringify(bad)).toBeUndefined();

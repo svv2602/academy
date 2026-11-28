@@ -3,6 +3,7 @@ import { recordTask, levelFor } from './skills';
 import { typeOf } from './tasks';
 import { SKILL, answerOf } from './taskviews/panel';
 import { mixWide } from './wide';
+import { countMystery } from './explore';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
@@ -121,7 +122,8 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
         if (!res.solved) { void g.speech.line('mystery_wait', 'story'); return; }      // closed: it waits, nothing is taken
         recordTask(g.save, skill, res.wrong, false, answerOf(res));
         const state = mysteryOf(g.ws, shownDay);
-        if (!state.solved.includes(s.id)) state.solved.push(s.id);
+        // counted once per star and day: a solved star opened again the same day (the flowers moved when English goes off) adds nothing
+        if (!state.solved.includes(s.id)) { countMystery(g.ws); state.solved.push(s.id); }
         s.solved = true;
         refreshUnsolved();
         g.sparks.burst(g.above(s.pos, 0), MYSTERY_COLOR[s.kind], 36, 4);

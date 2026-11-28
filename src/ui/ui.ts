@@ -357,6 +357,7 @@ export function initBook(save: Save, book: BookInfo, on: {
     $('pBody').innerHTML = `<div class="pctl">${CONTROL_IDS.map((id) => `<div class="prow"><span>${t(`p_ctl_${id}` as Key)}</span>${CONTROL_STEPS.map((k) =>
       `<button data-ctl="${id}" data-step="${k}" class="${step(id) === k ? 'sel' : ''}">${t(`p_ctl_${id}_${k}` as Key)}</button>`).join('')}</div>`).join('')}
       <div class="prow"><span>${t('p_hints')}</span>${HINTS.map((k) => `<button data-hints="${k}" class="${(save.hints ?? 'world') === k ? 'sel' : ''}">${t(`p_hints_${k}` as Key)}</button>`).join('')}</div>
+      <div class="prow pfree"><span>${t('p2_free')}</span><button id="pFree" class="${save.freeArches === true ? 'sel' : ''}">${t(save.freeArches === true ? 'p2_free_on' : 'p2_free_off')}</button></div>
       <div class="pcfoot"><p class="pnote">${t('p_ctl_note')}</p><button id="pCtlBack">${t('p_code_back')}</button></div></div>`;
     $('pBody').querySelectorAll<HTMLElement>('[data-ctl]').forEach((b) => b.addEventListener('click', () => {
       const id = b.dataset.ctl as ControlId, k = b.dataset.step as ControlStep;
@@ -371,6 +372,8 @@ export function initBook(save: Save, book: BookInfo, on: {
       if (k === 'world') delete save.hints; else save.hints = k;
       on.change(); renderControls();
     }));
+    // the free pass between the worlds (the explorer's key, PLAY-36): on - the next arch by the artifact alone
+    $('pFree').addEventListener('click', () => { if (save.freeArches === true) delete save.freeArches; else save.freeArches = true; on.change(); renderControls(); });
     $('pCtlBack').addEventListener('click', renderParents);
   };
   const renderCode = () => {

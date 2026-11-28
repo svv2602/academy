@@ -200,6 +200,24 @@ describe('the stars in the world (src/game/mystery-stars.ts)', () => {
     expect(h.lines.filter((k) => k === 'mystery_found')).toHaveLength(2);
   });
 
+  it('the stars solved over the days (the explorer\'s key, ws.mysteryTotal): +1 a star, once per star and day', async () => {
+    mysteryHold.day = '2026-11-20';
+    const h = host();
+    // before the key: the day's solved are counted in with the first one after it
+    h.g.ws.mystery = { day: '2026-11-20', solved: [7] };
+    const m = createMystery(h.g, geo, h.stage), late = createMystery(h.g, geo, h.stage);
+    const s = m.today.find((x) => !x.solved)!, i = m.today.indexOf(s);
+    m.spots.find((p) => p.pos === s.pos)!.run(); await vi.waitFor(() => expect(h.lines).toContain('mystery_won'));
+    expect(h.g.ws.mysteryTotal).toBe(2);
+    // the same star opened again the same day by a view that placed it before it was solved (the flowers moved when
+    // English goes off): its task is played, but nothing is counted twice
+    h.lines.length = 0;
+    late.spots.find((p) => p.pos === late.today[i].pos)!.run(); await vi.waitFor(() => expect(h.lines).toContain('mystery_won'));
+    expect(h.g.ws.mysteryTotal).toBe(2);
+    expect(h.g.ws.mystery!.solved.filter((id) => id === s.id)).toHaveLength(1);
+    m.dispose(); late.dispose();
+  });
+
   it('the task is of the star\'s kind, on the level of its skill', async () => {
     mysteryHold.day = '2026-11-20';
     const h = host(), m = createMystery(h.g, geo, h.stage);

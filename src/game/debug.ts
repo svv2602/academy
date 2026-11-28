@@ -17,6 +17,9 @@ import { achState, queue } from '../ui/achieve';
 import { breakHold } from '../ui/session';
 import { giftState } from '../ui/welcome';
 import { mysteryHold } from './mystery-stars';
+import { exploreOf, fillExplore } from './explore';
+import { knownWorlds } from './artifacts';
+import { EXPLORE_WORDS, exploreLeadOf } from './explore-lead';
 import { easelState } from '../ui/easel';
 import { guideState, type HintsChoice } from './guide-rule';
 import { cpaHold, cpaOf, type Cpa } from './tasks/cpa';
@@ -167,6 +170,12 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
      * the day (the worst case for the measure of the draw calls), `drawn` - whether they are drawn this frame (`showR`). The walkthrough's own lever (R61), never the game's; the hold
      * lasts for the tab (sessionStorage).
      */
+    // the explorer's key (PLAY-36, ./explore.ts): a world's points, `fill` gives them up to a share; `lead` - in the world played
+    explore: {
+      points: (id: string = g.worldId) => { const w = knownWorlds().find((k) => k.id === id); return w ? exploreOf(g.save, w) : null; },
+      fill: (id: string, share: number) => { const w = knownWorlds().find((k) => k.id === id); if (!w) return null; const e = fillExplore(g.save, w, share); g.persist(); return e; },
+      lead: () => { const l = exploreLeadOf(g); const p = l?.leading(); return { leading: p ? { x: p.x, z: p.z } : null, words: Object.values(EXPLORE_WORDS).filter((k) => g.ws.flags[k] === true) }; },
+    },
     mystery: {
       get held() { return mysteryHold.held; },
       hold() { mysteryHold.held = true; try { sessionStorage.setItem(MYSTERY_HOLD, '1'); } catch { /* ignore */ } },

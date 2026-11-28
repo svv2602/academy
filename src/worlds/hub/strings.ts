@@ -1,5 +1,5 @@
 /**
- * The texts of the hub, the Great Tree (./index.ts, docs/worlds/hub.md). It speaks four lines of its own: the cat's on
+ * The texts of the hub, the Great Tree (./index.ts, docs/worlds/hub.md). It speaks lines of its own: the cat's on
  * the tour (R34), its word with nothing new (./index.ts hubLeft) by a sleeping arch and as she takes the find of the day, their clips in voice/hub/ - part of the installation, precached with the core.
  *
  * Only `import type` and `declare module` here: tools/sync_phrases.mjs loads this file in Node. Its keys start with
@@ -17,6 +17,11 @@ const uk = { subtitle: 'Велике Дерево', hub_title: 'Велике Д�
   hub_asleep: 'Інші світи ще сплять. Повернемося до фей?',
   // the cat by a sleeping arch (./index.ts, portals.ts sleepingToSpeakOf)
   hub_sleeping: 'Цей світ ще спить. Він прокинеться згодом!',
+  // the cat by a dozing arch (the explorer's key, PLAY-36): the world before it done, not half explored (./index.ts dozeKey)
+  hub_doze_fairy: 'Арка ще дрімає — давай ще трохи дослідимо Королівство фей!',
+  hub_doze_forest: 'Арка ще дрімає — давай ще трохи дослідимо Зачарований ліс!',
+  hub_doze_sea: 'Арка ще дрімає — давай ще трохи дослідимо Підводне королівство!',
+  hub_doze_sweet: 'Арка ще дрімає — давай ще трохи дослідимо Солодку країну!',
   // the cat as she takes a feather of the Great Tree's bird, the hub's find of the day (R38)
   hub_feather: 'Це перо птаха з Великого Дерева! Завтра тут знайдеться ще одне.',
   hub_tour: 'Це Велике Дерево! Світло Кристала вже тут. Але дивись: ще чотири гнізда порожні. Їхні світи поки сплять.',
@@ -42,6 +47,10 @@ const uk = { subtitle: 'Велике Дерево', hub_title: 'Велике Д�
 const ru: Record<keyof typeof uk, string> = { subtitle: 'Великое Древо', hub_title: 'Великое Древо', hub_count: '{n} из 5',
   hub_asleep: 'Другие миры ещё спят. Вернёмся к феям?',
   hub_sleeping: 'Этот мир ещё спит. Он проснётся позже!',
+  hub_doze_fairy: 'Арка ещё дремлет — давай ещё немного исследуем Королевство фей!',
+  hub_doze_forest: 'Арка ещё дремлет — давай ещё немного исследуем Зачарованный лес!',
+  hub_doze_sea: 'Арка ещё дремлет — давай ещё немного исследуем Подводное королевство!',
+  hub_doze_sweet: 'Арка ещё дремлет — давай ещё немного исследуем Сладкую страну!',
   hub_feather: 'Это перо птицы с Великого Древа! Завтра здесь найдётся ещё одно.',
   hub_tour: 'Это Великое Древо! Свет Кристалла уже здесь. Но смотри: ещё четыре гнезда пустые. Их миры пока спят.',
   hub_forest_wake: 'Слышишь? Портал в лес проснулся! Беги за искорками.',
@@ -57,7 +66,7 @@ const ru: Record<keyof typeof uk, string> = { subtitle: 'Великое Древ
   hub_sky_home: 'Звезда времени дома! Все гнёзда Древа сияют.',
 };
 
-export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm', hub_sweet_wake: 'joy', hub_sweet_home: 'joy', hub_sweet_after: 'warm', hub_sky_wake: 'joy', hub_sky_home: 'joy' } } satisfies WorldStrings;
+export const strings = { id: 'hub', table: { uk, ru }, spoken: { hub_tour: 'joy', hub_feather: 'joy', hub_asleep: 'warm', hub_sleeping: 'warm', hub_doze_fairy: 'warm', hub_doze_forest: 'warm', hub_doze_sea: 'warm', hub_doze_sweet: 'warm', hub_forest_wake: 'joy', hub_forest_home: 'joy', hub_forest_after: 'warm', hub_sea_wake: 'joy', hub_sea_home: 'joy', hub_sea_after: 'warm', hub_sweet_wake: 'joy', hub_sweet_home: 'joy', hub_sweet_after: 'warm', hub_sky_wake: 'joy', hub_sky_home: 'joy' } } satisfies WorldStrings;
 
 declare module '../../ui/strings' {
   interface WorldTables { hub: typeof strings }

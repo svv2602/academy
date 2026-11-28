@@ -13,6 +13,7 @@ import { tickPlayTime } from './playtime';
 import { tickSession } from './session';
 import { storyOf } from './story';
 import { suppliesOf } from './supplyfx';
+import { exploreLeadOf } from './explore-lead';
 
 /**
  * The seam between the frame and the world (ARCH-05): the world's own parts of a frame, called at fixed places in it.
@@ -105,9 +106,11 @@ export function startLoop(g: Game, q: Quality, world: WorldFrame): Loop {
     g.easel.update(time);
     g.collect.update(dt, time, canMove);
     world.update(dt, time, canMove);
-    suppliesOf(g)?.update(dt, time, canMove);   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
-    // the lead to the easel after the world's first piece goes over the world's own goal for a while (src/game/easel.ts)
-    guide.update(time, g.started() && !g.busy ? g.easel.leading() ?? world.goal() : null);
+    suppliesOf(g)?.update(dt, time, canMove);
+    exploreLeadOf(g)?.update(dt, canMove);   // the explorer's key: the cat's word of the points (src/game/explore-lead.ts)   // the potions: their time runs while she can walk (src/game/supplyfx.ts)
+    // the lead to the easel after the world's first piece goes over the world's own goal for a while (src/game/easel.ts);
+    // the world's own done, while the next arch dozes - to the nearest thing not found (src/game/explore-lead.ts)
+    guide.update(time, g.started() && !g.busy ? g.easel.leading() ?? world.goal() ?? exploreLeadOf(g)?.leading() ?? null : null);
     player.fadeRing(dt);
 
     hero.update(dt); cat.update(dt);

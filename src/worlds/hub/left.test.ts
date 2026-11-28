@@ -35,7 +35,8 @@ describe('the cat in the hub with nothing new', () => {
 
   it('an open world not done yet: the shared words', () => {
     knowWorlds([{ id: 'fairy', shelf: 0 }, { id: 'sea', shelf: 2 }, { id: 'hub' }]);
-    const s = defaultSave(); final(s, 'fairy');
+    // the parents' free pass: the sea's arch open by the artifact alone (explored or not - ./doze.test.ts)
+    const s = defaultSave(); final(s, 'fairy'); s.freeArches = true;
     expect(hubLeft(s, 'tap')).toBeNull();
     expect(hubLeft(s, 'entry')).toBeNull();
   });

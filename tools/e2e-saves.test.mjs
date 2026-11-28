@@ -41,7 +41,10 @@ describe('tools/e2e-saves.mjs: the saves the groups of the walkthrough start fro
       expect(storage.getItem('amw-save-damaged')).toBeNull();
       expect(s.v).toBe(SAVE_VERSION);
       expect(stored.v).toBe(SAVE_VERSION);
-      expect(keys(stored)).toEqual(keys(defaultSave()));
+      // the parents' free pass of a save with the world done (PLAY-36, `played`): a choice the defaults do not have
+      expect(stored.freeArches === true).toBe(stored.worlds.fairy?.final === true);
+      expect(s.freeArches === true).toBe(stored.worlds.fairy?.final === true);
+      expect(keys(stored).filter((k) => k !== 'freeArches')).toEqual(keys(defaultSave()));
       expect(keys(stored.skills)).toEqual(keys(defaultSave().skills));
       expect(keys(stored.vol)).toEqual(keys(defaultSave().vol));
       expect(keys(stored.fixed)).toEqual(keys(defaultSave().fixed));

@@ -1,5 +1,5 @@
 /**
- * Achievements (PLAY-08): the twelve of the customer's decision of 2026-11-15 (R42) and the collector of PLAY-25 (2026-11-20), for exploring, for trying and for
+ * Achievements (PLAY-08): the twelve of the customer's decision of 2026-11-15 (R42) and the collector of PLAY-25 (2026-11-20) and the explorer of PLAY-36 (2026-11-28), for exploring, for trying and for
  * keeping at it. Each condition is a pure function of the save and of what the open worlds are made of (`AchContext`);
  * none reads the time of an answer, a frame count or the length of a session (R04). A received achievement is written
  * into `save.achievements` for ever (R51): nothing here removes one, and a mistake moves no counter but the current run
@@ -11,11 +11,14 @@
 import type { Save, WorldState } from '../core/save';
 import { dayKey } from './playtime';
 import type { SkillId } from './skills';
+// the worlds of the shelf (a name with no clock in it: the test of R04 reads the conditions' text)
+import { knownWorlds as shelfWorlds } from './artifacts';
+import { exploreOf, fullyExplored } from './explore';
 
 export type AchievementId =
   | 'first_shard' | 'secret_chest' | 'all_world_stars' | 'first_artifact' | 'three_secrets'
   | 'first_task' | 'try_again' | 'all_skills' | 'fifty_tasks'
-  | 'clean_ten' | 'days_3' | 'days_5' | 'collector';
+  | 'clean_ten' | 'days_3' | 'days_5' | 'collector' | 'explorer';
 
 /** What a world is made of, as the conditions need it; the world gives it (no world's names in this file). */
 export interface WorldFacts {
@@ -83,6 +86,9 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   // PLAY-25 (the decision of 2026-11-20): every collection of one world whole
   { id: 'collector', group: 'explore', icon: '🧺',
     test: (s, ctx) => anyWorld(ctx, s, (w, f) => (f.collect?.length ?? 0) > 0 && f.collect!.every((i) => w.found?.includes(i))) },
+  // PLAY-36 (the explorer's key, the lead's word of 2026-11-28): every point of one world of the shelf (./explore.ts)
+  { id: 'explorer', group: 'explore', icon: '🧭',
+    test: (s) => shelfWorlds().some((w) => w.shelf !== undefined && fullyExplored(exploreOf(s, w))) },
 ];
 
 /** The achievements whose condition is met and that the save does not hold yet, in the order of ACHIEVEMENTS. */

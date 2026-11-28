@@ -34,6 +34,7 @@ export const BLOCKS = [
   'magic-crystal',  // the crystal restored brings the magic to 1 (WORLD-09)
   'book',           // the collection book against the save
   'pet',            // the pet of the first world: found by the action button, chosen in the book, after her after a reload (PLAY-09)
+  'doze',           // the explorer's key (PLAY-36): the fairies done, little explored - the cat's word, the row, the lead; the forest's arch dozing in the hub; half - it wakes; all - the gold frame, the book, «Дослідниця»
   'mystery',        // the mysterious stars: the line of the day, a star's task - a mistake, closed and it stays, solved for 3 stars; the next day other places
   'collect',        // the collections: each of the six ways to take a find once, a whole set for 5 more, the page of the book
   'context-loss',   // the picture lost: the game stands and goes on when it is back; not back in 10 s - saved, then "reload"
@@ -103,6 +104,9 @@ function played({ done, stars, tasks, final = false }) {
   for (const [k, n] of Object.entries(tasks)) s.skills[k] = skill(n, s.skills[k].level);
   const flags = Object.fromEntries(done.flatMap((id) => PART_FLAGS[id] ?? []).map((f) => [f, true]));
   s.worlds.fairy = { quests: Object.fromEntries(done.map((id) => [id, CHAINS[id]])), final, starsTaken: [], flags, pos: null };
+  // a world done goes on by its artifact, as before the explorer's key (PLAY-36): the parents' free pass - the arches and
+  // the cat's words of the pieces stay theirs; the key's own rule is the block "doze" (tools/shot.mjs)
+  if (final) s.freeArches = true;
   return s;
 }
 
@@ -167,7 +171,7 @@ export const GROUPS = {
   // The tasks in breadth (LEARN-27) and the harder example she may ask for (LEARN-28) are played here too, before the
   // finds: the piece is the shortest one, and both blocks need a finished chain with addition in it (the unicorn's)
   // and put the skills back as they were.
-  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['wide', 'dare', 'collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
+  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['wide', 'dare', 'collect', 'doze', 'context-loss'], ach: ['first_shard', 'first_task'] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };
@@ -183,7 +187,7 @@ export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'
  * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
  * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
  */
-export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide', 'dare'];
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide', 'dare', 'doze'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice
