@@ -5,7 +5,7 @@
  * The show of each type is its own module (`taskviews/<type>.ts`); it only draws and wires the taps, and draws no
  * random numbers: every choice of the task is in the description. `runTask` makes the description from the task's rng.
  * The shows are drawn by `hints.css` (the composition of a number by its own `compose.css`, the neighbours of a number
- * by `neighbors.css`, the signs by `signs.css`).
+ * by `neighbors.css`, the signs by `signs.css`, the tasks in breadth by `wide.css`).
  *
  * The helpers of a task (src/game/helpers.ts) have their buttons in a corner of the panel, only when she has one and
  * where it gives something: the owl - before any mistake or hint, the first rung of the hint at once (and the first
@@ -43,14 +43,24 @@ import { puzzleView } from './puzzle';
 import { enTapView } from './en_tap';
 import { enCountView } from './en_count';
 import { noteView } from './note';
+import { sum3View } from './sum3';
+import { gapView } from './gap';
+import { chainView } from './chain';
+import { exprsView } from './exprs';
+import { storyView } from './story';
 import './hints.css';
 
-/** The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). */
+/**
+ * The skill a task of each type trains (LEARN-03): the save keeps a level per skill (src/game/skills.ts). A task in
+ * breadth (LEARN-27: sum3, gap, chain, exprs, story) is recorded to the skill that asked for it (src/game/wide.ts); the one named here is the
+ * skill it belongs to when nothing asked. A new type goes to the end: the tests take their seeds by this order.
+ */
 export const SKILL: Record<TaskType, SkillId> = {
   count: 'count', add: 'add', sub: 'sub', compare: 'compare', order: 'series', pattern: 'pattern',
   pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
   neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
   en_tap: 'en_words', en_count: 'en_words', note: 'read',
+  sum3: 'add', gap: 'sub', chain: 'add', exprs: 'add', story: 'sub',
 };
 
 /** `helped`: a helper was taken in this task (src/game/helpers.ts): the level does not grow for it. */
@@ -157,6 +167,7 @@ const viewOf = <T extends TaskType>(type: T) => ({
   count: countView, add: addView, sub: subView, compare: compareView, pattern: patternView,
   odd: oddView, pairs: pairsView, order: orderView, sort: sortView, simon: simonView, missing: missingView, house: houseView,
   neighbors: neighborsView, signs: signsView, diff: diffView, puzzle: puzzleView, en_tap: enTapView, en_count: enCountView, note: noteView,
+  sum3: sum3View, gap: gapView, chain: chainView, exprs: exprsView, story: storyView,
 } satisfies Views as Views)[type] as PanelView<T> | undefined;
 
 /**

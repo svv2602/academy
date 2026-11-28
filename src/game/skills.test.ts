@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultSave, type Save } from '../core/save';
-import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, climbs, isOpen, levelFor, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
+import { LATE_SKILLS, LEVELS, SEASON2_SKILLS, SKILLS, START, WIDE, WIDE_MISSES, climbs, isOpen, isWide, levelFor, recordDare, recordTask, shownSkills, startLevel, statOf, withinLevels, type SkillId } from './skills';
 import { SKILL } from './taskviews/panel';
 
 /** Feeds a series of finished tasks (number of wrong answers in each, the step of the hint reached) through recordTask. */
@@ -96,6 +96,8 @@ describe('the skills of the ladder (LEARN-03, R38)', () => {
       pairs: 'memory', simon: 'memory', odd: 'classify', sort: 'classify', missing: 'compose', house: 'compose',
       neighbors: 'series', signs: 'compare', diff: 'attention', puzzle: 'assemble',
       en_tap: 'en_words', en_count: 'en_words', note: 'read',
+      // the tasks in breadth (LEARN-27): recorded to the skill that asked for them, these are their own
+      sum3: 'add', gap: 'sub', chain: 'add', exprs: 'add', story: 'sub',
     });
     for (const k of Object.values(SKILL)) expect(SKILLS).toContain(k);
     // every skill is trained by some kind of task (the composition of a number: the missing addend and the house), but
@@ -363,5 +365,186 @@ describe('the run of clean solves of every skill (PLAY-08, R44)', () => {
     expect(a.clean).toEqual({ run: 2, best: 2 });
     expect(a.skills.add).toEqual({ ...b.skills.add });
     expect(a.skills.add).toMatchObject({ tasks: 6, first: 4, errors: 4 });
+  });
+});
+
+describe('recordTask: a task in breadth is counted and moves nothing (LEARN-27, decision Q18)', () => {
+  /** Tasks in breadth of `type`, each with so many wrong answers, recorded to `skill`. */
+  const wide = (s: Save, skill: SkillId, type: string, ...wrongs: number[]) => { for (const wrong of wrongs) recordTask(s, skill, wrong, false, { type }); };
+  /** A save with `skill` at `level` and a run of `streak`; `settled`: its fast climb is over. */
+  const from = (skill: SkillId, level: number, streak: number, settled = true) => {
+    const s = settled ? at(skill, level) : climbing(skill, level);
+    s.skills[skill].streak = streak;
+    return s;
+  };
+
+  it('the kinds in breadth: three for addition, three for take away; a chain of two actions belongs to both', () => {
+    expect(WIDE).toEqual({ add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] });
+    for (const [skill, kinds] of Object.entries(WIDE)) for (const kind of kinds) {
+      // its own skill is the one that gives it, or - for the chain, which both give - addition
+      expect(SKILL[kind], kind).toBe(kind === 'chain' ? 'add' : skill);
+      expect(isWide(kind), kind).toBe(true);
+    }
+    for (const usual of ['add', 'sub', 'count', 'missing', 'signs', 'world', '', undefined]) expect(isWide(usual), String(usual)).toBe(false);
+    expect(WIDE_MISSES).toBe(2);
+  });
+
+  interface Row { why: string; level: number; streak: number; settled?: boolean; wrongs: number[]; want: { level: number; streak: number; wideMiss?: number }; climbing?: boolean }
+  const rows: Row[] = [
+    { why: 'clean solves: the level and the run stay', level: 5, streak: 2, wrongs: [0, 0, 0], want: { level: 5, streak: 2 } },
+    { why: 'one wrong answer does not end the run (a usual task would)', level: 5, streak: 3, wrongs: [1], want: { level: 5, streak: 3 } },
+    { why: 'two wrong answers: the run stays, the task is remembered as one that went badly', level: 5, streak: 2, wrongs: [2], want: { level: 5, streak: 2, wideMiss: 1 } },
+    { why: 'three wrong answers do not step the level down (a usual task would)', level: 5, streak: 2, wrongs: [3], want: { level: 5, streak: 2, wideMiss: 1 } },
+    { why: 'two in a row with two wrong answers end the run: back to the usual tasks; the level stays', level: 5, streak: 4, wrongs: [2, 2], want: { level: 5, streak: 0 } },
+    { why: 'two in a row with three and five wrong answers: the same, and still no step down', level: 5, streak: 2, wrongs: [3, 5], want: { level: 5, streak: 0 } },
+    { why: 'a clean one between two that went badly starts the count again', level: 5, streak: 2, wrongs: [2, 0, 2], want: { level: 5, streak: 2, wideMiss: 1 } },
+    { why: 'so does one with a single wrong answer', level: 5, streak: 2, wrongs: [3, 1, 2], want: { level: 5, streak: 2, wideMiss: 1 } },
+    { why: 'after the run has ended the count starts again from none', level: 5, streak: 2, wrongs: [2, 2, 2], want: { level: 5, streak: 0, wideMiss: 1 } },
+    { why: 'four that went badly: the run stays ended, the level stays', level: 5, streak: 2, wrongs: [2, 2, 2, 2], want: { level: 5, streak: 0 } },
+    { why: 'below the top level a clean one is no step up, with the climb over', level: 3, streak: 1, wrongs: [0, 0, 0, 0], want: { level: 3, streak: 1 } },
+    { why: 'nor in the fast climb, where every usual clean solve is a step up', level: 3, streak: 0, settled: false, wrongs: [0, 0, 0, 0], want: { level: 3, streak: 0 }, climbing: true },
+    { why: 'two wrong answers do not end the fast climb (a usual task would)', level: 5, streak: 2, settled: false, wrongs: [2, 4], want: { level: 5, streak: 0 }, climbing: true },
+    { why: 'a run towards a step down is not touched: neither ended nor moved on', level: 4, streak: -1, wrongs: [2, 2], want: { level: 4, streak: -1 } },
+  ];
+  it.each(rows)('level $level, run $streak, tasks in breadth with $wrongs wrong answers: $why', ({ level, streak, settled, wrongs, want, climbing: stillClimbs }) => {
+    for (const [skill, type] of [['add', 'sum3'], ['sub', 'gap'], ['add', 'chain'], ['sub', 'chain'], ['add', 'exprs'], ['sub', 'story']] as const) {
+      const s = from(skill, level, streak, settled !== false);
+      wide(s, skill, type, ...wrongs);
+      const k = s.skills[skill];
+      expect({ level: k.level, streak: k.streak, wideMiss: k.wideMiss }, skill).toEqual({ wideMiss: undefined, ...want });
+      expect(Object.hasOwn(k, 'wideMiss'), 'no count is kept when there is nothing to count').toBe(want.wideMiss !== undefined);
+      expect(climbs(k), skill).toBe(stillClimbs === true);
+      expect([k.tasks, k.errors, k.first], skill).toEqual([wrongs.length, wrongs.reduce((x, y) => x + y, 0), wrongs.filter((w) => w === 0).length]);
+    }
+  });
+
+  it('the same tasks recorded as usual ones do move the level: the rule is chosen by the type of the task', () => {
+    const usual = from('add', 5, 2), breadth = from('add', 5, 2);
+    for (const wrong of [3, 3]) { recordTask(usual, 'add', wrong, false, { type: 'add' }); recordTask(breadth, 'add', wrong, false, { type: 'sum3' }); }
+    expect(usual.skills.add.level).toBe(3);
+    expect(breadth.skills.add.level).toBe(5);
+    // a task with no type named (a task in the world) is a usual one
+    const world = from('add', 5, 2);
+    recordTask(world, 'add', 3);
+    expect(world.skills.add.level).toBe(4);
+  });
+
+  it('the usual tasks between two tasks in breadth do not start the count again: "in a row" is of the tasks in breadth', () => {
+    const s = from('add', 5, 2);
+    wide(s, 'add', 'sum3', 2);
+    play(s, 'add', 0);
+    expect(s.skills.add).toMatchObject({ streak: 3, wideMiss: 1 });
+    wide(s, 'add', 'sum3', 2);
+    expect(s.skills.add).toMatchObject({ level: 5, streak: 0 });
+    expect(s.skills.add.wideMiss).toBeUndefined();
+  });
+
+  it('solved with a helper and no mistake: no clean solve, the run of clean solves of the achievement ends; nothing else moves', () => {
+    const s = from('sub', 5, 2);
+    play(s, 'count', 0, 0, 0);
+    expect(s.clean).toEqual({ run: 3, best: 3 });
+    recordTask(s, 'sub', 0, true, { type: 'gap' });
+    expect(s.skills.sub).toMatchObject({ level: 5, streak: 2, tasks: 1, first: 0, errors: 0 });
+    expect(s.clean).toEqual({ run: 0, best: 3 });
+  });
+
+  it('the run of clean solves of the achievement counts a task in breadth as any other', () => {
+    const s = from('add', 5, 2);
+    wide(s, 'add', 'sum3', 0, 0);
+    expect(s.clean).toEqual({ run: 2, best: 2 });
+    wide(s, 'add', 'sum3', 1);
+    expect(s.clean).toEqual({ run: 0, best: 2 });
+  });
+
+  it('its answer goes to the parents\' report under its own type', () => {
+    const s = from('add', 5, 2);
+    recordTask(s, 'add', 0, false, { type: 'sum3', ms: 4200 });
+    recordTask(s, 'add', 2, false, { type: 'sum3' });
+    expect(s.answers?.add.map((a) => [a.t, a.ok, a.ms])).toEqual([['sum3', 1, 4200], ['sum3', 0, undefined]]);
+  });
+
+  it.each([['x'], [-3], [0.5], [null], [Number.NaN]])('a damaged count (%j) starts from none: one task that went badly does not end the run', (bad) => {
+    const s = from('add', 5, 2);
+    (s.skills.add as { wideMiss?: unknown }).wideMiss = bad;
+    wide(s, 'add', 'sum3', 2);
+    expect(s.skills.add).toMatchObject({ level: 5, streak: 2, wideMiss: 1 });
+  });
+
+  it('each skill counts its own', () => {
+    const s = from('add', 5, 2);
+    (s.skills.sub ??= statOf(s, 'sub')).level = 5; s.skills.sub.streak = 2; s.skills.sub.settled = true;
+    wide(s, 'add', 'sum3', 2);
+    wide(s, 'sub', 'gap', 2);
+    expect([s.skills.add.streak, s.skills.sub.streak]).toEqual([2, 2]);
+    wide(s, 'sub', 'gap', 2);
+    expect([s.skills.add.streak, s.skills.sub.streak]).toEqual([2, 0]);
+    expect([s.skills.add.wideMiss, s.skills.sub.wideMiss]).toEqual([1, undefined]);
+  });
+});
+
+describe('recordDare: a harder example taken by her own wish (LEARN-28, decision Q19)', () => {
+  /** A save with `skill` at `level` and a run of `streak`; `settled`: its fast climb is over. */
+  const from = (skill: SkillId, level: number, streak: number, settled = true) => {
+    const s = settled ? at(skill, level) : climbing(skill, level);
+    s.skills[skill].streak = streak;
+    return s;
+  };
+
+  it('solved cleanly and by herself: her level is that level at once, the run starts anew', () => {
+    const s = from('add', 3, 1);
+    recordDare(s, 'add', 4, 0, false, { type: 'add', ms: 3000 });
+    expect(s.skills.add).toMatchObject({ level: 4, streak: 0, tasks: 1, first: 1, errors: 0, settled: true });
+    expect(s.answers?.add.map((a) => [a.t, a.ok, a.ms])).toEqual([['add', 1, 3000]]);
+    expect(s.clean).toEqual({ run: 1, best: 1 });
+  });
+
+  it.each([[1, 'one wrong answer'], [2, 'two wrong answers'], [3, 'three'], [7, 'seven']])('%i wrong: %s - counted, and nothing moves: not the level, not the run, not the end of the climb', (wrong) => {
+    for (const [streak, settled] of [[1, true], [0, true], [-1, true], [0, false]] as const) {
+      const s = from('sub', 3, streak, settled);
+      recordDare(s, 'sub', 4, wrong, false, { type: 'sub' });
+      expect(s.skills.sub, `run ${streak}, climb over: ${settled}`).toMatchObject({ level: 3, streak, tasks: 1, first: 0, errors: wrong });
+      expect(climbs(s.skills.sub), `run ${streak}, climb over: ${settled}`).toBe(!settled);
+      expect(s.answers?.sub.map((a) => a.ok)).toEqual([0]);
+    }
+  });
+
+  it('the same task recorded as a usual one would step the level down: asking for a harder example never does', () => {
+    const usual = from('add', 3, 0), asked = from('add', 3, 0);
+    recordTask(usual, 'add', 3, false, { type: 'add' });
+    recordDare(asked, 'add', 4, 3, false, { type: 'add' });
+    expect([usual.skills.add.level, asked.skills.add.level]).toEqual([2, 3]);
+  });
+
+  it('solved with a helper: no clean solve, no step up; the run of clean solves of the achievement ends', () => {
+    const s = from('count', 2, 1);
+    play(s, 'pattern', 0, 0);
+    recordDare(s, 'count', 3, 0, true, { type: 'count' });
+    expect(s.skills.count).toMatchObject({ level: 2, streak: 1, tasks: 1, first: 0, errors: 0 });
+    expect(s.clean).toEqual({ run: 0, best: 2 });
+  });
+
+  it('never above the top of the skill, never a step down: a level asked past the top is the top, one not above her own changes nothing', () => {
+    const top = from('add', 4, 1);
+    recordDare(top, 'add', 9, 0);
+    expect(top.skills.add).toMatchObject({ level: 5, streak: 0 });
+    const same = from('add', 4, 1);
+    recordDare(same, 'add', 4, 0);
+    expect(same.skills.add).toMatchObject({ level: 4, streak: 1, tasks: 1, first: 1 });
+    const lower = from('add', 4, 1);
+    recordDare(lower, 'add', 2, 0);
+    expect(lower.skills.add).toMatchObject({ level: 4, streak: 1 });
+  });
+
+  it('a late skill is written into the save by it, as by any task', () => {
+    const s = defaultSave();
+    expect(s.skills.attention).toBeUndefined();
+    recordDare(s, 'attention', 2, 0);
+    expect(s.skills.attention).toMatchObject({ level: 2, tasks: 1, first: 1 });
+  });
+
+  it('touches the skill named only', () => {
+    const s = from('add', 3, 1), other = JSON.stringify(s.skills.sub);
+    recordDare(s, 'add', 4, 0);
+    expect(JSON.stringify(s.skills.sub)).toBe(other);
   });
 });

@@ -5,6 +5,8 @@
  *   since its last mistake. The number house is not kept: its "example" is a whole house of floors, not one sum.
  * - LEARN-13: the same task (the same numbers, or the same things) is never given twice in a row, of any type.
  * - LEARN-16: replaying a finished chain plays the step whose skill has the lowest share of clean solves.
+ * - LEARN-28: a harder example she asked for is always a new one of that level - no kept example comes in its place -
+ *   and a mistake in it keeps nothing: it would come back to her uninvited, a level above her own.
  * Every random choice comes from the rng it is given (ARCH-08): one seed, one sequence of tasks.
  */
 import type { Rng } from '../core/rng';
@@ -63,6 +65,11 @@ export function sameness(s: TaskSpec): string {
     case 'en_tap': return `en_tap:${s.body.word}`;
     case 'en_count': return `en_count:${s.body.n}`;
     case 'note': return `note:${s.body.id}`;
+    case 'sum3': return `sum3:${s.body.parts.join('+')}`;
+    case 'gap': return `gap:${s.body.total}-?=${s.body.left}`;
+    case 'chain': return `chain:${s.body.first}${s.body.addsFirst ? '+' : '-'}${s.body.second}${s.body.addsFirst ? '-' : '+'}${s.body.third}`;
+    case 'exprs': return `exprs:${s.body.sides.map((x) => `${x.a}${x.sign}${x.b}`).join(',')}`;
+    case 'story': return `story:${s.body.first}${s.body.addsFirst ? '+' : '-'}${s.body.second}${s.body.addsFirst ? '-' : '+'}${s.body.third}`;
   }
 }
 
@@ -112,12 +119,20 @@ export function weakest<S>(steps: readonly S[], skillOf: (s: S) => SkillId, save
 }
 
 export interface Planner {
-  /** The next task of `type` on `level`: an example with a mistake that is due, or a new one unlike the one before. */
-  next(type: TaskType, level: number, rng: Rng): TaskSpec;
-  /** Notes how a task given by `next` ended: a mistake keeps its example, a clean solve counts towards taking it off. */
-  done(spec: TaskSpec, res: TaskResult): void;
+  /**
+   * The next task of `type` on `level`: an example with a mistake that is due, or a new one unlike the one before.
+   * `asked` - a task she asked for above her level (LEARN-28): a new one of that level, whatever example is due. The
+   * due one keeps waiting for the next task of her own.
+   */
+  next(type: TaskType, level: number, rng: Rng, asked?: boolean): TaskSpec;
+  /**
+   * Notes how a task given by `next` ended: a mistake keeps its example, a clean solve counts towards taking it off.
+   * A mistake in a task she asked for (`asked`) starts no keeping: the example would come back by itself, a level above
+   * her own, and be counted as her usual task. An example kept already is noted as ever, on the level it was kept with.
+   */
+  done(spec: TaskSpec, res: TaskResult, asked?: boolean): void;
   /** `runTask` of the panel through the planner: the task is planned, shown, and its end noted. */
-  runTask(type: TaskType, level: number, hooks: TaskHooks, rng: Rng): Promise<TaskResult>;
+  runTask(type: TaskType, level: number, hooks: TaskHooks, rng: Rng, asked?: boolean): Promise<TaskResult>;
 }
 
 export function createPlanner(save: Save): Planner {
@@ -135,10 +150,10 @@ export function createPlanner(save: Save): Planner {
   /** A kept example given too early: it waits for its turn. */
   const early = (k: string, n: number) => save.hard.list.some((h) => h.k === k && n - h.at <= GAP);
 
-  function next(type: TaskType, level: number, rng: Rng): TaskSpec {
+  function next(type: TaskType, level: number, rng: Rng, asked = false): TaskSpec {
     const n = save.hard.n++;
     let spec: TaskSpec | null = null;
-    for (let h = due(type, n); h && !spec; h = due(type, n)) {
+    for (let h = asked ? undefined : due(type, n); h && !spec; h = due(type, n)) {
       spec = rebuild(h, rng);
       if (!spec) save.hard.list.splice(save.hard.list.indexOf(h), 1);     // a damaged example is forgotten
     }
@@ -153,7 +168,7 @@ export function createPlanner(save: Save): Planner {
     return spec;
   }
 
-  function done(spec: TaskSpec, res: TaskResult) {
+  function done(spec: TaskSpec, res: TaskResult, asked = false) {
     // a word found in "listen and touch" lies in the book from now on, its button marked (part H); quiet: the cat praises
     // the answer at that moment, Isabella's "A new word!" would talk over it
     if (spec.type === 'en_tap' && res.solved) meetWord(save, spec.body.word, true);
@@ -167,7 +182,8 @@ export function createPlanner(save: Save): Planner {
     const list = save.hard.list, k = sameness(spec), at = given.get(spec) ?? save.hard.n - 1;
     const h = list.find((x) => x.k === k);
     if (res.wrong > 0) {
-      if (h) Object.assign(h, { l: spec.level, e: h.e + res.wrong, c: 0, at });
+      if (h) Object.assign(h, { l: asked ? h.l : spec.level, e: h.e + res.wrong, c: 0, at });
+      else if (asked) return;
       else list.push({ k, l: spec.level, e: res.wrong, c: 0, at });
       // Over the limit: the example with the fewest mistakes goes, of two alike the older one, never the one just noted.
       while (list.length > HARD_MAX) {
@@ -179,10 +195,10 @@ export function createPlanner(save: Save): Planner {
 
   return {
     next, done,
-    async runTask(type, level, hooks, rng) {
-      const spec = next(type, level, rng);
+    async runTask(type, level, hooks, rng, asked = false) {
+      const spec = next(type, level, rng, asked);
       const res = await showTask(spec, hooks);
-      done(spec, res);
+      done(spec, res, asked);
       return res;
     },
   };

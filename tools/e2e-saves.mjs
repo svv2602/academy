@@ -42,6 +42,8 @@ export const BLOCKS = [
   'helpers',        // the helpers of a task: the owl's first rung at once, the abacus's ten frames, spent and counted
   'diff',           // find the differences (LEARN-18): two pictures drawn, a miss counts nothing, every difference found by a real touch, no leak
   'puzzle',         // the puzzle (LEARN-19): the pieces show the picture, a wrong drop goes back, turned by touches, every piece dragged for real onto its cell, no leak
+  'wide',           // the tasks in breadth (LEARN-27): each of the five kinds closed, then its question, three mistakes and their rungs, solved; given by a character every other time, the level unmoved
+  'dare',           // «А складніше зможеш?» (LEARN-28): the card after a clean solve, put off, taken with a mistake, taken and solved - her level; not in the climb, not with a level fixed
   'cpa',            // the steps «things → picture → numbers» of the number tasks: each task at each step pictured, solved
   'en-tasks',       // the English tasks (Season 2, D1): closed, asked on the screen, three mistakes on their rungs, solved
   'pip',            // Pip (Season 2, G): met in the hub, his request of the fairies whole, note 2 and its bookmark, by the forest's arch, gone with English off, his model missing
@@ -167,7 +169,10 @@ export const GROUPS = {
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
   // is a stop point and earns its achievements there; then no friend to play, the finds alone.
-  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
+  // The tasks in breadth (LEARN-27) and the harder example she may ask for (LEARN-28) are played here too, before the
+  // finds: the piece is the shortest one, and both blocks need a finished chain with addition in it (the unicorn's)
+  // and put the skills back as they were.
+  collect: { save: () => played({ done: ['unicorn'], stars: 8, tasks: { count: 1, add: 1, compare: 1 } }), friends: [], blocks: ['wide', 'dare', 'collect', 'context-loss'], ach: ['first_shard', 'first_task'] },
   // every friend from no save, nothing else: every kind of task once (not a piece of the world: the pieces have it all)
   tasks: { save: null, friends: FRIENDS, blocks: [] },
 };
@@ -183,7 +188,7 @@ export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'
  * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
  * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
  */
-export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'pip'];
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide', 'dare', 'pip'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice

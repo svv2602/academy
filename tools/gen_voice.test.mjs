@@ -144,6 +144,83 @@ print(json.dumps({'url': sent[0][0], 'body': sent[0][1], 'styles': v.STYLES}))`)
     }
   });
 
+  it('a line with a text for the model (SAY_AS): the model reads that text, in every voice of the line; the clip is heard back against the line on the screen', () => {
+    const QUESTION = 'Оце так! А складніше зможеш?', SAID = 'Оце так! А складніше — зможеш?';
+    const r = py(`
+sent = []
+v.PACE = 0
+v.post = lambda url, b, key: (sent.append(b['contents'][0]['parts'][0]['text']), {'candidates': [{'content': {'parts': [{'inlineData': {'data': ''}}]}}]})[1]
+v.encode = lambda pcm, out: pathlib.Path(out).write_bytes(b'x')
+audio = pathlib.Path(${JSON.stringify(join(tmp, 'say-as'))})
+rec = v.Recorder(audio, 'k', v.MODELS['old'], lambda path: ${JSON.stringify(QUESTION)})
+out = [rec.record(cid, ${JSON.stringify(QUESTION)}, 'warm', {}) for cid in ('npc_harder', 'npc_harder@Orus', 'npc_next')]
+print(json.dumps({'sent': sent, 'out': out, 'say': v.SAY_AS, 'warm': v.STYLES['warm'],
+                  'keys': [v.key_of('npc_harder'), v.key_of('npc_harder@Leda'), v.key_of('sky/npc_harder@Leda'), v.key_of('sky/cloud_hi')]}))`);
+    expect(r.code, r.err).toBe(0);
+    // the recorder prints a line per clip first: the answer is the last line
+    const { sent, out, say, warm, keys } = JSON.parse(r.out.trim().split('\n').pop());
+    expect(say.npc_harder).toBe(SAID);
+    // the cat: its `warm` prompt, as every question of the game, and the text for the model after it
+    expect(sent[0]).toBe(`${warm}\n\n${SAID}`);
+    // a character: its own style, the same text for the model
+    expect(sent[1]).toMatch(/гном/);
+    expect(sent[1].endsWith(`\n\n${SAID}`)).toBe(true);
+    // a line without such a text is read as it is shown
+    expect(sent[2].endsWith(`\n\n${QUESTION}`)).toBe(true);
+    // heard back as the line on the screen: the record keeps the line, and the text the model read next to it
+    expect(out[0]).toEqual({ text: QUESTION, heard: QUESTION, score: 1, said: SAID, style: 'warm', voice: 'Puck', model: 'gemini-2.5-flash-preview-tts' });
+    expect(out[1]).toMatchObject({ text: QUESTION, said: SAID, voice: 'Orus' });
+    expect(Object.hasOwn(out[2], 'said')).toBe(false);
+    expect(keys).toEqual(['npc_harder', 'npc_harder', 'npc_harder', 'cloud_hi']);
+  });
+
+  it('a clip of a line with a text for the model is fresh only while it was recorded from that text', () => {
+    const dir = join(tmp, 'say-stale');
+    mkdirSync(dir, { recursive: true });
+    for (const name of ['npc_harder', 'npc_harder@Leda', 'npc_next']) writeFileSync(join(dir, `${name}.mp3`), 'x');
+    const QUESTION = 'Оце так! А складніше зможеш?', SAID = 'Оце так! А складніше — зможеш?';
+    const qa = { npc_harder: { text: QUESTION, said: SAID, style: 'warm', score: 1 }, 'npc_harder@Leda': { text: QUESTION, style: 'warm', score: 1 },
+      npc_next: { text: 'Так!', style: 'joy', score: 1 } };
+    const r = py(`
+audio, qa = pathlib.Path(${JSON.stringify(dir)}), json.loads(${JSON.stringify(JSON.stringify(qa))})
+q = ${JSON.stringify(QUESTION)}
+out = [v.stale('npc_harder', q, 'warm', qa, audio), v.stale('npc_harder@Leda', q, 'warm', qa, audio), v.stale('npc_next', 'Так!', 'joy', qa, audio)]
+v.SAY_AS['npc_harder'] = 'Оце так!.. А складніше зможеш?'
+out.append(v.stale('npc_harder', q, 'warm', qa, audio))
+del v.SAY_AS['npc_harder']
+out += [v.stale('npc_harder', q, 'warm', qa, audio), v.stale('npc_harder@Leda', q, 'warm', qa, audio)]
+print(json.dumps(out))`);
+    expect(r.code, r.err).toBe(0);
+    // recorded from the text for the model: fresh; recorded from the line itself: not; a line without such a text: as ever;
+    // the text for the model changed, or taken away: the clip made from the old one is recorded anew
+    expect(JSON.parse(r.out)).toEqual([false, true, false, true, true, false]);
+  });
+
+  it('a text for the model with other words than its line stops the run before anything is sent', () => {
+    const run = (say, phrases) => py(`
+v.SAY_AS.clear()
+v.SAY_AS.update(json.loads(${JSON.stringify(JSON.stringify(say))}))
+v.check_say_as(json.loads(${JSON.stringify(JSON.stringify(phrases))}))`);
+    const phrases = { npc_harder: ['Оце так! А складніше зможеш?', 'warm', 'cat'] };
+    expect(run({ npc_harder: 'Оце так! А складніше — зможеш?' }, phrases).code).toBe(0);
+    expect(run({ npc_harder: 'Оце так!.. А СКЛАДНІШЕ, зможеш?' }, phrases).code).toBe(0);
+    const words = run({ npc_harder: 'Оце так! А важче — зможеш?' }, phrases);
+    expect(words.code).not.toBe(0);
+    expect(words.err).toContain('nothing was sent');
+    expect(words.err).toContain('npc_harder');
+    // a list of lines without the line (a tree of a test, a narrowed list) is not stopped: nothing of it is sent
+    expect(run({ npc_gone: 'Оце так!' }, phrases).code).toBe(0);
+    // the real table against the real lines, as main() checks it first
+    const real = py(`v.check_say_as(json.loads((v.ROOT / 'voice' / 'phrases.json').read_text()))\nprint(len(v.SAY_AS))`);
+    expect(real.code, real.err).toBe(0);
+    expect(Number(real.out)).toBeGreaterThan(0);
+  });
+
+  it('the three intonations are all there is: a question is not an intonation of its own', () => {
+    const r = py("print(json.dumps([sorted(v.STYLES), sorted(v.MOOD)]))");
+    expect(JSON.parse(r.out)).toEqual([['calm', 'joy', 'warm'], ['calm', 'joy', 'warm']]);
+  });
+
   it('a line is recorded in the voice its key names, a character with its own style, not the cat\'s', () => {
     for (const [cid, voice] of [['npc_next@Charon', 'Charon'], ['npc_next@Sulafat', 'Sulafat'], ['npc_next@Orus', 'Orus'], ['npc_next', 'Puck']]) {
       const { body } = request(cid, LINE, 'joy', 'old');
@@ -526,6 +603,37 @@ print(json.dumps([str(v.clip_file(audio, n).relative_to(audio.parent.parent)) fo
     expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
   });
 
+  it('a line with a text for the model, through main(): that text is sent for each of its voices, kept in the record, and a second run sends nothing', () => {
+    const QUESTION = 'Оце так! А складніше зможеш?', SAID = 'Оце так! А складніше — зможеш?';
+    const dir = tree({ hello: ['Привіт!', 'joy', 'cat'], npc_harder: [QUESTION, 'warm', 'cat'], 'npc_harder@Leda': [QUESTION, 'warm', 'fox'] });
+    const r = run(dir);
+    expect(r.code, r.err).toBe(0);
+    expect(r.sent).toEqual(['Привіт!', SAID, SAID]);
+    const qa = json(dir, 'voice/qa.json');
+    expect(qa.npc_harder).toMatchObject({ text: QUESTION, said: SAID, score: 1, style: 'warm', voice: 'Puck' });
+    expect(qa['npc_harder@Leda']).toMatchObject({ text: QUESTION, said: SAID, score: 1, voice: 'Leda' });
+    expect(Object.hasOwn(qa.hello, 'said')).toBe(false);
+    expect(run(dir).sent).toEqual([]);
+    // a clip made from the line itself (no `said` in its record) is recorded anew from the text for the model
+    const before = json(dir, 'voice/qa.json');
+    delete before['npc_harder@Leda'].said;
+    writeFileSync(join(dir, 'voice/qa.json'), JSON.stringify(before));
+    const again = run(dir);
+    expect(again.lines[0]).toBe('1 of 3 lines to record, model gemini-2.5-flash-preview-tts: npc_harder@Leda');
+    expect(again.sent).toEqual([SAID]);
+  });
+
+  it('a line whose words left its text for the model behind stops main() before anything is sent or written', () => {
+    const dir = tree({ hello: ['Привіт!', 'joy', 'cat'], npc_harder: ['Оце так! А важче зможеш?', 'warm', 'cat'] });
+    const r = run(dir);
+    expect(r.code).not.toBe(0);
+    expect(r.err).toContain('gen_voice: nothing was sent. SAY_AS has a text for the model with other words than its line');
+    expect(r.err).toContain('npc_harder');
+    expect(r.sent).toEqual([]);
+    expect(under(dir, 'public/voice')).toEqual([]);
+    expect(existsSync(join(dir, 'voice/qa.json'))).toBe(false);
+  });
+
   it('a command of the core says what it always said: the key alone, no folder', () => {
     // the real list of the repository; nothing is sent (--dry-run), no key is read
     const run = (...argv) => execFileSync('python3', ['-I', '-B', join(root, 'tools/gen_voice.py'), '--dry-run', ...argv],
@@ -609,6 +717,22 @@ describe('recorded clips', () => {
     const waiting = Object.keys(phrases).filter(waits);
     expect(waiting, `lines not recorded in their voice yet: ${waiting.join(' ')}. ${HOW}`).toEqual([]);
   });
+
+  it('a line with a text for the model (SAY_AS of tools/gen_voice.py) has every recorded clip made from that text', () => {
+    const say = JSON.parse(py('print(json.dumps(v.SAY_AS))').out);
+    expect(Object.keys(say)).toContain('npc_harder');
+    expect(Object.keys(say).filter((key) => !Object.hasOwn(phrases, key)), 'a text for the model of no line of the game').toEqual([]);
+    const keyOf = (key) => key.split('@')[0];
+    const mine = Object.keys(phrases).filter((key) => Object.hasOwn(say, keyOf(key)));
+    expect(mine.length).toBeGreaterThanOrEqual(Object.keys(say).length);
+    // a clip not recorded yet is named by the test above; here: no clip of such a line was made from the line itself
+    const wrong = mine.filter((key) => hasClip(key) && qa[nameOf(key)]?.said !== say[keyOf(key)]);
+    expect(wrong, `clips not recorded from the text for the model: ${wrong.join(' ')}. ${HOW}`).toEqual([]);
+    expect(qa.npc_harder.said).toBe(say.npc_harder);
+    // and no other clip claims a text of its own
+    const stray = Object.keys(qa).filter((name) => qa[name].said !== undefined && !Object.hasOwn(say, keyOf(name.split('/').pop())));
+    expect(stray, `records with a text for the model that SAY_AS does not have: ${stray.join(' ')}`).toEqual([]);
+  }, 60_000);
 
   it('every clip was heard back as its text (voice/qa.json has no score below 0.85)', () => {
     const low = Object.keys(phrases).filter((key) => !waits(key) && !(qa[nameOf(key)]?.score >= 0.85)).map((key) => `${nameOf(key)} ${qa[nameOf(key)]?.score}`);

@@ -119,7 +119,7 @@ describe('a seed makes the tasks repeat (ARCH-08)', () => {
   });
 
   it('the task code asks no Math.random: the panel and its shows, and the world tasks take the game\'s rng', () => {
-    const panel = ['flow', 'fly', 'panel', 'count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'tenframe', 'missing', 'house', 'neighbors', 'signs', 'shapes', 'diff', 'diff-scene', 'puzzle', 'cpa', 'en_tap', 'en_count', 'note'].map((f) => `./${f}.ts`);
+    const panel = ['flow', 'fly', 'panel', 'count', 'add', 'sub', 'compare', 'pattern', 'odd', 'pairs', 'order', 'sort', 'simon', 'tenframe', 'missing', 'house', 'neighbors', 'signs', 'shapes', 'diff', 'diff-scene', 'puzzle', 'cpa', 'en_tap', 'en_count', 'note', 'sum3', 'gap', 'chain', 'exprs', 'story'].map((f) => `./${f}.ts`);
     const world = ['../dialogue.ts', ...['butterflies-task', 'star-search'].map((f) => `../../worlds/fairy/${f}.ts`)];
     expect(Object.keys(TASK_SOURCES).sort(), 'the glob did not reach the task files').toEqual([...panel, ...world].sort());
     for (const [path, text] of Object.entries(TASK_SOURCES)) expect(text, path).not.toMatch(/Math\.random/);
@@ -129,7 +129,15 @@ describe('a seed makes the tasks repeat (ARCH-08)', () => {
     const dialogue = Object.entries(TASK_SOURCES).find(([path]) => path.endsWith('/dialogue.ts'))![1];
     // A call with arguments that may hold one level of brackets: runTask(type, levelFor(save, x), hooksFor(q.emoji), g.rng).
     const calls = [...dialogue.matchAll(/runTask\((?:[^()]|\([^()]*\))*\)/g)].map((m) => m[0]);
-    expect(calls.length, 'no runTask call found in dialogue.ts').toBeGreaterThanOrEqual(2);
-    for (const call of calls) expect(call).toMatch(/, g\.rng\)$/);
+    expect(calls.length, 'no runTask call found in dialogue.ts').toBeGreaterThanOrEqual(1);
+    // the rng is the last argument, or the one before the mark of a task she asked for (LEARN-28, `dare`)
+    for (const call of calls) expect(call).toMatch(/, g\.rng(?:, true)?\)$/);
+    expect(calls.filter((call) => /, g\.rng, true\)$/.test(call)), 'only the harder example is a task she asked for').toHaveLength(1);
+    // The step of a chain and the game played again both open their panel task through `panelTask`, the one place
+    // that calls runTask; the kind in breadth it may give instead (LEARN-27) is picked by the game's rng as well.
+    expect([...dialogue.matchAll(/task\(\(\) => [^;\n]*panelTask\(/g)].length, 'the conversations open their panel tasks through panelTask').toBe(2);
+    const mixes = [...dialogue.matchAll(/mixWide\((?:[^()]|\([^()]*\))*\)/g)].map((m) => m[0]);
+    expect(mixes.length, 'no mixWide call found in dialogue.ts').toBeGreaterThanOrEqual(1);
+    for (const call of mixes) expect(call).toMatch(/, g\.rng\)$/);
   });
 });

@@ -5,6 +5,7 @@
  */
 import type { Save } from '../core/save';
 import { noteAnswer } from './answers';
+import type { TaskType } from './tasks/types';
 
 /**
  * The skills of the ladder (docs/11-learning.md); "logic" of version 3 saves is split into series, pattern, memory,
@@ -77,6 +78,17 @@ export function levelFor(s: Save, skill: SkillId) {
 }
 
 /**
+ * The tasks in breadth (LEARN-27, decision Q18): the kinds of example a skill gives beside its usual one once the
+ * child solves the usual ones of its top level cleanly - other examples within the same numbers, not larger numbers.
+ * When they are given, and which of them: src/game/wide.ts. How they are counted: `recordTask`.
+ */
+export const WIDE = { add: ['sum3', 'chain', 'exprs'], sub: ['gap', 'chain', 'story'] } as const satisfies Partial<Record<SkillId, readonly TaskType[]>>;
+/** Whether a task of this type is one in breadth, whatever skill gave it. */
+export const isWide = (type: string | undefined): boolean => Object.values(WIDE).some((kinds: readonly string[]) => type !== undefined && kinds.includes(type));
+/** How many tasks in breadth in a row with two wrong answers or more send the skill back to its usual tasks. */
+export const WIDE_MISSES = 2;
+
+/**
  * Whether the skill is still in its fast climb: no task of it has taken two wrong answers or more yet. Only `true`
  * ends it - a save without the field, or with a damaged one, climbs.
  */
@@ -92,6 +104,13 @@ export const climbs = (k: SkillStat) => k.settled !== true;
  * up, not every second one - a child for whom the tasks are easy gets to her level in a few tasks, not in a whole world.
  * One wrong answer neither ends the climb nor moves the level. A task with two wrong answers or more ends it for good
  * (`settled` in the counters) and is itself counted by the rule above, as is every task after it.
+ *
+ * A task in breadth (LEARN-27; `note.type` is one of `WIDE`) is counted - the task, its wrong answers, a clean solve,
+ * its answer for the parents' report - and moves nothing: not the level, not the run of clean solves, not the end of the
+ * climb. A hard example of another kind says nothing about the level of the usual ones. Only this: `WIDE_MISSES` such
+ * tasks in a row with two wrong answers or more end the run of clean solves (`streak` 0), so the usual tasks of the top
+ * level come alone until two of them are solved cleanly again (src/game/wide.ts). `wideMiss` counts those tasks in a
+ * row; a task in breadth that took fewer wrong answers starts the count again.
  */
 export function recordTask(s: Save, skill: SkillId, wrong: number, helped = false, note?: { type?: string; ms?: number }) {
   // its answer for the parents' report (src/game/answers.ts): right when at the first try with no helper, as `first`;
@@ -100,6 +119,19 @@ export function recordTask(s: Save, skill: SkillId, wrong: number, helped = fals
   const k = (s.skills[skill] ??= statOf(s, skill));
   const [min, max] = LEVELS[skill];
   k.tasks++; k.errors += wrong;
+  if (isWide(note?.type)) {
+    // with a helper and no mistake: no clean solve, as for a usual task
+    const clean = wrong === 0 && !helped;
+    countClean(s, clean ? 0 : 1);
+    if (clean) k.first++;
+    // the tasks in breadth in a row that went badly, this one counted (a damaged count starts from none)
+    const missed = (Number.isInteger(k.wideMiss) && k.wideMiss! > 0 ? k.wideMiss! : 0) + 1;
+    if (wrong < 2) delete k.wideMiss;
+    else if (missed < WIDE_MISSES) k.wideMiss = missed;
+    // the run of clean solves ends; a run towards a step down (below 0) is not this task's to touch
+    else { delete k.wideMiss; k.streak = Math.min(k.streak, 0); }
+    return;
+  }
   // Solved with a helper (the owl, the abacus, src/game/helpers.ts) and no mistake: no error, but no clean solve either -
   // the run of clean solves and the run towards the next level start again, the level stays.
   if (helped && wrong === 0) { countClean(s, 1); k.streak = 0; k.level = withinLevels(skill, k.level); return; }
@@ -116,6 +148,25 @@ export function recordTask(s: Save, skill: SkillId, wrong: number, helped = fals
   }
   // A level outside the skill's own (a damaged save) is brought back within them.
   k.level = withinLevels(skill, k.level);
+}
+
+/**
+ * «А складніше зможеш?» (LEARN-28, decision Q19; src/game/dare.ts): a task of `skill` she took by her own wish on
+ * `target`, a level above her own. It is counted as any task - the task, its wrong answers, a clean solve, its answer
+ * for the parents' report. Solved cleanly and by herself it takes her to that level at once, the run starting anew.
+ * Anything else moves nothing: a harder example she asked for is never a step down, never the end of a run of clean
+ * solves, never the end of the fast climb.
+ */
+export function recordDare(s: Save, skill: SkillId, target: number, wrong: number, helped = false, note?: { type?: string; ms?: number }) {
+  if (note?.type) noteAnswer(s, skill, { type: note.type, ok: wrong === 0 && !helped, ms: note.ms });
+  const k = (s.skills[skill] ??= statOf(s, skill));
+  k.tasks++; k.errors += wrong;
+  const clean = wrong === 0 && !helped;
+  countClean(s, clean ? 0 : 1);
+  if (!clean) return;
+  k.first++;
+  const to = withinLevels(skill, target);
+  if (to > k.level) { k.level = to; k.streak = 0; }
 }
 
 /**

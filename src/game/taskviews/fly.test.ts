@@ -28,6 +28,7 @@ const hooks: TaskHooks = {
 /** Where each show keeps its "?" (the place the answer lands in). */
 const SLOT: Partial<Record<TaskType, string>> = {
   pattern: '.it.q', missing: '.gap .q', neighbors: '.cell.empty', add: '.sign.q', house: '.win.empty', signs: '.slot',
+  sum3: '.sign.q', gap: '.sign.q', chain: '.sign.q', exprs: '.slot',
 };
 const TYPES = Object.keys(SLOT) as TaskType[];
 

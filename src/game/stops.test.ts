@@ -155,8 +155,11 @@ describe('stop points and the achievements\' scene (PLAY-08, R43)', () => {
 
   it('the conversation has its stop points: after the praise of a replay and of a step of a chain, after the card of a part', () => {
     const src = Object.values(import.meta.glob('./dialogue.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0];
-    expect(src).toMatch(/await praise\(\); await stopPoint\('task'\); \}/);
-    expect(src).toMatch(/await praise\(\);\n.*\n\s*if \(k < q\.steps\.length - 1\) \{ await stopPoint\('task'\);/);
+    // Between the praise and the stop point only the harder example she may ask for stands (LEARN-28), with a praise of
+    // its own: the game played again ...
+    expect(src).toMatch(/await praise\(\);\n[^\n]*\n[^\n]*await dare\([^\n]*await praise\(\); \}\n\s*await stopPoint\('task'\);\n\s*\}/);
+    // ... and a step of a chain, whose stop point comes when another step follows
+    expect(src).toMatch(/await praise\(\);\n(?:\s*\/\/[^\n]*\n){2}\s*if \([^\n]*mayDare\([^\n]*\n\s*dared = true;\n[^\n]*await dare\([^\n]*await praise\(\); \}\n\s*\}\n.*\n\s*if \(k < q\.steps\.length - 1\) \{ await stopPoint\('task'\);/);
     // after the card of a part; after the last one, once "every shard is back" has been said
     expect(src).toMatch(/await fanfare\(lines\.partTitle[^\n]*\n\s*cat\.play\('Idle'\);\n[^\n]*\n\s*if \(count === characters\.length\) \{ await line\(lines\.allParts, 'story'\); await stopPoint\('part'\);[^\n]*\n\s*await stopPoint\('part'\);/);
   });

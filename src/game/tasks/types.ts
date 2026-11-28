@@ -13,7 +13,9 @@ import type { BankKey } from '../../core/voice';
 import { bank } from '../../ui/strings-bank';
 
 export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' | 'pairs' | 'order' | 'sort' | 'simon' | 'missing' | 'house'
-  | 'neighbors' | 'signs' | 'diff' | 'puzzle' | 'en_tap' | 'en_count' | 'note';
+  | 'neighbors' | 'signs' | 'diff' | 'puzzle' | 'en_tap' | 'en_count' | 'note'
+  // the tasks in breadth (LEARN-27, src/game/wide.ts): given on the top level of addition and take away
+  | 'sum3' | 'gap' | 'chain' | 'exprs' | 'story';
 
 /**
  * One step of a hint, carried out by the view in the order of the list once the cat has said the line of its rung.
@@ -23,13 +25,18 @@ export type TaskType = 'count' | 'add' | 'sub' | 'compare' | 'pattern' | 'odd' |
  * `countUp` (the composition of a number): from the known number, dots come one by one with the numbers up to the sum,
  * then the dots are counted 1, 2, 3 - how many were missing; `countCells` (the neighbours of a number): the cat counts the
  * cells of the track one by one and stops at the empty one, saying its number; `pairUp` (the signs): both numbers are laid
- * out as things in ten frames, matched in pairs one to one, the things left over of the larger number glow.
+ * out as things in ten frames, matched in pairs one to one, the things left over of the larger number glow;
+ * `countGone` (the missing number of a take away): the things taken away are counted aloud one by one;
+ * `showMid` (a chain of two actions): the number after the first action is shown, then the second action is played
+ * thing by thing, the number going on with it; `showExample` (a story in pictures): the story is written out as an
+ * example in numbers.
  */
 export type HintStep =
   | { do: 'countAloud'; which: 'all' | 'left' } | { do: 'countOn'; which: 'all' | 'left' } | { do: 'fillTen' } | { do: 'takeToTen' }
   | { do: 'showNumbers' } | { do: 'grow' | 'shrink' } | { do: 'markUnits' } | { do: 'frameAlike' } | { do: 'track' }
   | { do: 'tryBaskets' } | { do: 'pulseNext' } | { do: 'replay' } | { do: 'pulseAnswer' } | { do: 'countUp' }
-  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'outline' } | { do: 'readAlong' } | { do: 'slowly' };
+  | { do: 'countCells' } | { do: 'pairUp' } | { do: 'outline' } | { do: 'readAlong' } | { do: 'slowly' }
+  | { do: 'countGone' } | { do: 'showMid' } | { do: 'showExample' };
 /**
  * One rung of the hint: the line the cat says, and what is shown on screen once it has ended. `outline` (the English
  * words, Season 2): the right picture is outlined. `readAlong` (a note, Season 2): the words of the text light up one
