@@ -7,6 +7,10 @@
  * - LEARN-16: replaying a finished chain plays the step whose skill has the lowest share of clean solves.
  * - LEARN-28: a harder example she asked for is always a new one of that level - no kept example comes in its place -
  *   and a mistake in it keeps nothing: it would come back to her uninvited, a level above her own.
+ * - The subjects alternate (Season 2, step 2, part I; layout §4, src/s2/subjects.ts): the subject of every task solved
+ *   is noted in the ring `save.recent`, and where a place replays its tasks (`replayStep`: a finished chain, Pip's
+ *   request once it is done) the subject comes first - not the one of the task before, then the one furthest behind
+ *   its share - and the weakest skill within it. The first pass of a chain plays its steps as they stand (R10).
  * Every random choice comes from the rng it is given (ARCH-08): one seed, one sequence of tasks.
  */
 import type { Rng } from '../core/rng';
@@ -18,7 +22,9 @@ import { enTapExample, kindOf } from './tasks/en_tap';
 import { noteExample } from './tasks/note';
 import { NOTE_IDS, type NoteId } from '../s2/strings-book';
 import { noteAnswer } from './answers';
-import { isWord } from '../s2/types';
+import { isWord, type Subject } from '../s2/types';
+import { targetShares } from '../s2/shares';
+import { SUBJECT_OF, noteSubject, pickSubject } from '../s2/subjects';
 import { meetWord } from '../ui/wordbook';
 import type { TaskType } from './tasks/types';
 import { example as addExample } from './tasks/add';
@@ -118,6 +124,17 @@ export function weakest<S>(steps: readonly S[], skillOf: (s: S) => SkillId, save
   return pick(steps.filter((s) => cleanShare(save, skillOf(s)) === low), rng);
 }
 
+/**
+ * The step a place replays where the subjects alternate (layout §4): first the subject - of those the steps have, by
+ * the rule of src/s2/subjects.ts `pickSubject` over the ring `save.recent` and the shares the parent set - then, of the
+ * steps of that subject, the one whose skill has the lowest share of clean solves (`weakest`: one draw of `rng`, as a
+ * replay always took). Steps of one subject: the weakest of them, as before.
+ */
+export function replayStep<S>(steps: readonly S[], of: { skill: (s: S) => SkillId; subject: (s: S) => Subject }, save: Save, rng: Rng): S {
+  const subject = pickSubject(save.recent, targetShares(save), steps.map(of.subject));
+  return weakest(steps.filter((s) => of.subject(s) === subject), of.skill, save, rng);
+}
+
 export interface Planner {
   /**
    * The next task of `type` on `level`: an example with a mistake that is due, or a new one unlike the one before.
@@ -129,6 +146,8 @@ export interface Planner {
    * Notes how a task given by `next` ended: a mistake keeps its example, a clean solve counts towards taking it off.
    * A mistake in a task she asked for (`asked`) starts no keeping: the example would come back by itself, a level above
    * her own, and be counted as her usual task. An example kept already is noted as ever, on the level it was kept with.
+   * A task solved - with mistakes or without, asked for or not - is noted in the ring of the last subjects
+   * (`save.recent`); a task closed is not: it was not played.
    */
   done(spec: TaskSpec, res: TaskResult, asked?: boolean): void;
   /** `runTask` of the panel through the planner: the task is planned, shown, and its end noted. */
@@ -169,6 +188,7 @@ export function createPlanner(save: Save): Planner {
   }
 
   function done(spec: TaskSpec, res: TaskResult, asked = false) {
+    if (res.solved) noteSubject(save, SUBJECT_OF[spec.type]);     // the shares of the subjects count every task played
     // a word found in "listen and touch" lies in the book from now on, its button marked (part H); quiet: the cat praises
     // the answer at that moment, Isabella's "A new word!" would talk over it
     if (spec.type === 'en_tap' && res.solved) meetWord(save, spec.body.word, true);

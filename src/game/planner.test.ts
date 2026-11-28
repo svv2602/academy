@@ -7,20 +7,27 @@
  * - LEARN-13 (R19, R20): 1000 pairs of neighbouring tasks of every type and level, none the same task twice in a row;
  *   no 1 + 1 and no 1 - 1 from level 2;
  * - LEARN-16 (R23, R24): replaying a finished chain plays the step of the skill with the lowest share of clean solves;
- * - PLAY-15 (R27): the parents' section lists the five hardest examples, in numbers.
+ * - PLAY-15 (R27): the parents' section lists the five hardest examples, in numbers;
+ * - Season 2, step 2, part I (layout §4; R03, R09, R10, R33): the subject of every task solved is noted in the ring; a
+ *   replay takes the subject first, then the weakest skill; the first pass of a chain plays as before.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRng } from '../core/rng';
 import { mulberry32, randInt } from '../core/util';
 import { HARD_MAX, defaultSave, storeSave, worldState, type Save } from '../core/save';
 import type { Spoken } from '../core/audio';
-import { LEVELS, recordTask, type SkillId } from './skills';
-import { CLEAN, GAP, createPlanner, exampleText, hardest, sameness, weakest } from './planner';
-import { generate, type TaskSpec } from './tasks/index';
+import { LEVELS, levelFor, recordTask, type SkillId } from './skills';
+import { CLEAN, GAP, createPlanner, exampleText, hardest, replayStep, sameness, weakest } from './planner';
+import { generate, typeOf, type SkillStep, type TaskSpec } from './tasks/index';
+import { SUBJECT_OF, newSubjectKinds } from '../s2/subjects';
+import { RECENT_KEPT, SUBJECTS, type Subject } from '../s2/types';
 import type { TaskType } from './tasks/types';
 import { SKILL, cheatTask, type TaskHooks } from './taskviews/panel';
 
 const TYPES = Object.keys(SKILL) as TaskType[];
+/** The first pass of five chains with one seed, taken on the code before part I (see "the first pass of a chain is not touched"). */
+const FIRST_FOUR = ['1 count:6', '1 compare:4,2:more', '1 pattern:AB:🔴,🟣,🔴,🟣,🔴', '1 add:4+1'];
+const PRINT_A = '5ec4d4be', PRINT_B = '63e82176';
 /** The levels a type is played on: those of its skill (the composition of a number: 3 to 5). */
 const levelsOf = (type: TaskType) => { const [min, max] = LEVELS[SKILL[type]]; return Array.from({ length: max - min + 1 }, (_, i) => min + i); };
 const clean = { solved: true, wrong: 0 };
@@ -359,6 +366,194 @@ describe('replaying a finished chain trains the weakest skill (LEARN-16, R23, R2
   });
 });
 
+describe('the subjects alternate (Season 2, step 2, part I; layout §4)', () => {
+  type Step = TaskType | SkillStep;
+  const skillOf = (step: Step): SkillId => (step === 'compose' || step === 'series' || step === 'compare' ? step : SKILL[step]);
+  const subjectOf = (step: Step): Subject => SUBJECT_OF[typeOf(step, 1)];
+  const of = { skill: skillOf, subject: subjectOf };
+  const met = (save: Save, english = true) => { save.pip.met = true; save.english = english; return save; };
+  const stats = (save: Save, by: Partial<Record<SkillId, [tasks: number, first: number]>>) => {
+    for (const [k, [tasks, first]] of Object.entries(by)) Object.assign(save.skills[k], { tasks, first });
+    return save;
+  };
+
+  describe('the ring of the last subjects', () => {
+    it('a task solved is noted with its subject - with mistakes too; a task closed is not', () => {
+      const { p, save, rng } = planner(3);
+      const run = (type: TaskType, res: { solved: boolean; wrong: number }) => p.done(p.next(type, 3, rng), res);
+      run('add', clean);
+      run('pattern', mistakes(2));
+      run('sub', closed);
+      run('en_tap', clean);
+      run('note', clean);
+      run('en_count', clean);
+      run('story', clean);
+      expect(save.recent).toEqual(['math', 'logic', 'en', 'read', 'en', 'math']);
+    });
+
+    it('every kind is noted as its subject', () => {
+      for (const type of TYPES) {
+        const { p, save, rng } = planner(5);
+        p.done(p.next(type, levelsOf(type)[0], rng), clean);
+        expect(save.recent, type).toEqual([SUBJECT_OF[type]]);
+      }
+    });
+
+    it('a harder example she asked for is a task played as any other', () => {
+      const { p, save, rng } = planner(2);
+      p.done(p.next('add', 4, rng, true), mistakes(1), true);
+      expect(save.recent).toEqual(['math']);
+    });
+
+    it(`the ring keeps the last ${RECENT_KEPT}`, () => {
+      const { p, save, rng } = planner(4);
+      for (let i = 0; i < RECENT_KEPT + 5; i++) p.done(p.next(i < 5 ? 'pattern' : 'add', 2, rng), clean);
+      expect(save.recent).toEqual(Array(RECENT_KEPT).fill('math'));
+    });
+  });
+
+  describe('the first pass of a chain is not touched (R10)', () => {
+    const CHAINS: Step[][] = [['count', 'compare', 'pattern'], ['add', 'odd', 'sub'], ['order', 'pairs', 'compose'], ['sort', 'simon', 'missing'], ['add', 'sub', 'count']];
+    /** Five chains played step by step, as a conversation does: the level of the step's skill, the planner's task, its end recorded. */
+    function firstPass(seed: string, prepare: (save: Save) => void = () => {}) {
+      const save = defaultSave();
+      prepare(save);
+      const p = createPlanner(save), rng = createRng(seed), answers = mulberry32(11), out: string[] = [];
+      for (const chain of CHAINS) for (const step of chain) {
+        const skill = skillOf(step), level = levelFor(save, skill);
+        const spec = p.next(typeOf(step, level), level, rng);
+        const wrong = answers() < 0.25 ? 1 : 0;
+        p.done(spec, { solved: true, wrong });
+        recordTask(save, skill, wrong, false);
+        out.push(`${spec.level} ${sameness(spec)}`);
+      }
+      return out;
+    }
+    /** A short print of a list of tasks (FNV-1a). */
+    const print = (xs: string[]) => { let h = 0x811c9dc5; for (const c of xs.join('|')) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); };
+
+    it('one seed plays the tasks it played before part I: the print of the fifteen tasks taken before the change', () => {
+      expect(firstPass('first-pass').slice(0, 4)).toEqual(FIRST_FOUR);
+      expect(print(firstPass('first-pass'))).toBe(PRINT_A);
+      expect(print(firstPass('another seed'))).toBe(PRINT_B);
+    });
+
+    it('whatever the ring holds, with Pip met, English off or the shares moved: the same tasks', () => {
+      const plain = firstPass('first-pass');
+      expect(firstPass('first-pass', (s) => { s.recent = Array<Subject>(RECENT_KEPT).fill('math'); })).toEqual(plain);
+      expect(firstPass('first-pass', (s) => { met(s); s.recent = ['logic', 'en', 'read']; })).toEqual(plain);
+      expect(firstPass('first-pass', (s) => { met(s, false); s.shares = { math: 0.5, logic: 1.5, en: 1.5, read: 1.5 }; })).toEqual(plain);
+    });
+
+    it('its tasks are counted in the ring all the same: the shares see what she played', () => {
+      const save = defaultSave();
+      const p = createPlanner(save), rng = createRng('1');
+      for (const step of CHAINS[0]) p.done(p.next(typeOf(step, 2), 2, rng), clean);
+      expect(save.recent).toEqual(['math', 'math', 'logic']);
+    });
+  });
+
+  describe('a replay: the subject first, then the weakest skill', () => {
+    const picks = (steps: Step[], save: Save) => new Set(Array.from({ length: 200 }, (_, i) => replayStep(steps, of, save, mulberry32(i))));
+
+    it('steps of one subject: the weakest of them, the very pick of before part I', () => {
+      const save = stats(defaultSave(), { count: [4, 4], add: [10, 9], sub: [10, 5], compare: [3, 2] });
+      const steps: Step[] = ['count', 'add', 'sub', 'compare'];
+      for (let i = 0; i < 50; i++) expect(replayStep(steps, of, save, mulberry32(i))).toBe(weakest(steps, skillOf, save, mulberry32(i)));
+      expect(picks(steps, save)).toEqual(new Set(['sub']));
+      save.recent = ['math'];                                   // mathematics again: the place has nothing else
+      expect(picks(steps, save)).toEqual(new Set(['sub']));
+    });
+
+    it('a character of mathematics and logic: not the subject of the task before, though its skill is the weakest', () => {
+      const save = stats(defaultSave(), { add: [10, 1], pattern: [10, 10], sub: [10, 9] });
+      const steps: Step[] = ['add', 'pattern', 'sub'];
+      save.recent = ['math'];
+      expect(picks(steps, save)).toEqual(new Set(['pattern']));       // logic, however well she does it
+      save.recent = ['math', 'logic'];
+      expect(picks(steps, save)).toEqual(new Set(['add']));           // mathematics: the weaker of its two steps
+    });
+
+    it('nothing played yet: the subject of the largest share, and its weakest step', () => {
+      const save = stats(defaultSave(), { pattern: [10, 0], add: [10, 9], count: [10, 5] });
+      expect(picks(['add', 'pattern', 'count'], save)).toEqual(new Set(['count']));
+    });
+
+    it('the subject furthest behind its share: after mathematics and logic in turn, English, then reading', () => {
+      const save = met(defaultSave());
+      const steps: Step[] = ['add', 'pattern', ...newSubjectKinds(save)];
+      save.recent = ['math', 'logic', 'math', 'logic', 'math', 'logic'];
+      const first = replayStep(steps, of, save, mulberry32(1));
+      expect(subjectOf(first)).toBe('en');
+      save.recent.push('en');
+      expect(replayStep(steps, of, save, mulberry32(1))).toBe('note');
+    });
+
+    it('before Pip is met a replay has no English and no reading; with English off - reading, never English', () => {
+      const play = (save: Save, n = 400) => {
+        const p = createPlanner(save), rng = mulberry32(8), out: Step[] = [];
+        for (let i = 0; i < n; i++) {
+          const step = replayStep(['add', 'sub', 'pattern', ...newSubjectKinds(save)], of, save, rng);
+          const skill = skillOf(step), level = levelFor(save, skill);
+          p.done(p.next(typeOf(step, level), level, rng), clean);
+          out.push(step);
+        }
+        return out;
+      };
+      const before = play(defaultSave());
+      expect(new Set(before.map(subjectOf))).toEqual(new Set(['math', 'logic']));
+      for (let i = 1; i < before.length; i++) expect(subjectOf(before[i]), `replay ${i}`).not.toBe(subjectOf(before[i - 1]));
+      const off = play(met(defaultSave(), false));
+      expect(new Set(off.map(subjectOf))).toEqual(new Set(['math', 'logic', 'read']));
+      const on = play(met(defaultSave()));
+      expect(new Set(on.map(subjectOf))).toEqual(new Set(SUBJECTS));
+      expect(new Set(on)).toEqual(new Set(['add', 'sub', 'pattern', 'en_tap', 'en_count', 'note']));
+    });
+
+    it('400 replays through the planner with Pip met: never two of a subject in a row, the shares 9 / 5 / 3 / 3 of 20 give or take one', () => {
+      const save = met(defaultSave());
+      const p = createPlanner(save), rng = mulberry32(21), answers = mulberry32(4);
+      let last: Subject | null = null;
+      for (let i = 0; i < 400; i++) {
+        const step = replayStep(['add', 'sub', 'pattern', 'odd', ...newSubjectKinds(save)], of, save, rng);
+        const skill = skillOf(step), level = levelFor(save, skill);
+        const wrong = answers() < 0.3 ? 1 : 0;
+        p.done(p.next(typeOf(step, level), level, rng), { solved: true, wrong });
+        recordTask(save, skill, wrong, false);
+        expect(subjectOf(step), `replay ${i}`).not.toBe(last);
+        last = subjectOf(step);
+        if (i >= RECENT_KEPT) {
+          const n = (k: Subject) => save.recent.filter((r) => r === k).length;
+          expect([Math.abs(n('math') - 9), Math.abs(n('logic') - 5), Math.abs(n('en') - 3), Math.abs(n('read') - 3)].every((d) => d <= 1), `replay ${i}: ${save.recent.join(' ')}`).toBe(true);
+        }
+      }
+    });
+
+    it('the parent\'s shares are read from the save at every replay: English x1.5 and mathematics x0.5 give more English', () => {
+      const count = (shares: Save['shares']) => {
+        const save = met(defaultSave());
+        save.shares = shares;
+        const p = createPlanner(save), rng = mulberry32(2);
+        let en = 0;
+        for (let i = 0; i < 200; i++) {
+          const step = replayStep(['add', 'pattern', ...newSubjectKinds(save)], of, save, rng);
+          if (subjectOf(step) === 'en') en++;
+          p.done(p.next(typeOf(step, 2), 2, rng), clean);
+        }
+        return en;
+      };
+      expect(count({ math: 0.5, logic: 1, en: 1.5, read: 1 })).toBeGreaterThan(count({ math: 1, logic: 1, en: 1, read: 1 }) + 10);
+    });
+
+    it('draws the rng once, as the replay before it', () => {
+      let draws = 0;
+      const rng = () => { draws++; return 0.5; };
+      replayStep(['add', 'sub', 'pattern', 'en_tap', 'note'], of, met(defaultSave()), rng);
+      expect(draws).toBe(1);
+    });
+  });
+});
+
 describe('the conversations give their tasks through the planner', () => {
   const sources = import.meta.glob(['./dialogue.ts', './context.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
   const dialogue = sources['./dialogue.ts'];
@@ -376,8 +571,13 @@ describe('the conversations give their tasks through the planner', () => {
     // one planner for the session (`g.plan`, src/game/context.ts): the conversations and the mysterious stars draw from it
     expect(dialogue).toMatch(/const \{ plan \} = g;/);
     expect(sources['./context.ts']).toMatch(/plan: createPlanner\(save\),/);
-    expect(dialogue).toMatch(/weakest\(q\.steps\.filter\(isPanel\), skillOf, save, g\.rng\)/);
+    // the replay: the subject first, then the weakest step of it (part I) - of its own games and of the new subjects
+    expect(dialogue).toMatch(/const own: PanelStep\[\] = q\.steps\.filter\(isPanel\);\n\s*const step = replayStep\(\[\.\.\.own, \.\.\.newSubjectKinds\(save\)\], \{ skill: skillOf, subject: subjectOf \}, save, g\.rng\)/);
+    expect(dialogue).toMatch(/const subjectOf = \(s: PanelStep\): Subject => SUBJECT_OF\[typeOf\(s, 1\)\];/);
+    expect(dialogue).not.toMatch(/\bweakest\(/);                    // no replay past the subjects
     expect(dialogue).not.toMatch(/pick\(q\.steps/);
+    // the harder example is offered after a game of the character's own only
+    expect(dialogue).toMatch(/if \(own\.includes\(step\) && mayDare\(save, skill, level, res\) && await dare\(n, step, skill, level\)\)/);
   });
 });
 
