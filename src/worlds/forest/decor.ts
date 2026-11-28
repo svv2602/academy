@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { staticGeo } from '../../core/assets';
 import { propMaterial } from '../../core/materials';
 import { facets, mat } from '../../core/style';
-import { PATHS, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
+import { MYSTERY_ROCK, MYSTERY_ROCKS, PATHS, STREAM_HALF, ZONES, inMaze, type Place } from './layout';
 import { BRIDGE_BASE, BRIDGE_H, BRIDGE_L, BRIDGE_W, colliders, height, pathDist, streamDist } from './terrain';
 
 /**
@@ -67,6 +67,23 @@ export function lanternShape() {
   return { wood: mergeGeometries([post, arm])!, frame: mergeGeometries([frame, roof])!, light };
 }
 
+/** The mossy grey of a boulder of the mysterious stars. */
+export const ROCK_COLOR = '#8a8f78';
+/**
+ * A boulder the mysterious stars hide behind (./layout.ts MYSTERY_ROCKS, ./hiding.ts): a dodecahedron of radius 1
+ * scaled by (r, h, r), turned by `spin`, its middle 0.45 h over its foot - with the attributes of the things it is baked
+ * with (a position, a normal and a colour, indexed).
+ */
+export function rockGeo(spin: number): THREE.BufferGeometry {
+  const { r, h } = MYSTERY_ROCK;
+  const geo = new THREE.DodecahedronGeometry(1, 0).scale(r, h, r).rotateY(spin).translate(0, 0.45 * h, 0);
+  geo.deleteAttribute('uv');
+  const n = geo.getAttribute('position').count, c = new THREE.Color(ROCK_COLOR), col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return mergeVertices(geo, 1e-4);
+}
+
 /** One instanced mesh of `geo` at `puts`; `s` scales each, `lift` raises it. */
 function put(scene: THREE.Scene, name: string, geo: THREE.BufferGeometry, material: THREE.Material, puts: readonly { x: number; z: number; rot: number; s?: number; lift?: number }[], shadow: boolean) {
   const mesh = new THREE.InstancedMesh(geo, material, Math.max(1, puts.length));
@@ -123,7 +140,10 @@ export function buildDecor(scene: THREE.Scene, d: Decor, bridges: readonly (Plac
   const v = ZONES.village;
   const piles = [{ x: v.x - 3.2, z: v.z + 2.4, rot: 0.6 }, { x: v.x + 3.4, z: v.z - 3, rot: 2.2 }], sign = [{ x: v.x + 3.2, z: v.z + 3.6, rot: -0.8 }];
   // the bridges, the fences, the woodpiles and the signpost: one geometry, one draw (and one of the shadow)
-  const things = new THREE.Mesh(bake([{ geo: d.bridge, puts: decks }, { geo: d.fence, puts: fences }, { geo: d.logs, puts: piles }, { geo: d.sign, puts: sign }]), solid);
+  // and the boulders of the mysterious stars (no draw of their own: the forest's frame is at its budget, TECH-06)
+  const rocks = MYSTERY_ROCKS.map((p, i) => ({ geo: rockGeo(i * 1.3), puts: [{ x: p.x, z: p.z, rot: 0 }] }));
+  const things = new THREE.Mesh(bake([{ geo: d.bridge, puts: decks }, { geo: d.fence, puts: fences }, { geo: d.logs, puts: piles }, { geo: d.sign, puts: sign }, ...rocks]), solid);
+  rocks.forEach((r) => r.geo.dispose());
   things.name = 'things'; things.castShadow = true; things.receiveShadow = true;
   scene.add(things);
   for (const p of [{ x: v.x - 3.2, z: v.z + 2.4 }, { x: v.x + 3.4, z: v.z - 3 }, { x: v.x + 3.2, z: v.z + 3.6 }]) colliders.push({ x: p.x, z: p.z, r: 0.45 });

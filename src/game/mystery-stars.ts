@@ -5,7 +5,7 @@ import { SKILL, answerOf } from './taskviews/panel';
 import type { Game } from './context';
 import type { Spot } from './player';
 import { playScene, type Stage } from './stage';
-import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
+import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_KINDS, MYSTERY_STAR, dailyStars, mysteryOf, type MysteryStar } from './mystery';
 import { dayKey } from './playtime';
 
 /**
@@ -15,9 +15,10 @@ import { dayKey } from './playtime';
  *
  * `mysteryHold`: the walkthrough's own lever (window.__game.mystery, ?debug only, src/game/debug.ts). Held, a world shows
  * no mysterious stars (the pieces of the walkthrough play the same whatever the real date, R61); `day` sets the day
- * they are of (the block "mystery" lets the hold go and walks through the days).
+ * they are of (the block "mystery" lets the hold go and walks through the days). `all`: every place of the world has its
+ * star, not the ten of the day - the worst case the measure of the draw calls takes (tools/*-grey.mjs --budget).
  */
-export const mysteryHold: { held: boolean; day: string | null } = { held: false, day: null };
+export const mysteryHold: { held: boolean; day: string | null; all: boolean } = { held: false, day: null, all: false };
 
 /** m: how near the heroine opens a star. */
 export const MYSTERY_SPOT_R = 1.8;
@@ -32,6 +33,8 @@ export interface MysteryInWorld {
   unsolved(): readonly THREE.Vector3[];
   /** A frame: they turn, bob and glow; a new day (midnight, or the lever) puts them at its places. */
   update(time: number, canMove: boolean): void;
+  /** Whether the stars are drawn this frame: always, or with `showR` (WorldDef.mystery) only while an unsolved one is that near her. */
+  readonly drawn: boolean;
   /** Takes them out of the scene (leaving the world). */
   dispose(): void;
 }
@@ -62,17 +65,20 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
   const day = () => mysteryHold.day ?? dayKey(new Date(now()));
   const spots: Spot[] = [], unsolvedPos: THREE.Vector3[] = [];
   let shown: (MysteryStar & { pos: THREE.Vector3; solved: boolean })[] = [];
-  let shownDay = '';
+  let shownDay = '', shownAll = false;
+  /** The stars of the lever `all`: every place, the kinds in turn. */
+  const everyPlace = (n: number): MysteryStar[] => Array.from({ length: n }, (_, i) => ({ id: i, spot: i, kind: MYSTERY_KINDS[i % 3], step: i % 3 === 0 ? 'add' : i % 3 === 1 ? 'sub' : 'pattern' }));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sv = new THREE.Vector3(), colour = new THREE.Color();
   // The mesh is made at once whenever the world has places, held or not: the scene of a world is the same at every entry
   // into it (tools/worlds.mjs compares the first world built again with the first time); nothing is drawn while count is 0.
   let mesh: THREE.InstancedMesh | null = null;
+  const cap = Math.max(MYSTERY_COUNT, def?.spots.length ?? 0);    // the lever `all` draws every place
   if (def && geo) {
-    mesh = new THREE.InstancedMesh(geo, starMaterial(), MYSTERY_COUNT);
+    mesh = new THREE.InstancedMesh(geo, starMaterial(), cap);
     mesh.name = 'mystery-stars';
     mesh.frustumCulled = false;      // ten small stars across the valley: culling them would cost more than it saves
     mesh.castShadow = false;
-    for (let i = 0; i < MYSTERY_COUNT; i++) mesh.setColorAt(i, colour.set('#ffffff'));   // the colour attribute from the start: one program
+    for (let i = 0; i < cap; i++) mesh.setColorAt(i, colour.set('#ffffff'));   // the colour attribute from the start: one program
     mesh.count = 0;
     g.scene.add(mesh);
   }
@@ -81,9 +87,9 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
 
   /** The stars of the day `d` at their places, their colours set per day. */
   function place(d: string) {
-    shownDay = d;
+    shownDay = d; shownAll = mysteryHold.all;
     const state = mysteryOf(g.ws, d);
-    shown = def ? dailyStars(g.world.id, d, def.spots.length).map((s) => {
+    shown = def ? (shownAll ? everyPlace(def.spots.length) : dailyStars(g.world.id, d, def.spots.length)).map((s) => {
       const p = { ...def.spots[s.spot] };
       g.ground.resolve(p, 0.6);
       return { ...s, pos: new THREE.Vector3(p.x, g.groundY(p.x, p.z) + FLOAT, p.z), solved: state.solved.includes(s.id) };
@@ -121,18 +127,29 @@ export function createMystery(g: MysteryHost, geo: THREE.BufferGeometry | null, 
   }
 
   const hidden = () => mysteryHold.held || !def;
+  // m: with a `showR`, the stars are drawn only while an unsolved one is this near her - one draw call less everywhere
+  // else (a world close to its budget of draw calls, TECH-06); the compass and the glimmer read unsolved() all the same
+  const showR = def?.showR;
+  let drawn = true;
+  const near = () => {
+    const h = g.hero.root.position;
+    return shown.some((s) => !s.solved && Math.hypot(s.pos.x - h.x, s.pos.z - h.z) < showR!);
+  };
   if (!hidden()) place(day());
 
   return {
     spots,
     get today() { return shown; },
+    get drawn() { return !!mesh && drawn && shown.length > 0; },
     unsolved: () => unsolvedPos,
     update: (time, canMove) => {
       if (gone) return;
       if (hidden()) { if (shown.length) { shown = []; spots.length = 0; refreshUnsolved(); if (mesh) mesh.count = 0; } return; }
       const d = day();
-      if (d !== shownDay || (!shown.length && def)) place(d);
+      if (d !== shownDay || mysteryHold.all !== shownAll || (!shown.length && def)) place(d);
       if (!mesh) return;
+      drawn = showR === undefined || near();
+      mesh.visible = drawn;
       shown.forEach((s, i) => {
         if (s.solved) { mesh!.setMatrixAt(i, m4.compose(s.pos, q.identity(), sv.setScalar(0))); return; }
         s.pos.y = g.groundY(s.pos.x, s.pos.z) + FLOAT + (0.5 + 0.5 * Math.sin(time * 1.8 + i)) * BOB;

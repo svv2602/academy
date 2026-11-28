@@ -1002,6 +1002,75 @@ export async function playWorld(h, o = {}) {
     }
   }
 
+  // ---- 4c. the mysterious stars (PLAY-24, src/game/mystery.ts), in a world that names their places ----
+  // The hold of the walkthrough (R61) is let go for the step, the day set by the lever: the places do not depend on the
+  // real date. Ten stars of the day, the cat's line of the day; with a `showR` the stars are drawn by one of them and
+  // not farther than it from all of them; at a star the action button opens a task of its kind; closed - nothing given,
+  // it stays; opened again and solved - three stars, kept in the save under worlds.<id>, off the compass; the next day -
+  // other places, nothing solved, the line again. The hold is pulled again after; the achievements' scenes held meanwhile.
+  {
+    const places = await g(() => window.__game.mystery?.places ?? 0);
+    if (places) {
+      const ach = await g(() => window.__game.ach.held);
+      await g(() => window.__game.ach.hold());
+      try {
+        await g(() => { window.__game.mystery.day('2030-01-01'); window.__game.mystery.release(); });
+        if (!(await gameUntil(() => window.__game.mystery.today.length === 10, null, REACTS))) fail(`the mysterious stars: not ten of the day once the hold is let go (${places} places)`);
+        if (!(await gameUntil((w) => window.__game.save.worlds[w].mystery?.told === true, worldId, REACTS * 2))) fail('the mysterious stars: the cat did not tell of the new stars of the day');
+        const day1 = await g(() => window.__game.mystery.today.map((s) => ({ id: s.id, kind: s.kind, step: s.step, x: s.pos.x, z: s.pos.z })));
+        const star = day1.find((s) => s.kind === 'blue') ?? day1[0];
+        const showR = await g(() => window.__game.mystery.showR);
+        await stand({ x: star.x + 2.2, z: star.z + 2.2 });
+        if (!(await g(() => window.__game.mystery.drawn))) fail(`the mysterious stars: not drawn by the ${star.kind} one`);
+        await shot('mystery-star');
+        let far = 'no showR';
+        if (showR !== null) {
+          // a place of the world of another day (on ground she walks), farther than showR from every star of today
+          const all = await g(() => window.__game.mystery.placesAt);
+          const away = all.find((p) => day1.every((t) => Math.hypot(t.x - p.x, t.z - p.z) > showR + 1));
+          if (!away) fail(`the mysterious stars: no place of the world farther than ${showR} m from every star of the day`);
+          await stand(away);
+          const at = await g(() => [window.__game.hero.root.position.x, window.__game.hero.root.position.z]);
+          if (day1.some((t) => Math.hypot(t.x - at[0], t.z - at[1]) <= showR)) fail(`the mysterious stars: she was moved from the place ${away.x.toFixed(1)}, ${away.z.toFixed(1)} to ${at.map((v) => v.toFixed(1))}, near a star`);
+          if (await g(() => window.__game.mystery.drawn)) fail(`the mysterious stars: drawn at ${at.map((v) => v.toFixed(1))}, farther than ${showR} m from every one`);
+          far = `at the place ${at.map((v) => v.toFixed(1)).join(', ')} none drawn (showR ${showR})`;
+          if ((await g(() => window.__game.mystery.unsolved().length)) !== 10) fail('the mysterious stars: not drawn, they left the compass');
+        }
+        const stars0 = await g(() => window.__game.save.stars);
+        const openAt = async () => {
+          await stand({ x: star.x + 1, z: star.z + 1 });
+          if (!(await button())) fail(`the mysterious stars: no action button at the ${star.kind} star`);
+          await act();
+          if (!(await gameUntil(() => !!document.querySelector('#task:not(.hidden)'), null, REACTS * 2))) fail('the mysterious stars: the action button did not open the task of the star');
+        };
+        await openAt();
+        const type = await g(() => [...document.querySelector('#taskStage').classList].find((c) => c.startsWith('t-') && c !== 't-stage')?.slice(2));
+        if (type !== star.step && !(star.step === 'compare' && type === 'signs')) fail(`the mysterious stars: the ${star.kind} star opened "${type}", not "${star.step}"`);
+        await tapOn('#taskClose').catch((e) => fail(`the mysterious stars: the close button cannot be pressed: ${why(e)}`));
+        if (!(await gameUntil(() => !window.__game.busy, null, REACTS * 2))) fail('the mysterious stars: the closed task did not give the controls back');
+        const kept = await g(([w, id]) => ({ stars: window.__game.save.stars, solved: window.__game.save.worlds[w].mystery?.solved ?? [], open: window.__game.mystery.unsolved().length, still: !window.__game.mystery.today.find((s) => s.id === id).solved }), [worldId, star.id]);
+        if (kept.stars !== stars0 || kept.solved.length || kept.open !== 10 || !kept.still) fail(`the mysterious stars: closed, the star did not stay as it was: ${JSON.stringify(kept)}`);
+        await openAt();
+        await g(() => window.__game.cheat());
+        if (!(await gameUntil(([w, id]) => (window.__game.save.worlds[w].mystery?.solved ?? []).includes(id) && !window.__game.busy, [worldId, star.id], REACTS * 4))) fail('the mysterious stars: the solved star is not kept in the save');
+        const got = await g(() => window.__game.save.stars);
+        if (got !== stars0 + 3) fail(`the mysterious stars: a solved star gave ${got - stars0} stars, not 3`);
+        if (!(await g(([w, id]) => JSON.parse(localStorage.getItem('amw-save') || '{}').worlds?.[w]?.mystery?.solved?.includes(id), [worldId, star.id]))) fail('the mysterious stars: the solved star is not stored');
+        if ((await g(() => window.__game.mystery.unsolved().length)) !== 9) fail('the mysterious stars: the solved star is still among the unsolved ones (the compass)');
+        await g(() => window.__game.mystery.day('2030-01-02'));
+        if (!(await gameUntil((w) => window.__game.save.worlds[w].mystery?.day === '2030-01-02' && window.__game.mystery.unsolved().length === 10, worldId, REACTS))) fail('the mysterious stars: the next day did not bring its stars');
+        const day2 = await g(() => window.__game.mystery.today.map((s) => `${s.pos.x},${s.pos.z}`));
+        const same = day2.filter((p) => day1.some((s) => `${s.x},${s.z}` === p)).length;
+        if (same === 10) fail('the mysterious stars: the next day they stand at the same places');
+        if (!(await gameUntil((w) => window.__game.save.worlds[w].mystery?.told === true, worldId, REACTS * 2))) fail('the mysterious stars: the cat did not tell of the stars of the next day');
+        console.log(`mystery: ${places} places, 10 stars of the day, the ${star.kind} one opened "${type}"; ${far}; closed - it stayed; solved - +3 stars, stored under worlds.${worldId}; the next day ${10 - same} of 10 places new`);
+      } finally {
+        await g(() => { window.__game.mystery.hold(); window.__game.mystery.day(null); }).catch(() => {});
+        if (!ach) await g(() => window.__game.ach.release()).catch(() => {});
+      }
+    }
+  }
+
   // ---- 5. the end: everything is done, each mark is in the stored save under the id of its item ----
   const last = await seen();
   await shot('20-done');

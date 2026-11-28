@@ -35,8 +35,11 @@ export const MYSTERY_STEPS: Readonly<Record<MysteryKind, readonly ('add' | 'sub'
 /** A star of the day: the index of its place in the world's list, its kind and the step of its task. */
 export interface MysteryStar { id: number; spot: number; kind: MysteryKind; step: 'add' | 'sub' | 'pattern' | 'compare' }
 
-/** What a world names (WorldDef.mystery). */
-export interface MysteryDef { readonly spots: readonly { readonly x: number; readonly z: number }[] }
+/**
+ * What a world names (WorldDef.mystery): the places, and `showR` - m, the stars are drawn only while an unsolved one is
+ * this near her (a world close to its budget of draw calls; absent: always, as in the first world).
+ */
+export interface MysteryDef { readonly spots: readonly { readonly x: number; readonly z: number }[]; readonly showR?: number }
 
 /** What the save keeps of them in a world (`ws.mystery`): the day the stars are of and the ids solved on it. */
 export interface MysteryState { day: string; solved: number[]; told?: boolean }
