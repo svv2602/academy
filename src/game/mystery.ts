@@ -49,8 +49,11 @@ export interface MysteryStar { id: number; spot: number; kind: MysteryKind; step
 /** Whether the days have golden stars for this save: Pip is met and the parent has English on (layout §4.4-4.5). */
 export const goldStars = (save: Pick<Save, 'pip' | 'english'>): boolean => save.pip.met === true && save.english !== false;
 
-/** What a world names (WorldDef.mystery). */
-export interface MysteryDef { readonly spots: readonly { readonly x: number; readonly z: number }[] }
+/**
+ * What a world names (WorldDef.mystery): the places, and `showR` - m, the stars are drawn only while an unsolved one is
+ * this near her (a world close to its budget of draw calls; absent: always, as in the first world).
+ */
+export interface MysteryDef { readonly spots: readonly { readonly x: number; readonly z: number }[]; readonly showR?: number }
 
 /** What the save keeps of them in a world (`ws.mystery`): the day the stars are of and the ids solved on it. */
 export interface MysteryState { day: string; solved: number[]; told?: boolean }

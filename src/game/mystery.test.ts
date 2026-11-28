@@ -163,7 +163,7 @@ function host(save: Save = defaultSave()) {
 }
 
 describe('the stars in the world (src/game/mystery-stars.ts)', () => {
-  afterEach(() => { mysteryHold.held = false; mysteryHold.day = null; });
+  afterEach(() => { mysteryHold.held = false; mysteryHold.day = null; mysteryHold.all = false; });
   const geo = new THREE.BoxGeometry();
 
   it('ten stars of the day at their places, one draw call, each with its spot; the world without places has none', () => {
@@ -252,5 +252,66 @@ describe('the stars in the world (src/game/mystery-stars.ts)', () => {
     const free = host(), f = createMystery(free.g, geo, free.stage);
     expect(free.g.scene.children.length).toBe(h.g.scene.children.length);
     f.dispose();
+  });
+
+  const meshOf = (g: { scene: THREE.Scene }) => g.scene.children.find((o) => (o as THREE.InstancedMesh).isInstancedMesh) as THREE.InstancedMesh;
+
+  it('without showR (the first world) they are drawn wherever she is', () => {
+    mysteryHold.day = '2026-11-20';
+    const h = host(), m = createMystery(h.g, geo, h.stage);
+    h.g.hero.root.position.set(1000, 0, 1000);
+    m.update(0, false);
+    expect(meshOf(h.g).visible).toBe(true);
+    expect(m.drawn).toBe(true);
+  });
+
+  it('with showR: drawn only while an unsolved one is that near her; the compass and the glimmer see them all the same', async () => {
+    mysteryHold.day = '2026-11-20';
+    const h = host(); (h.g.world as { mystery: object }).mystery = { spots: SPOTS, showR: 12 };
+    const m = createMystery(h.g, geo, h.stage), mesh = meshOf(h.g);
+    h.g.hero.root.position.set(1000, 0, 1000);
+    m.update(0, false);
+    expect([mesh.visible, m.drawn]).toEqual([false, false]);
+    expect(m.unsolved()).toHaveLength(MYSTERY_COUNT);
+    expect(m.spots).toHaveLength(MYSTERY_COUNT);
+    const s = m.today[0];
+    h.g.hero.root.position.set(s.pos.x + 11.9, 0, s.pos.z);
+    m.update(0, false);
+    expect([mesh.visible, m.drawn]).toEqual([true, true]);
+    h.g.hero.root.position.set(s.pos.x + 12.1, 0, s.pos.z);
+    m.update(0, false);
+    // no other star of the day is as near (the places are 10 m apart), so none is drawn
+    const others = m.today.slice(1).some((o) => Math.hypot(o.pos.x - s.pos.x - 12.1, o.pos.z - s.pos.z) < 12);
+    expect(mesh.visible).toBe(others);
+    // solved, it no longer calls the mesh up near it
+    await new Promise<void>((done) => { m.spots[0].run(); setTimeout(done, 0); });
+    await Promise.resolve();
+    expect(m.today[0].solved).toBe(true);
+    h.g.hero.root.position.set(s.pos.x, 0, s.pos.z);
+    m.update(0, false);
+    const unsolvedNear = m.today.some((o) => !o.solved && Math.hypot(o.pos.x - s.pos.x, o.pos.z - s.pos.z) < 12);
+    expect(mesh.visible).toBe(unsolvedNear);
+    expect(m.unsolved()).toHaveLength(MYSTERY_COUNT - 1);
+  });
+
+  it('the lever all: a star at every place of the world, the mesh made big enough; let go - the ten of the day again', () => {
+    mysteryHold.day = '2026-11-20';
+    const many = Array.from({ length: 30 }, (_, i) => ({ x: (i % 6) * 10, z: Math.floor(i / 6) * 10 }));
+    const h = host(); (h.g.world as { mystery: object }).mystery = { spots: many };
+    const m = createMystery(h.g, geo, h.stage), mesh = meshOf(h.g);
+    expect(m.today).toHaveLength(MYSTERY_COUNT);
+    mysteryHold.all = true;
+    m.update(0, false);
+    expect(m.today).toHaveLength(30);
+    expect(m.today.map((s) => s.spot)).toEqual(many.map((_, i) => i));
+    expect(new Set(m.today.map((s) => s.kind)).size).toBe(3);
+    expect(mesh.count).toBe(30);
+    expect(mesh.instanceMatrix.count).toBe(30);
+    mysteryHold.all = false;
+    m.update(0, false);
+    expect(m.today).toHaveLength(MYSTERY_COUNT);
+    // a world of fewer places than ten a day keeps the mesh of ten
+    const few = host(); (few.g.world as { mystery: object }).mystery = { spots: SPOTS.slice(0, 5) };
+    expect(meshOf((createMystery(few.g, geo, few.stage), few.g)).instanceMatrix.count).toBe(MYSTERY_COUNT);
   });
 });

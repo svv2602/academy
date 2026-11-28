@@ -123,6 +123,36 @@ export const ROOTS = (() => {
   return { ...p, face: Math.atan2(to.x - p.x, to.z - p.z), clear: 7 };
 })();
 export const SECRET_CLEARINGS: readonly { x: number; z: number; clear: number }[] = [CAVE, SONG_TREE, FAIRY_RING, ROOTS];
+
+/**
+ * The places of the mysterious stars (PLAY-24, src/game/mystery.ts, ten of them a day), in metres of the chosen stretch
+ * (moved with the map by another). Half of them hidden: from the nearest point of a path the star is behind a mossy
+ * boulder (MYSTERY_ROCKS, one each, ./hiding.ts) - seen only on coming near; the other half in sight, aside of the
+ * path, where she has to walk. None within MYSTERY_SHOW_R + 4 of the central glade, the village or the Owl glade: the
+ * looks from there are the heaviest of the forest (TECH-06), and a star is drawn only that near her (./mystery.test.ts).
+ */
+const m = (x: number, z: number): Place => at(x / DEFAULT_SCALE, z / DEFAULT_SCALE);
+/** m: the stars are drawn only while one not solved is this near her (WorldDef.mystery.showR) - as the secrets (./secrets.ts SHOW_R). */
+export const MYSTERY_SHOW_R = 22;
+export const MYSTERY_HIDDEN: readonly Place[] = [
+  m(-26.5, 13.3), m(44, -34.4), m(47, 36.2), m(-3.2, 63.5),
+  m(0.1, -21.5), m(25.7, 57.5), m(-23.8, 43), m(25, -51.3),
+  m(5.7, 0.5), m(26.5, 35.8), m(8.8, 46), m(-19.7, 60.5),
+];
+/** The boulder each hidden place stands behind, in the order of MYSTERY_HIDDEN: baked into the things of the forest (./decor.ts). */
+export const MYSTERY_ROCKS: readonly Place[] = [
+  m(-28.5, 13.5), m(42, -34.5), m(45, 36), m(-3, 61.5),
+  m(0, -19.5), m(25.5, 55.5), m(-24, 45), m(27, -51),
+  m(6, -1.5), m(28.5, 36), m(9, 48), m(-19.5, 58.5),
+];
+/** A boulder: a dodecahedron of radius 1 scaled by (r, h, r), its middle 0.45 h over the ground (as the first world's). */
+export const MYSTERY_ROCK = { r: 1.4, h: 2 } as const;
+export const MYSTERY_OPEN: readonly Place[] = [
+  m(-13.5, 0), m(-7.5, 42), m(22.5, -36), m(12, 61.5),
+  m(45, 24), m(-25.5, 24), m(-15, 48), m(46.5, -43.5),
+  m(9, -19.5), m(45, 45), m(28.5, -42), m(-12, 58.5),
+];
+export const MYSTERY_SPOTS: readonly Place[] = [...MYSTERY_HIDDEN, ...MYSTERY_OPEN];
 /**
  * The room in Shustrik's tree (`hollow`, the customer's word of 2026-11-27: a secret place to explore, as the first
  * world's room of the house): far past the map, south of it, where nothing of the forest reaches (./terrain.ts holds

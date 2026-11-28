@@ -128,7 +128,9 @@ async function measure(browser, url, scale, out, q = 2, budget = false) {
   const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[grey] pageerror', e.message));
-  await page.addInitScript(() => { for (const k of ['amw-gift-hold', 'amw-break-hold', 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); });
+  // the mysterious stars (src/game/mystery-stars.ts): held for the pictures; for --budget a star at every place of the
+  // world (the lever `all`, the worst case of their draw call - drawn by her within the world's showR)
+  await page.addInitScript((budget) => { for (const k of ['amw-gift-hold', 'amw-break-hold', budget ? 'amw-mystery-all' : 'amw-mystery-hold']) sessionStorage.setItem(k, '1'); }, budget);
   await page.goto(`${url}?debug&q=${q}&world=sea&scale=${scale}`, { waitUntil: 'networkidle' });
   await page.waitForSelector('#play', { state: 'visible', timeout: 120000 });
   await page.click('#play');
