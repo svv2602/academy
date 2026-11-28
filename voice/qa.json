@@ -9005,5 +9005,69 @@
   "style": "warm",
   "voice": "Charon",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "explore_more": {
+  "text": "Тут ще є таємниці! Дослідимо половину — і прокинеться нова арка.",
+  "heard": "Тут ще є таємниці. Дослідимо половину, і прокинеться нова арка.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "explore_half": {
+  "text": "Половину досліджено! Нова арка прокидається.",
+  "heard": "Половину досліджено. Нова арка прокидається.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "explore_full": {
+  "text": "Ти дослідила весь світ! На Дереві засяє золота рамка.",
+  "heard": "Ти дослідила весь світ, на дереві засяє золота рамка!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "ach_explorer": {
+  "text": "Цілий світ досліджено! Ти справжня дослідниця.",
+  "heard": "Цілий світ досліджено, ти справжня дослідниця!",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_doze_fairy": {
+  "text": "Арка ще дрімає — давай ще трохи дослідимо Королівство фей!",
+  "heard": "Аркашче дрімає, давай ще трохи дослідимо королівство фей.",
+  "score": 0.964,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_doze_forest": {
+  "text": "Арка ще дрімає — давай ще трохи дослідимо Зачарований ліс!",
+  "heard": "Аркаш ще дрімає, давай ще трохи дослідимо зачарований ліс.",
+  "score": 0.991,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_doze_sea": {
+  "text": "Арка ще дрімає — давай ще трохи дослідимо Підводне королівство!",
+  "heard": "Арка, ще три мая. Давай ще трохи дослідимо підводне королівство.",
+  "score": 0.942,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "hub/hub_doze_sweet": {
+  "text": "Арка ще дрімає — давай ще трохи дослідимо Солодку країну!",
+  "heard": "Арка ще дрімає, давай ще трохи дослідимо солодку країну.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

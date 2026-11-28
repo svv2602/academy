@@ -1844,6 +1844,11 @@
   "tp": -3.69,
   "sha256": "d5fd21a01a108992c9700b5ea99aaf8662d8b532020afb6fac1ec4012774e9e8"
  },
+ "public/voice/ach_explorer.mp3": {
+  "lufs": -18.09,
+  "tp": -3.03,
+  "sha256": "09836e1b6691e882c5bb8d2db58bfb8b9416c8e23c75e28f35106ec112ad520c"
+ },
  "public/voice/ach_fifty_tasks.mp3": {
   "lufs": -18.03,
   "tp": -2.69,
@@ -2018,6 +2023,21 @@
   "lufs": -17.99,
   "tp": -3.81,
   "sha256": "09176acf64ca84427c25d95b93291ac9d6daaa55e02de451ec1c3440d8dca642"
+ },
+ "public/voice/explore_full.mp3": {
+  "lufs": -18.11,
+  "tp": -2.25,
+  "sha256": "f3fd2ed43838e7732dcda366fef072c40ad4660cf74901f770817f7c38f6ec21"
+ },
+ "public/voice/explore_half.mp3": {
+  "lufs": -17.98,
+  "tp": -3.54,
+  "sha256": "c864baeeab61617bb85b6b09f4ab16f4e76aa713d2817fdfac74a7edc749dde0"
+ },
+ "public/voice/explore_more.mp3": {
+  "lufs": -18.04,
+  "tp": -2.57,
+  "sha256": "7d9a54175293e465440256a29153b6ec559465f34b405182b87232ad0698524b"
  },
  "public/voice/final_text.mp3": {
   "lufs": -17.93,
@@ -2383,6 +2403,26 @@
   "lufs": -17.98,
   "tp": -2.07,
   "sha256": "467ffe8640da90da803769850a54d99e70b3aa655e4aac8b9790b42a4bfb4703"
+ },
+ "public/voice/hub/hub_doze_fairy.mp3": {
+  "lufs": -18.11,
+  "tp": -1.88,
+  "sha256": "a35752f2b1ceb86822fe01e0f0f9a1694960d9aceda270a124181de37ddde2ef"
+ },
+ "public/voice/hub/hub_doze_forest.mp3": {
+  "lufs": -17.97,
+  "tp": -2.39,
+  "sha256": "d63a51c068099ef5c00110e160c890afa7b51eda2b13a8a7408c407639891cb5"
+ },
+ "public/voice/hub/hub_doze_sea.mp3": {
+  "lufs": -18.12,
+  "tp": -2.34,
+  "sha256": "964767509503aca5e8ee08e163e62386d7c96d0e1090436ed55ee57d286cef55"
+ },
+ "public/voice/hub/hub_doze_sweet.mp3": {
+  "lufs": -18.24,
+  "tp": -1.75,
+  "sha256": "c0d6b1a5b28d533f8410d199bf37684d8e966d3082093551491bd8707635f9c6"
  },
  "public/voice/hub/hub_feather.mp3": {
   "lufs": -18.1,
