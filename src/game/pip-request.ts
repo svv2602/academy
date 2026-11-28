@@ -160,6 +160,7 @@ export function createPipRequest(env: PipRequestEnv): PipRequest {
     try { res = await show.done; } finally { going = null; env.closer(null); }
     if (!res.solved) return false;
     await reward('en_go', res, 'step');
+    // part I: noteSubject(save, 'en') here - a task of the world passes by the planner, so the ring of subjects is told
     await env.stop();
     return true;
   }
@@ -196,6 +197,7 @@ export function createPipRequest(env: PipRequestEnv): PipRequest {
   async function again() {
     await env.scene('pip again', async () => {
       await env.pip('pip_hi_world');
+      // part I: replayStep (src/game/planner.ts) takes this place - the subjects' shares, then the weakest skill
       const s = weakest(PANEL_STEPS, (x) => STEP_SKILL[x], save, env.rng);
       step = s;
       const res = await env.panel(s, levelFor(save, STEP_SKILL[s]));

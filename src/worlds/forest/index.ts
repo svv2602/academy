@@ -10,6 +10,8 @@ import { Actor } from '../../game/actor';
 import { talkSpot } from '../../game/talk-spot';
 import { worldPip } from '../../game/pip-world';
 import { EN_GIVEN, EN_PLACES, PIP_PLACE } from './en-places';
+import { worldNotes } from '../../game/notes-world';
+import { NOTE_CLEAR, NOTE_PLACES } from './notes';
 import { createStage, type Game } from '../../game/context';
 import { declared, finaleWaits, marked, ready } from '../../game/describe';
 import { createDialogue } from '../../game/dialogue';
@@ -208,7 +210,7 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
   const hubWay = createHubWay(g);
   buildDecor(scene, L.decor, bridges());
-  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, [...FRIEND_CLEAR(), { x: ROOTS.x, z: ROOTS.z, r: ROOTS_R + 1.5 }]));
+  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, [...FRIEND_CLEAR(), { x: ROOTS.x, z: ROOTS.z, r: ROOTS_R + 1.5 }, ...NOTE_CLEAR()]));
   const fireflies = buildFireflies(scene);
   // the magic of the forest (WORLD-09): from the leaves in the save; after what it lights, before the frame moves the fireflies
   const magic = createForestMagic(g, scope, { sky, fireflies, characters: FRIENDS });
@@ -279,6 +281,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   };
 
   const stage = createStage(g, () => g.speech.caption(null));
+  // Pip's notes 5-8 (Season 2, part G3, src/game/notes-world.ts): once he is met; a tap opens the note on the panel, a
+  // note that sends her looking leaves a bookmark to walk to (no plant grows on either: ./notes.ts NOTE_CLEAR)
+  const notes = worldNotes(g, NOTE_PLACES, scope, stage);
   // the cut-scenes (WORLD-13, ./story.ts): the way in at the first entry (src/game/start.ts enterWorld), the Emerald after the finale
   const story = setStories(g, FOREST_STORIES, scope);
   // The tasks played in the world (PLAY-01): opened in their frame by the shared player, their taps and time from below.
@@ -356,12 +361,14 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
         hubWay.spot,
         pip.spot(),
         ...secrets.spots,
+        ...notes.spots,
       ],
       // a firefly of the hollow while they wait for her, else the tasks played in the world
       tap: (screenDist) => secrets.tap(screenDist) || player.tap(screenDist),
       afterMove: (time, grounded) => gear.update(time, grounded),
       update: (dt, time, canMove) => {
         pip.update(dt, time, canMove);
+        notes.update(dt, time, canMove);
         const hp = hero.root.position;
         for (const n of npcs) {
           n.actor.face(Math.hypot(n.pos.x - hp.x, n.pos.z - hp.z) < 7 ? Math.atan2(hp.x - n.pos.x, hp.z - n.pos.z) : n.def.heading, dt, 3);
@@ -413,6 +420,9 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
       more: { gear, flyoverPlayer: flyover, flyover: () => { void tour(g, { record: false }); }, flyoverPoints: FOREST_FLYOVER.points.map((p, i) => ({ ...p, t: flyover.times[i] })),
         // Pip (Season 2, src/game/pip-world.ts): shown, his mark, the step of his request, the pieces; start() taps him
         pip: pip.debug,
+        // Pip's notes (src/game/notes-world.ts): shown, found (save.notes), the bookmark waiting, their places; read(id) taps
+        // one, find(id) - she has come to its bookmark
+        notes: notes.debug,
         // the map as the measurements of the grey build read it (tools/forest-grey.mjs): its stretch, zones, paths, landmarks
         // `arrival`: where she comes out of the arch of the Great Tree on the central glade (./hub-way.ts FROM_HUB) - the
         // place a child stands on that glade; its middle is the arch itself (tools/forest-grey.mjs: the sights from there)

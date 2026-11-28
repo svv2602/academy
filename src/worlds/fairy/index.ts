@@ -6,6 +6,8 @@ import { createStage, type Game } from '../../game/context';
 import { talkSpot } from '../../game/talk-spot';
 import { worldPip } from '../../game/pip-world';
 import { EN_GIVEN, EN_PLACES, PIP_PLACE } from './en-places';
+import { worldNotes } from '../../game/notes-world';
+import { NOTE_PLACES } from './notes';
 import { createDialogue } from '../../game/dialogue';
 import { marked } from '../../game/describe';
 import { setTour, tour } from '../../game/flyover';
@@ -117,6 +119,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     if (!search.active) speech.caption(null);
     else if (speech.shown?.key !== 't_stars') starSearch.caption();
   });
+  // Pip's notes 1-4 (Season 2, part G3, src/game/notes-world.ts): on the meadow once he is met; a tap opens the note on
+  // the panel, a note that sends her looking leaves a bookmark to walk to. On the world's stage: a scene of a note in the
+  // star search gives the bubble back to the search.
+  const notes = worldNotes(g, NOTE_PLACES, scope, stage);
   // The cut-scenes (WORLD-13, ./story.ts): the introduction is played by the start of the game (src/game/start.ts), the
   // return of the crystal once the finale and its last words are over - "walk around" comes after it.
   const story = setStories(g, FAIRY_STORIES, scope);
@@ -233,6 +239,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
     { pos: sign, r: 2.4, label: 'shop', on: () => true, run: () => openShop() },
     treeWay.spot,
     ...secrets.spots,
+    ...notes.spots,
   ];
 
   // Pip's command she walks to leads over everything else while it runs (its sparkles only at its last rung)
@@ -271,6 +278,7 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       oakShadows();
       characters.update(dt, time);
       pip.update(dt, time, canMove);
+      notes.update(dt, time, canMove);
       chestStars.update(time, canMove);
       secrets.update(dt, time, canMove);
       reach();
@@ -334,7 +342,10 @@ export function buildFairy(g: Game, L: FairyLoads, sky: FairySky, scope: WorldSc
       // marking it, next(), skip(), hold(u), flat)
       story,
       // Pip (Season 2, src/game/pip-world.ts): shown, his mark, the step of his request, the pieces; start() taps him
-      pip: pip.debug },
+      pip: pip.debug,
+      // Pip's notes (src/game/notes-world.ts): shown, found (save.notes), the bookmark waiting, their places; read(id) taps
+      // one, find(id) - she has come to its bookmark
+      notes: notes.debug },
     talk: (id) => { void talk(npc(id as QuestDef['id'])); },
     cheatWorld: () => {
       if (worldTaskDoor(g).solve()) return 'world task';
