@@ -37,6 +37,8 @@ export const DEAL_HOLD = 'amw-deal-hold';
 export const BREAK_HOLD = 'amw-break-hold';
 /** The same for the walkthrough's lever of the mysterious stars (`__game.mystery`). */
 export const MYSTERY_HOLD = 'amw-mystery-hold';
+/** The same for its lever `all` (`__game.mystery.all()`): a star at every place of the world - the measure of the draw calls. */
+export const MYSTERY_ALL = 'amw-mystery-all';
 /** The same for the walkthrough's lever of the trades of the characters (`__game.trade`). */
 export const TRADE_HOLD = 'amw-trade-hold';
 
@@ -72,6 +74,7 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
   try { breakHold.held = sessionStorage.getItem(BREAK_HOLD) === '1'; } catch { /* ignore */ }
   try { dealState.held = sessionStorage.getItem(DEAL_HOLD) === '1'; } catch { /* ignore */ }
   try { mysteryHold.held = sessionStorage.getItem(MYSTERY_HOLD) === '1'; } catch { /* ignore */ }
+  try { mysteryHold.all = sessionStorage.getItem(MYSTERY_ALL) === '1'; } catch { /* ignore */ }
   try { tradeHold.held = sessionStorage.getItem(TRADE_HOLD) === '1'; } catch { /* ignore */ }
   const { hero, cat, cam, save, flies, scene, camera, renderer } = g;
   let world = extras;
@@ -160,7 +163,8 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
     /**
      * The mysterious stars (src/game/mystery-stars.ts): `hold()` - none in any world, `release()` - by the clock again,
      * `day(key)` - the day they are of (null: today), `today` - the stars of the day in the world played (id, kind, step, pos, solved),
-     * `open(id)` - what the action button does at that star. The walkthrough's own lever (R61), never the game's; the hold
+     * `open(id)` - what the action button does at that star; `all(on)` - a star at every place of the world, not the ten of
+     * the day (the worst case for the measure of the draw calls), `drawn` - whether they are drawn this frame (`showR`). The walkthrough's own lever (R61), never the game's; the hold
      * lasts for the tab (sessionStorage).
      */
     mystery: {
@@ -168,6 +172,13 @@ export function exposeDebug(g: Game, extras: DebugExtras, travel: DebugTravel): 
       hold() { mysteryHold.held = true; try { sessionStorage.setItem(MYSTERY_HOLD, '1'); } catch { /* ignore */ } },
       release() { mysteryHold.held = false; try { sessionStorage.removeItem(MYSTERY_HOLD); } catch { /* ignore */ } },
       day(key: string | null) { mysteryHold.day = key; },
+      all(on = true) { mysteryHold.all = on; try { if (on) sessionStorage.setItem(MYSTERY_ALL, '1'); else sessionStorage.removeItem(MYSTERY_ALL); } catch { /* ignore */ } },
+      get drawn() { return g.mystery.drawn; },
+      /** How many places the world played names (0: none, the world has no mysterious stars) and its `showR` (null: always drawn). */
+      get places() { return g.world.mystery?.spots.length ?? 0; },
+      /** Where the world's places are (each on ground she walks, its test): the walkthrough stands at one away from the stars of the day. */
+      get placesAt() { return (g.world.mystery?.spots ?? []).map((p) => ({ x: p.x, z: p.z })); },
+      get showR() { return g.world.mystery?.showR ?? null; },
       get today() { return g.mystery.today; },
       unsolved: () => g.mystery.unsolved(),
       open(id: number) { const s = g.mystery.today.find((x) => x.id === id); const spot = s && g.mystery.spots.find((p) => p.pos === s.pos); if (spot?.on()) spot.run(); return !!spot; },

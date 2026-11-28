@@ -27,7 +27,7 @@ import { playScene } from '../../game/stage';
 import { playStory, setStories } from '../../game/story';
 import type { BuiltWorld, CharacterDef, MusicParams, Npc, WorldDef, WorldItem, WorldLines, WorldSky, WorldTask } from '../../game/world';
 import { FOREST_FLYOVER } from './flyover-path';
-import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, ROOTS, SONG_TREE, TREE_ROOM, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
+import { ALTAR, CAVE, EASEL, FAIRY_RING, HALF, HOLLOW, LANDMARKS, MYSTERY_ROCKS, MYSTERY_SHOW_R, MYSTERY_SPOTS, ROOTS, SONG_TREE, TREE_ROOM, MAZE_END, MAZE_IN, OWL_TREE, PATHS, ROUTE, SCALE, SPAWN, ZONES } from './layout';
 import { MAZE, createMaze } from './maze';
 import { bridges, buildScenery, loadFlora, type Flora } from './scenery';
 import { FROM_HUB, arriveFrom, createHubWay } from './hub-way';
@@ -42,6 +42,7 @@ import { strings } from './strings';
 import { voices } from './voices';
 import CLIPS from './clips.json';
 import { buildGround, colliders, ground } from './terrain';
+import { ROCK_WALL } from './hiding';
 
 /**
  * The Enchanted Forest (WORLD-02), its grey build (WORLD-12): the map of docs/worlds/world-2.md in simple shapes at
@@ -210,7 +211,10 @@ function buildForest(g: Game, L: ForestModels, sky: WorldSky, scope: WorldScope)
   // the arch back to the Great Tree on the central glade (./hub-way.ts): she comes out of it from the hub
   const hubWay = createHubWay(g);
   buildDecor(scene, L.decor, bridges());
-  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, [...FRIEND_CLEAR(), { x: ROOTS.x, z: ROOTS.z, r: ROOTS_R + 1.5 }, ...NOTE_CLEAR()]));
+  // no plant inside a boulder of the mysterious stars, nor on Pip's notes; the boulders' walls after the plants are
+  // placed, so every plant stays where it grew
+  const undergrowth = buildUndergrowth(scene, L.plants, placePlants(undefined, [...FRIEND_CLEAR(), { x: ROOTS.x, z: ROOTS.z, r: ROOTS_R + 1.5 }, ...NOTE_CLEAR(), ...MYSTERY_ROCKS.map((p) => ({ ...p, r: ROCK_WALL + 0.4 }))]));
+  for (const p of MYSTERY_ROCKS) colliders.push({ x: p.x, z: p.z, r: ROCK_WALL });
   const fireflies = buildFireflies(scene);
   // the magic of the forest (WORLD-09): from the leaves in the save; after what it lights, before the frame moves the fireflies
   const magic = createForestMagic(g, scope, { sky, fireflies, characters: FRIENDS });
@@ -491,6 +495,7 @@ export const forest: WorldDef<ForestModels, WorldSky> = {
   // PLAY-10: the six secrets (./secrets.ts); the cave's chest is the world's chest (PLAY-08)
   collect: COLLECT,                  // cones and bilberries (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
+  mystery: { spots: MYSTERY_SPOTS, showR: MYSTERY_SHOW_R },   // the mysterious stars (PLAY-24, ./layout.ts, ./hiding.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   enPlaces: EN_PLACES,               // the places of Pip's commands (LEARN-23, ./en-places.ts)
   secrets: FOREST_SECRETS,

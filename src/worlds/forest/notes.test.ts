@@ -98,7 +98,7 @@ describe('Pip\'s notes in the forest', () => {
   it('no plant of the undergrowth grows on a note or a bookmark, and none of the squirrel\'s tracks run over one', () => {
     // the world takes them out (./index.ts), as it does round the characters
     const index = (import.meta.glob('./index.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)['./index.ts'];
-    expect(index).toMatch(/placePlants\(undefined, \[\.\.\.FRIEND_CLEAR\(\), [^\]]*\.\.\.NOTE_CLEAR\(\)\]\)/);
+    expect(index).toMatch(/placePlants\(undefined, \[\.\.\.FRIEND_CLEAR\(\), [^;]*\.\.\.NOTE_CLEAR\(\)[,\]]/);
     const plants = placePlants(undefined, [...FRIEND_CLEAR(), ...NOTE_CLEAR()]);
     const bad = NOTE_CLEAR().flatMap((c) => plants.filter((p) => d(p, c) < NOTE_SPOT_R - 0.3).map((p) => `${c.x.toFixed(1)}, ${c.z.toFixed(1)}: a plant at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`));
     expect(bad).toEqual([]);
