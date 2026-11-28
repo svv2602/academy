@@ -38,6 +38,7 @@ import { note, sfx, speaking } from '../../core/audio';
 import { WAKE_S, buildArches, buildNestLook, loadArchLook, type ArchLoads } from './arch-look';
 import type { SpokenKey } from '../../ui/strings';
 import { buildGladeLook, loadGladeLook, type GladeLoads } from './glade-look';
+import { hubPip } from './pip-meet';
 
 /**
  * The hub, the Great Tree (WORLD-01, docs/worlds/hub.md): the home between the worlds the heroine comes back to after
@@ -196,6 +197,7 @@ const loadHub = async (_scene: THREE.Scene, save: Save, _touch: boolean, scope: 
     // the pets found whose model is a file of their world (the owlet of the forest): from that world's files, already
     // in the cache; one that does not come stays at home (src/game/pets.ts loadOwnPets)
     loadOwnPets('hub', ownFound(save), scope)]);
+  // Pip is not waited for here: his model comes on its own once the hub is built (./pip-meet.ts, src/game/pip-load.ts)
   return { tree, arch, glade };
 };
 
@@ -305,6 +307,8 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
   // the controls held as a scene of the world holds them (src/game/context.ts createStage): given back only in the
   // entry it was taken in (a change of world gives them back itself)
   const visit = g.visit;
+  // Pip on his root, met the first time she is free here after the first world (./pip-meet.ts)
+  const pip = hubPip(g, doneIn(save)('fairy'), scope);
   const wakeUp = () => {
     if (!wake) return;
     const first = portals[wake.shelves[0]];
@@ -365,8 +369,9 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       },
       afterMove: (time, grounded) => gear.update(time, grounded),
       // By a sleeping arch the cat says its world sleeps (D) - once as she comes near, not while something else is said.
-      update: (dt, _time, canMove) => {
+      update: (dt, time, canMove) => {
         watchFeathers();
+        pip?.update(dt, time, canMove && !g.busy && !waking.on && !(wake && waking.t === 0) && !flyoverOf(g)?.active);
         // once the cat is silent: after the tour's word, or the word she came in to
         if (wake && !waking.on && waking.t === 0 && canMove && !g.busy && !flyoverOf(g)?.active && !speaking()) wakeUp();
         if (waking.on && waking.end) {
@@ -392,7 +397,9 @@ function buildHub(g: Game, L: HubLoads, sky: WorldSky, scope: WorldScope): Built
       npcs: [],
       more: { flyoverPlayer: tour, hub: { portals: () => portals.map((p) => ({ shelf: p.shelf, world: p.world, x: p.x, z: p.z })), nests: lit, keepsakes: () => keepsakes.list.map((k) => `${k.world}/${k.id}`), gold: () => [...gold], dozing: () => dozing.map((d) => ({ ...d })), feathers: (day?: string | null) => { if (day !== undefined) { featherState.day = day; sleep(); } return { day: featherDay(), lying: featherOfDay(ws, featherDay()), bird: tree.bird.at() && { ...tree.bird.at()! } }; }, cauldron: () => ({ x: CAULDRON.x, z: CAULDRON.z, recipes: shownRecipes(save).map((r) => r.id), open: () => openPot() }), board: () => ({ x: BOARD.x, z: BOARD.z, open: () => openTrainer(), card: { ...boardState }, skill: training.skill, end: training.end, days: trainDays(save), train: save.train ? { ...save.train } : null }), petShadow: () => ({ stage, cast: petCastsShadow(stage), blob: blob?.mesh.visible ?? false }), ring: () => ({ tops: tree.ring.tops.map((p) => ({ x: p.x, y: p.y, z: p.z })), notes: [...notes] }), goal: () => { const v = frameGoal(); return v && { x: v.x, z: v.z }; }, left: (why: 'tap' | 'entry') => hubLeft(save, why),
         // the arches waking (or woken) in this entry: how far, whether it plays; `hold(t)` keeps it at t, null lets it go
-        wake: (hold?: number | null) => { if (hold !== undefined) waking.hold = hold; return { shelves: wake?.shelves ?? [], t: waking.t, on: waking.on }; } } },
+        wake: (hold?: number | null) => { if (hold !== undefined) waking.hold = hold; return { shelves: wake?.shelves ?? [], t: waking.t, on: waking.on }; },
+        // Pip on his root (Season 2): where he is, whether he is met, whether his meeting plays now
+        pip: () => pip && { x: pip.place.x, z: pip.place.z, ...pip.state() } } },
       talk: () => {},
       cheatWorld: () => '',
     },

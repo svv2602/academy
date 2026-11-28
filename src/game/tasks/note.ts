@@ -4,17 +4,18 @@
  * and answers what it asks (src/s2/notes.ts): a picture to it, how many pink pebbles, the riddle, the sum of the nuts.
  * Which note: one of those for the level of `read` or below it (layout §3), a fresh one by the planner.
  *
- * Nothing of it is said (the lead's decision 2026-11-27, Q1 (а): Ukrainian as text, the child reads herself): the
- * question is on the screen only, rung 1 lights the words one by one, rung 2 shows "read slowly" and lights the key
- * words, rung 3 is the recorded "look at what glows" with the answer pulsing - the cat reading the note waits for her
- * clips `note_<n>` (R25).
+ * The cat asks it and helps (the lead's decision 2026-11-27, Q1, recorded with Pip's voice of step 2): the question
+ * `q_note`, rung 1 lights the words one by one (nothing said: she reads), rung 2 "read it again, slowly" with the key
+ * words lit, rung 3 the cat reads the very note (`h3_note_<n>`) and the answer pulses. The text she reads stays on the
+ * panel whatever is said.
  * A note answered on the panel is not "found" (save.notes): it is found in the world, with Pip (part G; Q4).
  */
 import { pick, randInt, shuffle } from '../../core/util';
 import type { Rng } from '../../core/rng';
 import { NOTE_IDS, NOTE_TEXTS, type NoteId } from '../../s2/strings-book';
 import { NOTES, OTHER_PEBBLES, PINK } from '../../s2/notes';
-import type { EnSpec, Hint, TaskModel } from './types';
+import type { Hint, Spec, TaskModel } from './types';
+import type { SpokenKey } from '../../ui/strings';
 
 /** How many pictures to choose from on `level` of `read` (as many as the note has, at most). */
 export const choicesAt = (level: number) => (level <= 1 ? 2 : level === 2 ? 3 : 4);
@@ -38,13 +39,14 @@ export interface NoteBody {
   /** №8: the skill the answer is noted for as well (the parents' report), its level not moved. */
   also?: 'add';
 }
-export type NoteSpec = EnSpec<'note', NoteBody>;
+export type NoteSpec = Spec<'note', NoteBody>;
 
-const HINT: Hint = { rungs: [
+/** The hint of the note `id`: rung 3 is the cat reading that very note. */
+const hintOf = (id: NoteId): Hint => ({ rungs: [
   { key: null, steps: [{ do: 'readAlong' }] },
-  { key: null, steps: [{ do: 'slowly' }] },
-  { key: 'h3_show', steps: [{ do: 'pulseAnswer' }] },
-] };
+  { key: 'h2_note', steps: [{ do: 'slowly' }] },
+  { key: `h3_${id}` as SpokenKey, steps: [{ do: 'pulseAnswer' }] },
+] });
 
 /** The task of the note `id` on `level`: the other answers, their order and the pebbles from `rng`. */
 export function noteExample(level: number, id: NoteId, rng: Rng): NoteSpec {
@@ -65,7 +67,7 @@ export function noteExample(level: number, id: NoteId, rng: Rng): NoteSpec {
     options = [q.right, ...q.wrong].sort((a, b) => a - b);
   }
   return {
-    type: 'note', level, prompt: null, screen: { key: 'q_note', en: [] }, hint: HINT,
+    type: 'note', level, prompt: 'q_note', hint: hintOf(id),
     body: {
       id, uk: NOTE_TEXTS[id].uk, ru: NOTE_TEXTS[id].ru, key: def.key, options, answer: options.indexOf(right),
       ...(pebbles ? { pebbles } : {}), ...(q.ask === 'number' ? { also: q.also } : {}),

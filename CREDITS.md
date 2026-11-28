@@ -66,7 +66,8 @@ vertices in code, in the islands' colours.
 Pushok, the Sky Islands' cloud lamb (`models-src/sky/pushok.glb`), is made whole in Blender by code for this game, with
 no generated part: our own, the customer's.
 
-Pip, the English-speaking guest of season 2 (`models-unused/pip/pip.glb`, not loaded by the game yet): the mesh and its
+Pip, the English-speaking guest of season 2 (`models-src/pip/pip.glb`, shipped as `public/models/pip/pip.glb` with this
+record in its `asset.copyright`, tools/assets.mjs `PROVENANCE`): the mesh and its
 texture were generated with the Meshy service (https://www.meshy.ai) on a paid plan on 2026-11-26; under Meshy's terms
 for paid plans the model belongs to the customer (not CC0). The cap recoloured purple by the parts of the figure, the
 beak orange. Skeleton (8 bones) and clips (Idle, Walk, Hop, Flap, Yes, Talk): our own, made in Blender for this game by

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { WORLDS_CACHE, buildWorlds, extraFiles, greyWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
+import { PIP_ROUTE, WORLDS_CACHE, buildWorlds, pipCache, pipRevision, extraFiles, greyWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './tools/vite-worlds.mjs';
 
 // The version shown in the parents' section (TECH-10): the day of the build and the short commit number, nothing
 // else. Sources without git (an archive) still build: the number is then the placeholder. tools/e2e.mjs works the
@@ -16,6 +16,10 @@ function commit(): string {
   } catch { return NO_COMMIT; }
 }
 
+// Pip's model (public/models/pip/, Season 2) is not part of the first load (decision of 2026-11-28, variant (а)): out of
+// the service worker's list, kept in a cache of its own named by the revision of his files (tools/vite-worlds.mjs
+// `pipRevision`, PIP_ROUTE: why the name and not the addresses carry it). The page is told the revision (`__PIP_REV__`)
+// and brings the files into that cache in the background once the first world is finished (src/game/pip-load.ts).
 // The probe world (src/worlds/probe/, TECH-15) is a test world: its files live in worlds-test/probe/, outside public/,
 // under the paths the game asks for them (models/probe/…, story/probe/…). Only a build made with `--mode probe`
 // (tools/worlds.mjs: `vite build --mode probe --outDir dist-probe`) lists the world in the registry
@@ -69,9 +73,10 @@ export default defineConfig(({ mode }) => {
   const next = buildWorlds(mode, { [PROBE_MODE]: PROBE_MODE });
   const list = worldList(next);
   const route = worldRoute(next);
+  const pipRev = pipRevision();
   return {
     base: './',
-    define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()) },
+    define: { __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)), __BUILD_COMMIT__: JSON.stringify(commit()), __PIP_REV__: JSON.stringify(pipRev) },
     // Three.js goes into a chunk of its own: with the game's code in one file that file neared the limit of 1 MB a
     // file (tools/dist-size.mjs), and the library changes far less often than the game - an update of the game leaves
     // its chunk in the cache of the phone.
@@ -110,7 +115,8 @@ export default defineConfig(({ mode }) => {
         // A next world (TECH-09) is not part of the first load either: its folders are left out of the list, the list of
         // its files (worlds.json) is added to it, and its files are kept in the cache "worlds" - the first answer in
         // full, as for the bank; the game's download in the background fills the same cache under the same addresses.
-        workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**', 'en/**', ...worldGlobs(next)], maximumFileSizeToCacheInBytes: 4_000_000,
+        // Pip's model (models/pip/) is lazy too: out of the list, kept in the cache "pip-<revision>" (see above).
+        workbox: { globPatterns: ['**/*.{js,css,html,glb,mp3,svg,png,webp}'], globIgnores: ['bank/**', 'en/**', 'models/pip/**', ...worldGlobs(next)], maximumFileSizeToCacheInBytes: 4_000_000,
           clientsClaim: true, skipWaiting: false,
           manifestTransforms: [list.api.precache],
           runtimeCaching: [{
@@ -120,6 +126,11 @@ export default defineConfig(({ mode }) => {
             // The English clips (public/en/, src/core/voice-en.ts, Season 2): a lazy bank of their own, as the bank above.
             urlPattern: /\/en\/[^/]+\.mp3$/, handler: 'CacheFirst',
             options: { cacheName: 'en', cacheableResponse: { statuses: [200] }, rangeRequests: true, expiration: { maxEntries: 600 } },
+          }, {
+            // Pip's model and its texture, at their plain addresses (a request with ?v=, src/game/pip-load.ts, goes past
+            // this route to the network). The name is the one the page writes: src/game/pip-load.ts `pipCache`.
+            urlPattern: PIP_ROUTE, handler: 'CacheFirst',
+            options: { cacheName: pipCache(pipRev), cacheableResponse: { statuses: [200] } },
           }, ...(route ? [{
             urlPattern: route, handler: 'CacheFirst' as const,
             options: { cacheName: WORLDS_CACHE, cacheableResponse: { statuses: [200] }, rangeRequests: true },

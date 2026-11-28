@@ -32,9 +32,9 @@ const FAIRY_ONLY = { walk: ALL_WALKS, worlds: false, all: false };
 const PROBE_ONLY = { walk: [], worlds: true, all: false };
 
 describe('tools/world-pieces.mjs: what CI plays for each world', () => {
-  it('the first world is the twenty-four walkthroughs - four sizes, six pieces - and not the job "worlds"', () => {
+  it('the first world is the twenty-eight walkthroughs - four sizes, seven pieces - and not the job "worlds"', () => {
     expect(WORLDS.fairy.walk).toEqual(ALL_WALKS);
-    expect(new Set(ids(WORLDS.fairy)).size).toBe(24);
+    expect(new Set(ids(WORLDS.fairy)).size).toBe(28);
     expect(WORLDS.fairy.worlds).toBe(false);
     expect(WORLDS.fairy.files).toEqual(['src/worlds/fairy/']);
   });
@@ -60,7 +60,7 @@ describe('tools/world-pieces.mjs: what CI plays for each world', () => {
 });
 
 describe('tools/ci-pieces.mjs pick: the changed files choose the jobs (R30)', () => {
-  it('a file of the first world plays the pieces of that world only: twenty-four walkthroughs, no probe world', () => {
+  it('a file of the first world plays the pieces of that world only: twenty-eight walkthroughs, no probe world', () => {
     const plan = pick(['src/worlds/fairy/index.ts']);
     expect(plan).toMatchObject(FAIRY_ONLY);
     expect(plan.play).toEqual(['fairy']);
@@ -285,7 +285,7 @@ describe('tools/ci-pieces.mjs changedFiles: what a run is compared with', () => 
 });
 
 describe('tools/ci-pieces.mjs outputs and report: what the job "plan" hands on', () => {
-  it('everything: the matrix of twenty-four walkthroughs, the same list for --combine --jobs, both switches on', () => {
+  it('everything: the matrix of twenty-eight walkthroughs, the same list for --combine --jobs, both switches on', () => {
     const out = outputs(pick(['src/main.ts']));
     expect(out.walk).toBe('true');
     expect(out.worlds).toBe('true');
@@ -314,7 +314,7 @@ describe('tools/ci-pieces.mjs outputs and report: what the job "plan" hands on',
     expect(text).toContain('probe world (the job "worlds"): skipped by the plan');
     expect(text).toContain('changed files (2):\n  docs/a.md [document]\n  CLAUDE.md [document]');
     const probe = report(pick(['src/worlds/probe/index.ts', 'src/main.ts'])).join('\n');
-    expect(probe).toContain('walkthroughs: planned, 24 jobs (mobile world1, ');
+    expect(probe).toContain('walkthroughs: planned, 28 jobs (mobile world1, ');
     expect(probe).toContain('probe world (the job "worlds"): planned');
     expect(probe).toContain('  src/worlds/probe/index.ts [world probe]\n  src/main.ts [shared]');
   });
@@ -471,7 +471,7 @@ describe('tools/ci-pieces.mjs from the command line', () => {
     expect(Object.keys(out).sort()).toEqual(['jobs', 'matrix', 'report', 'walk', 'worlds']);
     expect(out).toMatchObject({ walk: 'true', worlds: 'true' });
     expect(JSON.parse(out.matrix)).toEqual({ include: ALL_WALKS });
-    expect(out.jobs.split(',')).toHaveLength(24);
+    expect(out.jobs.split(',')).toHaveLength(28);
     expect(out.report).toContain('the changed files are not known: the run was started by hand');
     expect(r.out).toContain(out.report);
   });
@@ -753,7 +753,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     expect(walk).toContain('npm run e2e -- --skip-build --mode ${{ matrix.size }} --only ${{ matrix.group }}');
     expect(walk).toContain("          E2E_WORLDS: '0'\n");
     expect(walk).not.toContain('continue-on-error');
-    // the same twenty-four jobs the plan of ci.yml gives for everything
+    // the same twenty-eight jobs the plan of ci.yml gives for everything
     const written = SIZES.flatMap((size) => PIECES.map((group) => `${size}:${group}`));
     expect(written).toEqual(outputs(pick(null)).jobs.split(','));
   });
@@ -808,7 +808,7 @@ describe('.github/workflows/pages.yml: before a publication everything is played
     // the limits are those of tools/ci-pieces.mjs: one number, held here so
     expect(key(session, 'timeout-minutes')).toBe(String(TRY_LIMITS.all.minutes));
     expect(session).toContain(`          E2E_RUN_TIMEOUT_MS: '${TRY_LIMITS.all.runMs}'\n`);
-    // it leaves no results for --combine: the twenty-four pieces are what it combines
+    // it leaves no results for --combine: the twenty-eight pieces are what it combines
     expect(session).not.toContain('name: results-');
   });
 
@@ -886,7 +886,7 @@ function ask({ runs = [], jobs = {}, before = [] } = {}) {
 const THIS = { sha: A, runId: 100, before: B };
 
 describe('tools/ci-pieces.mjs rests: may a push to dev rest on a run of its commit', () => {
-  it('the jobs that play the game are the twenty-four walkthroughs and every part of the probe world, under the names ci.yml gives them', () => {
+  it('the jobs that play the game are the twenty-eight walkthroughs and every part of the probe world, under the names ci.yml gives them', () => {
     expect(PLAYING_JOBS).toHaveLength(SIZES.length * PIECES.length + PARTS.length);
     expect(PLAYING_JOBS).toContain('walkthrough mobile world1');
     expect(PLAYING_JOBS).toContain('worlds (probe world, travel)');
@@ -1045,7 +1045,7 @@ describe('tools/ci-pieces.mjs tryPlan: the name of a trial branch says what to t
     expect(tryPlan(`try/mobile/shop/x${TRY_MAX}/net/${C}`, C).matrix.include).toHaveLength(TRY_MAX);
     // the piece of the collections (PLAY-25), tried like any other; the list of the pieces in the error names it
     expect(tryPlan('try/mobile/collect/x2/net/1a2b3c4', C)).toMatchObject({ size: 'mobile', piece: 'collect', n: 2, offline: false, probe: false });
-    expect(tryPlan('try/mobile/collects/x2/net/1a2b3c4', C).error).toContain('pieces: world1, world2, finale, shop, tasks2, collect');
+    expect(tryPlan('try/mobile/collects/x2/net/1a2b3c4', C).error).toContain('pieces: world1, world2, finale, shop, tasks2, collect, pip');
   });
 
   it('a part of the probe world: the size is "probe", with the network only', () => {

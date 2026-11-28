@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { WORLDS_CACHE, WORLDS_LIST, WORLD_EXTRA_FILES, buildWorlds, extraFiles, greyWorldFiles, listWorlds, publicWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
+import { PIP_DIR, PIP_ROUTE, WORLDS_CACHE, WORLDS_LIST, pipCache, pipRevision, WORLD_EXTRA_FILES, buildWorlds, extraFiles, greyWorldFiles, listWorlds, publicWorldFiles, worldChunkFile, worldGlobs, worldList, worldRoute } from './vite-worlds.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirs = [];
@@ -271,8 +271,15 @@ describe('vite.config.ts uses all of it', () => {
     expect(config).toMatch(/chunkFileNames: worldChunkFile\(next\)/);
   });
 
-  it('their folders are left out of the service worker\'s list, next to the bank and the English clips (en/, Season 2)', () => {
-    expect(config).toMatch(/globIgnores: \['bank\/\*\*', 'en\/\*\*', \.\.\.worldGlobs\(next\)\]/);
+  it('their folders are left out of the service worker\'s list, next to the bank, the English clips (en/) and Pip\'s model (Season 2)', () => {
+    expect(config).toMatch(/globIgnores: \['bank\/\*\*', 'en\/\*\*', 'models\/pip\/\*\*', \.\.\.worldGlobs\(next\)\]/);
+  });
+
+  it('Pip\'s model has a route of its own into the cache of its revision, the name the page writes (src/game/pip-load.ts)', () => {
+    expect(config).toMatch(/const pipRev = pipRevision\(\);/);
+    expect(config).toMatch(/__PIP_REV__: JSON\.stringify\(pipRev\)/);
+    expect(config).toMatch(/urlPattern: PIP_ROUTE, handler: 'CacheFirst',\s+options: \{ cacheName: pipCache\(pipRev\), cacheableResponse: \{ statuses: \[200\] \} \}/);
+    expect(readFileSync(join(root, 'src/game/pip-load.ts'), 'utf8')).toMatch(/export const pipCache = \(rev: string\) => `pip-\$\{rev\}`;/);
   });
 
   it('the English clips (en/) have a route of their own into the cache "en", kept in full as the bank', () => {
@@ -296,5 +303,30 @@ describe('vite.config.ts uses all of it', () => {
   it('the update of the game stays as it was (TECH-13)', () => {
     expect(config).toMatch(/registerType: 'prompt'/);
     expect(config).toMatch(/clientsClaim: true, skipWaiting: false,/);
+  });
+});
+
+describe('Pip\'s lazy model (models/pip/, decision 2026-11-28)', () => {
+  it('is kept under a cache named by its revision; the route takes his plain addresses only', () => {
+    expect(PIP_DIR).toBe('public/models/pip');
+    expect(pipCache('abc')).toBe('pip-abc');
+    const base = 'https://example.org/game/';
+    expect(['models/pip/pip.glb', 'models/pip/tex/pip.webp'].map((u) => PIP_ROUTE.test(base + u))).toEqual([true, true]);
+    // the page's own download (?v=<revision>) goes past the route to the network; nothing else is Pip's
+    expect(['models/pip/pip.glb?v=abc', 'models/extra/cat.glb', 'models/pip.glb', 'models/pipe/x.glb', 'models/pip/x.mp3'].map((u) => PIP_ROUTE.test(base + u))).toEqual([false, false, false, false, false]);
+  });
+
+  it('the revision changes with the bytes or the names of his files, not with anything else', () => {
+    const a = folder({ 'public/models/pip/pip.glb': 'glb', 'public/models/pip/tex/pip.webp': 'webp', 'public/models/extra/cat.glb': 'cat' });
+    const same = folder({ 'public/models/pip/pip.glb': 'glb', 'public/models/pip/tex/pip.webp': 'webp', 'public/models/extra/cat.glb': 'another cat' });
+    const changed = folder({ 'public/models/pip/pip.glb': 'glb', 'public/models/pip/tex/pip.webp': 'webp2' });
+    const named = folder({ 'public/models/pip/pip.glb': 'glb', 'public/models/pip/tex/pap.webp': 'webp' });
+    expect(pipRevision(a)).toMatch(/^[0-9a-f]{12}$/);
+    expect(pipRevision(same)).toBe(pipRevision(a));
+    expect(pipRevision(changed)).not.toBe(pipRevision(a));
+    expect(pipRevision(named)).not.toBe(pipRevision(a));
+    expect(pipRevision(folder({ 'public/models/extra/cat.glb': 'cat' }))).toBe('none');
+    // the shipped folder has one
+    expect(pipRevision(root)).toMatch(/^[0-9a-f]{12}$/);
   });
 });

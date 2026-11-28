@@ -47,6 +47,7 @@ export const BLOCKS = [
   'dare',           // «А складніше зможеш?» (LEARN-28): the card after a clean solve, put off, taken with a mistake, taken and solved - her level; not in the climb, not with a level fixed
   'cpa',            // the steps «things → picture → numbers» of the number tasks: each task at each step pictured, solved
   'en-tasks',       // the English tasks (Season 2, D1): closed, asked on the screen, three mistakes on their rungs, solved
+  'pip',            // Pip (Season 2, G): met in the hub, his request of the fairies whole, note 2 and its bookmark, by the forest's arch, gone with English off, his model missing
   'deal',           // the deal of the day: the mark, the cat, the ribbon, bought at its price once a day
   'pet-gear',       // the things of the cat and the fawn: the fawn's tab once found, the rare one a silhouette, tried on, bought, on the bone
   'trade',          // the trades of the characters (PLAY-28): the choice, a trade, "not now", too few finds, "goodbye", the gift in the shop
@@ -165,6 +166,10 @@ export const GROUPS = {
     save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }),
     friends: [], blocks: ['helpers', 'diff', 'puzzle', 'cpa', 'en-tasks', 'trade'], ach: [...ACH_BASE, 'first_artifact'],
   },
+  // Pip (Season 2, step 2, part G): the first world finished, Pip not met yet, English on - the shop's save. The block
+  // goes to the hub (his meeting), back to the fairies (his request, note 2), to the forest (his place by the arch),
+  // turns English off and back, and opens a page of its own with his model refused. It ends in the first world.
+  pip: { save: () => played({ done: FRIENDS, stars: 52, tasks: { count: 2, add: 2, sub: 2, compare: 2, series: 2, pattern: 2, memory: 1, classify: 1 }, final: true }), friends: [], blocks: ['pip'] },
   // the collections (PLAY-25), a piece of their own: in world1 the desktop run went past its 1080 s with them, and the
   // shop's on desktop has no room either (it came to them at 976 s). The unicorn's chain done, as in world2's save: "Play"
   // is a stop point and earns its achievements there; then no friend to play, the finds alone.
@@ -177,7 +182,7 @@ export const GROUPS = {
 };
 
 /** The groups that together play the whole world: CI plays each of them in each size. */
-export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'];
+export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect', 'pip'];
 
 /**
  * The blocks the whole walkthrough (no group: the nightly run and "try all") leaves to the pieces (2026-11-22: the
@@ -187,7 +192,7 @@ export const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'
  * and 5 only; the pieces (tasks2) play 1, 3, 5 and the twins of level 4 (tools/shot.mjs). The rule for a next world:
  * one block of it in the whole run, the rest in its pieces (docs/14-architecture.md).
  */
-export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide', 'dare', 'doze'];
+export const PIECES_ONLY = ['hidden-page', 'tuning', 'context-loss', 'looks', 'wide', 'dare', 'doze', 'pip'];
 
 /**
  * The save a group starts from, as the text to put into localStorage "amw-save", or '' for none. Without the voice
@@ -203,14 +208,21 @@ export function startSave(group, { mute = false } = {}) {
 }
 
 /**
+ * Pip met already (Season 2): his meeting, which a save with the first world done brings to the hub, would take the
+ * walks of the hub's parts in the middle (tools/hub-grey.mjs: she stood turned by it). He stands on his root then; his
+ * meeting itself is the block pip's (tools/shot.mjs).
+ */
+const metPip = (s) => { s.pip = { ...s.pip, met: true }; return s; };
+
+/**
  * The saves of the hub (WORLD-01, the part "hub" of tools/worlds.mjs, R02): the Great Tree with one artifact back - the
  * first world done, the hub not visited yet - and with two: the probe world, which stands for the second world in the
  * probe build (its place on the shelf is the forest's, src/worlds/probe/index.ts), done too.
  */
 export const HUB_SAVES = {
-  one: () => GROUPS.shop.save(),
+  one: () => metPip(GROUPS.shop.save()),
   two: () => {
-    const s = GROUPS.shop.save();
+    const s = metPip(GROUPS.shop.save());
     s.worlds.probe = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
     return s;
   },

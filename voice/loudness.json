@@ -2269,6 +2269,11 @@
   "tp": -2.31,
   "sha256": "04e9aa212c1227cb9b02ca5738d018dd093fb9c0643179cfe6882799d89fd16f"
  },
+ "public/voice/h2_note.mp3": {
+  "lufs": -18.24,
+  "tp": -2.1,
+  "sha256": "c0be8032985ebc55381803720258815de5442cf6b640182865262bcf94c7244a"
+ },
  "public/voice/h2_odd.mp3": {
   "lufs": -17.97,
   "tp": -2.31,
@@ -2318,6 +2323,46 @@
   "lufs": -18.12,
   "tp": -2.33,
   "sha256": "e9d919cb62ace17f0b9b66923d8bbf8ff9880c69398ea579d123e5c7ae8ac5a8"
+ },
+ "public/voice/h3_note_1.mp3": {
+  "lufs": -18.03,
+  "tp": -3.47,
+  "sha256": "ad0411a053396c66a4914ec103fd7dd3ab5a60159668640e277b56267aefb725"
+ },
+ "public/voice/h3_note_2.mp3": {
+  "lufs": -18.08,
+  "tp": -2.02,
+  "sha256": "057f5b232c12586dc2379b6082a78c2585069a729a17b0cd4ffd06867d51d190"
+ },
+ "public/voice/h3_note_3.mp3": {
+  "lufs": -17.98,
+  "tp": -2.79,
+  "sha256": "2f4cca1280701b9877fa5e4519ed2ad8bfc9042bf113949d869b8113349488f1"
+ },
+ "public/voice/h3_note_4.mp3": {
+  "lufs": -18.22,
+  "tp": -3.12,
+  "sha256": "407b3982e3e2872d96c759feff2cfb09d2f0b7b96e78cca80af1d3e5ffe20811"
+ },
+ "public/voice/h3_note_5.mp3": {
+  "lufs": -18.02,
+  "tp": -2.04,
+  "sha256": "742d94acaba1af1978759bb1a795576b03da17ca1f7606ff25a88cffc5b36779"
+ },
+ "public/voice/h3_note_6.mp3": {
+  "lufs": -18.1,
+  "tp": -2.44,
+  "sha256": "20e6f7ca6431675d2e6e06f46f6bcae7adaab2bf8089ec620fc729d89fbe977b"
+ },
+ "public/voice/h3_note_7.mp3": {
+  "lufs": -18.06,
+  "tp": -2.21,
+  "sha256": "b708464081c7b9d3d4e5491fc2cfc09d979745ecb452fe294c2bc78ef33563f2"
+ },
+ "public/voice/h3_note_8.mp3": {
+  "lufs": -18.01,
+  "tp": -2.38,
+  "sha256": "c96d43367baca974d876ccd602844825aa1d42cf8f885016473a55a6372e37b0"
  },
  "public/voice/h3_show.mp3": {
   "lufs": -18.03,
@@ -2699,6 +2744,71 @@
   "tp": -2.61,
   "sha256": "0717d83c38f3b4f883085850d6202799129e9a97dbf3589acdb1d802a9cbce83"
  },
+ "public/voice/pip_cat_cap.mp3": {
+  "lufs": -17.97,
+  "tp": -5.12,
+  "sha256": "3edab83531f0cc00437320ca96e92d7454dc53ebd6461c23777a3b02c565ca8b"
+ },
+ "public/voice/pip_cat_en_off.mp3": {
+  "lufs": -17.95,
+  "tp": -2.45,
+  "sha256": "829e7a0a6adc21b4d3371b13fe85a9f1b4871b41c5994e96738086ff4db9900c"
+ },
+ "public/voice/pip_cat_go_flower.mp3": {
+  "lufs": -18.24,
+  "tp": -2.84,
+  "sha256": "e4a518b87faa9ac4b093d922292dd8b3ae78605cccaba6b2cec02f8877219aa7"
+ },
+ "public/voice/pip_cat_go_free.mp3": {
+  "lufs": -17.99,
+  "tp": -2.22,
+  "sha256": "5dbd2ccbca28f22db54dee90f60a389bd65da1115a047c4324dd71d9cab08211"
+ },
+ "public/voice/pip_cat_go_house.mp3": {
+  "lufs": -18.07,
+  "tp": -3.11,
+  "sha256": "32b5bcaa6149941d596d9d713b662d1c40f149bb645630b5f9a014f475ad05a5"
+ },
+ "public/voice/pip_cat_go_mushroom.mp3": {
+  "lufs": -18.08,
+  "tp": -2.64,
+  "sha256": "1da1779765a9c58c4d37237870896cfa2d896e11c10d0a24d9c70de30125398c"
+ },
+ "public/voice/pip_cat_hello.mp3": {
+  "lufs": -18.0,
+  "tp": -1.93,
+  "sha256": "76985090d9ab96e36241e335c92c1409768148e8bccc3559bcf250ac82f251d2"
+ },
+ "public/voice/pip_cat_learn.mp3": {
+  "lufs": -18.11,
+  "tp": -2.43,
+  "sha256": "4adb9710c39a303380801323cefdd705a006512c48cfa0e6c15c607331242ff1"
+ },
+ "public/voice/pip_cat_lost.mp3": {
+  "lufs": -18.09,
+  "tp": -2.57,
+  "sha256": "971510ea0f5100505f3a5387fa4a1b5e5e6a4a2cf9a1817a7492f9e63333f1b3"
+ },
+ "public/voice/pip_cat_map.mp3": {
+  "lufs": -17.99,
+  "tp": -2.51,
+  "sha256": "d8e1864a3f30d517745bef4f71d16160aae0750310cd9e4c20a1f342bab64b56"
+ },
+ "public/voice/pip_cat_piece.mp3": {
+  "lufs": -17.96,
+  "tp": -2.98,
+  "sha256": "b609f143368591af06a704b30c7cf591651aa334e251e528018345144ec44480"
+ },
+ "public/voice/pip_cat_star.mp3": {
+  "lufs": -17.97,
+  "tp": -3.15,
+  "sha256": "c8de50db6e0f587ed4d623bcbc550c09344659f8d70ae44d422dd0948636c87b"
+ },
+ "public/voice/pip_cat_who.mp3": {
+  "lufs": -18.03,
+  "tp": -1.7,
+  "sha256": "74d2ab34d937e5c183b120d1048a4123f147a0b9d344381099a6f454ba915544"
+ },
  "public/voice/praise_0.mp3": {
   "lufs": -18.08,
   "tp": -6.68,
@@ -2733,6 +2843,11 @@
   "lufs": -18.02,
   "tp": -3.92,
   "sha256": "670ec8a9ebffc8f154c91bf6931c759e81fb2769c0698e62e836c28dabb8bd68"
+ },
+ "public/voice/q_note.mp3": {
+  "lufs": -18.24,
+  "tp": -2.62,
+  "sha256": "8531df67d033b9c75b26af9806121714e4fdf1e79bd6a8943bc14a37fe21989e"
  },
  "public/voice/queen_hi@Sulafat.mp3": {
   "lufs": -17.79,

@@ -9,12 +9,14 @@
 // service worker does not cache it, vite.config.ts `globIgnores`), so it is in neither limit; the limit for one file holds.
 // The English clips (dist/en/, Season 2, src/core/voice-en.ts) are a lazy bank too: out of the first load and its limits,
 // never precached, with a limit of their own of 3 MB, as the voice of a world.
+// Pip's model (dist/models/pip/, Season 2, src/game/pip-load.ts) is lazy as well (decision of 2026-11-28): out of the
+// first load, never precached, brought in the background once the first world is finished, with a limit of 0.5 MB.
 // tools/e2e.mjs runs this after every build it plays.
 // tools/assets.mjs keeps the models within their share of it; this checks what is really shipped, code included.
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BANK, CORE, EN, groupOf, isBank, isEn, isVoice, worldGroup, worldOf } from './world-files.mjs';
+import { BANK, CORE, EN, PIP, groupOf, isBank, isEn, isPip, isVoice, worldGroup, worldOf } from './world-files.mjs';
 
 /**
  * Bytes, as in docs/15-tech.md (12 MB and 1 MB, decimal - the same unit as tools/assets.mjs). It was 12.5 MB for a while
@@ -37,6 +39,11 @@ export const MAX_WORLD = 8_000_000;
 export const MAX_WORLD_VOICE = 3_000_000;
 /** The English clips (dist/en/): out of the first load, a limit of their own, as the voice of a world. */
 export const MAX_EN = 3_000_000;
+/**
+ * Pip's model (dist/models/pip/: his .glb and its texture, ~0.34 MB shipped as Meshy made it): out of the first load
+ * (decision of 2026-11-28, variant (а)), a limit of its own. tools/assets.mjs holds public/models/pip/ to it too.
+ */
+export const MAX_PIP = 500_000;
 
 /** The worlds of the game as the sources name them: one folder per world. */
 const WORLDS_SRC = fileURLToPath(new URL('../src/worlds', import.meta.url));
@@ -73,24 +80,24 @@ export function installedWorlds(dir = WORLDS_SRC) {
 const sum = (files) => files.reduce((s, f) => s + f.size, 0);
 
 /**
- * Checks dist/ against the budget. Returns { total, voice, bank, en, files, heaviest, problems, first, worlds }.
+ * Checks dist/ against the budget. Returns { total, voice, bank, en, pip, files, heaviest, problems, first, worlds }.
  * `total` is the game of the core and the first world - without the voice, the bank and the next worlds; `voice` their
- * clips under voice/; `bank` the clips under bank/; `en` the English clips under en/; `files` counts every file. `worlds` holds one entry per next world,
+ * clips under voice/; `bank` the clips under bank/; `en` the English clips under en/; `pip` Pip's model under models/pip/; `files` counts every file. `worlds` holds one entry per next world,
  * { id, total, voice, files }: its models and story frames, its voice, the number of its files. problems is empty
  * when everything fits. An empty or missing folder is a problem too: there is nothing to measure.
  * `layout` names the worlds and their limits: { worlds, first, maxWorld, maxWorldVoice }. `worlds` are the ids of the
  * next worlds (the first one, if listed, is not a next world); left out, both come from the sources (`sourceWorlds`).
  */
 export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE, maxVoice = MAX_VOICE, layout = {}) {
-  const { maxWorld = MAX_WORLD, maxWorldVoice = MAX_WORLD_VOICE, maxEn = MAX_EN } = layout;
+  const { maxWorld = MAX_WORLD, maxWorldVoice = MAX_WORLD_VOICE, maxEn = MAX_EN, maxPip = MAX_PIP } = layout;
   const { first, worlds: listed } = layout.worlds ? { first: layout.first ?? null, worlds: layout.worlds }
     : (({ first: f, worlds: w }, inst) => ({ first: f, worlds: w.filter((id) => !inst.includes(id)) }))(sourceWorlds(), installedWorlds());
   const next = [...new Set(listed)].filter((id) => id !== first);
   let files;
-  try { files = distFiles(dir); } catch (e) { return { total: 0, voice: 0, bank: 0, en: 0, files: 0, heaviest: null, problems: [`cannot read ${dir}: ${e.message}`], first, worlds: [] }; }
+  try { files = distFiles(dir); } catch (e) { return { total: 0, voice: 0, bank: 0, en: 0, pip: 0, files: 0, heaviest: null, problems: [`cannot read ${dir}: ${e.message}`], first, worlds: [] }; }
   const of = (group) => files.filter((f) => groupOf(f.path, next) === group);
   const core = of(CORE), game = core.filter((f) => !isVoice(f.path)), clips = core.filter((f) => isVoice(f.path));
-  const bank = sum(of(BANK)), english = of(EN), en = sum(english);
+  const bank = sum(of(BANK)), english = of(EN), en = sum(english), bird = of(PIP), pip = sum(bird);
   const total = sum(game), voice = sum(clips);
   const parts = next.map((id) => {
     const own = of(worldGroup(id));
@@ -108,6 +115,7 @@ export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE,
     if (sum(w.clips) > maxWorldVoice) problems.push(`the voice of the world ${w.id} (voice/${w.id}/): ${sum(w.clips)} bytes in ${w.clips.length} files, the limit is ${maxWorldVoice}`);
   }
   if (en > maxEn) problems.push(`the English clips (en/): ${en} bytes in ${english.length} files, the limit is ${maxEn}`);
+  if (pip > maxPip) problems.push(`Pip's model (models/pip/): ${pip} bytes in ${bird.length} files, the limit is ${maxPip}`);
   if (!files.length) problems.push(`${dir} holds no files`);
   // The bank is out of the limits only while the installation does not download it: its files must not be precached.
   const sw = join(dir, 'sw.js');
@@ -116,6 +124,8 @@ export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE,
   if (cached) problems.push(`sw.js precaches ${cached} files of bank/: the bank is not part of the first load (vite.config.ts globIgnores)`);
   const enCached = precached.filter((url) => isEn(url)).length;
   if (enCached) problems.push(`sw.js precaches ${enCached} files of en/: the English clips are not part of the first load (vite.config.ts globIgnores)`);
+  const pipCached = precached.filter((url) => isPip(url)).length;
+  if (pipCached) problems.push(`sw.js precaches ${pipCached} files of models/pip/: Pip's model is not part of the first load (vite.config.ts globIgnores)`);
   // The same for a next world (TECH-09): it has a budget of its own only while the installation does not download it
   // (the game brings it later, src/core/worldcache.ts).
   for (const id of next) {
@@ -123,7 +133,7 @@ export function checkDistSize(dir, maxTotal = MAX_DIST, maxFile = MAX_DIST_FILE,
     if (own) problems.push(`sw.js precaches ${own} files of the world ${id}: a next world is not part of the first load (vite.config.ts globIgnores)`);
   }
   const worlds = parts.map((w) => ({ id: w.id, total: sum(w.game), voice: sum(w.clips), files: w.files }));
-  return { total, voice, bank, en, files: files.length, heaviest: files[0] ?? null, problems, first, worlds };
+  return { total, voice, bank, en, pip, files: files.length, heaviest: files[0] ?? null, problems, first, worlds };
 }
 
 const mb = (bytes) => (bytes / 1e6).toFixed(2);

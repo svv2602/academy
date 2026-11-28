@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { MAX_DIST, MAX_DIST_FILE, MAX_EN, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
+import { MAX_DIST, MAX_DIST_FILE, MAX_EN, MAX_PIP, MAX_VOICE, MAX_WORLD, MAX_WORLD_VOICE, checkDistSize, installedWorlds, sizeSummary, sourceWorlds } from './dist-size.mjs';
 
 const dirs = [];
 afterAll(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
@@ -47,6 +47,25 @@ describe('the size budget of the build', () => {
     const dir = folder({ 'a.glb': 900, 'en/wb_w_cat.mp3': 500 });
     writeFileSync(join(dir, 'sw.js'), 'define(["./workbox-1"],(function(e){e.precacheAndRoute([{url:"en/wb_w_cat.mp3",revision:"1"}])}));');
     expect(checkDistSize(dir, 2000, 1000, 1000, layout).problems).toEqual(['sw.js precaches 1 files of en/: the English clips are not part of the first load (vite.config.ts globIgnores)']);
+  });
+
+  it('leaves Pip\'s model (models/pip/, Season 2) out of the first load, with a limit of its own of 0.5 MB, never precached', () => {
+    expect(MAX_PIP).toBe(500_000);
+    const layout = { worlds: [], first: null, maxPip: 1000 };
+    // within its limit: the core does not count it, and the core's limit is not touched by it
+    const r = checkDistSize(folder({ 'a.glb': 900, 'models/pip/pip.glb': 600, 'models/pip/tex/pip.webp': 400 }), 1000, 1000, 1000, layout);
+    expect(r.problems).toEqual([]);
+    expect([r.total, r.pip, r.files]).toEqual([900, 1000, 3]);
+    // above its limit
+    const over = checkDistSize(folder({ 'a.glb': 900, 'models/pip/pip.glb': 600, 'models/pip/tex/pip.webp': 401 }), 1000, 1000, 1000, layout);
+    expect(over.problems).toEqual(['Pip\'s model (models/pip/): 1001 bytes in 2 files, the limit is 1000']);
+    // precached by the service worker: it would be part of the installation after all
+    const dir = folder({ 'a.glb': 900, 'models/pip/pip.glb': 600, 'models/pip/tex/pip.webp': 400 });
+    writeFileSync(join(dir, 'sw.js'), 'define(["./workbox-1"],(function(e){e.precacheAndRoute([{url:"a.glb",revision:"1"},{url:"models/pip/pip.glb",revision:"2"},{url:"models/pip/tex/pip.webp",revision:"3"}])}));');
+    expect(checkDistSize(dir, 2000, 1000, 1000, layout).problems).toEqual(['sw.js precaches 2 files of models/pip/: Pip\'s model is not part of the first load (vite.config.ts globIgnores)']);
+    // the default limit is MAX_PIP
+    const full = checkDistSize(folder({ 'a.glb': 900, 'models/pip/pip.glb': 900_000 }), 2000, 1_000_000, 1000, { worlds: [], first: null });
+    expect(full.problems).toEqual([`Pip's model (models/pip/): 900000 bytes in 1 files, the limit is ${MAX_PIP}`]);
   });
 
   it('leaves the bank of the old game out of both limits (R37), but holds each of its files to the limit for one', () => {

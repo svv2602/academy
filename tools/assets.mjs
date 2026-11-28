@@ -14,7 +14,8 @@
 //     transparent texels is kept (`exact`): the leaf textures are edge-bled on purpose, see tools/usd2glb.py.
 // public/models/ and every worlds-data/<id>/models/ are rebuilt from scratch on every run and the output is
 // byte-reproducible on one machine: a second run changes nothing. The script fails if a file exceeds MAX_FILE, the core
-// (public/models/) exceeds MAX_TOTAL or a next world's models exceed MAX_WORLD (tools/dist-size.mjs); the same limits
+// (public/models/) exceeds MAX_TOTAL, a next world's models exceed MAX_WORLD, or Pip's lazy folder (public/models/pip/,
+// out of the first load and of MAX_TOTAL) exceeds MAX_PIP (tools/dist-size.mjs); the same limits
 // are checked by tools/assets.test.mjs in `npm test`.
 //
 //   node tools/assets.mjs [--check]     --check: build in memory, write nothing, fail if the output differs
@@ -29,7 +30,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join, posix, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { MAX_WORLD, installedWorlds, sourceWorlds } from './dist-size.mjs';
+import { MAX_PIP, MAX_WORLD, installedWorlds, sourceWorlds } from './dist-size.mjs';
 import { WORLDS_DATA } from './vite-worlds.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,6 +46,12 @@ export const FIT = { width: MAX_TEXTURE, height: MAX_TEXTURE, fit: 'inside', wit
 export const MAX_FILE = 1_000_000;
 /** All of public/models (the core with the first world), bytes: the 12 MB first-load budget minus code, voice and headroom for both. */
 export const MAX_TOTAL = 10_000_000;
+/**
+ * The folder of public/models/ that is not part of the first load: Pip's model (decision of 2026-11-28, variant (а);
+ * src/game/pip-load.ts brings it in the background). It ships under public/models/ like the core's models, but the
+ * service worker does not precache it (vite.config.ts globIgnores) and it is held to MAX_PIP instead of MAX_TOTAL.
+ */
+export const LAZY_PIP = 'pip/';
 /** WebP quality of colour maps: 40 dB PSNR or better on every texture of the first world. */
 export const COLOR_QUALITY = 90;
 
@@ -64,6 +71,11 @@ export const PROVENANCE = {
   'extra/cat.glb': {
     copyright: 'Generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-19; skeleton and clips: Meshy Service Assets',
     source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated: '2026-11-19', terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
+  },
+  // Pip, the guest of Season 2 (2026-11-26, CREDITS.md): Meshy's mesh and texture; his skeleton and clips our own
+  'pip/pip.glb': {
+    copyright: 'Mesh and texture generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-26; skeleton and clips: our own, made in Blender for this game',
+    source: { tool: 'Meshy', url: 'https://www.meshy.ai', plan: 'paid', generated: '2026-11-26', terms: 'https://www.meshy.ai/terms-of-use', credits: 'CREDITS.md' },
   },
   'hero/child.glb': {
     copyright: 'Mesh and texture generated with Meshy (https://www.meshy.ai) on a paid plan on 2026-11-15; skeleton and animations: Quaternius, CC0 1.0',
@@ -279,12 +291,18 @@ export function listShipped(worlds = nextWorlds(), root = ROOT) {
 
 /**
  * Size problems of a set of shipped files ({path, size}, paths under models/); empty when it fits the budget. The core
- * (public/models/) and each next world (TECH-09) are counted apart: MAX_TOTAL and MAX_WORLD.
+ * (public/models/) and each next world (TECH-09) are counted apart: MAX_TOTAL and MAX_WORLD. Pip's lazy folder
+ * (models/pip/) is no part of the core's sum: it is held to MAX_PIP alone.
  */
 export function overBudget(files, worlds = nextWorlds()) {
   const problems = files.filter((f) => f.size > MAX_FILE).map((f) => `${f.path}: ${f.size} bytes, the limit for one file is ${MAX_FILE}`);
   const parts = new Map();
-  for (const f of files) { const id = worldOfModel(f.path, worlds); parts.set(id, (parts.get(id) ?? 0) + f.size); }
+  let pip = 0;
+  for (const f of files) {
+    if (f.path.startsWith(LAZY_PIP)) { pip += f.size; continue; }
+    const id = worldOfModel(f.path, worlds); parts.set(id, (parts.get(id) ?? 0) + f.size);
+  }
+  if (pip > MAX_PIP) problems.push(`${posix.join(OUT_DIR, LAZY_PIP)}: ${pip} bytes in total, the limit is ${MAX_PIP} (Pip's model, out of the first load)`);
   for (const [id, total] of parts) {
     const max = id === null ? MAX_TOTAL : MAX_WORLD;
     if (total > max) problems.push(`${id === null ? OUT_DIR : posix.join(WORLDS_DATA, id, 'models')}: ${total} bytes in total, the limit is ${max}`);
@@ -304,8 +322,11 @@ async function main() {
 
   const sizes = [...files].map(([path, bytes]) => ({ path, size: bytes.length }));
   const total = sizes.reduce((s, f) => s + f.size, 0), heaviest = sizes.reduce((a, b) => (b.size > a.size ? b : a));
-  const part = (id) => sizes.filter((f) => worldOfModel(f.path) === id).reduce((s, f) => s + f.size, 0);
-  const own = nextWorlds().filter((id) => part(id) > 0).map((id) => `, ${WORLDS_DATA}/${id}: ${(part(id) / 1e6).toFixed(2)} MB`).join('');
+  const lazy = (f) => f.path.startsWith(LAZY_PIP);
+  const part = (id) => sizes.filter((f) => !lazy(f) && worldOfModel(f.path) === id).reduce((s, f) => s + f.size, 0);
+  const pip = sizes.filter(lazy).reduce((s, f) => s + f.size, 0);
+  const own = nextWorlds().filter((id) => part(id) > 0).map((id) => `, ${WORLDS_DATA}/${id}: ${(part(id) / 1e6).toFixed(2)} MB`).join('')
+    + (pip ? `, ${posix.join(OUT_DIR, LAZY_PIP)} (lazy): ${(pip / 1e6).toFixed(2)} MB` : '');
   console.log(`\n${SRC_DIR}: ${(before / 1e6).toFixed(2)} MB -> ${(total / 1e6).toFixed(2)} MB in ${sizes.length} files (${OUT_DIR}: ${(part(null) / 1e6).toFixed(2)} MB${own}); `
     + `heaviest: ${heaviest.path}, ${(heaviest.size / 1e6).toFixed(2)} MB`);
 

@@ -162,7 +162,7 @@ describe('tools/e2e.mjs --combine: the checks over the walkthroughs CI plays in 
 
 // CI may play the world in pieces (npm run e2e -- --only <group>): one job per size and group, each leaving files
 // named <size>-<group>. --combine --only / --jobs must then expect every one of them, and still every size played whole.
-const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect'];
+const PIECES = ['world1', 'world2', 'finale', 'shop', 'tasks2', 'collect', 'pip'];
 /** What the 20 green walkthroughs of the pieces in four sizes leave behind, with `change` applied. */
 function pieces(change = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'e2e-combine-'));

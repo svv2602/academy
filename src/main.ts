@@ -13,6 +13,7 @@ import { loadShared } from './game/boot';
 import { createGame, type WorldEntry } from './game/context';
 import { exposeDebug } from './game/debug';
 import { createGate, probeNetwork } from './game/gate';
+import { prefetchPip } from './game/pip-load';
 import { startLoop } from './game/loop';
 import { installExploreLead } from './game/explore-lead';
 import { createSpeech } from './game/speech';
@@ -143,6 +144,13 @@ async function boot() {
     world: entryOf(world),
   }));
   applyLook = () => shared.heroRig.setLook(save);
+  // Season 2: Pip's model is not part of the installation (src/game/pip-load.ts). It is brought in the background the
+  // moment it may be needed - the first world finished, English on - so that it is in the cache by his meeting in the
+  // hub: the finale of the fairies writes the save through g.persist (src/worlds/fairy/shrine.ts), so every save a
+  // world writes asks; and, as the next world's download, the first "Play" and every arrival ask too (below). Until
+  // then, and once it is there, the call does nothing.
+  const persist = g.persist;
+  g.persist = () => { persist(); void prefetchPip(save); };
   // TECH-09: a refusal of the gate - the cat says that the network is needed. The world where she stopped, refused at
   // the launch, is said once she plays (src/game/start.ts, after "Play" and the entry into the world).
   refuse = () => { void g.speech.line('need_net', 'hint'); };
@@ -165,7 +173,7 @@ async function boot() {
     show: (built, sky) => { quality.setSun(sky.sun); showDebug?.(built.debug); },
     drawn: () => loop.drawn(),
     welcome: (first) => enterWorld(g, first, 'travel'),
-    arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); },
+    arrived: (id) => { void worlds.downloadNext(nextWorlds(id)); void prefetchPip(save); },
     gate, cache: worlds, refuse, renew,
   });
   // The world: its objects, tasks, conversations and parts of the frame (src/worlds/<id>/index.ts).
@@ -215,7 +223,7 @@ async function boot() {
   // another world), one file at a time, and not at all when the browser saves data (src/core/worldcache.ts). A build
   // with one world has no next one: nothing is asked for.
   // From there on every change of world starts it again from the world entered (`arrived` above).
-  el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); }, { once: true });
+  el.play.addEventListener('click', () => { void worlds.downloadNext(nextWorlds(world.id)); void prefetchPip(save); }, { once: true });
 
   const showDebug = debug ? exposeDebug(g, w.debug, travel) : null;
   // The walkthrough of the cache (tools/worlds.mjs) reads the download and the cache through these.

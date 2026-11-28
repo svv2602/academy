@@ -9073,5 +9073,189 @@
   "style": "warm",
   "voice": "Puck",
   "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_who": {
+  "text": "Це Піп. Він прилетів з-за моря і говорить англійською.",
+  "heard": "Це піп. Він прилетів з-за моря і говорить англійською.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_hello": {
+  "text": "«Hello» — це «привіт». Помахай йому!",
+  "heard": "Хелоу – це привіт! Помахай йому.",
+  "score": 0.821,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_lost": {
+  "text": "Піп загубився. Його дім далеко-далеко.",
+  "heard": "Піп загубився. Його дім далеко-далеко.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_map": {
+  "text": "Вітер розніс його карту по світах. Допоможемо зібрати?",
+  "heard": "Вітер розніс його карту по світах. Допоможемо зібрати?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_learn": {
+  "text": "Піп говоритиме англійською, а я підкажу, якщо треба.",
+  "heard": "Піп говоритиме англійською, а я підкажу, якщо треба.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_piece": {
+  "text": "Ще один шматочок — і Піп ближче до дому.",
+  "heard": "Ще один шматочок, і піп ближче додому.",
+  "score": 0.986,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_cap": {
+  "text": "Дивись, у Піпа нова шапочка! Йому дуже личить.",
+  "heard": "Дивись, у Піпа нова шапочка, йому дуже личить.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_star": {
+  "text": "Золоті зірки — це прохання Піпа. Їх щодня нові!",
+  "heard": "Золоті зірки — це прохання Піпа, їх щодня нові.",
+  "score": 1.0,
+  "style": "joy",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_en_off": {
+  "text": "Піп полетів у гості до друзів.",
+  "heard": "Піп полетів у гості до друзів.",
+  "score": 1.0,
+  "style": "calm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_go_free": {
+  "text": "Іди сама, доріжки іскорок не буде. Слухай Піпа!",
+  "heard": "Іди сама, доріжки-іскорок не буде. Слухай Піпа.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_go_flower": {
+  "text": "Піп просить: знайди червону квітку!",
+  "heard": "Біб просить: знайди червону квітку.",
+  "score": 0.939,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_go_house": {
+  "text": "Піп просить: іди до маленького будиночка!",
+  "heard": "Піп просить: іди до маленького будиночка.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "pip_cat_go_mushroom": {
+  "text": "Піп просить: знайди великий гриб!",
+  "heard": "Піп просить: знайди великий гриб.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "q_note": {
+  "text": "Прочитай записку Піпа",
+  "heard": "Прочитай записку Піпа.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h2_note": {
+  "text": "Прочитай ще раз, повільно. Дивись на ці слова.",
+  "heard": "Прочитай ще раз, повільно. Дивись на ці слова.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_1": {
+  "text": "Привіт! Я Піп. Я загубив карту.",
+  "heard": "Привіт. Я Піп. Я загубив карту.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_2": {
+  "text": "Шукай під грибом біля будиночка.",
+  "heard": "Шукай під грибом біля будиночка.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_3": {
+  "text": "Тут живуть рибки. Порахуй рожеві камінчики на березі!",
+  "heard": "Тут живуть рибки. Порахуй рожеві камінчики на березі.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_4": {
+  "text": "Скарб там, де вода. Шукай біля ставка, під кущиком.",
+  "heard": "Скарб там, де вода. Шукай біля ставка, під кущиком.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_5": {
+  "text": "Ліс великий. Іди туди, де червоні грибочки.",
+  "heard": "Ліс великий, іди туди, де червоні грибочки.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_6": {
+  "text": "Я біжу і дзюркочу, а спати не хочу. Хто я?",
+  "heard": "Я біжу і діркочу, а спати не хочу. Хто я?",
+  "score": 0.961,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_7": {
+  "text": "Сова не любить шуму. Підійди тихенько і подивися вгору.",
+  "heard": "Сова не любить шуму. Підійди тихенько і подивися вгору.",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
+ },
+ "h3_note_8": {
+  "text": "Білочка сховала горішки. Три — під кущем, один — на пеньку. Скільки всього?",
+  "heard": "Білочка сховала горішки: три під кущем, один на пеньку. Скільки всього?",
+  "score": 1.0,
+  "style": "warm",
+  "voice": "Puck",
+  "model": "gemini-2.5-flash-preview-tts"
  }
 }

@@ -113,6 +113,26 @@ export const EN_LINES = [
   { id: 'wb_p_balloon', text: "A balloon.", uk: "Повітряна кулька.", ru: "Воздушный шарик.", voice: 'Isabella', world: 'sky' },
   { id: 'wb_w_sheep', text: "Sheep.", uk: "вівця", ru: "овечка", voice: 'Isabella', world: 'sky' },
   { id: 'wb_p_sheep', text: "A sheep.", uk: "Вівця.", ru: "Овечка.", voice: 'Isabella', world: 'sky' },
+  // Pip (Zephyr, part G): his story of step 2 (lines §3), the three commands of the places of step 2 (§2.2, en-go.ts),
+  // his praise (§2.3) - the set (а) of the customer, 2026-11-27, recorded with --max-tries=2
+  { id: 'pip_arrive', text: "Hello! Hello! I'm Pip!", uk: "Привіт! Привіт! Я Піп!", ru: "Привет! Привет! Я Пип!", voice: 'Zephyr', world: 'hub' },
+  { id: 'pip_lost', text: "Hello, friend! I'm lost. My home is far away.", uk: "Привіт, подружко! Я загубився. Мій дім далеко.", ru: "Привет, подружка! Я потерялся. Мой дом далеко.", voice: 'Zephyr', world: 'hub' },
+  { id: 'pip_map', text: "The wind took my map. The pieces flew away!", uk: "Вітер забрав мою карту. Шматочки розлетілися!", ru: "Ветер унёс мою карту. Кусочки разлетелись!", voice: 'Zephyr', world: 'hub' },
+  { id: 'pip_help', text: "Can you help me? Please!", uk: "Допоможеш мені? Будь ласка!", ru: "Поможешь мне? Пожалуйста!", voice: 'Zephyr', world: 'hub' },
+  { id: 'pip_hi_world', text: "Hi! It's me, Pip!", uk: "Привіт! Це я, Піп!", ru: "Привет! Это я, Пип!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'pip_look', text: "Look, look!", uk: "Дивись, дивись!", ru: "Смотри, смотри!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'pip_piece', text: "A piece of my map! Thank you!", uk: "Шматочок моєї карти! Дякую!", ru: "Кусочек моей карты! Спасибо!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'pip_mum', text: "I can see my house! My mum and dad live there.", uk: "Я бачу свій дім! Там живуть мої мама й тато.", ru: "Я вижу свой дом! Там живут мои мама и папа.", voice: 'Zephyr', world: 'forest' },
+  { id: 'pip_more', text: "More pieces are in other lands.", uk: "Інші шматочки — в інших краях.", ru: "Другие кусочки — в других краях.", voice: 'Zephyr', world: 'fairy' },
+  { id: 'pip_wait', text: "Let's fly there later!", uk: "Полетімо туди пізніше!", ru: "Полетим туда позже!", voice: 'Zephyr', world: 'hub' },
+  { id: 'pip_star', text: "A golden star! It's for you!", uk: "Золота зірка! Вона для тебе!", ru: "Золотая звезда! Она для тебя!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'en_go_flower', text: "Find a red flower!", uk: "Знайди червону квітку!", ru: "Найди красный цветок!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'en_go_house', text: "Go to the little house!", uk: "Іди до маленького будиночка!", ru: "Иди к маленькому домику!", voice: 'Zephyr', world: 'fairy' },
+  { id: 'en_go_mushroom', text: "Find a big mushroom!", uk: "Знайди великий гриб!", ru: "Найди большой гриб!", voice: 'Zephyr', world: 'forest' },
+  { id: 'pip_yes_1', text: "Yes! Well done!", uk: "Так! Молодчина!", ru: "Да! Молодец!", voice: 'Zephyr', world: 'fairy', variant_of: 'pip_yes' },
+  { id: 'pip_yes_2', text: "Great!", uk: "Чудово!", ru: "Отлично!", voice: 'Zephyr', world: 'fairy', variant_of: 'pip_yes' },
+  { id: 'pip_yes_3', text: "You're so clever!", uk: "Ти така розумна!", ru: "Ты такая умница!", voice: 'Zephyr', world: 'fairy', variant_of: 'pip_yes' },
+  { id: 'pip_thanks', text: "Hooray! Thank you!", uk: "Ура! Дякую!", ru: "Ура! Спасибо!", voice: 'Zephyr', world: 'fairy' },
 ] as const satisfies readonly EnLine[];
 
 /** The id of a line of the list. */

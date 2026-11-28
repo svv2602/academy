@@ -8,9 +8,9 @@ import { readFileSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { MAX_WORLD } from './dist-size.mjs';
+import { MAX_PIP, MAX_WORLD } from './dist-size.mjs';
 import {
-  FIT, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, PROVENANCE, ROOT, SRC_DIR, WORLDS_DATA,
+  FIT, LAZY_PIP, MAX_FILE, MAX_TEXTURE, MAX_TOTAL, OUT_DIR, PROVENANCE, ROOT, SRC_DIR, WORLDS_DATA,
   createIO, encodeTexture, listShipped, listSources, modelTextures, overBudget, readGlb, shippedPath, webpSize, worldOfModel,
 } from './assets.mjs';
 
@@ -56,7 +56,7 @@ describe('public/models is the output of npm run assets', () => {
 
 describe('a model made with a service says so in its file (CREDITS.md)', () => {
   it('the Meshy models carry asset.copyright and asset.extras.source; no other model claims Meshy', () => {
-    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'forest/borovik.glb', 'forest/kolyuchka.glb', 'forest/mudrena.glb', 'forest/owlet.glb', 'forest/shustrik.glb', 'forest/tropka.glb', 'hero/child.glb', 'sea/bulk.glb', 'sea/iskorka.glb', 'sea/khvylia.glb', 'sea/kleshnya.glb', 'sea/pantsyr.glb', 'sky/lazur.glb', 'sky/mertsal.glb', 'sky/veterok.glb', 'sweet/imbir.glb', 'sweet/kakao.glb', 'sweet/pastila.glb', 'sweet/tyanuchka.glb']);
+    expect(Object.keys(PROVENANCE).sort()).toEqual(['extra/cat.glb', 'forest/borovik.glb', 'forest/kolyuchka.glb', 'forest/mudrena.glb', 'forest/owlet.glb', 'forest/shustrik.glb', 'forest/tropka.glb', 'hero/child.glb', 'pip/pip.glb', 'sea/bulk.glb', 'sea/iskorka.glb', 'sea/khvylia.glb', 'sea/kleshnya.glb', 'sea/pantsyr.glb', 'sky/lazur.glb', 'sky/mertsal.glb', 'sky/veterok.glb', 'sweet/imbir.glb', 'sweet/kakao.glb', 'sweet/pastila.glb', 'sweet/tyanuchka.glb']);
     for (const [rel, made] of Object.entries(PROVENANCE)) {
       const asset = json.get(rel)?.asset;
       expect(asset?.copyright, `${rel}: ${RUN}`).toBe(made.copyright);
@@ -86,6 +86,24 @@ describe('asset budget (docs/15-tech.md)', () => {
     expect(overBudget([{ path: 'a.glb', size: MAX_FILE + 1 }])).toHaveLength(1);
     const many = Array.from({ length: 10 }, (_, i) => ({ path: `${i}.glb`, size: MAX_TOTAL / 10 + 1 }));
     expect(overBudget(many).join()).toContain('in total');
+  });
+
+  it('keeps Pip\'s lazy folder (pip/) out of MAX_TOTAL and holds it to MAX_PIP of its own (decision 2026-11-28)', () => {
+    expect(LAZY_PIP).toBe('pip/');
+    // the core full to the byte: Pip beside it does not tip it over
+    const core = Array.from({ length: 10 }, (_, i) => ({ path: `extra/${i}.glb`, size: MAX_TOTAL / 10 }));
+    const pip = [{ path: 'pip/pip.glb', size: MAX_PIP - 100_000 }, { path: 'pip/tex/pip.webp', size: 100_000 }];
+    expect(overBudget([...core, ...pip], [])).toEqual([]);
+    // the core one byte over fails on its own, Pip not named in its sum
+    expect(overBudget([...core, { path: 'extra/more.glb', size: 1 }, ...pip], [])).toEqual([`${OUT_DIR}: ${MAX_TOTAL + 1} bytes in total, the limit is ${MAX_TOTAL}`]);
+    // Pip one byte over his own limit fails, naming his folder
+    expect(overBudget([...pip, { path: 'pip/tex/more.webp', size: 1 }], [])).toEqual([`${OUT_DIR}/pip/: ${MAX_PIP + 1} bytes in total, the limit is ${MAX_PIP} (Pip's model, out of the first load)`]);
+    // a model merely named after him is the core's
+    expect(overBudget([...core, { path: 'pip.glb', size: 1 }], []).join()).toContain(`${OUT_DIR}: ${MAX_TOTAL + 1} bytes`);
+    // the shipped files: Pip is there, within his limit
+    const own = shipped.filter((f) => f.startsWith(LAZY_PIP));
+    expect(own.length, 'Pip ships his model').toBeGreaterThan(0);
+    expect(own.reduce((s, f) => s + statSync(at(f)).size, 0)).toBeLessThanOrEqual(MAX_PIP);
   });
 
   it('counts a next world apart from the core (TECH-09): its models go to worlds-data/<id>/, up to MAX_WORLD of their own', () => {

@@ -3,6 +3,7 @@ import { staticGeo, texturedParts } from '../../core/assets';
 import { fbm, mulberry32, vnoise } from '../../core/util';
 import { SHOP_SIGN } from './layout';
 import { OAKS, buildCollectProps, clearOfFinds } from './collect';
+import { clearOfNotes } from './notes';
 import { QUESTS, SHRINE } from './quests';
 import { CASTLE, CHEST, PATCH, POND, SPAWN, WATER_Y, WORLD_R, colliders, height, pathDist } from './terrain';
 import { instanced, instancedParts, type Placement } from '../../core/instancing';
@@ -156,12 +157,13 @@ export async function buildScenery(scene: THREE.Scene, density: number) {
   // nothing of chance stands on a find of the collections: filtered after, the chance of what follows is as it was -
   // and after the split into kinds, so every other rock or bush keeps its kind and its cell (filtered before, the
   // kinds shuffled over the cells: a few draw calls more on the phone from anywhere)
-  const clear = (items: Placement[]) => items.filter((r) => clearOfFinds(r.x, r.z));
+  // and none on Pip's notes and their bookmarks (./notes.ts), the same way
+  const clear = (items: Placement[]) => items.filter((r) => clearOfFinds(r.x, r.z) && clearOfNotes(r.x, r.z));
   const rocks = split(scatter(40 * density, 1.5, undefined, 56), 3).map(clear);
   rocks.flat().forEach((r) => { if (r.s > 1.05) colliders.push({ x: r.x, z: r.z, r: r.s * 0.45 }); });
   rocks.forEach((it, i) => instancedParts(scene, height, rocks3[i], it, 0, true));
   split(scatter(60 * density, 1.2, undefined, 56), 2).map(clear).forEach((it, i) => instancedParts(scene, height, bushes[i], it, 0.03, true));
-  instanced(scene, height, stumpGeo, solid, scatter(8, 2).filter((s) => clearOfFinds(s.x, s.z)), true);
+  instanced(scene, height, stumpGeo, solid, scatter(8, 2).filter((s) => clearOfFinds(s.x, s.z) && clearOfNotes(s.x, s.z)), true);
 
   // Under-growth: ferns and big leaves hug the trees, clover carpets the open meadow.
   // (by the trees as placed, the ones the acorns' trees took the place of too: the chance of all that is scattered after

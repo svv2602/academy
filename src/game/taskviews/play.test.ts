@@ -348,8 +348,7 @@ const PLAY: Record<TaskType, (level: number, heard: Heard) => void | Promise<voi
     seen = `${id}; ${text(paper)}; asked ${JSON.stringify(heard.screens)}`;
     must(def.level <= Math.max(2, level), `${id} is for level ${def.level}, asked on ${level}`);
     must(text(stage().querySelector<HTMLElement>('.note-read')!) === NOTE_TEXTS[id].uk, 'the note is not its Ukrainian text');
-    must(heard.prompts.length === 0 && heard.screens.length === 1 && heard.screens[0].key === 'q_note'
-      && heard.screens[0].en.length === 0, 'the note is asked on the screen only, nothing said');
+    must(heard.prompts.length === 1 && heard.prompts[0] === 'q_note' && heard.screens.length === 0, 'the cat asks the note');
     const q = def.q;
     if (q.ask === 'picture') {
       const pics = all(stage(), '.note-pic');
