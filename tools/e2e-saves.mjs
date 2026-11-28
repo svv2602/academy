@@ -204,14 +204,21 @@ export function startSave(group, { mute = false } = {}) {
 }
 
 /**
+ * Pip met already (Season 2): his meeting, which a save with the first world done brings to the hub, would take the
+ * walks of the hub's parts in the middle (tools/hub-grey.mjs: she stood turned by it). He stands on his root then; his
+ * meeting itself is the block pip's (tools/shot.mjs).
+ */
+const metPip = (s) => { s.pip = { ...s.pip, met: true }; return s; };
+
+/**
  * The saves of the hub (WORLD-01, the part "hub" of tools/worlds.mjs, R02): the Great Tree with one artifact back - the
  * first world done, the hub not visited yet - and with two: the probe world, which stands for the second world in the
  * probe build (its place on the shelf is the forest's, src/worlds/probe/index.ts), done too.
  */
 export const HUB_SAVES = {
-  one: () => GROUPS.shop.save(),
+  one: () => metPip(GROUPS.shop.save()),
   two: () => {
-    const s = GROUPS.shop.save();
+    const s = metPip(GROUPS.shop.save());
     s.worlds.probe = { quests: {}, final: true, starsTaken: [], flags: {}, pos: null };
     return s;
   },

@@ -22,6 +22,11 @@ export const PIP_HEIGHT = 0.6;
 export const PIP_TURN = 7;
 /** m beyond which he is not drawn in a world (as the forest's secrets, SHOW_R): two draw calls kept for the views far off. */
 export const PIP_SHOW = 35;
+/**
+ * m within which his golden mark is not drawn: she is at him, his action button is there - and the view from the
+ * forest's arch, beside which he stands, keeps its draw call (the forest at 112 of its 112).
+ */
+export const PIP_MARK_NEAR = 6;
 /** m of the spot of talk round him (src/game/talk-spot.ts). */
 export const PIP_TALK = 2.4;
 
