@@ -4292,8 +4292,8 @@ try {
           if (Math.hypot(at.place.x - 6, at.place.z - 2) > 0.5) fail(`he stands at ${at.place.x}, ${at.place.z}, not at his feeder (6, 2)`);
           if (!at.waits) fail('his request does not wait in the fairies, the piece of the world not found yet');
           if (!(await gameUntil(() => __game.pip().mark, null, 10))) fail('the golden mark is not over him while his request waits');
-          // pictured from the spawn's side, a few steps off: he on his feeder, the mark over him (drawn from 6 m on: PIP_MARK_NEAR)
-          await beside(at.place, SPAWN, 7);
+          // pictured from the spawn's side, a few steps off: he on his feeder, the mark over him (drawn from 9 m on: PIP_MARK_NEAR)
+          await beside(at.place, SPAWN, 10);
           await shot('pip-fairy');
           const fairyFeet = onGround(await feet(), 'the fairies');
           const fairyCalls = await calls();

@@ -86,4 +86,13 @@ describe('his figure', () => {
     pip.dispose();
     expect(scene.children).toHaveLength(0);
   });
+
+  it('without a shadow (the worlds): no mesh of his casts one - the loader makes every mesh cast', () => {
+    const rig = stubRig();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+    body.castShadow = true;
+    rig.model.add(body);
+    createPip(new THREE.Scene(), rig, { x: 0, z: 0, heading: 0 }, () => 0, undefined, false);
+    expect(body.castShadow).toBe(false);
+  });
 });

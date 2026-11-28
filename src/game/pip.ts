@@ -24,9 +24,9 @@ export const PIP_TURN = 7;
 export const PIP_SHOW = 35;
 /**
  * m within which his golden mark is not drawn: she is at him, his action button is there - and the view from the
- * forest's arch, beside which he stands, keeps its draw call (the forest at 112 of its 112).
+ * forest's arch, beside which he stands (she comes out of it 6.8 m from him), keeps its draw call (the forest at 112).
  */
-export const PIP_MARK_NEAR = 6;
+export const PIP_MARK_NEAR = 9;
 /** m of the spot of talk round him (src/game/talk-spot.ts). */
 export const PIP_TALK = 2.4;
 
@@ -82,8 +82,10 @@ export interface PipFigure {
 export function createPip(scene: THREE.Object3D, rig: Rig, place: PipPlace, groundY: (x: number, z: number) => number,
   block?: (x: number, z: number, r: number) => void, shadow = true): PipFigure {
   const actor = new Actor(rig);
-  // his shadow is a draw call of its own: the worlds, at the edge of their budget, go without it (./pip-world.ts)
+  // his shadow is a draw call of its own: the worlds, at the edge of their budget, go without it (./pip-world.ts) - every
+  // mesh of a rig casts one as it is loaded (src/core/assets.ts rig), so it is turned off here, not only left alone
   if (shadow) shadowFromBody(actor.root);
+  else actor.root.traverse((o) => { (o as THREE.Mesh).castShadow = false; });
   const pos = new THREE.Vector3(place.x, groundY(place.x, place.z), place.z);
   actor.root.position.copy(pos); actor.heading = place.heading; actor.root.rotation.y = place.heading;
   actor.root.name = 'pip';
