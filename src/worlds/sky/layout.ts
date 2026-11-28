@@ -142,6 +142,33 @@ export const TREE_ARCH = at(5.6, 5);
  * The easel (PLAY-29, src/game/easel.ts): on the castle island between where she appears and the arch, off the ways,
  * clear of the finds (./collect.test.ts); the trees and bushes keep off it (./scenery.ts); its picture turned to the spawn.
  */
+/**
+ * The places of the mysterious stars (PLAY-24, src/game/mystery.ts, ten of them a day), in metres of the chosen stretch
+ * (moved with the map by another), on the islands' ground only - none on a bridge, over the clouds or on the ledge (it
+ * lies under the windmill island's edge). Eight hidden (the lead's word of 2026-11-28: the islands have little ground,
+ * so 8 of 24 and not half): from the nearest point of a way the star is behind a cloud bush (MYSTERY_ROCKS, one each of
+ * the first of them, ./hiding.ts; the islands' bush, drawn with them) or behind the observatory's tower; the other
+ * sixteen in sight, aside of the way (./mystery.test.ts).
+ */
+const m = (x: number, z: number): Place => at(x / DEFAULT_SCALE, z / DEFAULT_SCALE);
+export const MYSTERY_HIDDEN: readonly Place[] = [
+  m(-102.1, 1.3), m(-108.1, -0.2), m(-98.4, 11.9), m(-99.1, -10.6),
+  m(101.9, -0.9), m(-91.6, 11.1), m(4.4, -102.8), m(-0.8, -106.5),
+];
+/** The cloud bush each of the first hidden places stands behind, in the order of MYSTERY_HIDDEN; the rest are behind the buildings. */
+export const MYSTERY_ROCKS: readonly Place[] = [
+  m(-100.1, 0.9), m(-106, -0.1), m(-98, 9.8), m(-98.5, -8.6),
+  m(99.7, -0.6), m(-91.6, 9),
+];
+/** A cloud bush: the islands' bush (./scenery.ts) scaled `w` across and `h` up. */
+export const MYSTERY_ROCK = { w: 1.8, h: 3.8 } as const;
+export const MYSTERY_OPEN: readonly Place[] = [
+  m(-104.4, 8.1), m(91, 97.8), m(91.4, 7.4), m(103.4, 9.6),
+  m(8, -10.7), m(-90.9, -10.6), m(10.5, -95.3), m(5.3, 101.3),
+  m(-8.2, 93.1), m(95.1, -3.9), m(-7, -11.5), m(-12.2, -4),
+  m(-8.5, 10.3), m(-96.1, -3.9), m(97.4, 4.4), m(107.9, 0.6),
+];
+export const MYSTERY_SPOTS: readonly Place[] = [...MYSTERY_HIDDEN, ...MYSTERY_OPEN];
 export const EASEL = (() => {
   const { x, z } = at(3.75, 6.9);
   return { x, z, facing: Math.atan2(SPAWN.x - x, SPAWN.z - z) };

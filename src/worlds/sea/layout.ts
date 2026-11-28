@@ -103,6 +103,32 @@ export const GROTTO = (() => {
  * a wall, m; y: its floor.
  */
 export const HOLD = { x: 0, z: -(HALF + 150), half: 4.4, y: 0 };
+/**
+ * The places of the mysterious stars (PLAY-24, src/game/mystery.ts, ten of them a day), in metres of the chosen stretch
+ * (moved with the map by another). Half of them hidden: from the nearest point of a way the star is behind a spire of
+ * rock (MYSTERY_ROCKS, one each, ./hiding.ts; the sea's own rock, drawn with its rocks) - seen only on coming near; the
+ * other half in sight, aside of the way, where she has to swim (./mystery.test.ts).
+ */
+const m = (x: number, z: number): Place => at(x / DEFAULT_SCALE, z / DEFAULT_SCALE);
+export const MYSTERY_HIDDEN: readonly Place[] = [
+  m(-50.5, 4.7), m(46, -41.8), m(25, 45.8), m(-23, -37.3),
+  m(-28, 44.3), m(47.5, 8.8), m(-17.7, 1), m(0.8, 26.1),
+  m(23, -21.2), m(23.4, -58.3), m(20, 6.2), m(-49, -34.7),
+];
+/** The spire each hidden place stands behind, in the order of MYSTERY_HIDDEN. */
+export const MYSTERY_ROCKS: readonly Place[] = [
+  m(-48, 4.5), m(43.5, -42), m(24, 43.5), m(-25.5, -37.5),
+  m(-27, 42), m(45, 9), m(-18, -1.5), m(1.5, 28.5),
+  m(25.5, -21), m(25.5, -57), m(22.5, 6), m(-46.5, -34.5),
+];
+/** A spire: the sea's rock (./life.ts rockGeometry) scaled `w` across and `h` up. */
+export const MYSTERY_ROCK = { w: 2.4, h: 4 } as const;
+export const MYSTERY_OPEN: readonly Place[] = [
+  m(-46.5, 27), m(43.5, 33), m(-24, 22.5), m(1.5, -25.5),
+  m(43.5, -15), m(3, -4.5), m(-25.5, -18), m(-9, 46.5),
+  m(27, -39), m(18, 24), m(-31.5, 7.5), m(10.5, 42),
+];
+export const MYSTERY_SPOTS: readonly Place[] = [...MYSTERY_HIDDEN, ...MYSTERY_OPEN];
 /** The shell of the throne where the pearls come together: the finale. */
 export const THRONE = { x: ZONES.throne.x, z: ZONES.throne.z };
 

@@ -25,7 +25,7 @@ import { SCALES_STEP, createScales } from './scales';
 import { BRIDGE_STEP, createBridge } from './bridge';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGE, CAVE, EASEL, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGE, CAVE, EASEL, HALF, HOUSE_DOOR, LANDMARKS, MILLSTONE, MYSTERY_SPOTS, PATHS, RIVER, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
 import { SWEET_STORIES } from './story';
@@ -480,6 +480,7 @@ export const sweet: WorldDef<SweetLoads, WorldSky> = {
   noSkill: [HOUSE_STEP],
   collect: COLLECT,                  // swirl lollipops and jelly sweets (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
+  mystery: { spots: MYSTERY_SPOTS },   // the mysterious stars (PLAY-24, ./layout.ts, ./hiding.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   // PLAY-07: the six secrets (./secrets.ts); the tin box under the bridge is the world's chest (PLAY-08)
   secrets: SWEET_SECRETS,

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, EASEL, HALF, ISLANDS, LANDMARKS, MILL, MILLS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
+import { BRIDGES, BRIDGE_W, CASTLE, CLOUD_GAP, EASEL, HALF, ISLANDS, LANDMARKS, MILL, MILLS, MYSTERY_ROCK, MYSTERY_ROCKS, NOOK_ENDS, OBSERVATORY, RAIL, ROUTE, SHIP, SHRINE, TREE_ARCH, ZONES, type Island, type Place, type ZoneId } from './layout';
+import { BUSH_WALL } from './hiding';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
 import { SAIL_COLOURS, WINDMILL_COLOURS, bake, isBlades, type SkyProps } from './props';
 import { CLOUD_SEA, SEA_REACH, colliders, height, inCloudGap, lineDist, pathDist } from './terrain';
@@ -192,7 +193,12 @@ export function buildScenery(scene: THREE.Scene, props?: Pick<SkyProps, 'airship
     [new THREE.CylinderGeometry(0.18, 0.25, 2.2, 6).translate(0, 1.1, 0), '#8a6a4a'],
     [new THREE.IcosahedronGeometry(1.4, 0).translate(0, 3, 0), '#8fcf7a'],
   ]), paintMaterial(), trees);
-  instances(scene, 'bushes', new THREE.IcosahedronGeometry(0.7, 0).scale(1.2, 0.8, 1.2).translate(0, 0.45, 0), mat('#a6d98a'), bushes);
+  // the bushes, and with them the cloud bushes the mysterious stars hide behind (./hiding.ts): no draw of their own
+  const big = MYSTERY_ROCKS.map((p, i) => ({ x: p.x, z: p.z, s: 1, rot: i * 1.3 }));
+  const bushMesh = instances(scene, 'bushes', new THREE.IcosahedronGeometry(0.7, 0).scale(1.2, 0.8, 1.2).translate(0, 0.45, 0), mat('#a6d98a'), [...bushes, ...big]);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), size = new THREE.Vector3(MYSTERY_ROCK.w, MYSTERY_ROCK.h, MYSTERY_ROCK.w);
+  big.forEach((t, i) => bushMesh.setMatrixAt(bushes.length + i, m4.compose(at.set(t.x, height(t.x, t.z), t.z), q.setFromAxisAngle(up, t.rot), size)));
+  for (const t of big) colliders.push({ x: t.x, z: t.z, r: BUSH_WALL });
 
   // ----- the cloud castle: white walls, blue roofs (the first world's castle later) -----
   const towers: Part[] = [[new THREE.BoxGeometry(CASTLE.r * 1.6, 4.5, CASTLE.r * 1.6).translate(0, 2.25, 0), '#f6f9ff']];
