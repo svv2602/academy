@@ -32,7 +32,7 @@ import { tellWhenQuiet, wordsAfter } from './task-words';
 import { voices } from './voices';
 import { arriveFrom, createHubWay } from './hub-way';
 import { COLLECT, DAILY_PLACES } from './collect';
-import { BRIDGES, CLOUD_GAP, CLOCK, EASEL, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
+import { BRIDGES, CLOUD_GAP, CLOCK, EASEL, GANGWAY, HALF, ISLANDS, LANDING, LANDMARKS, MILLS, MYSTERY_SPOTS, PATHS, RAIL, BRIDGE_W, RAY_ISLET, ROUTE, SCALE, SHRINE, SPAWN, ZONES } from './layout';
 import { paintedAt } from './landmarks';
 import { buildScenery } from './scenery';
 import { strings } from './strings';
@@ -526,5 +526,6 @@ export const sky: WorldDef<SkyLoads, WorldSky> = {
   chest: CHEST_FLAG,
   collect: COLLECT,                  // little clouds and balloons (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
+  mystery: { spots: MYSTERY_SPOTS },   // the mysterious stars (PLAY-24, ./layout.ts, ./hiding.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
 };

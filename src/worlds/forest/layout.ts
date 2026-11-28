@@ -137,13 +137,13 @@ export const MYSTERY_SHOW_R = 22;
 export const MYSTERY_HIDDEN: readonly Place[] = [
   m(-26.5, 13.3), m(44, -34.4), m(47, 36.2), m(-3.2, 63.5),
   m(0.1, -21.5), m(25.7, 57.5), m(-23.8, 43), m(25, -51.3),
-  m(5.7, 0.5), m(26.5, 35.8), m(8.8, 46), m(-19.7, 60.5),
+  m(5.7, 0.5), m(26.5, 35.8), m(-7.4, -21.5), m(-19.7, 60.5),
 ];
 /** The boulder each hidden place stands behind, in the order of MYSTERY_HIDDEN: baked into the things of the forest (./decor.ts). */
 export const MYSTERY_ROCKS: readonly Place[] = [
   m(-28.5, 13.5), m(42, -34.5), m(45, 36), m(-3, 61.5),
   m(0, -19.5), m(25.5, 55.5), m(-24, 45), m(27, -51),
-  m(6, -1.5), m(28.5, 36), m(9, 48), m(-19.5, 58.5),
+  m(6, -1.5), m(28.5, 36), m(-7.5, -19.5), m(-19.5, 58.5),
 ];
 /** A boulder: a dodecahedron of radius 1 scaled by (r, h, r), its middle 0.45 h over the ground (as the first world's). */
 export const MYSTERY_ROCK = { r: 1.4, h: 2 } as const;

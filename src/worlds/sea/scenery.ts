@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { CASTLE, CORAL_NEST, GROTTO, HALF, LANDMARKS, ROUTE, SHIP, SQUARE_ARCH, TOWERS, ZONES, type Place } from './layout';
+import { CASTLE, CORAL_NEST, GROTTO, HALF, LANDMARKS, MYSTERY_ROCK, MYSTERY_ROCKS, ROUTE, SHIP, SQUARE_ARCH, TOWERS, ZONES, type Place } from './layout';
+import { SPIRE_WALL } from './hiding';
 import { colliders, height, lineDist, pathDist } from './terrain';
 import { mat as style } from '../../core/style';
 import { buildLandmarks } from './landmarks';
@@ -132,7 +133,12 @@ export function buildScenery(scene: THREE.Scene, wreck: THREE.Object3D | null = 
   for (const m of [kelpMat.material, rimMat.material]) m.side = THREE.DoubleSide;
   instances(scene, 'kelp', kelpGeometry(3.2), kelpMat.material, kelp, 0, false, KELP_COLOURS);
   instances(scene, 'rim-kelp', kelpGeometry(9, 3), rimMat.material, rim, 0, false, ['#4c7f63', '#5a8f6c', '#467a5c']);
-  instances(scene, 'rocks', rockGeometry(), style.stone('#a9b3b8'), rocks);
+  // the rocks, and with them the spires the mysterious stars hide behind (./hiding.ts): no draw of their own
+  const spires = MYSTERY_ROCKS.map((p, i) => ({ x: p.x, z: p.z, s: 1, rot: i * 1.9 }));
+  const rockMesh = instances(scene, 'rocks', rockGeometry(), style.stone('#a9b3b8'), [...rocks, ...spires]);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), size = new THREE.Vector3(MYSTERY_ROCK.w, MYSTERY_ROCK.h, MYSTERY_ROCK.w);
+  spires.forEach((t, i) => rockMesh.setMatrixAt(rocks.length + i, m4.compose(at.set(t.x, height(t.x, t.z), t.z), q.setFromAxisAngle(up, t.rot), size)));
+  for (const t of spires) colliders.push({ x: t.x, z: t.z, r: SPIRE_WALL });
 
   // the landmarks (step B of the look): our own painted shapes and Kenney's wreck (./landmarks.ts); their colliders here,
   // the grey build's

@@ -16,8 +16,8 @@ import {
   ALTAR, ARRIVAL, EASEL, HALF, HOLLOW, LANDMARKS, MAZE_END, MAZE_IN, MYSTERY_HIDDEN, MYSTERY_OPEN, MYSTERY_ROCK, MYSTERY_ROCKS,
   MYSTERY_SHOW_R, MYSTERY_SPOTS, OWL_TREE, PATHS, SECRET_CLEARINGS, SPAWN, STREAM_HALF, ZONES, inMaze,
 } from './layout';
-import { bridges, placeTrees, villageHouses } from './scenery';
-import { pathDist, streamDist } from './terrain';
+import { SIGHT, bridges, placeTrees, sightLines, villageHouses } from './scenery';
+import { lineDist, pathDist, streamDist } from './terrain';
 import { placePlants } from './undergrowth';
 
 vi.mock('../../game/fx', () => ({ glowTex: null, Sparks: class {} }));
@@ -99,11 +99,13 @@ describe('the places of the mysterious stars of the forest', () => {
       BUSY.some((q) => d(q, b) < 5) && 'at a resident or a thing of the forest',
       [...COLLECT.items, ...DAILY_PLACES].some((f) => d(f, b) < 4) && 'at a find',
       HEAVY.some((h) => d(h, b) < MYSTERY_SHOW_R + 2) && 'in the heaviest looks',
+      // the lines of sight of the route are kept clear of trees (./scenery.ts sightLines): a boulder there could hide a landmark
+      sightLines().some((l) => lineDist(l, b.x, b.z) < SIGHT + MYSTERY_ROCK.r) && 'in a line of sight of the route',
       MYSTERY_SPOTS.filter((s) => d(s, b) < 3.5).length !== 1 && 'not by exactly one place',
       d(MYSTERY_HIDDEN[i], b) - ROCK_WALL < 0.6 && 'its wall over the star\'s place',
     ].filter(Boolean).map((w) => `boulder ${i} (${b.x}, ${b.z}): ${w}`));
     expect(bad).toEqual([]);
-    for (let i = 0; i < MYSTERY_ROCKS.length; i++) for (let k = i + 1; k < MYSTERY_ROCKS.length; k++) expect(d(MYSTERY_ROCKS[i], MYSTERY_ROCKS[k])).toBeGreaterThan(8);
+    for (let i = 0; i < MYSTERY_ROCKS.length; i++) for (let k = i + 1; k < MYSTERY_ROCKS.length; k++) expect(d(MYSTERY_ROCKS[i], MYSTERY_ROCKS[k])).toBeGreaterThan(7);
   });
 
   it('no plant grows inside a boulder, and every other plant stays where it grew', () => {

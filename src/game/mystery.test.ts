@@ -2,9 +2,10 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultSave, worldState, type Save } from '../core/save';
-import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_MIN_SPOTS, MYSTERY_REWARD, MYSTERY_STEPS, dailyStars, mysteryOf, mysteryProblems } from './mystery';
+import { MYSTERY_COLOR, MYSTERY_COUNT, MYSTERY_GOLD_SET, MYSTERY_MIN_SPOTS, MYSTERY_REWARD, MYSTERY_STEPS, dailyStars, goldStars, mysteryOf, mysteryProblems } from './mystery';
 import { createMystery, mysteryHold, type MysteryHost } from './mystery-stars';
 import type { Stage } from './stage';
+import { statOf } from './skills';
 import type { TaskResult } from './taskviews/panel';
 import { loadWorlds } from '../worlds';
 
@@ -51,6 +52,78 @@ describe('the stars of a day (src/game/mystery.ts)', () => {
     expect([...greens].sort()).toEqual(['compare', 'pattern']);
   });
 
+  /** A day as one line: each star's place, the first letter of its kind and of its step. */
+  const line = (world: string, day: string, spots: number, gold?: boolean) => dailyStars(world, day, spots, gold).map((s) => `${s.spot}${s.kind[0]}${s.step[0]}`).join(' ');
+  /** Twelve days of three worlds and a world of seven places, as the rule drew them before part I (taken on that code). */
+  const BEFORE: Record<string, string> = {
+    'fairy 2026-11-20 24': '9rs 13gp 17ba 5rs 16gc 20ba 23rs 7gp 8ba 6rs',
+    'fairy 2026-12-01 24': '2gc 19ba 10rs 4gp 17ba 6rs 1gp 3ba 0rs 8gp',
+    'fairy 2026-12-02 24': '21gp 16ba 22rs 18gc 8ba 20rs 3gp 2ba 9rs 23gp',
+    'fairy 2026-12-31 24': '5rs 0gc 13ba 2rs 17gc 8ba 7rs 4gc 15ba 1rs',
+    'forest 2026-11-20 22': '11gc 17ba 19rs 18gc 4ba 0rs 14gp 9ba 21rs 13gp',
+    'forest 2026-12-01 22': '17rs 19gp 12ba 8rs 16gp 13ba 18rs 3gc 7ba 14rs',
+    'forest 2026-12-02 22': '9rs 5gc 21ba 0rs 14gp 20ba 11rs 3gp 10ba 1rs',
+    'forest 2026-12-31 22': '15gc 20ba 21rs 2gp 1ba 0rs 5gc 12ba 3rs 6gp',
+    'sea 2026-11-20 20': '6ba 11rs 1gc 18ba 9rs 4gp 16ba 14rs 8gc 15ba',
+    'sea 2026-12-01 20': '2ba 0rs 9gp 18ba 4rs 6gp 10ba 14rs 19gp 11ba',
+    'sea 2026-12-02 20': '7gc 1ba 5rs 0gc 15ba 18rs 16gc 17ba 3rs 13gp',
+    'sea 2026-12-31 20': '1rs 8gp 4ba 9rs 12gp 5ba 0rs 16gp 17ba 19rs',
+    'fairy 2026-12-01 7': '1rs 2gc 0ba 5rs 4gc 6ba 3rs',
+  };
+
+  it('without golden stars a day is the day of before part I: the same places, kinds and steps', () => {
+    for (const [key, stars] of Object.entries(BEFORE)) {
+      const [world, day, spots] = key.split(' ');
+      expect(line(world, day, +spots), key).toBe(stars);
+      expect(line(world, day, +spots, false), key).toBe(stars);
+    }
+  });
+
+  it('golden stars: once Pip is met and while English is on', () => {
+    const save = (met: boolean, english: boolean) => ({ pip: { met, pieces: [], cap: 'purple' as const }, english });
+    expect([goldStars(save(false, true)), goldStars(save(false, false)), goldStars(save(true, false)), goldStars(save(true, true))]).toEqual([false, false, false, true]);
+    expect(goldStars(defaultSave())).toBe(false);
+  });
+
+  it('a day with golden stars: 3 blue, 2 red, 2 green and 3 golden, each a step of its kind; the golden play both of theirs', () => {
+    expect(MYSTERY_GOLD_SET).toHaveLength(MYSTERY_COUNT);
+    const golden = new Set<string>(), orders = new Set<string>();
+    for (const world of ['fairy', 'forest', 'sky']) for (const d of days(20)) {
+      const stars = dailyStars(world, d, 24, true);
+      const count = (k: string) => stars.filter((s) => s.kind === k).length;
+      expect([count('blue'), count('red'), count('green'), count('gold')], `${world} ${d}`).toEqual([3, 2, 2, 3]);
+      for (const s of stars) expect(MYSTERY_STEPS[s.kind], `${world} ${d}`).toContain(s.step);
+      for (const s of stars.filter((x) => x.kind === 'gold')) golden.add(s.step);
+      orders.add(stars.map((s) => s.kind[0]).join(''));
+      expect(dailyStars(world, d, 24, true)).toEqual(stars);          // the same all day
+    }
+    expect([...golden].sort()).toEqual(['en_count', 'en_tap']);
+    expect(orders.size).toBeGreaterThan(40);                           // an order of the day, not one order for all
+  });
+
+  it('the golden day stands its stars at the very places of the day without: the day she meets Pip no star moves', () => {
+    for (const [key] of Object.entries(BEFORE)) {
+      const [world, day, spots] = key.split(' ');
+      const plain = dailyStars(world, day, +spots), gold = dailyStars(world, day, +spots, true);
+      expect(gold.map((s) => [s.id, s.spot]), key).toEqual(plain.map((s) => [s.id, s.spot]));
+      expect(gold.some((s) => s.kind === 'gold'), key).toBe(true);
+    }
+  });
+
+  it('a world of fewer places than ten: as many stars as places, their kinds the first of the day\'s set', () => {
+    const stars = dailyStars('fairy', '2026-12-01', 7, true);
+    expect(stars).toHaveLength(7);
+    const whole = dailyStars('fairy', '2026-12-01', 24, true);
+    expect(whole.filter((s) => s.kind === 'gold')).toHaveLength(3);
+    for (const k of ['blue', 'red', 'green', 'gold'] as const) expect(stars.filter((s) => s.kind === k).length).toBeLessThanOrEqual(MYSTERY_GOLD_SET.filter((x) => x === k).length);
+  });
+
+  it('gold is a colour of its own, the gold of English', () => {
+    expect(MYSTERY_COLOR.gold).toBe('#ffd54a');
+    expect(new Set(Object.values(MYSTERY_COLOR)).size).toBe(4);
+    expect(Object.keys(MYSTERY_STEPS).sort()).toEqual(['blue', 'gold', 'green', 'red']);
+  });
+
   it('the save: the state of the day kept while it lasts, a new day starts it anew; a damaged state too', () => {
     const ws = worldState(defaultSave(), 'fairy');
     const m = mysteryOf(ws, '2026-11-20');
@@ -75,19 +148,19 @@ function host(save: Save = defaultSave()) {
   const ws = worldState(save, 'fairy');
   const lines: string[] = [];
   let answer: TaskResult = { solved: true, wrong: 1 };
-  const asked: string[] = [];
+  const asked: string[] = [], levels: number[] = [];
   const g = {
     scene: new THREE.Scene(), save, ws, world: { id: 'fairy', mystery: { spots: SPOTS } },
     ground: { resolve: () => {} }, groundY: () => 0,
     hero: { root: new THREE.Object3D() }, cam: { focus: null }, sparks: { burst: vi.fn() },
     speech: { line: async (k: string) => { lines.push(k); } },
     task: (open: () => Promise<TaskResult>) => open(), hooksFor: () => ({}),
-    plan: { runTask: async (type: string) => { asked.push(type); return answer; } }, rng: Math.random,
+    plan: { runTask: async (type: string, level: number) => { asked.push(type); levels.push(level); return answer; } }, rng: Math.random,
     addStars: vi.fn(), above: (p: THREE.Vector3, dy: number) => p.clone().setY(p.y + dy), praise: async () => {}, persist: vi.fn(),
   };
   let busy = false;
   const stage = (): Stage => ({ busy: () => busy, take: () => { busy = true; }, release: () => { busy = false; } });
-  return { g: g as unknown as MysteryHost & typeof g, stage, lines, asked, setAnswer: (r: TaskResult) => { answer = r; } };
+  return { g: g as unknown as MysteryHost & typeof g, stage, lines, asked, levels, setAnswer: (r: TaskResult) => { answer = r; } };
 }
 
 describe('the stars in the world (src/game/mystery-stars.ts)', () => {
@@ -131,6 +204,97 @@ describe('the stars in the world (src/game/mystery-stars.ts)', () => {
     mysteryHold.day = '2026-11-20';
     const h = host(), m = createMystery(h.g, geo, h.stage);
     for (const [i, s] of m.today.entries()) { m.spots[i].run(); await vi.waitFor(() => expect(h.asked).toHaveLength(i + 1)); expect(h.asked[i]).toBe(s.step); }
+  });
+
+  describe('golden stars (Season 2, part I): once Pip is met, while English is on', () => {
+    const DAY = '2026-11-20';
+    const met = (english = true) => { const s = defaultSave(); s.pip.met = true; s.english = english; return s; };
+    const kinds = (m: { today: readonly { kind: string }[] }) => m.today.map((s) => s.kind);
+    const golden = (m: { today: readonly { kind: string }[] }) => kinds(m).filter((k) => k === 'gold').length;
+
+    it('before the meeting and with English off: the ten of a plain day, none golden', () => {
+      mysteryHold.day = DAY;
+      const plain = dailyStars('fairy', DAY, SPOTS.length).map((s) => s.kind);
+      for (const save of [defaultSave(), met(false)]) {
+        const h = host(save), m = createMystery(h.g, geo, h.stage);
+        expect(kinds(m)).toEqual(plain);
+        expect(golden(m)).toBe(0);
+      }
+    });
+
+    it('Pip met, English on: three of the ten are golden, each star at its place of the plain day, the golden glow gold', () => {
+      mysteryHold.day = DAY;
+      const h = host(met()), m = createMystery(h.g, geo, h.stage);
+      expect(kinds(m)).toEqual(dailyStars('fairy', DAY, SPOTS.length, true).map((s) => s.kind));
+      expect([golden(m), m.today.length, m.spots.length]).toEqual([3, MYSTERY_COUNT, MYSTERY_COUNT]);
+      const plain = dailyStars('fairy', DAY, SPOTS.length);
+      m.today.forEach((s, i) => { expect([s.pos.x, s.pos.z]).toEqual([SPOTS[plain[i].spot].x, SPOTS[plain[i].spot].z]); });
+      const mesh = h.g.scene.children[0] as THREE.InstancedMesh, c = new THREE.Color();
+      m.today.forEach((s, i) => { mesh.getColorAt(i, c); expect('#' + c.getHexString()).toBe(MYSTERY_COLOR[s.kind]); });
+      expect(MYSTERY_COLOR.gold).toBe('#ffd54a');
+    });
+
+    it('a golden star: a task of English on the level of the English words, recorded to them and to nothing else', async () => {
+      mysteryHold.day = DAY;
+      const save = met();
+      // the English words on level 3, their fast climb over: two clean solves in a row are a step up
+      Object.assign((save.skills.en_words ??= statOf(save, 'en_words')), { level: 3, streak: 0, settled: true });
+      const before = JSON.stringify([save.skills.add, save.skills.sub, save.skills.pattern, save.skills.compare]);
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      h.setAnswer({ solved: true, wrong: 0 });
+      const gold = m.today.map((s, i) => ({ s, i })).filter(({ s }) => s.kind === 'gold');
+      expect(gold).toHaveLength(3);
+      for (const [n, { s, i }] of gold.entries()) {
+        m.spots[i].run();
+        await vi.waitFor(() => expect(h.lines.filter((k) => k === 'mystery_won')).toHaveLength(n + 1));
+        expect(['en_tap', 'en_count']).toContain(h.asked[n]);
+        expect(h.asked[n]).toBe(s.step);
+      }
+      expect(h.levels).toEqual([3, 3, 4]);                    // each on the level of the moment
+      expect(save.skills.en_words.tasks).toBe(3);
+      expect(JSON.stringify([save.skills.add, save.skills.sub, save.skills.pattern, save.skills.compare])).toBe(before);
+      expect(h.g.addStars).toHaveBeenCalledTimes(3);
+      expect(h.g.addStars).toHaveBeenCalledWith(MYSTERY_REWARD, expect.any(THREE.Vector3));
+    });
+
+    it('the parent turns English off in the middle of the day: at the next frame no star is golden, none has moved, a solved one stays solved; on again - golden again', async () => {
+      mysteryHold.day = DAY;
+      const save = met();
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      m.update(0, true);
+      const places = m.today.map((s) => [s.pos.x, s.pos.z]), withGold = kinds(m);
+      m.spots[0].run(); await vi.waitFor(() => expect(h.lines).toContain('mystery_won'));
+      save.english = false;
+      m.update(1, true);
+      expect(golden(m)).toBe(0);
+      expect(kinds(m)).toEqual(dailyStars('fairy', DAY, SPOTS.length).map((s) => s.kind));
+      expect(m.today.map((s) => [s.pos.x, s.pos.z])).toEqual(places);
+      expect(m.today.map((s) => s.solved)).toEqual([true, ...Array(MYSTERY_COUNT - 1).fill(false)]);
+      expect(m.unsolved()).toHaveLength(MYSTERY_COUNT - 1);
+      expect(h.lines.filter((k) => k === 'mystery_day')).toHaveLength(1);       // the line of the day is not said again
+      save.english = true;
+      m.update(2, true);
+      expect(kinds(m)).toEqual(withGold);
+      expect(m.today[0].solved).toBe(true);
+    });
+
+    it('she meets Pip in the middle of the day: the stars of the world she is in turn golden at the next frame', () => {
+      mysteryHold.day = DAY;
+      const save = defaultSave();
+      const h = host(save), m = createMystery(h.g, geo, h.stage);
+      m.update(0, true);
+      expect(golden(m)).toBe(0);
+      save.pip.met = true;
+      m.update(1, true);
+      expect(golden(m)).toBe(3);
+    });
+
+    it('the lever of every place is as it was: the kinds in turn, none golden', () => {
+      mysteryHold.day = DAY; mysteryHold.all = true;
+      const h = host(met()), m = createMystery(h.g, geo, h.stage);
+      expect(m.today).toHaveLength(SPOTS.length);
+      expect(golden(m)).toBe(0);
+    });
   });
 
   it('a new day: other places, nothing solved; the line of the day once a day, when she is free to move', async () => {

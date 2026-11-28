@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../core/util';
-import { BRIDGE, CAKE, CAROUSEL, HALF, HOUSE, LANDMARKS, MILL, ROUTE, SCALE, TREE_ARCH, ZONES, type Place } from './layout';
+import { BRIDGE, CAKE, CAROUSEL, HALF, HOUSE, LANDMARKS, MILL, MYSTERY_ROCK, MYSTERY_ROCKS, ROUTE, SCALE, TREE_ARCH, ZONES, type Place } from './layout';
+import { MOUND_WALL } from './hiding';
 import { buildLandmarks, paint, paintMaterial, paintedAt, type Landmarks, type Part } from './landmarks';
 import { colliders, height, lineDist, pathDist, riverColliders, riverDist } from './terrain';
 
@@ -132,7 +133,12 @@ export function buildScenery(scene: THREE.Scene): Scenery {
   const pop = paint(lollipop(LOLLY.h, LOLLY.r));
   instances(scene, 'lollipops', pop, paintMaterial(), lollipops);
   instances(scene, 'candies', new THREE.DodecahedronGeometry(0.7, 0).scale(1.4, 0.7, 1).translate(0, 0.5, 0), mat('#ffd166'), candies);
-  instances(scene, 'cream-hills', new THREE.SphereGeometry(5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1), mat('#fff4ea', { roughness: 0.95 }), hills, 0, false);
+  // the hills past the edge, and with them the mounds the mysterious stars hide behind (./hiding.ts): no draw of their own
+  const mounds = MYSTERY_ROCKS.map((p, i) => ({ x: p.x, z: p.z, s: 1, rot: i * 1.7 }));
+  const hillMesh = instances(scene, 'cream-hills', new THREE.SphereGeometry(5, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1), mat('#fff4ea', { roughness: 0.95 }), [...hills, ...mounds], 0, false);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), at = new THREE.Vector3(), size = new THREE.Vector3(MYSTERY_ROCK.w, MYSTERY_ROCK.h, MYSTERY_ROCK.w);
+  mounds.forEach((t, i) => hillMesh.setMatrixAt(hills.length + i, m4.compose(at.set(t.x, height(t.x, t.z) - 0.05, t.z), q.setFromAxisAngle(up, t.rot), size)));
+  for (const t of mounds) colliders.push({ x: t.x, z: t.z, r: MOUND_WALL });
   // the close row: a little taller than round - it closes the land the way the lollipops did, a soft white wall of cream
   instances(scene, 'cream-rim', new THREE.SphereGeometry(RIM_R, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.3, 1), mat('#fff8f0', { roughness: 0.95 }), rim, 0, false);
 

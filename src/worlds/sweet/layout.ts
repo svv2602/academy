@@ -106,6 +106,32 @@ export const HOUSE_DOOR = { x: HOUSE.x + HOUSE.w / 2 + 0.9, z: HOUSE.z };
  */
 export const ROOM = { x: 0, z: -(HALF + 150), half: 3.8, y: 0 };
 /**
+ * The places of the mysterious stars (PLAY-24, src/game/mystery.ts, ten of them a day), in metres of the chosen stretch
+ * (moved with the map by another). Half of them hidden: from the nearest point of a way the star is behind a mound of
+ * whipped cream (MYSTERY_ROCKS, one each, ./hiding.ts; the hills of the rim, drawn with them) - seen only on coming
+ * near; the other half in sight, aside of the way, where she has to walk (./mystery.test.ts).
+ */
+const m = (x: number, z: number): Place => at(x / DEFAULT_SCALE, z / DEFAULT_SCALE);
+export const MYSTERY_HIDDEN: readonly Place[] = [
+  m(-51.3, -36.2), m(44.1, 46.1), m(49.8, -39.2), m(-42.1, 47.9),
+  m(1.2, 6.3), m(6, 58.8), m(-21.3, -19.8), m(-51.3, 15.3),
+  m(21.3, -19.8), m(20.8, -51.9), m(-18.2, 30), m(51.3, 19.8),
+];
+/** The mound each hidden place stands behind, in the order of MYSTERY_HIDDEN. */
+export const MYSTERY_ROCKS: readonly Place[] = [
+  m(-48, -36), m(42, 43.5), m(46.5, -39), m(-40.5, 45),
+  m(1.5, 3), m(6, 55.5), m(-21, -16.5), m(-48, 15),
+  m(21, -16.5), m(24, -51), m(-19.5, 33), m(48, 19.5),
+];
+/** A mound: the cream hill of the rim (./scenery.ts, a half sphere 5 m round, 4 m high) scaled `w` across and `h` up. */
+export const MYSTERY_ROCK = { w: 0.52, h: 0.85 } as const;
+export const MYSTERY_OPEN: readonly Place[] = [
+  m(18, 33), m(27, 7.5), m(-25.5, 6), m(-18, 55.5),
+  m(0, -16.5), m(43.5, -21), m(25.5, 51), m(-28.5, -37.5),
+  m(28.5, -36), m(-46.5, 31.5), m(-30, 21), m(-12, 0),
+];
+export const MYSTERY_SPOTS: readonly Place[] = [...MYSTERY_HIDDEN, ...MYSTERY_OPEN];
+/**
  * The cave behind the chocolate waterfall (./cave.ts): a horseshoe of wafer rock just past the end of the chocolate
  * river by the mill, its mouth toward the river - the chocolate pours from its brow over the mouth into the river's end.
  * `yaw`: the way its mouth looks (back along the river).

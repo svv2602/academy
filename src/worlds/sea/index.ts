@@ -22,7 +22,7 @@ import { worldTaskDoor } from '../../game/worldtasks/core';
 import { worldTaskPlayer, worldTaskProblems } from '../../game/worldtasks/play';
 import { SEA_FLYOVER } from './flyover-path';
 import { HOLD_TOLD, createSeaHold, holdOf } from './hold';
-import { CABIN, CORAL_NEST, EASEL, HALF, LANDMARKS, PATHS, ROUTE, SCALE, SHIP, SPAWN, THRONE, ZONES } from './layout';
+import { CABIN, CORAL_NEST, EASEL, HALF, LANDMARKS, MYSTERY_SPOTS, PATHS, ROUTE, SCALE, SHIP, SPAWN, THRONE, ZONES } from './layout';
 import { buildScenery, buildShafts } from './scenery';
 import { LOCK, createLock } from './lock';
 import { CORALS, createCoralsSearch } from './corals';
@@ -513,6 +513,7 @@ export const sea: WorldDef<SeaLoads, WorldSky> = {
   worldTasks: [LOCK, HALF_STEP],
   collect: COLLECT,                  // shells and coral twigs (PLAY-25, ./collect.ts), the pieces of its picture (PLAY-29)
   easel: EASEL,                      // where she sets those pieces (./layout.ts)
+  mystery: { spots: MYSTERY_SPOTS },   // the mysterious stars (PLAY-24, ./layout.ts, ./hiding.ts)
   daily: { places: DAILY_PLACES },   // the find of the day (PLAY-26)
   // PLAY-07: the four secrets (./secrets.ts); the hold's chest is the world's chest (PLAY-08)
   secrets: SEA_SECRETS,
