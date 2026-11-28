@@ -14,7 +14,9 @@ import { levelFor, recordDare, recordTask, type SkillId } from './skills';
 import { dareLevel, mayDare } from './dare';
 import { askHarder } from '../ui/dare';
 import { playScene, type Stage } from './stage';
-import { weakest } from './planner';
+import { replayStep } from './planner';
+import { SUBJECT_OF, newSubjectKinds } from '../s2/subjects';
+import type { Subject } from '../s2/types';
 import { mixWide } from './wide';
 import { SKILL, answerOf } from './taskviews/panel';
 import type { TaskType } from './tasks/types';
@@ -101,6 +103,8 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
   type PanelStep = TaskType | SkillStep;
   const isPanel = (s: string): s is PanelStep => s in SKILL || isSkillStep(s);
   const skillOf = (s: PanelStep): SkillId => (isSkillStep(s) ? s : SKILL[s]);
+  /** The subject of a panel step (Season 2, part I): that of the type it plays - one subject on every level. */
+  const subjectOf = (s: PanelStep): Subject => SUBJECT_OF[typeOf(s, 1)];
   /**
    * The panel task of a step: of the type the step plays on `level`, or - on the top level of addition and take away,
    * every other time - an example in breadth in its place (LEARN-27, src/game/wide.ts). The type is chosen as the task
@@ -161,12 +165,16 @@ export function createDialogue(g: Game, stage: Stage, world: DialogueWorld): Dia
         const again = q.again?.length ? q.again[(metAgain.get(q.id) ?? 0) % q.again.length] : 'npc_again';
         metAgain.set(q.id, (metAgain.get(q.id) ?? 0) + 1);
         await line(again, 'story', 0, q.emoji);
-        const step = weakest(q.steps.filter(isPanel), skillOf, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
+        // Which game: the subject first, then the weakest skill within it (Season 2, part I; layout §4) - of its own
+        // games and, once Pip is met, of the new subjects as well: a replay may be English or reading (R33).
+        const own: PanelStep[] = q.steps.filter(isPanel);
+        const step = replayStep([...own, ...newSubjectKinds(save)], { skill: skillOf, subject: subjectOf }, save, g.rng), skill = skillOf(step), level = levelFor(save, skill);
         const res = await task(() => panelTask(step, skill, level, q.emoji));
         if (res.solved) {
           recordTask(save, skill, res.wrong, res.helped === true, answerOf(res)); addStars(1, above(hero.root.position, 1.4)); await praise();
-          // a harder example, if she wishes (LEARN-28): a star and the praise for it as for the game itself
-          if (mayDare(save, skill, level, res) && await dare(n, step, skill, level)) { addStars(1, above(hero.root.position, 1.4)); await praise(); }
+          // a harder example, if she wishes (LEARN-28): a star and the praise for it as for the game itself. Only after
+          // a game of the character's own: a level up of English words or of reading is not a harder example of the same
+          if (own.includes(step) && mayDare(save, skill, level, res) && await dare(n, step, skill, level)) { addStars(1, above(hero.root.position, 1.4)); await praise(); }
           await stopPoint('task');
         }
         return;
