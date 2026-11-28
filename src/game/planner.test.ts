@@ -545,6 +545,18 @@ describe('the subjects alternate (Season 2, step 2, part I; layout §4)', () => 
       expect(count({ math: 0.5, logic: 1, en: 1.5, read: 1 })).toBeGreaterThan(count({ math: 1, logic: 1, en: 1, read: 1 }) + 10);
     });
 
+    it('English turned off: a place that still names an English step never gets it while it has another', () => {
+      const save = met(defaultSave(), false);
+      const p = createPlanner(save), rng = mulberry32(6);
+      for (let i = 0; i < 200; i++) {
+        const step = replayStep(['add', 'en_tap', 'en_count', 'note'], of, save, rng);
+        expect(subjectOf(step), `replay ${i}`).not.toBe('en');
+        p.done(p.next(typeOf(step, 2), 2, rng), clean);
+      }
+      // ... and a place of English alone still gives its step: something must be played
+      expect(replayStep(['en_tap'], of, save, rng)).toBe('en_tap');
+    });
+
     it('draws the rng once, as the replay before it', () => {
       let draws = 0;
       const rng = () => { draws++; return 0.5; };
